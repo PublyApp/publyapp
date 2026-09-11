@@ -38,7 +38,7 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		result.Should().BeOfType<VerifyEmailRequestServiceResult.Success>();
 		enqueuer.Calls.Should().Be(1);
 		enqueuer.Payload.Should().BeOfType<VerifyEmailPayload>();
-		enqueuer.Payload!.IsWelcomeEmail.Should().BeFalse();
+		enqueuer.Payload.Required().IsWelcomeEmail.Should().BeFalse();
 
 		await using var verify = _CreateDbContext();
 		var user = await verify.User.FirstAsync(u => u.Id == token);

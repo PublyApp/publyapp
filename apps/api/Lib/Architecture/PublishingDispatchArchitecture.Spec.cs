@@ -145,16 +145,17 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				"publishing tenant route '{0}' must exist on the live route map; "
 					+ "if it was renamed, reconcile this closed-set guard",
 				name
-			);
+				);
 
-			_ = endpoint!.Metadata.OfType<HasPermissionMetadata>()
+			var endpointValue = endpoint.Required();
+			_ = endpointValue.Metadata.OfType<HasPermissionMetadata>()
 				.Should().NotBeEmpty(
 					"'{0}' must declare .WithTenantPermission(...) so the scheduling "
 						+ "surface can never ship without explicit permission metadata",
 					name
 				);
 
-			var ratePolicy = endpoint.Metadata
+			var ratePolicy = endpointValue.Metadata
 				.GetMetadata<EnableRateLimitingAttribute>();
 			_ = ratePolicy.Should().NotBeNull(
 				"'{0}' must opt into an explicit rate-limit bucket "

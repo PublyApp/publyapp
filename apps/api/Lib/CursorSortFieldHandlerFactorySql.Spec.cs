@@ -46,7 +46,7 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 		var raw = await handler.GetCursorValue(tenant.GetRequiredId());
 		raw.Should().NotBeNull();
-		var (key, id) = ((string, Guid?))raw!;
+		var (key, id) = ((string, Guid?))raw.Required();
 
 		key.Should().Be("alpha");
 		id.Should().Be(tenant.GetRequiredId());
@@ -66,7 +66,7 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 		var raw = await handler.GetCursorValue(tenant.GetRequiredId());
 		raw.Should().NotBeNull();
-		var (key, id) = ((TenantStatus, Guid?))raw!;
+		var (key, id) = ((TenantStatus, Guid?))raw.Required();
 
 		key.Should().Be(TenantStatus.Suspended);
 		id.Should().Be(tenant.GetRequiredId());
@@ -94,7 +94,7 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 
 		var raw = await handler.GetCursorValue(tenant.GetRequiredId());
 		raw.Should().NotBeNull();
-		var (key, id) = ((DateTime, Guid?))raw!;
+		var (key, id) = ((DateTime, Guid?))raw.Required();
 
 		key.Should().Be(storedAt);
 		id.Should().Be(tenant.GetRequiredId());

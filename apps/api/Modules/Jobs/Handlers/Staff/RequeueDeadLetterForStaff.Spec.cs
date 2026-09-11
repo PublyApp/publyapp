@@ -67,7 +67,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			document.RootElement.GetProperty("deadLetterId").GetString()
 				.Should().Be(deadLetterId);
 			var newJobId = Guid.Parse(
-				document.RootElement.GetProperty("jobId").GetString()!
+				document.RootElement.GetProperty("jobId").GetString().Required()
 			);
 			document.RootElement.GetProperty("key").GetString()
 				.Should().Be(ResponseKeys.DeadLetterRequeueSuccess.Value);
@@ -232,9 +232,14 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 		await using var verify = await _CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
-		return (row.Id ?? throw new InvalidOperationException(
-			"Inserted job_dead_letter row came back with a NULL id."
-		)).ToString();
+		var id = row.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted job_dead_letter row came back with a NULL id."
+			);
+		}
+
+		return id.Value.ToString();
 	}
 
 	private async Task _CleanupAsync(string deadLetterId) {

@@ -609,8 +609,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.User
-				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
-				.OrderBy(u => visitedSeededUserIds.IndexOf(u.Id!.Value))
+				.Where(u => u.Id.HasValue && visitedSeededUserIds.Contains(u.Id.Value))
+				.OrderBy(u =>
+					u.Id.HasValue ? visitedSeededUserIds.IndexOf(u.Id.Value) : -1
+				)
 				.Select(u => u.CreatedAt)
 				.ToListAsync();
 		}
@@ -695,8 +697,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.User
-				.Where(u => visitedSeededUserIds.Contains(u.Id!.Value))
-				.OrderBy(u => visitedSeededUserIds.IndexOf(u.Id!.Value))
+				.Where(u => u.Id.HasValue && visitedSeededUserIds.Contains(u.Id.Value))
+				.OrderBy(u =>
+					u.Id.HasValue ? visitedSeededUserIds.IndexOf(u.Id.Value) : -1
+				)
 				.Select(u => u.UpdatedAt)
 				.ToListAsync();
 		}

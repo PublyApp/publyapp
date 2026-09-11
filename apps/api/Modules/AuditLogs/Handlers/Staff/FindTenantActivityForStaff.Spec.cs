@@ -131,9 +131,9 @@ public sealed class FindTenantActivityForStaffSpec
 		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
-		var result = await response.Content!
+		var result = await response.Content.Required()
 			.ReadFromSystemTextJsonAsync<FindTenantActivityResponseShape>();
-		return result!;
+		return result.Required();
 	}
 
 	[Fact]
@@ -257,8 +257,9 @@ public sealed class FindTenantActivityForStaffSpec
 		var entry = result.Data
 			.SingleOrDefault(e => e.Id == entryId);
 		entry.Should().NotBeNull();
-		entry!.UserName.Should().Be("Ghost Member");
-		entry.UserEmail.Should().NotBeNullOrWhiteSpace();
+		var entryValue = entry.Required();
+		entryValue.UserName.Should().Be("Ghost Member");
+		entryValue.UserEmail.Should().NotBeNullOrWhiteSpace();
 	}
 
 	[Fact]
@@ -502,9 +503,14 @@ internal static class FindTenantActivityHttpResponseExtensions {
 		this HttpContent content,
 		System.Threading.CancellationToken cancellationToken = default
 	) where T : class {
-		return await content
-			.ReadFromJsonAsync<T>(cancellationToken: cancellationToken)
-			?? throw new InvalidOperationException(
-				"Response body deserialized to null");
+		var result = await content
+			.ReadFromJsonAsync<T>(cancellationToken: cancellationToken);
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Response body deserialized to null"
+			);
+		}
+
+		return result;
 	}
 }

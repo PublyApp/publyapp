@@ -256,11 +256,15 @@ public sealed class RequestPasswordResetSpec
 			.ToListAsync();
 
 		var unverifiedJobs = passwordResetQueueItems
-			.Where(j => _JobPayloadContainsId(j.Payload, "userId", unverifiedUser!.GetRequiredId()))
+				.Where(j =>
+					_JobPayloadContainsId(j.Payload, "userId", unverifiedUser.Required().GetRequiredId())
+				)
 			.ToList();
 		unverifiedJobs.Should().BeEmpty();
 		passwordResetQueueItems
-			.Count(j => _JobPayloadContainsId(j.Payload, "userId", unverifiedUser!.GetRequiredId()))
+				.Count(j =>
+					_JobPayloadContainsId(j.Payload, "userId", unverifiedUser.Required().GetRequiredId())
+				)
 			.Should().Be(baselineUnverifiedJobs);
 
 		var pendingResetJobs = passwordResetQueueItems.Count(
@@ -383,7 +387,7 @@ public sealed class RequestPasswordResetSpec
 			user.PasswordResetToken.Should().NotBeNullOrEmpty();
 			user.PasswordResetToken.Should().NotBe(expiredToken);
 			user.PasswordResetTokenExpiresAt.Should().NotBeNull();
-			user.PasswordResetTokenExpiresAt!.Value.Should().BeAfter(DateTime.UtcNow);
+			user.PasswordResetTokenExpiresAt.Required().Should().BeAfter(DateTime.UtcNow);
 		}
 	}
 

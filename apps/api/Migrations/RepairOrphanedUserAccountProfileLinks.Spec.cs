@@ -26,16 +26,16 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 	private const string _RepairMigrationId =
 		"20260723175718_RepairOrphanedUserAccountProfileLinks";
 
-	private PostgresContainerFixture _ContainerFixture = null!;
-	private string _DbName = null!;
-	private string _ConnectionString = null!;
+	private PostgresContainerFixture? _ContainerFixture;
+	private string? _DbName;
+	private string? _ConnectionString;
 
 	public async Task InitializeAsync() {
 		_ContainerFixture = await PostgresContainerFixture.GetSharedAsync();
 		_DbName = $"migtest_{Guid.NewGuid():N}";
 
 		await using var adminConn = new NpgsqlConnection(
-			_ContainerFixture.AdminConnectionString
+			_ContainerFixture.Required().AdminConnectionString
 		);
 		await adminConn.OpenAsync();
 		await using (var createCmd = new NpgsqlCommand(
@@ -46,9 +46,9 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		}
 
 		var builder = new NpgsqlConnectionStringBuilder(
-			_ContainerFixture.AdminConnectionString
+			_ContainerFixture.Required().AdminConnectionString
 		) {
-			Database = _DbName,
+			Database = _DbName.Required(),
 			Pooling = false
 		};
 		_ConnectionString = builder.ConnectionString;
@@ -57,7 +57,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 	public async Task DisposeAsync() {
 		NpgsqlConnection.ClearAllPools();
 		await using var adminConn = new NpgsqlConnection(
-			_ContainerFixture.AdminConnectionString
+			_ContainerFixture.Required().AdminConnectionString
 		);
 		await adminConn.OpenAsync();
 		await using var dropCmd = new NpgsqlCommand(
@@ -92,7 +92,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			)
 		};
 
-		await using (var connection = new NpgsqlConnection(_ConnectionString)) {
+		await using (var connection = new NpgsqlConnection(_ConnectionString.Required())) {
 			await connection.OpenAsync();
 			await _SeedTenantAndProjectAsync(
 				connection,
@@ -108,7 +108,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 
 		await migrator.MigrateAsync(_RepairMigrationId);
 
-		await using var verifyConnection = new NpgsqlConnection(_ConnectionString);
+		await using var verifyConnection = new NpgsqlConnection(_ConnectionString.Required());
 		await verifyConnection.OpenAsync();
 
 		foreach (var partition in partitions) {
@@ -166,14 +166,14 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		var accountId = Guid.NewGuid();
 		var profileId = Guid.NewGuid();
 
-		await using (var connection = new NpgsqlConnection(_ConnectionString)) {
+		await using (var connection = new NpgsqlConnection(_ConnectionString.Required())) {
 			await connection.OpenAsync();
 			await _SeedLegitimateStaffMembershipAsync(connection, accountId, profileId);
 		}
 
 		await migrator.MigrateAsync(_RepairMigrationId);
 
-		await using var verifyConnection = new NpgsqlConnection(_ConnectionString);
+		await using var verifyConnection = new NpgsqlConnection(_ConnectionString.Required());
 		await verifyConnection.OpenAsync();
 
 		var accountIsDeleted = await _IsAccountDeletedAsync(
@@ -203,7 +203,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 	private AppDbContext _CreateDbContext() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(_ConnectionString)
+				.UseNpgsql(_ConnectionString.Required())
 				.Options
 		);
 	}

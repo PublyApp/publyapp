@@ -51,8 +51,8 @@ public sealed class AppEnvironmentMasterKeySpec {
 			"_ParseMasterKey",
 			System.Reflection.BindingFlags.NonPublic
 				| System.Reflection.BindingFlags.Static
-		)!;
-		return (byte[])method.Invoke(null, [name, value])!;
+		).Required();
+		return (byte[])method.Invoke(null, [name, value]).Required();
 	}
 
 	/// <summary>

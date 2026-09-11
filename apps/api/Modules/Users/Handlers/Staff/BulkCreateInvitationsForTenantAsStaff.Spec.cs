@@ -114,7 +114,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			.ReadFromJsonAsync<BulkCreateTenantInvitationsResponse>();
 		payload.Should().NotBeNull();
 		Assert.NotNull(payload);
-		payload!.SucceededCount.Should().Be(1);
+		payload.Required().SucceededCount.Should().Be(1);
 		payload.FailedCount.Should().Be(2);
 		payload.FailedItems.Should().HaveCount(2);
 		payload.FailedItems.Should().ContainSingle(item =>

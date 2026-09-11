@@ -99,22 +99,23 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		var result = await response.Content
 			.ReadFromJsonAsync<StaffUploadCreated>();
 		result.Should().NotBeNull();
-		result!.ContentType.Should().Be(expectedContentType);
-		result.SizeBytes.Should().Be(bytes.Length);
-		result.Url.Should().Be($"/files/{result.Path}");
+		var resultValue = result.Required();
+		resultValue.ContentType.Should().Be(expectedContentType);
+		resultValue.SizeBytes.Should().Be(bytes.Length);
+		resultValue.Url.Should().Be($"/files/{resultValue.Path}");
 
 		// The generated path must never carry the client-supplied file name —
 		// it must be a server-generated UUID under uploads/yyyy/MM/.
-		_GeneratedPathPattern().IsMatch(result.Path).Should().BeTrue(
-			$"'{result.Path}' must match the server-generated path shape"
+		_GeneratedPathPattern().IsMatch(resultValue.Path).Should().BeTrue(
+			$"'{resultValue.Path}' must match the server-generated path shape"
 		);
-		result.Path.Should().NotContain("logo");
+		resultValue.Path.Should().NotContain("logo");
 
 		// The returned URL must be anonymously retrievable with the sniffed content type.
-		using var fileResponse = await _Http.GetAsync(result.Url);
+		using var fileResponse = await _Http.GetAsync(resultValue.Url);
 		fileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		fileResponse.Content.Headers.ContentType.Should().NotBeNull();
-		fileResponse.Content.Headers.ContentType!.MediaType
+		fileResponse.Content.Headers.ContentType.Required().MediaType
 			.Should().Be(expectedContentType);
 		var retrievedBytes = await fileResponse.Content.ReadAsByteArrayAsync();
 		retrievedBytes.Should().Equal(bytes);
@@ -127,8 +128,8 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		var auditLogExists = await dbContext.AuditLog.AnyAsync(a =>
 			a.Action == AuditActions.UploadCreated
 			&& a.UserId == uploaderUserId
-			&& a.Details != null
-			&& a.Details.Contains(result.Path)
+				&& a.Details != null
+				&& a.Details.Contains(resultValue.Path)
 		);
 		auditLogExists.Should().BeTrue("a successful upload must write an audit log entry");
 
@@ -164,7 +165,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		using var fileResponse = await _Http.GetAsync(result.Url);
 		fileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		fileResponse.Content.Headers.ContentType.Should().NotBeNull();
-		fileResponse.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+		fileResponse.Content.Headers.ContentType.Required().MediaType.Should().Be("image/png");
 	}
 
 	// r4-tests-F2: the prior version only asserted 404 for `../appsettings.json`
@@ -310,7 +311,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 			+ "caller cannot force a full oversized multipart body to be "
 			+ "spooled to disk before being rejected"
 		);
-		sizeLimit!.MaxRequestBodySize.Should().Be(
+		sizeLimit.Required().MaxRequestBodySize.Should().Be(
 			AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.MultipartHeaderHeadroomBytes
 		);
 
@@ -318,7 +319,8 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		// endpoint-level transport limit (this attribute) must trip before the
 		// shared FormOptions.MultipartBodyLengthLimit, or an oversize upload on
 		// this endpoint would 400 instead of 413.
-		sizeLimit.MaxRequestBodySize.Should().BeLessThan(
+		var sizeLimitValue = sizeLimit.Required();
+		sizeLimitValue.MaxRequestBodySize.Should().BeLessThan(
 			AppEnvironment.Instance.UPLOAD_MAX_BYTES + UploadLimits.FormOptionsHeadroomBytes
 		);
 	}

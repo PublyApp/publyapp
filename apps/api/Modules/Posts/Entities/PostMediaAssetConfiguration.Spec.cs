@@ -28,13 +28,13 @@ public sealed class PostMediaAssetConfigurationSpec {
 			"PostMediaAsset must carry an IEntityTypeConfiguration<PostMediaAsset>"
 		);
 		Assert.NotNull(entity);
-		entity!.GetTableName().Should().Be("post_media_assets");
+		entity.Required().GetTableName().Should().Be("post_media_assets");
 
 		var fk = entity.GetForeignKeys().SingleOrDefault(fk =>
 			fk.PrincipalEntityType.ClrType == typeof(Post)
 		);
 		fk.Should().NotBeNull("the asset row hangs off exactly one post");
-		fk!.DeleteBehavior.Should().Be(
+		fk.Required().DeleteBehavior.Should().Be(
 			DeleteBehavior.Cascade,
 			"a deleted post must take its media asset row with it"
 		);
@@ -47,7 +47,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull();
 
-		var uniqueIndex = entity!.GetIndexes().SingleOrDefault(index =>
+		var uniqueIndex = entity.Required().GetIndexes().SingleOrDefault(index =>
 			index.IsUnique
 			&& index.GetDatabaseName() == "ux_post_media_assets_live_post_id"
 		);
@@ -55,9 +55,10 @@ public sealed class PostMediaAssetConfigurationSpec {
 			"one live image per post is enforced by a database constraint, "
 			+ "not by application code"
 		);
-		uniqueIndex!.Properties.Select(property => property.Name).Should()
+		var uniqueIndexValue = uniqueIndex.Required();
+		uniqueIndexValue.Properties.Select(property => property.Name).Should()
 			.Equal("PostId");
-		uniqueIndex.GetFilter().Should().Be(
+		uniqueIndexValue.GetFilter().Should().Be(
 			"is_deleted = false",
 			"soft-deleted rows must not block attaching a fresh image"
 		);
@@ -70,13 +71,13 @@ public sealed class PostMediaAssetConfigurationSpec {
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull();
 
-		var lookupIndex = entity!.GetIndexes().SingleOrDefault(index =>
+		var lookupIndex = entity.Required().GetIndexes().SingleOrDefault(index =>
 			index.GetDatabaseName() == "ix_post_media_assets_tenant_post"
 		);
 		lookupIndex.Should().NotBeNull(
 			"attach/remove/read paths resolve assets by (tenant, post)"
 		);
-		lookupIndex!.Properties.Select(property => property.Name).Should()
+		lookupIndex.Required().Properties.Select(property => property.Name).Should()
 			.Equal("TenantId", "PostId");
 	}
 

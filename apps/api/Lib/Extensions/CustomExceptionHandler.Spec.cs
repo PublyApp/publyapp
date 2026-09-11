@@ -35,7 +35,7 @@ public sealed class CustomExceptionHandlerSpec {
 		mapped.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
 		mapped.Key.Should().Be(ResponseKeys.RequestBodyMissing);
 		mapped.Errors.Should().NotBeNull();
-		mapped.Errors!.Should().ContainKey("body");
+		mapped.Errors.Required().Should().ContainKey("body");
 	}
 
 	[Fact]
@@ -49,7 +49,7 @@ public sealed class CustomExceptionHandlerSpec {
 		mapped.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
 		mapped.Key.Should().Be(ResponseKeys.QueryParametersMissing);
 		mapped.Errors.Should().NotBeNull();
-		mapped.Errors!.Should().ContainKey("userId");
+		mapped.Errors.Required().Should().ContainKey("userId");
 	}
 
 	[Fact]
@@ -61,7 +61,7 @@ public sealed class CustomExceptionHandlerSpec {
 		var mapped = CustomExceptionHandler.MapException(exception);
 
 		mapped.Errors.Should().NotBeNull();
-		mapped.Errors!.Should().ContainKey("unknown");
+		mapped.Errors.Required().Should().ContainKey("unknown");
 	}
 
 	[Fact]

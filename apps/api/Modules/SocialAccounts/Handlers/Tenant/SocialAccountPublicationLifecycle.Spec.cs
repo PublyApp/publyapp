@@ -133,9 +133,13 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var accountIdValue = body.GetProperty("id").GetString();
+		if (accountIdValue is null) {
+			throw new InvalidOperationException("connect response had no id");
+		}
+
 		var accountId = Guid.Parse(
-			body.GetProperty("id").GetString()
-				?? throw new InvalidOperationException("connect response had no id")
+			accountIdValue
 		);
 		return (tenantId, token, accountId);
 	}

@@ -362,7 +362,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 				source.UpdatedAt, "Failed/Cancelled map to updated_at (§4.6)"
 			);
 			log.OccurredAt.Should().NotBe(
-				source.SentAt!.Value,
+				source.SentAt.Required(),
 				"sent_at records when the send happened, not when the row reached this outcome"
 			);
 		}
@@ -370,7 +370,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		// The Sent row still maps to sent_at: the fix is a per-status mapping, not a
 		// blanket swap to updated_at.
 		var sentLog = await assert.EmailLog.AsNoTracking().SingleAsync(e => e.LegacyOutboxId == sent);
-		sentLog.OccurredAt.Should().Be(sources[sent].SentAt!.Value, "Sent maps to sent_at (§4.6)");
+		sentLog.OccurredAt.Should().Be(sources[sent].SentAt.Required(), "Sent maps to sent_at (§4.6)");
 	}
 
 	[Fact]

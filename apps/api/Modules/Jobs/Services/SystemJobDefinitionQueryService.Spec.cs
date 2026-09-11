@@ -111,11 +111,12 @@ public sealed class SystemJobDefinitionQueryServiceSpec : IClassFixture<ApiFixtu
 			var detail = await service.GetByIdAsync(definitionId);
 
 			detail.Should().NotBeNull();
-			detail!.Id.Should().Be(definitionId);
-			detail.JobKey.Should().Be(jobKey);
-			detail.RecentOccurrences.Should().HaveCount(2);
-			detail.RecentOccurrences.First().ScheduledFireAt.Should()
-				.BeOnOrAfter(detail.RecentOccurrences.Last().ScheduledFireAt);
+			var detailValue = detail.Required();
+			detailValue.Id.Should().Be(definitionId);
+			detailValue.JobKey.Should().Be(jobKey);
+			detailValue.RecentOccurrences.Should().HaveCount(2);
+			detailValue.RecentOccurrences.First().ScheduledFireAt.Should()
+				.BeOnOrAfter(detailValue.RecentOccurrences.Last().ScheduledFireAt);
 		} finally {
 			await _CleanupAsync(jobKey);
 		}
@@ -324,9 +325,14 @@ public sealed class SystemJobDefinitionQueryServiceSpec : IClassFixture<ApiFixtu
 		};
 		await dbContext.SystemJobDefinition.AddAsync(definition);
 		await dbContext.SaveChangesAsync();
-		return definition.Id ?? throw new InvalidOperationException(
-			"Seeded system job definition returned no id."
-		);
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Seeded system job definition returned no id."
+			);
+		}
+
+		return id.Value;
 	}
 
 	/// <summary>

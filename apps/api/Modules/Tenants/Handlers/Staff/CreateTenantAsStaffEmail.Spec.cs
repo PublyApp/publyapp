@@ -30,13 +30,13 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 // docs/guides/api-integration-tests.md ("Fixture Lifecycle and Mutable Test State").
 public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	private readonly ApiFixture _Fixture = new();
-	private HttpClient _Http = null!;
-	private TestAuthClient _AuthClient = null!;
+	private HttpClient? _Http;
+	private TestAuthClient? _AuthClient;
 
 	public async Task InitializeAsync() {
 		await _Fixture.InitializeAsync();
 		_Http = _Fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		_AuthClient = new TestAuthClient(_Http.Required());
 	}
 
 	public Task DisposeAsync() {
@@ -49,7 +49,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		var fakeEmailSender = _Fixture.GetFakeEmailSender();
 
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await _AuthClient.Required().LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Contract {Guid.NewGuid():N}";
 		var adminEmail =
@@ -57,7 +57,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		var userEmail =
 			$"tenant-create-user-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.SendAsync(
+		using var response = await _Http.Required().SendAsync(
 			_CreateTenantRequest(
 				token,
 				new {
@@ -180,13 +180,13 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		);
 
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await _AuthClient.Required().LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Probe {Guid.NewGuid():N}";
 		var adminEmail =
 			$"tenant-create-probe-admin-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.SendAsync(
+		using var response = await _Http.Required().SendAsync(
 			_CreateTenantRequest(
 				token,
 				new {

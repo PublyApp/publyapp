@@ -21,7 +21,8 @@ public sealed class SocialAccountArchitectureSpec {
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql("Host=localhost;Database=sa_arch_guard").Options;
 		using var db = new AppDbContext(options);
-		var entity = db.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(SocialAccount))!;
+		var model = db.GetService<IDesignTimeModel>().Model;
+		var entity = model.FindEntityType(typeof(SocialAccount)).Required();
 		entity.GetCheckConstraints().Single(c => c.Name == "CK_SocialAccount_Status")
 			.Sql.Should().Be("status IN (10, 20, 30)");
 	}
@@ -31,7 +32,8 @@ public sealed class SocialAccountArchitectureSpec {
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql("Host=localhost;Database=sa_arch_guard").Options;
 		using var db = new AppDbContext(options);
-		var entity = db.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(SocialAccount))!;
+		var model = db.GetService<IDesignTimeModel>().Model;
+		var entity = model.FindEntityType(typeof(SocialAccount)).Required();
 		var index = entity.GetIndexes()
 			.Single(i => i.GetDatabaseName() == "ix_social_accounts_tenant_provider_external");
 		index.IsUnique.Should().BeTrue();
@@ -45,7 +47,7 @@ public sealed class SocialAccountArchitectureSpec {
 			"SocialAccountService.cs must exist; if C2 removed it, "
 			+ "this guard re-discovers the missing target."
 		);
-		var source = File.ReadAllText(path!);
+		var source = File.ReadAllText(path.Required());
 		var offenders = new List<string>();
 		foreach (var slice in _SplitMethods(source, "public")) {
 			if (!slice.Signature.Contains("Guid tenantId", StringComparison.Ordinal)) {

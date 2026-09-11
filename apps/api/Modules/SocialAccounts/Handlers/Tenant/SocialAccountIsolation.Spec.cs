@@ -94,7 +94,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 			connectResponse.EnsureSuccessStatusCode();
 			var created = await connectResponse.Content
 				.ReadFromJsonAsync<SocialAccountCreated>();
-			secondId = created!.Id;
+			secondId = created.Required().Id;
 		}
 
 		using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/social-accounts/")
@@ -130,7 +130,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var created = await response.Content.ReadFromJsonAsync<SocialAccountCreated>();
-		return (tenantId, token, created!.Id);
+		return (tenantId, token, created.Required().Id);
 	}
 
 	private async Task<(Guid TenantId, string Token)>

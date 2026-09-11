@@ -130,8 +130,12 @@ public static class CanaryBootLogCli {
 			startInfo.Environment[key] = value;
 		}
 
-		using var process = Process.Start(startInfo)
-			?? throw new InvalidOperationException("Failed to spawn the canary boot-log probe process.");
+		using var process = Process.Start(startInfo);
+		if (process is null) {
+			throw new InvalidOperationException(
+				"Failed to spawn the canary boot-log probe process."
+			);
+		}
 		var stdoutTask = process.StandardOutput.ReadToEndAsync();
 		var stderrTask = process.StandardError.ReadToEndAsync();
 		if (!process.WaitForExit(milliseconds: 120_000)) {

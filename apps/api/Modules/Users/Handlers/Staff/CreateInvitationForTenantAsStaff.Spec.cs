@@ -86,7 +86,9 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.ToListAsync();
 
 		var matchingJobs = pendingJobs
-			.Where(j => _JobPayloadContainsId(j.Payload, "invitationId", responseBody!.InvitationId))
+			.Where(j =>
+				_JobPayloadContainsId(j.Payload, "invitationId", responseBody.Required().InvitationId)
+			)
 			.ToList();
 
 		matchingJobs.Should().HaveCount(1);
@@ -450,7 +452,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		responseBody.Should().NotBeNull();
 
 		var invitationProfiles = await dbContext.InvitationProfile
-			.Where(ip => ip.InvitationId == responseBody!.InvitationId)
+			.Where(ip => ip.InvitationId == responseBody.Required().InvitationId)
 			.Select(ip => ip.ProfileId)
 			.ToListAsync();
 

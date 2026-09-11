@@ -34,7 +34,7 @@ public sealed class IntermediateSymlinkSpec : IClassFixture<ApiFixture> {
 		// Create a real file OUTSIDE the storage root.
 		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
 		var sentinelPath = Path.Combine(
-			Path.GetDirectoryName(uploadsDir)!,
+			Path.GetDirectoryName(uploadsDir).Required(),
 			$"sentinel-{Guid.NewGuid():N}.txt"
 		);
 		await File.WriteAllTextAsync(sentinelPath, sentinelContent);
@@ -43,7 +43,7 @@ public sealed class IntermediateSymlinkSpec : IClassFixture<ApiFixture> {
 			// parent of the storage root (outside uploads/).
 			var linkDirName = $"escape-dir-{Guid.NewGuid():N}";
 			var linkDirPath = Path.Combine(uploadsDir, linkDirName);
-			var parentDir = Path.GetDirectoryName(uploadsDir)!;
+			var parentDir = Path.GetDirectoryName(uploadsDir).Required();
 			File.CreateSymbolicLink(linkDirPath, parentDir);
 			try {
 				// The symlinked directory "contains" the sentinel file when

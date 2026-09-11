@@ -191,9 +191,10 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			var detail = await service.GetByIdAsync(id);
 
 			detail.Should().NotBeNull();
-			detail!.Id.Should().Be(id);
-			detail.JobType.Should().Be(jobType);
-			detail.TenantId.Should().Be(tenantId);
+			var detailValue = detail.Required();
+			detailValue.Id.Should().Be(id);
+			detailValue.JobType.Should().Be(jobType);
+			detailValue.TenantId.Should().Be(tenantId);
 		} finally {
 			await _CleanupAsync(jobType);
 		}

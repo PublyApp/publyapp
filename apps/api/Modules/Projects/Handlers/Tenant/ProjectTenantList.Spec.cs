@@ -44,13 +44,14 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<FindProjectsForTenantResponse>();
-		var ids = payload!.Items.Select(x => x.Id).ToList();
+		var payloadValue = payload.Required();
+		var ids = payloadValue.Items.Select(x => x.Id).ToList();
 		ids.Should().Contain([apple, zebra]);
 		ids.Should().NotContain([deleted, inactive, foreign]);
 		var appleIdx = ids.IndexOf(apple);
 		var zebraIdx = ids.IndexOf(zebra);
 		appleIdx.Should().BeLessThan(zebraIdx);
-		payload.Items.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Name));
+		payloadValue.Items.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Name));
 	}
 
 	[Fact]

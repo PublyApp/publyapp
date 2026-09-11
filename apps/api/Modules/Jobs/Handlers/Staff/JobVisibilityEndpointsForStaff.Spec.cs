@@ -149,10 +149,13 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			var requeuedRow = await dbContext.JobQueue
 				.AsNoTracking()
 				.SingleAsync(j => j.RequeuedFromDeadLetterId == deadLetterId);
-			requeuedJobId = requeuedRow.Id
-				?? throw new InvalidOperationException(
+			var requeuedId = requeuedRow.Id;
+			if (requeuedId is null) {
+				throw new InvalidOperationException(
 					"Requeued job_queue row came back with a NULL id."
 				);
+			}
+			requeuedJobId = requeuedId.Value;
 
 			using var r6 = await _SendAsync(adminToken, () =>
 				new HttpRequestMessage(HttpMethod.Get, _SysJobsUrl()));
@@ -188,7 +191,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 				"the trigger enqueued a real row"
 			);
 			(await dbContext.JobQueue.CountAsync(j =>
-				j.Id == Guid.Parse(triggeredJobId!)
+				j.Id == Guid.Parse(triggeredJobId.Required())
 			)).Should().Be(1, "exactly one queue row for this trigger");
 
 			using var r9 = await _SendAsync(adminToken, () => {
@@ -326,7 +329,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 
 		await using var verify = await _CreateDbContextAsync();
 		var row = await verify.JobQueue.SingleAsync(j => j.JobType == jobType);
-		return row.Id!.Value.ToString();
+		return row.Id.Required().ToString();
 	}
 
 	private async Task<Guid> _InsertDeadLetterAsync() {
@@ -352,9 +355,14 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 
 		await using var verify = await _CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
-		return row.Id ?? throw new InvalidOperationException(
-			"Inserted job_dead_letter row came back with a NULL id."
-		);
+		var id = row.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted job_dead_letter row came back with a NULL id."
+			);
+		}
+
+		return id.Value;
 	}
 
 	private async Task<string> _SeedDefinitionAsync() {
@@ -374,7 +382,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		return definition.Id!.Value.ToString();
+		return definition.Id.Required().ToString();
 	}
 
 	private readonly List<string> _TrackedQueueJobTypes = [];

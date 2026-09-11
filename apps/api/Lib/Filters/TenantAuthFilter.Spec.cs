@@ -427,7 +427,7 @@ public sealed class TenantAuthFilterSpec
 		var lastActivityAt =
 			await _GetLastActivityAtAsync(acmeId);
 		lastActivityAt.Should().NotBeNull();
-		lastActivityAt!.Value.Should().BeCloseTo(
+		lastActivityAt.Required().Should().BeCloseTo(
 			DateTime.UtcNow, TimeSpan.FromSeconds(10)
 		);
 	}

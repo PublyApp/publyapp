@@ -511,7 +511,7 @@ public sealed class OpenApiContractSpec {
 		var actualValues = enumNode.EnumerateArray()
 			.Select(v => v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText())
 			.Where(v => v is not null)
-			.Select(v => v!)
+			.Select(v => v.Required())
 			.OrderBy(v => v, StringComparer.Ordinal)
 			.ToList();
 		var expectedOrdered = expectedValues

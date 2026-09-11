@@ -523,7 +523,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		var logger = db.GetInfrastructure().GetService(
 			typeof(IDiagnosticsLogger<DbLoggerCategory.Database.Command>));
 		var options = (ILoggingOptions)
-			logger!.GetType().GetProperty("Options")!.GetValue(logger)!;
+			logger.Required().GetType().GetProperty("Options").Required().GetValue(logger).Required();
 		var def = new EventDefinition<string>(
 			options,
 			new Microsoft.Extensions.Logging.EventId(1, "x"),
@@ -532,7 +532,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 			(_) => (_, _, _) => { });
 		Func<EventDefinitionBase, EventData, string> generate = (_, _) => "x";
 		return new CommandEventData(
-			def, generate, cmd.Connection!, cmd, cmd.CommandText, db, method,
+			def, generate, cmd.Connection.Required(), cmd, cmd.CommandText, db, method,
 			Guid.NewGuid(), Guid.NewGuid(), async, false,
 			DateTimeOffset.UtcNow, CommandSource.Unknown);
 	}

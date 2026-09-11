@@ -215,7 +215,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 	[Fact]
 	public void ItShouldKeepStaffAllowlistEntriesRelevant() {
 		var allHandlerFullNames = _DiscoverScopedHandlerEntrypointTypes()
-			.Select(type => type.FullName!)
+			.Select(type => type.FullName.Required())
 			.ToHashSet(StringComparer.Ordinal);
 
 		var staffHandlersByFullName = _DiscoverScopedHandlerEntrypointTypes()
@@ -224,7 +224,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 					_StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
-			.ToDictionary(type => type.FullName!, StringComparer.Ordinal);
+			.ToDictionary(type => type.FullName.Required(), StringComparer.Ordinal);
 
 		List<string> staleEntries = _StaffScopeAllowlist
 			.Where(entry => {

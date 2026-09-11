@@ -395,8 +395,11 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			.GetRequiredService<AppDbContext>();
 
 		return await dbContext.SystemNotice
-			.Where(n => ids.Contains(n.Id!.Value))
-			.ToDictionaryAsync(n => n.Id!.Value, n => n.Severity);
+			.Where(n => n.Id.HasValue && ids.Contains(n.Id.Value))
+			.ToDictionaryAsync(
+				n => n.Id.HasValue ? n.Id.Value : Guid.Empty,
+				n => n.Severity
+			);
 	}
 
 

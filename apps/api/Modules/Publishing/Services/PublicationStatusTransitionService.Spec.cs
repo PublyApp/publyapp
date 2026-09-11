@@ -178,8 +178,8 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		await db.Entry(seeded).ReloadAsync();
 		seeded.Status.Should().Be(PublicationStatus.Failed);
 		seeded.LastError.Should().NotBeNull();
-		seeded.LastError!.Should().NotContain("super-secret-token-value");
-		seeded.LastError!.Should().Contain("[redacted]");
+		seeded.LastError.Required().Should().NotContain("super-secret-token-value");
+		seeded.LastError.Required().Should().Contain("[redacted]");
 	}
 
 	[Fact]
@@ -278,7 +278,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		);
 
 		await db.Entry(seeded).ReloadAsync();
-		byte[] stored = System.Text.Encoding.UTF8.GetBytes(seeded.LastError!);
+		byte[] stored = System.Text.Encoding.UTF8.GetBytes(seeded.LastError.Required());
 		stored.Length.Should().BeLessThanOrEqualTo(2048);
 	}
 

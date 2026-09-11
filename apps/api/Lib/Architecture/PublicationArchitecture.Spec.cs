@@ -308,13 +308,13 @@ public sealed partial class PublicationArchitectureSpec {
 		var entity = model.FindEntityType(typeof(Publication));
 		entity.Should().NotBeNull();
 
-		var constraint = entity!
+		var constraint = entity.Required()
 			.GetCheckConstraints()
 			.SingleOrDefault(c => c.Name == "CK_Publication_Status");
 		constraint.Should().NotBeNull(
 			"CK_Publication_Status must be configured in PublicationConfiguration"
 		);
-		constraint!.Sql.Should().Be(
+		constraint.Required().Sql.Should().Be(
 			"status IN (10, 20, 30, 40, 50)",
 			"PublicationStatus enum values are 10/Scheduled through 50/Paused"
 		);
@@ -331,36 +331,38 @@ public sealed partial class PublicationArchitectureSpec {
 		var entity = model.FindEntityType(typeof(Publication));
 		entity.Should().NotBeNull();
 
-		var unique = entity!.GetIndexes().SingleOrDefault(i =>
+		var unique = entity.Required().GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ux_publications_post_account"
 		);
 		unique.Should().NotBeNull("one ACTIVE delivery per (post, account)");
-		unique!.IsUnique.Should().BeTrue();
+		var uniqueIndex = unique.Required();
+		uniqueIndex.IsUnique.Should().BeTrue();
 		// Round-2 widening: the partial filter must ALSO exclude terminal Failed
 		// rows so a failed publish-now is re-issuable (fresh attempt starts beside
 		// the failed history row), while Published rows keep occupying the pair.
 		// Proven discriminating by the .dump/guard-r2-filter-*.log mutation pair:
 		// reverting the model filter alone turns this RED.
-		unique.GetFilter().Should().Be(
+		uniqueIndex.GetFilter().Should().Be(
 			"is_deleted = false AND status <> 40",
 			"a cancelled-and-recreated pair must be free again AND a terminal Failed "
 				+ "row must release the pair; Published rows stay live"
 		);
 
-		var dueScan = entity.GetIndexes().SingleOrDefault(i =>
+		var dueScan = entity.Required().GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ix_publications_status_scheduled_at"
 		);
 		dueScan.Should().NotBeNull("the D3 due-scan claims ordered by instant");
-		dueScan!.Properties.Select(p => p.Name).Should().Equal(
+		var dueScanIndex = dueScan.Required();
+		dueScanIndex.Properties.Select(p => p.Name).Should().Equal(
 			nameof(Publication.Status),
 			nameof(Publication.ScheduledAtUtc)
 		);
 
-		var tenantKeyset = entity.GetIndexes().SingleOrDefault(i =>
+		var tenantKeyset = entity.Required().GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ix_publications_tenant_scheduled_at_id"
 		);
 		tenantKeyset.Should().NotBeNull("tenant queue lists paginate keyset");
-		tenantKeyset!.Properties.Select(p => p.Name).Should().Equal(
+		tenantKeyset.Required().Properties.Select(p => p.Name).Should().Equal(
 			nameof(Publication.TenantId),
 			nameof(Publication.ScheduledAtUtc),
 			nameof(Publication.Id)
@@ -378,9 +380,9 @@ public sealed partial class PublicationArchitectureSpec {
 		var entity = model.FindEntityType(typeof(Publication));
 		entity.Should().NotBeNull();
 
-		var zone = entity!.FindProperty(nameof(Publication.ScheduledTimeZone));
+		var zone = entity.Required().FindProperty(nameof(Publication.ScheduledTimeZone));
 		zone.Should().NotBeNull();
-		zone!.GetMaxLength().Should().Be(
+		zone.Required().GetMaxLength().Should().Be(
 			PublicationSchedule.MaxTimeZoneLength,
 			"the column bound mirrors the VO validator"
 		);

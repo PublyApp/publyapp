@@ -142,9 +142,12 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		var id = definition.Id ?? throw new InvalidOperationException(
-			"Inserted system_job_definitions row came back with a NULL id."
-		);
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted system_job_definitions row came back with a NULL id."
+			);
+		}
 
 		dbContext.SystemJobOccurrence.Add(new SystemJobOccurrence {
 			JobKey = jobKey,
@@ -153,7 +156,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		});
 		_ = await dbContext.SaveChangesAsync();
 
-		return (jobKey, id.ToString());
+		return (jobKey, id.Value.ToString());
 	}
 
 	private async Task _CleanupAsync(string jobKey) {

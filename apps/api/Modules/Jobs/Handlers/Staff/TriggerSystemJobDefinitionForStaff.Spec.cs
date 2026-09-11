@@ -74,12 +74,12 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 			// Exactly ONE queue copy for THIS occurrence.
 			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.SingleAsync(
-				j => j.Id == Guid.Parse(newJobId!)
+				j => j.Id == Guid.Parse(newJobId.Required())
 			)).Status.Should().Be(JobQueueStatus.Pending);
 
 			// The occurrence ledger recorded this fire under the definition's key.
 			(await verify.SystemJobOccurrence.CountAsync(o =>
-				o.JobKey == jobKey && o.EnqueuedJobId == Guid.Parse(newJobId!)
+				o.JobKey == jobKey && o.EnqueuedJobId == Guid.Parse(newJobId.Required())
 			)).Should().Be(1);
 
 			var audit = await verify.AuditLog
@@ -216,10 +216,13 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		var id = definition.Id ?? throw new InvalidOperationException(
-			"Inserted system_job_definitions row came back with a NULL id."
-		);
-		return (jobKey, id.ToString());
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted system_job_definitions row came back with a NULL id."
+			);
+		}
+		return (jobKey, id.Value.ToString());
 	}
 
 	private async Task _CleanupAsync(string jobKey, string definitionId) {

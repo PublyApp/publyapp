@@ -122,8 +122,8 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.SocialAccount
-				.Where(a => visitedOrder.Contains((Guid)a.Id!))
-				.OrderBy(a => visitedOrder.IndexOf((Guid)a.Id!))
+				.Where(a => a.Id.HasValue && visitedOrder.Contains(a.Id.Value))
+				.OrderBy(a => a.Id.HasValue ? visitedOrder.IndexOf(a.Id.Value) : -1)
 				.Select(a => a.CreatedAt)
 				.ToListAsync();
 		}
@@ -218,8 +218,8 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.SocialAccount
-				.Where(a => visitedOrder.Contains((Guid)a.Id!))
-				.OrderBy(a => visitedOrder.IndexOf((Guid)a.Id!))
+				.Where(a => a.Id.HasValue && visitedOrder.Contains(a.Id.Value))
+				.OrderBy(a => a.Id.HasValue ? visitedOrder.IndexOf(a.Id.Value) : -1)
 				.Select(a => a.UpdatedAt)
 				.ToListAsync();
 		}
@@ -274,7 +274,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		var created = await response.Content
 			.ReadFromJsonAsync<SocialAccountCreated>();
 		Assert.NotNull(created);
-		return created!.Id;
+		return created.Required().Id;
 	}
 
 	private async Task _SetCreatedAtAsync(Guid accountId, DateTime createdAt) {

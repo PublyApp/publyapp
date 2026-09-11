@@ -269,9 +269,13 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 					(int)ExternalStateStatus.Unclassified,
 					"the producer must hand the endpoint a real status-6 row"
 				);
-				deadLetterId = deadLetter.Id ?? throw new InvalidOperationException(
-					"Producer-created job_dead_letter row came back with a NULL id."
-				);
+				var deadLetterRowId = deadLetter.Id;
+				if (deadLetterRowId is null) {
+					throw new InvalidOperationException(
+						"Producer-created job_dead_letter row came back with a NULL id."
+					);
+				}
+				deadLetterId = deadLetterRowId.Value;
 			}
 
 			// Resolution leg: the operator triage endpoint on that same row.
@@ -400,9 +404,13 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 
 		await using var verify = await _CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
-		var deadLetterId = row.Id ?? throw new InvalidOperationException(
-			"Inserted job_dead_letter row came back with a NULL id."
-		);
+		var deadLetterIdValue = row.Id;
+		if (deadLetterIdValue is null) {
+			throw new InvalidOperationException(
+				"Inserted job_dead_letter row came back with a NULL id."
+			);
+		}
+		var deadLetterId = deadLetterIdValue.Value;
 		return (deadLetterId, originalJobId, jobType);
 	}
 

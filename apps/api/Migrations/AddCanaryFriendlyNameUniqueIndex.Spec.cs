@@ -35,22 +35,26 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 	// widening what "the remaining migrations" means without failing anything.
 	private const string _MigrationUnderTestSuffix = "_AddCanaryFriendlyNameUniqueIndex";
 
-	private PostgresContainerFixture _ContainerFixture = null!;
-	private string _DbName = null!;
-	private string _ConnectionString = null!;
+	private PostgresContainerFixture? _ContainerFixture;
+	private string? _DbName;
+	private string? _ConnectionString;
 
 	public async Task InitializeAsync() {
 		_ContainerFixture = await PostgresContainerFixture.GetSharedAsync();
 		_DbName = $"migtest_{Guid.NewGuid():N}";
 
-		await using var adminConn = new NpgsqlConnection(_ContainerFixture.AdminConnectionString);
+		await using var adminConn = new NpgsqlConnection(
+			_ContainerFixture.Required().AdminConnectionString
+		);
 		await adminConn.OpenAsync();
 		await using (var createCmd = new NpgsqlCommand($"CREATE DATABASE {_DbName}", adminConn)) {
 			await createCmd.ExecuteNonQueryAsync();
 		}
 
-		var builder = new NpgsqlConnectionStringBuilder(_ContainerFixture.AdminConnectionString) {
-			Database = _DbName,
+		var builder = new NpgsqlConnectionStringBuilder(
+			_ContainerFixture.Required().AdminConnectionString
+		) {
+			Database = _DbName.Required(),
 			Pooling = false
 		};
 		_ConnectionString = builder.ConnectionString;
@@ -58,7 +62,9 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 
 	public async Task DisposeAsync() {
 		NpgsqlConnection.ClearAllPools();
-		await using var adminConn = new NpgsqlConnection(_ContainerFixture.AdminConnectionString);
+		await using var adminConn = new NpgsqlConnection(
+			_ContainerFixture.Required().AdminConnectionString
+		);
 		await adminConn.OpenAsync();
 		await using var dropCmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS {_DbName}", adminConn);
 		await dropCmd.ExecuteNonQueryAsync();
@@ -68,7 +74,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 	public async Task
 	ItShouldSucceedAndDeduplicateWhenLegacyDataHasDuplicateCanaryRows() {
 		await using var dbContext = new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_ConnectionString).Options
+			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_ConnectionString.Required()).Options
 		);
 		var migrator = dbContext.GetService<IMigrator>();
 
@@ -80,7 +86,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		//    Protection key-ring row that must stay untouched.
 		const int winnerId = 100;
 		const int loserId = 200;
-		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString.Required())) {
 			await conn.OpenAsync();
 
 			await using var insertWinner = new NpgsqlCommand(

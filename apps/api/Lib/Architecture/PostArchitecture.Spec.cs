@@ -42,13 +42,13 @@ public sealed class PostArchitectureSpec {
 		var entity = model.FindEntityType(typeof(Post));
 		entity.Should().NotBeNull();
 
-		var constraint = entity!
+		var constraint = entity.Required()
 			.GetCheckConstraints()
 			.SingleOrDefault(c => c.Name == "CK_Post_Status");
 		constraint.Should().NotBeNull(
 			"CK_Post_Status must be configured in PostConfiguration"
 		);
-		constraint!.Sql.Should().Be(
+		constraint.Required().Sql.Should().Be(
 			"status IN (10, 20, 30)",
 			"PostStatus enum values are 10/Draft, 20/Scheduled, 30/Published"
 		);
@@ -65,7 +65,7 @@ public sealed class PostArchitectureSpec {
 		var entity = model.FindEntityType(typeof(Post));
 		entity.Should().NotBeNull();
 
-		var indexes = entity!.GetIndexes().ToList();
+		var indexes = entity.Required().GetIndexes().ToList();
 		indexes.Should().NotBeEmpty("Post must have indexes");
 
 		var keyset = indexes.SingleOrDefault(i =>
@@ -74,7 +74,7 @@ public sealed class PostArchitectureSpec {
 		keyset.Should().NotBeNull(
 			"keyset index ix_posts_tenant_created_at_id must exist for tenant post lists"
 		);
-		keyset!.Properties.Select(p => p.Name).Should().Equal(
+		keyset.Required().Properties.Select(p => p.Name).Should().Equal(
 			"TenantId", "CreatedAt", "Id"
 		);
 
@@ -84,7 +84,7 @@ public sealed class PostArchitectureSpec {
 		projectIndex.Should().NotBeNull(
 			"project index ix_posts_tenant_project_id must exist"
 		);
-		projectIndex!.Properties.Select(p => p.Name).Should().Equal(
+		projectIndex.Required().Properties.Select(p => p.Name).Should().Equal(
 			"TenantId", "ProjectId"
 		);
 	}
