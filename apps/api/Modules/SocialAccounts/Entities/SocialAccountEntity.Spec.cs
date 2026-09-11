@@ -37,7 +37,7 @@ public sealed class SocialAccountEntitySpec {
 	[Fact]
 	public void ItShouldDeclareACompositeKeyForSocialAccountProject() {
 		var entity = _Model().Single(e => e.ClrType == typeof(SocialAccountProject));
-		entity.FindPrimaryKey()!.Properties.Select(p => p.Name)
+		entity.FindPrimaryKey().Required().Properties.Select(p => p.Name)
 			.Should().Equal("SocialAccountId", "ProjectId");
 	}
 }

@@ -244,10 +244,13 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		var id = definition.Id ?? throw new InvalidOperationException(
-			"Inserted system_job_definitions row came back with a NULL id."
-		);
-		return (jobKey, id.ToString());
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted system_job_definitions row came back with a NULL id."
+			);
+		}
+		return (jobKey, id.Value.ToString());
 	}
 
 	// The seeder owns the protected key row; reuse it when present so the unique
@@ -260,7 +263,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			.AsNoTracking()
 			.SingleOrDefaultAsync(row => row.JobKey == jobKey);
 		if (existing?.Id is not null) {
-			return existing.Id.ToString()!;
+			return existing.Id.ToString().Required();
 		}
 
 		var definition = new SystemJobDefinition {
@@ -273,9 +276,14 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		return (definition.Id ?? throw new InvalidOperationException(
-			"Inserted system_job_definitions row came back with a NULL id."
-		)).ToString()!;
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted system_job_definitions row came back with a NULL id."
+			);
+		}
+
+		return id.ToString().Required();
 	}
 
 	private async Task _CleanupAsync(string jobKey) {

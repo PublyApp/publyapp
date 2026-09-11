@@ -46,9 +46,9 @@ public sealed class ResendEmailClientAdapterSpec {
 
 		// Assert: parameters were forwarded verbatim (access EmailAddress.Email for the string value)
 		capturedMessage.Should().NotBeNull();
-		var msg = capturedMessage!;
-		msg.From!.Email.Should().Be("sender@example.com");
-		msg.To.First()!.Email.Should().Be("recipient@example.com");
+		var msg = capturedMessage.Required();
+		msg.From.Required().Email.Should().Be("sender@example.com");
+		msg.To.First().Required().Email.Should().Be("recipient@example.com");
 		msg.Subject.Should().Be("Test Subject");
 		msg.HtmlBody.Should().Be("<p>Test Body</p>");
 		response.Content.Should().Be(expectedMessageId);

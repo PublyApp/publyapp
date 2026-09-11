@@ -106,7 +106,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 				failures.Add(
 					$"{transition.FullName}: Actor must be object-initializer-settable"
 				);
-			} else if (!setMethod.ReturnParameter!
+			} else if (!setMethod.ReturnParameter.Required()
 					.GetRequiredCustomModifiers()
 					.Any(modifier => modifier.Name == "IsExternalInit")) {
 				// init-only is a metadata modreq on the setter's return, not an attribute.
@@ -633,6 +633,6 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 			fullName
 		);
 
-		return type!;
+		return type.Required();
 	}
 }

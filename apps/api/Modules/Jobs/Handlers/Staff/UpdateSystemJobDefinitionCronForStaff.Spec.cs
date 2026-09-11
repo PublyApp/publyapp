@@ -217,10 +217,13 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		var id = definition.Id ?? throw new InvalidOperationException(
-			"Inserted system_job_definitions row came back with a NULL id."
-		);
-		return (jobKey, id.ToString(), epoch);
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted system_job_definitions row came back with a NULL id."
+			);
+		}
+		return (jobKey, id.Value.ToString(), epoch);
 	}
 
 	private async Task _CleanupAsync(string jobKey) {

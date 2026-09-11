@@ -27,7 +27,7 @@ public sealed class PublicationEntitySpec {
 			.Options;
 		using var dbContext = new AppDbContext(options);
 		return dbContext.GetService<IDesignTimeModel>()
-			.Model.FindEntityType(typeof(Publication))!;
+			.Model.FindEntityType(typeof(Publication)).Required();
 	}
 
 	[Fact]
@@ -40,7 +40,7 @@ public sealed class PublicationEntitySpec {
 		constraint.Should().NotBeNull(
 			"CK_Publication_Status must be configured in PublicationConfiguration"
 		);
-		constraint!.Sql.Should().Be(
+		constraint.Required().Sql.Should().Be(
 			"status IN (10, 20, 30, 40, 50)",
 			"PublicationStatus values are 10/Scheduled, 20/InProgress, 30/Published, "
 			+ "40/Failed, 50/Paused"
@@ -57,11 +57,12 @@ public sealed class PublicationEntitySpec {
 		unique.Should().NotBeNull(
 			"one publication row per (post, account) pair is a spec invariant"
 		);
-		unique!.IsUnique.Should().BeTrue();
-		unique.Properties.Select(p => p.Name).Should().Equal(
+		var uniqueValue = unique.Required();
+		uniqueValue.IsUnique.Should().BeTrue();
+		uniqueValue.Properties.Select(p => p.Name).Should().Equal(
 			nameof(Publication.PostId), nameof(Publication.SocialAccountId)
 		);
-		unique.GetFilter().Should().Be(
+		uniqueValue.GetFilter().Should().Be(
 			"is_deleted = false AND status <> 40",
 			"a cancelled-and-recreated publication frees its (post, account) pair, AND a "
 			+ "terminal FAILED row (status 40) releases the pair so a fresh retry is "
@@ -77,7 +78,7 @@ public sealed class PublicationEntitySpec {
 			i.GetDatabaseName() == "ix_publications_status_scheduled_at"
 		);
 		dueScan.Should().NotBeNull("the D3 due-scan claims by (status, instant)");
-		dueScan!.Properties.Select(p => p.Name).Should().Equal(
+		dueScan.Required().Properties.Select(p => p.Name).Should().Equal(
 			nameof(Publication.Status), nameof(Publication.ScheduledAtUtc)
 		);
 
@@ -87,7 +88,7 @@ public sealed class PublicationEntitySpec {
 		tenantList.Should().NotBeNull(
 			"tenant queue/calendar lists paginate keyset by (tenant, instant, id)"
 		);
-		tenantList!.Properties.Select(p => p.Name).Should().Equal(
+		tenantList.Required().Properties.Select(p => p.Name).Should().Equal(
 			nameof(Publication.TenantId),
 			nameof(Publication.ScheduledAtUtc),
 			nameof(Publication.Id)
@@ -101,11 +102,11 @@ public sealed class PublicationEntitySpec {
 
 		var instant = entity.FindProperty(nameof(Publication.ScheduledAtUtc));
 		instant.Should().NotBeNull("the schedule instant is stored");
-		instant!.GetColumnName(table).Should().Be("scheduled_at_utc");
+		instant.Required().GetColumnName(table).Should().Be("scheduled_at_utc");
 		var zone = entity.FindProperty(nameof(Publication.ScheduledTimeZone));
 		zone.Should().NotBeNull("the IANA zone label is stored next to the instant");
-		zone!.GetColumnName(table).Should().Be("scheduled_time_zone");
-		zone!.GetMaxLength().Should().Be(
+		zone.Required().GetColumnName(table).Should().Be("scheduled_time_zone");
+		zone.Required().GetMaxLength().Should().Be(
 			PublicationSchedule.MaxTimeZoneLength,
 			"IANA zone identifiers stay bounded"
 		);
@@ -119,6 +120,6 @@ public sealed class PublicationEntitySpec {
 		key.Should().NotBeNull(
 			"the deterministic key rides the row so retries and the Bluesky rkey agree"
 		);
-		key!.IsNullable.Should().BeFalse();
+		key.Required().IsNullable.Should().BeFalse();
 	}
 }

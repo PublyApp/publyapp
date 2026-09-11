@@ -31,7 +31,7 @@ public sealed class RateLimitCounterSpec {
 			.Options;
 		using var dbContext = new AppDbContext(options);
 		return dbContext.GetService<IDesignTimeModel>()
-			.Model.FindEntityType(typeof(RateLimitCounter))!;
+			.Model.FindEntityType(typeof(RateLimitCounter)).Required();
 	}
 
 	[Fact]
@@ -42,7 +42,7 @@ public sealed class RateLimitCounterSpec {
 		key.Should().NotBeNull(
 			"a composite PK is the foundation of the atomic UPSERT"
 		);
-		key!.Properties.Select(p => p.Name).Should().Equal(
+		key.Required().Properties.Select(p => p.Name).Should().Equal(
 			nameof(RateLimitCounter.PolicyName),
 			nameof(RateLimitCounter.PartitionKeyHash),
 			nameof(RateLimitCounter.WindowStartedAt)
@@ -58,10 +58,11 @@ public sealed class RateLimitCounterSpec {
 			nameof(RateLimitCounter.PermitCount)
 		);
 		permitCount.Should().NotBeNull();
-		permitCount!.IsNullable.Should().BeFalse(
+		var permitCountValue = permitCount.Required();
+		permitCountValue.IsNullable.Should().BeFalse(
 			"permit_count is a monotonic counter — never null"
 		);
-		permitCount.GetColumnName(table).Should().Be("permit_count");
+		permitCountValue.GetColumnName(table).Should().Be("permit_count");
 
 		var checkConstraints = entity.GetCheckConstraints();
 		checkConstraints.Should()
@@ -79,15 +80,15 @@ public sealed class RateLimitCounterSpec {
 
 		entity.FindProperty(
 			nameof(RateLimitCounter.PolicyName)
-		)!.GetColumnName(table).Should().Be("policy_name");
+		).Required().GetColumnName(table).Should().Be("policy_name");
 
 		entity.FindProperty(
 			nameof(RateLimitCounter.PartitionKeyHash)
-		)!.GetColumnName(table).Should().Be("partition_key_hash");
+		).Required().GetColumnName(table).Should().Be("partition_key_hash");
 
 		entity.FindProperty(
 			nameof(RateLimitCounter.WindowStartedAt)
-		)!.GetColumnName(table).Should().Be("window_started_at");
+		).Required().GetColumnName(table).Should().Be("window_started_at");
 	}
 
 	[Fact]
@@ -101,7 +102,7 @@ public sealed class RateLimitCounterSpec {
 		index.Should().NotBeNull(
 			"the sweep query filters by window_started_at"
 		);
-		index!.Properties.Select(p => p.Name).Should().Equal(
+		index.Required().Properties.Select(p => p.Name).Should().Equal(
 			nameof(RateLimitCounter.WindowStartedAt)
 		);
 	}

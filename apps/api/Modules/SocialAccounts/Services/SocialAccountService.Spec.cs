@@ -355,7 +355,7 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		var page2 = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(
 			tenantId,
 			new FindSocialAccountsArgs(
-				Guid.Parse(page1.Data.NextCursor!), 2, null, null, null
+				Guid.Parse(page1.Data.NextCursor.Required()), 2, null, null, null
 			)
 		);
 

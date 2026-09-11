@@ -97,7 +97,7 @@ public sealed class SocialSessionSecretRedactionSpec {
 		);
 		Assert.NotNull(printMembers);
 		var builder = new StringBuilder();
-		var result = (bool)printMembers.Invoke(built, [builder])!;
+		var result = (bool)printMembers.Invoke(built, [builder]).Required();
 		result.Should().BeTrue();
 		return builder.ToString();
 	}

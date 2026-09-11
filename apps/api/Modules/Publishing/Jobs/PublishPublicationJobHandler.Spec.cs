@@ -632,8 +632,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		paused.Should().HaveCount(2, "the failing run plus its scheduled sibling");
 		foreach (var publication in paused) {
 			publication.LastError.Should().NotBeNull();
-			publication.LastError!.Should().Contain("[redacted]");
-			publication.LastError!.Should().NotContain("app-password-hunter2");
+			publication.LastError.Required().Should().Contain("[redacted]");
+			publication.LastError.Required().Should().NotContain("app-password-hunter2");
 		}
 
 		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);

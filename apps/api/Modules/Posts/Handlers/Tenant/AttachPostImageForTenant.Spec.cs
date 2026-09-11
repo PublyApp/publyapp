@@ -530,7 +530,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		var results = await Task.WhenAll(attachTasks);
 		var succeededPaths = results
 			.Where(static r => r.Succeeded && r.Path is not null)
-			.Select(static r => r.Path!)
+			.Select(static r => r.Path.Required())
 			.ToList();
 
 		var postIdGuid = Guid.Parse(postId);

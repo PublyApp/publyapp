@@ -1274,8 +1274,10 @@ public sealed class FindTenantUsersAsStaffSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.User
-				.Where(u => visitedSeededUserIds.Contains((Guid)u.Id!))
-				.OrderBy(u => visitedSeededUserIds.IndexOf((Guid)u.Id!))
+				.Where(u => u.Id.HasValue && visitedSeededUserIds.Contains(u.Id.Value))
+				.OrderBy(u =>
+					u.Id.HasValue ? visitedSeededUserIds.IndexOf(u.Id.Value) : -1
+				)
 				.Select(u => u.CreatedAt)
 				.ToListAsync();
 		}

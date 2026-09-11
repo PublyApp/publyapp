@@ -513,7 +513,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		using var scope = _Fixture.Factory.Services.CreateScope();
 		var storage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
 		var fullPath = Path.Combine(storage.RootPath, path.Replace('/', Path.DirectorySeparatorChar));
-		Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+		Directory.CreateDirectory(Path.GetDirectoryName(fullPath).Required());
 		await File.WriteAllBytesAsync(fullPath, [1, 2, 3, 4]);
 	}
 

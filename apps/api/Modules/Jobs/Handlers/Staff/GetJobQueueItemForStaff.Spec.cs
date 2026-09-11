@@ -136,10 +136,14 @@ public sealed class GetJobQueueItemForStaffSpec : IClassFixture<ApiFixture> {
 		dbContext.JobQueue.Add(item);
 		_ = await dbContext.SaveChangesAsync();
 
-		var id = item.Id ?? throw new InvalidOperationException(
-			"Inserted job_queue row came back with a NULL id."
-		);
-		return (jobType, id.ToString());
+		var id = item.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted job_queue row came back with a NULL id."
+			);
+		}
+
+		return (jobType, id.Value.ToString());
 	}
 
 	private async Task _CleanupAsync(string jobType) {

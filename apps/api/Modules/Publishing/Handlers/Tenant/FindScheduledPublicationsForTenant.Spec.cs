@@ -288,7 +288,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			HttpMethod.Get,
 			$"{_FindUrl}?from=2099-05-31T00%3A00%3A00Z"
 			+ $"&to=2099-07-01T00%3A00%3A00Z&limit=2&cursor="
-			+ Uri.EscapeDataString(nextCursor!)
+			+ Uri.EscapeDataString(nextCursor.Required())
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -330,7 +330,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem!.Errors.Should().ContainKey("publication-window-invalid");
+		problem.Required().Errors.Should().ContainKey("publication-window-invalid");
 	}
 
 	[Fact]
@@ -353,7 +353,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem!.Errors.Should().ContainKey("publication-window-too-wide");
+		problem.Required().Errors.Should().ContainKey("publication-window-too-wide");
 	}
 
 	[Fact]
@@ -501,7 +501,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			.EnumerateArray()
 			.Select(row => row.GetProperty("postBodyPreview").GetString())
 			.ToList();
-		previews.Should().NotContain(p => p!.Contains("techstart"));
+		previews.Should().NotContain(p => p.Required().Contains("techstart"));
 	}
 
 	[Fact]
@@ -579,7 +579,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			.EnumerateArray()
 			.Select(row => row.GetProperty("postBodyPreview").GetString())
 			.ToList();
-		previews.Should().NotContain(p => p!.Contains("deleted row probe"));
+		previews.Should().NotContain(p => p.Required().Contains("deleted row probe"));
 	}
 
 	[Fact]
@@ -614,7 +614,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 				Preview: row.GetProperty("postBodyPreview").GetString(),
 				LocalIso: row.GetProperty("scheduledAtLocal").GetString()
 			))
-			.First(row => row.Preview!.Contains("winter dst probe"))
+			.First(row => row.Preview.Required().Contains("winter dst probe"))
 			.LocalIso;
 		local.Should().Be("2099-12-15T09:00:00+01:00");
 	}
@@ -669,7 +669,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem!.Errors.Should().ContainKey("limit");
+		problem.Required().Errors.Should().ContainKey("limit");
 	}
 
 	[Fact]
@@ -695,7 +695,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem!.Errors.Should().ContainKey("limit");
+		problem.Required().Errors.Should().ContainKey("limit");
 	}
 
 	[Fact]
@@ -721,7 +721,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem!.Errors.Should().ContainKey("limit");
+		problem.Required().Errors.Should().ContainKey("limit");
 	}
 
 	[Fact]

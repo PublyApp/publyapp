@@ -86,7 +86,7 @@ public sealed class BlueskyPublishProviderSpec {
 		handler.Requests.Should().HaveCount(1);
 		var request = handler.Requests[0];
 		request.Method.Should().Be(HttpMethod.Post);
-		request.RequestUri!.ToString().Should().Be(
+		request.RequestUri.Required().ToString().Should().Be(
 			$"{_PdsHost}/xrpc/com.atproto.repo.createRecord"
 		);
 
@@ -231,8 +231,9 @@ public sealed class BlueskyPublishProviderSpec {
 		// the freshly derived rkey.
 		var readBack = fakePds.Requests.Should().ContainSingle(request =>
 			request.Method == HttpMethod.Get).Subject;
-		readBack.RequestUri!.AbsolutePath.Should().EndWith("com.atproto.repo.getRecord");
-		var query = HttpUtility.ParseQueryString(readBack.RequestUri.Query);
+		var readBackUri = readBack.RequestUri.Required();
+		readBackUri.AbsolutePath.Should().EndWith("com.atproto.repo.getRecord");
+		var query = HttpUtility.ParseQueryString(readBackUri.Query);
 		query["repo"].Should().Be("did:plc:x");
 		query["collection"].Should().Be("app.bsky.feed.post");
 		query["rkey"].Should().Be($"pub-{_IdempotencyKey}");
@@ -307,12 +308,12 @@ public sealed class BlueskyPublishProviderSpec {
 		) {
 			Requests.Add(request);
 
-			if (request.RequestUri!.AbsolutePath.EndsWith(
+			if (request.RequestUri.Required().AbsolutePath.EndsWith(
 					"com.atproto.repo.createRecord",
 					StringComparison.Ordinal
 				)) {
 				CreateAttempts += 1;
-				var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+				var body = await request.Content.Required().ReadAsStringAsync(cancellationToken);
 				var rkey = _ExtractRkey(body);
 				if (StoredRkeys.Contains(rkey)) {
 					return _JsonResponse(400, _DuplicateBody);
@@ -325,7 +326,8 @@ public sealed class BlueskyPublishProviderSpec {
 				);
 			}
 
-			var query = HttpUtility.ParseQueryString(request.RequestUri.Query);
+			var requestUri = request.RequestUri.Required();
+			var query = HttpUtility.ParseQueryString(requestUri.Query);
 			return _JsonResponse(
 				200,
 				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/{{query["rkey"]}}","cid":"bafy-existing"}"""
@@ -334,8 +336,12 @@ public sealed class BlueskyPublishProviderSpec {
 
 		private static string _ExtractRkey(string createRecordBody) {
 			using var document = JsonDocument.Parse(createRecordBody);
-			return document.RootElement.GetProperty("rkey").GetString()
-				?? throw new InvalidOperationException("createRecord body carried no rkey.");
+			var rkey = document.RootElement.GetProperty("rkey").GetString();
+			if (rkey is null) {
+				throw new InvalidOperationException("createRecord body carried no rkey.");
+			}
+
+			return rkey;
 		}
 	}
 

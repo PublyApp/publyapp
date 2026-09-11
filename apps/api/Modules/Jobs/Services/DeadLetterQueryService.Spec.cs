@@ -188,10 +188,11 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			var detail = await service.GetByIdAsync(id);
 
 			detail.Should().NotBeNull();
-			detail!.Id.Should().Be(id);
-			detail.TenantId.Should().Be(tenantId);
-			detail.Events.Should().ContainSingle();
-			detail.Events.Single().Event.Should()
+			var detailValue = detail.Required();
+			detailValue.Id.Should().Be(id);
+			detailValue.TenantId.Should().Be(tenantId);
+			detailValue.Events.Should().ContainSingle();
+			detailValue.Events.Single().Event.Should()
 				.Be(JobDeadLetterEvents.MissingConfirmed);
 		} finally {
 			await _CleanupAsync(jobType);

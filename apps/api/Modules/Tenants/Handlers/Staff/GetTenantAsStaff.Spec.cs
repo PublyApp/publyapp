@@ -389,8 +389,8 @@ public sealed class GetTenantAsStaffSpec
 		result.Timezone.Should().Be(tenant.Timezone);
 		result.Notes.Should().Be(tenant.Notes);
 		result.LastActivityAt.Should().NotBeNull();
-		result.LastActivityAt!.Value.Should().BeCloseTo(
-			tenant.LastActivityAt!.Value, TimeSpan.FromSeconds(1)
+		result.LastActivityAt.Required().Should().BeCloseTo(
+			tenant.LastActivityAt.Required(), TimeSpan.FromSeconds(1)
 		);
 	}
 

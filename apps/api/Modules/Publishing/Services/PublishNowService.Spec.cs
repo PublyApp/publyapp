@@ -369,7 +369,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 			job.IdempotencyKey.Should().NotBeNull();
 			using var payload = JsonDocument.Parse(job.Payload);
 			var payloadPublicationId = Guid.Parse(
-				payload.RootElement.GetProperty("publicationId").GetString()!
+				payload.RootElement.GetProperty("publicationId").GetString().Required()
 			);
 			var payloadKey = payload.RootElement.GetProperty("idempotencyKey").GetString();
 			payloadKey.Should().NotBeNull();

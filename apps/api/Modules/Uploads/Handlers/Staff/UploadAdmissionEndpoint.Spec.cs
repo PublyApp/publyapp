@@ -63,7 +63,7 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 
 		response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
 		response.Content.Headers.ContentType.Should().NotBeNull();
-		response.Content.Headers.ContentType!.MediaType
+		response.Content.Headers.ContentType.Required().MediaType
 			.Should().Be("application/problem+json");
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();

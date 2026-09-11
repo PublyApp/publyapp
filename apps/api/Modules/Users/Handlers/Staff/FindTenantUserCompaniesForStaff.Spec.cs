@@ -113,8 +113,9 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			var userIdGuid = Guid.Parse(userId);
 			observedOrder = await dbContext.UserAccount
 				.Where(a => a.UserId == userIdGuid
-					&& visitedOrder.Contains((Guid)a.TenantId!))
-				.OrderBy(a => visitedOrder.IndexOf((Guid)a.TenantId!))
+					&& a.TenantId.HasValue
+					&& visitedOrder.Contains(a.TenantId.Value))
+				.OrderBy(a => a.TenantId.HasValue ? visitedOrder.IndexOf(a.TenantId.Value) : -1)
 				.Select(a => a.CreatedAt)
 				.ToListAsync();
 		}
@@ -184,8 +185,11 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenantNames = await dbContext.Tenant
-			.Where(t => seededTenantIds.Contains(t.Id!.Value))
-			.ToDictionaryAsync(t => t.Id!.Value, t => t.Name);
+			.Where(t => t.Id.HasValue && seededTenantIds.Contains(t.Id.Value))
+			.ToDictionaryAsync(
+				t => t.Id.HasValue ? t.Id.Value : Guid.Empty,
+				t => t.Name
+			);
 		var expectedOrder = seededTenantIds
 			.OrderBy(id => tenantNames[id])
 			.ThenBy(id => id)
@@ -897,7 +901,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		// green. After the swap, the tiebreaker is actually exercised.
 		var accountIds = tenantIds.Select(t => dbContext.UserAccount
 			.Where(a => a.TenantId == t && a.UserId == userId)
-			.Select(a => a.Id!.Value)
+			.Select(a => a.Id.HasValue ? a.Id.Value : Guid.Empty)
 			.First()).ToList();
 		await _SwapUserAccountIdsAsync(accountIds[0], accountIds[2]);
 		return (userId.ToString(), tenantIds, order);

@@ -193,6 +193,11 @@ public sealed class ResolveTenantProfileNamesAsStaffSpec : IClassFixture<ApiFixt
 		const string uniqueStem = "Resolver";
 		var editorName = $"{uniqueStem} Editor {Guid.NewGuid():N}";
 		var viewerName = $"{uniqueStem} Viewer {Guid.NewGuid():N}";
+		var viewerNameLower = viewerName.Replace(
+			"Viewer",
+			"viewer",
+			StringComparison.Ordinal
+		);
 		await _CreateTenantProfileAsync(tenantId, editorName);
 		await _CreateTenantProfileAsync(tenantId, viewerName);
 
@@ -201,7 +206,11 @@ public sealed class ResolveTenantProfileNamesAsStaffSpec : IClassFixture<ApiFixt
 			_GetUrl(tenantId.ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
-			names = new[] { editorName.ToUpperInvariant(), $"  {viewerName.ToLowerInvariant()}  ", "No Such Profile Anywhere" },
+			names = new[] {
+				editorName.ToUpperInvariant(),
+				$"  {viewerNameLower}  ",
+				"No Such Profile Anywhere",
+			},
 		});
 
 		using var response = await _Http.SendAsync(request);
@@ -217,9 +226,9 @@ public sealed class ResolveTenantProfileNamesAsStaffSpec : IClassFixture<ApiFixt
 		var byName = payload.Names.ToDictionary(item => item.Name, item => item);
 		byName[editorName.ToUpperInvariant()].ProfileId.Should().NotBeNull();
 		byName[editorName.ToUpperInvariant()].Reason.Should().BeNull();
-		byName[$"  {viewerName.ToLowerInvariant()}  "].ProfileId.Should()
+		byName[$"  {viewerNameLower}  "].ProfileId.Should()
 			.Be(await _GetProfileIdByNameAsync(tenantId, viewerName));
-		byName[$"  {viewerName.ToLowerInvariant()}  "].Reason.Should().BeNull();
+		byName[$"  {viewerNameLower}  "].Reason.Should().BeNull();
 		byName["No Such Profile Anywhere"].ProfileId.Should().BeNull();
 		byName["No Such Profile Anywhere"].Reason.Should().Be("not-found");
 

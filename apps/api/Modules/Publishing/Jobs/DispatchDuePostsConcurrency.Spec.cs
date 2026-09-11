@@ -33,12 +33,16 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 
 	private async Task<string> _GetConnectionStringAsync() {
 		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
-		return scope.ServiceProvider
+		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString()
-			?? throw new InvalidOperationException(
+			.Database.GetConnectionString();
+		if (connectionString is null) {
+			throw new InvalidOperationException(
 				"Test database connection string was unexpectedly null."
 			);
+		}
+
+		return connectionString;
 	}
 
 	[Fact]

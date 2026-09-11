@@ -843,8 +843,8 @@ public sealed class FindTenantsAsStaffSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.Tenant
-				.Where(t => visitedOrder.Contains((Guid)t.Id!))
-				.OrderBy(t => visitedOrder.IndexOf((Guid)t.Id!))
+				.Where(t => t.Id.HasValue && visitedOrder.Contains(t.Id.Value))
+				.OrderBy(t => t.Id.HasValue ? visitedOrder.IndexOf(t.Id.Value) : -1)
 				.Select(t => t.CreatedAt)
 				.ToListAsync();
 		}
@@ -944,8 +944,8 @@ public sealed class FindTenantsAsStaffSpec
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.Tenant
-				.Where(t => visitedOrder.Contains((Guid)t.Id!))
-				.OrderBy(t => visitedOrder.IndexOf((Guid)t.Id!))
+				.Where(t => t.Id.HasValue && visitedOrder.Contains(t.Id.Value))
+				.OrderBy(t => t.Id.HasValue ? visitedOrder.IndexOf(t.Id.Value) : -1)
 				.Select(t => t.UpdatedAt)
 				.ToListAsync();
 		}

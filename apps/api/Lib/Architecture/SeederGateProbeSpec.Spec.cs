@@ -42,13 +42,14 @@ public sealed class SeederGateProbeSpec {
 
 			results.ExitCode.Should().Be(0, "the seed gate should pass in Production");
 			results.Payload.Should().NotBeNull("the probe should emit a JSON result payload");
-			results.Payload!.DemoSeedersExcluded.Should().BeTrue();
-			results.Payload.HasSeededPermissions.Should().BeTrue();
-			results.Payload.HasStaffOwnerProfile.Should().BeTrue();
-			results.Payload.HasSystemJobDefinitions.Should().BeTrue();
-			results.Payload.HasOwnerUser.Should().BeTrue();
-			results.Payload.HasOwnerAccount.Should().BeTrue();
-			results.Payload.OwnerPasswordIsNotSeedPassword.Should().BeTrue();
+			var payload = results.Payload.Required();
+			payload.DemoSeedersExcluded.Should().BeTrue();
+			payload.HasSeededPermissions.Should().BeTrue();
+			payload.HasStaffOwnerProfile.Should().BeTrue();
+			payload.HasSystemJobDefinitions.Should().BeTrue();
+			payload.HasOwnerUser.Should().BeTrue();
+			payload.HasOwnerAccount.Should().BeTrue();
+			payload.OwnerPasswordIsNotSeedPassword.Should().BeTrue();
 		} finally {
 			await _DropDatabaseIfExistsAsync(adminConnection, dbName);
 		}

@@ -1,4 +1,5 @@
 using FluentAssertions;
+
 using Xunit;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
@@ -28,7 +29,7 @@ public sealed class MasterKeyXmlSpec {
 		var clear = new System.Xml.Linq.XElement("key", "cross-key-payload");
 		var encrypted = encryptor.Encrypt(clear);
 		var protectedBytes = Convert.FromBase64String(
-			encrypted.EncryptedElement.Value!
+			encrypted.EncryptedElement.Value.Required()
 		);
 
 		// Flip a byte in the nonce to simulate a different key's ring

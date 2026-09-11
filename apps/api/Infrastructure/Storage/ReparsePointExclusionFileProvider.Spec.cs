@@ -1,6 +1,8 @@
 using FluentAssertions;
+
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
+
 using Xunit;
 
 namespace PublyApp.Api.Infrastructure.Storage;
@@ -157,9 +159,9 @@ public sealed class ReparsePointExclusionFileProviderSpec {
 
 			var record = capturingLogger.Records[0];
 			record.Structured.Should().ContainKey("Subpath");
-			record.Structured["Subpath"]!.Should().Be("link.txt");
+			record.Structured["Subpath"].Required().Should().Be("link.txt");
 			record.Structured.Should().ContainKey("Component");
-			record.Structured["Component"]!.Should().Be(symlinkPath);
+			record.Structured["Component"].Required().Should().Be(symlinkPath);
 		} finally {
 			try { Directory.Delete(tempRoot, true); } catch { }
 		}
@@ -225,7 +227,7 @@ public sealed class ReparsePointExclusionFileProviderSpec {
 			info.Exists.Should().BeFalse();
 
 			capturingLogger.Records.Should().ContainSingle().Which
-				.Structured["Component"]!.Should().Be(symlinkedDir,
+				.Structured["Component"].Required().Should().Be(symlinkedDir,
 					"log must name the offending intermediate directory, not the leaf"
 				);
 		} finally {
@@ -306,9 +308,9 @@ public sealed class ReparsePointExclusionFileProviderSpec {
 
 			var record = capturingLogger.Records[0];
 			record.Structured.Should().ContainKey("Subpath");
-			record.Structured["Subpath"]!.Should().Be("");
+			record.Structured["Subpath"].Required().Should().Be("");
 			record.Structured.Should().ContainKey("Entry");
-			record.Structured["Entry"]!.Should().Be("sym-dir");
+			record.Structured["Entry"].Required().Should().Be("sym-dir");
 		} finally {
 			try { Directory.Delete(tempRoot, true); } catch { }
 		}

@@ -438,7 +438,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			.SingleOrDefaultAsync(d => d.OriginalJobId == jobId);
 
 		deadLetter.Should().NotBeNull();
-		deadLetter!.Payload.Should().Contain("not-a-guid");
+		deadLetter.Required().Payload.Should().Contain("not-a-guid");
 
 		var log = await assertDb.EmailLog.AsNoTracking().SingleOrDefaultAsync(e => e.JobId == jobId);
 		log.Should().BeNull();

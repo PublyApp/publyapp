@@ -66,7 +66,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 		// A real file placed OUTSIDE the storage root — the symlink target.
 		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
 		var sentinelPath = Path.Combine(
-			Path.GetDirectoryName(uploadsDir)!,
+			Path.GetDirectoryName(uploadsDir).Required(),
 			$"sentinel-{Guid.NewGuid():N}.txt"
 		);
 		await File.WriteAllTextAsync(sentinelPath, sentinelContent);
@@ -120,7 +120,7 @@ public sealed class SymlinkEscapeSpec : IClassFixture<ApiFixture> {
 		// --- Masked symlink case: a symlink inside uploads/ pointing outside ---
 		var sentinelContent = $"sentinel-{Guid.NewGuid():N}";
 		var sentinelPath = Path.Combine(
-			Path.GetDirectoryName(uploadsDir)!,
+			Path.GetDirectoryName(uploadsDir).Required(),
 			$"sentinel-{Guid.NewGuid():N}.txt"
 		);
 		await File.WriteAllTextAsync(sentinelPath, sentinelContent);

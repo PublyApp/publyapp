@@ -54,7 +54,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
 		Assert.NotNull(payload);
-		payload!.Items.Select(target => target.Id).Should()
+		payload.Required().Items.Select(target => target.Id).Should()
 			.Contain(seeded.RecentActiveId)
 			.And.Contain(seeded.OldActiveId)
 			.And.NotContain(seeded.NeedsReconnectId,
@@ -92,7 +92,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
 		Assert.NotNull(payload);
-		payload!.Items.Should()
+		payload.Required().Items.Should()
 			.Contain(
 				target => target.Provider == "bluesky",
 				"the spec seeds one Active Acme Bluesky account so the composer's "
@@ -124,7 +124,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		);
 		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
 		Assert.NotNull(payload);
-		payload!.Items.Should().NotBeEmpty(
+		payload.Required().Items.Should().NotBeEmpty(
 			"the seeded Active account is a valid target for a permitted member"
 		);
 	}
@@ -164,7 +164,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 			scenario.NeedsReconnectId,
 			scenario.ForeignActiveId,
 		};
-		var scopedPinnedIds = scopedPayload!.Items
+		var scopedPinnedIds = scopedPayload.Required().Items
 			.Select(target => target.Id)
 			.Where(id => pinned.Contains(id))
 			.ToList();
@@ -181,7 +181,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		var otherPayload = await otherResponse.Content
 			.ReadFromJsonAsync<TargetsPayload>();
 		Assert.NotNull(otherPayload);
-		otherPayload!.Items
+		otherPayload.Required().Items
 			.Select(target => target.Id)
 			.Where(id => pinned.Contains(id))
 			.Should()

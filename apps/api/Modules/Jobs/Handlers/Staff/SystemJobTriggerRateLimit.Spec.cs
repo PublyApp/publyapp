@@ -135,9 +135,14 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		dbContext.SystemJobDefinition.Add(definition);
 		_ = await dbContext.SaveChangesAsync();
 
-		return (definition.Id ?? throw new InvalidOperationException(
-			"Inserted system_job_definitions row came back with a NULL id."
-		)).ToString();
+		var id = definition.Id;
+		if (id is null) {
+			throw new InvalidOperationException(
+				"Inserted system_job_definitions row came back with a NULL id."
+			);
+		}
+
+		return id.Value.ToString();
 	}
 
 	private async Task _CleanupAsync(string definitionId) {

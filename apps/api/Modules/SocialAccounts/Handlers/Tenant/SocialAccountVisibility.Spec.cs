@@ -84,7 +84,7 @@ public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
 		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var created = await response.Content.ReadFromJsonAsync<SocialAccountCreated>();
-		return created!.Id;
+		return created.Required().Id;
 	}
 
 	private async Task<(List<Guid> UnderX, List<Guid> UnderY, List<Guid> Unfiltered)>
@@ -101,7 +101,7 @@ public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
 			response.EnsureSuccessStatusCode();
 			var payload = await response.Content
 				.ReadFromJsonAsync<FindSocialAccountsForTenantResponse>();
-			return payload!.Data.Select(i => i.Id).ToList();
+			return payload.Required().Data.Select(i => i.Id).ToList();
 		}
 
 		var underX = await Fetch(projectX.ToString());

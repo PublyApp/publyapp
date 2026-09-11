@@ -40,7 +40,7 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 				return File.ReadAllText(candidate);
 			}
 
-			directory = directory.Parent!;
+			directory = directory.Parent.Required();
 		}
 
 		throw new InvalidOperationException(
@@ -58,7 +58,7 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 				File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props"))) {
 				return directory;
 			}
-			directory = directory.Parent!;
+			directory = directory.Parent.Required();
 		}
 
 		throw new InvalidOperationException(
