@@ -58,7 +58,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 		/// string (see ApiFactory's own doc comment — "Any code that reads
 		/// POSTGRES_CONNECTION_STRING directly will NOT see the test DB").
 		/// The placeholder only needs to satisfy
-		/// AppEnvironmentValidator.BeValidPostgresConnectionString (a
+		/// AppEnvironmentValidator._BeValidPostgresConnectionString (a
 		/// well-formed Host/Database/Username/Password), never to connect.
 		/// </summary>
 		private const string _PlaceholderConnectionString =

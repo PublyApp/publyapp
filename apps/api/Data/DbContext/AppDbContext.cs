@@ -186,8 +186,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		//    Observed ~0.5–2.0 µs (median varies by run) on Intel i5-12500T,
 		//    100k iterations, A/B alternating within the same loop.
 		//
-		// 2. INCREMENTAL DETECTION OVERHEAD: the UpdateStatementShape
-		//    + StatusColumnWord detection the guard adds above the baseline.
+		// 2. INCREMENTAL DETECTION OVERHEAD: the _UpdateStatementShape
+		//    + _StatusColumnWord detection the guard adds above the baseline.
 		//    Observed ~0.1–0.6 µs (median varies by run) on the same machine.
 		//
 		// ROBUSTNESS: The decision to keep the guard stands even if measurements

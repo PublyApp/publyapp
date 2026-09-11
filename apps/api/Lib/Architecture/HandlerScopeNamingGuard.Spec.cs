@@ -152,7 +152,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 			"a handler class in Handlers/Staff/ must contain 'Staff' or 'Tenant' "
 			+ "in its name to signal its auth scope unambiguously. Rename toward "
 			+ "the canonical *ForStaff or *ForTenantAsStaff form for new handlers, "
-			+ "or add a justified entry to StaffScopeAllowlist for pre-existing "
+			+ "or add a justified entry to _StaffScopeAllowlist for pre-existing "
 			+ "domain-named handlers."
 		);
 	}

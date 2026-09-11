@@ -104,7 +104,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 	// round 2's re-review found that unsafe — it executes arbitrary application code for every
 	// factory-shaped IHostedService descriptor, and a legitimate one-shot factory that rejects a
 	// second invocation broke every ApiFixture consumer once the real host invoked it again (see
-	// ResolveHostedServiceImplementationType's XML doc in ApiFactory.cs for the full account).
+	// _ResolveHostedServiceImplementationType's XML doc in ApiFactory.cs for the full account).
 	//
 	// Round 2 deletes that probe and accepts the gap: RemoveWorkerHostedServices does NOT strip a
 	// factory-registered dispatcher descriptor. This test pins that limitation directly against

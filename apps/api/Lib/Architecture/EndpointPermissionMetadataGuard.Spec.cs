@@ -216,7 +216,7 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 				"every staff and tenant endpoint must declare explicit permission "
 				+ "metadata via .WithPermission(…) / PermissionFilter. "
 				+ "Add .WithPermission([AppPermissions.*]) to the route registration, "
-				+ "or add the route to BaselinedDriftRoutes with justification if it "
+				+ "or add the route to _BaselinedDriftRoutes with justification if it "
 				+ "is a tracked pre-existing gap."
 			);
 	}

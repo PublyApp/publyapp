@@ -170,7 +170,7 @@ public sealed class SyncSystemJobsJob : IJob {
 						+ "protected row is drifted (cron '{RejectedCron}', "
 						+ "enabled={DriftedEnabled}) but no code-defined default exists to "
 						+ "restore it from: the protection list and "
-						+ "SystemJobDefinitionSeeder.GetDefinitions() have diverged. The drift "
+						+ "SystemJobDefinitionSeeder._GetDefinitions() have diverged. The drift "
 						+ "is NOT repaired by this pass",
 						jobKey,
 						drifted.CronExpression,

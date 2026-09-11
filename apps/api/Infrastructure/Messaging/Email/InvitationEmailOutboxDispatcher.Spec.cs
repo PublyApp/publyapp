@@ -116,7 +116,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	// invitation email to be sent twice. Uses ClaimBatchAsync directly (not
 	// ProcessBatchAsync) so the assertion is about claim exclusivity itself,
 	// independent of send/email behavior. 50 rows gives generous margin over
-	// BatchSize=20 so plenty remain to prove the two explicit claims below
+	// _BatchSize=20 so plenty remain to prove the two explicit claims below
 	// never overlap, however the batch happens to split between them.
 	[Fact]
 	public async Task ItShouldNeverClaimTheSameRowFromTwoConcurrentDispatchers() {

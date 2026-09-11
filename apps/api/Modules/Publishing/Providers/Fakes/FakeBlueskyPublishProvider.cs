@@ -47,7 +47,7 @@ public static partial class FakePublishingProviderEnabled {
 		);
 	}
 
-	// Local mirror of AppEnvironment.GetOptionalBool: reading this flag must work
+	// Local mirror of AppEnvironment._GetOptionalBool: reading this flag must work
 	// BEFORE AppEnvironment.Initialize() runs (ServiceRegistration executes during
 	// builder composition), and the knob deliberately stays out of the validated
 	// environment set so it can never leak into a real deployment surface.

@@ -110,8 +110,8 @@ public class CursorSortFieldHandlerFactorySpec {
 		var ordered = handler.ApplyOrdering(_Rows(), true).ToList();
 
 		ordered.Should().HaveCount(5);
-		// Id(4) sorts last despite the lowest-but-one id: the key dominates, the id only splits the
-		// day+2 tie between Id(3) and Id(5).
+		// _Id(4) sorts last despite the lowest-but-one id: the key dominates, the id only splits the
+		// day+2 tie between _Id(3) and _Id(5).
 		ordered.Select(r => r.Id).Should().Equal(_Id(1), _Id(2), _Id(3), _Id(5), _Id(4));
 		ordered.Select(r => r.CreatedAt).Should().BeInAscendingOrder();
 	}

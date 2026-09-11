@@ -235,7 +235,7 @@ public sealed class TenantAsStaffServiceSpec
 	}
 
 	// The rule: any path that durably enqueues InvitationEmailOutbox rows must call
-	// _outboxSignal.Notify() so the dispatcher wakes immediately instead of relying
+	// _OutboxSignal.Notify() so the dispatcher wakes immediately instead of relying
 	// on its poll interval. Replacing Notify() with a no-op left this dependency with
 	// no assertion at all (round-5 W5-VERIFY2 finding #2).
 	[Fact]

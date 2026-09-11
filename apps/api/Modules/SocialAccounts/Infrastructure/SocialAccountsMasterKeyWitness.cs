@@ -22,7 +22,7 @@ public static class SocialAccountsMasterKeyWitness {
 	// The committed all-zero base64 string shared by apps/api/Dockerfile (both build-time
 	// Production blocks), .github/workflows/ci.yml, the just recipes and the e2e history:
 	// the repo's DOCUMENTED, publicly known build placeholder. Kept byte-exact in sync
-	// with AppEnvironmentBuildEnvCompletenessSpec.PlaceholderMasterKey.
+	// with AppEnvironmentBuildEnvCompletenessSpec._PlaceholderMasterKey.
 	private static readonly byte[] _DocumentedBuildPlaceholder =
 		Convert.FromBase64String("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 

@@ -110,7 +110,7 @@ public static class CanaryBootLogCli {
 				if (!env.TryGetValue(key, out var pinnedValue)
 					|| string.IsNullOrWhiteSpace(pinnedValue)) {
 					// Not pinned, or pinned-absent: the child must not inherit this
-					// process's copy (GetHostEnvironmentName would read it otherwise).
+					// process's copy (_GetHostEnvironmentName would read it otherwise).
 					startInfo.Environment.Remove(key);
 					continue;
 				}

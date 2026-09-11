@@ -431,7 +431,7 @@ public sealed partial class PublicationArchitectureSpec {
 		_ = staleBirthSeeds.Should().BeEmpty(
 			"every sanctioned birth-seed file must still construct publications "
 				+ "with an initialiser Status; a file that stopped must LEAVE "
-				+ "SanctionedBirthSeedFiles (ratchet down). Stale:\n{0}",
+				+ "_SanctionedBirthSeedFiles (ratchet down). Stale:\n{0}",
 			string.Join("\n", staleBirthSeeds)
 		);
 

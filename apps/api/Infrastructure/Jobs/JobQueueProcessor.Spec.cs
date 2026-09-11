@@ -1898,7 +1898,7 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 //   2. its converse — a re-arm after the current generation has already claimed is
 //      rejected and cancellation ownership is exactly once;
 //   3. at most one decision across deadline / stamp / synchronous abandon;
-//   4. THE BLOCKER CONTROL — a deadline that has decided (_decided under _gate) but has
+//   4. THE BLOCKER CONTROL — a deadline that has decided (_Decided under _Gate) but has
 //      NOT yet published its CTS cancellation must be classified Abandoned (compensate),
 //      never as a clean stop. Case 4 is RED on the pre-fix two-domain classifier (which
 //      read leaseLostSource.IsCancellationRequested outside the lock) and GREEN once
@@ -2026,9 +2026,9 @@ public sealed class LeaseDeadlineArbiterSpec {
 		);
 	}
 
-	// Case 4 — THE BLOCKER CONTROL. Pause the winning deadline AFTER _decided is written
+	// Case 4 — THE BLOCKER CONTROL. Pause the winning deadline AFTER _Decided is written
 	// but BEFORE its CTS cancellation is published, then race the stop-renewal / OCE
-	// classification. Because OnDeadline calls the cancel action OUTSIDE _gate (exactly as
+	// classification. Because _OnDeadline calls the cancel action OUTSIDE _Gate (exactly as
 	// production publishes leaseLostSource only after releasing the lock), the classifier
 	// can run while the arbiter has decided yet the CTS flag is still false. It MUST return
 	// Abandoned so the caller compensates the ambiguous late commit; the pre-fix classifier
@@ -2047,8 +2047,8 @@ public sealed class LeaseDeadlineArbiterSpec {
 
 		using var arbiter = new JobQueueProcessor.LeaseDeadlineArbiter(
 			() => {
-				// Claim() has already set _decided under _gate and released the lock before
-				// OnDeadline reaches this action. Pause HERE: decided, but the CTS
+				// _Claim() has already set _Decided under _Gate and released the lock before
+				// _OnDeadline reaches this action. Pause HERE: decided, but the CTS
 				// cancellation not yet published — the exact window the outside-lock
 				// classifier misread.
 				enteredCancel.TrySetResult();

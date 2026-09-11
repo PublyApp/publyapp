@@ -10,7 +10,7 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // invariant the old unconditional lastSyncAt write violated.
 //
 // F4: leadership carries a monotonic era epoch, so a completion is fenced to the era it
-// started in. The deterministic three-phase A -> Unelected -> B barrier below proves a
+// started in. The deterministic three-phase A -> _Unelected -> B barrier below proves a
 // stale era-A completion is dropped rather than stamped into era B (an era-ABA re-election),
 // which the probabilistic demote race alone could not deterministically reach.
 public sealed class SchedulerSyncStateSpec {
@@ -106,7 +106,7 @@ public sealed class SchedulerSyncStateSpec {
 
 	// F4 era-ABA, as a DETERMINISTIC three-phase barrier rather than a probabilistic race:
 	// a reconcile R1 starts under leadership A and captures its era epoch; a full
-	// A -> Unelected -> B turnover happens; only THEN does R1 complete. Its completion must be
+	// A -> _Unelected -> B turnover happens; only THEN does R1 complete. Its completion must be
 	// dropped — the stale sync cannot be stamped into era B, so a newly elected but wedged
 	// scheduler is not made to look recently synced. Without the epoch fence, R1 would read a
 	// non-null B leaderSince and CAS its old timestamp straight into the new leadership.
@@ -119,7 +119,7 @@ public sealed class SchedulerSyncStateSpec {
 		state.MarkLeadershipAcquiredAt(electedAtA);
 		var epochAtReconcileStart = state.CurrentEpoch;
 
-		// Phase Unelected -> Phase B: a demotion then a fresh re-election, a brand-new era.
+		// Phase _Unelected -> Phase B: a demotion then a fresh re-election, a brand-new era.
 		state.MarkLeadershipLost();
 		var reElectedAtB = DateTimeOffset.UtcNow;
 		state.MarkLeadershipAcquiredAt(reElectedAtB);

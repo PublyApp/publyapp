@@ -63,7 +63,7 @@ public sealed class HandlerContractGuardSpec {
 	// B.1 — the public Minimal-API entrypoint is named exactly "Handle".
 	// A handler must have NO public method whose name starts with "Handle"
 	// other than exactly "Handle" (catches a leftover HandleCreate/HandleUpdate
-	// from before the #431 rename). Private helpers like HandleSuccessAsync are
+	// from before the #431 rename). Private helpers like _HandleSuccessAsync are
 	// non-public and so are not considered.
 	//
 	// Candidate set: handlers exposing ANY public static Handle* method (NOT only

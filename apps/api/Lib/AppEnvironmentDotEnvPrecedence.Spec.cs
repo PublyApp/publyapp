@@ -19,7 +19,7 @@ namespace PublyApp.Api.Lib;
 /// (<see cref="HostedServiceManifestCli"/>) against a synthetic, throwaway
 /// <c>.env.development</c> in an isolated temp directory — never the repo's own file. No
 /// Docker involved: POSTGRES_CONNECTION_STRING only needs to be well-formed
-/// (<c>BeValidPostgresConnectionString</c> parses it with <c>NpgsqlConnectionStringBuilder</c>
+/// (<c>_BeValidPostgresConnectionString</c> parses it with <c>NpgsqlConnectionStringBuilder</c>
 /// and never connects), and the probe never calls <c>IHostedService.StartAsync</c>.
 ///
 /// Round-2 review of this spec found two of its five assertions could pass for the wrong
@@ -180,7 +180,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		["FRONT_URL"] = "http://localhost:5050",
 		// Round-3 review: this MUST NOT be port 5454 — this repository's actual shared local
 		// development PostgreSQL endpoint (Aspire AppHost). The probe-based cases
-		// below never dial it (BeValidPostgresConnectionString only parses it), but the real
+		// below never dial it (_BeValidPostgresConnectionString only parses it), but the real
 		// document-generation case DOES start the hosted-service graph when no-clobber
 		// regresses, and a permanent regression test is explicitly designed to activate that
 		// graph on a regression. Round-4 review: a closed local port is not enough of a
@@ -283,7 +283,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// too.
 	//
 	// FRONT_URL's validity is the discriminator: the file's value fails
-	// AppEnvironmentValidator.BeValidUrl outright, while the process's value is well-formed. If
+	// AppEnvironmentValidator._BeValidUrl outright, while the process's value is well-formed. If
 	// NoClobber protects FRONT_URL like every other key, the process's valid value wins and
 	// Initialize() (and therefore the whole probe) succeeds. If a mutation clobbers FRONT_URL
 	// specifically (while leaving APP_ROLE alone, as the round-2 mutation did), the file's

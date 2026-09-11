@@ -215,7 +215,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 					unknownRoutes.Add(
 						$"{entry.Method} {entry.Path} (endpoint '{endpointName}' "
 						+ "classified as publishing but absent from "
-						+ "PublishingRouteEndpointNames)"
+						+ "_PublishingRouteEndpointNames)"
 					);
 				}
 			}
@@ -224,7 +224,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		_ = unknownRoutes.Should().BeEmpty(
 			"every /posts/* route must be explicitly inventoried as publishing or "
 			+ "non-publishing — an unlisted route silently bypasses permission + "
-			+ "rate-limit enforcement; add it to PublishingRouteInventory with its "
+			+ "rate-limit enforcement; add it to _PublishingRouteInventory with its "
 			+ "classification (isPublishing flag):\n{0}",
 			string.Join("\n", unknownRoutes)
 		);
