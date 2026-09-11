@@ -7,7 +7,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 /// now, OAuth later). The app password is write-only from this seam's point of view: it
 /// travels inside the session-open request and must never be logged, returned, or
 /// persisted in cleartext anywhere (Epic C §4). <see cref="ToString"/> and
-/// <see cref="PrintMembers"/> render <see cref="AppPassword"/> as <c>[REDACTED]</c> so
+/// <see cref="_PrintMembers"/> render <see cref="AppPassword"/> as <c>[REDACTED]</c> so
 /// no logging path can leak it — positional records otherwise synthesize a ToString()
 /// that prints every property. Request-body serialization still carries the real value
 /// (the PDS requires it); direct property access stays available to the client seam.
@@ -17,13 +17,13 @@ public sealed record BlueskyCredentials(string Identifier, string AppPassword) {
 		var builder = new StringBuilder();
 		builder.Append(nameof(BlueskyCredentials));
 		builder.Append(" { ");
-		PrintMembers(builder);
+		_PrintMembers(builder);
 		builder.Append(' ');
 		builder.Append('}');
 		return builder.ToString();
 	}
 
-	private bool PrintMembers(StringBuilder builder) {
+	private bool _PrintMembers(StringBuilder builder) {
 		builder.Append(nameof(Identifier));
 		builder.Append(" = ");
 		builder.Append(Identifier);

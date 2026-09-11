@@ -33,9 +33,9 @@ public interface IPermissionAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public class PermissionAsStaffService : IPermissionAsStaffService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 	public PermissionAsStaffService(AppDbContext dbContext) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 	}
 
 	public Task<Dictionary<
@@ -45,7 +45,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 		string? language = null,
 		CancellationToken? cancellationToken = default
 	) {
-		return FindPermissionsAsync(
+		return _FindPermissionsAsync(
 			AppPermissions.Staff,
 			language,
 			cancellationToken
@@ -59,7 +59,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 		string? language = null,
 		CancellationToken? cancellationToken = default
 	) {
-		return FindPermissionsAsync(
+		return _FindPermissionsAsync(
 			AppPermissions.Tenant,
 			language,
 			cancellationToken
@@ -69,7 +69,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 	private async Task<Dictionary<
 			string, // slice key prefix
 			Dictionary<string, PermissionAsStaffItem> // permission key -> permission item
-		>> FindPermissionsAsync(
+		>> _FindPermissionsAsync(
 		IScopePermissions scopePermissions,
 		string? language = null,
 		CancellationToken? cancellationToken = default
@@ -127,7 +127,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 
 		// Query database to find which permissions exist
 		var query =
-			from p in _dbContext.Permission
+			from p in _DbContext.Permission
 			where runtimePermissionsKeys.Contains(p.Key) && !p.IsDeleted
 			select p;
 

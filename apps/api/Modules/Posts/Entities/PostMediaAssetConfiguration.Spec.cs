@@ -21,7 +21,7 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 public sealed class PostMediaAssetConfigurationSpec {
 	[Fact]
 	public void ItShouldMapTableWithCascadeFkWhenEntityIsConfigured() {
-		using var dbContext = CreateDesignTimeDbContext();
+		using var dbContext = _CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull(
@@ -42,7 +42,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 
 	[Fact]
 	public void ItShouldEnforceOneLiveImagePerPostWithPartialUniqueIndex() {
-		using var dbContext = CreateDesignTimeDbContext();
+		using var dbContext = _CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull();
@@ -65,7 +65,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 
 	[Fact]
 	public void ItShouldIndexTenantAndPostForScopedLookups() {
-		using var dbContext = CreateDesignTimeDbContext();
+		using var dbContext = _CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull();
@@ -80,7 +80,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 			.Equal("TenantId", "PostId");
 	}
 
-	private static AppDbContext CreateDesignTimeDbContext() {
+	private static AppDbContext _CreateDesignTimeDbContext() {
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql("Host=localhost;Database=post_media_asset_guard")
 			.Options;

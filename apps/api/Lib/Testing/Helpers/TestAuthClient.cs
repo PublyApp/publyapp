@@ -12,10 +12,10 @@ namespace PublyApp.Api.Lib.Testing.Helpers;
 /// HttpClient headers.
 /// </summary>
 internal sealed class TestAuthClient {
-	private readonly HttpClient _http;
+	private readonly HttpClient _Http;
 
 	public TestAuthClient(HttpClient http) {
-		_http = http;
+		_Http = http;
 	}
 
 	/// <summary>
@@ -45,7 +45,7 @@ internal sealed class TestAuthClient {
 	) {
 		var loginRequest = new { email, password };
 
-		using var response = await _http.PostAsJsonAsync(
+		using var response = await _Http.PostAsJsonAsync(
 			AppRoutes.Auth.Login,
 			loginRequest,
 			ct

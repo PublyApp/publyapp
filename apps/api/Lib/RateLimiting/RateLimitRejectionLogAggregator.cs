@@ -3,13 +3,13 @@ using System.Collections.Concurrent;
 namespace PublyApp.Api.Lib.RateLimiting;
 
 internal sealed class RateLimitRejectionLogAggregator {
-	private static readonly TimeSpan LogInterval =
+	private static readonly TimeSpan _LogInterval =
 		TimeSpan.FromMinutes(1);
 	private readonly ConcurrentDictionary<
 		string,
 		PolicyRejectionState
-	> _policyStates = new(StringComparer.Ordinal);
-	private readonly TimeProvider _timeProvider;
+	> _PolicyStates = new(StringComparer.Ordinal);
+	private readonly TimeProvider _TimeProvider;
 
 	public RateLimitRejectionLogAggregator()
 		: this(TimeProvider.System) {
@@ -18,26 +18,26 @@ internal sealed class RateLimitRejectionLogAggregator {
 	internal RateLimitRejectionLogAggregator(
 		TimeProvider timeProvider
 	) {
-		_timeProvider = timeProvider;
+		_TimeProvider = timeProvider;
 	}
 
 	public RateLimitRejectionLogEntry? Record(
 		RateLimitRejectionInfo info
 	) {
-		var state = _policyStates.GetOrAdd(
+		var state = _PolicyStates.GetOrAdd(
 			info.PolicyName,
 			_ => new PolicyRejectionState()
 		);
 
 		lock (state) {
 			state.RejectionCount++;
-			var now = _timeProvider.GetTimestamp();
+			var now = _TimeProvider.GetTimestamp();
 			if (state.LastLogTimestamp is not null) {
-				var elapsed = _timeProvider.GetElapsedTime(
+				var elapsed = _TimeProvider.GetElapsedTime(
 					state.LastLogTimestamp.Value,
 					now
 				);
-				if (elapsed < LogInterval) {
+				if (elapsed < _LogInterval) {
 					return null;
 				}
 			}

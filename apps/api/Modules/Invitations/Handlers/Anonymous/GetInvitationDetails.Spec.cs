@@ -19,20 +19,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public sealed class GetInvitationDetailsSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetInvitationDetailsSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkForTenantAdminInvitationWithoutProfiles() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var inviteEmail = $"tenant-admin-{Guid.NewGuid():N}@example.com";
 
 		using var body = JsonDocument.Parse(
@@ -51,14 +51,14 @@ public sealed class GetInvitationDetailsSpec
 		);
 
 		var createResponse = await TenantTestHelper.CreateTenantAsync(
-			_http,
+			_Http,
 			token,
 			body.RootElement
 		);
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await dbContext.Invitation
 			.Where(inv =>
@@ -67,7 +67,7 @@ public sealed class GetInvitationDetailsSpec
 			)
 			.SingleAsync();
 
-		var detailsResponse = await _http.GetAsync(
+		var detailsResponse = await _Http.GetAsync(
 			$"/invitations/{invitation.Token}/details"
 		);
 

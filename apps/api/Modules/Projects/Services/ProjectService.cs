@@ -19,17 +19,17 @@ public interface IProjectService {
 
 [Service(ServiceLifetime.Scoped)]
 public class ProjectService : IProjectService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public ProjectService(AppDbContext context) {
-		_dbContext = context;
+		_DbContext = context;
 	}
 
 	public async Task<Project?> GetProjectAsync(
 		Guid projectId,
 		CancellationToken cancellationToken = default
 	) {
-		return await _dbContext.Project
+		return await _DbContext.Project
 			.Where(x => x.Id == projectId && !x.IsDeleted)
 			.FirstOrDefaultAsync(cancellationToken);
 	}
@@ -38,7 +38,7 @@ public class ProjectService : IProjectService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		return await _dbContext.Project
+		return await _DbContext.Project
 			.Where(x =>
 				x.TenantId == tenantId
 				&& !x.IsDeleted
@@ -52,8 +52,8 @@ public class ProjectService : IProjectService {
 		Project project,
 		CancellationToken cancellationToken = default
 	) {
-		await _dbContext.Project.AddAsync(project, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.Project.AddAsync(project, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 		return project;
 	}
 
@@ -61,8 +61,8 @@ public class ProjectService : IProjectService {
 		Project project,
 		CancellationToken cancellationToken = default
 	) {
-		_dbContext.Project.Update(project);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		_DbContext.Project.Update(project);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 		return project;
 	}
 
@@ -72,7 +72,7 @@ public class ProjectService : IProjectService {
 			// Deletion is audit state. ProjectStatus.Inactive remains available for non-deleted projects.
 			project.IsDeleted = true;
 			project.DeletedAt = DateTime.UtcNow;
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 		}
 	}
 }

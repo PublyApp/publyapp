@@ -23,11 +23,11 @@ namespace PublyApp.Api.Modules.Jobs;
 public static class SystemJobDisableProtection {
 	// The job_keys whose disable attempt must be refused. Backed by the handlers'
 	// own JobKey constants so the policy cannot drift from the sweeps it protects.
-	private static readonly string[] ProtectedJobKeys =
+	private static readonly string[] _ProtectedJobKeys =
 		[Modules.Messaging.Jobs.EmailPreparedSendsRetentionHandler.JobKey];
 
 	/// <summary>True iff flipping this definition's <c>IsEnabled</c> to false must be reverted.</summary>
 	public static bool IsDisableProtected(string jobKey) {
-		return ProtectedJobKeys.Contains(jobKey, StringComparer.Ordinal);
+		return _ProtectedJobKeys.Contains(jobKey, StringComparer.Ordinal);
 	}
 }

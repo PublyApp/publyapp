@@ -14,10 +14,10 @@ using Xunit;
 namespace PublyApp.Api.Modules.Jobs.Jobs;
 
 public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public SystemJobOccurrenceRetentionHandlerSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -27,33 +27,33 @@ public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiF
 		var oldKey = $"{marker}.old";
 		var exactKey = $"{marker}.exact";
 		var recentKey = $"{marker}.recent";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 		await using var transaction = await dbContext.Database.BeginTransactionAsync();
 
 		try {
-			await InsertOccurrenceAsync(dbContext, oldKey, retentionDays, secondsOffset: 1);
-			await InsertOccurrenceAsync(dbContext, exactKey, retentionDays);
-			await InsertOccurrenceAsync(dbContext, recentKey, days: 1);
+			await _InsertOccurrenceAsync(dbContext, oldKey, retentionDays, secondsOffset: 1);
+			await _InsertOccurrenceAsync(dbContext, exactKey, retentionDays);
+			await _InsertOccurrenceAsync(dbContext, recentKey, days: 1);
 
 			var handler = new SystemJobOccurrenceRetentionHandler(
 				dbContext, NullLogger<SystemJobOccurrenceRetentionHandler>.Instance
 			);
-			var first = await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
-			var second = await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+			var first = await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
+			var second = await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
 
 			first.Should().BeOfType<JobOutcome.Success>();
 			second.Should().BeOfType<JobOutcome.Success>();
-			(await ExistsAsync(dbContext, oldKey)).Should().BeFalse();
-			(await ExistsAsync(dbContext, exactKey)).Should().BeTrue(
+			(await _ExistsAsync(dbContext, oldKey)).Should().BeFalse();
+			(await _ExistsAsync(dbContext, exactKey)).Should().BeTrue(
 				"the strict less-than predicate keeps the exact horizon"
 			);
-			(await ExistsAsync(dbContext, recentKey)).Should().BeTrue();
+			(await _ExistsAsync(dbContext, recentKey)).Should().BeTrue();
 		} finally {
 			await transaction.RollbackAsync();
 		}
 	}
 
-	private static async Task InsertOccurrenceAsync(
+	private static async Task _InsertOccurrenceAsync(
 		AppDbContext dbContext,
 		string jobKey,
 		int days,
@@ -70,7 +70,7 @@ public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiF
 		);
 	}
 
-	private static async Task<bool> ExistsAsync(AppDbContext dbContext, string jobKey) {
+	private static async Task<bool> _ExistsAsync(AppDbContext dbContext, string jobKey) {
 		return await dbContext.Database.SqlQuery<bool>(
 			$"""
 			SELECT EXISTS (
@@ -80,7 +80,7 @@ public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiF
 		).SingleAsync();
 	}
 
-	private static JobContext FakeContext(string jobType) {
+	private static JobContext _FakeContext(string jobType) {
 		return new JobContext {
 			JobId = Guid.NewGuid(),
 			JobType = jobType,
@@ -90,8 +90,8 @@ public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiF
 		};
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

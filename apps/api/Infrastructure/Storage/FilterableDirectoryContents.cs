@@ -10,10 +10,10 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// <see cref="ReparsePointExclusionFileProvider"/>.
 /// </summary>
 internal sealed class FilterableDirectoryContents : IDirectoryContents {
-	private readonly IReadOnlyList<IFileInfo> _entries;
+	private readonly IReadOnlyList<IFileInfo> _Entries;
 
 	public FilterableDirectoryContents(IReadOnlyList<IFileInfo> entries) {
-		_entries = entries;
+		_Entries = entries;
 	}
 
 	public bool Exists {
@@ -21,7 +21,7 @@ internal sealed class FilterableDirectoryContents : IDirectoryContents {
 	}
 
 	public IEnumerator<IFileInfo> GetEnumerator() {
-		return _entries.GetEnumerator();
+		return _Entries.GetEnumerator();
 	}
 
 	IEnumerator IEnumerable.GetEnumerator() {

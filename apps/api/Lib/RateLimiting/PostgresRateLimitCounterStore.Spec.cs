@@ -19,20 +19,20 @@ namespace PublyApp.Api.Lib.RateLimiting;
 // fail CLOSED for anonymous-auth/email policies, fail OPEN elsewhere).
 public sealed class PostgresRateLimitCounterStoreSpec
 	: IClassFixture<ApiFixture> {
-	private static readonly DateTimeOffset BaseTime =
+	private static readonly DateTimeOffset _BaseTime =
 		new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PostgresRateLimitCounterStoreSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public void ItShouldResolveTheCounterStoreAsTheSameSingletonInstance() {
-		var first = _fixture.Factory.Services
+		var first = _Fixture.Factory.Services
 			.GetRequiredService<IRateLimitCounterStore>();
-		var second = _fixture.Factory.Services
+		var second = _Fixture.Factory.Services
 			.GetRequiredService<IRateLimitCounterStore>();
 
 		first.Should().BeSameAs(second);
@@ -43,26 +43,26 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var window = TimeSpan.FromSeconds(60);
 
 		PostgresRateLimitCounterStore
-			.GetWindowStart(BaseTime, window)
-			.Should().Be(BaseTime);
+			.GetWindowStart(_BaseTime, window)
+			.Should().Be(_BaseTime);
 		PostgresRateLimitCounterStore
 			.GetWindowStart(
-				BaseTime.AddSeconds(59.9),
+				_BaseTime.AddSeconds(59.9),
 				window
 			)
-			.Should().Be(BaseTime);
+			.Should().Be(_BaseTime);
 		PostgresRateLimitCounterStore
 			.GetWindowStart(
-				BaseTime.AddSeconds(60),
+				_BaseTime.AddSeconds(60),
 				window
 			)
-			.Should().Be(BaseTime.AddSeconds(60));
+			.Should().Be(_BaseTime.AddSeconds(60));
 		PostgresRateLimitCounterStore
 			.GetWindowStart(
-				BaseTime.AddDays(3).AddSeconds(-1),
+				_BaseTime.AddDays(3).AddSeconds(-1),
 				window
 			)
-			.Should().Be(BaseTime.AddDays(3).AddMinutes(-1));
+			.Should().Be(_BaseTime.AddDays(3).AddMinutes(-1));
 	}
 
 	[Fact]
@@ -90,7 +90,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	[Fact]
 	public async Task ItShouldShareOneBudgetAcrossTwoStoresOnTheSameDatabase() {
-		await using var scope = _fixture.Factory.Services
+		await using var scope = _Fixture.Factory.Services
 			.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -101,8 +101,8 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		const string partitionKey = "two-host-shared-key";
 		const int permitLimit = 3;
 
-		var firstStore = CreateStoreFromHost();
-		var secondStore = CreateStoreFromHost();
+		var firstStore = _CreateStoreFromHost();
+		var secondStore = _CreateStoreFromHost();
 
 		var firstLease = await firstStore.AcquireAsync(
 			policyName,
@@ -110,7 +110,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var secondLease = await secondStore.AcquireAsync(
 			policyName,
@@ -118,7 +118,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var thirdLease = await secondStore.AcquireAsync(
 			policyName,
@@ -126,7 +126,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var fourthLease = await firstStore.AcquireAsync(
 			policyName,
@@ -134,7 +134,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 
 		firstLease.Acquired.Should().BeTrue();
@@ -161,7 +161,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	// enforces exactly permitLimit total.
 	[Fact]
 	public async Task ItShouldNotSplitBudgetWhenAppClocksAreDesynced() {
-		await using var scope = _fixture.Factory.Services
+		await using var scope = _Fixture.Factory.Services
 			.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -173,13 +173,13 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		const int permitLimit = 3;
 		var window = TimeSpan.FromSeconds(60);
 
-		var firstStore = CreateStoreFromHost();
-		var secondStore = CreateStoreFromHost();
+		var firstStore = _CreateStoreFromHost();
+		var secondStore = _CreateStoreFromHost();
 
 		// Replica 1's app clock says 12:00:30; replica 2's says 12:01:31
 		// (61 s apart — a full window boundary in between under the old code).
-		var replicaOneUtcNow = BaseTime.AddSeconds(30);
-		var replicaTwoUtcNow = BaseTime.AddSeconds(91);
+		var replicaOneUtcNow = _BaseTime.AddSeconds(30);
+		var replicaTwoUtcNow = _BaseTime.AddSeconds(91);
 
 		// Three acquires at the limit from replica one (drains its view of the
 		// budget in the window that starts at ~12:00:00).
@@ -257,7 +257,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	// ItShouldGrantExactlyPermitLimitAcrossTwoHosts below.
 	[Fact]
 	public async Task ItShouldGrantExactlyPermitLimitUnderConcurrency() {
-		await using var scope = _fixture.Factory.Services
+		await using var scope = _Fixture.Factory.Services
 			.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -270,7 +270,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var window = TimeSpan.FromSeconds(3_600);
 		var contenderCount = permitLimit * 2;
 
-		await using var store = CreateStoreFromHost();
+		await using var store = _CreateStoreFromHost();
 
 		var leases = await Task.WhenAll(
 			Enumerable
@@ -281,7 +281,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 					permitLimit,
 					window,
 					1,
-					BaseTime
+					_BaseTime
 				))
 		);
 
@@ -312,7 +312,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	// see splits the budget here.
 	[Fact]
 	public async Task ItShouldGrantExactlyPermitLimitAcrossTwoHosts() {
-		await using var scope = _fixture.Factory.Services
+		await using var scope = _Fixture.Factory.Services
 			.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -327,9 +327,9 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 		// Host A is the fixture's own factory; host B is a second,
 		// independent WebApplicationFactory against the same database.
-		var firstHostStore = CreateStoreFromHost();
-		await using var secondHost = _fixture.CreateSecondHost();
-		var secondHostStore = CreateStoreFrom(secondHost);
+		var firstHostStore = _CreateStoreFromHost();
+		await using var secondHost = _Fixture.CreateSecondHost();
+		var secondHostStore = _CreateStoreFrom(secondHost);
 
 		var leases = await Task.WhenAll(
 			Enumerable
@@ -343,7 +343,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 					permitLimit,
 					window,
 					1,
-					BaseTime
+					_BaseTime
 				))
 		);
 
@@ -375,14 +375,14 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldFailClosedForAbusePoliciesWhileTheirPolicyBreakerIsOpen() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = BaseTime,
+			UtcNowValue = _BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
 		await using var store = new PostgresRateLimitCounterStore(
 			throwingFactory,
 			NullLogger<PostgresRateLimitCounterStore>.Instance,
-			GetHostSettings<ApiRateLimitSettings>(),
-			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			_GetHostSettings<ApiRateLimitSettings>(),
+			_GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
 		);
 
@@ -436,14 +436,14 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldIsolateBreakerStateAcrossUnrelatedPolicies() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = BaseTime,
+			UtcNowValue = _BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
 		await using var store = new PostgresRateLimitCounterStore(
 			throwingFactory,
 			NullLogger<PostgresRateLimitCounterStore>.Instance,
-			GetHostSettings<ApiRateLimitSettings>(),
-			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			_GetHostSettings<ApiRateLimitSettings>(),
+			_GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
 		);
 
@@ -489,14 +489,14 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldShareBreakerStateAcrossPartitionsWithinOnePolicy() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = BaseTime,
+			UtcNowValue = _BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
 		await using var store = new PostgresRateLimitCounterStore(
 			throwingFactory,
 			NullLogger<PostgresRateLimitCounterStore>.Instance,
-			GetHostSettings<ApiRateLimitSettings>(),
-			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			_GetHostSettings<ApiRateLimitSettings>(),
+			_GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
 		);
 
@@ -533,7 +533,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	[Fact]
 	public async Task ItShouldConsumeNothingOnRejectionAndRolloverCleanly() {
-		await using var scope = _fixture.Factory.Services
+		await using var scope = _Fixture.Factory.Services
 			.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -548,7 +548,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		// the app's utcNow parameter no longer drives window alignment (#1546).
 		var window = TimeSpan.FromSeconds(1);
 
-		await using var store = CreateStoreFromHost();
+		await using var store = _CreateStoreFromHost();
 
 		var firstScope = await store.AcquireAsync(
 			policyName,
@@ -556,7 +556,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var secondScope = await store.AcquireAsync(
 			policyName,
@@ -564,7 +564,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var rejected = await store.AcquireAsync(
 			policyName,
@@ -572,7 +572,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			2,
-			BaseTime
+			_BaseTime
 		);
 		// Wait long enough for the DB-clock window to roll over to the
 		// next second, replenishing the budget.
@@ -583,7 +583,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			1,
-			BaseTime
+			_BaseTime
 		);
 
 		firstScope.Acquired.Should().BeTrue();
@@ -599,7 +599,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	[Fact]
 	public async Task ItShouldNeverPersistRawPartitionKeys() {
-		await using var scope = _fixture.Factory.Services
+		await using var scope = _Fixture.Factory.Services
 			.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
@@ -609,14 +609,14 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var policyName = $"spec-no-pii-{suffix}";
 		const string emailKey = "person-of-interest@example.com";
 
-		await using var store = CreateStoreFromHost();
+		await using var store = _CreateStoreFromHost();
 		await store.AcquireAsync(
 			policyName,
 			emailKey,
 			10,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 
 		var storedHashes = await dbContext.Database
@@ -637,7 +637,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	[Fact]
 	public async Task ItShouldFailClosedForAbusePoliciesWhenTheStoreIsUnreachable() {
-		await using var store = CreateStoreWithBrokenDatabase();
+		await using var store = _CreateStoreWithBrokenDatabase();
 
 		var perIpResult = await store.AcquireAsync(
 			AnonymousAuthRateLimitPolicies.PerIp,
@@ -645,7 +645,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			5,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var passwordResetResult = await store.AcquireAsync(
 			AnonymousAuthRateLimitPolicies.PasswordResetPerEmail,
@@ -653,7 +653,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			5,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var emailResult = await store.AcquireAsync(
 			ApiRateLimitPolicies.EmailOperation,
@@ -661,7 +661,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			5,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 
 		perIpResult.StoreFailure.Should().BeFalse();
@@ -676,7 +676,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	[Fact]
 	public async Task ItShouldFailOpenForNonAbusePoliciesWhenTheStoreIsUnreachable() {
-		await using var store = CreateStoreWithBrokenDatabase();
+		await using var store = _CreateStoreWithBrokenDatabase();
 
 		var authenticatedResult = await store.AcquireAsync(
 			ApiRateLimitPolicies.AuthenticatedDefault,
@@ -684,7 +684,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			100,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var bulkResult = await store.AcquireAsync(
 			ApiRateLimitPolicies.BulkOperation,
@@ -692,7 +692,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			100,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 
 		authenticatedResult.Acquired.Should().BeFalse();
@@ -706,14 +706,14 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldOpenTheBreakerStopDiallingThenProbeAfterCooldown() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = BaseTime,
+			UtcNowValue = _BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
 		await using var store = new PostgresRateLimitCounterStore(
 			throwingFactory,
 			NullLogger<PostgresRateLimitCounterStore>.Instance,
-			GetHostSettings<ApiRateLimitSettings>(),
-			GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			_GetHostSettings<ApiRateLimitSettings>(),
+			_GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
 		);
 
@@ -757,7 +757,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"while the breaker is open acquisitions must not dial Postgres at all"
 		);
 
-		timeProvider.UtcNowValue = BaseTime.AddSeconds(31);
+		timeProvider.UtcNowValue = _BaseTime.AddSeconds(31);
 		await store.AcquireAsync(
 			ApiRateLimitPolicies.AuthenticatedDefault,
 			"breaker-key",
@@ -772,7 +772,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"after the cooldown exactly one half-open probe may dial"
 		);
 
-		timeProvider.UtcNowValue = BaseTime.AddSeconds(32);
+		timeProvider.UtcNowValue = _BaseTime.AddSeconds(32);
 		await store.AcquireAsync(
 			ApiRateLimitPolicies.AuthenticatedDefault,
 			"breaker-key",
@@ -798,7 +798,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var rejected = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -806,7 +806,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var otherPartition = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -814,7 +814,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime
+			_BaseTime
 		);
 		var rolledOver = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -822,7 +822,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			BaseTime.AddSeconds(61)
+			_BaseTime.AddSeconds(61)
 		);
 
 		first.Acquired.Should().BeTrue();
@@ -832,12 +832,12 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	}
 
 	private PostgresRateLimitCounterStore
-		CreateStoreFromHost() {
-		return CreateStoreFrom(_fixture.Factory);
+		_CreateStoreFromHost() {
+		return _CreateStoreFrom(_Fixture.Factory);
 	}
 
 	private static PostgresRateLimitCounterStore
-		CreateStoreFrom(ApiFactory factory) {
+		_CreateStoreFrom(ApiFactory factory) {
 		return new PostgresRateLimitCounterStore(
 			factory.Services
 				.GetRequiredService<IServiceScopeFactory>(),
@@ -850,18 +850,18 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	}
 
 	private PostgresRateLimitCounterStore
-		CreateStoreWithBrokenDatabase() {
+		_CreateStoreWithBrokenDatabase() {
 		return new PostgresRateLimitCounterStore(
 			new ThrowingScopeFactory(),
 			NullLogger<PostgresRateLimitCounterStore>.Instance,
-			GetHostSettings<ApiRateLimitSettings>(),
-			GetHostSettings<AnonymousAuthRateLimitSettings>(),
-			new ManualTimeProvider { UtcNowValue = BaseTime }
+			_GetHostSettings<ApiRateLimitSettings>(),
+			_GetHostSettings<AnonymousAuthRateLimitSettings>(),
+			new ManualTimeProvider { UtcNowValue = _BaseTime }
 		);
 	}
 
-	private T GetHostSettings<T>() where T : notnull {
-		return _fixture.Factory.Services
+	private T _GetHostSettings<T>() where T : notnull {
+		return _Fixture.Factory.Services
 			.GetRequiredService<T>();
 	}
 

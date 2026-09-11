@@ -23,17 +23,17 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public TenantUserIdentityDangerZoneForStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetDetailsUrl(string userId) {
+	private static string _GetDetailsUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			"/tenant-users",
@@ -41,23 +41,23 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		);
 	}
 
-	private static string GetEmailUrl(string userId) {
+	private static string _GetEmailUrl(string userId) {
 		return PathUtils.Join(
-			GetDetailsUrl(userId),
+			_GetDetailsUrl(userId),
 			"/email"
 		);
 	}
 
-	private static string GetSuspendUrl(string userId) {
+	private static string _GetSuspendUrl(string userId) {
 		return PathUtils.Join(
-			GetDetailsUrl(userId),
+			_GetDetailsUrl(userId),
 			"/suspend"
 		);
 	}
 
-	private static string GetReactivateUrl(string userId) {
+	private static string _GetReactivateUrl(string userId) {
 		return PathUtils.Join(
-			GetDetailsUrl(userId),
+			_GetDetailsUrl(userId),
 			"/reactivate"
 		);
 	}
@@ -66,15 +66,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldGloballySuspendAndReactivateTenantUserIdentity() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -82,9 +82,9 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 
 		using var suspendRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetSuspendUrl(userId)
+			_GetSuspendUrl(userId)
 		).WithSessionToken(staffToken);
-		using var suspendResponse = await _http.SendAsync(suspendRequest);
+		using var suspendResponse = await _Http.SendAsync(suspendRequest);
 
 		suspendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var suspendedResult = await suspendResponse.Content
@@ -95,9 +95,9 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 
 		using var detailsRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetDetailsUrl(userId)
+			_GetDetailsUrl(userId)
 		).WithSessionToken(staffToken);
-		using var detailsResponse = await _http.SendAsync(detailsRequest);
+		using var detailsResponse = await _Http.SendAsync(detailsRequest);
 		var details = await detailsResponse.Content
 			.ReadFromJsonAsync<TenantUserDetailsResponse>();
 		details.Should().NotBeNull();
@@ -106,10 +106,10 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 
 		using var reactivateRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetReactivateUrl(userId)
+			_GetReactivateUrl(userId)
 		).WithSessionToken(staffToken);
 		using var reactivateResponse =
-			await _http.SendAsync(reactivateRequest);
+			await _Http.SendAsync(reactivateRequest);
 
 		reactivateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var reactivatedResult = await reactivateResponse.Content
@@ -123,15 +123,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldUpdateTenantUserIdentityEmail() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -141,11 +141,11 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				GetEmailUrl(userId)
+				_GetEmailUrl(userId)
 			).WithSessionToken(staffToken);
 			request.Content = JsonContent.Create(new { email = newEmail });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -157,13 +157,13 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		} finally {
 			using var resetRequest = new HttpRequestMessage(
 				HttpMethod.Patch,
-				GetEmailUrl(userId)
+				_GetEmailUrl(userId)
 			).WithSessionToken(staffToken);
 			resetRequest.Content = JsonContent.Create(
 				new { email = TestConstants.AcmeUserEmail }
 			);
 
-			using var resetResponse = await _http.SendAsync(resetRequest);
+			using var resetResponse = await _Http.SendAsync(resetRequest);
 			if (resetResponse.StatusCode != HttpStatusCode.NotFound) {
 				resetResponse.EnsureSuccessStatusCode();
 			}
@@ -174,15 +174,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnValidationProblemWhenTenantUserEmailIsAlreadyInUse() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var userId = await GetUserIdByEmailAsync(
-			_http,
+		var userId = await _GetUserIdByEmailAsync(
+			_Http,
 			staffToken,
 			tenantId,
 			TestConstants.AcmeUserEmail
@@ -190,13 +190,13 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetEmailUrl(userId)
+			_GetEmailUrl(userId)
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { email = TestConstants.StaffAdminEmail }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -211,17 +211,17 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnValidationProblemWhenTenantUserEmailIsInvalid() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetEmailUrl(Guid.NewGuid().ToString())
+			_GetEmailUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { email = "not-an-email" }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -230,17 +230,17 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenTenantUserEmailUserIdIsMalformed() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetEmailUrl("not-a-guid")
+			_GetEmailUrl("not-a-guid")
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { email = $"tenant-email-{Guid.NewGuid():N}@example.com" }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -254,17 +254,17 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnNotFoundWhenTenantUserEmailUserDoesNotExist() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetEmailUrl(Guid.NewGuid().ToString())
+			_GetEmailUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(
 			new { email = $"tenant-email-{Guid.NewGuid():N}@example.com" }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		var problem = await response.Content
@@ -282,14 +282,14 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		string action
 	) {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetIdentityActionUrl(action, "not-a-guid")
+			_GetIdentityActionUrl(action, "not-a-guid")
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -307,14 +307,14 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		string action
 	) {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetIdentityActionUrl(action, Guid.NewGuid().ToString())
+			_GetIdentityActionUrl(action, Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		var problem = await response.Content
@@ -328,15 +328,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnConflictWhenGloballySuspendingAlreadySuspendedTenantUser() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserIdentityAsync(UserStatus.Suspended);
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserIdentityAsync(UserStatus.Suspended);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetSuspendUrl(seeded.UserId.ToString())
+			_GetSuspendUrl(seeded.UserId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 		var problem = await response.Content
@@ -350,15 +350,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenGloballySuspendingLastActiveTenantAdmin() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantAdminIdentityWithSuspendedAdminPeerAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantAdminIdentityWithSuspendedAdminPeerAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetSuspendUrl(seeded.UserId.ToString())
+			_GetSuspendUrl(seeded.UserId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -373,15 +373,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	public async Task
 	ItShouldReturnConflictWhenReactivatingActiveTenantUser() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserIdentityAsync(UserStatus.Active);
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserIdentityAsync(UserStatus.Active);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetReactivateUrl(seeded.UserId.ToString())
+			_GetReactivateUrl(seeded.UserId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 		var problem = await response.Content
@@ -392,9 +392,9 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	}
 
 	private async Task<SeededTenantUserIdentity>
-	SeedTenantUserIdentityAsync(UserStatus status) {
+	_SeedTenantUserIdentityAsync(UserStatus status) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -434,9 +434,9 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 	}
 
 	private async Task<SeededTenantUserIdentity>
-	SeedTenantAdminIdentityWithSuspendedAdminPeerAsync() {
+	_SeedTenantAdminIdentityWithSuspendedAdminPeerAsync() {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -489,15 +489,15 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		);
 	}
 
-	private static string GetIdentityActionUrl(
+	private static string _GetIdentityActionUrl(
 		string action,
 		string userId
 	) {
 		if (action == "suspend") {
-			return GetSuspendUrl(userId);
+			return _GetSuspendUrl(userId);
 		}
 		if (action == "reactivate") {
-			return GetReactivateUrl(userId);
+			return _GetReactivateUrl(userId);
 		}
 
 		throw new InvalidOperationException(
@@ -505,7 +505,7 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		);
 	}
 
-	private static async Task<string> GetUserIdByEmailAsync(
+	private static async Task<string> _GetUserIdByEmailAsync(
 		HttpClient http,
 		string staffToken,
 		Guid tenantId,

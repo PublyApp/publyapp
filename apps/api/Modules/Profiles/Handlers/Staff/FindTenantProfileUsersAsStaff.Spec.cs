@@ -23,17 +23,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantProfileUsersAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string tenantId, string profileId) {
+	private static string _GetUrl(string tenantId, string profileId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForTenantAsStaff.RootFn(tenantId),
@@ -41,7 +41,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		);
 	}
 
-	private static string GetToggleUrl(
+	private static string _GetToggleUrl(
 		string tenantId,
 		string profileId,
 		string userAccountId
@@ -59,44 +59,44 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var token = await _authClient.LoginAsync(
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl("not-a-guid", Guid.NewGuid().ToString())
+			_GetUrl("not-a-guid", Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -106,15 +106,15 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), "not-a-guid")
+			_GetUrl(tenantId.ToString(), "not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -124,15 +124,15 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForNonExistentProfile() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -147,20 +147,20 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenProfileBelongsToAForeignTenant() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var ownerTenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var foreignTenantId = await GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var ownerTenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var foreignTenantId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 
-		var profileId = await CreateTenantProfileAsync(ownerTenantId);
-		var userAccountId = await CreateTenantMemberAsync(ownerTenantId);
-		await AssignAsync(token, ownerTenantId, profileId, userAccountId);
+		var profileId = await _CreateTenantProfileAsync(ownerTenantId);
+		var userAccountId = await _CreateTenantMemberAsync(ownerTenantId);
+		await _AssignAsync(token, ownerTenantId, profileId, userAccountId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(foreignTenantId.ToString(), profileId.ToString())
+			_GetUrl(foreignTenantId.ToString(), profileId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -171,24 +171,24 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNeverListMembersFromAForeignTenant() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantAId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var tenantBId = await GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantAId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantBId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 
-		var profileAId = await CreateTenantProfileAsync(tenantAId);
-		var memberAId = await CreateTenantMemberAsync(tenantAId);
-		await AssignAsync(token, tenantAId, profileAId, memberAId);
+		var profileAId = await _CreateTenantProfileAsync(tenantAId);
+		var memberAId = await _CreateTenantMemberAsync(tenantAId);
+		await _AssignAsync(token, tenantAId, profileAId, memberAId);
 
-		var profileBId = await CreateTenantProfileAsync(tenantBId);
-		var memberBId = await CreateTenantMemberAsync(tenantBId);
-		await AssignAsync(token, tenantBId, profileBId, memberBId);
+		var profileBId = await _CreateTenantProfileAsync(tenantBId);
+		var memberBId = await _CreateTenantMemberAsync(tenantBId);
+		await _AssignAsync(token, tenantBId, profileBId, memberBId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantAId.ToString(), profileAId.ToString()) + "?limit=50"
+			_GetUrl(tenantAId.ToString(), profileAId.ToString()) + "?limit=50"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -212,20 +212,20 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldExcludeAForeignTenantAccountEvenWithACorruptJunctionRow() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantAId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var tenantBId = await GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantAId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantBId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 
-		var profileAId = await CreateTenantProfileAsync(tenantAId);
-		var foreignMemberId = await CreateTenantMemberAsync(tenantBId);
-		await CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, profileAId);
+		var profileAId = await _CreateTenantProfileAsync(tenantAId);
+		var foreignMemberId = await _CreateTenantMemberAsync(tenantBId);
+		await _CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, profileAId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantAId.ToString(), profileAId.ToString()) + "?limit=50"
+			_GetUrl(tenantAId.ToString(), profileAId.ToString()) + "?limit=50"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -250,22 +250,22 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldPageWithoutOverlapOrGapsWhenManyMembersTieOnStatus() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
 		const int limit = 5;
 		var memberIds = new List<Guid>();
 		for (var i = 0; i < limit + 1; i++) {
-			var memberId = await CreateTenantMemberAsync(tenantId);
-			await AssignAsync(token, tenantId, profileId, memberId);
+			var memberId = await _CreateTenantMemberAsync(tenantId);
+			await _AssignAsync(token, tenantId, profileId, memberId);
 			memberIds.Add(memberId);
 		}
 
-		var page1 = await GetUsersPageAsync(
+		var page1 = await _GetUsersPageAsync(
 			token, tenantId, profileId, page: 1, limit: limit, sortId: "status"
 		);
-		var page2 = await GetUsersPageAsync(
+		var page2 = await _GetUsersPageAsync(
 			token, tenantId, profileId, page: 2, limit: limit, sortId: "status"
 		);
 
@@ -285,20 +285,20 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldReturnAssignedMembersOnly() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
-		var assignedMemberId = await CreateTenantMemberAsync(tenantId);
-		var unassignedMemberId = await CreateTenantMemberAsync(tenantId);
-		await AssignAsync(token, tenantId, profileId, assignedMemberId);
+		var assignedMemberId = await _CreateTenantMemberAsync(tenantId);
+		var unassignedMemberId = await _CreateTenantMemberAsync(tenantId);
+		await _AssignAsync(token, tenantId, profileId, assignedMemberId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
+			_GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -312,40 +312,40 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldExposeOtherProfilesAndTheCurrentAssignmentTimestamp() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var currentProfileId = await CreateTenantProfileAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var currentProfileId = await _CreateTenantProfileAsync(
 			tenantId,
 			"Current profile"
 		);
-		var otherProfileAId = await CreateTenantProfileAsync(
+		var otherProfileAId = await _CreateTenantProfileAsync(
 			tenantId,
 			"Other profile A"
 		);
-		var otherProfileBId = await CreateTenantProfileAsync(
+		var otherProfileBId = await _CreateTenantProfileAsync(
 			tenantId,
 			"Other profile B"
 		);
-		var memberWithOtherProfilesId = await CreateTenantMemberAsync(tenantId);
-		var memberWithOnlyCurrentProfileId = await CreateTenantMemberAsync(tenantId);
+		var memberWithOtherProfilesId = await _CreateTenantMemberAsync(tenantId);
+		var memberWithOnlyCurrentProfileId = await _CreateTenantMemberAsync(tenantId);
 		var joinedAt = new DateTime(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc);
 
-		await CreateAssignmentAsync(
+		await _CreateAssignmentAsync(
 			memberWithOtherProfilesId,
 			currentProfileId,
 			joinedAt
 		);
-		await CreateAssignmentAsync(
+		await _CreateAssignmentAsync(
 			memberWithOtherProfilesId,
 			otherProfileAId,
 			joinedAt.AddDays(1)
 		);
-		await CreateAssignmentAsync(
+		await _CreateAssignmentAsync(
 			memberWithOtherProfilesId,
 			otherProfileBId,
 			joinedAt.AddDays(2)
 		);
-		await CreateAssignmentAsync(
+		await _CreateAssignmentAsync(
 			memberWithOnlyCurrentProfileId,
 			currentProfileId,
 			joinedAt.AddDays(3)
@@ -353,10 +353,10 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), currentProfileId.ToString()) + "?limit=50"
+			_GetUrl(tenantId.ToString(), currentProfileId.ToString()) + "?limit=50"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -392,19 +392,19 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldExposeBothTheUserAccountIdAndTheDistinctGlobalUserId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
-		var (userAccountId, userId) = await CreateTenantMemberWithUserIdAsync(tenantId);
-		await AssignAsync(token, tenantId, profileId, userAccountId);
+		var (userAccountId, userId) = await _CreateTenantMemberWithUserIdAsync(tenantId);
+		await _AssignAsync(token, tenantId, profileId, userAccountId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
+			_GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -419,25 +419,25 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldSupportSearchByQ() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
 		var alphaEmail = $"alpha.tenant-profile-{Guid.NewGuid():N}@example.com";
 		var betaEmail = $"beta.tenant-profile-{Guid.NewGuid():N}@example.com";
 
-		var alphaMemberId = await CreateTenantMemberAsync(tenantId, email: alphaEmail);
-		var betaMemberId = await CreateTenantMemberAsync(tenantId, email: betaEmail);
+		var alphaMemberId = await _CreateTenantMemberAsync(tenantId, email: alphaEmail);
+		var betaMemberId = await _CreateTenantMemberAsync(tenantId, email: betaEmail);
 
-		await AssignAsync(token, tenantId, profileId, alphaMemberId);
-		await AssignAsync(token, tenantId, profileId, betaMemberId);
+		await _AssignAsync(token, tenantId, profileId, alphaMemberId);
+		await _AssignAsync(token, tenantId, profileId, betaMemberId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50&q=alpha.tenant-profile"
+			_GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50&q=alpha.tenant-profile"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -455,41 +455,41 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForInvalidSortId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50&sort_id=not_real"
+			_GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50&sort_id=not_real"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldSortByEmailAscending() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
 		var emailA = $"a.tenant-sort-{Guid.NewGuid():N}@example.com";
 		var emailB = $"b.tenant-sort-{Guid.NewGuid():N}@example.com";
 
-		var memberB = await CreateTenantMemberAsync(tenantId, email: emailB);
-		var memberA = await CreateTenantMemberAsync(tenantId, email: emailA);
+		var memberB = await _CreateTenantMemberAsync(tenantId, email: emailB);
+		var memberA = await _CreateTenantMemberAsync(tenantId, email: emailA);
 
-		await AssignAsync(token, tenantId, profileId, memberB);
-		await AssignAsync(token, tenantId, profileId, memberA);
+		await _AssignAsync(token, tenantId, profileId, memberB);
+		await _AssignAsync(token, tenantId, profileId, memberA);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString())
+			_GetUrl(tenantId.ToString(), profileId.ToString())
 				+ "?limit=50&sort_id=email&sort_order=asc"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -501,11 +501,11 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldAcceptAllSupportedSortIds() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
-		var memberId = await CreateTenantMemberAsync(tenantId);
-		await AssignAsync(token, tenantId, profileId, memberId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
+		var memberId = await _CreateTenantMemberAsync(tenantId);
+		await _AssignAsync(token, tenantId, profileId, memberId);
 
 		var sortIds = new[] {
 			"created_at", "email", "first_name", "last_name", "status", "level",
@@ -513,11 +513,11 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		foreach (var sortId in sortIds) {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl(tenantId.ToString(), profileId.ToString())
+				_GetUrl(tenantId.ToString(), profileId.ToString())
 					+ $"?limit=50&sort_id={sortId}&sort_order=desc"
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 	}
@@ -530,23 +530,23 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldSortByLevelDescending() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
 
-		var adminMemberId = await CreateTenantMemberAsync(tenantId, level: AccountLevel.Admin);
-		var userMemberId = await CreateTenantMemberAsync(tenantId, level: AccountLevel.User);
+		var adminMemberId = await _CreateTenantMemberAsync(tenantId, level: AccountLevel.Admin);
+		var userMemberId = await _CreateTenantMemberAsync(tenantId, level: AccountLevel.User);
 
-		await AssignAsync(token, tenantId, profileId, adminMemberId);
-		await AssignAsync(token, tenantId, profileId, userMemberId);
+		await _AssignAsync(token, tenantId, profileId, adminMemberId);
+		await _AssignAsync(token, tenantId, profileId, userMemberId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString())
+			_GetUrl(tenantId.ToString(), profileId.ToString())
 				+ "?limit=50&sort_id=level&sort_order=desc"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -567,20 +567,20 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// </summary>
 	[Fact]
 	public async Task ItShouldIncludeSuspendedMembers() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await CreateTenantProfileAsync(tenantId);
-		var memberId = await CreateTenantMemberAsync(tenantId);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await _CreateTenantProfileAsync(tenantId);
+		var memberId = await _CreateTenantMemberAsync(tenantId);
 
-		await AssignAsync(token, tenantId, profileId, memberId);
-		await SetMemberAccountStatusAsync(memberId, AccountStatus.Suspended);
+		await _AssignAsync(token, tenantId, profileId, memberId);
+		await _SetMemberAccountStatusAsync(memberId, AccountStatus.Suspended);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
+			_GetUrl(tenantId.ToString(), profileId.ToString()) + "?limit=50"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -596,16 +596,16 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	// Helpers
 	// ---------------------------------------------------------------------------------------
 
-	private async Task<Guid> GetTenantIdAsync(string tenantName) {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(_http, token, tenantName);
+	private async Task<Guid> _GetTenantIdAsync(string tenantName) {
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		return await TenantTestHelper.GetTenantIdByNameAsync(_Http, token, tenantName);
 	}
 
-	private async Task<Guid> CreateTenantProfileAsync(
+	private async Task<Guid> _CreateTenantProfileAsync(
 		Guid tenantId,
 		string? name = null
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(
@@ -621,12 +621,12 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		return profile.GetRequiredId();
 	}
 
-	private async Task CreateAssignmentAsync(
+	private async Task _CreateAssignmentAsync(
 		Guid userAccountId,
 		Guid profileId,
 		DateTime createdAt
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {
@@ -638,26 +638,26 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		_ = await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<Guid> CreateTenantMemberAsync(
+	private async Task<Guid> _CreateTenantMemberAsync(
 		Guid tenantId,
 		string? email = null,
 		AccountLevel level = AccountLevel.User
 	) {
-		var (userAccountId, _) = await CreateTenantMemberWithUserIdAsync(tenantId, email, level);
+		var (userAccountId, _) = await _CreateTenantMemberWithUserIdAsync(tenantId, email, level);
 		return userAccountId;
 	}
 
 	/// <summary>
-	/// Same seeding as <see cref="CreateTenantMemberAsync"/>, but also returns the underlying
+	/// Same seeding as <see cref="_CreateTenantMemberAsync"/>, but also returns the underlying
 	/// global user id — needed by identity-distinctness assertions (BLOCKER 1 regression) that
 	/// must confirm the response's `userId` differs from its `id` (the user_account_id).
 	/// </summary>
-	private async Task<(Guid UserAccountId, Guid UserId)> CreateTenantMemberWithUserIdAsync(
+	private async Task<(Guid UserAccountId, Guid UserId)> _CreateTenantMemberWithUserIdAsync(
 		Guid tenantId,
 		string? email = null,
 		AccountLevel level = AccountLevel.User
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
@@ -687,8 +687,8 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		return (account.GetRequiredId(), user.GetRequiredId());
 	}
 
-	private async Task SetMemberAccountStatusAsync(Guid userAccountId, AccountStatus status) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SetMemberAccountStatusAsync(Guid userAccountId, AccountStatus status) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var account = await dbContext.UserAccount.FindAsync(userAccountId);
@@ -700,7 +700,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		_ = await dbContext.SaveChangesAsync();
 	}
 
-	private async Task AssignAsync(
+	private async Task _AssignAsync(
 		string staffToken,
 		Guid tenantId,
 		Guid profileId,
@@ -708,10 +708,10 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 	}
 
@@ -721,8 +721,8 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	/// cross-tenant data for isolation specs that must exercise the service's account-tenant
 	/// predicate rather than relying on the profile-id filter alone.
 	/// </summary>
-	private async Task CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid profileId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid profileId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {
@@ -732,7 +732,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		_ = await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<FindTenantProfileUsersAsStaffResponse> GetUsersPageAsync(
+	private async Task<FindTenantProfileUsersAsStaffResponse> _GetUsersPageAsync(
 		string staffToken,
 		Guid tenantId,
 		Guid profileId,
@@ -742,11 +742,11 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), profileId.ToString())
+			_GetUrl(tenantId.ToString(), profileId.ToString())
 				+ $"?page={page}&limit={limit}&sort_id={sortId}&sort_order=desc"
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content

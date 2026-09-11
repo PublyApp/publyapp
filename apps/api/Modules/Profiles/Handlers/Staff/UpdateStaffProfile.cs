@@ -77,14 +77,14 @@ public record UpdateStaffProfileBody {
 	}
 
 	public PatchField<string?> GetIcon() {
-		return GetClearableString(Icon, nameof(Icon));
+		return _GetClearableString(Icon, nameof(Icon));
 	}
 
 	public PatchField<string?> GetTone() {
-		return GetClearableString(Tone, nameof(Tone));
+		return _GetClearableString(Tone, nameof(Tone));
 	}
 
-	private static PatchField<string?> GetClearableString(
+	private static PatchField<string?> _GetClearableString(
 		JsonElement element,
 		string fieldName
 	) {

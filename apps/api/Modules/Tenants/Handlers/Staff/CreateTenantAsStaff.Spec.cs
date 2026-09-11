@@ -31,14 +31,14 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public sealed class CreateTenantAsStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public CreateTenantAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	// Email-observing coverage for tenant creation (pending state, default profile,
@@ -50,12 +50,12 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldAcceptCustomCodeAndPersistItLowercase() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Custom Code {Guid.NewGuid():N}";
 		var customCode = $"custom-code-{Guid.NewGuid():N}"[..30];
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -71,7 +71,7 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -93,10 +93,10 @@ public sealed class CreateTenantAsStaffSpec
 		string invalidCode
 	) {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				token,
 				new {
 					name = $"Tenant Invalid Code {Guid.NewGuid():N}",
@@ -112,17 +112,17 @@ public sealed class CreateTenantAsStaffSpec
 			)
 		);
 
-		await AssertValidationProblemAsync(response, "Code");
+		await _AssertValidationProblemAsync(response, "Code");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenCodeIsDuplicate() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var duplicateCode = $"dup-code-{Guid.NewGuid():N}"[..25];
 
-		await CreateTenantSuccessfullyAsync(
+		await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = $"Tenant Duplicate Code First {Guid.NewGuid():N}",
@@ -137,8 +137,8 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				token,
 				new {
 					name = $"Tenant Duplicate Code Second {Guid.NewGuid():N}",
@@ -170,13 +170,13 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldSkipDefaultProfileWhenSeedDefaultProfileIsFalse() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant No Default Profile {Guid.NewGuid():N}";
 		var userEmail =
 			$"tenant-no-profile-user-{Guid.NewGuid():N}@example.com";
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -196,7 +196,7 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -222,11 +222,11 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldPersistOrganizationProfileFieldsWhenProvided() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Org Fields {Guid.NewGuid():N}";
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -250,7 +250,7 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -273,11 +273,11 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldPersistNullOrganizationProfileFieldsWhenAbsent() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Org Fields Absent {Guid.NewGuid():N}";
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -292,7 +292,7 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -316,11 +316,11 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldStoreWhitespaceOnlyLegalNameAsNullNotAsAnEmptyishString() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Org Fields Whitespace {Guid.NewGuid():N}";
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -336,7 +336,7 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -353,7 +353,7 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenLogoUrlIsWrongType() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var body = $$"""
 			{
@@ -366,11 +366,11 @@ public sealed class CreateTenantAsStaffSpec
 			}
 			""";
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, "LogoUrl");
+		await _AssertValidationProblemAsync(response, "LogoUrl");
 	}
 
 	[Theory]
@@ -382,7 +382,7 @@ public sealed class CreateTenantAsStaffSpec
 		string logoUrl
 	) {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var body = new {
 			name = $"Tenant Create Logo Url Unsafe {Guid.NewGuid():N}",
@@ -393,18 +393,18 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		};
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, "LogoUrl");
+		await _AssertValidationProblemAsync(response, "LogoUrl");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenLogoUrlExceedsMaxLength() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var oversizedLogoUrl =
 			"https://cdn.example.com/" + new string('a', 2048) + ".png";
@@ -418,18 +418,18 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		};
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, "LogoUrl");
+		await _AssertValidationProblemAsync(response, "LogoUrl");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenNameExceedsMaxLength() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var body = new {
 			name = new string('a', TenantValidationRules.NameMaxLength + 1),
@@ -439,18 +439,18 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		};
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, "Name");
+		await _AssertValidationProblemAsync(response, "Name");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldCreateTenantWhenNameIsExactlyAtMaxLength() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		// Prefixed with a unique marker (well under the limit) so the name stays
 		// unique across test runs while the total length still lands exactly at
@@ -461,7 +461,7 @@ public sealed class CreateTenantAsStaffSpec
 		);
 		name.Length.Should().Be(TenantValidationRules.NameMaxLength);
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name,
@@ -482,7 +482,7 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenWebsiteUrlExceedsMaxLength() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var oversizedWebsiteUrl =
 			"https://example.com/" + new string('a', TenantValidationRules.WebsiteUrlMaxLength);
@@ -496,11 +496,11 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		};
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, "WebsiteUrl");
+		await _AssertValidationProblemAsync(response, "WebsiteUrl");
 	}
 
 	[Theory]
@@ -517,7 +517,7 @@ public sealed class CreateTenantAsStaffSpec
 		string invalidValue
 ) {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
 		var body = $$"""
 			{
@@ -530,11 +530,11 @@ public sealed class CreateTenantAsStaffSpec
 			}
 			""";
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, field.Length > 0
+		await _AssertValidationProblemAsync(response, field.Length > 0
 			? char.ToUpperInvariant(field[0]) + field[1..]
 			: field);
 	}
@@ -549,7 +549,7 @@ public sealed class CreateTenantAsStaffSpec
 		int length
 	) {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var value = new string('a', length);
 
 		var body = $$"""
@@ -563,8 +563,8 @@ public sealed class CreateTenantAsStaffSpec
 			}
 			""";
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
 		response.StatusCode.Should()
@@ -575,11 +575,11 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldUseDefaultMaxUsersWhenMaxUsersIsMissing() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Default Max Missing {Guid.NewGuid():N}";
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -592,7 +592,7 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await AssertTenantMaxUsersAsync(
+		await _AssertTenantMaxUsersAsync(
 			created.Id,
 			AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT
 		);
@@ -602,11 +602,11 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldUseDefaultMaxUsersWhenMaxUsersIsNull() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Default Max Null {Guid.NewGuid():N}";
 
-		var created = await CreateTenantSuccessfullyAsync(
+		var created = await _CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
@@ -620,7 +620,7 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await AssertTenantMaxUsersAsync(
+		await _AssertTenantMaxUsersAsync(
 			created.Id,
 			AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT
 		);
@@ -629,14 +629,14 @@ public sealed class CreateTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldAllowPermissionedNonAdminStaffUserToCreateTenant() {
-		var token = await CreateStaffUserTokenWithPermissionAsync(
+		var token = await _CreateStaffUserTokenWithPermissionAsync(
 			AppPermissions.Staff.Tenants.CREATE.Key
 		);
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				token,
-				CreateValidTenantBody("Permissioned Staff Tenant")
+				_CreateValidTenantBody("Permissioned Staff Tenant")
 			)
 		);
 
@@ -647,10 +647,10 @@ public sealed class CreateTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWhenNotAuthenticated() {
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				sessionToken: null,
-				CreateValidTenantBody("Unauthenticated Tenant")
+				_CreateValidTenantBody("Unauthenticated Tenant")
 			)
 		);
 
@@ -661,15 +661,15 @@ public sealed class CreateTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				tenantToken,
-				CreateValidTenantBody("Forbidden Tenant User")
+				_CreateValidTenantBody("Forbidden Tenant User")
 			)
 		);
 
@@ -681,12 +681,12 @@ public sealed class CreateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await CreateUnprivilegedStaffUserTokenAsync();
+			await _CreateUnprivilegedStaffUserTokenAsync();
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(
 				token,
-				CreateValidTenantBody("Forbidden Staff User")
+				_CreateValidTenantBody("Forbidden Staff User")
 			)
 		);
 
@@ -702,13 +702,13 @@ public sealed class CreateTenantAsStaffSpec
 		string expectedField
 	) {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
-		await AssertValidationProblemAsync(response, expectedField);
+		await _AssertValidationProblemAsync(response, expectedField);
 	}
 
 	public static TheoryData<string, string> InvalidCreateTenantBodies() {
@@ -972,7 +972,7 @@ public sealed class CreateTenantAsStaffSpec
 		};
 	}
 
-	private static object CreateValidTenantBody(string namePrefix) {
+	private static object _CreateValidTenantBody(string namePrefix) {
 		return new {
 			name = $"{namePrefix} {Guid.NewGuid():N}",
 			maxUsers = 1,
@@ -985,7 +985,7 @@ public sealed class CreateTenantAsStaffSpec
 		};
 	}
 
-	private static string GetCreateTenantUrl() {
+	private static string _GetCreateTenantUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
@@ -993,21 +993,21 @@ public sealed class CreateTenantAsStaffSpec
 		);
 	}
 
-	private static HttpRequestMessage CreateTenantRequest(
+	private static HttpRequestMessage _CreateTenantRequest(
 		string? sessionToken,
 		object body
 	) {
-		var request = CreateTenantRequest(sessionToken);
+		var request = _CreateTenantRequest(sessionToken);
 		request.Content = JsonContent.Create(body);
 
 		return request;
 	}
 
-	private static HttpRequestMessage CreateTenantRequest(
+	private static HttpRequestMessage _CreateTenantRequest(
 		string? sessionToken,
 		string rawJsonBody
 	) {
-		var request = CreateTenantRequest(sessionToken);
+		var request = _CreateTenantRequest(sessionToken);
 		request.Content = new StringContent(
 			rawJsonBody,
 			Encoding.UTF8,
@@ -1017,12 +1017,12 @@ public sealed class CreateTenantAsStaffSpec
 		return request;
 	}
 
-	private static HttpRequestMessage CreateTenantRequest(
+	private static HttpRequestMessage _CreateTenantRequest(
 		string? sessionToken
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateTenantUrl()
+			_GetCreateTenantUrl()
 		);
 
 		if (!string.IsNullOrWhiteSpace(sessionToken)) {
@@ -1032,12 +1032,12 @@ public sealed class CreateTenantAsStaffSpec
 		return request;
 	}
 
-	private async Task<CreateTenantAsStaffResult> CreateTenantSuccessfullyAsync(
+	private async Task<CreateTenantAsStaffResult> _CreateTenantSuccessfullyAsync(
 		string token,
 		object body
 	) {
-		using var response = await _http.SendAsync(
-			CreateTenantRequest(token, body)
+		using var response = await _Http.SendAsync(
+			_CreateTenantRequest(token, body)
 		);
 
 		response.StatusCode.Should()
@@ -1113,12 +1113,12 @@ public sealed class CreateTenantAsStaffSpec
 		problem.TranslationKey.Should().Be(ResponseKeys.BadRequest);
 	}
 
-	private async Task AssertTenantMaxUsersAsync(
+	private async Task _AssertTenantMaxUsersAsync(
 		Guid tenantId,
 		int expectedMaxUsers
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1128,33 +1128,33 @@ public sealed class CreateTenantAsStaffSpec
 		tenant.MaxUsers.Should().Be(expectedMaxUsers);
 	}
 
-	private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {
+	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email =
 			$"tenant-create-no-permission-{Guid.NewGuid():N}@example.com";
 
 		await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email
 		);
 
-		return await _authClient.LoginAsync(
+		return await _AuthClient.LoginAsync(
 			email,
 			TestConstants.SeedPassword
 		);
 	}
 
-	private async Task<string> CreateStaffUserTokenWithPermissionAsync(
+	private async Task<string> _CreateStaffUserTokenWithPermissionAsync(
 		string permissionKey
 	) {
 		var email =
 			$"tenant-create-permissioned-{Guid.NewGuid():N}@example.com";
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1184,13 +1184,13 @@ public sealed class CreateTenantAsStaffSpec
 		});
 		await dbContext.SaveChangesAsync();
 
-		return await _authClient.LoginAsync(
+		return await _AuthClient.LoginAsync(
 			email,
 			TestConstants.SeedPassword
 		);
 	}
 
-	private static async Task AssertValidationProblemAsync(
+	private static async Task _AssertValidationProblemAsync(
 		HttpResponseMessage response,
 		string fieldName
 	) {

@@ -21,17 +21,17 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class StaffProfilePermissionsSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public StaffProfilePermissionsSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetCreateProfileUrl() {
+	private static string _GetCreateProfileUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -39,7 +39,7 @@ public sealed class StaffProfilePermissionsSpec
 		);
 	}
 
-	private static string GetListPermissionsUrl(string profileId) {
+	private static string _GetListPermissionsUrl(string profileId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -47,7 +47,7 @@ public sealed class StaffProfilePermissionsSpec
 		);
 	}
 
-	private static string GetPermissionToggleUrl(string profileId, string permissionKey) {
+	private static string _GetPermissionToggleUrl(string profileId, string permissionKey) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -59,55 +59,55 @@ public sealed class StaffProfilePermissionsSpec
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl(Guid.NewGuid().ToString())
+			_GetListPermissionsUrl(Guid.NewGuid().ToString())
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl(Guid.NewGuid().ToString())
+			_GetListPermissionsUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl(Guid.NewGuid().ToString())
+			_GetListPermissionsUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl("not-a-guid")
+			_GetListPermissionsUrl("not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -116,28 +116,28 @@ public sealed class StaffProfilePermissionsSpec
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForNonExistentProfile() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl(Guid.NewGuid().ToString())
+			_GetListPermissionsUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnAssignedPermissionKeysSorted() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl(profileId)
+			_GetListPermissionsUrl(profileId)
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
@@ -149,43 +149,43 @@ public sealed class StaffProfilePermissionsSpec
 
 	[Fact]
 	public async Task ItShouldAssignAndUnassignPermissions() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		var permissionKey = AppPermissions.Staff.Users.LIST_FOR_STAFF.Key;
 
 		// Assign: POST is idempotent.
 		using (var assignRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetPermissionToggleUrl(profileId, permissionKey)
+			_GetPermissionToggleUrl(profileId, permissionKey)
 		).WithSessionToken(token)) {
-			using var assignResponse = await _http.SendAsync(assignRequest);
+			using var assignResponse = await _Http.SendAsync(assignRequest);
 			assignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 		}
 
 		// Assign again (idempotent)
 		using (var assignRequest2 = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetPermissionToggleUrl(profileId, permissionKey)
+			_GetPermissionToggleUrl(profileId, permissionKey)
 		).WithSessionToken(token)) {
-			using var assignResponse2 = await _http.SendAsync(assignRequest2);
+			using var assignResponse2 = await _Http.SendAsync(assignRequest2);
 			assignResponse2.StatusCode.Should().Be(HttpStatusCode.NoContent);
 		}
 
-		var afterAssign = await GetPermissionKeysAsync(token, profileId);
+		var afterAssign = await _GetPermissionKeysAsync(token, profileId);
 		afterAssign.Should().Contain(permissionKey);
 		afterAssign.Should().OnlyHaveUniqueItems();
 
 		// Unassign: DELETE is idempotent.
 		using (var unassignRequest = new HttpRequestMessage(
 			HttpMethod.Delete,
-			GetPermissionToggleUrl(profileId, permissionKey)
+			_GetPermissionToggleUrl(profileId, permissionKey)
 		).WithSessionToken(token)) {
-			using var unassignResponse = await _http.SendAsync(unassignRequest);
+			using var unassignResponse = await _Http.SendAsync(unassignRequest);
 			unassignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 		}
 
-		var afterUnassign = await GetPermissionKeysAsync(token, profileId);
+		var afterUnassign = await _GetPermissionKeysAsync(token, profileId);
 		afterUnassign.Should().NotContain(permissionKey);
 	}
 
@@ -193,66 +193,66 @@ public sealed class StaffProfilePermissionsSpec
 	public async Task ItShouldHardDeletePermissionRowWhenUnassigned() {
 		// The public DELETE contract is still idempotent, but internally the row must be
 		// gone so the composite primary key represents only active grants.
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 		var profileGuid = Guid.Parse(profileId);
 		var permissionKey = AppPermissions.Staff.Users.GET_FOR_STAFF.Key;
 
 		using (var assignRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetPermissionToggleUrl(profileId, permissionKey)
+			_GetPermissionToggleUrl(profileId, permissionKey)
 		).WithSessionToken(token)) {
-			using var assignResponse = await _http.SendAsync(assignRequest);
+			using var assignResponse = await _Http.SendAsync(assignRequest);
 			assignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 		}
 
-		(await CountProfilePermissionRowsAsync(profileGuid, permissionKey))
+		(await _CountProfilePermissionRowsAsync(profileGuid, permissionKey))
 			.Should().Be(1);
 
 		using (var unassignRequest = new HttpRequestMessage(
 			HttpMethod.Delete,
-			GetPermissionToggleUrl(profileId, permissionKey)
+			_GetPermissionToggleUrl(profileId, permissionKey)
 		).WithSessionToken(token)) {
-			using var unassignResponse = await _http.SendAsync(unassignRequest);
+			using var unassignResponse = await _Http.SendAsync(unassignRequest);
 			unassignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 		}
 
-		(await CountProfilePermissionRowsAsync(profileGuid, permissionKey))
+		(await _CountProfilePermissionRowsAsync(profileGuid, permissionKey))
 			.Should().Be(0);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForAssigningUnknownPermissionKey() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetPermissionToggleUrl(profileId, "staff.this.does.not.exist")
+			_GetPermissionToggleUrl(profileId, "staff.this.does.not.exist")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldTreatUnassignUnknownPermissionKeyAsNoOp() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			GetPermissionToggleUrl(profileId, "staff.this.does.not.exist")
+			_GetPermissionToggleUrl(profileId, "staff.this.does.not.exist")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 	}
 
 	// -- Helpers --
 
-	private async Task<string> CreateStaffProfileAsync(string staffToken) {
-		var url = GetCreateProfileUrl();
+	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
+		var url = _GetCreateProfileUrl();
 		var name = "Test Profile Perms " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
@@ -272,7 +272,7 @@ public sealed class StaffProfilePermissionsSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
@@ -281,13 +281,13 @@ public sealed class StaffProfilePermissionsSpec
 		return created.ProfileId.ToString();
 	}
 
-	private async Task<List<string>> GetPermissionKeysAsync(string staffToken, string profileId) {
+	private async Task<List<string>> _GetPermissionKeysAsync(string staffToken, string profileId) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetListPermissionsUrl(profileId)
+			_GetListPermissionsUrl(profileId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
@@ -298,11 +298,11 @@ public sealed class StaffProfilePermissionsSpec
 		return payload.PermissionKeys;
 	}
 
-	private async Task<int> CountProfilePermissionRowsAsync(
+	private async Task<int> _CountProfilePermissionRowsAsync(
 		Guid profileId,
 		string permissionKey
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.ProfilePermission

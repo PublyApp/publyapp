@@ -10,12 +10,12 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 
 /// <inheritdoc cref="IJobEnqueuer"/>
 public sealed class JobEnqueuer : IJobEnqueuer {
-	private readonly AppDbContext _dbContext;
-	private readonly IRequestAuthContext _authContext;
+	private readonly AppDbContext _DbContext;
+	private readonly IRequestAuthContext _AuthContext;
 
 	public JobEnqueuer(AppDbContext dbContext, IRequestAuthContext authContext) {
-		_dbContext = dbContext;
-		_authContext = authContext;
+		_DbContext = dbContext;
+		_AuthContext = authContext;
 	}
 
 	public async Task<Guid> EnqueueAsync<TPayload>(
@@ -24,7 +24,7 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 		EnqueueOptions? options = null,
 		CancellationToken cancellationToken = default
 	) {
-		GuardDefinitionPolicy(definition);
+		_GuardDefinitionPolicy(definition);
 		definition.ValidatePayload(payload);
 
 		var item = new JobQueueItem {
@@ -35,8 +35,8 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 			IdempotencyKey = options?.IdempotencyKey,
 			// Provenance envelope (F15): trusted request identity when present,
 			// current trace id for correlation. All null for system-originated work.
-			TenantId = ParseTenantId(_authContext.TenantId),
-			ActorUserId = _authContext.UserId,
+			TenantId = _ParseTenantId(_AuthContext.TenantId),
+			ActorUserId = _AuthContext.UserId,
 			CorrelationId = Activity.Current?.Id
 		};
 
@@ -45,15 +45,15 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 		// with NO ambient transaction the enqueuer opens its own, so a NOTIFY
 		// failure after the insert can never leave a durably-enqueued row whose
 		// caller saw an exception (and would retry into a duplicate).
-		var ownsTransaction = _dbContext.Database.CurrentTransaction is null;
+		var ownsTransaction = _DbContext.Database.CurrentTransaction is null;
 
 		if (ownsTransaction) {
 			await using var transaction =
-				await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-			await InsertAndNotifyAsync(item, cancellationToken);
+				await _DbContext.Database.BeginTransactionAsync(cancellationToken);
+			await _InsertAndNotifyAsync(item, cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
 		} else {
-			await InsertAndNotifyAsync(item, cancellationToken);
+			await _InsertAndNotifyAsync(item, cancellationToken);
 		}
 
 		if (item.Id is null) {
@@ -65,25 +65,25 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 		return item.Id.Value;
 	}
 
-	private async Task InsertAndNotifyAsync(
+	private async Task _InsertAndNotifyAsync(
 		JobQueueItem item,
 		CancellationToken cancellationToken
 	) {
-		await _dbContext.JobQueue.AddAsync(item, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.JobQueue.AddAsync(item, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		// Transactional wake (§5.5): delivered at commit, never for a rolled-back
 		// write. Empty payload — the processor queries for eligible rows anyway.
 		// Harmless until 2C's JobQueueListener exists (unheard NOTIFYs are dropped;
 		// the poll interval remains the correctness fallback).
-		await _dbContext.Database.ExecuteSqlAsync(
+		await _DbContext.Database.ExecuteSqlAsync(
 			$"SELECT pg_notify('job_queue', '')",
 			cancellationToken
 		);
 	}
 
 	// Defense-in-depth mirror of the §4.1 CHECK constraints, failing before SQL.
-	private static void GuardDefinitionPolicy<TPayload>(JobDefinition<TPayload> definition) {
+	private static void _GuardDefinitionPolicy<TPayload>(JobDefinition<TPayload> definition) {
 		if (definition.MaxAttempts is < 1 or > 50) {
 			throw new InvalidOperationException(
 				$"Job '{definition.JobType}' MaxAttempts must be between 1 and 50."
@@ -97,7 +97,7 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 		}
 	}
 
-	private static Guid? ParseTenantId(string? tenantId) {
+	private static Guid? _ParseTenantId(string? tenantId) {
 		if (string.IsNullOrEmpty(tenantId)) {
 			return null;
 		}

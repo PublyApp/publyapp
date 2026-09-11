@@ -49,38 +49,38 @@ public class UpdateTenantSettingsGeneralBody {
 	}
 
 	public PatchField<string?> GetLogoUrl() {
-		return GetPatchFieldString(LogoUrl);
+		return _GetPatchFieldString(LogoUrl);
 	}
 
 	public PatchField<string?> GetLegalName() {
-		return GetPatchFieldString(LegalName);
+		return _GetPatchFieldString(LegalName);
 	}
 
 	public PatchField<string?> GetDescription() {
-		return GetPatchFieldString(Description);
+		return _GetPatchFieldString(Description);
 	}
 
 	public PatchField<string?> GetWebsiteUrl() {
-		return GetPatchFieldString(WebsiteUrl);
+		return _GetPatchFieldString(WebsiteUrl);
 	}
 
 	public PatchField<string?> GetBillingEmail() {
-		return GetPatchFieldString(BillingEmail);
+		return _GetPatchFieldString(BillingEmail);
 	}
 
 	public PatchField<string?> GetSupportEmail() {
-		return GetPatchFieldString(SupportEmail);
+		return _GetPatchFieldString(SupportEmail);
 	}
 
 	public PatchField<string?> GetDefaultLocale() {
-		return GetPatchFieldString(DefaultLocale);
+		return _GetPatchFieldString(DefaultLocale);
 	}
 
 	public PatchField<string?> GetTimezone() {
-		return GetPatchFieldString(Timezone);
+		return _GetPatchFieldString(Timezone);
 	}
 
-	private static PatchField<string?> GetPatchFieldString(JsonElement element) {
+	private static PatchField<string?> _GetPatchFieldString(JsonElement element) {
 		return element.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<string?>.Absent(),
@@ -90,7 +90,7 @@ public class UpdateTenantSettingsGeneralBody {
 			// representation — otherwise {"legalName": "  "} would persist a non-null
 			// value the UI has to separately treat as empty alongside actual null.
 			JsonValueKind.String =>
-				PatchField<string?>.Set(NormalizeClearableString(element.GetValueAsString())),
+				PatchField<string?>.Set(_NormalizeClearableString(element.GetValueAsString())),
 			JsonValueKind.Object
 				or JsonValueKind.Array
 				or JsonValueKind.Number
@@ -106,7 +106,7 @@ public class UpdateTenantSettingsGeneralBody {
 		};
 	}
 
-	private static string? NormalizeClearableString(string value) {
+	private static string? _NormalizeClearableString(string value) {
 		var trimmed = value.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}

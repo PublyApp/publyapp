@@ -13,7 +13,7 @@ public sealed class SystemJobDefinitionConfiguration : IEntityTypeConfiguration<
 		builder.Property(entity => entity.IsEnabled).HasDefaultValue(true);
 		builder.Property(entity => entity.ScheduleEpoch).HasDefaultValueSql("gen_random_uuid()");
 		// §4.3 specifies a database-level DEFAULT false, so raw-SQL inserts (which
-		// bypass UpdateAuditFields) can never leave is_deleted NULL-ish/unset.
+		// bypass _UpdateAuditFields) can never leave is_deleted NULL-ish/unset.
 		builder.Property(entity => entity.IsDeleted).HasDefaultValue(false);
 		builder.Property(entity => entity.CreatedAt).HasDefaultValueSql("now()");
 		builder.Property(entity => entity.UpdatedAt).HasDefaultValueSql("now()");

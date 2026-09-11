@@ -16,7 +16,7 @@ namespace PublyApp.Api.Lib;
 /// push, and nothing caught it locally.
 ///
 /// This spec enumerates the REQUIRED variable set from the real
-/// <c>AppEnvironment.cs</c> source (every <c>GetRequiredString</c>/<c>GetRequiredInt</c>
+/// <c>AppEnvironment.cs</c> source (every <c>_GetRequiredString</c>/<c>_GetRequiredInt</c>
 /// argument, plus the Production-gated <c>TRUSTED_PROXY_CIDRS</c>) instead of a
 /// hand-copied list, so adding a required variable without teaching the build surfaces
 /// about it fails here first. It asserts each required variable appears in:
@@ -42,14 +42,14 @@ namespace PublyApp.Api.Lib;
 /// defect.
 /// </summary>
 public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
-	private const string PlaceholderMasterKey =
+	private const string _PlaceholderMasterKey =
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 	// Optional-by-code but Production-required-for-api (validator gate); every booting
 	// non-dev surface that pins APP_ROLE pins this too, so it joins the guarded set.
-	private static readonly string[] AdditionalSurfacesVariables = ["TRUSTED_PROXY_CIDRS"];
+	private static readonly string[] _AdditionalSurfacesVariables = ["TRUSTED_PROXY_CIDRS"];
 
-	private static string FindRepoFileText(params string[] relativeParts) {
+	private static string _FindRepoFileText(params string[] relativeParts) {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (directory is not null) {
@@ -70,7 +70,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	[GeneratedRegex(
 		"GetRequired(?:String|Int)\\(\\s*(?:nameof\\(([A-Za-z_][A-Za-z0-9_]*)\\)|\"([A-Za-z_][A-Za-z0-9_]*)\")"
 	)]
-	private static partial Regex RequiredReaderRegex();
+	private static partial Regex _RequiredReaderRegex();
 
 	/// <summary>
 	/// Splits a Dockerfile into the env blocks that follow an
@@ -133,7 +133,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	/// (drawn from the live extractor, so it never drifts as AppEnvironment evolves).
 	/// Used by the red-proof to demonstrate the guard detects the defect it exists for.
 	/// </summary>
-	private static string AppendScratchThirdProductionBlockOmitting(
+	private static string _AppendScratchThirdProductionBlockOmitting(
 		string dockerfile,
 		string omittedVariable
 	) {
@@ -144,7 +144,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 			"\tAPP_ROLE=api \\",
 		};
 
-		lines.AddRange(CollectRequiredSurfaceVariables()
+		lines.AddRange(_CollectRequiredSurfaceVariables()
 			.Where(name => name != omittedVariable)
 			.Select(name => $"\t{name}=\"scratch-placeholder\" \\"));
 
@@ -153,14 +153,14 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		return dockerfile + "\n" + string.Join("\n", lines);
 	}
 
-	private static IReadOnlyList<string> CollectRequiredSurfaceVariables() {
-		var source = FindRepoFileText("apps", "api", "Lib", "AppEnvironment.cs");
+	private static IReadOnlyList<string> _CollectRequiredSurfaceVariables() {
+		var source = _FindRepoFileText("apps", "api", "Lib", "AppEnvironment.cs");
 
-		// Matches GetRequiredString(nameof(X)) / GetRequiredString("LITERAL") and the
-		// GetRequiredInt pair — the fail-fast readers whose variables every process
+		// Matches _GetRequiredString(nameof(X)) / _GetRequiredString("LITERAL") and the
+		// _GetRequiredInt pair — the fail-fast readers whose variables every process
 		// that boots the app must supply. The helper DEFINITIONS do not match (their
 		// argument is a parameter, not nameof/a literal), so only real read sites do.
-		var matches = RequiredReaderRegex().Matches(source);
+		var matches = _RequiredReaderRegex().Matches(source);
 
 		var names = new List<string>();
 		foreach (Match match in matches) {
@@ -172,7 +172,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 			}
 		}
 
-		foreach (var extra in AdditionalSurfacesVariables) {
+		foreach (var extra in _AdditionalSurfacesVariables) {
 			if (!names.Contains(extra)) {
 				names.Add(extra);
 			}
@@ -183,7 +183,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 
 	public static TheoryData<string> RequiredSurfaceVariables() {
 		var data = new TheoryData<string>();
-		foreach (var name in CollectRequiredSurfaceVariables()) {
+		foreach (var name in _CollectRequiredSurfaceVariables()) {
 			data.Add(name);
 		}
 
@@ -195,7 +195,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		// Pins the extractor: if AppEnvironment's reader calls are ever renamed or
 		// reshaped past the regex above, this fails FIRST and the surface checks below
 		// never pass vacuously.
-		var names = CollectRequiredSurfaceVariables();
+		var names = _CollectRequiredSurfaceVariables();
 
 		names.Should().Contain("POSTGRES_CONNECTION_STRING");
 		names.Should().Contain("RESEND_API_KEY");
@@ -212,7 +212,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	public void ItShouldProvideEveryRequiredVariableInEveryDockerfileProductionBlock(
 		string variableName
 	) {
-		var dockerfile = FindRepoFileText("apps", "api", "Dockerfile");
+		var dockerfile = _FindRepoFileText("apps", "api", "Dockerfile");
 
 		// Both the publish stage (OpenAPI doc-gen boots the app) and the migrations
 		// stage (dotnet ef migrations bundle) run under Production with APP_ROLE=api,
@@ -239,13 +239,13 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		// SOCIAL_ACCOUNTS_MASTER_KEY (generated from the extractor so it cannot drift).
 		// Under the retired file-wide “appears at least twice” rule this defect passed
 		// silently; the per-block guard must flag exactly that block and variable.
-		var real = FindRepoFileText("apps", "api", "Dockerfile");
+		var real = _FindRepoFileText("apps", "api", "Dockerfile");
 
-		var scratched = AppendScratchThirdProductionBlockOmitting(real,
+		var scratched = _AppendScratchThirdProductionBlockOmitting(real,
 			"SOCIAL_ACCOUNTS_MASTER_KEY");
 		var violations = CollectMissingVariablesPerProductionBlock(
 			scratched,
-			CollectRequiredSurfaceVariables()
+			_CollectRequiredSurfaceVariables()
 		);
 
 		violations.Should().BeEquivalentTo(
@@ -258,7 +258,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		// above is attributable to the scratch block alone.
 		CollectMissingVariablesPerProductionBlock(
 			real,
-			CollectRequiredSurfaceVariables()
+			_CollectRequiredSurfaceVariables()
 		).Should().BeEmpty();
 	}
 
@@ -267,7 +267,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	public void ItShouldProvideEveryRequiredVariableInTheE2eStackRuntimeEnvironment(
 		string variableName
 	) {
-		var compose = FindRepoFileText("apps", "front", "docker-compose.test.yml");
+		var compose = _FindRepoFileText("apps", "front", "docker-compose.test.yml");
 
 		compose.Should().Contain(
 			variableName,
@@ -282,7 +282,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	public void ItShouldDocumentEveryRequiredVariableInTheDeployRunbook(
 		string variableName
 	) {
-		var runbook = FindRepoFileText(
+		var runbook = _FindRepoFileText(
 			"docs", "deployment", "first-deploy-runbook.md"
 		);
 
@@ -296,9 +296,9 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 
 	[Fact]
 	public void ItShouldKeepTheDockerfilePlaceholderObviouslyNonSecret() {
-		var dockerfile = FindRepoFileText("apps", "api", "Dockerfile");
+		var dockerfile = _FindRepoFileText("apps", "api", "Dockerfile");
 
-		// The build-time value must satisfy ParseMasterKey (base64, exactly 32 bytes)
+		// The build-time value must satisfy _ParseMasterKey (base64, exactly 32 bytes)
 		// while being recognizably NOT a real key: the all-zero 32-byte key is the
 		// repo's documented build placeholder (.github/workflows/ci.yml, justfile, .env.example).
 		// Pinning the exact constant keeps both build stages aligned with the rest of
@@ -306,7 +306,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		// file. It protects nothing: the witness skips its canary check in the doc-gen
 		// path (canaryStore null), and the placeholder is never used for real crypto.
 		dockerfile.Should().Contain(
-			PlaceholderMasterKey,
+			_PlaceholderMasterKey,
 			"because the committed all-zero build placeholder is deliberately "
 				+ "non-secret and shared by .github/workflows/ci.yml and the just recipes"
 		);

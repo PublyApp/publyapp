@@ -26,38 +26,38 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // Published rows are kept, and a post left without any publication derives back
 // to Draft.
 public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public CancelPostScheduleForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
-		_http.DefaultRequestHeaders.Accept.Clear();
-		_http.DefaultRequestHeaders.Accept.Add(
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
+		_Http.DefaultRequestHeaders.Accept.Clear();
+		_Http.DefaultRequestHeaders.Accept.Add(
 			new MediaTypeWithQualityHeaderValue("application/json")
 		);
 	}
 
-	private static string ScheduleUrl(string postId) {
+	private static string _ScheduleUrl(string postId) {
 		return $"/posts/{postId}/schedule";
 	}
 
-	private const string ParisZone = "Europe/Paris";
+	private const string _ParisZone = "Europe/Paris";
 
 	[Fact]
 	public async Task ItShouldDeleteScheduledPublicationsAndReturnToDraft() {
 		var (tenantId, token, postId, publicationIds) =
-			await SeedScheduledPostWithIdsAsync();
+			await _SeedScheduledPostWithIdsAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload =
@@ -65,7 +65,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		Assert.NotNull(payload);
 		payload.Key.Should().Be("post-schedule-cancelled-success");
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var remaining = await (
@@ -95,10 +95,10 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldReturnNoopWhenNothingIsScheduled() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		await using var setupScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var setupDb =
 			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await setupDb.Publication
@@ -106,11 +106,11 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 			.ExecuteDeleteAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload =
 			await response.Content.ReadFromJsonAsync<ApiResponse>();
@@ -120,12 +120,12 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldKeepNonScheduledRowsAndStateTheKeptCount() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		// One row is mid-flight (InProgress): cancel keeps it and deletes the
 		// Scheduled siblings. Seeded as a tracked insert (the #1446 guard permits
 		// Status on Added rows; only raw/unstamped Status UPDATEs are rejected).
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var sample = await db.Publication
 			.AsNoTracking()
@@ -157,12 +157,12 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		await db.SaveChangesAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload =
 			await response.Content.ReadFromJsonAsync<ApiResponse>();
@@ -171,7 +171,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		payload.Message.Should().ContainAny("kept", "still", "not");
 
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var remaining = await (
@@ -185,43 +185,43 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishPermission() {
-		var tenantId = await GetAcmeIdAsync();
-		var postId = await CreateScheduledPostAsync(tenantId);
+		var tenantId = await _GetAcmeIdAsync();
+		var postId = await _CreateScheduledPostAsync(tenantId);
 
-		var userToken = await _authClient.LoginAsync(
+		var userToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl(postId))
 				.WithSessionToken(userToken)
 				.WithTenantId(tenantId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn400WhenPostIdIsMalformed() {
-		var (tenantId, token, _) = await SeedScheduledPostAsync();
+		var (tenantId, token, _) = await _SeedScheduledPostAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl("not-a-guid"))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl("not-a-guid"))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
-			await SeedScheduledPostAsync();
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+			await _SeedScheduledPostAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var techStartId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -229,30 +229,30 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		using var unknownRequest =
 			new HttpRequestMessage(
 				HttpMethod.Delete,
-				ScheduleUrl(Guid.NewGuid().ToString())
+				_ScheduleUrl(Guid.NewGuid().ToString())
 			)
 				.WithSessionToken(acmeToken)
 				.WithTenantId(acmeTenantId);
-		using var unknownResponse = await _http.SendAsync(unknownRequest);
+		using var unknownResponse = await _Http.SendAsync(unknownRequest);
 		unknownResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-		var techStartToken = await _authClient.LoginAsync(
+		var techStartToken = await _AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail,
 			TestConstants.SeedPassword
 		);
 		using var foreignRequest =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl(postId))
 				.WithSessionToken(techStartToken)
 				.WithTenantId(techStartId);
-		using var foreignResponse = await _http.SendAsync(foreignRequest);
+		using var foreignResponse = await _Http.SendAsync(foreignRequest);
 		foreignResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn404ForSoftDeletedPosts() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await db.Post
 			.Where(p => p.Id == Guid.Parse(postId))
@@ -261,36 +261,36 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 				.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Delete, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Delete, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	private async Task<(Guid TenantId, string Token, string PostId)>
-	SeedScheduledPostAsync() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+	_SeedScheduledPostAsync() {
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var postId = await CreateScheduledPostAsync(tenantId);
+		var postId = await _CreateScheduledPostAsync(tenantId);
 		return (tenantId, token, postId);
 	}
 
 	private async Task<
 		(Guid TenantId, string Token, string PostId, List<Guid> PublicationIds)>
-	SeedScheduledPostWithIdsAsync() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+	_SeedScheduledPostWithIdsAsync() {
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var postId = await CreateScheduledPostAsync(tenantId);
+		var postId = await _CreateScheduledPostAsync(tenantId);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var publicationIds = await (
 			from p in db.Publication.AsNoTracking()
@@ -306,8 +306,8 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	/// Seeds an Acme post bound to two Scheduled publications (future instants) and
 	/// returns the persisted post id plus the two publication ids.
 	/// </summary>
-	private async Task<string> CreateScheduledPostAsync(Guid tenantId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _CreateScheduledPostAsync(Guid tenantId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var author = await db.User.AsNoTracking().SingleAsync(
@@ -344,7 +344,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 				SocialAccountId = account.GetRequiredId(),
 				Status = PublicationStatus.Scheduled,
 				ScheduledAtUtc = DateTime.UtcNow.AddDays(30),
-				ScheduledTimeZone = ParisZone,
+				ScheduledTimeZone = _ParisZone,
 				IdempotencyKey = "pending",
 			});
 		}
@@ -353,10 +353,10 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		return post.GetRequiredId().ToString();
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetAcmeIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);

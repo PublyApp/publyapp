@@ -28,14 +28,14 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 // independently of any UI; the two defenses do not share state.
 public sealed class PermissionBasedNavFilterServerProof
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public PermissionBasedNavFilterServerProof(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
@@ -45,19 +45,19 @@ public sealed class PermissionBasedNavFilterServerProof
 		// discover their Acme tenant, fetch their scope auth data, and
 		// confirm the posts.view key is missing (so the front rail would
 		// hide Posts for them).
-		var userToken = await _authClient.LoginAsync(
+		var userToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 
-		var scopeAuthData = await FetchScopeAuthDataAsync(
+		var scopeAuthData = await _FetchScopeAuthDataAsync(
 			userToken, acmeId.ToString()
 		);
 
@@ -77,7 +77,7 @@ public sealed class PermissionBasedNavFilterServerProof
 			.WithSessionToken(userToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		// Assert: the server rejects with 403 + the standard
 		// permission-missing translation key. The rejection does not
@@ -92,7 +92,7 @@ public sealed class PermissionBasedNavFilterServerProof
 			.Be("user-does-not-have-the-necessary-permissions");
 	}
 
-	private async Task<ScopeAuthDataResponse> FetchScopeAuthDataAsync(
+	private async Task<ScopeAuthDataResponse> _FetchScopeAuthDataAsync(
 		string sessionToken,
 		string scope
 	) {
@@ -102,7 +102,7 @@ public sealed class PermissionBasedNavFilterServerProof
 			)
 			.WithSessionToken(sessionToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content

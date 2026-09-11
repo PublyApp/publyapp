@@ -4,12 +4,12 @@ using Microsoft.Net.Http.Headers;
 namespace PublyApp.Api.Lib.RateLimiting;
 
 internal sealed class CorsResponseHeadersMiddleware {
-	private readonly RequestDelegate _next;
+	private readonly RequestDelegate _Next;
 
 	public CorsResponseHeadersMiddleware(
 		RequestDelegate next
 	) {
-		_next = next;
+		_Next = next;
 	}
 
 	public async Task InvokeAsync(
@@ -36,7 +36,7 @@ internal sealed class CorsResponseHeadersMiddleware {
 			}
 		}
 
-		await _next(context);
+		await _Next(context);
 	}
 }
 

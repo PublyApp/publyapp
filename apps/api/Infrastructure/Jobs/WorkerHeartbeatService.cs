@@ -15,16 +15,16 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 /// <c>--worker-health</c>, which reads this file (see <see cref="WorkerHealthCli"/>).
 /// </summary>
 public sealed class WorkerHeartbeatService : BackgroundService {
-	private readonly IServiceScopeFactory _scopeFactory;
-	private readonly ILogger<WorkerHeartbeatService> _logger;
-	private readonly string _heartbeatPath = WorkerHeartbeat.ResolvePath();
+	private readonly IServiceScopeFactory _ScopeFactory;
+	private readonly ILogger<WorkerHeartbeatService> _Logger;
+	private readonly string _HeartbeatPath = WorkerHeartbeat.ResolvePath();
 
 	public WorkerHeartbeatService(
 		IServiceScopeFactory scopeFactory,
 		ILogger<WorkerHeartbeatService> logger
 	) {
-		_scopeFactory = scopeFactory;
-		_logger = logger;
+		_ScopeFactory = scopeFactory;
+		_Logger = logger;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -34,7 +34,7 @@ public sealed class WorkerHeartbeatService : BackgroundService {
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				// A failed DB probe (or write) is expected to leave the file stale so
 				// the health probe reports unhealthy; log and keep looping.
-				_logger.LogWarning(ex, "Worker heartbeat write skipped (DB probe failed)");
+				_Logger.LogWarning(ex, "Worker heartbeat write skipped (DB probe failed)");
 			}
 
 			try {
@@ -48,12 +48,12 @@ public sealed class WorkerHeartbeatService : BackgroundService {
 	// Public: lets a spec drive one heartbeat deterministically instead of waiting on
 	// the loop. Probes the database, then touches the heartbeat file only on success.
 	public async Task WriteHeartbeatAsync(CancellationToken cancellationToken) {
-		using var scope = _scopeFactory.CreateScope();
+		using var scope = _ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Reflects DB connectivity, not just liveness (design §3.5).
 		_ = await dbContext.Database.ExecuteSqlAsync($"SELECT 1", cancellationToken);
 
-		await WorkerHeartbeat.TouchAsync(_heartbeatPath, DateTime.UtcNow, cancellationToken);
+		await WorkerHeartbeat.TouchAsync(_HeartbeatPath, DateTime.UtcNow, cancellationToken);
 	}
 }

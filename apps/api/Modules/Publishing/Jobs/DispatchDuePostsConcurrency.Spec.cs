@@ -23,16 +23,16 @@ namespace PublyApp.Api.Modules.Publishing.Jobs;
 // inserts keyed rows into job_queue, so the partial unique index
 // ux_job_queue_type_idempotency backstops the lock against any interleaving.
 public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> {
-	private const int RowCount = 50;
+	private const int _RowCount = 50;
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public DispatchDuePostsConcurrencySpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<string> GetConnectionStringAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetConnectionStringAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		return scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString()
@@ -42,16 +42,15 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 	}
 
 	[Fact]
-	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans()
-	{
-		var connectionString = await GetConnectionStringAsync();
+	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans() {
+		var connectionString = await _GetConnectionStringAsync();
 		await using var seedDb = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
 				.Options
 		);
 
-		var seededIds = await SeedFiftyPastDueRowsAsync(seedDb);
+		var seededIds = await _SeedFiftyPastDueRowsAsync(seedDb);
 
 		async Task NewScopeWithJobAsync(
 			TaskCompletionSource<bool> gate,
@@ -59,7 +58,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 		) {
 			// Each scan runs from its OWN DI scope: its own DbContext and the
 			// REAL scoped IJobEnqueuer, exactly like two competing workers.
-			var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var scope = _Fixture.Factory.Services.CreateAsyncScope();
 			var db =
 				scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var enqueuer =
@@ -125,7 +124,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 			"the union of both scans must cover every past-due row exactly once"
 		);
 		(keysWorkerOne.Count + keysWorkerTwo.Count).Should().Be(
-			RowCount,
+			_RowCount,
 			"job_queue holds exactly one keyed row per publication "
 				+ "(duplicates are impossible via ux_job_queue_type_idempotency)"
 		);
@@ -147,7 +146,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 		);
 	}
 
-	private static async Task<List<Guid>> SeedFiftyPastDueRowsAsync(AppDbContext db) {
+	private static async Task<List<Guid>> _SeedFiftyPastDueRowsAsync(AppDbContext db) {
 		var tenant = new PublyApp.Api.Modules.Tenants.Entities.Tenant {
 			Name = $"due-conc-{Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -175,8 +174,8 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 		await db.SaveChangesAsync();
 
 		var scheduledAtUtc = DateTime.UtcNow.AddMinutes(-5);
-		var ids = new List<Guid>(RowCount);
-		for (var index = 0; index < RowCount; index++) {
+		var ids = new List<Guid>(_RowCount);
+		for (var index = 0; index < _RowCount; index++) {
 			// One post per publication keeps the (post, account) pair unique.
 			var post = new Post {
 				TenantId = tenantId,

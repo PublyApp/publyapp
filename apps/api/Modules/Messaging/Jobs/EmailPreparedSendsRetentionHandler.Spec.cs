@@ -19,22 +19,22 @@ namespace PublyApp.Api.Modules.Messaging.Jobs;
 // (default 7). Every row uses a unique job_id so the global sweep is asserted only against
 // this test's rows.
 public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	// Read from the SAME source the handler reads (design §3.1/§7.3 — the floor is an
 	// operator-adjustable env var, never a hardcoded value). Mirroring a literal 7 here
 	// would let the spec keep passing against a floor the operator has since changed.
-	private static readonly int SafetyFloorDays =
+	private static readonly int _SafetyFloorDays =
 		AppEnvironment.Instance.EMAIL_PREPARED_SEND_RETENTION_DAYS;
 
 	public EmailPreparedSendsRetentionHandlerSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteOnlyAgedOrphansWhoseJobIsFullyResolvedKeepingTheFloorBoundary() {
 		var marker = $"spec.prepared.{Guid.NewGuid():N}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		var agedOrphan = Guid.NewGuid();
 		var agedWithLiveQueueRow = Guid.NewGuid();
@@ -46,25 +46,25 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		var boundaryDeletedOrphan = Guid.NewGuid();
 
 		try {
-			await InsertPreparedSendAsync(dbContext, agedOrphan, days: 30);
-			await InsertPreparedSendAsync(dbContext, agedWithLiveQueueRow, days: 30);
-			await InsertPreparedSendAsync(dbContext, agedWithDeadLetterRow, days: 30);
-			await InsertPreparedSendAsync(dbContext, youngOrphan, days: 1);
-			await InsertPreparedSendAsync(
-				dbContext, boundaryKeptOrphan, days: SafetyFloorDays, secondsOffset: -2
+			await _InsertPreparedSendAsync(dbContext, agedOrphan, days: 30);
+			await _InsertPreparedSendAsync(dbContext, agedWithLiveQueueRow, days: 30);
+			await _InsertPreparedSendAsync(dbContext, agedWithDeadLetterRow, days: 30);
+			await _InsertPreparedSendAsync(dbContext, youngOrphan, days: 1);
+			await _InsertPreparedSendAsync(
+				dbContext, boundaryKeptOrphan, days: _SafetyFloorDays, secondsOffset: -2
 			);
-			await InsertPreparedSendAsync(
-				dbContext, boundaryDeletedOrphan, days: SafetyFloorDays, secondsOffset: 2
+			await _InsertPreparedSendAsync(
+				dbContext, boundaryDeletedOrphan, days: _SafetyFloorDays, secondsOffset: 2
 			);
 
 			// A live queue row and a dead-letter row anchor two of the aged scratch rows.
-			await InsertQueueRowAsync(dbContext, agedWithLiveQueueRow, marker);
-			await InsertDeadLetterAsync(dbContext, agedWithDeadLetterRow, marker);
+			await _InsertQueueRowAsync(dbContext, agedWithLiveQueueRow, marker);
+			await _InsertDeadLetterAsync(dbContext, agedWithDeadLetterRow, marker);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == agedOrphan))
 				.Should().BeFalse("an aged, fully-resolved orphan is swept");
@@ -79,7 +79,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == boundaryDeletedOrphan))
 				.Should().BeFalse("an orphan just past the floor is swept");
 		} finally {
-			await CleanupAsync(
+			await _CleanupAsync(
 				marker,
 				[
 					agedOrphan, agedWithLiveQueueRow, agedWithDeadLetterRow, youngOrphan,
@@ -92,26 +92,26 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 	[Fact]
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
 		var marker = $"spec.prepared-idem.{Guid.NewGuid():N}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		var agedOrphan = Guid.NewGuid();
 		var youngOrphan = Guid.NewGuid();
 
 		try {
-			await InsertPreparedSendAsync(dbContext, agedOrphan, days: 30);
-			await InsertPreparedSendAsync(dbContext, youngOrphan, days: 1);
+			await _InsertPreparedSendAsync(dbContext, agedOrphan, days: 30);
+			await _InsertPreparedSendAsync(dbContext, youngOrphan, days: 1);
 
-			await RunAsync(dbContext);
-			var second = await RunAsync(dbContext);
+			await _RunAsync(dbContext);
+			var second = await _RunAsync(dbContext);
 			second.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == agedOrphan))
 				.Should().BeFalse();
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == youngOrphan))
 				.Should().BeTrue();
 		} finally {
-			await CleanupAsync(marker, [agedOrphan, youngOrphan]);
+			await _CleanupAsync(marker, [agedOrphan, youngOrphan]);
 		}
 	}
 
@@ -120,7 +120,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		var marker = $"spec.prepared-exact.{Guid.NewGuid():N}";
 		var exactCutoff = Guid.NewGuid();
 		var justBeyond = Guid.NewGuid();
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		// PostgreSQL now() == transaction_timestamp(): frozen for the whole transaction. The
 		// seed and the handler's sweep run in ONE transaction, so the exact-floor orphan's
@@ -130,12 +130,12 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		// nothing persists, so no cross-test cleanup is needed.
 		await using var transaction = await dbContext.Database.BeginTransactionAsync();
 		try {
-			await InsertPreparedSendAsync(dbContext, exactCutoff, days: SafetyFloorDays, secondsOffset: 0);
-			await InsertPreparedSendAsync(
-				dbContext, justBeyond, days: SafetyFloorDays, secondsOffset: 1
+			await _InsertPreparedSendAsync(dbContext, exactCutoff, days: _SafetyFloorDays, secondsOffset: 0);
+			await _InsertPreparedSendAsync(
+				dbContext, justBeyond, days: _SafetyFloorDays, secondsOffset: 1
 			);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
 			(await dbContext.EmailPreparedSend.AnyAsync(p => p.JobId == exactCutoff))
@@ -157,7 +157,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 	public async Task ItShouldSweepAgainstTheConfiguredFloorNotAHardcodedDefaultSeven() {
 		const int configuredFloorDays = 2;
 		var marker = $"spec.prepared-floor.{Guid.NewGuid():N}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		var justPastConfiguredFloor = Guid.NewGuid();  // 2 days + 2 s → swept at floor 2
 		var justUnderConfiguredFloor = Guid.NewGuid(); // 2 days - 2 s → kept at floor 2
@@ -165,19 +165,19 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		var young = Guid.NewGuid();                     // 1 day → kept under any floor >= 2
 
 		try {
-			await InsertPreparedSendAsync(
+			await _InsertPreparedSendAsync(
 				dbContext, justPastConfiguredFloor, days: configuredFloorDays, secondsOffset: 2
 			);
-			await InsertPreparedSendAsync(
+			await _InsertPreparedSendAsync(
 				dbContext, justUnderConfiguredFloor, days: configuredFloorDays, secondsOffset: -2
 			);
-			await InsertPreparedSendAsync(dbContext, betweenTwoAndDefaultSeven, days: 3);
-			await InsertPreparedSendAsync(dbContext, young, days: 1);
+			await _InsertPreparedSendAsync(dbContext, betweenTwoAndDefaultSeven, days: 3);
+			await _InsertPreparedSendAsync(dbContext, young, days: 1);
 
-			var result = await RunWithFloorAsync(dbContext, configuredFloorDays);
+			var result = await _RunWithFloorAsync(dbContext, configuredFloorDays);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == justPastConfiguredFloor))
 				.Should().BeFalse("an orphan just past the configured 2-day floor is swept");
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == justUnderConfiguredFloor))
@@ -190,7 +190,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == young))
 				.Should().BeTrue("a 1-day orphan is under any floor of 2 or more");
 		} finally {
-			await CleanupAsync(
+			await _CleanupAsync(
 				marker,
 				[justPastConfiguredFloor, justUnderConfiguredFloor, betweenTwoAndDefaultSeven, young]
 			);
@@ -220,24 +220,24 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 
 	// --- helpers ------------------------------------------------------------------------
 
-	private static async Task<JobOutcome> RunAsync(AppDbContext dbContext) {
+	private static async Task<JobOutcome> _RunAsync(AppDbContext dbContext) {
 		var handler = new EmailPreparedSendsRetentionHandler(
 			dbContext, NullLogger<EmailPreparedSendsRetentionHandler>.Instance
 		);
-		return await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+		return await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
 	}
 
-	private static async Task<JobOutcome> RunWithFloorAsync(
+	private static async Task<JobOutcome> _RunWithFloorAsync(
 		AppDbContext dbContext,
 		int floorDays
 	) {
 		var handler = new EmailPreparedSendsRetentionHandler(
 			dbContext, NullLogger<EmailPreparedSendsRetentionHandler>.Instance, floorDays
 		);
-		return await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+		return await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
 	}
 
-	private static JobContext FakeContext(string jobType) {
+	private static JobContext _FakeContext(string jobType) {
 		return new JobContext {
 			JobId = Guid.NewGuid(),
 			JobType = jobType,
@@ -247,29 +247,29 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		};
 	}
 
-	private const string EmptyJson = "{}";
+	private const string _EmptyJson = "{}";
 
-		// prepared_at = now() - (days days + secondsOffset seconds); negative secondsOffset puts
-		// the row just INSIDE (younger than) the floor.
-		private static async Task InsertPreparedSendAsync(
-		AppDbContext dbContext,
-		Guid jobId,
-		int days,
-		int secondsOffset = 0
-	) {
+	// prepared_at = now() - (days days + secondsOffset seconds); negative secondsOffset puts
+	// the row just INSIDE (younger than) the floor.
+	private static async Task _InsertPreparedSendAsync(
+	AppDbContext dbContext,
+	Guid jobId,
+	int days,
+	int secondsOffset = 0
+) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 				INSERT INTO email_prepared_sends
 					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
 			VALUES (
-				{jobId}, {EmptyJson}::jsonb, 'sha', {jobId.ToString("N")},
+				{jobId}, {_EmptyJson}::jsonb, 'sha', {jobId.ToString("N")},
 				now() - make_interval(days => {days}, secs => {secondsOffset})
 			)
 			"""
 		);
 	}
 
-	private static async Task InsertQueueRowAsync(
+	private static async Task _InsertQueueRowAsync(
 		AppDbContext dbContext,
 		Guid jobId,
 		string jobType
@@ -279,7 +279,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		);
 	}
 
-	private static async Task InsertDeadLetterAsync(
+	private static async Task _InsertDeadLetterAsync(
 		AppDbContext dbContext,
 		Guid originalJobId,
 		string jobType
@@ -289,13 +289,13 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 			INSERT INTO job_dead_letter
 				(original_job_id, job_type, payload, priority, max_attempts, attempts,
 				 enqueued_at, failed_at)
-			VALUES ({originalJobId}, {jobType}, {EmptyJson}::jsonb, 0, 10, 10, now(), now())
+			VALUES ({originalJobId}, {jobType}, {_EmptyJson}::jsonb, 0, 10, 10, now(), now())
 			"""
 		);
 	}
 
-	private async Task CleanupAsync(string marker, Guid[] jobIds) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _CleanupAsync(string marker, Guid[] jobIds) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM email_prepared_sends WHERE job_id = ANY({jobIds})"
 		);
@@ -307,8 +307,8 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

@@ -34,7 +34,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	/// must carry a justification comment and a ratchet-target note so they are
 	/// never treated as a permanent blessing.
 	/// </summary>
-	private static readonly HashSet<string> AllowedServiceDependencies = new(
+	private static readonly HashSet<string> _AllowedServiceDependencies = new(
 		StringComparer.Ordinal
 	) {
 		// #807 F5 baseline violation (ratchet target): AccountProfileService
@@ -60,7 +60,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	public void ItShouldDiscoverConcreteServiceClassesToGuard() {
 		// Vacuity check: an empty discovery would make the dependency boundary
 		// guard pass for the wrong reason.
-		_ = EnumerateConcreteServiceClasses()
+		_ = _EnumerateConcreteServiceClasses()
 			.Should()
 			.NotBeEmpty(
 				"concrete service class discovery must find [Service]-registered "
@@ -73,7 +73,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 		// Collect all domain service interface types (the I*Service contracts that
 		// live in Modules/**/Services namespaces) so we can recognise them when
 		// they appear as constructor parameters of a peer service.
-		var domainServiceInterfaces = EnumerateDomainServiceInterfaces()
+		var domainServiceInterfaces = _EnumerateDomainServiceInterfaces()
 			.ToHashSet();
 
 		// Vacuity guard: if the interface set is empty the check below trivially
@@ -83,7 +83,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 			+ "an empty result would make the dependency boundary guard vacuous."
 		);
 
-		var concreteServiceClasses = EnumerateConcreteServiceClasses();
+		var concreteServiceClasses = _EnumerateConcreteServiceClasses();
 
 		_ = concreteServiceClasses.Should().NotBeEmpty(
 			"concrete service class discovery must find [Service]-registered "
@@ -92,10 +92,10 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 
 		List<string> offenders = concreteServiceClasses
 			.SelectMany(serviceClass =>
-				GetConstructorParameterTypes(serviceClass)
+				_GetConstructorParameterTypes(serviceClass)
 					.Where(paramType => domainServiceInterfaces.Contains(paramType))
-					.Select(paramType => BuildDependencyKey(serviceClass, paramType)))
-			.Where(key => !AllowedServiceDependencies.Contains(key))
+					.Select(paramType => _BuildDependencyKey(serviceClass, paramType)))
+			.Where(key => !_AllowedServiceDependencies.Contains(key))
 			.OrderBy(key => key, StringComparer.Ordinal)
 			.ToList();
 
@@ -115,17 +115,17 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 		// Guards against stale allowlist entries: if a baseline violation is
 		// resolved (the dependency is removed or the code is restructured) the
 		// entry must be removed from the allowlist so the ratchet moves down.
-		var domainServiceInterfaces = EnumerateDomainServiceInterfaces()
+		var domainServiceInterfaces = _EnumerateDomainServiceInterfaces()
 			.ToHashSet();
 
-		var actualDependencyKeys = EnumerateConcreteServiceClasses()
+		var actualDependencyKeys = _EnumerateConcreteServiceClasses()
 			.SelectMany(serviceClass =>
-				GetConstructorParameterTypes(serviceClass)
+				_GetConstructorParameterTypes(serviceClass)
 					.Where(paramType => domainServiceInterfaces.Contains(paramType))
-					.Select(paramType => BuildDependencyKey(serviceClass, paramType)))
+					.Select(paramType => _BuildDependencyKey(serviceClass, paramType)))
 			.ToHashSet(StringComparer.Ordinal);
 
-		List<string> staleEntries = AllowedServiceDependencies
+		List<string> staleEntries = _AllowedServiceDependencies
 			.Where(entry => !actualDependencyKeys.Contains(entry))
 			.OrderBy(entry => entry, StringComparer.Ordinal)
 			.ToList();
@@ -142,7 +142,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	/// Returns concrete (non-abstract, non-interface) service classes whose
 	/// namespace ends in <c>.Services</c> under <c>PublyApp.Api.Modules</c>.
 	/// </summary>
-	private static IReadOnlyList<Type> EnumerateConcreteServiceClasses() {
+	private static IReadOnlyList<Type> _EnumerateConcreteServiceClasses() {
 		return ArchitectureDiscovery
 			.EnumerateDomainServices()
 			.Where(type =>
@@ -154,7 +154,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	/// Returns domain service interface types (types matching <c>I*Service</c>)
 	/// whose namespace ends in <c>.Services</c> under <c>PublyApp.Api.Modules</c>.
 	/// </summary>
-	private static IReadOnlyList<Type> EnumerateDomainServiceInterfaces() {
+	private static IReadOnlyList<Type> _EnumerateDomainServiceInterfaces() {
 		return ArchitectureDiscovery
 			.EnumerateDomainServices()
 			.Where(type =>
@@ -168,7 +168,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	/// Returns the distinct set of types used as constructor parameters for the
 	/// given concrete class, across all public constructors.
 	/// </summary>
-	private static IEnumerable<Type> GetConstructorParameterTypes(Type type) {
+	private static IEnumerable<Type> _GetConstructorParameterTypes(Type type) {
 		return type
 			.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
 			.SelectMany(ctor => ctor.GetParameters())
@@ -180,7 +180,7 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	/// Builds the allowlist/offender key:
 	/// <c>ConcreteServiceClass → InjectedServiceInterface</c>.
 	/// </summary>
-	private static string BuildDependencyKey(Type serviceClass, Type injectedInterface) {
+	private static string _BuildDependencyKey(Type serviceClass, Type injectedInterface) {
 		return $"{serviceClass.Name} → {injectedInterface.Name}";
 	}
 }

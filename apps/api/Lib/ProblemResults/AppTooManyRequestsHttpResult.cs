@@ -10,18 +10,18 @@ namespace PublyApp.Api.Lib.ProblemResults;
 /// </summary>
 public sealed class AppTooManyRequestsHttpResult
 	: IResult, IEndpointMetadataProvider {
-	private readonly AppProblemDetails _problemDetails;
+	private readonly AppProblemDetails _ProblemDetails;
 
 	internal AppTooManyRequestsHttpResult(
 		AppProblemDetails problemDetails
 	) {
-		_problemDetails = problemDetails;
+		_ProblemDetails = problemDetails;
 	}
 
 	public async Task ExecuteAsync(HttpContext httpContext) {
-		_problemDetails.Instance ??=
+		_ProblemDetails.Instance ??=
 			httpContext.Request.Path.Value;
-		_problemDetails.Extensions["traceId"] =
+		_ProblemDetails.Extensions["traceId"] =
 			httpContext.TraceIdentifier;
 
 		httpContext.Response.StatusCode =
@@ -29,7 +29,7 @@ public sealed class AppTooManyRequestsHttpResult
 		httpContext.Response.ContentType =
 			"application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(
-			_problemDetails,
+			_ProblemDetails,
 			options: null,
 			contentType: "application/problem+json",
 			cancellationToken:

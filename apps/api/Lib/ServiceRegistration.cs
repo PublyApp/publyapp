@@ -26,7 +26,7 @@ namespace PublyApp.Api.Lib;
 
 public static class ServiceRegistration {
 	// Helper method to get current tenant ID
-	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
+	private static Guid? _GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
 		var httpContext = httpContextAccessor.HttpContext;
 		if (httpContext is null) {
 			return null;
@@ -160,7 +160,7 @@ public static class ServiceRegistration {
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) => {
 			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-			var tenantId = GetCurrentTenantId(httpContextAccessor);
+			var tenantId = _GetCurrentTenantId(httpContextAccessor);
 
 			options.UseNpgsql(AppEnvironment.Instance.POSTGRES_CONNECTION_STRING);
 
@@ -274,7 +274,7 @@ public static class ServiceRegistration {
 
 		// Register [Service] attributed classes after the explicit framework/app registrations above.
 		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
-		RegisterDiscoveredServices(builder.Services, discoveredServices);
+		_RegisterDiscoveredServices(builder.Services, discoveredServices);
 
 		// Validate services at build time. ConfigureContainer with the default factory is
 		// the IHostApplicationBuilder-portable equivalent of
@@ -307,7 +307,7 @@ public static class ServiceRegistration {
 	/// Registers discovered [Service] attributed classes with the DI container.
 	/// Fails fast if any discovered service interface already has an explicit registration.
 	/// </summary>
-	private static void RegisterDiscoveredServices(
+	private static void _RegisterDiscoveredServices(
 		IServiceCollection services,
 		List<DiscoveredService> discoveredServices
 	) {
@@ -335,7 +335,7 @@ public static class ServiceRegistration {
 				foreach (var descriptor in group) {
 					message.AppendLine(
 						CultureInfo.InvariantCulture,
-						$"      explicit: {DescribeServiceDescriptor(descriptor)}"
+						$"      explicit: {_DescribeServiceDescriptor(descriptor)}"
 					);
 				}
 			}
@@ -347,13 +347,13 @@ public static class ServiceRegistration {
 		// Register discovered services deterministically for stable IEnumerable<T> ordering and reproducible diagnostics
 		var ordered = discoveredServices
 			.Where(s => s.ServiceInterface is not null)
-			.OrderBy(s => GetRequiredServiceInterface(s).FullName, StringComparer.Ordinal)
+			.OrderBy(s => _GetRequiredServiceInterface(s).FullName, StringComparer.Ordinal)
 			.ThenBy(s => s.Key ?? string.Empty, StringComparer.Ordinal)
 			.ThenBy(s => s.ImplementationType.FullName, StringComparer.Ordinal)
 			.ToList();
 
 		foreach (var service in ordered) {
-			var serviceInterface = GetRequiredServiceInterface(service);
+			var serviceInterface = _GetRequiredServiceInterface(service);
 
 			if (service.Key is null) {
 				services.Add(new ServiceDescriptor(
@@ -372,7 +372,7 @@ public static class ServiceRegistration {
 		}
 	}
 
-	private static Type GetRequiredServiceInterface(DiscoveredService service) {
+	private static Type _GetRequiredServiceInterface(DiscoveredService service) {
 		if (service.ServiceInterface is null) {
 			throw new InvalidOperationException(
 				$"Discovered service '{service.ImplementationType.FullName}' has no service interface."
@@ -382,7 +382,7 @@ public static class ServiceRegistration {
 		return service.ServiceInterface;
 	}
 
-	private static string DescribeServiceDescriptor(ServiceDescriptor descriptor) {
+	private static string _DescribeServiceDescriptor(ServiceDescriptor descriptor) {
 		var lifetime = descriptor.Lifetime.ToString();
 
 		if (descriptor.IsKeyedService) {

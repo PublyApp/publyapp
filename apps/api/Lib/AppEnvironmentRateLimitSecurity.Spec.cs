@@ -12,7 +12,7 @@ public sealed class
 	// Environment variables are process-wide and xUnit schedules test classes
 	// in parallel, so every test that mutates an env var below serializes on
 	// this lock and restores the previous value in a finally block.
-	private static readonly Lock EnvLock = new();
+	private static readonly Lock _EnvLock = new();
 
 	[Theory]
 	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "2048")]
@@ -21,7 +21,7 @@ public sealed class
 		string name,
 		string value
 	) {
-		lock (EnvLock) {
+		lock (_EnvLock) {
 			var previous = Environment.GetEnvironmentVariable(name);
 			try {
 				Environment.SetEnvironmentVariable(name, value);
@@ -46,7 +46,7 @@ public sealed class
 		string name,
 		long literalDefault
 	) {
-		lock (EnvLock) {
+		lock (_EnvLock) {
 			var previous = Environment.GetEnvironmentVariable(name);
 			try {
 				foreach (var absentValue in new string?[] { null, "", "   " }) {
@@ -54,7 +54,7 @@ public sealed class
 
 					AppEnvironment.GetOptionalLong(
 						name,
-						GetUploadBudgetDefault(name)
+						_GetUploadBudgetDefault(name)
 					).Should().Be(literalDefault);
 				}
 			} finally {
@@ -80,14 +80,14 @@ public sealed class
 		string name,
 		string value
 	) {
-		lock (EnvLock) {
+		lock (_EnvLock) {
 			var previous = Environment.GetEnvironmentVariable(name);
 			try {
 				Environment.SetEnvironmentVariable(name, value);
 
 				var act = () => AppEnvironment.GetOptionalLong(
 					name,
-					GetUploadBudgetDefault(name)
+					_GetUploadBudgetDefault(name)
 				);
 
 				act.Should().Throw<InvalidOperationException>()
@@ -107,7 +107,7 @@ public sealed class
 		long perStaffBytes,
 		string expectedMessage
 	) {
-		var environment = CreateEnvironmentWithUploadBudgets(
+		var environment = _CreateEnvironmentWithUploadBudgets(
 			globalBytes,
 			perStaffBytes
 		);
@@ -118,7 +118,7 @@ public sealed class
 
 	[Fact]
 	public void ItShouldRejectAGlobalUploadBudgetSmallerThanPerStaffBudget() {
-		var environment = CreateEnvironmentWithUploadBudgets(9, 10);
+		var environment = _CreateEnvironmentWithUploadBudgets(9, 10);
 
 		new AppEnvironmentValidator().Validate(environment).Errors
 			.Should().Contain(error => error.ErrorMessage.Contains(
@@ -132,7 +132,7 @@ public sealed class
 	ItShouldRejectUniversalTrustedProxyNetworks(
 		string cidr
 	) {
-		var environment = CreateEnvironmentWithProxy(
+		var environment = _CreateEnvironmentWithProxy(
 			cidr
 		);
 
@@ -158,7 +158,7 @@ public sealed class
 	ItShouldAcceptExactTrustedProxyAddresses(
 		string cidr
 	) {
-		var environment = CreateEnvironmentWithProxy(
+		var environment = _CreateEnvironmentWithProxy(
 			cidr
 		);
 
@@ -174,7 +174,7 @@ public sealed class
 	}
 
 	private static AppEnvironment
-		CreateEnvironmentWithProxy(string cidr) {
+		_CreateEnvironmentWithProxy(string cidr) {
 		var environment = (AppEnvironment)
 			RuntimeHelpers.GetUninitializedObject(
 				typeof(AppEnvironment)
@@ -193,19 +193,19 @@ public sealed class
 		return environment;
 	}
 
-	private static AppEnvironment CreateEnvironmentWithUploadBudgets(
+	private static AppEnvironment _CreateEnvironmentWithUploadBudgets(
 		long globalBytes,
 		long perStaffBytes
 	) {
 		var environment = (AppEnvironment)RuntimeHelpers.GetUninitializedObject(
 			typeof(AppEnvironment)
 		);
-		SetBackingField(environment, nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), globalBytes);
-		SetBackingField(environment, nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), perStaffBytes);
+		_SetBackingField(environment, nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), globalBytes);
+		_SetBackingField(environment, nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), perStaffBytes);
 		return environment;
 	}
 
-	private static void SetBackingField(
+	private static void _SetBackingField(
 		AppEnvironment environment,
 		string propertyName,
 		object value
@@ -219,7 +219,7 @@ public sealed class
 		field.SetValue(environment, value);
 	}
 
-	private static long GetUploadBudgetDefault(string name) {
+	private static long _GetUploadBudgetDefault(string name) {
 		return name switch {
 			nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES) => AppEnvironment
 				.DefaultUploadGlobalMaxBytes,

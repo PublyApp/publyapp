@@ -32,11 +32,11 @@ namespace PublyApp.Api.Lib.Diagnostics;
 public static class OpenTelemetryConfigExtensions {
 	// The environment variable the Aspire AppHost injects (OTel semantic convention).
 	// A non-empty, non-whitespace value is the activation gate (IsNullOrWhiteSpace check).
-	private const string OtlpEndpointVariableName = "OTEL_EXPORTER_OTLP_ENDPOINT";
+	private const string _OtlpEndpointVariableName = "OTEL_EXPORTER_OTLP_ENDPOINT";
 
 	// Future-proofing: custom sources should follow the PublyApp.* namespace so this
 	// filter keeps picking them up without editing the composition.
-	private const string CustomActivitySourcePattern = "PublyApp.*";
+	private const string _CustomActivitySourcePattern = "PublyApp.*";
 
 	/// <summary>
 	/// Attaches traces + metrics export when (and only when) an OTLP endpoint is present.
@@ -46,7 +46,7 @@ public static class OpenTelemetryConfigExtensions {
 	public static IHostApplicationBuilder ConfigureOpenTelemetry(
 		this IHostApplicationBuilder builder
 	) {
-		var otlpEndpoint = Environment.GetEnvironmentVariable(OtlpEndpointVariableName);
+		var otlpEndpoint = Environment.GetEnvironmentVariable(_OtlpEndpointVariableName);
 		if (string.IsNullOrWhiteSpace(otlpEndpoint)) {
 			// No orchestrator asked for telemetry: attach nothing at all. This is what
 			// keeps Testing/doc-gen/production boots identical to pre-#255 behavior.
@@ -57,11 +57,11 @@ public static class OpenTelemetryConfigExtensions {
 		// traces + metrics builders ONLY. The logging builder must not appear here.
 		builder.Services.AddOpenTelemetry()
 			.ConfigureResource(resource => resource.AddService(
-				serviceName: ResolveServiceName(),
+				serviceName: _ResolveServiceName(),
 				serviceInstanceId: Environment.MachineName
 			))
 			.WithTracing(tracing => tracing
-				.AddSource(CustomActivitySourcePattern)
+				.AddSource(_CustomActivitySourcePattern)
 				.AddAspNetCoreInstrumentation()
 				.AddHttpClientInstrumentation()
 				.AddOtlpExporter()
@@ -80,7 +80,7 @@ public static class OpenTelemetryConfigExtensions {
 	// two orchestrated processes of the same binary (api vs worker). Both call sites run
 	// after AppEnvironment.Initialize(), so Instance is available; failing loudly on an
 	// uninitialized caller is the repo's normal fail-fast posture.
-	private static string ResolveServiceName() {
+	private static string _ResolveServiceName() {
 		// Every AppRole member must stay listed (IDE0072): adding a role then fails
 		// compilation here instead of silently reporting telemetry as "publyapp-all".
 		// Every AppRole member must stay listed (IDE0072): adding a role then fails

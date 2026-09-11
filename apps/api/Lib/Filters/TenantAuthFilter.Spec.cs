@@ -40,7 +40,7 @@ public sealed class TenantAuthFilterSpec
 	// The real tenant-scoped profile endpoint sits behind tenantGroup,
 	// which applies session + tenant header + tenant auth. Probing it keeps
 	// this spec honest: a real handler answers, not a stub.
-	private static string GetTestEndpoint() {
+	private static string _GetTestEndpoint() {
 		return PathUtils.Join(
 			AppRoutes.Tenant.Root,
 			AppRoutes.Account.ForTenant.Root,
@@ -48,44 +48,44 @@ public sealed class TenantAuthFilterSpec
 		);
 	}
 
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public TenantAuthFilterSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkForActiveTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
@@ -94,10 +94,10 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldReturn403ForSuspendedTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -105,26 +105,26 @@ public sealed class TenantAuthFilterSpec
 		// Suspend Acme
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, acmeId
+				_Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			var acmeAdminToken =
-				await _authClient.LoginAsync(
+				await _AuthClient.LoginAsync(
 					TestConstants.AcmeAdminEmail,
 					TestConstants.SeedPassword
 				);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetTestEndpoint()
+				_GetTestEndpoint()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -139,7 +139,7 @@ public sealed class TenantAuthFilterSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_http, staffToken, acmeId
+						_Http, staffToken, acmeId
 					);
 		}
 	}
@@ -148,30 +148,30 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldReturn403ForNonMember() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		// TechStart admin is NOT a member of Acme
 		var techStartAdminToken =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.TechStartAdminEmail,
 				TestConstants.SeedPassword
 			);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(techStartAdminToken)
 			.WithTenantId(acmeId);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -192,23 +192,23 @@ public sealed class TenantAuthFilterSpec
 		// exclusivity), so accessing a tenant endpoint
 		// should return generic 403
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(staffToken)
 			.WithTenantId(acmeId);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -223,19 +223,19 @@ public sealed class TenantAuthFilterSpec
 	[Fact]
 	public async Task
 	ItShouldReturn400WhenTenantHeaderMissing() {
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		).WithSessionToken(acmeAdminToken);
 		// Deliberately NOT setting tenant header
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -251,14 +251,14 @@ public sealed class TenantAuthFilterSpec
 	[Fact]
 	public async Task
 	ItShouldReturn400WhenTenantHeaderIsInvalidGuid() {
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		).WithSessionToken(acmeAdminToken);
 
 		request.Headers.TryAddWithoutValidation(
@@ -267,7 +267,7 @@ public sealed class TenantAuthFilterSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -284,22 +284,22 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldReturn401WhenSessionTokenMissing() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		).WithTenantId(acmeId);
 		// Deliberately NOT setting session token
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -309,23 +309,23 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldReturn401WhenSessionTokenInvalid() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken("invalid-token")
 			.WithTenantId(acmeId);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -335,10 +335,10 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldRestoreAccessAfterReactivation() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -346,7 +346,7 @@ public sealed class TenantAuthFilterSpec
 		// Suspend
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_http, staffToken, acmeId
+				_Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -355,27 +355,27 @@ public sealed class TenantAuthFilterSpec
 			using var reactivate =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_http, staffToken, acmeId
+						_Http, staffToken, acmeId
 					);
 			reactivate.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
 			// Now access should work
 			var acmeAdminToken =
-				await _authClient.LoginAsync(
+				await _AuthClient.LoginAsync(
 					TestConstants.AcmeAdminEmail,
 					TestConstants.SeedPassword
 				);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetTestEndpoint()
+				_GetTestEndpoint()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -385,7 +385,7 @@ public sealed class TenantAuthFilterSpec
 				using var cleanup =
 					await TenantTestHelper
 						.ReactivateTenantAsync(
-							_http, staffToken, acmeId
+							_Http, staffToken, acmeId
 						);
 			} catch {
 				// Ignore — tenant may already be active
@@ -397,35 +397,35 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldSetLastActivityAtWhenNullOnTenantScopedRequest() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		await SetLastActivityAtAsync(acmeId, null);
+		await _SetLastActivityAtAsync(acmeId, null);
 
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var lastActivityAt =
-			await GetLastActivityAtAsync(acmeId);
+			await _GetLastActivityAtAsync(acmeId);
 		lastActivityAt.Should().NotBeNull();
 		lastActivityAt!.Value.Should().BeCloseTo(
 			DateTime.UtcNow, TimeSpan.FromSeconds(10)
@@ -436,51 +436,51 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldNotRewriteLastActivityAtWithinThrottleWindow() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		await SetLastActivityAtAsync(acmeId, null);
+		await _SetLastActivityAtAsync(acmeId, null);
 
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using (var firstRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId)) {
 			using var firstResponse =
-				await _http.SendAsync(firstRequest);
+				await _Http.SendAsync(firstRequest);
 			firstResponse.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 		}
 
 		var firstValue =
-			await GetLastActivityAtAsync(acmeId);
+			await _GetLastActivityAtAsync(acmeId);
 		firstValue.Should().NotBeNull();
 
 		using (var secondRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId)) {
 			using var secondResponse =
-				await _http.SendAsync(secondRequest);
+				await _Http.SendAsync(secondRequest);
 			secondResponse.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 		}
 
 		var secondValue =
-			await GetLastActivityAtAsync(acmeId);
+			await _GetLastActivityAtAsync(acmeId);
 		secondValue.Should().Be(firstValue);
 	}
 
@@ -488,15 +488,15 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldNotSetLastActivityAtForStaffRequests() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		await SetLastActivityAtAsync(acmeId, null);
+		await _SetLastActivityAtAsync(acmeId, null);
 
 		var url = PathUtils.Join(
 			AppRoutes.Staff.Root,
@@ -511,12 +511,12 @@ public sealed class TenantAuthFilterSpec
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var lastActivityAt =
-			await GetLastActivityAtAsync(acmeId);
+			await _GetLastActivityAtAsync(acmeId);
 		lastActivityAt.Should().BeNull();
 	}
 
@@ -524,10 +524,10 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldNotOverwriteLastActivityAtWhenAlreadyFreshEvenWhenTouchedDirectly() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -535,19 +535,19 @@ public sealed class TenantAuthFilterSpec
 		// Within the default 5-minute throttle window, but distinguishable from
 		// "now" by far more than any reasonable test-timing slop.
 		var freshValue = DateTime.UtcNow.AddMinutes(-1);
-		await SetLastActivityAtAsync(acmeId, freshValue);
+		await _SetLastActivityAtAsync(acmeId, freshValue);
 
 		// Calls the service directly, bypassing TenantAuthFilter's own in-memory
 		// pre-check, to prove the ExecuteUpdateAsync WHERE clause itself is the
 		// guard: concurrent requests racing on a stale in-memory snapshot must
 		// not all issue a write once one of them has already refreshed the row.
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var tenantService =
 			scope.ServiceProvider.GetRequiredService<ITenantService>();
 		await tenantService.TouchLastActivityAsync(acmeId);
 
-		var afterValue = await GetLastActivityAtAsync(acmeId);
+		var afterValue = await _GetLastActivityAtAsync(acmeId);
 		afterValue.Should().BeCloseTo(freshValue, TimeSpan.FromSeconds(1));
 	}
 
@@ -555,23 +555,23 @@ public sealed class TenantAuthFilterSpec
 	public async Task
 	ItShouldStillReturnOkWhenTheLastActivityWriteThrows() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		await SetLastActivityAtAsync(acmeId, null);
+		await _SetLastActivityAtAsync(acmeId, null);
 
-		var acmeAdminToken = await _authClient.LoginAsync(
+		var acmeAdminToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		await using var throwingFactory =
-			_fixture.Factory.WithWebHostBuilder(builder => {
+			_Fixture.Factory.WithWebHostBuilder(builder => {
 				builder.ConfigureServices(services => {
 					services.RemoveAll<ITenantService>();
 					services.AddScoped<ITenantService>(sp =>
@@ -590,7 +590,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetTestEndpoint()
+			_GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -603,7 +603,7 @@ public sealed class TenantAuthFilterSpec
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var lastActivityAt =
-			await GetLastActivityAtAsync(acmeId);
+			await _GetLastActivityAtAsync(acmeId);
 		lastActivityAt.Should().BeNull();
 	}
 
@@ -611,24 +611,24 @@ public sealed class TenantAuthFilterSpec
 	// ancillary write always fails, proving TenantAuthFilter isolates that
 	// failure from the request's success path.
 	private sealed class ThrowingTouchTenantService : ITenantService {
-		private readonly ITenantService _inner;
+		private readonly ITenantService _Inner;
 
 		public ThrowingTouchTenantService(ITenantService inner) {
-			_inner = inner;
+			_Inner = inner;
 		}
 
 		public Task<Tenant?> GetTenantByIdAsync(
 			Guid tenantId,
 			CancellationToken cancellationToken = default
 		) {
-			return _inner.GetTenantByIdAsync(tenantId, cancellationToken);
+			return _Inner.GetTenantByIdAsync(tenantId, cancellationToken);
 		}
 
 		public Task<Tenant?> GetTenantByIdIncludingSuspendedAsync(
 			Guid tenantId,
 			CancellationToken cancellationToken = default
 		) {
-			return _inner.GetTenantByIdIncludingSuspendedAsync(
+			return _Inner.GetTenantByIdIncludingSuspendedAsync(
 				tenantId, cancellationToken
 			);
 		}
@@ -643,12 +643,12 @@ public sealed class TenantAuthFilterSpec
 		}
 	}
 
-	private async Task SetLastActivityAtAsync(
+	private async Task _SetLastActivityAtAsync(
 		Guid tenantId,
 		DateTime? value
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -658,11 +658,11 @@ public sealed class TenantAuthFilterSpec
 				.SetProperty(t => t.LastActivityAt, value));
 	}
 
-	private async Task<DateTime?> GetLastActivityAtAsync(
+	private async Task<DateTime?> _GetLastActivityAtAsync(
 		Guid tenantId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

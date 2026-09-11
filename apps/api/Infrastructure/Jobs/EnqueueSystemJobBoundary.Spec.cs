@@ -20,21 +20,21 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // EnqueueOccurrenceAsync call the cron trigger uses — so every engine fence
 // (epoch match, occurrence uniqueness) still applies.
 public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public EnqueueSystemJobBoundarySpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldEnqueueOneQueueRowAndOneLedgerRowForAnEnabledKey() {
-		var jobKey = NewJobKey("enabled");
+		var jobKey = _NewJobKey("enabled");
 		var epoch = Guid.NewGuid();
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
-			await using var dbContext = await CreateDbContextAsync();
-			var boundary = NewBoundary(dbContext);
+			await _SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
+			await using var dbContext = await _CreateDbContextAsync();
+			var boundary = _NewBoundary(dbContext);
 
 			var result = await boundary.EnqueueNowAsync(
 				jobKey, CancellationToken.None
@@ -43,7 +43,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			var enqueued = result.Should().BeOfType<BoundaryResult.Enqueued>()
 				.Subject;
 			enqueued.ScheduleEpoch.Should().Be(epoch);
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey))
 				.Should().Be(1);
 			var occurrence = await verify.SystemJobOccurrence
@@ -51,19 +51,19 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			occurrence.EnqueuedJobId.Should().Be(enqueued.JobId);
 			occurrence.ScheduledFireAt.Should().Be(enqueued.ScheduledFireAt);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNoOpForADisabledKeyWithoutEnqueuing() {
-		var jobKey = NewJobKey("disabled");
+		var jobKey = _NewJobKey("disabled");
 		var epoch = Guid.NewGuid();
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch, isEnabled: false);
-			await using var dbContext = await CreateDbContextAsync();
-			var boundary = NewBoundary(dbContext);
+			await _SeedDefinitionAsync(jobKey, epoch, isEnabled: false);
+			await using var dbContext = await _CreateDbContextAsync();
+			var boundary = _NewBoundary(dbContext);
 
 			var result = await boundary.EnqueueNowAsync(
 				jobKey, CancellationToken.None
@@ -72,22 +72,22 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			result.Should().BeOfType<BoundaryResult.NoOp>();
 			// Verdict-r1 fix: the disabled short-circuit fires BEFORE the engine
 			// transaction, so neither the ledger nor the queue is touched.
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey))
 				.Should().Be(0);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(0);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForAnUnknownKey() {
-		var jobKey = NewJobKey("unknown");
+		var jobKey = _NewJobKey("unknown");
 
-		await using var dbContext = await CreateDbContextAsync();
-		var boundary = NewBoundary(dbContext);
+		await using var dbContext = await _CreateDbContextAsync();
+		var boundary = _NewBoundary(dbContext);
 
 		var result = await boundary.EnqueueNowAsync(
 			jobKey, CancellationToken.None
@@ -98,13 +98,13 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReadTheCurrentScheduleEpoch() {
-		var jobKey = NewJobKey("epoch");
+		var jobKey = _NewJobKey("epoch");
 		var epoch = Guid.NewGuid();
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
-			await using var dbContext = await CreateDbContextAsync();
-			var boundary = NewBoundary(dbContext);
+			await _SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
+			await using var dbContext = await _CreateDbContextAsync();
+			var boundary = _NewBoundary(dbContext);
 
 			var result = await boundary.EnqueueNowAsync(
 				jobKey, CancellationToken.None
@@ -116,33 +116,33 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			result.Should().BeOfType<BoundaryResult.Enqueued>().Which
 				.ScheduleEpoch.Should().Be(epoch);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldNotRotateTheScheduleEpoch() {
-		var jobKey = NewJobKey("no-rotate");
+		var jobKey = _NewJobKey("no-rotate");
 		var epoch = Guid.NewGuid();
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
-			var before = await ReadScheduleEpochAsync(jobKey);
+			await _SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
+			var before = await _ReadScheduleEpochAsync(jobKey);
 			before.Should().Be(epoch);
 
-			await using var dbContext = await CreateDbContextAsync();
-			var boundary = NewBoundary(dbContext);
+			await using var dbContext = await _CreateDbContextAsync();
+			var boundary = _NewBoundary(dbContext);
 			await boundary.EnqueueNowAsync(jobKey, CancellationToken.None);
 
-			var after = await ReadScheduleEpochAsync(jobKey);
+			var after = await _ReadScheduleEpochAsync(jobKey);
 			after.Should().Be(before,
 				"rotation only happens on cron_updated, never on trigger-now");
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
-	private static EnqueueSystemJobBoundary NewBoundary(AppDbContext dbContext) {
+	private static EnqueueSystemJobBoundary _NewBoundary(AppDbContext dbContext) {
 		return new EnqueueSystemJobBoundary(
 			dbContext,
 			new EnqueueSystemJobJob(
@@ -152,20 +152,20 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<Guid> ReadScheduleEpochAsync(string jobKey) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task<Guid> _ReadScheduleEpochAsync(string jobKey) {
+		await using var dbContext = await _CreateDbContextAsync();
 		return await dbContext.SystemJobDefinition
 			.Where(row => row.JobKey == jobKey)
 			.Select(row => row.ScheduleEpoch)
 			.SingleAsync();
 	}
 
-	private async Task SeedDefinitionAsync(
+	private async Task _SeedDefinitionAsync(
 		string jobKey,
 		Guid scheduleEpoch,
 		bool isEnabled
 	) {
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 			JobKey = jobKey,
 			CronExpression = "0 0/5 * * * ?",
@@ -175,8 +175,8 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task CleanupAsync(string jobKey) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _CleanupAsync(string jobKey) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
@@ -188,14 +188,14 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string NewJobKey(string suffix) {
+	private static string _NewJobKey(string suffix) {
 		return $"spec.trigger-now.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync(
+	private async Task<AppDbContext> _CreateDbContextAsync(
 		SaveChangesInterceptor? interceptor = null
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

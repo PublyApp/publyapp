@@ -12,12 +12,12 @@ namespace PublyApp.Api.Infrastructure.Messaging.Email;
 /// <see cref="EmailService"/> methods, so the old dispatcher's output never drifts.
 /// </summary>
 public static class EmailTemplates {
-	private static string CreateHtmlLink(string url, string text) {
+	private static string _CreateHtmlLink(string url, string text) {
 		string linkStyle = "text-decoration: underline; color: #007bff;";
 		return $"<a href=\"{url}\" style=\"{linkStyle}\">{text}</a>";
 	}
 
-	private static string SenderFrom(AppEnvironment env) {
+	private static string _SenderFrom(AppEnvironment env) {
 		return $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>";
 	}
 
@@ -33,14 +33,14 @@ public static class EmailTemplates {
 
 		return new EmailRequest {
 			To = email,
-			From = SenderFrom(env),
+			From = _SenderFrom(env),
 			Subject = $"You have been invited to join {tenantName} on {env.APP_NAME}",
 			HtmlBody = $"""
 				You have been invited to join {tenantName} on {env.APP_NAME} as a {accountLevelText}.
 				<br />
 				Please accept the invitation by clicking the link below:
 				<br />
-				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
+				{_CreateHtmlLink(invitationUrl, "Accept the invitation")}
 				"""
 		};
 	}
@@ -51,14 +51,14 @@ public static class EmailTemplates {
 
 		return new EmailRequest {
 			To = email,
-			From = SenderFrom(env),
+			From = _SenderFrom(env),
 			Subject = $"You have been invited to join the staff of {env.APP_NAME}",
 			HtmlBody = $"""
 				You have been invited to join {env.APP_NAME} as a staff member.
 				<br />
 				Please accept the invitation to join the staff by clicking the link below:
 				<br />
-				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
+				{_CreateHtmlLink(invitationUrl, "Accept the invitation")}
 				"""
 		};
 	}
@@ -69,14 +69,14 @@ public static class EmailTemplates {
 
 		return new EmailRequest {
 			To = email,
-			From = SenderFrom(env),
+			From = _SenderFrom(env),
 			Subject = $"Your password reset request",
 			HtmlBody = $"""
 				You have requested to reset your password.
 				<br />
 				Please reset your password by clicking the link below:
 				<br />
-				{CreateHtmlLink(resetPasswordUrl, "Reset your password")}
+				{_CreateHtmlLink(resetPasswordUrl, "Reset your password")}
 				"""
 		};
 	}
@@ -87,14 +87,14 @@ public static class EmailTemplates {
 
 		return new EmailRequest {
 			To = email,
-			From = SenderFrom(env),
+			From = _SenderFrom(env),
 			Subject = $"Welcome to {env.APP_NAME}",
 			HtmlBody = $"""
 				Welcome to {env.APP_NAME}.
 				<br />
 				Please verify your email by clicking the link below:
 				<br />
-				{CreateHtmlLink(verificationUrl, "Verify your email")}
+				{_CreateHtmlLink(verificationUrl, "Verify your email")}
 				"""
 		};
 	}
@@ -105,14 +105,14 @@ public static class EmailTemplates {
 
 		return new EmailRequest {
 			To = email,
-			From = SenderFrom(env),
+			From = _SenderFrom(env),
 			Subject = $"Your email verification request",
 			HtmlBody = $"""
 				You have requested to verify your email address.
 				<br />
 				Please verify your email by clicking the link below:
 				<br />
-				{CreateHtmlLink(verificationUrl, "Verify your email")}
+				{_CreateHtmlLink(verificationUrl, "Verify your email")}
 				"""
 		};
 	}
@@ -124,11 +124,11 @@ public static class EmailTemplates {
 	// historical send and the durable job it replaces.
 	public static EmailRequest StaffJoinedNotification(string email) {
 		var env = AppEnvironment.Instance;
-		var loginLink = CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
+		var loginLink = _CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
 
 		return new EmailRequest {
 			To = email,
-			From = SenderFrom(env),
+			From = _SenderFrom(env),
 			Subject = $"You have been added as a staff member",
 			HtmlBody = $"""
 				You have been added as a staff member to {env.APP_NAME}.

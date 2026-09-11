@@ -25,17 +25,17 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 [Collection("AcmeTenantMutation")]
 public sealed class GetTenantUsageAsStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetTenantUsageAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string tenantId) {
+	private static string _GetUrl(string tenantId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
@@ -46,16 +46,16 @@ public sealed class GetTenantUsageAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnUsageCountsForASeededTenant() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await SeedTenantWithUsageRowsAsync();
+			await _SeedTenantWithUsageRowsAsync();
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Get, GetUrl(tenantId.ToString())
+			HttpMethod.Get, _GetUrl(tenantId.ToString())
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -85,15 +85,15 @@ public sealed class GetTenantUsageAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnNotFoundForNonExistentId() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
-		var url = GetUrl(Guid.NewGuid().ToString());
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var url = _GetUrl(Guid.NewGuid().ToString());
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -106,15 +106,15 @@ public sealed class GetTenantUsageAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedId() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
-		var url = GetUrl("not-a-guid");
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var url = _GetUrl("not-a-guid");
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -126,13 +126,13 @@ public sealed class GetTenantUsageAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -141,18 +141,18 @@ public sealed class GetTenantUsageAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
 
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -164,19 +164,19 @@ public sealed class GetTenantUsageAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnForbiddenAndNoDataForStaffWithoutReadPermission() {
 		var staffToken =
-			await _authClient.LoginAsync(
+			await _AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
 		var tenantId =
-			await SeedTenantWithUsageRowsAsync();
+			await _SeedTenantWithUsageRowsAsync();
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Get, GetUrl(tenantId.ToString())
+			HttpMethod.Get, _GetUrl(tenantId.ToString())
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -188,9 +188,9 @@ public sealed class GetTenantUsageAsStaffSpec
 		body.Should().NotContain("\"scheduledPublicationsCount\"");
 	}
 
-	private async Task<Guid> SeedTenantWithUsageRowsAsync() {
+	private async Task<Guid> _SeedTenantWithUsageRowsAsync() {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

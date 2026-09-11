@@ -32,24 +32,24 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// host, over a REAL job_queue row.
 /// </summary>
 public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
 
 	public JobQueueDrainHealthCheckSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
 	public async Task ItShouldRefuseDrainAndNameTheCauseWhenDueJobsStayUnclaimed() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
 
 		try {
-			await InsertStalledPendingJobAsync(db, stallThreshold);
+			await _InsertStalledPendingJobAsync(db, stallThreshold);
 
-			using var response = await _http.GetAsync("/health/drain");
+			using var response = await _Http.GetAsync("/health/drain");
 			var body = await response.Content.ReadAsStringAsync();
 
 			response.StatusCode.Should().Be(
@@ -82,38 +82,38 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 	// loud on its own /health/drain surface.
 	[Fact]
 	public async Task ItShouldKeepServingRequestsWhileTheQueueIsStalled() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
 
 		try {
-			await InsertStalledPendingJobAsync(db, stallThreshold);
+			await _InsertStalledPendingJobAsync(db, stallThreshold);
 
-			using var ready = await _http.GetAsync("/health/ready");
+			using var ready = await _Http.GetAsync("/health/ready");
 			ready.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"readiness must stay green: a stalled queue is not a reason to stop routing to the api"
 			);
 
-			using var aggregate = await _http.GetAsync("/health");
+			using var aggregate = await _Http.GetAsync("/health");
 			aggregate.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"the /health report must stay green while the queue is stalled"
 			);
 
-			using var live = await _http.GetAsync("/health/live");
+			using var live = await _Http.GetAsync("/health/live");
 			live.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"liveness must stay green while the queue is stalled"
 			);
 
-			using var product = await _http.GetAsync("/notices/active");
+			using var product = await _Http.GetAsync("/notices/active");
 			product.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"a real product request must still route and be served while the queue is stalled"
 			);
 
-			using var drain = await _http.GetAsync("/health/drain");
+			using var drain = await _Http.GetAsync("/health/drain");
 			drain.StatusCode.Should().Be(
 				HttpStatusCode.ServiceUnavailable,
 				"the stall must stay loud on its own drain surface"
@@ -125,14 +125,14 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRestoreDrainHealthOnceTheStalledJobIsConsumed() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		try {
 			var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
-			await InsertStalledPendingJobAsync(db, stallThreshold);
+			await _InsertStalledPendingJobAsync(db, stallThreshold);
 
-			using var stalled = await _http.GetAsync("/health/drain");
+			using var stalled = await _Http.GetAsync("/health/drain");
 			stalled.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
 
 			// The worker claims the row (status -> Processing), i.e. the drain
@@ -140,7 +140,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 			await db.JobQueue.ExecuteUpdateAsync(job => job
 				.SetProperty(row => row.Status, JobQueueStatus.Processing));
 
-			using var drained = await _http.GetAsync("/health/drain");
+			using var drained = await _Http.GetAsync("/health/drain");
 			drained.StatusCode.Should().Be(HttpStatusCode.OK);
 			var report = await drained.Content.ReadFromJsonAsync<HealthTestHelper.HealthReportJson>();
 			report.Should().NotBeNull();
@@ -153,7 +153,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReportDrainHealthyWhenTheJobIsClaimedByAWorkerAlready() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		try {
@@ -171,7 +171,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 			db.JobQueue.Add(claimed);
 			await db.SaveChangesAsync();
 
-			using var response = await _http.GetAsync("/health/drain");
+			using var response = await _Http.GetAsync("/health/drain");
 			response.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"a claimed (Processing) row is not waiting for a worker"
@@ -183,7 +183,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReportDrainHealthyWhileDueJobsAreStillYoungerThanTheStallThreshold() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		try {
@@ -197,7 +197,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 			});
 			await db.SaveChangesAsync();
 
-			using var response = await _http.GetAsync("/health/drain");
+			using var response = await _Http.GetAsync("/health/drain");
 			response.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"a due job younger than the stall threshold is not a stalled queue"
@@ -209,7 +209,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReportDrainHealthyWhenTheJobIsNotYetDue() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		try {
@@ -222,7 +222,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 			});
 			await db.SaveChangesAsync();
 
-			using var response = await _http.GetAsync("/health/drain");
+			using var response = await _Http.GetAsync("/health/drain");
 			response.StatusCode.Should().Be(
 				HttpStatusCode.OK,
 				"a not-yet-due job must not trip the drain guard"
@@ -234,7 +234,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCaptureOneStructuredWarningForRepeatedDrainFailures() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var logger = new CapturingLogger<JobQueueDrainHealthCheck>();
 		var logGate = new HealthCheckLogGate();
@@ -242,7 +242,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 		var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
 
 		try {
-			await InsertStalledPendingJobAsync(db, stallThreshold);
+			await _InsertStalledPendingJobAsync(db, stallThreshold);
 
 			var first = await check.CheckHealthAsync(new HealthCheckContext());
 			var second = await check.CheckHealthAsync(new HealthCheckContext());
@@ -277,14 +277,14 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExposeTheStallReasonOnTheDrainBody() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
 
 		try {
-			await InsertStalledPendingJobAsync(db, stallThreshold);
+			await _InsertStalledPendingJobAsync(db, stallThreshold);
 
-			using var response = await _http.GetAsync("/health/drain");
+			using var response = await _Http.GetAsync("/health/drain");
 			var report = await response.Content.ReadFromJsonAsync<HealthTestHelper.HealthReportJson>();
 
 			report.Should().NotBeNull();
@@ -310,7 +310,7 @@ public sealed class JobQueueDrainHealthCheckSpec : IClassFixture<ApiFixture> {
 
 	// A REAL due job enqueued exactly as publish-now does (the trusted boundary),
 	// then backdated past the stall threshold so it reads as stranded.
-	private static async Task InsertStalledPendingJobAsync(
+	private static async Task _InsertStalledPendingJobAsync(
 		AppDbContext db,
 		int stallThresholdSeconds
 	) {

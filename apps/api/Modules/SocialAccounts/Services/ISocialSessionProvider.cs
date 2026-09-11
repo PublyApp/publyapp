@@ -20,7 +20,7 @@ public interface ISocialSessionProvider {
 /// A live provider session: identity plus the short-lived access token. Positional
 /// records synthesize a <see cref="ToString"/> that prints every property, so
 /// <see cref="AccessJwt"/> is rendered as <c>[REDACTED]</c> here and in
-/// <see cref="PrintMembers"/>, and is ignored by JSON serializers (what structured log
+/// <see cref="_PrintMembers"/>, and is ignored by JSON serializers (what structured log
 /// sinks emit). Direct property access stays available to the Epic D consumer; the D1
 /// positional construction <c>SocialSession(Did, Handle, AccessJwt, PdsHost)</c> is
 /// unchanged.
@@ -35,13 +35,13 @@ public sealed record SocialSession(
 		var builder = new StringBuilder();
 		builder.Append(nameof(SocialSession));
 		builder.Append(" { ");
-		PrintMembers(builder);
+		_PrintMembers(builder);
 		builder.Append(' ');
 		builder.Append('}');
 		return builder.ToString();
 	}
 
-	private bool PrintMembers(StringBuilder builder) {
+	private bool _PrintMembers(StringBuilder builder) {
 		builder.Append(nameof(Did));
 		builder.Append(" = ");
 		builder.Append(Did);

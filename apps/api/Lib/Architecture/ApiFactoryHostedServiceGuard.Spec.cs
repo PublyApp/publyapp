@@ -18,10 +18,10 @@ namespace PublyApp.Api.Lib.Architecture;
 // because no LIVE InvitationEmailOutboxDispatcher ever runs inside the integration test host.
 // This class proves that invariant on the ACTUAL host, not on a model of it.
 public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public ApiFactoryHostedServiceGuardSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// THE guard. Resolves the REAL IEnumerable<IHostedService> from the initialized ApiFactory
@@ -36,7 +36,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 	// to the api/worker role split.
 	[Fact]
 	public void ItShouldNeverResolveALiveInvitationEmailOutboxDispatcherInTheIntegrationHost() {
-		var resolvedHostedServices = _fixture.Factory.Services
+		var resolvedHostedServices = _Fixture.Factory.Services
 			.GetServices<IHostedService>()
 			.ToList();
 
@@ -104,7 +104,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 	// round 2's re-review found that unsafe — it executes arbitrary application code for every
 	// factory-shaped IHostedService descriptor, and a legitimate one-shot factory that rejects a
 	// second invocation broke every ApiFixture consumer once the real host invoked it again (see
-	// ResolveHostedServiceImplementationType's XML doc in ApiFactory.cs for the full account).
+	// _ResolveHostedServiceImplementationType's XML doc in ApiFactory.cs for the full account).
 	//
 	// Round 2 deletes that probe and accepts the gap: RemoveWorkerHostedServices does NOT strip a
 	// factory-registered dispatcher descriptor. This test pins that limitation directly against

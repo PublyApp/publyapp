@@ -16,14 +16,14 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 
 	public static void Normalize(OpenApiDocument document) {
 		if (document.Info is not null) {
-			document.Info.Description = NormalizeNewlines(document.Info.Description);
+			document.Info.Description = _NormalizeNewlines(document.Info.Description);
 		}
 
 		var visitedSchemas = new HashSet<IOpenApiSchema>();
 
 		if (document.Components?.Schemas is not null) {
 			foreach (var schema in document.Components.Schemas.Values) {
-				NormalizeSchema(schema, visitedSchemas);
+				_NormalizeSchema(schema, visitedSchemas);
 			}
 		}
 
@@ -37,9 +37,9 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 				continue;
 			}
 
-			pathItem.Description = NormalizeNewlines(pathItem.Description);
-			SortParameters(pathItem.Parameters, path.Key);
-			NormalizeParameters(pathItem.Parameters, visitedSchemas);
+			pathItem.Description = _NormalizeNewlines(pathItem.Description);
+			_SortParameters(pathItem.Parameters, path.Key);
+			_NormalizeParameters(pathItem.Parameters, visitedSchemas);
 
 			if (pathItem.Operations is null) {
 				continue;
@@ -50,9 +50,9 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 					continue;
 				}
 
-				operation.Description = NormalizeNewlines(operation.Description);
-				SortParameters(operation.Parameters, path.Key);
-				NormalizeParameters(operation.Parameters, visitedSchemas);
+				operation.Description = _NormalizeNewlines(operation.Description);
+				_SortParameters(operation.Parameters, path.Key);
+				_NormalizeParameters(operation.Parameters, visitedSchemas);
 			}
 		}
 	}
@@ -69,7 +69,7 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 	/// at document-transform time, so the fold applies uniformly; request
 	/// builders consume the folded shape through the same untyped factories.
 	/// </summary>
-	private static void FoldNullableReferenceUnions(IOpenApiSchema? schema) {
+	private static void _FoldNullableReferenceUnions(IOpenApiSchema? schema) {
 		if (schema is not OpenApiSchema concrete
 			|| concrete.OneOf is not { Count: 2 } oneOf) {
 			return;
@@ -93,7 +93,7 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		concrete.OneOf = null;
 	}
 
-	private static void SortParameters(IList<IOpenApiParameter>? parameters, string path) {
+	private static void _SortParameters(IList<IOpenApiParameter>? parameters, string path) {
 		if (parameters is null
 			|| parameters.Count < 2) {
 			return;
@@ -104,8 +104,8 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 				Parameter = parameter,
 				OriginalIndex = index,
 			})
-			.OrderBy(item => GetParameterLocationOrder(item.Parameter.In))
-			.ThenBy(item => GetPathParameterIndex(path, item.Parameter))
+			.OrderBy(item => _GetParameterLocationOrder(item.Parameter.In))
+			.ThenBy(item => _GetPathParameterIndex(path, item.Parameter))
 			.ThenBy(item => item.Parameter.Name ?? string.Empty, StringComparer.Ordinal)
 			.ThenBy(item => item.OriginalIndex)
 			.Select(item => item.Parameter)
@@ -118,7 +118,7 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		}
 	}
 
-	private static int GetParameterLocationOrder(ParameterLocation? location) {
+	private static int _GetParameterLocationOrder(ParameterLocation? location) {
 		return location switch {
 			ParameterLocation.Path => 0,
 			ParameterLocation.Query => 1,
@@ -128,7 +128,7 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		};
 	}
 
-	private static int GetPathParameterIndex(string path, IOpenApiParameter parameter) {
+	private static int _GetPathParameterIndex(string path, IOpenApiParameter parameter) {
 		if (parameter.In != ParameterLocation.Path
 			|| string.IsNullOrEmpty(parameter.Name)) {
 			return int.MaxValue;
@@ -140,7 +140,7 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		return tokenIndex >= 0 ? tokenIndex : int.MaxValue;
 	}
 
-	private static void NormalizeParameters(
+	private static void _NormalizeParameters(
 		IEnumerable<IOpenApiParameter>? parameters,
 		HashSet<IOpenApiSchema> visitedSchemas
 	) {
@@ -149,12 +149,12 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		}
 
 		foreach (var parameter in parameters) {
-			parameter.Description = NormalizeNewlines(parameter.Description);
-			NormalizeSchema(parameter.Schema, visitedSchemas);
+			parameter.Description = _NormalizeNewlines(parameter.Description);
+			_NormalizeSchema(parameter.Schema, visitedSchemas);
 		}
 	}
 
-	private static void NormalizeSchema(
+	private static void _NormalizeSchema(
 		IOpenApiSchema? schema,
 		HashSet<IOpenApiSchema> visitedSchemas
 	) {
@@ -163,52 +163,52 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 			return;
 		}
 
-		FoldNullableReferenceUnions(schema);
+		_FoldNullableReferenceUnions(schema);
 
-		schema.Description = NormalizeNewlines(schema.Description);
+		schema.Description = _NormalizeNewlines(schema.Description);
 
-		NormalizeSchema(schema.Not, visitedSchemas);
-		NormalizeSchema(schema.Items, visitedSchemas);
-		NormalizeSchema(schema.AdditionalProperties, visitedSchemas);
+		_NormalizeSchema(schema.Not, visitedSchemas);
+		_NormalizeSchema(schema.Items, visitedSchemas);
+		_NormalizeSchema(schema.AdditionalProperties, visitedSchemas);
 
 		if (schema.AllOf is not null) {
 			foreach (var childSchema in schema.AllOf) {
-				NormalizeSchema(childSchema, visitedSchemas);
+				_NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.OneOf is not null) {
 			foreach (var childSchema in schema.OneOf) {
-				NormalizeSchema(childSchema, visitedSchemas);
+				_NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.AnyOf is not null) {
 			foreach (var childSchema in schema.AnyOf) {
-				NormalizeSchema(childSchema, visitedSchemas);
+				_NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.Properties is not null) {
 			foreach (var childSchema in schema.Properties.Values) {
-				NormalizeSchema(childSchema, visitedSchemas);
+				_NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.PatternProperties is not null) {
 			foreach (var childSchema in schema.PatternProperties.Values) {
-				NormalizeSchema(childSchema, visitedSchemas);
+				_NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.Definitions is not null) {
 			foreach (var childSchema in schema.Definitions.Values) {
-				NormalizeSchema(childSchema, visitedSchemas);
+				_NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 	}
 
-	private static string? NormalizeNewlines(string? value) {
+	private static string? _NormalizeNewlines(string? value) {
 		if (value is null) {
 			return null;
 		}

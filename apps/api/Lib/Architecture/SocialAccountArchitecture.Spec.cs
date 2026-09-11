@@ -40,14 +40,14 @@ public sealed class SocialAccountArchitectureSpec {
 
 	[Fact]
 	public void ItShouldRequireEveryServiceMethodWithTenantIdToUseIt() {
-		var path = FindSocialAccountServicePath();
+		var path = _FindSocialAccountServicePath();
 		path.Should().NotBeNull(
 			"SocialAccountService.cs must exist; if C2 removed it, "
 			+ "this guard re-discovers the missing target."
 		);
 		var source = File.ReadAllText(path!);
 		var offenders = new List<string>();
-		foreach (var slice in SplitMethods(source, "public")) {
+		foreach (var slice in _SplitMethods(source, "public")) {
 			if (!slice.Signature.Contains("Guid tenantId", StringComparison.Ordinal)) {
 				continue;
 			}
@@ -60,7 +60,7 @@ public sealed class SocialAccountArchitectureSpec {
 		);
 	}
 
-	private static string? FindSocialAccountServicePath() {
+	private static string? _FindSocialAccountServicePath() {
 		var dir = new DirectoryInfo(AppContext.BaseDirectory);
 		while (dir is not null) {
 			var target = Path.Combine(dir.FullName, "apps", "api", "Modules", "SocialAccounts", "Services", "SocialAccountService.cs");
@@ -71,7 +71,7 @@ public sealed class SocialAccountArchitectureSpec {
 	}
 
 	private sealed record MethodSlice(string Signature, string Body);
-	private static List<MethodSlice> SplitMethods(string source, string marker) {
+	private static List<MethodSlice> _SplitMethods(string source, string marker) {
 		var slices = new List<MethodSlice>();
 		var from = 0;
 		while (true) {

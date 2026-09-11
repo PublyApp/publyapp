@@ -31,7 +31,7 @@ namespace PublyApp.Api.Lib.Diagnostics;
 /// silences the patterns turns the whole guard red instead of passing vacuously.
 /// </summary>
 public sealed partial class OpenTelemetryLogPathGuardSpec {
-	private static string FindRepoFileText(params string[] relativeParts) {
+	private static string _FindRepoFileText(params string[] relativeParts) {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 
 		while (directory is not null) {
@@ -49,9 +49,9 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	}
 
 	// The repo root used by every repo-relative file lookup below. The
-	// FindRepoFileText walk above handles a different job (test-bin upward search);
+	// _FindRepoFileText walk above handles a different job (test-bin upward search);
 	// these guards need the actual repo root to enumerate `apps/api/**/*.cs`.
-	private static DirectoryInfo FindRepoRoot() {
+	private static DirectoryInfo _FindRepoRoot() {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 		while (directory is not null) {
 			if (Directory.Exists(Path.Combine(directory.FullName, "apps", "api")) &&
@@ -74,15 +74,15 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	[GeneratedRegex(
 		@"\bAddOpenTelemetry\s*\(|\bWithLogging\s*\(|\bWithTracing\s*\(|\bWithMetrics\s*\(|\bAddOtlpExporter\s*\("
 	)]
-	private static partial Regex OtelCompositionToken();
+	private static partial Regex _OtelCompositionToken();
 
 	// Every `*.cs` under apps/api that carries an OTel composition token. The
 	// "LockstepFamily" / "SingleChain" detectors run over the concatenation of all
 	// of these — so adding a NEW file that calls AddOpenTelemetry/WithLogging/
 	// WithTracing/WithMetrics/AddOtlpExporter shifts the union and either
 	// triggers a violation or is folded into the existing valid composition.
-	private static IEnumerable<string> OtelCompositionFiles() {
-		var apiDir = Path.Combine(FindRepoRoot().FullName, "apps", "api");
+	private static IEnumerable<string> _OtelCompositionFiles() {
+		var apiDir = Path.Combine(_FindRepoRoot().FullName, "apps", "api");
 		foreach (var path in Directory.EnumerateFiles(apiDir, "*.cs", SearchOption.AllDirectories)) {
 			// Skip the spec itself — it embeds the tokens as a deliberate
 			// fail-closed fixture, not as a real composition.
@@ -104,7 +104,7 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 			}
 
 			var text = File.ReadAllText(path);
-			if (OtelCompositionToken().IsMatch(text)) {
+			if (_OtelCompositionToken().IsMatch(text)) {
 				yield return path;
 			}
 		}
@@ -116,8 +116,8 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	internal static string AggregateComposition {
 		get {
 			var sb = new StringBuilder();
-			foreach (var file in OtelCompositionFiles()) {
-				sb.Append("// === ").Append(Path.GetRelativePath(FindRepoRoot().FullName, file)).Append(" ===\n");
+			foreach (var file in _OtelCompositionFiles()) {
+				sb.Append("// === ").Append(Path.GetRelativePath(_FindRepoRoot().FullName, file)).Append(" ===\n");
 				sb.Append(File.ReadAllText(file));
 				sb.Append('\n');
 			}
@@ -126,24 +126,24 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	}
 
 	[GeneratedRegex(@"\bWithLogging\s*\(")]
-	private static partial Regex WithLoggingCall();
+	private static partial Regex _WithLoggingCall();
 
 	[GeneratedRegex(@"\.AddOpenTelemetry\s*\(")]
-	private static partial Regex AddOpenTelemetryChain();
+	private static partial Regex _AddOpenTelemetryChain();
 
 	[GeneratedRegex(@"\.AddOtlpExporter\s*\(")]
-	private static partial Regex OtlpExporterCall();
+	private static partial Regex _OtlpExporterCall();
 
 	// Returns every violated rule for the given composition source; empty = compliant.
 	// Internal + operating on injected text so the fail-closed pin can exercise it.
 	internal static IReadOnlyList<string> DetectViolations(string source) {
 		var violations = new List<string>();
 
-		if (WithLoggingCall().IsMatch(source)) {
+		if (_WithLoggingCall().IsMatch(source)) {
 			violations.Add("OTel logging builder (WithLogging) registers a log export path");
 		}
 
-		if (AddOpenTelemetryChain().Count(source) > 1) {
+		if (_AddOpenTelemetryChain().Count(source) > 1) {
 			violations.Add(
 				"more than one AddOpenTelemetry chain — the single traces+metrics chain is the only sanctioned composition"
 			);
@@ -151,9 +151,9 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 
 		// Exactly two exporters are expected: one for tracing, one for metrics. A third
 		// call today means someone attached OTLP to a logging builder.
-		if (OtlpExporterCall().Count(source) != 2) {
+		if (_OtlpExporterCall().Count(source) != 2) {
 			violations.Add(
-				$"expected exactly 2 AddOtlpExporter() calls (tracing + metrics), found {OtlpExporterCall().Count(source)}"
+				$"expected exactly 2 AddOtlpExporter() calls (tracing + metrics), found {_OtlpExporterCall().Count(source)}"
 			);
 		}
 
@@ -167,8 +167,8 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 		violations.Should().BeEmpty(
 			because: "issue #255 forbids every OpenTelemetry LOGGING export path; " +
 			"durable logs flow through the sanitized Serilog sinks only. " +
-			"Scanned files: " + string.Join(", ", OtelCompositionFiles().Select(
-				f => Path.GetRelativePath(FindRepoRoot().FullName, f))) +
+			"Scanned files: " + string.Join(", ", _OtelCompositionFiles().Select(
+				f => Path.GetRelativePath(_FindRepoRoot().FullName, f))) +
 			". Violations: " + string.Join("; ", violations)
 		);
 	}
@@ -179,8 +179,8 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 		// composition surface, not a hand-picked subset. At minimum, the
 		// production composition file must show up — if it does not, the
 		// enumeration is broken and the test fails loud.
-		var files = OtelCompositionFiles().Select(
-			f => Path.GetRelativePath(FindRepoRoot().FullName, f).Replace('\\', '/')
+		var files = _OtelCompositionFiles().Select(
+			f => Path.GetRelativePath(_FindRepoRoot().FullName, f).Replace('\\', '/')
 		).ToHashSet();
 
 		files.Should().Contain(
@@ -192,9 +192,9 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 
 	[Fact]
 	public void ItShouldWireBothHostBuildersThroughTheSingleExtension() {
-		var programSource = FindRepoFileText("apps", "api", "Program.cs");
+		var programSource = _FindRepoFileText("apps", "api", "Program.cs");
 
-		ConfigureOpenTelemetryCall().Count(programSource)
+		_ConfigureOpenTelemetryCall().Count(programSource)
 			.Should().Be(2, because: "both the web host and the worker Generic Host must go " +
 			"through the same gated extension — no host may compose telemetry directly");
 	}
@@ -203,16 +203,16 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	// not a documentation mention of the name in a comment — so the
 	// explanatory note in Directory.Packages.props does not trip the guard.
 	[GeneratedRegex(@"""Serilog\.Sinks\.OpenTelemetry""")]
-	private static partial Regex SerilogOtelSinkDeclaration();
+	private static partial Regex _SerilogOtelSinkDeclaration();
 
 	[Fact]
 	public void ItShouldForbidTheSerilogOpenTelemetrySinkPackage() {
-		var packagesProps = FindRepoFileText("Directory.Packages.props");
-		var apiCsproj = FindRepoFileText("apps", "api", "PublyApp.Api.csproj");
+		var packagesProps = _FindRepoFileText("Directory.Packages.props");
+		var apiCsproj = _FindRepoFileText("apps", "api", "PublyApp.Api.csproj");
 
-		SerilogOtelSinkDeclaration().IsMatch(packagesProps).Should().BeFalse(
+		_SerilogOtelSinkDeclaration().IsMatch(packagesProps).Should().BeFalse(
 			because: "that sink ships raw log events to an OTLP endpoint outside the sanitizer wrapper");
-		SerilogOtelSinkDeclaration().IsMatch(apiCsproj).Should().BeFalse(
+		_SerilogOtelSinkDeclaration().IsMatch(apiCsproj).Should().BeFalse(
 			because: "that sink ships raw log events to an OTLP endpoint outside the sanitizer wrapper");
 	}
 
@@ -238,14 +238,14 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	// line. The NAME is matched against the supplied list separately so we can
 	// report which package is at the wrong version.
 	[GeneratedRegex(@"<PackageVersion\s+Include\s*=\s*""(?<name>[^""]+)""\s+Version\s*=\s*""(?<version>[^""]+)""\s*/>")]
-	private static partial Regex PackageVersionDeclaration();
+	private static partial Regex _PackageVersionDeclaration();
 
 	// Maps each OTel package name to its declared Version. Packages not present
 	// in the supplied props text are reported under a sentinel so the failure
 	// says "this package is missing" instead of silently dropping it.
 	internal static IReadOnlyDictionary<string, string> ResolveLockstepFamily(string propsText) {
 		var declared = new Dictionary<string, string>(StringComparer.Ordinal);
-		foreach (Match m in PackageVersionDeclaration().Matches(propsText)) {
+		foreach (Match m in _PackageVersionDeclaration().Matches(propsText)) {
 			var name = m.Groups["name"].Value;
 			var version = m.Groups["version"].Value;
 			declared[name] = version;
@@ -298,7 +298,7 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 
 	[Fact]
 	public void ItShouldPinTheOpenTelemetryLockstepFamilyToOneVersion() {
-		var packagesProps = FindRepoFileText("Directory.Packages.props");
+		var packagesProps = _FindRepoFileText("Directory.Packages.props");
 		var drift = DetectLockstepDrift(packagesProps);
 
 		drift.Should().BeEmpty(
@@ -361,5 +361,5 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	}
 
 	[GeneratedRegex(@"\.ConfigureOpenTelemetry\s*\(\)")]
-	private static partial Regex ConfigureOpenTelemetryCall();
+	private static partial Regex _ConfigureOpenTelemetryCall();
 }

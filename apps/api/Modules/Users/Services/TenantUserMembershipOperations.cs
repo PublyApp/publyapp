@@ -55,7 +55,7 @@ internal static class TenantUserMembershipOperations {
 					cancellationToken
 				);
 				var activeAdminCount = isRemovingActiveAdmin
-					? await CountActiveTenantAdminsAsync(
+					? await _CountActiveTenantAdminsAsync(
 						dbContext,
 						tenantId,
 						cancellationToken
@@ -137,7 +137,7 @@ internal static class TenantUserMembershipOperations {
 					group => group.Key,
 					group => group.OrderByDescending(row => row.Account.CreatedAt).First()
 				);
-			var activeAdminCount = await CountActiveTenantAdminsAsync(
+			var activeAdminCount = await _CountActiveTenantAdminsAsync(
 				dbContext,
 				tenantId,
 				cancellationToken
@@ -274,7 +274,7 @@ internal static class TenantUserMembershipOperations {
 				cancellationToken
 			);
 			var activeAdminCount = isSuspendingActiveAdmin
-				? await CountActiveTenantAdminsAsync(
+				? await _CountActiveTenantAdminsAsync(
 					dbContext,
 					tenantId,
 					cancellationToken
@@ -419,7 +419,7 @@ internal static class TenantUserMembershipOperations {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
+			from ua in _BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
 			where ua.UserId == userId
 			select ua
 		).AnyAsync(cancellationToken);
@@ -432,7 +432,7 @@ internal static class TenantUserMembershipOperations {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
+			from ua in _BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
 			where ua.UserId != userId
 			select ua
 		).AnyAsync(cancellationToken);
@@ -465,7 +465,7 @@ internal static class TenantUserMembershipOperations {
 		dbContext.UserAccountProfile.RemoveRange(links);
 	}
 
-	private static IQueryable<UserAccount> BuildActiveTenantAdminAccountsQuery(
+	private static IQueryable<UserAccount> _BuildActiveTenantAdminAccountsQuery(
 		AppDbContext dbContext,
 		Guid tenantId
 	) {
@@ -484,12 +484,12 @@ internal static class TenantUserMembershipOperations {
 			select ua;
 	}
 
-	private static async Task<int> CountActiveTenantAdminsAsync(
+	private static async Task<int> _CountActiveTenantAdminsAsync(
 		AppDbContext dbContext,
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
-		return await BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
+		return await _BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
 			.CountAsync(cancellationToken);
 	}
 }

@@ -55,10 +55,10 @@ public interface ITenantActivityQueryService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantActivityQueryService : ITenantActivityQueryService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public TenantActivityQueryService(AppDbContext dbContext) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 	}
 
 	public async Task<FindTenantActivityResult> FindForTenantAsync(
@@ -78,7 +78,7 @@ public class TenantActivityQueryService : ITenantActivityQueryService {
 				["created_at"] = new CursorSortFieldHandler<AuditLog>(
 				getCursorValue: async (guid) => {
 					var log = await (
-						from auditLog in ScopedQuery(args.TenantId)
+						from auditLog in _ScopedQuery(args.TenantId)
 						where auditLog.Id == guid
 						select new {
 							auditLog.CreatedAt,
@@ -130,7 +130,7 @@ public class TenantActivityQueryService : ITenantActivityQueryService {
 			);
 		}
 
-		var query = ScopedQuery(args.TenantId);
+		var query = _ScopedQuery(args.TenantId);
 
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue =
@@ -156,7 +156,7 @@ public class TenantActivityQueryService : ITenantActivityQueryService {
 		var projectedQuery =
 			from a in orderedQuery
 				.Take(args.Limit + 1)
-			join u in _dbContext.User
+			join u in _DbContext.User
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep the
 				// historical actor visible when possible. Resolved off
@@ -210,14 +210,14 @@ public class TenantActivityQueryService : ITenantActivityQueryService {
 	/// memberships can only widen toward tenants the actor ACTUALLY belonged
 	/// to — never toward another tenant's entries.
 	/// </summary>
-	private IQueryable<AuditLog> ScopedQuery(Guid tenantId) {
+	private IQueryable<AuditLog> _ScopedQuery(Guid tenantId) {
 		return
-			from auditLog in _dbContext.AuditLog.AsNoTracking()
+			from auditLog in _DbContext.AuditLog.AsNoTracking()
 			where !auditLog.IsDeleted
 				&& auditLog.Id != null
 				&& (
 					auditLog.TargetId == tenantId
-					|| _dbContext.UserAccount.Any(account =>
+					|| _DbContext.UserAccount.Any(account =>
 						account.UserId == auditLog.UserId
 						&& account.TenantId == tenantId
 						&& account.Scope == AccountScope.Tenant)

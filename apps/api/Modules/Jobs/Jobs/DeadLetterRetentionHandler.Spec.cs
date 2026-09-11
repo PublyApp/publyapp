@@ -19,10 +19,10 @@ namespace PublyApp.Api.Modules.Jobs.Jobs;
 // Direct-invocation retention specs for job_dead_letter. Rows carry a Guid-suffixed
 // job_type marker so the global age-based sweep is asserted only against this test's rows.
 public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public DeadLetterRetentionHandlerSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -33,21 +33,21 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var inside = $"{marker}.inside";
 		var boundaryKept = $"{marker}.boundary-keep";
 		var boundaryDeleted = $"{marker}.boundary-del";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			await InsertDeadLetterAsync(dbContext, beyond, days: retentionDays + 20);
-			await InsertDeadLetterAsync(dbContext, inside, days: 5);
+			await _InsertDeadLetterAsync(dbContext, beyond, days: retentionDays + 20);
+			await _InsertDeadLetterAsync(dbContext, inside, days: 5);
 			// Exact-horizon boundary (strict <): 2 s inside the horizon is KEPT, 2 s beyond
 			// is DELETED. The margin (>> test runtime) makes the strict comparison
 			// deterministic against database-time advance.
-			await InsertDeadLetterAsync(dbContext, boundaryKept, days: retentionDays, secondsOffset: -2);
-			await InsertDeadLetterAsync(dbContext, boundaryDeleted, days: retentionDays, secondsOffset: 2);
+			await _InsertDeadLetterAsync(dbContext, boundaryKept, days: retentionDays, secondsOffset: -2);
+			await _InsertDeadLetterAsync(dbContext, boundaryDeleted, days: retentionDays, secondsOffset: 2);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == beyond))
 				.Should().BeFalse("a row well beyond the horizon is swept");
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == inside))
@@ -59,7 +59,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			(await verify.JobDeadLetter.CountAsync(d => d.JobType.StartsWith(marker)))
 				.Should().Be(2, "exactly the two beyond-horizon rows are deleted");
 		} finally {
-			await CleanupAsync(marker);
+			await _CleanupAsync(marker);
 		}
 	}
 
@@ -67,21 +67,21 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
 		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
 		var marker = $"spec.dlq-idem.{Guid.NewGuid():N}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			await InsertDeadLetterAsync(dbContext, marker, days: retentionDays + 20);
-			await InsertDeadLetterAsync(dbContext, marker, days: 1);
+			await _InsertDeadLetterAsync(dbContext, marker, days: retentionDays + 20);
+			await _InsertDeadLetterAsync(dbContext, marker, days: 1);
 
-			await RunAsync(dbContext);
-			var second = await RunAsync(dbContext);
+			await _RunAsync(dbContext);
+			var second = await _RunAsync(dbContext);
 			second.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var remaining = await verify.JobDeadLetter.CountAsync(d => d.JobType == marker);
 			remaining.Should().Be(1, "only the fresh row remains after either run");
 		} finally {
-			await CleanupAsync(marker);
+			await _CleanupAsync(marker);
 		}
 	}
 
@@ -91,7 +91,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var marker = $"spec.dlq-exact.{Guid.NewGuid():N}";
 		var exactCutoff = $"{marker}.exact";
 		var justBeyond = $"{marker}.beyond";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		// PostgreSQL now() == transaction_timestamp(): frozen for the whole transaction. The
 		// seed and the handler's sweep run in ONE transaction, so the exact-cutoff row's
@@ -100,10 +100,10 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		// persists, so no cross-test cleanup is needed.
 		await using var transaction = await dbContext.Database.BeginTransactionAsync();
 		try {
-			await InsertDeadLetterAsync(dbContext, exactCutoff, days: retentionDays, secondsOffset: 0);
-			await InsertDeadLetterAsync(dbContext, justBeyond, days: retentionDays, secondsOffset: 1);
+			await _InsertDeadLetterAsync(dbContext, exactCutoff, days: retentionDays, secondsOffset: 0);
+			await _InsertDeadLetterAsync(dbContext, justBeyond, days: retentionDays, secondsOffset: 1);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
 			(await dbContext.JobDeadLetter.AnyAsync(d => d.JobType == exactCutoff))
@@ -120,27 +120,27 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
 		var marker = $"spec.dlq-hold.{Guid.NewGuid():N}";
 		var untriagedMissing = $"{JobDeadLetter.MissingJobTypePrefix}{marker}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
 			// Far beyond the horizon: age alone must NEVER delete an untriaged
 			// missing-anomaly row (#864/K-2) — the integrity anomaly may not age out of
 			// existence and silently clear its own alert.
-			await InsertDeadLetterAsync(dbContext, untriagedMissing, days: retentionDays + 20);
+			await _InsertDeadLetterAsync(dbContext, untriagedMissing, days: retentionDays + 20);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == untriagedMissing))
 				.Should().BeTrue("an untriaged missing-anomaly row is held however old it is");
 
 			// The skip report: the pass counts what it held back (the same predicate the
 			// monitor samples for jobs.dlq.untriaged_missing).
-			(await CountUntriagedMissingAsync(dbContext))
+			(await _CountUntriagedMissingAsync(dbContext))
 				.Should().Be(1, "the pass reports exactly the row it skipped");
 		} finally {
-			await CleanupAsync(marker);
+			await _CleanupAsync(marker);
 		}
 	}
 
@@ -149,10 +149,10 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
 		var marker = $"spec.dlq-triaged.{Guid.NewGuid():N}";
 		var triagedMissing = $"{JobDeadLetter.MissingJobTypePrefix}{marker}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			await InsertDeadLetterAsync(dbContext, triagedMissing, days: retentionDays + 20);
+			await _InsertDeadLetterAsync(dbContext, triagedMissing, days: retentionDays + 20);
 
 			// The operator acknowledgement (the #636 staff surface will produce it): once
 			// someone has LOOKED at the row, retention applies again like any other row.
@@ -164,16 +164,16 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 				"""
 			);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == triagedMissing))
 				.Should().BeFalse("a triaged missing-anomaly row past the horizon is swept");
-			(await CountUntriagedMissingAsync(dbContext))
+			(await _CountUntriagedMissingAsync(dbContext))
 				.Should().Be(0, "triage releases the row from the held set");
 		} finally {
-			await CleanupAsync(marker);
+			await _CleanupAsync(marker);
 		}
 	}
 
@@ -186,23 +186,23 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		// All three are far beyond the horizon: only their external_state_status
 		// differs. 6 Unclassified MUST be kept (issue #863's core demand), 1 Present
 		// MUST be kept (effects may still exist), 0 None still sweeps.
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
-			await InsertDeadLetterAsync(dbContext, $"{marker}.none", days: retentionDays + 20);
-			await InsertDeadLetterAsync(
+			await _InsertDeadLetterAsync(dbContext, $"{marker}.none", days: retentionDays + 20);
+			await _InsertDeadLetterAsync(
 				dbContext, $"{marker}.present", days: retentionDays + 20,
 				externalStateStatus: (int)ExternalStateStatus.Present
 			);
-			await InsertDeadLetterAsync(
+			await _InsertDeadLetterAsync(
 				dbContext, $"{marker}.unclassified", days: retentionDays + 20,
 				externalStateStatus: (int)ExternalStateStatus.Unclassified
 			);
 
-			var result = await RunAsync(dbContext);
+			var result = await _RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == $"{marker}.none"))
 				.Should().BeFalse("status 0 None stays plain age-retention eligible and is swept");
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == $"{marker}.present"))
@@ -210,7 +210,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == $"{marker}.unclassified"))
 				.Should().BeTrue("status 6 Unclassified has a resolution path and is exempt");
 		} finally {
-			await CleanupAsync(marker);
+			await _CleanupAsync(marker);
 		}
 	}
 
@@ -218,23 +218,23 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReportSkippedExemptRowCountWhenSweepEncountersExemptRows() {
 		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
 		var marker = $"spec.dlq-skip.{Guid.NewGuid():N}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
 			// Two exempt rows beyond the horizon + one non-exempt row beyond it.
-			await InsertDeadLetterAsync(
+			await _InsertDeadLetterAsync(
 				dbContext, $"{marker}.a", days: retentionDays + 20,
 				externalStateStatus: (int)ExternalStateStatus.Unclassified
 			);
-			await InsertDeadLetterAsync(
+			await _InsertDeadLetterAsync(
 				dbContext, $"{marker}.b", days: retentionDays + 20,
 				externalStateStatus: (int)ExternalStateStatus.Present
 			);
-			await InsertDeadLetterAsync(dbContext, $"{marker}.c", days: retentionDays + 20);
+			await _InsertDeadLetterAsync(dbContext, $"{marker}.c", days: retentionDays + 20);
 
 			var logger = new CapturingLogger();
 			var handler = new DeadLetterRetentionHandler(dbContext, logger);
-			var result = await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+			var result = await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
 			result.Should().BeOfType<JobOutcome.Success>();
 
 			var skipRecord = logger.Records.FirstOrDefault(r =>
@@ -245,7 +245,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			skipRecord.Structured["SkippedCount"]
 				.Should().Be(2, "two exempt rows sit beyond the horizon");
 		} finally {
-			await CleanupAsync(marker);
+			await _CleanupAsync(marker);
 		}
 	}
 
@@ -259,7 +259,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldExemptAProducerClassifiedRowUntilResolutionThenSweepIt() {
 		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
 		var jobType = $"spec.dlq-producer.{Guid.NewGuid():N}";
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 
 		try {
 			// Producer leg: engine dead-letters an unregistered-type job into status 6.
@@ -272,7 +272,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			);
 			await dbContext.Entry(row).ReloadAsync();
 
-			var scopeFactory = _fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>();
+			var scopeFactory = _Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>();
 			await using (var scope = scopeFactory.CreateAsyncScope()) {
 				var processor = new JobQueueProcessor(
 					scopeFactory,
@@ -304,7 +304,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			);
 
 			// Pass 1: the engine-produced Unclassified row is genuinely held back.
-			var first = await RunAsync(dbContext);
+			var first = await _RunAsync(dbContext);
 			first.Should().BeOfType<JobOutcome.Success>();
 			(await dbContext.JobDeadLetter.AnyAsync(d => d.JobType == jobType))
 				.Should().BeTrue("a real (not hand-seeded) Unclassified row is retention-exempt");
@@ -314,7 +314,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 				.Where(d => d.JobType == jobType)
 				.Select(d => d.Id.GetValueOrDefault())
 				.SingleAsync();
-			await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+			await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
 				var service = scope.ServiceProvider.GetRequiredService<IJobDeadLetterService>();
 				var outcome = await service.ResolveUnclassifiedAsync(
 					new ResolveDeadLetterUnclassifiedArgs(
@@ -329,12 +329,12 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			}
 
 			// Pass 2: resolved (4 Missing) rows sweep like any other row.
-			var second = await RunAsync(dbContext);
+			var second = await _RunAsync(dbContext);
 			second.Should().BeOfType<JobOutcome.Success>();
 			(await dbContext.JobDeadLetter.AnyAsync(d => d.JobType == jobType))
 				.Should().BeFalse("resolution releases the row to ordinary age retention");
 		} finally {
-			await using var cleanup = await CreateDbContextAsync();
+			await using var cleanup = await _CreateDbContextAsync();
 			await cleanup.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {jobType}"
 			);
@@ -377,22 +377,22 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private static async Task<JobOutcome> RunAsync(AppDbContext dbContext) {
+	private static async Task<JobOutcome> _RunAsync(AppDbContext dbContext) {
 		var handler = new DeadLetterRetentionHandler(
 			dbContext, NullLogger<DeadLetterRetentionHandler>.Instance
 		);
-		return await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+		return await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
 	}
 
 	// The skip-report seam (#864): how many missing-anomaly rows the sweep is holding.
-	private static async Task<long> CountUntriagedMissingAsync(AppDbContext dbContext) {
+	private static async Task<long> _CountUntriagedMissingAsync(AppDbContext dbContext) {
 		var handler = new DeadLetterRetentionHandler(
 			dbContext, NullLogger<DeadLetterRetentionHandler>.Instance
 		);
 		return await handler.CountUntriagedMissingRowsAsync(CancellationToken.None);
 	}
 
-	private static JobContext FakeContext(string jobType) {
+	private static JobContext _FakeContext(string jobType) {
 		return new JobContext {
 			JobId = Guid.NewGuid(),
 			JobType = jobType,
@@ -402,11 +402,11 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		};
 	}
 
-	private const string EmptyJson = "{}";
+	private const string _EmptyJson = "{}";
 
 	// failed_at = now() - (days days + secondsOffset seconds); a negative secondsOffset
 	// puts the row just INSIDE the horizon, a positive one just beyond it.
-	private static async Task InsertDeadLetterAsync(
+	private static async Task _InsertDeadLetterAsync(
 		AppDbContext dbContext,
 		string jobType,
 		int days,
@@ -420,7 +420,7 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 				 enqueued_at, failed_at, external_state_status,
 				 external_state_prepared_at, external_state_expires_at)
 			VALUES (
-				uuidv7(), {jobType}, {EmptyJson}::jsonb, 0, 10, 10,
+				uuidv7(), {jobType}, {_EmptyJson}::jsonb, 0, 10, 10,
 				now() - make_interval(days => {days + 1}),
 				now() - make_interval(days => {days}, secs => {secondsOffset}),
 				{externalStateStatus},
@@ -435,8 +435,8 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task CleanupAsync(string marker) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _CleanupAsync(string marker) {
+		await using var dbContext = await _CreateDbContextAsync();
 
 		// Wildcards on BOTH sides: missing-anomaly rows embed the marker AFTER the
 		// reserved "jobs.missing." prefix, which a suffix-only pattern would miss.
@@ -446,8 +446,8 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

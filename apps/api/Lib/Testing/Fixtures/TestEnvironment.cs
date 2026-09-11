@@ -33,7 +33,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 	/// fixture at all. Under xUnit's parallel class scheduling, if one of
 	/// those classes was scheduled before any fixture-backed class, it raced
 	/// AppEnvironment.Initialize() (idempotent, first-caller-wins) against an
-	/// unset host environment: GetHostEnvironmentName() fell back to
+	/// unset host environment: _GetHostEnvironmentName() fell back to
 	/// "Production", where G9 requires APP_ROLE and fails fast — "APP_ROLE is
 	/// not set" — even though this is a test run. Bootstrap() below closes
 	/// that race by construction rather than by hoping a fixture wins: the
@@ -45,7 +45,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 	/// race now, deterministically, regardless of xUnit's schedule.
 	/// </summary>
 	internal static class TestEnvironment {
-		private static int _isInitialized;
+		private static int _IsInitialized;
 
 		/// <summary>
 		/// Deterministic placeholder used ONLY by Bootstrap()'s eager,
@@ -58,10 +58,10 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 		/// string (see ApiFactory's own doc comment — "Any code that reads
 		/// POSTGRES_CONNECTION_STRING directly will NOT see the test DB").
 		/// The placeholder only needs to satisfy
-		/// AppEnvironmentValidator.BeValidPostgresConnectionString (a
+		/// AppEnvironmentValidator._BeValidPostgresConnectionString (a
 		/// well-formed Host/Database/Username/Password), never to connect.
 		/// </summary>
-		private const string PlaceholderConnectionString =
+		private const string _PlaceholderConnectionString =
 			"Host=localhost;Database=publyapp_bootstrap_placeholder;"
 			+ "Username=postgres;Password=postgres";
 
@@ -90,25 +90,25 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 		/// PostgresContainerFixture.InitializeAsync(), or an architecture
 		/// spec's own static constructor — finds InitializeOnce() already
 		/// run and Instance already set, so it's a no-op return. See
-		/// PlaceholderConnectionString's doc comment for why the eager
+		/// _PlaceholderConnectionString's doc comment for why the eager
 		/// placeholder is safe.
 		/// </summary>
 		[System.Runtime.CompilerServices.ModuleInitializer]
 		internal static void Bootstrap() {
-			InitializeOnce(PlaceholderConnectionString);
+			InitializeOnce(_PlaceholderConnectionString);
 		}
 
 		public static void InitializeOnce(
 			string postgresConnectionString
 		) {
 			if (Interlocked.CompareExchange(
-				ref _isInitialized, 1, 0
+				ref _IsInitialized, 1, 0
 			) != 0) {
 				return;
 			}
 
 			try {
-				// 1. Prevent AppEnvironment.LoadDotEnvIfDevelopment()
+				// 1. Prevent AppEnvironment._LoadDotEnvIfDevelopment()
 				//    from loading .env.development a second time
 				Environment.SetEnvironmentVariable(
 					"ASPNETCORE_ENVIRONMENT",
@@ -117,7 +117,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 
 				// 2. Pin a deterministic test APP_ROLE (2B/G9) before the
 				//     baseline load. Testing already defaults an unset APP_ROLE
-				//     to AppRole.All (see AppEnvironment.GetOptionalAppRole),
+				//     to AppRole.All (see AppEnvironment._GetOptionalAppRole),
 				//     but the bootstrap pins it explicitly so the role is never
 				//     implicit.
 				Environment.SetEnvironmentVariable(
@@ -213,7 +213,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 				//    accesses AppEnvironment.Instance).
 				_ = AppEnvironment.Initialize();
 			} catch {
-				Volatile.Write(ref _isInitialized, 0);
+				Volatile.Write(ref _IsInitialized, 0);
 				throw;
 			}
 		}

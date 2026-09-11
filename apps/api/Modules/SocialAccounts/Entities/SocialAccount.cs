@@ -7,14 +7,14 @@ namespace PublyApp.Api.Modules.SocialAccounts.Entities;
 
 [Table("social_accounts")]
 public class SocialAccount : BaseAttributes, ITenantEntity {
-	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _tenant;
+	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _Tenant;
 
 	[Column("tenant_id")]
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_tenant, nameof(SocialAccount), nameof(Tenant)); }
-		set { _tenant = value; }
+		get { return RequiredNavigation.Get(_Tenant, nameof(SocialAccount), nameof(Tenant)); }
+		set { _Tenant = value; }
 	}
 
 	[Column("provider")]

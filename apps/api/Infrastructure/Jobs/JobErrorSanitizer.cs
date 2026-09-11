@@ -32,27 +32,27 @@ public static partial class JobErrorSanitizer {
 	// Bound on how many exceptions deep an InnerException chain is walked for the
 	// structured (frame-list) projection below — enough to locate a fault without a
 	// pathological chain flooding a sink.
-	private const int MaxExceptionChainDepth = 5;
+	private const int _MaxExceptionChainDepth = 5;
 
 	[GeneratedRegex(@"[\w.+-]+@[\w-]+(\.[\w-]+)+")]
-	private static partial Regex EmailPattern();
+	private static partial Regex _EmailPattern();
 
 	// Long unbroken base64/hex/url-safe runs are token-shaped (reset tokens, API
 	// keys, signed payload fragments) — redact wholesale.
 	[GeneratedRegex(@"[A-Za-z0-9_\-+/=]{24,}")]
-	private static partial Regex TokenPattern();
+	private static partial Regex _TokenPattern();
 
 	[GeneratedRegex(@"[\x00-\x1F]+")]
-	private static partial Regex ControlCharacters();
+	private static partial Regex _ControlCharacters();
 
 	public static string? Sanitize(string? raw) {
 		if (raw is null) {
 			return null;
 		}
 
-		var safe = ControlCharacters().Replace(raw, " ");
-		safe = EmailPattern().Replace(safe, "[redacted-email]");
-		safe = TokenPattern().Replace(safe, "[redacted-token]");
+		var safe = _ControlCharacters().Replace(raw, " ");
+		safe = _EmailPattern().Replace(safe, "[redacted-email]");
+		safe = _TokenPattern().Replace(safe, "[redacted-token]");
 
 		return safe.Length <= MaxLength ? safe : safe[..MaxLength];
 	}
@@ -128,7 +128,7 @@ public static partial class JobErrorSanitizer {
 	/// joined string — currently <c>SanitizingLogEventSink</c> (2B), which projects
 	/// each frame into its own Serilog sequence element rather than one flattened
 	/// property. Walks the InnerException chain (bounded by
-	/// <see cref="MaxExceptionChainDepth"/>) so a wrapped exception's own frames are
+	/// <see cref="_MaxExceptionChainDepth"/>) so a wrapped exception's own frames are
 	/// not lost, prefixing each inner exception's frames with a marker naming its
 	/// type. Frames describe code locations only — never a payload value — which is
 	/// exactly why they survive the boundary that drops the message.
@@ -139,7 +139,7 @@ public static partial class JobErrorSanitizer {
 		var depth = 0;
 
 		while (current is not null
-			&& depth < MaxExceptionChainDepth
+			&& depth < _MaxExceptionChainDepth
 			&& described.Count < MaxStackFrames) {
 			if (depth > 0) {
 				described.Add($"--- inner {current.GetType().FullName} ---");
@@ -150,7 +150,7 @@ public static partial class JobErrorSanitizer {
 					break;
 				}
 
-				var describedFrame = DescribeFrame(frame);
+				var describedFrame = _DescribeFrame(frame);
 				if (describedFrame is not null) {
 					described.Add(describedFrame);
 				}
@@ -163,7 +163,7 @@ public static partial class JobErrorSanitizer {
 		return described;
 	}
 
-	private static string? DescribeFrame(StackFrame frame) {
+	private static string? _DescribeFrame(StackFrame frame) {
 		var method = frame.GetMethod();
 		if (method is null) {
 			return null;

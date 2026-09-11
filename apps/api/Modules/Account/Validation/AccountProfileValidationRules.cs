@@ -18,17 +18,17 @@ public static partial class AccountProfileValidationRules {
 	// Matches exactly what CreateStaffUpload returns (see StaffUploadCreated.Url):
 	// "/files/" + the server-generated relative storage path.
 	[GeneratedRegex(@"^/files/uploads/\d{4}/\d{2}/[0-9a-f-]{36}\.(png|jpe?g|webp|gif)$")]
-	private static partial Regex ServedUploadAvatarUrlPattern();
+	private static partial Regex _ServedUploadAvatarUrlPattern();
 
 	/// <summary>
 	/// True when <paramref name="value"/> is a served-upload path shaped like
-	/// <see cref="ServedUploadAvatarUrlPattern"/>.
+	/// <see cref="_ServedUploadAvatarUrlPattern"/>.
 	/// </summary>
 	public static bool IsServedUploadAvatarUrl(string value) {
-		return ServedUploadAvatarUrlPattern().IsMatch(value);
+		return _ServedUploadAvatarUrlPattern().IsMatch(value);
 	}
 
-	private static bool IsValidAvatarUrl(string value) {
+	private static bool _IsValidAvatarUrl(string value) {
 		if (IsServedUploadAvatarUrl(value)) {
 			return true;
 		}
@@ -64,7 +64,7 @@ public static partial class AccountProfileValidationRules {
 				if (string.IsNullOrWhiteSpace(url)) {
 					return false;
 				}
-				return IsValidAvatarUrl(url);
+				return _IsValidAvatarUrl(url);
 			})
 			.WithMessage(
 				$"{fieldName} must be a served upload path or an absolute "

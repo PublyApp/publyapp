@@ -25,7 +25,7 @@ public sealed class RateLimitCounterSpec {
 		AppEnvironment.Initialize();
 	}
 
-	private static IEntityType Model() {
+	private static IEntityType _Model() {
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql("Host=localhost;Database=rate_limit_counter_guard")
 			.Options;
@@ -36,7 +36,7 @@ public sealed class RateLimitCounterSpec {
 
 	[Fact]
 	public void ItShouldDeclareTheCompositePrimaryKeyAsTheUpsertConflictTarget() {
-		var entity = Model();
+		var entity = _Model();
 
 		var key = entity.FindPrimaryKey();
 		key.Should().NotBeNull(
@@ -51,7 +51,7 @@ public sealed class RateLimitCounterSpec {
 
 	[Fact]
 	public void ItShouldStorePermitCountAsNonNullableAndNonNegative() {
-		var entity = Model();
+		var entity = _Model();
 		var table = StoreObjectIdentifier.Table("rate_limit_counters");
 
 		var permitCount = entity.FindProperty(
@@ -70,7 +70,7 @@ public sealed class RateLimitCounterSpec {
 
 	[Fact]
 	public void ItShouldMapAllColumnsToTheSnakeCaseRateLimitCountersTable() {
-		var entity = Model();
+		var entity = _Model();
 		var table = StoreObjectIdentifier.Table("rate_limit_counters");
 
 		entity.GetSchema().Should().BeNull(
@@ -92,7 +92,7 @@ public sealed class RateLimitCounterSpec {
 
 	[Fact]
 	public void ItShouldDeclareTheWindowStartedAtIndexForHousekeepingSweeps() {
-		var entity = Model();
+		var entity = _Model();
 
 		var index = entity.GetIndexes()
 			.SingleOrDefault(i =>
@@ -108,7 +108,7 @@ public sealed class RateLimitCounterSpec {
 
 	[Fact]
 	public void ItShouldDeclareNoTenantAndNoAuditColumns() {
-		var entity = Model();
+		var entity = _Model();
 
 		// RateLimitCounter is a pure operational-state table: no tenant scoping,
 		// no soft-delete, no audit timestamps — those would bloat every UPSERT

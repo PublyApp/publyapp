@@ -33,19 +33,19 @@ namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 /// </summary>
 public sealed class FindTenantActivityForStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantActivityForStaffSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string tenantId) {
+	private static string _GetUrl(string tenantId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Tenants.ForStaff.Root,
@@ -53,15 +53,15 @@ public sealed class FindTenantActivityForStaffSpec
 		);
 	}
 
-	private async Task<string> LoginStaffAsync() {
-		return await _authClient.LoginAsStaffAdminAsync();
+	private async Task<string> _LoginStaffAsync() {
+		return await _AuthClient.LoginAsStaffAdminAsync();
 	}
 
-	private async Task<Guid> SeedTenantAsync(
+	private async Task<Guid> _SeedTenantAsync(
 		string namePrefix
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -77,13 +77,13 @@ public sealed class FindTenantActivityForStaffSpec
 		return tenant.GetRequiredId();
 	}
 
-	private async Task<Guid> SeedTenantMemberAsync(
+	private async Task<Guid> _SeedTenantMemberAsync(
 		Guid tenantId,
 		string firstName = "Member",
 		string lastName = "Fixture"
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -109,13 +109,13 @@ public sealed class FindTenantActivityForStaffSpec
 		return user.GetRequiredId();
 	}
 
-	private async Task<Guid> SeedEntryAsync(
+	private async Task<Guid> _SeedEntryAsync(
 		Guid actorUserId,
 		string action,
 		Guid? targetId = null
 	) {
 		return await AuditLogTestHelper.SeedAuditLogAsync(
-			_fixture.Factory,
+			_Fixture.Factory,
 			actorUserId,
 			action,
 			targetId
@@ -123,12 +123,12 @@ public sealed class FindTenantActivityForStaffSpec
 	}
 
 	private async Task<FindTenantActivityResponseShape>
-		GetActivityAsync(string url, string token) {
+		_GetActivityAsync(string url, string token) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 		var result = await response.Content!
@@ -139,31 +139,31 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldShowOnlyTenantScopedEntriesForTheRequestedTenant() {
-		var token = await LoginStaffAsync();
-		var tenantA = await SeedTenantAsync("Activity Alpha");
-		var tenantB = await SeedTenantAsync("Activity Beta");
-		var memberA = await SeedTenantMemberAsync(tenantA);
-		var memberB = await SeedTenantMemberAsync(tenantB);
+		var token = await _LoginStaffAsync();
+		var tenantA = await _SeedTenantAsync("Activity Alpha");
+		var tenantB = await _SeedTenantAsync("Activity Beta");
+		var memberA = await _SeedTenantMemberAsync(tenantA);
+		var memberB = await _SeedTenantMemberAsync(tenantB);
 
 		var staffUserId =
 			await AuditLogTestHelper.GetUserIdByEmailAsync(
-				_fixture.Factory,
+				_Fixture.Factory,
 				TestConstants.StaffAdminEmail
 			);
 
-		var alphaMemberEntry = await SeedEntryAsync(
+		var alphaMemberEntry = await _SeedEntryAsync(
 			memberA, AuditActions.PostCreated
 		);
-		var alphaTargetEntry = await SeedEntryAsync(
+		var alphaTargetEntry = await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantUpdated, tenantA
 		);
-		await SeedEntryAsync(memberB, AuditActions.PostCreated);
-		await SeedEntryAsync(
+		await _SeedEntryAsync(memberB, AuditActions.PostCreated);
+		await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantSuspended, tenantB
 		);
 
-		var result = await GetActivityAsync(
-			GetUrl(tenantA.ToString()), token
+		var result = await _GetActivityAsync(
+			_GetUrl(tenantA.ToString()), token
 		);
 
 		var ids = result.Data.Select(e => e.Id).ToList();
@@ -175,37 +175,37 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldStayTenantScopedWhenForgedFiltersAreAppendedToTheRequest() {
-		var token = await LoginStaffAsync();
-		var tenantA = await SeedTenantAsync("Activity Forge A");
-		var tenantB = await SeedTenantAsync("Activity Forge B");
-		var memberA = await SeedTenantMemberAsync(tenantA);
-		var memberB = await SeedTenantMemberAsync(tenantB);
+		var token = await _LoginStaffAsync();
+		var tenantA = await _SeedTenantAsync("Activity Forge A");
+		var tenantB = await _SeedTenantAsync("Activity Forge B");
+		var memberA = await _SeedTenantMemberAsync(tenantA);
+		var memberB = await _SeedTenantMemberAsync(tenantB);
 
 		var staffUserId =
 			await AuditLogTestHelper.GetUserIdByEmailAsync(
-				_fixture.Factory,
+				_Fixture.Factory,
 				TestConstants.StaffAdminEmail
 			);
 
-		var alphaEntry = await SeedEntryAsync(
+		var alphaEntry = await _SeedEntryAsync(
 			memberA, AuditActions.PostCreated
 		);
 		// A tenant-B entry a forged `target_id=tenantB` could try to pull in.
 		// It must NEVER surface on tenant A's feed, forged scope or not.
-		var tenantBTargetedEntry = await SeedEntryAsync(
+		var tenantBTargetedEntry = await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantUpdated, tenantB
 		);
-		await SeedEntryAsync(memberB, AuditActions.PostCreated);
+		await _SeedEntryAsync(memberB, AuditActions.PostCreated);
 
 		// A caller tries to widen the feed toward tenant B through
 		// query-string forgery; the surface binds no scope filters,
 		// so the response must remain exactly tenant A's entries.
-		var forgedUrl = GetUrl(tenantA.ToString())
+		var forgedUrl = _GetUrl(tenantA.ToString())
 			+ $"?target_id={tenantB}"
 			+ $"&user_id={memberB}"
 			+ "&actions=" + AuditActions.PostCreated
 			+ "&limit=50";
-		var result = await GetActivityAsync(forgedUrl, token);
+		var result = await _GetActivityAsync(forgedUrl, token);
 
 		var ids = result.Data.Select(e => e.Id).ToList();
 		ids.Should().HaveCount(1);
@@ -222,13 +222,13 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldKeepActorNameAfterMembershipRemovalAndIdentityDeletion() {
-		var token = await LoginStaffAsync();
-		var tenantId = await SeedTenantAsync("Activity Ghost");
-		var member = await SeedTenantMemberAsync(
+		var token = await _LoginStaffAsync();
+		var tenantId = await _SeedTenantAsync("Activity Ghost");
+		var member = await _SeedTenantMemberAsync(
 			tenantId, "Ghost", "Member"
 		);
 
-		var entryId = await SeedEntryAsync(
+		var entryId = await _SeedEntryAsync(
 			member, AuditActions.PostCreated
 		);
 
@@ -237,7 +237,7 @@ public sealed class FindTenantActivityForStaffSpec
 		// historical actor's name to persist (resolved off the
 		// global user id, ignoring soft-delete filters).
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var account = await dbContext.UserAccount
@@ -250,8 +250,8 @@ public sealed class FindTenantActivityForStaffSpec
 		ghostUser.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
 
-		var result = await GetActivityAsync(
-			GetUrl(tenantId.ToString()), token
+		var result = await _GetActivityAsync(
+			_GetUrl(tenantId.ToString()), token
 		);
 
 		var entry = result.Data
@@ -264,16 +264,16 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldHideSoftDeletedAuditEntries() {
-		var token = await LoginStaffAsync();
-		var tenantId = await SeedTenantAsync("Activity Deleted");
-		var member = await SeedTenantMemberAsync(tenantId);
+		var token = await _LoginStaffAsync();
+		var tenantId = await _SeedTenantAsync("Activity Deleted");
+		var member = await _SeedTenantMemberAsync(tenantId);
 
-		var entryId = await SeedEntryAsync(
+		var entryId = await _SeedEntryAsync(
 			member, AuditActions.PostCreated
 		);
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var entry = await dbContext.AuditLog
@@ -281,8 +281,8 @@ public sealed class FindTenantActivityForStaffSpec
 		entry.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
 
-		var result = await GetActivityAsync(
-			GetUrl(tenantId.ToString()), token
+		var result = await _GetActivityAsync(
+			_GetUrl(tenantId.ToString()), token
 		);
 
 		result.Data.Should()
@@ -292,13 +292,13 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldReturnNotFoundForUnknownTenant() {
-		var token = await LoginStaffAsync();
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var token = await _LoginStaffAsync();
+		var url = _GetUrl(Guid.NewGuid().ToString());
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -307,13 +307,13 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldReturnBadRequestForMalformedTenantId() {
-		var token = await LoginStaffAsync();
-		var url = GetUrl("not-a-guid");
+		var token = await _LoginStaffAsync();
+		var url = _GetUrl("not-a-guid");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -322,9 +322,9 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldReturnUnauthorizedWithoutSessionToken() {
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 
-		using var response = await _http.SendAsync(
+		using var response = await _Http.SendAsync(
 			new HttpRequestMessage(HttpMethod.Get, url)
 		);
 
@@ -335,16 +335,16 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldReturnForbiddenForTenantScopedUser() {
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var url = GetUrl(Guid.NewGuid().ToString());
+		var url = _GetUrl(Guid.NewGuid().ToString());
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(tenantToken);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -353,31 +353,31 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldPaginateByKeysetCursorWhenMoreResultsExist() {
-		var token = await LoginStaffAsync();
-		var tenantId = await SeedTenantAsync("Activity Pages");
+		var token = await _LoginStaffAsync();
+		var tenantId = await _SeedTenantAsync("Activity Pages");
 		var staffUserId =
 			await AuditLogTestHelper.GetUserIdByEmailAsync(
-				_fixture.Factory,
+				_Fixture.Factory,
 				TestConstants.StaffAdminEmail
 			);
 
-		var first = await SeedEntryAsync(
+		var first = await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantUpdated, tenantId
 		);
-		var second = await SeedEntryAsync(
+		var second = await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantSuspended, tenantId
 		);
-		var third = await SeedEntryAsync(
+		var third = await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantReactivated, tenantId
 		);
 
-		var pageOne = await GetActivityAsync(
-			GetUrl(tenantId.ToString()) + "?limit=2", token
+		var pageOne = await _GetActivityAsync(
+			_GetUrl(tenantId.ToString()) + "?limit=2", token
 		);
 		pageOne.NextCursor.Should().NotBeNullOrEmpty();
 
-		var pageTwo = await GetActivityAsync(
-			GetUrl(tenantId.ToString())
+		var pageTwo = await _GetActivityAsync(
+			_GetUrl(tenantId.ToString())
 				+ $"?limit=2&cursor={pageOne.NextCursor}",
 			token
 		);
@@ -395,14 +395,14 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldReturnBadRequestForMalformedCursor() {
-		var token = await LoginStaffAsync();
-		var tenantId = await SeedTenantAsync("Activity Cursor");
+		var token = await _LoginStaffAsync();
+		var tenantId = await _SeedTenantAsync("Activity Cursor");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString()) + "?cursor=nope"
+			_GetUrl(tenantId.ToString()) + "?cursor=nope"
 		).WithSessionToken(token);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -410,20 +410,20 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldNeverMutateAuditEntriesFromTheActivitySurface() {
-		var token = await LoginStaffAsync();
-		var tenantId = await SeedTenantAsync("Activity Readonly");
+		var token = await _LoginStaffAsync();
+		var tenantId = await _SeedTenantAsync("Activity Readonly");
 		var staffUserId =
 			await AuditLogTestHelper.GetUserIdByEmailAsync(
-				_fixture.Factory,
+				_Fixture.Factory,
 				TestConstants.StaffAdminEmail
 			);
-		await SeedEntryAsync(
+		await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantUpdated, tenantId
 		);
-		await SeedEntryAsync(
+		await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantSuspended, tenantId
 		);
-		await SeedEntryAsync(
+		await _SeedEntryAsync(
 			staffUserId, AuditActions.TenantReactivated, tenantId
 		);
 
@@ -434,8 +434,8 @@ public sealed class FindTenantActivityForStaffSpec
 		// guarantee is that the audit feed is byte-for-byte unchanged by any
 		// mutating attempt: no entry is created, edited, or deleted from this
 		// tab.
-		var url = GetUrl(tenantId.ToString());
-		var baseline = await GetActivityAsync(url, token);
+		var url = _GetUrl(tenantId.ToString());
+		var baseline = await _GetActivityAsync(url, token);
 
 		var mutatingMethods = new HttpMethod[] {
 			HttpMethod.Post,
@@ -447,7 +447,7 @@ public sealed class FindTenantActivityForStaffSpec
 			using var request = new HttpRequestMessage(
 				method, url
 			).WithSessionToken(token);
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().NotBe(
 				HttpStatusCode.OK,
@@ -462,7 +462,7 @@ public sealed class FindTenantActivityForStaffSpec
 		// Small wait so any eventual-consistency write would be visible.
 		await Task.Delay(250);
 
-		var after = await GetActivityAsync(url, token);
+		var after = await _GetActivityAsync(url, token);
 		after.Data.Should().HaveCount(
 			baseline.Data.Count,
 			"no mutating attempt may add or remove audit entries"

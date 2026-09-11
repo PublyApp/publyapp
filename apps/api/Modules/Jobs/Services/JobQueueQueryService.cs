@@ -80,7 +80,7 @@ public interface IJobQueueQueryService {
 [Service(ServiceLifetime.Scoped)]
 public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryService {
 	private static readonly Dictionary<string, JobQueueStatus>
-		StatusCsvValues = new(StringComparer.OrdinalIgnoreCase) {
+		_StatusCsvValues = new(StringComparer.OrdinalIgnoreCase) {
 			["pending"] = JobQueueStatus.Pending,
 			["processing"] = JobQueueStatus.Processing,
 		};
@@ -96,7 +96,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		if (!string.IsNullOrWhiteSpace(args.StatusCsv)) {
 			statuses = [];
 			foreach (var token in args.StatusCsv.Split(',')) {
-				if (!StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
+				if (!_StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
 					return new FindJobQueueItemsResult.InvalidStatusCsv(args.StatusCsv);
 				}
 
@@ -104,14 +104,14 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			}
 		}
 
-		var query = BaseQuery();
+		var query = _BaseQuery();
 
-		query = ApplyFilters(query, args.TenantId, statuses, args.JobType);
+		query = _ApplyFilters(query, args.TenantId, statuses, args.JobType);
 
 		IQueryable<JobQueueItem> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
-				from item in BaseQuery()
+				from item in _BaseQuery()
 				where item.Id == args.Cursor
 				select new { item.CreatedAt }
 			).FirstOrDefaultAsync(cancellationToken);
@@ -166,7 +166,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		var items = rows.Select(row => new JobQueueListItem {
 			Id = row.Id ?? Guid.Empty,
 			JobType = row.JobType,
-			Status = StatusToWire((JobQueueStatus)row.Status),
+			Status = _StatusToWire((JobQueueStatus)row.Status),
 			Priority = row.Priority,
 			Attempts = row.Attempts,
 			MaxAttempts = row.MaxAttempts,
@@ -221,7 +221,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			Id = row.Id ?? Guid.Empty,
 			JobType = row.JobType,
 			Payload = row.Payload,
-			Status = StatusToWire((JobQueueStatus)row.Status),
+			Status = _StatusToWire((JobQueueStatus)row.Status),
 			Priority = row.Priority,
 			Attempts = row.Attempts,
 			MaxAttempts = row.MaxAttempts,
@@ -240,7 +240,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		}).FirstOrDefault();
 	}
 
-	private static string StatusToWire(JobQueueStatus status) {
+	private static string _StatusToWire(JobQueueStatus status) {
 		return status switch {
 			JobQueueStatus.Pending => "pending",
 			JobQueueStatus.Processing => "processing",
@@ -248,7 +248,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		};
 	}
 
-	private static IQueryable<JobQueueItem> ApplyFilters(
+	private static IQueryable<JobQueueItem> _ApplyFilters(
 		IQueryable<JobQueueItem> query,
 		Guid? tenantId,
 		List<JobQueueStatus>? statuses,
@@ -278,7 +278,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		return query;
 	}
 
-	private IQueryable<JobQueueItem> BaseQuery() {
+	private IQueryable<JobQueueItem> _BaseQuery() {
 		return
 			from item in dbContext.JobQueue.AsNoTracking()
 			select item;

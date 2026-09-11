@@ -9,16 +9,16 @@ namespace PublyApp.Api.Lib.RateLimiting;
 
 internal static class ApiRateLimitPartitionKeys {
 	private static readonly object
-		ValidatedSessionFingerprintItemKey = new();
+		_ValidatedSessionFingerprintItemKey = new();
 	private static readonly object
-		SessionValidationAttemptedItemKey = new();
+		_SessionValidationAttemptedItemKey = new();
 
 	public static string GetSessionFingerprint(
 		HttpContext context
 	) {
 		if (
 			context.Items.TryGetValue(
-				ValidatedSessionFingerprintItemKey,
+				_ValidatedSessionFingerprintItemKey,
 				out var value
 			)
 			&& value is string fingerprint
@@ -37,7 +37,7 @@ internal static class ApiRateLimitPartitionKeys {
 		Guid sessionId
 	) {
 		context.Items[
-			ValidatedSessionFingerprintItemKey
+			_ValidatedSessionFingerprintItemKey
 		] = Hash(sessionId.ToString("D"));
 	}
 
@@ -45,7 +45,7 @@ internal static class ApiRateLimitPartitionKeys {
 		HttpContext context
 	) {
 		context.Items[
-			SessionValidationAttemptedItemKey
+			_SessionValidationAttemptedItemKey
 		] = true;
 	}
 
@@ -53,7 +53,7 @@ internal static class ApiRateLimitPartitionKeys {
 		HttpContext context
 	) {
 		return context.Items.ContainsKey(
-			SessionValidationAttemptedItemKey
+			_SessionValidationAttemptedItemKey
 		);
 	}
 
@@ -64,14 +64,14 @@ internal static class ApiRateLimitPartitionKeys {
 			"tenantId"
 		]?.ToString();
 		if (!string.IsNullOrWhiteSpace(routeTenant)) {
-			return NormalizeTenant(routeTenant);
+			return _NormalizeTenant(routeTenant);
 		}
 
 		var headerTenant = context.Request.Headers[
 			AppEnvironment.Instance.TENANT_ID_HEADER_KEY
 		].ToString();
 		if (!string.IsNullOrWhiteSpace(headerTenant)) {
-			return NormalizeTenant(headerTenant);
+			return _NormalizeTenant(headerTenant);
 		}
 
 		return $"missing:{GetSessionFingerprint(context)}";
@@ -84,7 +84,7 @@ internal static class ApiRateLimitPartitionKeys {
 		return Convert.ToHexString(bytes).ToLowerInvariant();
 	}
 
-	private static string NormalizeTenant(string value) {
+	private static string _NormalizeTenant(string value) {
 		var trimmed = value.Trim();
 		if (Guid.TryParse(trimmed, out var tenantId)) {
 			return tenantId.ToString("D");
@@ -96,17 +96,17 @@ internal static class ApiRateLimitPartitionKeys {
 
 internal sealed class
 	ValidatedSessionRateLimitPartitionMiddleware {
-	private readonly RequestDelegate _next;
+	private readonly RequestDelegate _Next;
 
 	public ValidatedSessionRateLimitPartitionMiddleware(
 		RequestDelegate next
 	) {
-		_next = next;
+		_Next = next;
 	}
 
 	public async Task InvokeAsync(HttpContext context) {
-		if (!RequiresValidatedSessionPartition(context)) {
-			await _next(context);
+		if (!_RequiresValidatedSessionPartition(context)) {
+			await _Next(context);
 			return;
 		}
 
@@ -114,7 +114,7 @@ internal sealed class
 			AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY
 		].FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(token)) {
-			await _next(context);
+			await _Next(context);
 			return;
 		}
 
@@ -131,7 +131,7 @@ internal sealed class
 			sessionData?.Session.Id is not Guid sessionId
 			|| sessionData.User.Id is not Guid userId
 		) {
-			await _next(context);
+			await _Next(context);
 			return;
 		}
 
@@ -144,11 +144,11 @@ internal sealed class
 			sessionId
 		);
 
-		await _next(context);
+		await _Next(context);
 	}
 
 	private static bool
-		RequiresValidatedSessionPartition(
+		_RequiresValidatedSessionPartition(
 			HttpContext context
 		) {
 		var endpoint = context.GetEndpoint();
@@ -186,8 +186,8 @@ internal sealed record RateLimitRejectionInfo(
 );
 
 internal static class RateLimitRejectionContext {
-	private static readonly object ItemKey = new();
-	private const int FingerprintLength = 16;
+	private static readonly object _ItemKey = new();
+	private const int _FingerprintLength = 16;
 
 	public static void Set(
 		HttpContext context,
@@ -197,9 +197,9 @@ internal static class RateLimitRejectionContext {
 		var hash = ApiRateLimitPartitionKeys.Hash(
 			partitionKey
 		);
-		context.Items[ItemKey] = new RateLimitRejectionInfo(
+		context.Items[_ItemKey] = new RateLimitRejectionInfo(
 			policyName,
-			hash[..FingerprintLength]
+			hash[.._FingerprintLength]
 		);
 	}
 
@@ -207,7 +207,7 @@ internal static class RateLimitRejectionContext {
 		HttpContext context
 	) {
 		if (
-			context.Items.TryGetValue(ItemKey, out var value)
+			context.Items.TryGetValue(_ItemKey, out var value)
 			&& value is RateLimitRejectionInfo info
 		) {
 			return info;

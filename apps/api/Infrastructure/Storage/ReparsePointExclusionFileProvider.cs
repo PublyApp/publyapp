@@ -38,7 +38,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// the test suite runs on Linux only. If this guard is ever deployed on a
 /// non-Linux host, that gap must be closed before relying on it.
 ///
-/// TOCTOU: <see cref="HasReparsePointInPath"/> reads each component's
+/// TOCTOU: <see cref="_HasReparsePointInPath"/> reads each component's
 /// attributes sequentially, then the static-file middleware opens the file.
 /// Between those two moments the path can change. On Linux each per-component
 /// check is atomic (<c>lstat</c> does not follow symlinks), but the walk across
@@ -50,7 +50,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// blocks the common case — a symlink already present when the request arrives.
 ///
 /// Root coupling: the served root MUST remain an ordinary subtree of the
-/// filesystem, never a mount point itself. <see cref="HasReparsePointInPath"/>
+/// filesystem, never a mount point itself. <see cref="_HasReparsePointInPath"/>
 /// derives the root by length-subtraction
 /// (<c>physicalPath.Length - subpath.Length</c>), which relies on
 /// PhysicalFileProvider returning a physical path that ends with the requested
@@ -63,15 +63,15 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// <see cref="GetFileInfo"/>) is the only signal that this has happened.
 /// </summary>
 public sealed class ReparsePointExclusionFileProvider : IFileProvider {
-	private readonly PhysicalFileProvider _inner;
-	private readonly ILogger<ReparsePointExclusionFileProvider> _logger;
+	private readonly PhysicalFileProvider _Inner;
+	private readonly ILogger<ReparsePointExclusionFileProvider> _Logger;
 
 	public ReparsePointExclusionFileProvider(
 		PhysicalFileProvider inner,
 		ILogger<ReparsePointExclusionFileProvider> logger
 	) {
-		_inner = inner;
-		_logger = logger;
+		_Inner = inner;
+		_Logger = logger;
 	}
 
 	/// <summary>
@@ -83,7 +83,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	/// bare 404 so the client learns nothing about why.
 	/// </summary>
 	public IFileInfo GetFileInfo(string subpath) {
-		var info = _inner.GetFileInfo(subpath);
+		var info = _Inner.GetFileInfo(subpath);
 		if (info is null || !info.Exists) {
 			return new NotFoundFileInfo(subpath);
 		}
@@ -98,12 +98,12 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		// the entry. This covers both leaf symlinks (the final path
 		// component is a reparse point) and intermediate-directory symlinks
 		// (an ancestor directory in the path is a reparse point).
-		if (HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
+		if (_HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
 			// The {Component} field logs the full filesystem path of the offending
 			// entry. This is NOT a secret — it is an operator-facing diagnostic that
 			// never carries sensitive values (session tokens, user data, etc.). Its
 			// purpose is to help operators locate and remove a stray symlink.
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"Reparse-point guard masked entry: subpath {Subpath}, component {Component}",
 				subpath,
 				offendingComponent
@@ -115,7 +115,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	}
 
 	public IDirectoryContents GetDirectoryContents(string subpath) {
-		var contents = _inner.GetDirectoryContents(subpath);
+		var contents = _Inner.GetDirectoryContents(subpath);
 		if (contents is null) {
 			return NotFoundDirectoryContents.Instance;
 		}
@@ -137,8 +137,8 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 				continue;
 			}
 
-			if (IsReparsePoint(entryPath)) {
-				_logger.LogWarning(
+			if (_IsReparsePoint(entryPath)) {
+				_Logger.LogWarning(
 					"Reparse-point guard masked directory entry: subpath {Subpath}, entry {Entry}",
 					subpath,
 					entry.Name
@@ -152,7 +152,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	}
 
 	public Microsoft.Extensions.Primitives.IChangeToken Watch(string filter) {
-		return _inner.Watch(filter);
+		return _Inner.Watch(filter);
 	}
 
 	/// <summary>
@@ -162,7 +162,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	/// component path is written to <paramref name="offendingComponent"/> when
 	/// one is found.
 	/// </summary>
-	private static bool HasReparsePointInPath(
+	private static bool _HasReparsePointInPath(
 		string physicalPath,
 		string subpath,
 		out string offendingComponent
@@ -199,7 +199,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 				? partial
 				: Path.Combine(rootPath, partial);
 
-			if (IsReparsePoint(currentPath)) {
+			if (_IsReparsePoint(currentPath)) {
 				offendingComponent = currentPath;
 				return true;
 			}
@@ -208,7 +208,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		return false;
 	}
 
-	private static bool IsReparsePoint(string physicalPath) {
+	private static bool _IsReparsePoint(string physicalPath) {
 		try {
 			var attributes = File.GetAttributes(physicalPath);
 			return (attributes & FileAttributes.ReparsePoint) != 0;

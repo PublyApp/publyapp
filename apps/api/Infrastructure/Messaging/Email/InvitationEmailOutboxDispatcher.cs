@@ -13,8 +13,8 @@ namespace PublyApp.Api.Infrastructure.Messaging.Email;
 /// the next process start (round-5 API F3).
 /// </summary>
 public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
-	private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
-	private const int BatchSize = 20;
+	private static readonly TimeSpan _PollInterval = TimeSpan.FromSeconds(5);
+	private const int _BatchSize = 20;
 
 	// Public, not private: exercised directly by
 	// InvitationEmailOutboxDispatcher.Spec.cs to prove retry/backoff/permanent-failure
@@ -22,18 +22,18 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 	public const int MaxAttempts = 8;
 	public const int MaxBackoffSeconds = 900;
 
-	private readonly IServiceScopeFactory _scopeFactory;
-	private readonly IInvitationEmailOutboxSignal _signal;
-	private readonly ILogger<InvitationEmailOutboxDispatcher> _logger;
+	private readonly IServiceScopeFactory _ScopeFactory;
+	private readonly IInvitationEmailOutboxSignal _Signal;
+	private readonly ILogger<InvitationEmailOutboxDispatcher> _Logger;
 
 	public InvitationEmailOutboxDispatcher(
 		IServiceScopeFactory scopeFactory,
 		IInvitationEmailOutboxSignal signal,
 		ILogger<InvitationEmailOutboxDispatcher> logger
 	) {
-		_scopeFactory = scopeFactory;
-		_signal = signal;
-		_logger = logger;
+		_ScopeFactory = scopeFactory;
+		_Signal = signal;
+		_Logger = logger;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -41,24 +41,24 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 			try {
 				await ProcessBatchAsync(stoppingToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
-				_logger.LogError(ex, "Invitation email outbox dispatch loop failed");
+				_Logger.LogError(ex, "Invitation email outbox dispatch loop failed");
 			}
 
-			// Wakes early when a writer signals fresh rows; PollInterval is only the
+			// Wakes early when a writer signals fresh rows; _PollInterval is only the
 			// fallback that guarantees progress even if a signal is missed or a row
 			// was left over from a process restart with nobody around to signal it.
-			await _signal.WaitAsync(PollInterval, stoppingToken);
+			await _Signal.WaitAsync(_PollInterval, stoppingToken);
 		}
 	}
 
 	// A row claimed but never resolved (crashed process between claim and
 	// send/save) becomes claimable again after this long (round-6 API F2).
-	private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
+	private static readonly TimeSpan _LeaseDuration = TimeSpan.FromMinutes(5);
 
 	// Public: lets specs drive a single batch deterministically instead of racing
 	// ExecuteAsync's poll loop (round-5 API F3, LAW 2).
 	public async Task ProcessBatchAsync(CancellationToken stoppingToken) {
-		using var scope = _scopeFactory.CreateScope();
+		using var scope = _ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
@@ -78,7 +78,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 		}
 	}
 
-	// Atomically claims up to BatchSize rows in ONE statement — an UPDATE whose
+	// Atomically claims up to _BatchSize rows in ONE statement — an UPDATE whose
 	// WHERE targets a `SELECT ... FOR UPDATE SKIP LOCKED` subquery — so two
 	// overlapping dispatcher instances (a rolling deployment's old and new
 	// replicas, or two processes racing a poll tick) never both pick up the same
@@ -93,7 +93,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 		CancellationToken stoppingToken
 	) {
 		var now = DateTime.UtcNow;
-		var leaseCutoff = now - LeaseDuration;
+		var leaseCutoff = now - _LeaseDuration;
 		const int pending = (int)InvitationEmailOutboxStatus.Pending;
 		const int processing = (int)InvitationEmailOutboxStatus.Processing;
 
@@ -106,7 +106,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 				WHERE (status = {pending} AND next_attempt_at <= {now})
 					OR (status = {processing} AND claimed_at <= {leaseCutoff})
 				ORDER BY created_at
-				LIMIT {BatchSize}
+				LIMIT {_BatchSize}
 				FOR UPDATE SKIP LOCKED
 			)
 			RETURNING id AS "Value"
@@ -138,8 +138,8 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 				|| invitation.IsExpired(DateTime.UtcNow))) {
 			item.Status = InvitationEmailOutboxStatus.Cancelled;
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Skipped invitation email {OutboxId} to {Email}: invitation {InvitationId} "
 					+ "is no longer eligible (status {Status})",
 					item.GetRequiredId(),
@@ -175,8 +175,8 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 			item.Status = InvitationEmailOutboxStatus.Sent;
 			item.SentAt = DateTime.UtcNow;
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Delivered invitation email {OutboxId} to {Email}",
 					item.GetRequiredId(),
 					item.Email
@@ -188,7 +188,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 
 			if (item.AttemptCount >= MaxAttempts) {
 				item.Status = InvitationEmailOutboxStatus.Failed;
-				_logger.LogError(
+				_Logger.LogError(
 					ex,
 					"Invitation email {OutboxId} to {Email} permanently failed after {Attempts} attempts",
 					item.GetRequiredId(),
@@ -199,8 +199,8 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 				var delaySeconds = Math.Min(Math.Pow(2, item.AttemptCount), MaxBackoffSeconds);
 				item.NextAttemptAt = DateTime.UtcNow.AddSeconds(delaySeconds);
 
-				if (_logger.IsEnabled(LogLevel.Warning)) {
-					_logger.LogWarning(
+				if (_Logger.IsEnabled(LogLevel.Warning)) {
+					_Logger.LogWarning(
 						ex,
 						"Failed to deliver invitation email {OutboxId} to {Email} "
 						+ "(attempt {Attempt}/{MaxAttempts}), retrying at {NextAttemptAt}",

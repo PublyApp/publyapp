@@ -37,12 +37,12 @@ public class BulkSeeder {
 	];
 	internal static readonly HashSet<string> ProjectNaturalKeyConstraints = ["IX_projects_tenant_id_name"];
 
-	private readonly int _batchSize;
-	private readonly BulkSeedDataGenerator? _generator;
+	private readonly int _BatchSize;
+	private readonly BulkSeedDataGenerator? _Generator;
 
 	public BulkSeeder(int? batchSize = null, BulkSeedDataGenerator? generator = null) {
-		_batchSize = batchSize ?? BulkSeedConstants.DefaultBatchSize;
-		_generator = generator;
+		_BatchSize = batchSize ?? BulkSeedConstants.DefaultBatchSize;
+		_Generator = generator;
 	}
 
 	/// <summary>
@@ -51,7 +51,7 @@ public class BulkSeeder {
 	/// any other constraint is an unrelated unique-index violation and must not be treated as
 	/// "this natural key already exists" — see the class-level catch blocks below.
 	/// </summary>
-	private static bool IsExpectedNaturalKeyViolation(DbUpdateException ex, IReadOnlySet<string> expectedConstraintNames) {
+	private static bool _IsExpectedNaturalKeyViolation(DbUpdateException ex, IReadOnlySet<string> expectedConstraintNames) {
 		return ex.InnerException is Npgsql.PostgresException { SqlState: "23505" } pgEx
 			&& pgEx.ConstraintName is not null
 			&& expectedConstraintNames.Contains(pgEx.ConstraintName);
@@ -62,7 +62,7 @@ public class BulkSeeder {
 	/// exist (matched by natural key) are skipped, and only missing rows are inserted.
 	/// </summary>
 	public async Task SeedBulkAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
-		var generator = _generator ?? new BulkSeedDataGenerator();
+		var generator = _Generator ?? new BulkSeedDataGenerator();
 		generator.GenerateAll();
 
 		Console.WriteLine(
@@ -73,9 +73,9 @@ public class BulkSeeder {
 		// those carry FKs that must point at the REAL persisted id of a tenant/user that
 		// already existed, not the fresh id the generator assigned it this run.
 		var tenantIdRemap = await SeedTenantsInBatchesAsync(dbContext, generator.Tenants, cancellationToken);
-		var userIdRemap = await SeedUsersInBatchesAsync(dbContext, generator.Users, cancellationToken);
-		await SeedUserAccountsInBatchesAsync(dbContext, generator.UserAccounts, userIdRemap, tenantIdRemap, cancellationToken);
-		await SeedProjectsInBatchesAsync(dbContext, generator.Projects, tenantIdRemap, cancellationToken);
+		var userIdRemap = await _SeedUsersInBatchesAsync(dbContext, generator.Users, cancellationToken);
+		await _SeedUserAccountsInBatchesAsync(dbContext, generator.UserAccounts, userIdRemap, tenantIdRemap, cancellationToken);
+		await _SeedProjectsInBatchesAsync(dbContext, generator.Projects, tenantIdRemap, cancellationToken);
 
 		Console.WriteLine("Bulk seed completed!");
 	}
@@ -87,10 +87,10 @@ public class BulkSeeder {
 		Console.WriteLine("Clearing bulk seed data...");
 
 		// Delete in reverse order of dependencies
-		await DeleteProjectsAsync(dbContext, cancellationToken);
-		await DeleteUserAccountsAsync(dbContext, cancellationToken);
-		await DeleteUsersAsync(dbContext, cancellationToken);
-		await DeleteTenantsAsync(dbContext, cancellationToken);
+		await _DeleteProjectsAsync(dbContext, cancellationToken);
+		await _DeleteUserAccountsAsync(dbContext, cancellationToken);
+		await _DeleteUsersAsync(dbContext, cancellationToken);
+		await _DeleteTenantsAsync(dbContext, cancellationToken);
 
 		Console.WriteLine("Bulk data cleared!");
 	}
@@ -132,7 +132,7 @@ public class BulkSeeder {
 			return remap;
 		}
 
-		var batches = toInsert.Chunk(_batchSize).ToList();
+		var batches = toInsert.Chunk(_BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("Tenants: ");
@@ -144,7 +144,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rTenants: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, TenantNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, TenantNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// The violated index IS the tenant natural key, but that alone doesn't prove
@@ -177,7 +177,7 @@ public class BulkSeeder {
 	/// same filtered-unique-index trap as tenants).
 	/// Returns a map from the generator's in-memory user id to the real persisted id.
 	/// </summary>
-	private async Task<Dictionary<Guid, Guid>> SeedUsersInBatchesAsync(
+	private async Task<Dictionary<Guid, Guid>> _SeedUsersInBatchesAsync(
 		AppDbContext dbContext,
 		IReadOnlyList<User> users,
 		CancellationToken cancellationToken
@@ -207,7 +207,7 @@ public class BulkSeeder {
 			return remap;
 		}
 
-		var batches = toInsert.Chunk(_batchSize).ToList();
+		var batches = toInsert.Chunk(_BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("Users: ");
@@ -219,7 +219,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rUsers: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, UserNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, UserNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// Same reasoning as the tenant phase: the constraint name alone doesn't prove
@@ -251,7 +251,7 @@ public class BulkSeeder {
 	/// persisted ids — checked regardless of soft-delete state, since every uniqueness
 	/// constraint on user_accounts is filtered to non-deleted rows.
 	/// </summary>
-	private async Task SeedUserAccountsInBatchesAsync(
+	private async Task _SeedUserAccountsInBatchesAsync(
 		AppDbContext dbContext,
 		IReadOnlyList<UserAccount> accounts,
 		IReadOnlyDictionary<Guid, Guid> userIdRemap,
@@ -284,7 +284,7 @@ public class BulkSeeder {
 			return;
 		}
 
-		var batches = toInsert.Chunk(_batchSize).ToList();
+		var batches = toInsert.Chunk(_BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("UserAccounts: ");
@@ -296,7 +296,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rUserAccounts: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, UserAccountNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, UserAccountNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// Same reasoning as the tenant/user phases: confirm at least one of the
@@ -332,7 +332,7 @@ public class BulkSeeder {
 	/// would already reject a re-insert here — this check exists to skip cleanly instead of
 	/// throwing, not to guard against silent duplicate accumulation.
 	/// </summary>
-	private async Task SeedProjectsInBatchesAsync(
+	private async Task _SeedProjectsInBatchesAsync(
 		AppDbContext dbContext,
 		IReadOnlyList<Project> projects,
 		IReadOnlyDictionary<Guid, Guid> tenantIdRemap,
@@ -361,7 +361,7 @@ public class BulkSeeder {
 			return;
 		}
 
-		var batches = toInsert.Chunk(_batchSize).ToList();
+		var batches = toInsert.Chunk(_BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("Projects: ");
@@ -373,7 +373,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rProjects: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (IsExpectedNaturalKeyViolation(ex, ProjectNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, ProjectNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// Same reasoning as the other phases — this is the exact blocker the
@@ -403,7 +403,7 @@ public class BulkSeeder {
 		Console.WriteLine($"\rProjects: {count}/{toInsert.Count} inserted, {skipped} already existed. done");
 	}
 
-	private static async Task DeleteTenantsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task _DeleteTenantsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var tenantCodes = await dbContext.Tenant
 			.Where(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix))
 			.Select(t => t.Code)
@@ -429,7 +429,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private static async Task DeleteUsersAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task _DeleteUsersAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var domain = BulkSeedConstants.UserEmailDomain;
 		var userCount = await dbContext.User
 			.Where(u => u.Email.EndsWith($"@{domain}"))
@@ -455,7 +455,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private static async Task DeleteUserAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task _DeleteUserAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var domain = BulkSeedConstants.UserEmailDomain;
 
 		Console.Write("Deleting user accounts... ");
@@ -474,7 +474,7 @@ public class BulkSeeder {
 		}
 	}
 
-	private static async Task DeleteProjectsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
+	private static async Task _DeleteProjectsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
 		var prefix = BulkSeedConstants.ProjectNamePrefix;
 
 		Console.Write("Deleting projects... ");

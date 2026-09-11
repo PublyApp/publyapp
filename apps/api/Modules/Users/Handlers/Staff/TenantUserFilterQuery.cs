@@ -14,7 +14,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 /// </summary>
 public static partial class TenantUserFilterQuery {
 	// Source of truth: nameof() - rename-safe, no hardcoded strings to maintain.
-	private static readonly string[] AllowedStatuses = [
+	private static readonly string[] _AllowedStatuses = [
 		nameof(TenantUserStatus.Active),
 		nameof(TenantUserStatus.Suspended),
 		nameof(TenantUserStatus.GloballySuspended),
@@ -26,30 +26,30 @@ public static partial class TenantUserFilterQuery {
 	// break the existing wire format. Both the comparison set and the display
 	// string derive from the same conversion so they stay in sync.
 	[GeneratedRegex("(?<!^)([A-Z])")]
-	private static partial Regex SnakeCaseBoundaryRegex();
+	private static partial Regex _SnakeCaseBoundaryRegex();
 
-	private static string ToSnakeCase(string value) {
-		return SnakeCaseBoundaryRegex().Replace(value, "_$1").ToLowerInvariant();
+	private static string _ToSnakeCase(string value) {
+		return _SnakeCaseBoundaryRegex().Replace(value, "_$1").ToLowerInvariant();
 	}
 
 	public static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);
+		new(_AllowedStatuses.Select(_ToSnakeCase), StringComparer.OrdinalIgnoreCase);
 
 	public static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
+		string.Join(", ", _AllowedStatuses.Select(_ToSnakeCase).Order());
 
 	// AccountLevel members are single-word (Admin, User), so plain ToLowerInvariant is safe here
 	// (unlike the multi-word TenantUserStatus set above, which needs the snake-case helper).
-	private static readonly string[] AllowedLevels = [
+	private static readonly string[] _AllowedLevels = [
 		nameof(AccountLevel.Admin),
 		nameof(AccountLevel.User),
 	];
 
 	public static readonly HashSet<string> AllowedLevelSet =
-		new(AllowedLevels, StringComparer.OrdinalIgnoreCase);
+		new(_AllowedLevels, StringComparer.OrdinalIgnoreCase);
 
 	public static readonly string AllowedLevelsDisplay =
-		string.Join(", ", AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
+		string.Join(", ", _AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
 
 	public static string? NormalizeSearch(string? search) {
 		if (search is null) {

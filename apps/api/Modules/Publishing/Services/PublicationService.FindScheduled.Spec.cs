@@ -36,14 +36,14 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 // exercise the code's OWN tenant predicates and cannot be masked by
 // first-tenant model caching.
 public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublicationServiceFindScheduledSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -61,12 +61,12 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		);
 	}
 
-	private static PublicationService NewService(AppDbContext db) {
+	private static PublicationService _NewService(AppDbContext db) {
 		return new PublicationService(db, new Microsoft.AspNetCore.Http.HttpContextAccessor());
 	}
 
 	private static async Task<(Guid TenantId, Guid AccountId, Guid UserId)>
-		SeedTenantAndAccountAsync(AppDbContext db) {
+		_SeedTenantAndAccountAsync(AppDbContext db) {
 		var tenant = new Tenant {
 			Name = $"pub-find-{Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -94,7 +94,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		return (tenant.GetRequiredId(), account.GetRequiredId(), user.GetRequiredId());
 	}
 
-	private static async Task<Publication> SeedPublicationAsync(
+	private static async Task<Publication> _SeedPublicationAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid accountId,
@@ -124,7 +124,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		return publication;
 	}
 
-	private static string EncodeCursor(DateTime utcInstant, Guid id) {
+	private static string _EncodeCursor(DateTime utcInstant, Guid id) {
 		return Convert.ToBase64String(
 			Encoding.UTF8.GetBytes($"{utcInstant:O}|{id}")
 		);
@@ -132,17 +132,17 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeOldPausedRowsWhenNoStatusFilterIsSent() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		// Carryover is opt-in: a Paused row scheduled months before FromUtc must
 		// NOT bleed into a window that did not ask for it. The calendar sends no
 		// filter, so its view stays strict.
-		_ = await SeedPublicationAsync(
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Paused
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -162,16 +162,16 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeOldInProgressRowsWhenNoStatusFilterIsSent() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		// Same carryover rule: the InProgress row is not opted in when the
 		// caller sends no status filter, so it stays out of the strict window.
-		_ = await SeedPublicationAsync(
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -191,17 +191,17 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldKeepCarryoverInProgressRowsWhenStatusFilterIncludesThem() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		// The queue filter asks for in_progress; carryover must therefore apply
 		// and the row the worker has not finished yet must stay visible past
 		// FromUtc.
-		_ = await SeedPublicationAsync(
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -226,10 +226,10 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldHideStaleLastErrorForNonFailureRows() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		var scheduledAt = new DateTime(2100, 1, 10, 10, 0, 0, DateTimeKind.Utc);
-		var publication = await SeedPublicationAsync(
+		var publication = await _SeedPublicationAsync(
 			db,
 			tenantId,
 			accountId,
@@ -239,7 +239,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		);
 		publication.LastError = "stale pause cause";
 		await db.SaveChangesAsync();
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -263,17 +263,17 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldKeepCarryoverPausedRowsWhenStatusFilterIncludesThem() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		// Mirror of the InProgress case: Paused carryover requires the caller to
 		// include Paused in `Statuses`. The queue filter does; the calendar
 		// does not.
-		_ = await SeedPublicationAsync(
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Paused
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -298,17 +298,17 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeCarryoverInProgressRowsWhenStatusFilterOmitsThem() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		// Opt-out path: a caller that filters on Scheduled only must NOT receive
 		// old InProgress rows even though they are temporally before FromUtc.
 		// The carryover branch is gated on the filter, not on the row's status.
-		_ = await SeedPublicationAsync(
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -328,14 +328,14 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeScheduledRowsWhenScheduledAtUtcIsBeforeFromUtc() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
-		_ = await SeedPublicationAsync(
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Scheduled
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -362,17 +362,17 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// FromUtc boundary for a row that races the page open:
 		//   - row due seconds before the page opens, FromUtc = now      => excluded
 		//   - row due seconds before the page opens, FromUtc = now - 24h => included
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		var pageOpen = new DateTime(2099, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 		var dueSecondsBeforePageOpen = pageOpen.AddSeconds(-5);
 
-		_ = await SeedPublicationAsync(
+		_ = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			dueSecondsBeforePageOpen,
 			seedStatus: PublicationStatus.Scheduled
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		// Strict window anchored at the page open instant: the row is just
 		// BEFORE FromUtc, so it stays out (the queue used to render empty
@@ -413,10 +413,10 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// The queue sends exactly the 32-day API maximum (24h past + 31d future).
 		// The service rejects only strictly-wider windows; the exact-32-day
 		// boundary must answer Success, not InvalidWindow.
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 		var from = new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
@@ -434,14 +434,14 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldRejectACursorWhoseForgedTimestampMismatchesTheStoredScheduledAtUtc() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
-		var eligibleRow = await SeedPublicationAsync(
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
+		var eligibleRow = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var forgedInstant = new DateTime(2099, 6, 1, 9, 0, 0, DateTimeKind.Utc);
 		var result = await service.FindScheduledAsync(
@@ -450,7 +450,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 				FromUtc: new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2099, 7, 1, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
-				Cursor: EncodeCursor(forgedInstant, eligibleRow.GetRequiredId()),
+				Cursor: _EncodeCursor(forgedInstant, eligibleRow.GetRequiredId()),
 				Limit: 50
 			)
 		);
@@ -460,13 +460,13 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldReturnAnEmptyPageWhenTheWindowMatchesNoRows() {
-		await using var db = await NewDbAsync();
-		var (tenantA, accountA, userA) = await SeedTenantAndAccountAsync(db);
-		_ = await SeedPublicationAsync(
+		await using var db = await _NewDbAsync();
+		var (tenantA, accountA, userA) = await _SeedTenantAndAccountAsync(db);
+		_ = await _SeedPublicationAsync(
 			db, tenantA, accountA, userA,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		// Round-2 finding: rows[^1] was read unconditionally, so a window with no
 		// matching row crashed with 500. The service must answer a coherent empty
@@ -490,14 +490,14 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldRejectACursorThatRefersToAnotherTenantsPublication() {
-		await using var db = await NewDbAsync();
-		var (tenantA, accountA, userA) = await SeedTenantAndAccountAsync(db);
-		var (tenantB, accountB, userB) = await SeedTenantAndAccountAsync(db);
-		var foreignRow = await SeedPublicationAsync(
+		await using var db = await _NewDbAsync();
+		var (tenantA, accountA, userA) = await _SeedTenantAndAccountAsync(db);
+		var (tenantB, accountB, userB) = await _SeedTenantAndAccountAsync(db);
+		var foreignRow = await _SeedPublicationAsync(
 			db, tenantA, accountA, userA,
 			new DateTime(2100, 1, 15, 8, 0, 0, DateTimeKind.Utc)
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		// Round-2 finding: the cursor-existence probe was not tenant-scoped while
 		// the main query was. A cursor anchored on tenant A's row must not anchor
@@ -509,7 +509,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
-				Cursor: EncodeCursor(
+				Cursor: _EncodeCursor(
 					foreignRow.ScheduledAtUtc,
 					foreignRow.GetRequiredId()
 				),
@@ -522,8 +522,8 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldKeepACursorUsableWhenTheAnchorTransitionsBetweenPages() {
-		await using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
 
 		// Anchor row sits BEFORE the window's FromUtc and starts as InProgress
 		// (the worker has claimed it but not finished yet — this is the only
@@ -532,17 +532,17 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// pre-window carryover is on). With Limit=1, page 1 returns the
 		// anchor and the NextCursor encodes (its ScheduledAtUtc, its Id).
 		// That row IS the cursor anchor for page 2.
-		var anchorRow = await SeedPublicationAsync(
+		var anchorRow = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2099, 12, 25, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
-		var followUpRow = await SeedPublicationAsync(
+		var followUpRow = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			new DateTime(2100, 1, 20, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Scheduled
 		);
-		var service = NewService(db);
+		var service = _NewService(db);
 
 		var statuses = new List<PublicationStatus> {
 			PublicationStatus.Scheduled,

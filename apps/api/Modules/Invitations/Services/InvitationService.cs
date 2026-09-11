@@ -206,18 +206,18 @@ public record StaffInvitationDetailsResult {
 
 [Service(ServiceLifetime.Scoped)]
 public class InvitationService : IInvitationService {
-	private readonly AppDbContext _dbContext;
-	private readonly IJobEnqueuer _jobEnqueuer;
-	private readonly ILogger<InvitationService> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly IJobEnqueuer _JobEnqueuer;
+	private readonly ILogger<InvitationService> _Logger;
 
 	public InvitationService(
 		AppDbContext dbContext,
 		IJobEnqueuer jobEnqueuer,
 		ILogger<InvitationService> logger
 	) {
-		_dbContext = dbContext;
-		_jobEnqueuer = jobEnqueuer;
-		_logger = logger;
+		_DbContext = dbContext;
+		_JobEnqueuer = jobEnqueuer;
+		_Logger = logger;
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
@@ -246,12 +246,12 @@ public class InvitationService : IInvitationService {
 		// transactional NOTIFY fires at commit). A rolled-back invitation takes its job
 		// with it; a committed one always has a durable delivery job.
 		await using var transaction =
-			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.Invitation.AddAsync(invitation, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		await _jobEnqueuer.EnqueueAsync(
+		await _JobEnqueuer.EnqueueAsync(
 			InvitationEmailJobs.StaffInvitationV1,
 			new StaffInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
 			cancellationToken: cancellationToken
@@ -259,8 +259,8 @@ public class InvitationService : IInvitationService {
 
 		await transaction.CommitAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Created staff invitation for {Email} with {ProfileCount} profiles by user {InvitedByUserId}",
 				email,
 				profileIds.Count,
@@ -317,12 +317,12 @@ public class InvitationService : IInvitationService {
 		// Fold (design §5.4): invitation + email job enqueued in ONE transaction; the
 		// invitation is saved first so its uuidv7 id is available for the job payload.
 		await using var transaction =
-			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.Invitation.AddAsync(invitation, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		await _jobEnqueuer.EnqueueAsync(
+		await _JobEnqueuer.EnqueueAsync(
 			InvitationEmailJobs.TenantInvitationV1,
 			new TenantInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
 			cancellationToken: cancellationToken
@@ -330,8 +330,8 @@ public class InvitationService : IInvitationService {
 
 		await transaction.CommitAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Created tenant invitation for {Email} in tenant {TenantId} with {ProfileCount} profiles by user {InvitedByUserId}",
 				email,
 				tenantId,
@@ -348,7 +348,7 @@ public class InvitationService : IInvitationService {
 		CancellationToken cancellationToken = default
 	) {
 		var profileQuery =
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == profileId && p.Scope == ProfileScope.Staff
 			select p;
 
@@ -361,7 +361,7 @@ public class InvitationService : IInvitationService {
 	) {
 		var normalizedEmail = email.ToLowerInvariant();
 		var userQuery =
-			from u in _dbContext.User
+			from u in _DbContext.User
 			where u.Email == normalizedEmail
 			select u;
 
@@ -375,7 +375,7 @@ public class InvitationService : IInvitationService {
 	) {
 		var normalizedEmail = email.ToLowerInvariant();
 		var invitationQuery =
-			from inv in _dbContext.Invitation
+			from inv in _DbContext.Invitation
 			where inv.Email == normalizedEmail
 				&& inv.Scope == scope
 				&& inv.Status == InvitationStatus.Pending
@@ -392,7 +392,7 @@ public class InvitationService : IInvitationService {
 	) {
 		var normalizedEmail = email.ToLowerInvariant();
 		var invitationQuery =
-			from inv in _dbContext.Invitation
+			from inv in _DbContext.Invitation
 			where inv.Email == normalizedEmail
 				&& inv.Scope == InvitationScope.Tenant
 				&& inv.TenantId == tenantId
@@ -410,7 +410,7 @@ public class InvitationService : IInvitationService {
 		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
 
 		var existingEmails = await (
-			from u in _dbContext.User.AsNoTracking()
+			from u in _DbContext.User.AsNoTracking()
 			where normalizedEmails.Contains(u.Email)
 			select u.Email
 		).ToListAsync(cancellationToken);
@@ -426,7 +426,7 @@ public class InvitationService : IInvitationService {
 		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
 
 		var existingEmails = await (
-			from inv in _dbContext.Invitation.AsNoTracking()
+			from inv in _DbContext.Invitation.AsNoTracking()
 			where normalizedEmails.Contains(inv.Email)
 				&& inv.Scope == scope
 				&& inv.Status == InvitationStatus.Pending
@@ -442,7 +442,7 @@ public class InvitationService : IInvitationService {
 		CancellationToken cancellationToken = default
 	) {
 		var validProfileIds = await (
-			from p in _dbContext.Profile.AsNoTracking()
+			from p in _DbContext.Profile.AsNoTracking()
 			where p.Id != null
 				&& profileIds.Contains(p.Id.Value)
 				&& p.Scope == ProfileScope.Staff
@@ -460,7 +460,7 @@ public class InvitationService : IInvitationService {
 		var normalizedProfileIds = profileIds.Distinct().ToList();
 
 		var validProfileIds = await (
-			from p in _dbContext.Profile.AsNoTracking()
+			from p in _DbContext.Profile.AsNoTracking()
 			where p.Id != null
 				&& normalizedProfileIds.Contains(p.Id.Value)
 				&& p.Scope == ProfileScope.Tenant
@@ -481,7 +481,7 @@ public class InvitationService : IInvitationService {
 		var now = DateTime.UtcNow;
 
 		var existingEmails = await (
-			from inv in _dbContext.Invitation.AsNoTracking()
+			from inv in _DbContext.Invitation.AsNoTracking()
 			where normalizedEmails.Contains(inv.Email)
 				&& inv.Scope == InvitationScope.Tenant
 				&& inv.TenantId == tenantId
@@ -499,7 +499,7 @@ public class InvitationService : IInvitationService {
 	) {
 		var invitations = args.Invitations;
 		var invitedByUserId = args.InvitedByUserId;
-		await using var tx = await _dbContext.Database
+		await using var tx = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
 			var expiresAt = DateTime.UtcNow.AddDays(7);
@@ -523,7 +523,7 @@ public class InvitationService : IInvitationService {
 				invitation.ValidateInvitationType();
 
 				// Add invitation (EF Core will also track the InvitationProfile junction records)
-				_dbContext.Invitation.Add(invitation);
+				_DbContext.Invitation.Add(invitation);
 				newInvitations.Add(invitation);
 
 				// Collect email and token for sending emails later
@@ -532,12 +532,12 @@ public class InvitationService : IInvitationService {
 
 			// Save all invitations first (single INSERT) so their store-generated uuidv7
 			// ids are available for the email job payloads.
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			// Fold (design §5.4): one email job per invitation, all joining THIS
 			// transaction (their transactional NOTIFYs fire at commit).
 			foreach (var invitation in newInvitations) {
-				await _jobEnqueuer.EnqueueAsync(
+				await _JobEnqueuer.EnqueueAsync(
 					InvitationEmailJobs.StaffInvitationV1,
 					new StaffInvitationEmailPayload { InvitationId = invitation.GetRequiredId() },
 					cancellationToken: cancellationToken
@@ -547,8 +547,8 @@ public class InvitationService : IInvitationService {
 			// Commit transaction
 			await tx.CommitAsync(cancellationToken);
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Created {Count} staff invitations in bulk by user {InvitedByUserId}",
 					invitationTokens.Count,
 					invitedByUserId

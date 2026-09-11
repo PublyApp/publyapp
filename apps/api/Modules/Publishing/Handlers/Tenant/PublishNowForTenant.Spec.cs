@@ -29,30 +29,30 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // Bluesky is never touched: the endpoint stops at the trusted enqueue boundary
 // proven by PublishNowServiceSpec (D2 Task 1).
 public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public PublishNowForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string PublishUrl(string postId) {
+	private static string _PublishUrl(string postId) {
 		return $"/posts/{postId}/publish-now";
 	}
 
 	[Fact]
 	public async Task ItShouldStartPublishingWithSuccessKeyAndOneJobPerPublication() {
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
-		var postId = await SeedAcmePostAsync();
-		var (accountA, accountB) = await SeedTwoAcmeAccountsAsync();
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
+		var postId = await _SeedAcmePostAsync();
+		var (accountA, accountB) = await _SeedTwoAcmeAccountsAsync();
 
-		var beforePublications = await CountPublicationsAsync();
-		var beforeJobs = await CountAcmePublishJobsAsync(acmeId);
+		var beforePublications = await _CountPublicationsAsync();
+		var beforeJobs = await _CountAcmePublishJobsAsync(acmeId);
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			acmeToken,
 			acmeId,
 			postId,
@@ -69,16 +69,16 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 			"the action-only success carries the stable translation key"
 		);
 
-		(await CountPublicationsAsync()).Should().Be(
+		(await _CountPublicationsAsync()).Should().Be(
 			beforePublications + 2,
 			"one scheduled publication per chosen account"
 		);
-		(await CountAcmePublishJobsAsync(acmeId)).Should().Be(
+		(await _CountAcmePublishJobsAsync(acmeId)).Should().Be(
 			beforeJobs + 2,
 			"exactly one trusted enqueue per publication"
 		);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var audits = await db.AuditLog
 			.Where(log => log.Action == AuditActions.PublishNowStarted)
@@ -91,19 +91,19 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn404ForAnotherTenantsPostAndWriteNothing() {
-		var (acmeId, publisherEmail) = await CreatePermittedUserAsync(
+		var (acmeId, publisherEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.Posts.PUBLISH.Key,
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			publisherEmail, TestConstants.SeedPassword
 		);
-		var foreignPostId = await SeedTechStartPostAsync();
+		var foreignPostId = await _SeedTechStartPostAsync();
 
-		var beforePublications = await CountPublicationsAsync();
-		var beforeJobs = await CountAcmePublishJobsAsync(acmeId);
+		var beforePublications = await _CountPublicationsAsync();
+		var beforeJobs = await _CountAcmePublishJobsAsync(acmeId);
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			token,
 			acmeId,
 			foreignPostId,
@@ -114,22 +114,22 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 			HttpStatusCode.NotFound,
 			"a post outside the caller's tenant is invisible, not forbidden"
 		);
-		(await CountPublicationsAsync()).Should().Be(beforePublications);
-		(await CountAcmePublishJobsAsync(acmeId)).Should().Be(beforeJobs);
+		(await _CountPublicationsAsync()).Should().Be(beforePublications);
+		(await _CountAcmePublishJobsAsync(acmeId)).Should().Be(beforeJobs);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422UnderStableKeyAccountIdsForUnknownAccounts() {
-		var (acmeId, publisherEmail) = await CreatePermittedUserAsync(
+		var (acmeId, publisherEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.Posts.PUBLISH.Key,
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			publisherEmail, TestConstants.SeedPassword
 		);
-		var postId = await SeedAcmePostAsync();
+		var postId = await _SeedAcmePostAsync();
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			token,
 			acmeId,
 			postId,
@@ -146,15 +146,15 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishEvenWithSocialAccountsPublish() {
-		var (acmeId, publisherEmail) = await CreatePermittedUserAsync(
+		var (acmeId, publisherEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			publisherEmail, TestConstants.SeedPassword
 		);
-		var postId = await SeedAcmePostAsync();
+		var postId = await _SeedAcmePostAsync();
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			token,
 			acmeId,
 			postId,
@@ -169,15 +169,15 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutSocialAccountsPublishEvenWithPostsPublish() {
-		var (acmeId, publisherEmail) = await CreatePermittedUserAsync(
+		var (acmeId, publisherEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.Posts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			publisherEmail, TestConstants.SeedPassword
 		);
-		var postId = await SeedAcmePostAsync();
+		var postId = await _SeedAcmePostAsync();
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			token,
 			acmeId,
 			postId,
@@ -192,9 +192,9 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn400ForAMalformedPostId() {
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			acmeToken,
 			acmeId,
 			"not-a-guid",
@@ -212,16 +212,16 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 	// its own fixtures so it does not depend on demo seeding running.
 	[Fact]
 	public async Task ItShouldPublishNowForASeededNonAdminMemberAgainstTheDemoAccount() {
-		var (acmeId, memberEmail) = await CreatePermittedUserAsync(
+		var (acmeId, memberEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.Posts.VIEW.Key,
 			AppPermissions.Tenant.Posts.PUBLISH.Key,
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(memberEmail, TestConstants.SeedPassword);
-		var postId = await SeedAcmePostAsync();
-		var accountId = await SeedAcmeAccountAsync(acmeId);
+		var token = await _AuthClient.LoginAsync(memberEmail, TestConstants.SeedPassword);
+		var postId = await _SeedAcmePostAsync();
+		var accountId = await _SeedAcmeAccountAsync(acmeId);
 
-		using var response = await PublishNowAsync(
+		using var response = await _PublishNowAsync(
 			token,
 			acmeId,
 			postId,
@@ -233,7 +233,7 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 			"the non-admin member holds both publish verbs and the spec provisions an Active target"
 		);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var publications = await db.Publication
 			.Where(p => p.PostId == Guid.Parse(postId))
@@ -247,50 +247,50 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ────────────────────────────────────────────────────────
 
-	private async Task<HttpResponseMessage> PublishNowAsync(
+	private async Task<HttpResponseMessage> _PublishNowAsync(
 		string token,
 		Guid tenantId,
 		string postId,
 		object body
 	) {
 		using var request = new HttpRequestMessage(
-			HttpMethod.Post, PublishUrl(postId)
+			HttpMethod.Post, _PublishUrl(postId)
 		).WithSessionToken(token).WithTenantId(tenantId);
 		request.Content = JsonContent.Create(body);
-		return await _http.SendAsync(request);
+		return await _Http.SendAsync(request);
 	}
 
-	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetAcmeIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.AcmeName
+			_Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	// Creates a non-admin tenant member of Acme holding EXACTLY the given
 	// permission keys through a fresh profile, and returns the email to log
 	// in with (seed password).
-	private async Task<(Guid TenantId, string Email)> CreatePermittedUserAsync(
+	private async Task<(Guid TenantId, string Email)> _CreatePermittedUserAsync(
 		params string[] permissionKeys
 	) {
-		var acmeId = await GetAcmeIdAsync();
+		var acmeId = await _GetAcmeIdAsync();
 		var email = $"pub-now-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -334,8 +334,8 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		return (acmeId, email);
 	}
 
-	private async Task<string> SeedAcmePostAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _SeedAcmePostAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await db.Tenant
 			.Where(t => t.Name == SeedConstants.Tenants.AcmeName)
@@ -353,8 +353,8 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		return post.GetRequiredId().ToString();
 	}
 
-	private async Task<string> SeedTechStartPostAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _SeedTechStartPostAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await db.Tenant
 			.Where(t => t.Name == SeedConstants.Tenants.TechStartName)
@@ -372,26 +372,26 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		return post.GetRequiredId().ToString();
 	}
 
-	private async Task<(Guid AccountA, Guid AccountB)> SeedTwoAcmeAccountsAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<(Guid AccountA, Guid AccountB)> _SeedTwoAcmeAccountsAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await db.Tenant
 			.Where(t => t.Name == SeedConstants.Tenants.AcmeName)
 			.SingleAsync();
-		var accountA = await SeedAccountAsync(db, tenant.GetRequiredId());
-		var accountB = await SeedAccountAsync(db, tenant.GetRequiredId());
+		var accountA = await _SeedAccountAsync(db, tenant.GetRequiredId());
+		var accountB = await _SeedAccountAsync(db, tenant.GetRequiredId());
 		return (accountA, accountB);
 	}
 
 	// The Active Acme Bluesky row this spec provisions (stands in for the
 	// e2e-only SocialAccountSeeder demo account, so the test owns its fixture).
-	private async Task<Guid> SeedAcmeAccountAsync(Guid acmeId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedAcmeAccountAsync(Guid acmeId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await SeedAccountAsync(db, acmeId);
+		return await _SeedAccountAsync(db, acmeId);
 	}
 
-	private static async Task<Guid> SeedAccountAsync(
+	private static async Task<Guid> _SeedAccountAsync(
 		AppDbContext db,
 		Guid tenantId
 	) {
@@ -406,14 +406,14 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		return account.GetRequiredId();
 	}
 
-	private async Task<int> CountPublicationsAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<int> _CountPublicationsAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await db.Publication.CountAsync();
 	}
 
-	private async Task<int> CountAcmePublishJobsAsync(Guid tenantId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<int> _CountAcmePublishJobsAsync(Guid tenantId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await db.JobQueue
 			.Where(job => job.JobType == PublishingJobs.PublishPublicationV1JobType)

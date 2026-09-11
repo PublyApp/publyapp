@@ -28,34 +28,34 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// reservation flow instead of reconfiguring the process.
 /// </summary>
 public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
-	private const string Purpose = UploadAdmissionService.StaffUploadPurpose;
+	private const string _Purpose = UploadAdmissionService.StaffUploadPurpose;
 
-	private readonly ApiFixture _fixture = new();
+	private readonly ApiFixture _Fixture = new();
 
 	public async Task InitializeAsync() {
-		await _fixture.InitializeAsync();
+		await _Fixture.InitializeAsync();
 	}
 
 	public async Task DisposeAsync() {
-		await _fixture.DisposeAsync();
+		await _Fixture.DisposeAsync();
 	}
 
-	private static long GlobalBudget {
+	private static long _GlobalBudget {
 		get { return AppEnvironment.Instance.UPLOAD_GLOBAL_MAX_BYTES; }
 	}
 
-	private static long PerStaffBudget {
+	private static long _PerStaffBudget {
 		get { return AppEnvironment.Instance.UPLOAD_PER_STAFF_MAX_BYTES; }
 	}
 
 	[Fact]
 	public async Task ItShouldRejectAReservationOnceTheGlobalBudgetIsSpent() {
-		await FillGlobalBudgetToTheBrimAsync();
+		await _FillGlobalBudgetToTheBrimAsync();
 
 		// The fill must land on EXACTLY ONE global row (NULLS NOT DISTINCT
 		// uniqueness) and drain it to the brim — otherwise the probe below
 		// proves nothing about the real budget.
-		var auditService = CreateService();
+		var auditService = _CreateService();
 		var globalRows = await auditService.DbContext.UploadBudget
 			.AsNoTracking()
 			.Where(b => b.ScopeKind == UploadBudgetScope.Global)
@@ -63,11 +63,11 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		globalRows.Should().HaveCount(1,
 			"the NULLS NOT DISTINCT unique index guarantees a single global row");
 		globalRows[0].ReservedBytes.Should().Be(0);
-		globalRows[0].CommittedBytes.Should().Be(GlobalBudget);
+		globalRows[0].CommittedBytes.Should().Be(_GlobalBudget);
 
-		var freshUserId = await SeedUserAsync();
-		await using var refused = await CreateService()
-			.BeginReservationAsync(freshUserId, 1, Purpose);
+		var freshUserId = await _SeedUserAsync();
+		await using var refused = await _CreateService()
+			.BeginReservationAsync(freshUserId, 1, _Purpose);
 
 		refused.Admission.Should().BeOfType<UploadAdmissionResult.Rejected>()
 			.Which.ExhaustedScope.Should().Be(UploadBudgetScope.Global);
@@ -75,42 +75,42 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldApplyThePerCreatorBudgetIndependentlyPerUser() {
-		var firstUserId = await SeedUserAsync();
-		var secondUserId = await SeedUserAsync();
+		var firstUserId = await _SeedUserAsync();
+		var secondUserId = await _SeedUserAsync();
 
 		await using var fullForFirst =
-			await CreateService().BeginReservationAsync(firstUserId, PerStaffBudget, Purpose);
+			await _CreateService().BeginReservationAsync(firstUserId, _PerStaffBudget, _Purpose);
 		fullForFirst.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 		fullForFirst.MarkCommitPending();
 		fullForFirst.Admission.As<UploadAdmissionResult.Accepted>().Asset.RelativePath = "uploads/a";
 		await fullForFirst.CommitAsync();
 
 		await using var refusedForFirst =
-			await CreateService().BeginReservationAsync(firstUserId, 1, Purpose);
+			await _CreateService().BeginReservationAsync(firstUserId, 1, _Purpose);
 		refusedForFirst.Admission.Should().BeOfType<UploadAdmissionResult.Rejected>()
 			.Which.ExhaustedScope.Should().Be(UploadBudgetScope.CreatorUser);
 
 		// The global pool still has room: another creator is capped independently.
 		await using var acceptedForSecond =
-			await CreateService().BeginReservationAsync(secondUserId, 1, Purpose);
+			await _CreateService().BeginReservationAsync(secondUserId, 1, _Purpose);
 		acceptedForSecond.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 	}
 
 	[Fact]
 	public async Task ItShouldReleaseAReservationWhenDisposalFollowsAFailedWrite() {
-		var userId = await SeedUserAsync();
-		var reservationBytes = PerStaffBudget / 2;
+		var userId = await _SeedUserAsync();
+		var reservationBytes = _PerStaffBudget / 2;
 
-		var service = CreateService();
+		var service = _CreateService();
 		var failedWrite = await service
-			.BeginReservationAsync(userId, reservationBytes, Purpose);
+			.BeginReservationAsync(userId, reservationBytes, _Purpose);
 		failedWrite.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 		// No commit: simulate the write failing. Disposal must roll back.
 		await failedWrite.DisposeAsync();
 
-		var retryService = CreateService();
+		var retryService = _CreateService();
 		await using var retry =
-			await retryService.BeginReservationAsync(userId, PerStaffBudget, Purpose);
+			await retryService.BeginReservationAsync(userId, _PerStaffBudget, _Purpose);
 		retry.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>(
 			"the failed attempt's reservation must have released its bytes"
 		);
@@ -123,8 +123,8 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 	[InlineData(0)]
 	[InlineData(-1)]
 	public async Task ItShouldRejectNonPositiveByteCounts(long bytes) {
-		var act = async () => await CreateService()
-			.BeginReservationAsync(Guid.NewGuid(), bytes, Purpose);
+		var act = async () => await _CreateService()
+			.BeginReservationAsync(Guid.NewGuid(), bytes, _Purpose);
 
 		await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
 	}
@@ -135,13 +135,13 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		// admissions cannot all fit, and NO interleaving may admit more than 7
 		// of them for one creator (8 chunks of budget, each chunk one byte short).
 		const int Attempts = 12;
-		var userId = await SeedUserAsync();
-		var chunk = (PerStaffBudget / 8) + 1;
+		var userId = await _SeedUserAsync();
+		var chunk = (_PerStaffBudget / 8) + 1;
 		var attempts = Enumerable.Range(0, Attempts)
 			.Select(_ => Task.Run(async () => {
-				var service = CreateService();
+				var service = _CreateService();
 				await using var scope =
-					await service.BeginReservationAsync(userId, chunk, Purpose);
+					await service.BeginReservationAsync(userId, chunk, _Purpose);
 				if (scope.Admission is not UploadAdmissionResult.Accepted accepted) {
 					return scope.Admission;
 				}
@@ -167,17 +167,17 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		// attempts exactly one chunk): acceptance is bounded purely by the global
 		// pool, which fits fewer than Attempts chunks.
 		const int Attempts = 16;
-		var chunk = Math.Min(GlobalBudget / 20, PerStaffBudget / 4);
+		var chunk = Math.Min(_GlobalBudget / 20, _PerStaffBudget / 4);
 		var userIds = new List<Guid>();
 		for (var index = 0; index < Attempts; index += 1) {
-			userIds.Add(await SeedUserAsync());
+			userIds.Add(await _SeedUserAsync());
 		}
 
 		var attempts = Enumerable.Range(0, Attempts)
 			.Select(index => Task.Run(async () => {
-				var service = CreateService();
+				var service = _CreateService();
 				await using var scope =
-					await service.BeginReservationAsync(userIds[index], chunk, Purpose);
+					await service.BeginReservationAsync(userIds[index], chunk, _Purpose);
 				if (scope.Admission is not UploadAdmissionResult.Accepted accepted) {
 					return scope.Admission;
 				}
@@ -193,24 +193,24 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		var accepted = results.OfType<UploadAdmissionResult.Accepted>().ToList();
 
 		accepted.Should().HaveCountLessThanOrEqualTo(
-			(int)(GlobalBudget / chunk),
+			(int)(_GlobalBudget / chunk),
 			"the global budget fits fewer than Attempts chunks and must never be exceeded"
 		);
-		accepted.Sum(a => a.Asset.SizeBytes).Should().BeLessThanOrEqualTo(GlobalBudget);
+		accepted.Sum(a => a.Asset.SizeBytes).Should().BeLessThanOrEqualTo(_GlobalBudget);
 		results.OfType<UploadAdmissionResult.Rejected>()
-			.Should().HaveCountGreaterThanOrEqualTo(Attempts - (int)(GlobalBudget / chunk));
+			.Should().HaveCountGreaterThanOrEqualTo(Attempts - (int)(_GlobalBudget / chunk));
 	}
 
 	[Fact]
 	public async Task ItShouldKeepAccountingDurableAcrossFreshServiceInstances() {
 		// Phase 1's counter reset on process restart; phase 2's budgets live in
 		// Postgres, so a brand-new service instance MUST see committed bytes.
-		var userId = await SeedUserAsync();
-		var half = PerStaffBudget / 2;
+		var userId = await _SeedUserAsync();
+		var half = _PerStaffBudget / 2;
 
-		var firstInstance = CreateService();
+		var firstInstance = _CreateService();
 		var firstHalf =
-			await firstInstance.BeginReservationAsync(userId, half, Purpose);
+			await firstInstance.BeginReservationAsync(userId, half, _Purpose);
 		firstHalf.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 		firstHalf.MarkCommitPending();
 		firstHalf.Admission.As<UploadAdmissionResult.Accepted>().Asset.RelativePath = "uploads/c1";
@@ -218,18 +218,18 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		await firstHalf.DisposeAsync();
 
 		// A brand-new instance ("fresh process") admits the remaining half.
-		var freshInstance = CreateService();
+		var freshInstance = _CreateService();
 		var secondHalf =
-			await freshInstance.BeginReservationAsync(userId, half, Purpose);
+			await freshInstance.BeginReservationAsync(userId, half, _Purpose);
 		secondHalf.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 		secondHalf.MarkCommitPending();
 		secondHalf.Admission.As<UploadAdmissionResult.Accepted>().Asset.RelativePath = "uploads/c2";
 		await secondHalf.CommitAsync();
 		await secondHalf.DisposeAsync();
 
-		var restartedProcess = CreateService();
+		var restartedProcess = _CreateService();
 		await using var overAfterRestart =
-			await restartedProcess.BeginReservationAsync(userId, 1, Purpose);
+			await restartedProcess.BeginReservationAsync(userId, 1, _Purpose);
 		overAfterRestart.Admission.Should().BeOfType<UploadAdmissionResult.Rejected>(
 			"a restarted process must not resurrect capacity already spent"
 		);
@@ -238,8 +238,8 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 	// ── helpers ─────────────────────────────────────────────────────────────
 
 	/// <summary>Assets carry created_by_user_id → a REAL user row is required.</summary>
-	private async Task<Guid> SeedUserAsync() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private async Task<Guid> _SeedUserAsync() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var user = new User {
 			Email = $"upload-admission-spec-{Guid.NewGuid():N}@example.com",
@@ -251,18 +251,18 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		return user.GetRequiredId();
 	}
 
-	private async Task FillGlobalBudgetToTheBrimAsync() {
+	private async Task _FillGlobalBudgetToTheBrimAsync() {
 		// Distinct filler users per chunk: creator budgets never bind, so ONLY the
 		// global pool limits how much lands — the condition under test.
-		var chunk = PerStaffBudget;
-		var remaining = GlobalBudget;
+		var chunk = _PerStaffBudget;
+		var remaining = _GlobalBudget;
 
 		while (remaining > 0) {
 			var take = Math.Min(chunk, remaining);
-			var fillerUserId = await SeedUserAsync();
-			var service = CreateService();
+			var fillerUserId = await _SeedUserAsync();
+			var service = _CreateService();
 			await using var scope =
-				await service.BeginReservationAsync(fillerUserId, take, Purpose);
+				await service.BeginReservationAsync(fillerUserId, take, _Purpose);
 			scope.Admission.Should().BeOfType<UploadAdmissionResult.Accepted>();
 			var asset = ((UploadAdmissionResult.Accepted)scope.Admission).Asset;
 			asset.RelativePath = $"uploads/spec-filler/{Guid.NewGuid():N}.png";
@@ -272,10 +272,10 @@ public sealed class UploadAdmissionServiceSpec : IAsyncLifetime {
 		}
 	}
 
-	private UploadAdmissionService CreateService() {
+	private UploadAdmissionService _CreateService() {
 		// A fresh AppDbContext per call mirrors a fresh request scope (and, for the
 		// durability spec, a fresh process): no shared change tracker, same DB.
-		using var scope = _fixture.Factory.Services.CreateScope();
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>().Database.GetConnectionString();
 		if (string.IsNullOrEmpty(connectionString)) {

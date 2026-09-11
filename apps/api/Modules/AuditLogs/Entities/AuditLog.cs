@@ -15,14 +15,14 @@ namespace PublyApp.Api.Modules.AuditLogs.Entities;
 [Index(nameof(Action), nameof(CreatedAt))]
 [Index(nameof(TargetId))]
 public class AuditLog : BaseAttributes, INoTenantEntity {
-	private UserEntity? _user;
+	private UserEntity? _User;
 
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
 	[JsonIgnore]
 	public UserEntity User {
-		get { return RequiredNavigation.Get(_user, nameof(AuditLog), nameof(User)); }
-		set { _user = value; }
+		get { return RequiredNavigation.Get(_User, nameof(AuditLog), nameof(User)); }
+		set { _User = value; }
 	}
 
 	[Column("action")]

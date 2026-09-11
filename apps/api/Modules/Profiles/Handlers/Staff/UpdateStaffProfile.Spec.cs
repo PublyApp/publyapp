@@ -23,17 +23,17 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class UpdateStaffProfileSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public UpdateStaffProfileSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetCreateProfileUrl() {
+	private static string _GetCreateProfileUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -41,7 +41,7 @@ public sealed class UpdateStaffProfileSpec
 		);
 	}
 
-	private static string GetUpdateProfileUrl(string profileId) {
+	private static string _GetUpdateProfileUrl(string profileId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -53,59 +53,59 @@ public sealed class UpdateStaffProfileSpec
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(Guid.NewGuid().ToString())
+			_GetUpdateProfileUrl(Guid.NewGuid().ToString())
 		);
 		request.Content = JsonContent.Create(new { name = "Any name" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(Guid.NewGuid().ToString())
+			_GetUpdateProfileUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Any name" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(Guid.NewGuid().ToString())
+			_GetUpdateProfileUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Any name" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl("not-a-guid")
+			_GetUpdateProfileUrl("not-a-guid")
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Any name" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -114,31 +114,31 @@ public sealed class UpdateStaffProfileSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForEmptyPatchBody() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Empty Patch");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Empty Patch");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidName() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Invalid Name");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Invalid Name");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "a" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -149,20 +149,20 @@ public sealed class UpdateStaffProfileSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenProfileNameAlreadyExists() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		var profileId1 = await CreateStaffProfileAsync(token, "Update Name Exists A");
-		var profileId2 = await CreateStaffProfileAsync(token, "Update Name Exists B");
+		var profileId1 = await _CreateStaffProfileAsync(token, "Update Name Exists A");
+		var profileId2 = await _CreateStaffProfileAsync(token, "Update Name Exists B");
 
-		var existingName = await GetProfileNameAsync(token, profileId2);
+		var existingName = await _GetProfileNameAsync(token, profileId2);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId1)
+			_GetUpdateProfileUrl(profileId1)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = existingName });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -173,19 +173,19 @@ public sealed class UpdateStaffProfileSpec
 
 	[Fact]
 	public async Task ItShouldUpdateProfileNameAndDescription() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Happy Path");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Happy Path");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			name = "Renamed " + Guid.NewGuid().ToString("N")[..8],
 			description = "New description",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var updated = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
@@ -197,12 +197,12 @@ public sealed class UpdateStaffProfileSpec
 
 	[Fact]
 	public async Task ItShouldClearDescriptionWhenNullIsProvided() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Clear Desc", "Has description");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Clear Desc", "Has description");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 
 		// Use raw JSON to ensure `description: null` is present in the payload.
@@ -213,7 +213,7 @@ public sealed class UpdateStaffProfileSpec
 			"application/json"
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var updated = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
@@ -224,19 +224,19 @@ public sealed class UpdateStaffProfileSpec
 
 	[Fact]
 	public async Task ItShouldSetIconAndTone() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Style");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Style");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			icon = "users-group",
 			tone = "6",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var updated = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
@@ -248,32 +248,32 @@ public sealed class UpdateStaffProfileSpec
 		updated.Profile.Icon.Should().Be("users-group");
 		updated.Profile.Tone.Should().Be("6");
 
-		var persistedProfile = await GetProfileByIdAsync(updated.Profile.Id);
+		var persistedProfile = await _GetProfileByIdAsync(updated.Profile.Id);
 		persistedProfile.Icon.Should().Be("users-group");
 		persistedProfile.Tone.Should().Be("6");
 	}
 
 	[Fact]
 	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Clear Style");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Clear Style");
 
 		using (var setRequest = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token)) {
 			setRequest.Content = JsonContent.Create(new {
 				icon = "shield-check",
 				tone = "2",
 			});
 
-			using var setResponse = await _http.SendAsync(setRequest);
+			using var setResponse = await _Http.SendAsync(setRequest);
 			setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		using var clearRequest = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		clearRequest.Content = new StringContent(
 			"{\"icon\":null,\"tone\":null}",
@@ -281,7 +281,7 @@ public sealed class UpdateStaffProfileSpec
 			"application/json"
 		);
 
-		using var clearResponse = await _http.SendAsync(clearRequest);
+		using var clearResponse = await _Http.SendAsync(clearRequest);
 		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var updated = await clearResponse.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
@@ -293,23 +293,23 @@ public sealed class UpdateStaffProfileSpec
 		updated.Profile.Icon.Should().BeNull();
 		updated.Profile.Tone.Should().BeNull();
 
-		var persistedProfile = await GetProfileByIdAsync(Guid.Parse(profileId));
+		var persistedProfile = await _GetProfileByIdAsync(Guid.Parse(profileId));
 		persistedProfile.Icon.Should().BeNull();
 		persistedProfile.Tone.Should().BeNull();
 	}
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidIcon() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Invalid Icon");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Invalid Icon");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { icon = "not-an-icon" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -320,16 +320,16 @@ public sealed class UpdateStaffProfileSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token, "Update Invalid Tone");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token, "Update Invalid Tone");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUpdateProfileUrl(profileId)
+			_GetUpdateProfileUrl(profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { tone = "8" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -340,12 +340,12 @@ public sealed class UpdateStaffProfileSpec
 
 	// -- Helpers --
 
-	private async Task<string> CreateStaffProfileAsync(
+	private async Task<string> _CreateStaffProfileAsync(
 		string staffToken,
 		string namePrefix,
 		string? description = "Initial description"
 	) {
-		var url = GetCreateProfileUrl();
+		var url = _GetCreateProfileUrl();
 		var name = namePrefix + " " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
@@ -364,7 +364,7 @@ public sealed class UpdateStaffProfileSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
@@ -373,7 +373,7 @@ public sealed class UpdateStaffProfileSpec
 		return created.ProfileId.ToString();
 	}
 
-	private async Task<string> GetProfileNameAsync(string staffToken, string profileId) {
+	private async Task<string> _GetProfileNameAsync(string staffToken, string profileId) {
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -385,7 +385,7 @@ public sealed class UpdateStaffProfileSpec
 			url
 		).WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
@@ -396,8 +396,8 @@ public sealed class UpdateStaffProfileSpec
 		return payload.Profile.Name;
 	}
 
-	private async Task<Profile> GetProfileByIdAsync(Guid profileId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Profile> _GetProfileByIdAsync(Guid profileId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.Profile

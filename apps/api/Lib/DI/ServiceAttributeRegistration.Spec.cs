@@ -38,7 +38,7 @@ public sealed class ServiceAttributeRegistrationSpec
 	private static readonly (
 		Type ServiceType,
 		Type ImplementationType
-	)[] ExpectedServices = [
+	)[] _ExpectedServices = [
 		(typeof(IAccountProfileService), typeof(AccountProfileService)),
 		(typeof(IAccountService), typeof(AccountService)),
 		(typeof(IAuditLogQueryService), typeof(AuditLogQueryService)),
@@ -103,32 +103,32 @@ public sealed class ServiceAttributeRegistrationSpec
 	private static readonly (
 		Type ServiceType,
 		Type ImplementationType
-	)[] ExplicitlyRegisteredServices = [
+	)[] _ExplicitlyRegisteredServices = [
 		(typeof(ICredentialProtector), typeof(CredentialProtector)),
 	];
 
-	private static bool IsExplicitlyRegistered(QualifyingService service) {
-		return ExplicitlyRegisteredServices.Any(candidate =>
+	private static bool _IsExplicitlyRegistered(QualifyingService service) {
+		return _ExplicitlyRegisteredServices.Any(candidate =>
 			candidate.ServiceType == service.ServiceType
 		);
 	}
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public ServiceAttributeRegistrationSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public void
 	ItShouldDiscoverAllQualifyingModuleServicesForAttributeRegistration() {
 		var qualifyingServices =
-			GetQualifyingModuleServices();
+			_GetQualifyingModuleServices();
 
 		qualifyingServices.Should().BeEquivalentTo(
-			ExpectedServices
+			_ExpectedServices
 				.Select(x => new QualifyingService(
 					x.ServiceType,
 					x.ImplementationType
@@ -153,7 +153,7 @@ public sealed class ServiceAttributeRegistrationSpec
 
 		actualServices.Should().BeEquivalentTo(
 			qualifyingServices
-				.Where(x => !IsExplicitlyRegistered(x))
+				.Where(x => !_IsExplicitlyRegistered(x))
 				.Select(x => new {
 					x.ServiceType,
 					x.ImplementationType,
@@ -167,13 +167,13 @@ public sealed class ServiceAttributeRegistrationSpec
 	public async Task
 	ItShouldResolveAllAttributeRegisteredModuleServicesFromTheApplicationContainer() {
 		await using var scope =
-			_fixture.Factory.Services
+			_Fixture.Factory.Services
 				.CreateAsyncScope();
 
 		foreach (var (
 			serviceType,
 			implementationType
-		) in ExpectedServices) {
+		) in _ExpectedServices) {
 			var resolved = scope.ServiceProvider
 				.GetRequiredService(serviceType);
 
@@ -192,7 +192,7 @@ public sealed class ServiceAttributeRegistrationSpec
 			.BeOfType<RequestAuthContext>();
 	}
 
-	private static QualifyingService[] GetQualifyingModuleServices() {
+	private static QualifyingService[] _GetQualifyingModuleServices() {
 		Assembly assembly = typeof(Program).Assembly;
 
 		return assembly

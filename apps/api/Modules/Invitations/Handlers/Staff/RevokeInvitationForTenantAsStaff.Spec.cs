@@ -23,39 +23,39 @@ using Xunit;
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 	public sealed class RevokeInvitationForTenantAsStaffSpec
 		: IClassFixture<ApiFixture> {
-		private readonly ApiFixture _fixture;
-		private readonly HttpClient _http;
-		private readonly TestAuthClient _authClient;
+		private readonly ApiFixture _Fixture;
+		private readonly HttpClient _Http;
+		private readonly TestAuthClient _AuthClient;
 
 		public RevokeInvitationForTenantAsStaffSpec(ApiFixture fixture) {
-			_fixture = fixture;
-			_http = fixture.HttpClient;
-			_authClient = new TestAuthClient(_http);
+			_Fixture = fixture;
+			_Http = fixture.HttpClient;
+			_AuthClient = new TestAuthClient(_Http);
 		}
 
 		[Fact]
 		public async Task
 		ItShouldRevokePendingTenantInvitationForMatchingTenant() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				$"tenant-revoke-success-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -69,24 +69,24 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldAllowPermissionedNonAdminStaffUserToRevokeTenantInvitation() {
-			string staffUserToken = await CreateStaffUserTokenWithInvitationPermissionAsync(
+			string staffUserToken = await _CreateStaffUserTokenWithInvitationPermissionAsync(
 				AppPermissions.Staff.Invitations.REVOKE_FOR_TENANT.Key
 			);
-			string staffAdminToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffAdminToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffAdminToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffAdminToken,
 				tenantId,
 				$"tenant-revoke-permissioned-staff-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffUserToken, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffUserToken, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -95,22 +95,22 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnBadRequestWhenTenantInvitationIsAlreadyAccepted() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				$"tenant-revoke-accepted-{Guid.NewGuid():N}@example.com"
 			);
 
-			await MarkInvitationAcceptedAsync(invitationId);
+			await _MarkInvitationAcceptedAsync(invitationId);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -119,10 +119,10 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnBadRequestWhenTenantIdIsMalformed() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, "not-a-guid", Guid.NewGuid().ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, "not-a-guid", Guid.NewGuid().ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -131,15 +131,15 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnBadRequestWhenInvitationIdIsMalformed() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, tenantId.ToString(), "not-a-guid")
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, tenantId.ToString(), "not-a-guid")
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -148,15 +148,15 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnNotFoundWhenInvitationDoesNotExist() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, tenantId.ToString(), Guid.NewGuid().ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, tenantId.ToString(), Guid.NewGuid().ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -165,31 +165,31 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnNotFoundWhenInvitationBelongsToDifferentTenant() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 			Guid techStartTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
 
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				techStartTenantId,
 				$"tenant-revoke-cross-tenant-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, acmeTenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, acmeTenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -202,20 +202,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnNotFoundWhenInvitationIsStaffScoped() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-			Guid invitationId = await CreateStaffInvitationAsync(
+			Guid invitationId = await _CreateStaffInvitationAsync(
 				staffToken,
 				$"staff-scope-on-tenant-route-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffToken, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -224,20 +224,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnUnauthorizedWithoutSession() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				$"tenant-revoke-no-session-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(null, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(null, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -246,24 +246,24 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnForbiddenForTenantUser() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				$"tenant-revoke-tenant-user-{Guid.NewGuid():N}@example.com"
 			);
-			string tenantToken = await _authClient.LoginAsync(
+			string tenantToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(tenantToken, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(tenantToken, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -272,21 +272,21 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnForbiddenForStaffWithoutPermission() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				$"tenant-revoke-no-permission-{Guid.NewGuid():N}@example.com"
 			);
-			string staffUserToken = await CreateStaffUserTokenWithoutPermissionAsync();
+			string staffUserToken = await _CreateStaffUserTokenWithoutPermissionAsync();
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateTenantRevokeRequest(staffUserToken, tenantId.ToString(), invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateTenantRevokeRequest(staffUserToken, tenantId.ToString(), invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -295,20 +295,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnNotFoundWhenTenantInvitationIsRevokedThroughStaffInvitationRoute() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-			Guid invitationId = await CreateTenantInvitationAsync(
+			Guid invitationId = await _CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				$"tenant-route-global-guard-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateStaffRevokeRequest(staffToken, invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateStaffRevokeRequest(staffToken, invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -317,19 +317,19 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldRevokeStaffInvitationThroughStaffInvitationRoute() {
-			string staffToken = await _authClient.LoginAsStaffAdminAsync();
-			Guid invitationId = await CreateStaffInvitationAsync(
+			string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+			Guid invitationId = await _CreateStaffInvitationAsync(
 				staffToken,
 				$"staff-revoke-success-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateStaffRevokeRequest(staffToken, invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateStaffRevokeRequest(staffToken, invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -343,24 +343,24 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldAllowPermissionedNonAdminStaffUserToRevokeStaffInvitation() {
-			string staffUserToken = await CreateStaffUserTokenWithInvitationPermissionAsync(
+			string staffUserToken = await _CreateStaffUserTokenWithInvitationPermissionAsync(
 				AppPermissions.Staff.Invitations.REVOKE_FOR_STAFF.Key
 			);
 
-			string staffAdminToken = await _authClient.LoginAsStaffAdminAsync();
-			Guid invitationId = await CreateStaffInvitationAsync(
+			string staffAdminToken = await _AuthClient.LoginAsStaffAdminAsync();
+			Guid invitationId = await _CreateStaffInvitationAsync(
 				staffAdminToken,
 				$"staff-revoke-permissioned-staff-{Guid.NewGuid():N}@example.com"
 			);
 
-			using HttpResponseMessage response = await _http.SendAsync(
-				CreateStaffRevokeRequest(staffUserToken, invitationId.ToString())
+			using HttpResponseMessage response = await _Http.SendAsync(
+				_CreateStaffRevokeRequest(staffUserToken, invitationId.ToString())
 			);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		private static HttpRequestMessage CreateTenantRevokeRequest(
+		private static HttpRequestMessage _CreateTenantRevokeRequest(
 			string? sessionToken,
 			string tenantId,
 			string invitationId
@@ -378,7 +378,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			return request;
 		}
 
-		private static HttpRequestMessage CreateStaffRevokeRequest(
+		private static HttpRequestMessage _CreateStaffRevokeRequest(
 			string sessionToken,
 			string invitationId
 		) {
@@ -392,7 +392,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				.WithSessionToken(sessionToken);
 		}
 
-		private async Task<Guid> CreateTenantInvitationAsync(
+		private async Task<Guid> _CreateTenantInvitationAsync(
 			string staffToken,
 			Guid tenantId,
 			string email
@@ -409,7 +409,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				accountLevel = "User"
 			});
 
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 			InvitationCreatedResponse? body = await response.Content
@@ -420,32 +420,32 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			return body.InvitationId;
 		}
 
-		private async Task<string> CreateStaffUserTokenWithoutPermissionAsync() {
+		private async Task<string> _CreateStaffUserTokenWithoutPermissionAsync() {
 			string email =
 				$"invitation-revoke-no-permission-{Guid.NewGuid():N}@example.com";
 
 			await StaffUserTestHelper.SeedStaffUserAsync(
-				_fixture,
+				_Fixture,
 				email
 			);
 
-			return await _authClient.LoginAsync(
+			return await _AuthClient.LoginAsync(
 				email,
 				TestConstants.SeedPassword
 			);
 		}
 
-		private async Task<string> CreateStaffUserTokenWithInvitationPermissionAsync(
+		private async Task<string> _CreateStaffUserTokenWithInvitationPermissionAsync(
 			string permissionKey
 		) {
 			string email =
 				$"invitation-revoke-permissioned-{Guid.NewGuid():N}@example.com";
 			Guid userId = await StaffUserTestHelper.SeedStaffUserAsync(
-				_fixture,
+				_Fixture,
 				email
 			);
 
-			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -475,14 +475,14 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			});
 			_ = await dbContext.SaveChangesAsync();
 
-			return await _authClient.LoginAsync(
+			return await _AuthClient.LoginAsync(
 				email,
 				TestConstants.SeedPassword
 			);
 		}
 
-		private async Task MarkInvitationAcceptedAsync(Guid invitationId) {
-			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		private async Task _MarkInvitationAcceptedAsync(Guid invitationId) {
+			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -495,11 +495,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = await dbContext.SaveChangesAsync();
 		}
 
-		private async Task<Guid> CreateStaffInvitationAsync(
+		private async Task<Guid> _CreateStaffInvitationAsync(
 			string staffToken,
 			string email
 		) {
-			using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -523,7 +523,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				profileId = staffProfile.GetRequiredId().ToString()
 			});
 
-			using HttpResponseMessage response = await _http.SendAsync(request);
+			using HttpResponseMessage response = await _Http.SendAsync(request);
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 			InvitationCreatedResponse? body = await response.Content

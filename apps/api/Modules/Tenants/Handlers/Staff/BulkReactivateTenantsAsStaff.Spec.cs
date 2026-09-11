@@ -18,37 +18,37 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
 public sealed class BulkReactivateTenantsAsStaffSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public BulkReactivateTenantsAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReactivateDistinctTenantsAndWritePerTargetAuditLogs() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_fixture.Factory,
+			_Fixture.Factory,
 			TestConstants.StaffAdminEmail
 		);
-		var firstTenant = await SeedTenantAsync(
+		var firstTenant = await _SeedTenantAsync(
 			"Bulk Reactivate Suspended A",
 			TenantStatus.Suspended
 		);
-		var secondTenant = await SeedTenantAsync(
+		var secondTenant = await _SeedTenantAsync(
 			"Bulk Reactivate Suspended B",
 			TenantStatus.Suspended
 		);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _http.SendAsync(
-			CreateRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -75,17 +75,17 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await AssertTenantStatusAsync(
+		await _AssertTenantStatusAsync(
 			firstTenant.TenantId,
 			TenantStatus.Active
 		);
-		await AssertTenantStatusAsync(
+		await _AssertTenantStatusAsync(
 			secondTenant.TenantId,
 			TenantStatus.Active
 		);
 
 		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
-			_fixture,
+			_Fixture,
 			AuditActions.TenantBulkReactivated,
 			actorUserId,
 			startedAt
@@ -111,24 +111,24 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnPartialResultForNonReactivatableTenants() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
-		var suspendedTenant = await SeedTenantAsync(
+			await _AuthClient.LoginAsStaffAdminAsync();
+		var suspendedTenant = await _SeedTenantAsync(
 			"Bulk Reactivate Partial Suspended",
 			TenantStatus.Suspended
 		);
-		var activeTenant = await SeedTenantAsync(
+		var activeTenant = await _SeedTenantAsync(
 			"Bulk Reactivate Partial Active",
 			TenantStatus.Active
 		);
 		var missingTenantId = Guid.NewGuid();
 		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_fixture.Factory,
+			_Fixture.Factory,
 			TestConstants.StaffAdminEmail
 		);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _http.SendAsync(
-			CreateRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -162,17 +162,17 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 			&& item.Error == "Tenant not found"
 		);
 
-		await AssertTenantStatusAsync(
+		await _AssertTenantStatusAsync(
 			suspendedTenant.TenantId,
 			TenantStatus.Active
 		);
-		await AssertTenantStatusAsync(
+		await _AssertTenantStatusAsync(
 			activeTenant.TenantId,
 			TenantStatus.Active
 		);
 
 		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
-			_fixture,
+			_Fixture,
 			AuditActions.TenantBulkReactivated,
 			actorUserId,
 			startedAt
@@ -186,18 +186,18 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 	ItShouldAllowPermissionedNonAdminStaffUserToBulkReactivate() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithPermissionAsync(
-				_fixture,
-				_authClient,
+				_Fixture,
+				_AuthClient,
 				"bulk-reactivate",
 				AppPermissions.Staff.Tenants.REACTIVATE.Key
 			);
-		var tenant = await SeedTenantAsync(
+		var tenant = await _SeedTenantAsync(
 			"Bulk Reactivate Permissioned",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _http.SendAsync(
-			CreateRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRequest(
 				staffToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -210,13 +210,13 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
-		var tenant = await SeedTenantAsync(
+		var tenant = await _SeedTenantAsync(
 			"Bulk Reactivate Unauthorized",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _http.SendAsync(
-			CreateRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRequest(
 				sessionToken: null,
 				body: new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -229,17 +229,17 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _authClient.LoginAsync(
+		var tenantToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var tenant = await SeedTenantAsync(
+		var tenant = await _SeedTenantAsync(
 			"Bulk Reactivate Tenant User",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _http.SendAsync(
-			CreateRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRequest(
 				tenantToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -254,17 +254,17 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithoutPermissionAsync(
-				_fixture,
-				_authClient,
+				_Fixture,
+				_AuthClient,
 				"bulk-reactivate-no-permission"
 			);
-		var tenant = await SeedTenantAsync(
+		var tenant = await _SeedTenantAsync(
 			"Bulk Reactivate No Permission",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _http.SendAsync(
-			CreateRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRequest(
 				staffToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -281,9 +281,9 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 		string body
 	) {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _http.SendAsync(
+		using var response = await _Http.SendAsync(
 			TenantBulkActionSpecSupport.CreateRawJsonRequest(
 				TenantBulkActionSpecSupport.GetBulkReactivateUrl(),
 				staffToken,
@@ -291,7 +291,7 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 			)
 		);
 
-		await AssertValidationProblemAsync(response);
+		await _AssertValidationProblemAsync(response);
 	}
 
 	public static TheoryData<string> InvalidBodies() {
@@ -311,7 +311,7 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 		};
 	}
 
-	private static HttpRequestMessage CreateRequest(
+	private static HttpRequestMessage _CreateRequest(
 		string? sessionToken,
 		object body
 	) {
@@ -322,23 +322,23 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 		);
 	}
 
-	private Task<SeededTenantSnapshot> SeedTenantAsync(
+	private Task<SeededTenantSnapshot> _SeedTenantAsync(
 		string namePrefix,
 		TenantStatus status
 	) {
 		return TenantBulkActionSpecSupport.SeedTenantAsync(
-			_fixture,
+			_Fixture,
 			namePrefix,
 			status
 		);
 	}
 
-	private async Task AssertTenantStatusAsync(
+	private async Task _AssertTenantStatusAsync(
 		Guid tenantId,
 		TenantStatus expectedStatus
 	) {
 		var tenant = await TenantBulkActionSpecSupport
-			.GetTenantIgnoringFiltersAsync(_fixture, tenantId);
+			.GetTenantIgnoringFiltersAsync(_Fixture, tenantId);
 		tenant.Should().NotBeNull();
 		if (tenant is null) {
 			throw new InvalidOperationException(
@@ -349,7 +349,7 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 		tenant.Status.Should().Be(expectedStatus);
 	}
 
-	private static async Task AssertValidationProblemAsync(
+	private static async Task _AssertValidationProblemAsync(
 		HttpResponseMessage response
 	) {
 		response.StatusCode.Should()

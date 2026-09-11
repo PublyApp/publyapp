@@ -73,12 +73,12 @@ public sealed record EmailTerminalIdentity(string Recipient, Guid? InvitationId,
 /// Error strings are stable PII-free codes (F20).
 /// </summary>
 public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
-	private static readonly JsonSerializerOptions EnvelopeJson = new(JsonSerializerDefaults.Web);
+	private static readonly JsonSerializerOptions _EnvelopeJson = new(JsonSerializerDefaults.Web);
 
 	protected AppDbContext Db { get; }
-	private readonly IEmailSender _sender;
-	private readonly IEmailLogWriter _logWriter;
-	private readonly JobsMetrics _metrics;
+	private readonly IEmailSender _Sender;
+	private readonly IEmailLogWriter _LogWriter;
+	private readonly JobsMetrics _Metrics;
 
 	protected EmailJobHandlerBase(
 		AppDbContext db,
@@ -87,9 +87,9 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 		JobsMetrics metrics
 	) {
 		Db = db;
-		_sender = sender;
-		_logWriter = logWriter;
-		_metrics = metrics;
+		_Sender = sender;
+		_LogWriter = logWriter;
+		_Metrics = metrics;
 	}
 
 	public abstract string JobType { get; }
@@ -147,7 +147,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 
 		if (preparation is EmailJobPreparation.Ineligible ineligible) {
 			if (ineligible.Recipient.Length > 0) {
-				_logWriter.WriteCancelledIneligible(
+				_LogWriter.WriteCancelledIneligible(
 					new EmailLogEntry {
 						Kind = Kind,
 						JobId = jobId,
@@ -160,18 +160,18 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 				);
 			}
 
-			await DeletePreparedSendAsync(jobId, cancellationToken);
+			await _DeletePreparedSendAsync(jobId, cancellationToken);
 			await Db.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
 			return new JobOutcome.Cancelled(ineligible.ReasonCode);
 		}
 
 		var ready = (EmailJobPreparation.Ready)preparation;
-		var prepared = await FreezeAndReadEnvelopeAsync(jobId, ready.Envelope, cancellationToken);
+		var prepared = await _FreezeAndReadEnvelopeAsync(jobId, ready.Envelope, cancellationToken);
 
 		EmailSendReceipt receipt;
 		try {
-			var request = JsonSerializer.Deserialize<EmailRequest>(prepared.Envelope, EnvelopeJson);
+			var request = JsonSerializer.Deserialize<EmailRequest>(prepared.Envelope, _EnvelopeJson);
 			if (request is null) {
 				throw new EmailProviderPermanentException("prepared_envelope_corrupt");
 			}
@@ -183,25 +183,25 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 			// observes the first's committed Submitted row here and skips the provider.
 			// (A local optimization — the provider idempotency key remains the
 			// cross-process backstop for the crash-after-send window.)
-			if (await SubmittedEmailLogExistsAsync(jobId, cancellationToken)) {
-				await DeletePreparedSendAsync(jobId, cancellationToken);
+			if (await _SubmittedEmailLogExistsAsync(jobId, cancellationToken)) {
+				await _DeletePreparedSendAsync(jobId, cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
 				return JobOutcome.Succeeded;
 			}
 
-			receipt = await _sender.SendAsync(request, prepared.ProviderIdempotencyKey, cancellationToken);
+			receipt = await _Sender.SendAsync(request, prepared.ProviderIdempotencyKey, cancellationToken);
 		} catch (EmailProviderTransientException ex) {
-			_metrics.EmailSubmitFailure(Kind.ToString(), "transient");
+			_Metrics.EmailSubmitFailure(Kind.ToString(), "transient");
 			// Persist the frozen envelope so the next attempt resends identical bytes.
 			await transaction.CommitAsync(cancellationToken);
 			return new JobOutcome.Retry(ex.RetryAfter, ex.Code);
 		} catch (EmailProviderPermanentException ex) {
-			_metrics.EmailSubmitFailure(Kind.ToString(), "permanent");
+			_Metrics.EmailSubmitFailure(Kind.ToString(), "permanent");
 			await transaction.CommitAsync(cancellationToken);
 			return new JobOutcome.PermanentFailure(ex.Code);
 		}
 
-		_logWriter.WriteSubmitted(
+		_LogWriter.WriteSubmitted(
 			new WriteSubmittedEmailLogArgs {
 				Entry = new EmailLogEntry {
 					Kind = Kind,
@@ -216,7 +216,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 			}
 		);
 
-		await DeletePreparedSendAsync(jobId, cancellationToken);
+		await _DeletePreparedSendAsync(jobId, cancellationToken);
 		await Db.SaveChangesAsync(cancellationToken);
 		await transaction.CommitAsync(cancellationToken);
 		return JobOutcome.Succeeded;
@@ -237,7 +237,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 			identity = new EmailTerminalIdentity("(unknown)", null, null);
 		}
 
-		_logWriter.WritePermanentlyFailed(
+		_LogWriter.WritePermanentlyFailed(
 			new EmailLogEntry {
 				Kind = Kind,
 				JobId = context.JobId,
@@ -249,7 +249,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 			context.LastError
 		);
 
-		await DeletePreparedSendAsync(context.JobId, cancellationToken);
+		await _DeletePreparedSendAsync(context.JobId, cancellationToken);
 	}
 
 	// FOR UPDATE row lock on the domain table (the linearization point, F8). The table
@@ -269,13 +269,13 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 
 	// Freeze the rendered envelope once (F7): INSERT ... ON CONFLICT DO NOTHING, then read
 	// back the stored row so retries send byte-identical bytes under a stable key.
-	private async Task<EmailPreparedSend> FreezeAndReadEnvelopeAsync(
+	private async Task<EmailPreparedSend> _FreezeAndReadEnvelopeAsync(
 		Guid jobId,
 		EmailRequest envelope,
 		CancellationToken cancellationToken
 	) {
-		var envelopeJson = JsonSerializer.Serialize(envelope, EnvelopeJson);
-		var sha256 = Sha256Hex(envelopeJson);
+		var envelopeJson = JsonSerializer.Serialize(envelope, _EnvelopeJson);
+		var sha256 = _Sha256Hex(envelopeJson);
 		var idempotencyKey = jobId.ToString("N");
 
 		await Db.Database.ExecuteSqlAsync(
@@ -305,7 +305,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 	// Step 3a's read (§5.4): has a concurrent SEND transaction already committed the
 	// provider-accepted outcome for this job? Narrower than step 0 on purpose — only a
 	// Submitted row proves the provider was already called for these bytes.
-	private async Task<bool> SubmittedEmailLogExistsAsync(
+	private async Task<bool> _SubmittedEmailLogExistsAsync(
 		Guid jobId,
 		CancellationToken cancellationToken
 	) {
@@ -316,7 +316,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 		return await query.AnyAsync(cancellationToken);
 	}
 
-	private async Task DeletePreparedSendAsync(Guid jobId, CancellationToken cancellationToken) {
+	private async Task _DeletePreparedSendAsync(Guid jobId, CancellationToken cancellationToken) {
 		var preparedSendQuery =
 			from preparedSend in Db.EmailPreparedSend
 			where preparedSend.JobId == jobId
@@ -324,7 +324,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 		await preparedSendQuery.ExecuteDeleteAsync(cancellationToken);
 	}
 
-	private static string Sha256Hex(string value) {
+	private static string _Sha256Hex(string value) {
 		var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
 		return Convert.ToHexStringLower(bytes);
 	}

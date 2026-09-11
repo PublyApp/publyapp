@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
@@ -19,30 +20,30 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 /// never echoed into a failure reason, and never included in any returned value.
 /// </summary>
 public sealed class BlueskyClient : IBlueskyClient {
-	private const string CreateSessionPath = "xrpc/com.atproto.server.createSession";
+	private const string _CreateSessionPath = "xrpc/com.atproto.server.createSession";
 
 	// Fixed handle for the shared PDS entrypoint; per-PDS discovery is OAuth-era work.
-	private const string DefaultPdsBaseAddress = "https://bsky.social/";
+	private const string _DefaultPdsBaseAddress = "https://bsky.social/";
 
-	private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
+	private static readonly TimeSpan _RequestTimeout = TimeSpan.FromSeconds(10);
 
-	private readonly IHttpClientFactory _httpClientFactory;
-	private readonly ILogger<BlueskyClient> _logger;
+	private readonly IHttpClientFactory _HttpClientFactory;
+	private readonly ILogger<BlueskyClient> _Logger;
 
 	public BlueskyClient(
 		IHttpClientFactory httpClientFactory,
 		ILogger<BlueskyClient> logger
 	) {
-		_httpClientFactory = httpClientFactory;
-		_logger = logger;
+		_HttpClientFactory = httpClientFactory;
+		_Logger = logger;
 	}
 
 	public async Task<BlueskySessionResult> CreateSessionAsync(
 		BlueskyCredentials credentials,
 		CancellationToken cancellationToken = default
 	) {
-		var client = _httpClientFactory.CreateClient(WellKnownClientName);
-		using var request = new HttpRequestMessage(HttpMethod.Post, CreateSessionPath) {
+		var client = _HttpClientFactory.CreateClient(WellKnownClientName);
+		using var request = new HttpRequestMessage(HttpMethod.Post, _CreateSessionPath) {
 			Content = JsonContent.Create(new CreateSessionBody(
 				identifier: credentials.Identifier,
 				password: credentials.AppPassword
@@ -50,7 +51,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		};
 
 		using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		timeoutCts.CancelAfter(RequestTimeout);
+		timeoutCts.CancelAfter(_RequestTimeout);
 
 		HttpResponseMessage response;
 		try {
@@ -64,7 +65,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 		using (response) {
 			if (response.IsSuccessStatusCode) {
-				return await ParseSuccessAsync(response, timeoutCts.Token);
+				return await _ParseSuccessAsync(response, timeoutCts.Token);
 			}
 
 			if ((int)response.StatusCode >= 500) {
@@ -73,11 +74,11 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 			// 4xx from the PDS: 401 invalid credentials, 400 unknown identifier /
 			// malformed request — both are account-caused refusals.
-			return ClassifyAccountFailure(response.StatusCode);
+			return _ClassifyAccountFailure(response.StatusCode);
 		}
 	}
 
-	private static BlueskySessionResult ClassifyAccountFailure(HttpStatusCode statusCode) {
+	private static BlueskySessionResult _ClassifyAccountFailure(HttpStatusCode statusCode) {
 		if (statusCode == HttpStatusCode.Unauthorized) {
 			return new BlueskySessionResult.AccountFailure("credentials refused");
 		}
@@ -85,7 +86,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		return new BlueskySessionResult.AccountFailure("account not found");
 	}
 
-	private async Task<BlueskySessionResult> ParseSuccessAsync(
+	private async Task<BlueskySessionResult> _ParseSuccessAsync(
 		HttpResponseMessage response,
 		CancellationToken cancellationToken
 	) {
@@ -94,7 +95,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 			payload = await response.Content
 				.ReadFromJsonAsync<BlueskyCreateSessionResponse>(cancellationToken);
 		} catch (JsonException) {
-			_logger.LogError(
+			_Logger.LogError(
 				"Bluesky createSession returned unparseable JSON with status {Status}",
 				(int)response.StatusCode
 			);
@@ -103,7 +104,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 		if (payload is null || string.IsNullOrEmpty(payload.Did)
 			|| string.IsNullOrEmpty(payload.AccessJwt)) {
-			_logger.LogError(
+			_Logger.LogError(
 				"Bluesky createSession response missing did or accessJwt (status {Status})",
 				(int)response.StatusCode
 			);
@@ -117,7 +118,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		return new BlueskySessionResult.Success(
 			new BlueskyIdentity(payload.Did, handle),
 			AccessJwt: payload.AccessJwt,
-			PdsHost: DefaultPdsBaseAddress.TrimEnd('/')
+			PdsHost: _DefaultPdsBaseAddress.TrimEnd('/')
 		);
 	}
 
@@ -128,13 +129,24 @@ public sealed class BlueskyClient : IBlueskyClient {
 		Microsoft.Extensions.DependencyInjection.IServiceCollection services
 	) {
 		services.AddHttpClient(WellKnownClientName, client => {
-			client.BaseAddress = new Uri(DefaultPdsBaseAddress);
+			client.BaseAddress = new Uri(_DefaultPdsBaseAddress);
 			client.Timeout = Timeout.InfiniteTimeSpan; // per-request timeout above
 		});
 	}
 
 	// Wire types local to the adapter — never exposed beyond this class.
-	private sealed record CreateSessionBody(string identifier, string password);
+	private sealed record CreateSessionBody {
+		public CreateSessionBody(string identifier, string password) {
+			Identifier = identifier;
+			Password = password;
+		}
+
+		[JsonPropertyName("identifier")]
+		public string Identifier { get; }
+
+		[JsonPropertyName("password")]
+		public string Password { get; }
+	}
 
 	private sealed class BlueskyCreateSessionResponse {
 		public string Did { get; set; } = string.Empty;

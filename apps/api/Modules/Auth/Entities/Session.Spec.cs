@@ -13,19 +13,19 @@ namespace PublyApp.Api.Modules.Auth.Entities;
 
 public sealed class SessionSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public SessionSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldPhysicallyDeleteWhenRemovedFromDbContext() {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

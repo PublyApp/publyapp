@@ -15,18 +15,18 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// </para>
 /// </summary>
 public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
-	private readonly IDatabaseMigrationReadiness _migrationReadiness;
-	private readonly ILogger<DatabaseMigrationHealthCheck> _logger;
-	private readonly HealthCheckLogGate _logGate;
+	private readonly IDatabaseMigrationReadiness _MigrationReadiness;
+	private readonly ILogger<DatabaseMigrationHealthCheck> _Logger;
+	private readonly HealthCheckLogGate _LogGate;
 
 	public DatabaseMigrationHealthCheck(
 		IDatabaseMigrationReadiness migrationReadiness,
 		ILogger<DatabaseMigrationHealthCheck> logger,
 		HealthCheckLogGate logGate
 	) {
-		_migrationReadiness = migrationReadiness;
-		_logger = logger;
-		_logGate = logGate;
+		_MigrationReadiness = migrationReadiness;
+		_Logger = logger;
+		_LogGate = logGate;
 	}
 
 	public async Task<HealthCheckResult> CheckHealthAsync(
@@ -34,16 +34,16 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 		CancellationToken cancellationToken = default
 	) {
 		try {
-			var readiness = await _migrationReadiness.IsReadyAsync(cancellationToken);
+			var readiness = await _MigrationReadiness.IsReadyAsync(cancellationToken);
 			if (readiness.IsReady) {
-				var shouldLogRecovery = _logGate.ShouldLog(
+				var shouldLogRecovery = _LogGate.ShouldLog(
 					HealthCheckMessages.DatabaseMigrationRegistrationName,
 					HealthStatus.Healthy,
 					failureReason: null,
 					DateTimeOffset.UtcNow
 				);
-				if (shouldLogRecovery && _logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation(
+				if (shouldLogRecovery && _Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation(
 						"Health check {HealthCheck} recovered with status {HealthStatus}.",
 						HealthCheckMessages.ApplicationReadinessName,
 						HealthStatus.Healthy
@@ -58,14 +58,14 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 				readiness.PendingMigrationNames
 			);
 			if (
-				_logGate.ShouldLog(
+				_LogGate.ShouldLog(
 					HealthCheckMessages.DatabaseMigrationRegistrationName,
 					HealthStatus.Unhealthy,
 					"pending_migrations",
 					DateTimeOffset.UtcNow
 				)
 			) {
-				_logger.LogWarning(
+				_Logger.LogWarning(
 					"Health check {HealthCheck} is unhealthy: {FailureReason}. "
 						+ "{PendingMigrationCount} pending database migration(s). "
 						+ "Sample names: {PendingMigrationNames}. "
@@ -85,14 +85,14 @@ public sealed class DatabaseMigrationHealthCheck : IHealthCheck {
 			throw;
 		} catch (Exception ex) {
 			if (
-				_logGate.ShouldLog(
+				_LogGate.ShouldLog(
 					HealthCheckMessages.DatabaseMigrationRegistrationName,
 					HealthStatus.Unhealthy,
 					"database_unreachable",
 					DateTimeOffset.UtcNow
 				)
 			) {
-				_logger.LogWarning(
+				_Logger.LogWarning(
 					"Health check {HealthCheck} is unhealthy: {FailureReason}.",
 					HealthCheckMessages.ApplicationReadinessName,
 					"database_unreachable"

@@ -25,17 +25,17 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // Contract: safe seeded keys pass through untouched; sensitive/unknown job types
 // come back redacted; 404 unknown AND malformed id; 401/403 auth gates.
 public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetDeadLetterForStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string Url(string deadLetterId) {
+	private static string _Url(string deadLetterId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Jobs.ForStaff.JobsRoot,
@@ -46,16 +46,16 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnDetailWithPayloadIntactForASafeKey() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		const string jobType =
 			"session-cleanup";
-		var deadLetterId = await InsertDeadLetterAsync(
+		var deadLetterId = await _InsertDeadLetterAsync(
 			jobType,
 			payload: "{\"batch\":42}"
 		);
 
 		try {
-			using var response = await SendAsync(token, deadLetterId);
+			using var response = await _SendAsync(token, deadLetterId);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -73,20 +73,20 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			payloadDoc.RootElement.TryGetProperty("redacted", out _)
 				.Should().BeFalse("safe keys are never redacted");
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRedactThePayloadForASensitiveEmailKey() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var deadLetterId = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var deadLetterId = await _InsertDeadLetterAsync(
 			"email.password-reset.v1",
 			payload: "{\"body\":\"secret token bytes\"}"
 		);
 
 		try {
-			using var response = await SendAsync(token, deadLetterId);
+			using var response = await _SendAsync(token, deadLetterId);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -100,20 +100,20 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 				.Should().Be("sensitive-payload-staff-redacted");
 			payload.Should().NotContain("secret token bytes");
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRedactAnUnknownJobTypeFailClosed() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var deadLetterId = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var deadLetterId = await _InsertDeadLetterAsync(
 			$"spec.unknown.{Guid.NewGuid():N}",
 			payload: "{\"anything\":\"visible\"}"
 		);
 
 		try {
-			using var response = await SendAsync(token, deadLetterId);
+			using var response = await _SendAsync(token, deadLetterId);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -126,15 +126,15 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 				.Should().BeTrue("unknown keys fail closed");
 			payload.Should().NotContain("visible");
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await SendAsync(
+		using var response = await _SendAsync(
 			token, Guid.NewGuid().ToString()
 		);
 
@@ -143,17 +143,17 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await SendAsync(token, "not-a-guid");
+		using var response = await _SendAsync(token, "not-a-guid");
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldRequireASession() {
-		using var response = await _http.GetAsync(
-			Url(Guid.NewGuid().ToString())
+		using var response = await _Http.GetAsync(
+			_Url(Guid.NewGuid().ToString())
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -161,31 +161,31 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var unprivileged = await CreateUnprivilegedStaffUserAsync();
+		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
 
-		using var response = await SendAsync(
+		using var response = await _SendAsync(
 			unprivileged.Token, Guid.NewGuid().ToString()
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
-	private async Task<HttpResponseMessage> SendAsync(
+	private async Task<HttpResponseMessage> _SendAsync(
 		string token,
 		string deadLetterId
 	) {
-		var request = new HttpRequestMessage(HttpMethod.Get, Url(deadLetterId))
+		var request = new HttpRequestMessage(HttpMethod.Get, _Url(deadLetterId))
 			.WithSessionToken(token);
-		return await _http.SendAsync(request);
+		return await _Http.SendAsync(request);
 	}
 
 	// --- helpers ------------------------------------------------------------------------
 
-	private async Task<string> InsertDeadLetterAsync(
+	private async Task<string> _InsertDeadLetterAsync(
 		string jobType,
 		string payload
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await dbContext.Database.ExecuteSqlAsync(
@@ -202,7 +202,7 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			"""
 		);
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(
 			d => d.JobType == jobType
 		);
@@ -211,16 +211,16 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		)).ToString();
 	}
 
-	private async Task CleanupAsync(string deadLetterId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(string deadLetterId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter WHERE id = {Guid.Parse(deadLetterId)}"
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -238,10 +238,10 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(string Token, Guid UserId)>
-		CreateUnprivilegedStaffUserAsync() {
+		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-dlq-detail-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -262,7 +262,7 @@ public sealed class GetDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

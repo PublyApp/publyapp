@@ -33,7 +33,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		IDbCommandInterceptor {
 	// Keyed by context instance; the token value is opaque and unreachable from
 	// callers. Dies with the context, cannot be enumerated or shared.
-	private static readonly ConditionalWeakTable<DbContext, object> SaveStamps = new();
+	private static readonly ConditionalWeakTable<DbContext, object> _SaveStamps = new();
 
 	/// <summary>
 	/// Legalise Status writes on <paramref name="context"/> for the NEXT save
@@ -44,17 +44,17 @@ internal sealed partial class PublicationStatusWriteGuard
 	internal static void StampForStatusWrite(DbContext context) {
 		// ConditionalWeakTable has no read-modify-write API; remove-then-add is
 		// equivalent here because a stale grant was already revoked at save end.
-		SaveStamps.Remove(context);
-		SaveStamps.Add(context, new object());
+		_SaveStamps.Remove(context);
+		_SaveStamps.Add(context, new object());
 	}
 
-	private static bool HasStamp(DbContext? context) {
-		return context is not null && SaveStamps.TryGetValue(context, out _);
+	private static bool _HasStamp(DbContext? context) {
+		return context is not null && _SaveStamps.TryGetValue(context, out _);
 	}
 
-	private static void RevokeStamp(DbContext? context) {
+	private static void _RevokeStamp(DbContext? context) {
 		if (context is not null) {
-			SaveStamps.Remove(context);
+			_SaveStamps.Remove(context);
 		}
 	}
 
@@ -63,8 +63,8 @@ internal sealed partial class PublicationStatusWriteGuard
 	/// transition service's stamp. Runs ahead of the base save, so a refusal
 	/// leaves the database untouched.
 	/// </summary>
-	private static void RejectUnstampedStatusWrites(DbContext context) {
-		if (HasStamp(context)) {
+	private static void _RejectUnstampedStatusWrites(DbContext context) {
+		if (_HasStamp(context)) {
 			return;
 		}
 
@@ -91,7 +91,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		InterceptionResult<int> result
 	) {
 		if (eventData.Context is not null) {
-			RejectUnstampedStatusWrites(eventData.Context);
+			_RejectUnstampedStatusWrites(eventData.Context);
 		}
 
 		return result;
@@ -103,14 +103,14 @@ internal sealed partial class PublicationStatusWriteGuard
 		CancellationToken cancellationToken = default
 	) {
 		if (eventData.Context is not null) {
-			RejectUnstampedStatusWrites(eventData.Context);
+			_RejectUnstampedStatusWrites(eventData.Context);
 		}
 
 		return ValueTask.FromResult(result);
 	}
 
 	public int SavedChanges(SaveChangesCompletedEventData eventData, int result) {
-		RevokeStamp(eventData.Context);
+		_RevokeStamp(eventData.Context);
 		return result;
 	}
 
@@ -119,14 +119,14 @@ internal sealed partial class PublicationStatusWriteGuard
 		int result,
 		CancellationToken cancellationToken = default
 	) {
-		RevokeStamp(eventData.Context);
+		_RevokeStamp(eventData.Context);
 		return ValueTask.FromResult(result);
 	}
 
 	public DbCommand CommandCreated(CommandEndEventData eventData, DbCommand result) {
 		// EF's own UPDATE for a stamped Publication also carries "status" in its
 		// SET clause, so raw SQL and tracked writes share the same stamp check.
-		ThrowIfUnstampedRawStatusWrite(result, eventData);
+		_ThrowIfUnstampedRawStatusWrite(result, eventData);
 		return result;
 	}
 
@@ -138,12 +138,12 @@ internal sealed partial class PublicationStatusWriteGuard
 	// asynchronous paths, via the *Executing callbacks below. All three command
 	// shapes (non-query, reader, scalar) share one check so a status flip
 	// cannot hide behind a different execution entrypoint.
-	private static void ThrowIfUnstampedRawStatusWrite(
+	private static void _ThrowIfUnstampedRawStatusWrite(
 		DbCommand command,
 		CommandEventData eventData
 	) {
-		if (UpdatesPublicationsStatus(command.CommandText)
-			&& !HasStamp(eventData.Context)) {
+		if (_UpdatesPublicationsStatus(command.CommandText)
+			&& !_HasStamp(eventData.Context)) {
 			throw new PublicationStatusGuardException(
 				"Raw SQL attempted to change the status column of the publications "
 					+ "table outside PublicationStatusTransitionService; this write was "
@@ -158,7 +158,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		CommandEventData eventData,
 		InterceptionResult<int> result
 	) {
-		ThrowIfUnstampedRawStatusWrite(command, eventData);
+		_ThrowIfUnstampedRawStatusWrite(command, eventData);
 		return result;
 	}
 
@@ -168,7 +168,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		InterceptionResult<int> result,
 		CancellationToken cancellationToken = default
 	) {
-		ThrowIfUnstampedRawStatusWrite(command, eventData);
+		_ThrowIfUnstampedRawStatusWrite(command, eventData);
 		return ValueTask.FromResult(result);
 	}
 
@@ -177,7 +177,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		CommandEventData eventData,
 		InterceptionResult<DbDataReader> result
 	) {
-		ThrowIfUnstampedRawStatusWrite(command, eventData);
+		_ThrowIfUnstampedRawStatusWrite(command, eventData);
 		return result;
 	}
 
@@ -187,7 +187,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		InterceptionResult<DbDataReader> result,
 		CancellationToken cancellationToken = default
 	) {
-		ThrowIfUnstampedRawStatusWrite(command, eventData);
+		_ThrowIfUnstampedRawStatusWrite(command, eventData);
 		return ValueTask.FromResult(result);
 	}
 
@@ -196,7 +196,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		CommandEventData eventData,
 		InterceptionResult<object> result
 	) {
-		ThrowIfUnstampedRawStatusWrite(command, eventData);
+		_ThrowIfUnstampedRawStatusWrite(command, eventData);
 		return result;
 	}
 
@@ -206,7 +206,7 @@ internal sealed partial class PublicationStatusWriteGuard
 		InterceptionResult<object> result,
 		CancellationToken cancellationToken = default
 	) {
-		ThrowIfUnstampedRawStatusWrite(command, eventData);
+		_ThrowIfUnstampedRawStatusWrite(command, eventData);
 		return ValueTask.FromResult(result);
 	}
 
@@ -224,9 +224,9 @@ internal sealed partial class PublicationStatusWriteGuard
 	/// the now-unanchored matcher. A rare false positive fails loud here;
 	/// silence would fail open.
 	/// </summary>
-	private static bool UpdatesPublicationsStatus(string commandText) {
+	private static bool _UpdatesPublicationsStatus(string commandText) {
 		foreach (var statement in commandText.Split(';')) {
-			if (!PublicationsTableWord.IsMatch(statement)) {
+			if (!_PublicationsTableWord.IsMatch(statement)) {
 				continue;
 			}
 
@@ -235,10 +235,10 @@ internal sealed partial class PublicationStatusWriteGuard
 			// publications SET status = ...") hides the crime behind an earlier
 			// innocent UPDATE whose own SET list never mentions status; a single
 			// lazy Match stops there and fails open.
-			foreach (Match match in UpdateStatementShape.Matches(
-						StripSqlComments(statement)
+			foreach (Match match in _UpdateStatementShape.Matches(
+						_StripSqlComments(statement)
 					)) {
-				if (StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
+				if (_StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
 					return true;
 				}
 			}
@@ -250,25 +250,25 @@ internal sealed partial class PublicationStatusWriteGuard
 	// Comments are not executable, so removing them before shape matching can
 	// never hide a real statement; it only stops quoted text inside comments
 	// from impersonating one under the unanchored matcher.
-	private static string StripSqlComments(string sql) {
-		return SqlBlockComment.Replace(SqlLineComment.Replace(sql, " "), " ");
+	private static string _StripSqlComments(string sql) {
+		return _SqlBlockComment.Replace(_SqlLineComment.Replace(sql, " "), " ");
 	}
 
 	[GeneratedRegex(
 		@"\bUPDATE\b.*?\bSET\b(?<setList>.*?)(?:\b(?:WHERE|FROM|RETURNING)\b|$)",
 		RegexOptions.Singleline | RegexOptions.IgnoreCase
 	)]
-	private static partial Regex UpdateStatementShape { get; }
+	private static partial Regex _UpdateStatementShape { get; }
 
 	[GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline)]
-	private static partial Regex SqlBlockComment { get; }
+	private static partial Regex _SqlBlockComment { get; }
 
 	[GeneratedRegex(@"--[^\r\n]*")]
-	private static partial Regex SqlLineComment { get; }
+	private static partial Regex _SqlLineComment { get; }
 
 	[GeneratedRegex(@"\bpublications\b", RegexOptions.IgnoreCase)]
-	private static partial Regex PublicationsTableWord { get; }
+	private static partial Regex _PublicationsTableWord { get; }
 
 	[GeneratedRegex(@"\bstatus\b", RegexOptions.IgnoreCase)]
-	private static partial Regex StatusColumnWord { get; }
+	private static partial Regex _StatusColumnWord { get; }
 }

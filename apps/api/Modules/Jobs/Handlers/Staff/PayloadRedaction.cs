@@ -15,7 +15,7 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 /// </summary>
 public static class PayloadRedaction {
 	/// <summary>The REAL seeded system job keys whose payloads carry no secrets.</summary>
-	private static readonly string[] SafeJobKeys = [
+	private static readonly string[] _SafeJobKeys = [
 		"session-cleanup",
 		"email-log-retention",
 		"job-dead-letter-retention",
@@ -37,7 +37,7 @@ public static class PayloadRedaction {
 		}
 
 		var key = jobType ?? string.Empty;
-		if (SafeJobKeys.Contains(key)) {
+		if (_SafeJobKeys.Contains(key)) {
 			return payloadJson;
 		}
 

@@ -17,7 +17,7 @@ public sealed class DeadLetterResolutionCatalogSpec {
 	/// The catalog: one row per ExternalStateStatus member, pinned by name so a
 	/// rename breaks this file loudly instead of silently desyncing the coverage.
 	/// </summary>
-	private static readonly HashSet<string> CatalogCoverage = new(
+	private static readonly HashSet<string> _CatalogCoverage = new(
 		StringComparer.Ordinal
 	) {
 		nameof(ExternalStateStatus.None),           // age retention applies (default/backfill)
@@ -30,7 +30,7 @@ public sealed class DeadLetterResolutionCatalogSpec {
 	};
 
 	/// <summary>Retention sweep exempts exactly these states (design D2).</summary>
-	private static readonly HashSet<ExternalStateStatus> RetentionExemptions = [
+	private static readonly HashSet<ExternalStateStatus> _RetentionExemptions = [
 		ExternalStateStatus.Present,
 		ExternalStateStatus.Unclassified,
 	];
@@ -44,13 +44,13 @@ public sealed class DeadLetterResolutionCatalogSpec {
 		);
 		enumNames.Should().OnlyHaveUniqueItems();
 
-		var uncovered = enumNames.Where(n => !CatalogCoverage.Contains(n)).ToList();
+		var uncovered = enumNames.Where(n => !_CatalogCoverage.Contains(n)).ToList();
 		uncovered.Should().BeEmpty(
 			"every ExternalStateStatus member needs a DeadLetterResolutionCatalog "
 			+ "entry naming its resolution path"
 		);
 
-		var unknown = CatalogCoverage.Where(c => !enumNames.Contains(c)).ToList();
+		var unknown = _CatalogCoverage.Where(c => !enumNames.Contains(c)).ToList();
 		unknown.Should().BeEmpty(
 			"catalog entries must name real enum members — remove stale rows"
 		);
@@ -59,7 +59,7 @@ public sealed class DeadLetterResolutionCatalogSpec {
 	[Fact]
 	public void ItShouldExemptFromRetentionExactlyThePresentAndUnclassifiedStates() {
 		Enum.GetValues<ExternalStateStatus>()
-			.Where(s => RetentionExemptions.Contains(s))
+			.Where(s => _RetentionExemptions.Contains(s))
 			.Should().BeEquivalentTo([
 				ExternalStateStatus.Present,
 				ExternalStateStatus.Unclassified,

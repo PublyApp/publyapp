@@ -60,7 +60,7 @@ public record UpdateTenantAsStaffBody {
 				PatchField<string?>.Set(null),
 			JsonValueKind.String =>
 				PatchField<string?>.Set(
-					NormalizeClearableString(LogoUrl.GetValueAsString())
+					_NormalizeClearableString(LogoUrl.GetValueAsString())
 				),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -82,38 +82,38 @@ public record UpdateTenantAsStaffBody {
 	}
 
 	public PatchField<string?> GetLegalName() {
-		return GetPatchFieldString(LegalName);
+		return _GetPatchFieldString(LegalName);
 	}
 
 	public PatchField<string?> GetDescription() {
-		return GetPatchFieldString(Description);
+		return _GetPatchFieldString(Description);
 	}
 
 	public PatchField<string?> GetWebsiteUrl() {
-		return GetPatchFieldString(WebsiteUrl);
+		return _GetPatchFieldString(WebsiteUrl);
 	}
 
 	public PatchField<string?> GetBillingEmail() {
-		return GetPatchFieldString(BillingEmail);
+		return _GetPatchFieldString(BillingEmail);
 	}
 
 	public PatchField<string?> GetSupportEmail() {
-		return GetPatchFieldString(SupportEmail);
+		return _GetPatchFieldString(SupportEmail);
 	}
 
 	public PatchField<string?> GetDefaultLocale() {
-		return GetPatchFieldString(DefaultLocale);
+		return _GetPatchFieldString(DefaultLocale);
 	}
 
 	public PatchField<string?> GetTimezone() {
-		return GetPatchFieldString(Timezone);
+		return _GetPatchFieldString(Timezone);
 	}
 
 	public PatchField<string?> GetNotes() {
-		return GetPatchFieldString(Notes);
+		return _GetPatchFieldString(Notes);
 	}
 
-	private static PatchField<string?> GetPatchFieldString(JsonElement element) {
+	private static PatchField<string?> _GetPatchFieldString(JsonElement element) {
 		return element.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<string?>.Absent(),
@@ -123,7 +123,7 @@ public record UpdateTenantAsStaffBody {
 			// representation — otherwise {"legalName": "  "} would persist a non-null
 			// value the UI has to separately treat as empty alongside actual null.
 			JsonValueKind.String =>
-				PatchField<string?>.Set(NormalizeClearableString(element.GetValueAsString())),
+				PatchField<string?>.Set(_NormalizeClearableString(element.GetValueAsString())),
 			JsonValueKind.Object
 				or JsonValueKind.Array
 				or JsonValueKind.Number
@@ -139,7 +139,7 @@ public record UpdateTenantAsStaffBody {
 		};
 	}
 
-	private static string? NormalizeClearableString(string value) {
+	private static string? _NormalizeClearableString(string value) {
 		var trimmed = value.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}

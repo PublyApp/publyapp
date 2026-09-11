@@ -30,22 +30,22 @@ namespace PublyApp.Api.Modules.Messaging.Jobs;
 // FakeEmailSender, so each needs its own exclusive ApiFixture rather than the one shared
 // across this class's methods.
 public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public EmailJobHandlersSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldSubmitAndLogWhenStaffInvitationIsEligible() {
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
-		var handler = StaffHandler(db, sender);
+		await using var db = _CreateDbContext();
+		var handler = _StaffHandler(db, sender);
 		var outcome = await handler.HandleAsync(
-			StaffContext(jobId, invitationId),
+			_StaffContext(jobId, invitationId),
 			CancellationToken.None
 		);
 
@@ -53,7 +53,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		sender.Sends.Should().HaveCount(1);
 		sender.Sends[0].IdempotencyKey.Should().Be(jobId.ToString("N"));
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
 		log.Kind.Should().Be(EmailKind.StaffInvitation);
@@ -69,23 +69,23 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldCancelWhenInvitationRevokedBeforeTheLockedRead() {
 		// #811 order 1: revoke commits BEFORE the handler's locked read → no send.
-		var (invitationId, _) = await SeedStaffInvitationAsync();
-		await SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
+		await _SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
 
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
-		var handler = StaffHandler(db, sender);
+		await using var db = _CreateDbContext();
+		var handler = _StaffHandler(db, sender);
 		var outcome = await handler.HandleAsync(
-			StaffContext(jobId, invitationId),
+			_StaffContext(jobId, invitationId),
 			CancellationToken.None
 		);
 
 		outcome.Should().BeOfType<JobOutcome.Cancelled>();
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 	}
@@ -95,31 +95,31 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// F7: the envelope is frozen on the first attempt; a retry resends the STORED
 		// bytes even after the domain row mutates (token rotated), so the provider sees a
 		// byte-identical payload under the stable idempotency key.
-		var (invitationId, originalToken) = await SeedStaffInvitationAsync();
+		var (invitationId, originalToken) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 
 		var failing = new ControllableSender {
 			FailWith = _ => new EmailProviderTransientException("provider_rejected:transient")
 		};
-		await using (var db1 = CreateDbContext()) {
-			var outcome = await StaffHandler(db1, failing)
-				.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+		await using (var db1 = _CreateDbContext()) {
+			var outcome = await _StaffHandler(db1, failing)
+				.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Retry>();
 		}
 
 		// The frozen envelope persists across the failed attempt.
-		await using (var check = CreateDbContext()) {
+		await using (var check = _CreateDbContext()) {
 			(await check.EmailPreparedSend.AsNoTracking().AnyAsync(p => p.JobId == jobId))
 				.Should().BeTrue();
 		}
 
 		// Mutate the domain row — a re-render would now differ.
-		await RotateInvitationTokenAsync(invitationId);
+		await _RotateInvitationTokenAsync(invitationId);
 
 		var succeeding = new ControllableSender();
-		await using (var db2 = CreateDbContext()) {
-			var outcome = await StaffHandler(db2, succeeding)
-				.HandleAsync(StaffContext(jobId, invitationId, attempts: 1), CancellationToken.None);
+		await using (var db2 = _CreateDbContext()) {
+			var outcome = await _StaffHandler(db2, succeeding)
+				.HandleAsync(_StaffContext(jobId, invitationId, attempts: 1), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Success>();
 		}
 
@@ -130,19 +130,19 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRetryWhenProviderFailsTransiently() {
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender {
 			FailWith = _ => new EmailProviderTransientException("provider_rejected:429")
 		};
 
-		await using var db = CreateDbContext();
-		var outcome = await StaffHandler(db, sender)
-			.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+		await using var db = _CreateDbContext();
+		var outcome = await _StaffHandler(db, sender)
+			.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.Retry>();
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		// A failed submit NEVER produces a Submitted row.
 		(await assertDb.EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId)).Should().BeFalse();
 	}
@@ -153,11 +153,11 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// (TryRequeueAsync), which pushes next_attempt_at into the future. The row must not
 		// be claimable before it elapses and must be claimable after — the clock is moved
 		// via SQL now() comparison (set next_attempt_at), never by sleeping.
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 
 		// A real, immediately-due job_queue row for this email job.
 		Guid jobId;
-		await using (var seed = CreateDbContext()) {
+		await using (var seed = _CreateDbContext()) {
 			var item = new JobQueueItem {
 				JobType = InvitationEmailJobs.StaffInvitationV1.JobType,
 				Payload = $"{{\"invitationId\":\"{invitationId}\"}}",
@@ -175,7 +175,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 		// Claim it (engine transition): Pending -> Processing + a fencing lock_token.
 		Guid lockToken;
-		await using (var claimDb = CreateDbContext()) {
+		await using (var claimDb = _CreateDbContext()) {
 			var claimed = await JobQueueProcessor.ClaimBatchAsync(
 				claimDb, "spec-worker", leaseSeconds: 60, batchSize: 50, CancellationToken.None
 			);
@@ -183,17 +183,17 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// The handler classifies the provider failure as Retry.
-		await using (var handlerDb = CreateDbContext()) {
+		await using (var handlerDb = _CreateDbContext()) {
 			var sender = new ControllableSender {
 				FailWith = _ => new EmailProviderTransientException("provider_rejected:429")
 			};
-			var outcome = await StaffHandler(handlerDb, sender)
-				.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+			var outcome = await _StaffHandler(handlerDb, sender)
+				.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Retry>();
 		}
 
 		// Apply the engine's retry transition — the same call the processor makes.
-		await using (var requeueDb = CreateDbContext()) {
+		await using (var requeueDb = _CreateDbContext()) {
 			var requeued = await JobQueueProcessor.TryRequeueAsync(
 				requeueDb, jobId, lockToken, delaySeconds: 300,
 				lastError: "provider_rejected:429", CancellationToken.None
@@ -202,14 +202,14 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// next_attempt_at is in the future and the attempt counter advanced.
-		await using (var assertDb = CreateDbContext()) {
+		await using (var assertDb = _CreateDbContext()) {
 			var row = await assertDb.JobQueue.AsNoTracking().SingleAsync(j => j.Id == jobId);
 			row.NextAttemptAt.Should().BeAfter(DateTime.UtcNow);
 			row.Attempts.Should().Be(1);
 		}
 
 		// NOT claimable before next_attempt_at elapses.
-		await using (var beforeDb = CreateDbContext()) {
+		await using (var beforeDb = _CreateDbContext()) {
 			var claimed = await JobQueueProcessor.ClaimBatchAsync(
 				beforeDb, "spec-worker", leaseSeconds: 60, batchSize: 50, CancellationToken.None
 			);
@@ -217,13 +217,13 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// Move the schedule into the past via SQL (never sleeping) — now claimable.
-		await using (var advanceDb = CreateDbContext()) {
+		await using (var advanceDb = _CreateDbContext()) {
 			await advanceDb.Database.ExecuteSqlAsync(
 				$"UPDATE job_queue SET next_attempt_at = now() - make_interval(secs => 1) WHERE id = {jobId}"
 			);
 		}
 
-		await using (var afterDb = CreateDbContext()) {
+		await using (var afterDb = _CreateDbContext()) {
 			var claimed = await JobQueueProcessor.ClaimBatchAsync(
 				afterDb, "spec-worker", leaseSeconds: 60, batchSize: 50, CancellationToken.None
 			);
@@ -233,18 +233,18 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldPermanentlyFailWhenProviderFailsPermanently() {
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender {
 			FailWith = _ => new EmailProviderPermanentException("provider_rejected:422")
 		};
 
-		await using var db = CreateDbContext();
-		var outcome = await StaffHandler(db, sender)
-			.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+		await using var db = _CreateDbContext();
+		var outcome = await _StaffHandler(db, sender)
+			.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.PermanentFailure>();
-		(await CreateDbContext().EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId
+		(await _CreateDbContext().EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId
 			&& e.Outcome == EmailLogOutcome.Submitted)).Should().BeFalse();
 	}
 
@@ -257,10 +257,10 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldNotResendWhenASubmittedRowAlreadyExists() {
 		// Crash-after-send idempotency: a committed Submitted row for this job means the
 		// provider already accepted it — a reclaimed run must send nothing.
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 
-		await using (var seed = CreateDbContext()) {
+		await using (var seed = _CreateDbContext()) {
 			seed.EmailLog.Add(new EmailLog {
 				JobId = jobId,
 				Kind = EmailKind.StaffInvitation,
@@ -271,9 +271,9 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		var sender = new ControllableSender();
-		await using var db = CreateDbContext();
-		var outcome = await StaffHandler(db, sender)
-			.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+		await using var db = _CreateDbContext();
+		var outcome = await _StaffHandler(db, sender)
+			.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
 		sender.Sends.Should().BeEmpty();
@@ -292,18 +292,18 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// unique index (unique on ALL outcomes) — every attempt Retries to MaxAttempts, then
 		// the DLQ transaction hits the SAME violation writing PermanentlyFailed for this
 		// job_id, rolls back, Faults, and the row stays leased forever with no DLQ row (#810).
-		var (invitationId, _) = await SeedStaffInvitationAsync();
-		await SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
+		await _SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
 		var jobId = Guid.CreateVersion7();
 
 		// First run: ineligible → commits email_log(CancelledIneligible) for this job_id.
-		await using (var first = CreateDbContext()) {
-			var outcome = await StaffHandler(first, new ControllableSender())
-				.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+		await using (var first = _CreateDbContext()) {
+			var outcome = await _StaffHandler(first, new ControllableSender())
+				.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Cancelled>();
 		}
 
-		await using (var seeded = CreateDbContext()) {
+		await using (var seeded = _CreateDbContext()) {
 			var row = await seeded.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 			row.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 		}
@@ -311,15 +311,15 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// The lease is lost and the job is reclaimed: the SAME job_id runs again against the
 		// committed Cancelled row. It must short-circuit — not throw, not resend.
 		var sender = new ControllableSender();
-		await using var reclaimed = CreateDbContext();
-		var reRun = async () => await StaffHandler(reclaimed, sender)
-			.HandleAsync(StaffContext(jobId, invitationId, attempts: 1), CancellationToken.None);
+		await using var reclaimed = _CreateDbContext();
+		var reRun = async () => await _StaffHandler(reclaimed, sender)
+			.HandleAsync(_StaffContext(jobId, invitationId, attempts: 1), CancellationToken.None);
 
 		(await reRun.Should().NotThrowAsync()).Which.Should().BeOfType<JobOutcome.Success>();
 		sender.Sends.Should().BeEmpty();
 
 		// Still exactly one row — no second insert was ever attempted.
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		(await assertDb.EmailLog.AsNoTracking().CountAsync(e => e.JobId == jobId)).Should().Be(1);
 	}
 
@@ -332,28 +332,28 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// before network I/O — and skip the provider. The race is injected inside the
 		// locked PrepareAsync, which is exactly the window between step 0's read and the
 		// send: without the recheck this handler calls the provider a second time.
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
+		await using var db = _CreateDbContext();
 		var handler = new SubmittedRaceHandler(
 			db,
 			sender,
 			new EmailLogWriter(db),
-			Metrics(),
-			() => CommitConcurrentSubmittedAsync(jobId, invitationId)
+			_Metrics(),
+			() => _CommitConcurrentSubmittedAsync(jobId, invitationId)
 		);
 
 		var outcome = await handler.HandleAsync(
-			StaffContext(jobId, invitationId),
+			_StaffContext(jobId, invitationId),
 			CancellationToken.None
 		);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		// The winner's row is the only one — the loser neither sent nor logged.
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
@@ -368,20 +368,20 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldWritePermanentlyFailedOnTerminalFailure() {
 		// The engine invokes OnTerminalFailureAsync inside the DLQ transaction on the
 		// shared context; here we simulate that by calling it and committing.
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 
-		await using var db = CreateDbContext();
+		await using var db = _CreateDbContext();
 		await using var transaction = await db.Database.BeginTransactionAsync();
-		var context = StaffContext(jobId, invitationId, lastError: "provider_rejected:422");
-		await StaffHandler(db, new ControllableSender()).OnTerminalFailureAsync(
+		var context = _StaffContext(jobId, invitationId, lastError: "provider_rejected:422");
+		await _StaffHandler(db, new ControllableSender()).OnTerminalFailureAsync(
 			context,
 			CancellationToken.None
 		);
 		await db.SaveChangesAsync();
 		await transaction.CommitAsync();
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.PermanentlyFailed);
 		log.LastError.Should().Be("provider_rejected:422");
@@ -396,7 +396,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			MaxAttempts = 10
 		};
 
-		await using var db = CreateDbContext();
+		await using var db = _CreateDbContext();
 		db.JobQueue.Add(job);
 		await db.SaveChangesAsync();
 
@@ -416,7 +416,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var instance = new JobWorkerInstance();
 		var processorMetrics = new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance);
 		var processor = new JobQueueProcessor(
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			new JobHandlerRegistry([
 				new JobHandlerRegistration(
 					InvitationEmailJobs.StaffInvitationV1.JobType,
@@ -431,7 +431,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 		await processor.ProcessOneAsync(job, lockToken, CancellationToken.None);
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(j => j.Id == jobId))
 			.Should().BeFalse();
 		var deadLetter = await assertDb.JobDeadLetter.AsNoTracking()
@@ -449,7 +449,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// #811 order 2 (F8): the handler holds the invitation row lock across the send
 		// (paused at the barrier); a concurrent revoke BLOCKS on that lock and cannot
 		// preempt the send. The send proceeds (Submitted), then the revoke commits after.
-		var (invitationId, _) = await SeedStaffInvitationAsync();
+		var (invitationId, _) = await _SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 
 		var sender = new ControllableSender {
@@ -457,9 +457,9 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			ReachedBarrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)
 		};
 
-		await using var handlerDb = CreateDbContext();
-		var handlerTask = StaffHandler(handlerDb, sender)
-			.HandleAsync(StaffContext(jobId, invitationId), CancellationToken.None);
+		await using var handlerDb = _CreateDbContext();
+		var handlerTask = _StaffHandler(handlerDb, sender)
+			.HandleAsync(_StaffContext(jobId, invitationId), CancellationToken.None);
 
 		try {
 			// Wait until the handler is inside the send, holding the FOR UPDATE lock.
@@ -468,7 +468,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			// A concurrent revoke must hit PostgreSQL's lock timeout while the send owns the
 			// row lock. This proves the database wait directly instead of relying on elapsed
 			// wall-clock timing that can false-green on a slow CI host.
-			await using var revokeDb = CreateDbContext();
+			await using var revokeDb = _CreateDbContext();
 			await using var revokeTransaction = await revokeDb.Database.BeginTransactionAsync();
 			await revokeDb.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '250ms'");
 
@@ -492,9 +492,9 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		(await handlerTask).Should().BeOfType<JobOutcome.Success>();
-		await SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
+		await _SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		(await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId))
 			.Outcome.Should().Be(EmailLogOutcome.Submitted);
 	}
@@ -503,13 +503,13 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldCancelPasswordResetWhenTokenInvalidAtLockedRead() {
 		// The password-reset handler shares the base flow; token validity is the auth
 		// eligibility gate. A user without a live token yields CancelledIneligible.
-		var userId = await SeedUserAsync(withLiveToken: false);
+		var userId = await _SeedUserAsync(withLiveToken: false);
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
+		await using var db = _CreateDbContext();
 		var handler = new PasswordResetEmailJobHandler(
-			db, sender, new EmailLogWriter(db), Metrics()
+			db, sender, new EmailLogWriter(db), _Metrics()
 		);
 		var context = new JobContext {
 			JobId = jobId,
@@ -528,19 +528,19 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldSubmitAndLogWhenAJoinedStaffUserIsEligible() {
 		// #291: the joined-staff notification handler shares the base flow; an existing,
 		// non-suspended user yields one submitted send keyed to the user id.
-		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		var userId = await _SeedExistingUserAsync(UserStatus.Active);
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
-		var outcome = await JoinedStaffHandler(db, sender)
-			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		await using var db = _CreateDbContext();
+		var outcome = await _JoinedStaffHandler(db, sender)
+			.HandleAsync(_JoinedStaffContext(jobId, userId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
 		sender.Sends.Should().HaveCount(1);
 		sender.Sends[0].IdempotencyKey.Should().Be(jobId.ToString("N"));
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
 		log.Kind.Should().Be(EmailKind.StaffJoinedNotification);
@@ -552,18 +552,18 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// #291: a user suspended between enqueue and the locked read is ineligible —
 		// no send, CancelledIneligible terminal row (same contract as the password-reset
 		// token gate above).
-		var userId = await SeedExistingUserAsync(UserStatus.Suspended);
+		var userId = await _SeedExistingUserAsync(UserStatus.Suspended);
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
-		var outcome = await JoinedStaffHandler(db, sender)
-			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		await using var db = _CreateDbContext();
+		var outcome = await _JoinedStaffHandler(db, sender)
+			.HandleAsync(_JoinedStaffContext(jobId, userId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.Cancelled>();
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 	}
@@ -575,17 +575,17 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// work before the short-circuit, sends twice and the user is told twice they
 		// were added. Two invocations with the SAME jobId + payload yield exactly one
 		// send and one EmailLog(Submitted) row.
-		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		var userId = await _SeedExistingUserAsync(UserStatus.Active);
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using (var db = CreateDbContext()) {
-			await JoinedStaffHandler(db, sender)
-				.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		await using (var db = _CreateDbContext()) {
+			await _JoinedStaffHandler(db, sender)
+				.HandleAsync(_JoinedStaffContext(jobId, userId), CancellationToken.None);
 		}
-		await using (var db = CreateDbContext()) {
-			await JoinedStaffHandler(db, sender)
-				.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		await using (var db = _CreateDbContext()) {
+			await _JoinedStaffHandler(db, sender)
+				.HandleAsync(_JoinedStaffContext(jobId, userId), CancellationToken.None);
 		}
 
 		sender.Sends.Should().HaveCount(
@@ -595,7 +595,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 				"twice they were added."
 		);
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		(await assertDb.EmailLog.AsNoTracking().CountAsync(e => e.JobId == jobId))
 			.Should().Be(1);
 	}
@@ -607,15 +607,15 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// linearization point (#811); a user soft-deleted between enqueue and the
 		// locked read yields `user_not_found` — no send, no EmailLog row, AND a
 		// stable `Reason` on the JobOutcome (owner transparent-failure rule).
-		var userId = await SeedExistingUserAsync(UserStatus.Active);
-		await SoftDeleteUserAsync(userId);
+		var userId = await _SeedExistingUserAsync(UserStatus.Active);
+		await _SoftDeleteUserAsync(userId);
 
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = CreateDbContext();
-		var outcome = await JoinedStaffHandler(db, sender)
-			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+		await using var db = _CreateDbContext();
+		var outcome = await _JoinedStaffHandler(db, sender)
+			.HandleAsync(_JoinedStaffContext(jobId, userId), CancellationToken.None);
 
 		var cancelled = outcome.Should().BeOfType<JobOutcome.Cancelled>().Subject;
 		cancelled.Reason.Should().Be(
@@ -626,29 +626,29 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		);
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = CreateDbContext();
+		await using var assertDb = _CreateDbContext();
 		(await assertDb.EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId))
 			.Should().BeFalse();
 	}
 
 	// --- construction helpers -----------------------------------------------------
 
-	private static StaffInvitationEmailJobHandler StaffHandler(AppDbContext db, IEmailSender sender) {
-		return new StaffInvitationEmailJobHandler(db, sender, new EmailLogWriter(db), Metrics());
+	private static StaffInvitationEmailJobHandler _StaffHandler(AppDbContext db, IEmailSender sender) {
+		return new StaffInvitationEmailJobHandler(db, sender, new EmailLogWriter(db), _Metrics());
 	}
 
-	private static StaffJoinedNotificationEmailJobHandler JoinedStaffHandler(
+	private static StaffJoinedNotificationEmailJobHandler _JoinedStaffHandler(
 		AppDbContext db,
 		IEmailSender sender
 	) {
-		return new StaffJoinedNotificationEmailJobHandler(db, sender, new EmailLogWriter(db), Metrics());
+		return new StaffJoinedNotificationEmailJobHandler(db, sender, new EmailLogWriter(db), _Metrics());
 	}
 
-	private static JobsMetrics Metrics() {
+	private static JobsMetrics _Metrics() {
 		return new JobsMetrics(new JobWorkerInstance(), NullLogger<JobsMetrics>.Instance);
 	}
 
-	private static JobContext StaffContext(
+	private static JobContext _StaffContext(
 		Guid jobId,
 		Guid invitationId,
 		int attempts = 0,
@@ -664,7 +664,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		};
 	}
 
-	private static JobContext JoinedStaffContext(Guid jobId, Guid userId) {
+	private static JobContext _JoinedStaffContext(Guid jobId, Guid userId) {
 		return new JobContext {
 			JobId = jobId,
 			JobType = StaffProfileEmailJobs.StaffJoinedNotificationV1.JobType,
@@ -676,8 +676,8 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 	// --- seeding ------------------------------------------------------------------
 
-	private async Task<Guid> SeedExistingUserAsync(UserStatus status) {
-		await using var db = CreateDbContext();
+	private async Task<Guid> _SeedExistingUserAsync(UserStatus status) {
+		await using var db = _CreateDbContext();
 		var user = new User {
 			Email = $"joined-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -689,17 +689,17 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		return user.GetRequiredId();
 	}
 
-	private async Task SoftDeleteUserAsync(Guid userId) {
-		await using var db = CreateDbContext();
+	private async Task _SoftDeleteUserAsync(Guid userId) {
+		await using var db = _CreateDbContext();
 		await db.Database.ExecuteSqlAsync(
 			$"UPDATE users SET is_deleted = TRUE, deleted_at = now(), updated_at = now() WHERE id = {userId}"
 		);
 	}
 
-	private async Task<(Guid InvitationId, string Token)> SeedStaffInvitationAsync() {
+	private async Task<(Guid InvitationId, string Token)> _SeedStaffInvitationAsync() {
 		var token = $"tok-{Guid.NewGuid():N}";
-		await using var db = CreateDbContext();
-		var invitedBy = await SeedUserInAsync(db);
+		await using var db = _CreateDbContext();
+		var invitedBy = await _SeedUserInAsync(db);
 		var invitation = Invitation.CreateStaffInvitationWithProfiles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
@@ -715,8 +715,8 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 	// The concurrent worker that won the race: commits an email_log(Submitted) row for the
 	// same job on its OWN connection, exactly as the first SEND transaction would.
-	private async Task CommitConcurrentSubmittedAsync(Guid jobId, Guid invitationId) {
-		await using var db = CreateDbContext();
+	private async Task _CommitConcurrentSubmittedAsync(Guid jobId, Guid invitationId) {
+		await using var db = _CreateDbContext();
 		db.EmailLog.Add(new EmailLog {
 			JobId = jobId,
 			Kind = EmailKind.StaffInvitation,
@@ -727,15 +727,15 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 	}
 
-	private async Task SetInvitationStatusAsync(Guid invitationId, InvitationStatus status) {
-		await using var db = CreateDbContext();
+	private async Task _SetInvitationStatusAsync(Guid invitationId, InvitationStatus status) {
+		await using var db = _CreateDbContext();
 		await db.Database.ExecuteSqlAsync(
 			$"UPDATE invitations SET status = {(int)status}, updated_at = now() WHERE id = {invitationId}"
 		);
 	}
 
-	private async Task RotateInvitationTokenAsync(Guid invitationId) {
-		await using var db = CreateDbContext();
+	private async Task _RotateInvitationTokenAsync(Guid invitationId) {
+		await using var db = _CreateDbContext();
 		var token = "rotated-" + Guid.NewGuid().ToString("N");
 		await db.Database.ExecuteSqlAsync(
 			$"""
@@ -746,8 +746,8 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<Guid> SeedUserAsync(bool withLiveToken) {
-		await using var db = CreateDbContext();
+	private async Task<Guid> _SeedUserAsync(bool withLiveToken) {
+		await using var db = _CreateDbContext();
 		var user = new User {
 			Email = $"user-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -760,7 +760,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		return user.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedUserInAsync(AppDbContext db) {
+	private static async Task<Guid> _SeedUserInAsync(AppDbContext db) {
 		var user = new User {
 			Email = $"inviter-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -771,8 +771,8 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		return user.GetRequiredId();
 	}
 
-	private AppDbContext CreateDbContext() {
-		using var scope = _fixture.Factory.Services.CreateScope();
+	private AppDbContext _CreateDbContext() {
+		using var scope = _Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -793,7 +793,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	// 0's email_log read and before the provider call, so a Submitted row committed there
 	// is invisible to step 0 and visible only to step 3a's recheck.
 	private sealed class SubmittedRaceHandler : EmailJobHandlerBase<StaffInvitationEmailPayload> {
-		private readonly Func<Task> _injectConcurrentSubmittedAsync;
+		private readonly Func<Task> _InjectConcurrentSubmittedAsync;
 
 		public SubmittedRaceHandler(
 			AppDbContext db,
@@ -802,7 +802,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			JobsMetrics metrics,
 			Func<Task> injectConcurrentSubmittedAsync
 		) : base(db, sender, logWriter, metrics) {
-			_injectConcurrentSubmittedAsync = injectConcurrentSubmittedAsync;
+			_InjectConcurrentSubmittedAsync = injectConcurrentSubmittedAsync;
 		}
 
 		public override string JobType {
@@ -827,7 +827,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 			// email_log has no lock conflict with the invitations row this transaction
 			// holds, so the winner commits without blocking on us.
-			await _injectConcurrentSubmittedAsync();
+			await _InjectConcurrentSubmittedAsync();
 
 			return new EmailJobPreparation.Ready(
 				EmailTemplates.StaffInvitation(invitation.Email, invitation.Token),

@@ -22,26 +22,26 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class TenantUserCompanyActionsSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public TenantUserCompanyActionsSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldAssignTenantUserToNewAndPreviouslyRemovedCompanies() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 
-		using var response = await _http.SendAsync(
-			CreateJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetCompaniesUrl(seeded.UserId),
+				_GetCompaniesUrl(seeded.UserId),
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -75,27 +75,27 @@ public sealed class TenantUserCompanyActionsSpec
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.NewTenantId,
 			AccountStatus.Active,
 			AccountLevel.User
 		);
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.RemovedTenantId,
 			AccountStatus.Active,
 			AccountLevel.User
 		);
-		await AssertDefaultProfileAssignedAsync(
+		await _AssertDefaultProfileAssignedAsync(
 			seeded.UserId,
 			seeded.NewTenantId
 		);
-		await AssertDefaultProfileAssignedAsync(
+		await _AssertDefaultProfileAssignedAsync(
 			seeded.UserId,
 			seeded.RemovedTenantId
 		);
-		await AssertOnlyDefaultProfileAssignedAsync(
+		await _AssertOnlyDefaultProfileAssignedAsync(
 			seeded.UserId,
 			seeded.RemovedTenantId
 		);
@@ -104,13 +104,13 @@ public sealed class TenantUserCompanyActionsSpec
 	[Fact]
 	public async Task
 	ItShouldBulkSuspendAndReactivateTenantUserCompanies() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 
-		using var suspendResponse = await _http.SendAsync(
-			CreateJsonRequest(
+		using var suspendResponse = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetBulkSuspendUrl(seeded.UserId),
+				_GetBulkSuspendUrl(seeded.UserId),
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -133,23 +133,23 @@ public sealed class TenantUserCompanyActionsSpec
 		suspendResult.SucceededCount.Should().Be(2);
 		suspendResult.FailedCount.Should().Be(0);
 
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.PrimaryTenantId,
 			AccountStatus.Suspended,
 			AccountLevel.User
 		);
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.SecondaryTenantId,
 			AccountStatus.Suspended,
 			AccountLevel.User
 		);
 
-		using var reactivateResponse = await _http.SendAsync(
-			CreateJsonRequest(
+		using var reactivateResponse = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetBulkReactivateUrl(seeded.UserId),
+				_GetBulkReactivateUrl(seeded.UserId),
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -172,13 +172,13 @@ public sealed class TenantUserCompanyActionsSpec
 		reactivateResult.SucceededCount.Should().Be(2);
 		reactivateResult.FailedCount.Should().Be(0);
 
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.PrimaryTenantId,
 			AccountStatus.Active,
 			AccountLevel.User
 		);
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.SecondaryTenantId,
 			AccountStatus.Active,
@@ -189,13 +189,13 @@ public sealed class TenantUserCompanyActionsSpec
 	[Fact]
 	public async Task
 	ItShouldBulkRemoveTenantUserCompaniesWithoutDeletingTenantUserIdentity() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 
-		using var response = await _http.SendAsync(
-			CreateJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetBulkRemoveUrl(seeded.UserId),
+				_GetBulkRemoveUrl(seeded.UserId),
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -218,19 +218,19 @@ public sealed class TenantUserCompanyActionsSpec
 		result.SucceededCount.Should().Be(2);
 		result.FailedCount.Should().Be(0);
 
-		await AssertTenantMembershipRemovedAsync(
+		await _AssertTenantMembershipRemovedAsync(
 			seeded.UserId,
 			seeded.PrimaryTenantId
 		);
-		await AssertTenantMembershipRemovedAsync(
+		await _AssertTenantMembershipRemovedAsync(
 			seeded.UserId,
 			seeded.SecondaryTenantId
 		);
 
-		using var detailsResponse = await _http.SendAsync(
-			CreateRequest(
+		using var detailsResponse = await _Http.SendAsync(
+			_CreateRequest(
 				HttpMethod.Get,
-				GetTenantUserUrl(seeded.UserId),
+				_GetTenantUserUrl(seeded.UserId),
 				staffToken
 			)
 		);
@@ -245,13 +245,13 @@ public sealed class TenantUserCompanyActionsSpec
 	ItShouldReturnValidationProblemForInvalidBulkTenantIds(
 		string body
 	) {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 
-		using var response = await _http.SendAsync(
-			CreateRawJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRawJsonRequest(
 				HttpMethod.Post,
-				GetBulkRemoveUrl(seeded.UserId),
+				_GetBulkRemoveUrl(seeded.UserId),
 				staffToken,
 				body
 			)
@@ -272,13 +272,13 @@ public sealed class TenantUserCompanyActionsSpec
 	ItShouldReturnValidationProblemForInvalidAssignCompanyBody(
 		string body
 	) {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 
-		using var response = await _http.SendAsync(
-			CreateRawJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRawJsonRequest(
 				HttpMethod.Post,
-				GetCompaniesUrl(seeded.UserId),
+				_GetCompaniesUrl(seeded.UserId),
 				staffToken,
 				body
 			)
@@ -290,8 +290,8 @@ public sealed class TenantUserCompanyActionsSpec
 	[Fact]
 	public async Task
 	ItShouldReturnValidationProblemWhenBulkCompanyRequestExceedsMaximum() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 		var tenantIds = Enumerable
 			.Range(0, 101)
 			.Select(_ => $"\"{Guid.NewGuid()}\"");
@@ -301,10 +301,10 @@ public sealed class TenantUserCompanyActionsSpec
 			}
 			""";
 
-		using var response = await _http.SendAsync(
-			CreateRawJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateRawJsonRequest(
 				HttpMethod.Post,
-				GetBulkSuspendUrl(seeded.UserId),
+				_GetBulkSuspendUrl(seeded.UserId),
 				staffToken,
 				body
 			)
@@ -320,14 +320,14 @@ public sealed class TenantUserCompanyActionsSpec
 	[InlineData("bulk-reactivate")]
 	public async Task
 	ItShouldReturnBadRequestWhenCompanyActionUserIdIsMalformed(string action) {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _http.SendAsync(
-			CreateJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetCompanyActionUrl(action, "not-a-guid"),
+				_GetCompanyActionUrl(action, "not-a-guid"),
 				staffToken,
-				CreateValidCompanyActionBody(action, Guid.NewGuid())
+				_CreateValidCompanyActionBody(action, Guid.NewGuid())
 			)
 		);
 
@@ -343,14 +343,14 @@ public sealed class TenantUserCompanyActionsSpec
 	ItShouldReturnNotFoundWhenCompanyActionTenantUserDoesNotExist(
 		string action
 	) {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _http.SendAsync(
-			CreateJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetCompanyActionUrl(action, Guid.NewGuid().ToString()),
+				_GetCompanyActionUrl(action, Guid.NewGuid().ToString()),
 				staffToken,
-				CreateValidCompanyActionBody(action, Guid.NewGuid())
+				_CreateValidCompanyActionBody(action, Guid.NewGuid())
 			)
 		);
 
@@ -360,14 +360,14 @@ public sealed class TenantUserCompanyActionsSpec
 	[Fact]
 	public async Task
 	ItShouldReturnPartialFailuresWhenAssigningExistingAndMissingCompanies() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
-		var seeded = await SeedTenantUserCompanyScenarioAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await _SeedTenantUserCompanyScenarioAsync();
 		var missingTenantId = Guid.NewGuid();
 
-		using var response = await _http.SendAsync(
-			CreateJsonRequest(
+		using var response = await _Http.SendAsync(
+			_CreateJsonRequest(
 				HttpMethod.Post,
-				GetCompaniesUrl(seeded.UserId),
+				_GetCompaniesUrl(seeded.UserId),
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -400,7 +400,7 @@ public sealed class TenantUserCompanyActionsSpec
 			&& item.Error == "Tenant not found"
 		);
 
-		await AssertTenantMembershipAsync(
+		await _AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.NewTenantId,
 			AccountStatus.Active,
@@ -409,9 +409,9 @@ public sealed class TenantUserCompanyActionsSpec
 	}
 
 	private async Task<SeededTenantUserCompanyScenario>
-	SeedTenantUserCompanyScenarioAsync() {
+	_SeedTenantUserCompanyScenarioAsync() {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -425,10 +425,10 @@ public sealed class TenantUserCompanyActionsSpec
 			IsVerified = true,
 		};
 
-		var primaryTenant = CreateTenant($"Actions Primary {unique}");
-		var secondaryTenant = CreateTenant($"Actions Secondary {unique}");
-		var newTenant = CreateTenant($"Actions New {unique}");
-		var removedTenant = CreateTenant($"Actions Removed {unique}");
+		var primaryTenant = _CreateTenant($"Actions Primary {unique}");
+		var secondaryTenant = _CreateTenant($"Actions Secondary {unique}");
+		var newTenant = _CreateTenant($"Actions New {unique}");
+		var removedTenant = _CreateTenant($"Actions Removed {unique}");
 
 		await dbContext.User.AddAsync(user);
 		await dbContext.Tenant.AddRangeAsync(
@@ -494,7 +494,7 @@ public sealed class TenantUserCompanyActionsSpec
 		);
 	}
 
-	private static Tenant CreateTenant(string name) {
+	private static Tenant _CreateTenant(string name) {
 		return new Tenant {
 			Name = name,
 			Code = Guid.NewGuid().ToString("N")[..12],
@@ -503,18 +503,18 @@ public sealed class TenantUserCompanyActionsSpec
 		};
 	}
 
-	private async Task AssertTenantMembershipAsync(
+	private async Task _AssertTenantMembershipAsync(
 		Guid userId,
 		Guid tenantId,
 		AccountStatus expectedStatus,
 		AccountLevel expectedLevel
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var account = await FindTenantMembershipAsync(
+		var account = await _FindTenantMembershipAsync(
 			dbContext,
 			userId,
 			tenantId
@@ -532,16 +532,16 @@ public sealed class TenantUserCompanyActionsSpec
 		account.Level.Should().Be(expectedLevel);
 	}
 
-	private async Task AssertTenantMembershipRemovedAsync(
+	private async Task _AssertTenantMembershipRemovedAsync(
 		Guid userId,
 		Guid tenantId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var account = await FindTenantMembershipAsync(
+		var account = await _FindTenantMembershipAsync(
 			dbContext,
 			userId,
 			tenantId
@@ -557,12 +557,12 @@ public sealed class TenantUserCompanyActionsSpec
 		account.DeletedAt.Should().NotBeNull();
 	}
 
-	private async Task AssertDefaultProfileAssignedAsync(
+	private async Task _AssertDefaultProfileAssignedAsync(
 		Guid userId,
 		Guid tenantId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -586,12 +586,12 @@ public sealed class TenantUserCompanyActionsSpec
 		hasDefaultProfile.Should().BeTrue();
 	}
 
-	private async Task AssertOnlyDefaultProfileAssignedAsync(
+	private async Task _AssertOnlyDefaultProfileAssignedAsync(
 		Guid userId,
 		Guid tenantId
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -615,7 +615,7 @@ public sealed class TenantUserCompanyActionsSpec
 		profiles[0].IsDefault.Should().BeTrue();
 	}
 
-	private static async Task<UserAccount?> FindTenantMembershipAsync(
+	private static async Task<UserAccount?> _FindTenantMembershipAsync(
 		AppDbContext dbContext,
 		Guid userId,
 		Guid tenantId
@@ -630,25 +630,25 @@ public sealed class TenantUserCompanyActionsSpec
 		return await query.FirstOrDefaultAsync();
 	}
 
-	private static HttpRequestMessage CreateJsonRequest(
+	private static HttpRequestMessage _CreateJsonRequest(
 		HttpMethod method,
 		string url,
 		string sessionToken,
 		object body
 	) {
-		var request = CreateRequest(method, url, sessionToken);
+		var request = _CreateRequest(method, url, sessionToken);
 		request.Content = JsonContent.Create(body);
 
 		return request;
 	}
 
-	private static HttpRequestMessage CreateRawJsonRequest(
+	private static HttpRequestMessage _CreateRawJsonRequest(
 		HttpMethod method,
 		string url,
 		string sessionToken,
 		string body
 	) {
-		var request = CreateRequest(method, url, sessionToken);
+		var request = _CreateRequest(method, url, sessionToken);
 		request.Content = new StringContent(
 			body,
 			System.Text.Encoding.UTF8,
@@ -658,7 +658,7 @@ public sealed class TenantUserCompanyActionsSpec
 		return request;
 	}
 
-	private static HttpRequestMessage CreateRequest(
+	private static HttpRequestMessage _CreateRequest(
 		HttpMethod method,
 		string url,
 		string sessionToken
@@ -669,72 +669,72 @@ public sealed class TenantUserCompanyActionsSpec
 		).WithSessionToken(sessionToken);
 	}
 
-	private static string GetTenantUserUrl(Guid userId) {
+	private static string _GetTenantUserUrl(Guid userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}"
 		);
 	}
 
-	private static string GetCompaniesUrl(Guid userId) {
-		return GetCompaniesUrl(userId.ToString());
+	private static string _GetCompaniesUrl(Guid userId) {
+		return _GetCompaniesUrl(userId.ToString());
 	}
 
-	private static string GetCompaniesUrl(string userId) {
+	private static string _GetCompaniesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies"
 		);
 	}
 
-	private static string GetBulkSuspendUrl(Guid userId) {
-		return GetBulkSuspendUrl(userId.ToString());
+	private static string _GetBulkSuspendUrl(Guid userId) {
+		return _GetBulkSuspendUrl(userId.ToString());
 	}
 
-	private static string GetBulkSuspendUrl(string userId) {
+	private static string _GetBulkSuspendUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-suspend"
 		);
 	}
 
-	private static string GetBulkReactivateUrl(Guid userId) {
-		return GetBulkReactivateUrl(userId.ToString());
+	private static string _GetBulkReactivateUrl(Guid userId) {
+		return _GetBulkReactivateUrl(userId.ToString());
 	}
 
-	private static string GetBulkReactivateUrl(string userId) {
+	private static string _GetBulkReactivateUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-reactivate"
 		);
 	}
 
-	private static string GetBulkRemoveUrl(Guid userId) {
-		return GetBulkRemoveUrl(userId.ToString());
+	private static string _GetBulkRemoveUrl(Guid userId) {
+		return _GetBulkRemoveUrl(userId.ToString());
 	}
 
-	private static string GetBulkRemoveUrl(string userId) {
+	private static string _GetBulkRemoveUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			$"/tenant-users/{userId}/companies/bulk-remove"
 		);
 	}
 
-	private static string GetCompanyActionUrl(
+	private static string _GetCompanyActionUrl(
 		string action,
 		string userId
 	) {
 		if (action == "assign") {
-			return GetCompaniesUrl(userId);
+			return _GetCompaniesUrl(userId);
 		}
 		if (action == "bulk-remove") {
-			return GetBulkRemoveUrl(userId);
+			return _GetBulkRemoveUrl(userId);
 		}
 		if (action == "bulk-suspend") {
-			return GetBulkSuspendUrl(userId);
+			return _GetBulkSuspendUrl(userId);
 		}
 		if (action == "bulk-reactivate") {
-			return GetBulkReactivateUrl(userId);
+			return _GetBulkReactivateUrl(userId);
 		}
 
 		throw new InvalidOperationException(
@@ -742,7 +742,7 @@ public sealed class TenantUserCompanyActionsSpec
 		);
 	}
 
-	private static object CreateValidCompanyActionBody(
+	private static object _CreateValidCompanyActionBody(
 		string action,
 		Guid tenantId
 	) {

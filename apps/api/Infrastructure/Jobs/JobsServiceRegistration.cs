@@ -104,7 +104,7 @@ public static class JobsServiceRegistration {
 		// wt-641's AddAppServices registers BlueskySessionProvider AFTER this block,
 		// its real implementation silently replaces the placeholder — no code change
 		// needed at the convergence rebase. The placeholder must stay RESOLVABLE:
-		// JobHandlerRegistry.ValidateRegistrationConsistency composes every handler
+		// JobHandlerRegistry._ValidateRegistrationConsistency composes every handler
 		// once at startup, so throwing from resolution would brick the whole worker.
 		// Instead it throws on first USE — a publish job that actually runs without
 		// a real seam dies loudly instead of publishing with a fake session.
@@ -112,8 +112,8 @@ public static class JobsServiceRegistration {
 			return new UnimplementedSocialSessionProvider();
 		});
 
-		AddEmailJobHandlers(builder);
-		AddPublishingJobHandlers(builder);
+		_AddEmailJobHandlers(builder);
+		_AddPublishingJobHandlers(builder);
 
 		return builder;
 	}
@@ -121,7 +121,7 @@ public static class JobsServiceRegistration {
 	// Publishing job handlers (Epic D §3/D1): the worker-side delivery of one
 	// publication. Same scoped-handler contract as the email handlers above; the
 	// provider seam and the transition service resolve from the same per-job scope.
-	private static void AddPublishingJobHandlers(IHostApplicationBuilder builder) {
+	private static void _AddPublishingJobHandlers(IHostApplicationBuilder builder) {
 		builder.AddJobHandler<PublishPublicationJobHandler>(
 			PublishingJobs.PublishPublicationV1.JobType
 		);
@@ -136,7 +136,7 @@ public static class JobsServiceRegistration {
 	// constructor-injected AppDbContext, resolved from a fresh per-job DI scope; a
 	// handler's context shares the terminal (DLQ) transaction so OnTerminalFailureAsync's
 	// email_log(PermanentlyFailed) write commits atomically with the dead-letter.
-	private static void AddEmailJobHandlers(IHostApplicationBuilder builder) {
+	private static void _AddEmailJobHandlers(IHostApplicationBuilder builder) {
 		builder.AddJobHandler<TenantInvitationEmailJobHandler>(
 			InvitationEmailJobs.TenantInvitationV1.JobType
 		);

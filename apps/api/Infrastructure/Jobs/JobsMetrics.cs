@@ -17,52 +17,52 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 public sealed class JobsMetrics {
 	public const string MeterName = "PublyApp.Jobs";
 
-	private static readonly Meter Meter = new(MeterName);
+	private static readonly Meter _Meter = new(MeterName);
 
-	private static readonly Counter<long> ClaimedCounter =
-		Meter.CreateCounter<long>("jobs.claimed");
-	private static readonly Counter<long> SucceededCounter =
-		Meter.CreateCounter<long>("jobs.succeeded");
-	private static readonly Counter<long> RetriedCounter =
-		Meter.CreateCounter<long>("jobs.retried");
-	private static readonly Counter<long> DeadLetteredCounter =
-		Meter.CreateCounter<long>("jobs.dead_lettered");
-	private static readonly Counter<long> CancelledCounter =
-		Meter.CreateCounter<long>("jobs.cancelled");
-	private static readonly Counter<long> LeaseLostCounter =
-		Meter.CreateCounter<long>("jobs.lease_lost");
-	private static readonly Counter<long> EmailSubmitFailureCounter =
-		Meter.CreateCounter<long>("jobs.email_submit_failure");
-	private static readonly Counter<long> ListenerReconnectsCounter =
-		Meter.CreateCounter<long>("jobs.listener_reconnects");
-	private static readonly Histogram<double> HandlerDurationHistogram =
-		Meter.CreateHistogram<double>("jobs.handler_duration", unit: "s");
-	private static readonly Histogram<long> AttemptsAtTerminalHistogram =
-		Meter.CreateHistogram<long>("jobs.attempts_at_terminal");
+	private static readonly Counter<long> _ClaimedCounter =
+		_Meter.CreateCounter<long>("jobs.claimed");
+	private static readonly Counter<long> _SucceededCounter =
+		_Meter.CreateCounter<long>("jobs.succeeded");
+	private static readonly Counter<long> _RetriedCounter =
+		_Meter.CreateCounter<long>("jobs.retried");
+	private static readonly Counter<long> _DeadLetteredCounter =
+		_Meter.CreateCounter<long>("jobs.dead_lettered");
+	private static readonly Counter<long> _CancelledCounter =
+		_Meter.CreateCounter<long>("jobs.cancelled");
+	private static readonly Counter<long> _LeaseLostCounter =
+		_Meter.CreateCounter<long>("jobs.lease_lost");
+	private static readonly Counter<long> _EmailSubmitFailureCounter =
+		_Meter.CreateCounter<long>("jobs.email_submit_failure");
+	private static readonly Counter<long> _ListenerReconnectsCounter =
+		_Meter.CreateCounter<long>("jobs.listener_reconnects");
+	private static readonly Histogram<double> _HandlerDurationHistogram =
+		_Meter.CreateHistogram<double>("jobs.handler_duration", unit: "s");
+	private static readonly Histogram<long> _AttemptsAtTerminalHistogram =
+		_Meter.CreateHistogram<long>("jobs.attempts_at_terminal");
 
 	// The "this job type is still flowing" gauge (§7.1): a stall shows up as an
 	// ageing timestamp, which is detectable, where an absent counter increment is
 	// just silence. Phase 3 alerts on its staleness.
-	private static readonly Gauge<long> LastSuccessAtGauge =
-		Meter.CreateGauge<long>("jobs.last_success_at", unit: "s");
+	private static readonly Gauge<long> _LastSuccessAtGauge =
+		_Meter.CreateGauge<long>("jobs.last_success_at", unit: "s");
 
-	private readonly KeyValuePair<string, object?> _instanceTag;
-	private readonly string _instanceId;
-	private readonly ILogger<JobsMetrics> _logger;
+	private readonly KeyValuePair<string, object?> _InstanceTag;
+	private readonly string _InstanceId;
+	private readonly ILogger<JobsMetrics> _Logger;
 
 	public JobsMetrics(JobWorkerInstance instance, ILogger<JobsMetrics> logger) {
-		_instanceId = instance.Id;
-		_instanceTag = new KeyValuePair<string, object?>("instance", _instanceId);
-		_logger = logger;
+		_InstanceId = instance.Id;
+		_InstanceTag = new KeyValuePair<string, object?>("instance", _InstanceId);
+		_Logger = logger;
 	}
 
 	public void Claimed(string jobType) {
-		ClaimedCounter.Add(1, _instanceTag, JobTypeTag(jobType));
-		LogEvent("jobs.claimed", jobType);
+		_ClaimedCounter.Add(1, _InstanceTag, _JobTypeTag(jobType));
+		_LogEvent("jobs.claimed", jobType);
 	}
 
 	public void Succeeded(string jobType) {
-		SucceededCounter.Add(1, _instanceTag, JobTypeTag(jobType));
+		_SucceededCounter.Add(1, _InstanceTag, _JobTypeTag(jobType));
 
 		// F11 (all time is database time) governs DURABLE, safety-relevant time —
 		// leases, backoff, next_attempt_at — every bit of which is SQL-computed. This
@@ -70,55 +70,55 @@ public sealed class JobsMetrics {
 		// reads against ITS OWN clock to judge staleness, and buying it from the
 		// database would add a round-trip to the hot success path to answer a question
 		// no scheduling decision asks.
-		LastSuccessAtGauge.Record(
-			DateTimeOffset.UtcNow.ToUnixTimeSeconds(), _instanceTag, JobTypeTag(jobType)
+		_LastSuccessAtGauge.Record(
+			DateTimeOffset.UtcNow.ToUnixTimeSeconds(), _InstanceTag, _JobTypeTag(jobType)
 		);
 
-		LogEvent("jobs.succeeded", jobType);
+		_LogEvent("jobs.succeeded", jobType);
 	}
 
 	public void Retried(string jobType) {
-		RetriedCounter.Add(1, _instanceTag, JobTypeTag(jobType));
-		LogEvent("jobs.retried", jobType);
+		_RetriedCounter.Add(1, _InstanceTag, _JobTypeTag(jobType));
+		_LogEvent("jobs.retried", jobType);
 	}
 
 	public void DeadLettered(string jobType) {
-		DeadLetteredCounter.Add(1, _instanceTag, JobTypeTag(jobType));
-		LogEvent("jobs.dead_lettered", jobType);
+		_DeadLetteredCounter.Add(1, _InstanceTag, _JobTypeTag(jobType));
+		_LogEvent("jobs.dead_lettered", jobType);
 	}
 
 	public void Cancelled(string jobType) {
-		CancelledCounter.Add(1, _instanceTag, JobTypeTag(jobType));
-		LogEvent("jobs.cancelled", jobType);
+		_CancelledCounter.Add(1, _InstanceTag, _JobTypeTag(jobType));
+		_LogEvent("jobs.cancelled", jobType);
 	}
 
 	public void LeaseLost(string jobType) {
-		LeaseLostCounter.Add(1, _instanceTag, JobTypeTag(jobType));
+		_LeaseLostCounter.Add(1, _InstanceTag, _JobTypeTag(jobType));
 
 		// The lease-lost twin logs at warning: it means a lease expired mid-run,
 		// which sustained is a symptom of undersized leases or stuck handlers.
-		if (_logger.IsEnabled(LogLevel.Warning)) {
-			_logger.LogWarning(
+		if (_Logger.IsEnabled(LogLevel.Warning)) {
+			_Logger.LogWarning(
 				"jobs.lease_lost instance={Instance} job_type={JobType}",
-				_instanceId,
+				_InstanceId,
 				jobType
 			);
 		}
 	}
 
 	public void EmailSubmitFailure(string emailKind, string failureClass) {
-		EmailSubmitFailureCounter.Add(
+		_EmailSubmitFailureCounter.Add(
 			1,
-			_instanceTag,
+			_InstanceTag,
 			new KeyValuePair<string, object?>("email_kind", emailKind),
 			new KeyValuePair<string, object?>("failure_class", failureClass)
 		);
 
-		if (_logger.IsEnabled(LogLevel.Warning)) {
-			_logger.LogWarning(
+		if (_Logger.IsEnabled(LogLevel.Warning)) {
+			_Logger.LogWarning(
 				"jobs.email_submit_failure instance={Instance} email_kind={EmailKind} "
 					+ "failure_class={FailureClass}",
-				_instanceId,
+				_InstanceId,
 				emailKind,
 				failureClass
 			);
@@ -127,26 +127,26 @@ public sealed class JobsMetrics {
 
 	// Consumed by 2C's JobQueueListener; defined here so the meter owns all signals.
 	public void ListenerReconnect() {
-		ListenerReconnectsCounter.Add(1, _instanceTag);
+		_ListenerReconnectsCounter.Add(1, _InstanceTag);
 
-		if (_logger.IsEnabled(LogLevel.Warning)) {
-			_logger.LogWarning("jobs.listener_reconnects instance={Instance}", _instanceId);
+		if (_Logger.IsEnabled(LogLevel.Warning)) {
+			_Logger.LogWarning("jobs.listener_reconnects instance={Instance}", _InstanceId);
 		}
 	}
 
 	public void HandlerDuration(string jobType, string outcome, double seconds) {
-		HandlerDurationHistogram.Record(
+		_HandlerDurationHistogram.Record(
 			seconds,
-			_instanceTag,
-			JobTypeTag(jobType),
+			_InstanceTag,
+			_JobTypeTag(jobType),
 			new KeyValuePair<string, object?>("outcome", outcome)
 		);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"jobs.handler_duration instance={Instance} job_type={JobType} "
 				+ "outcome={Outcome} seconds={Seconds}",
-				_instanceId,
+				_InstanceId,
 				jobType,
 				outcome,
 				seconds
@@ -155,29 +155,29 @@ public sealed class JobsMetrics {
 	}
 
 	public void AttemptsAtTerminal(string jobType, int attempts) {
-		AttemptsAtTerminalHistogram.Record(attempts, _instanceTag, JobTypeTag(jobType));
+		_AttemptsAtTerminalHistogram.Record(attempts, _InstanceTag, _JobTypeTag(jobType));
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"jobs.attempts_at_terminal instance={Instance} job_type={JobType} "
 				+ "attempts={Attempts}",
-				_instanceId,
+				_InstanceId,
 				jobType,
 				attempts
 			);
 		}
 	}
 
-	private static KeyValuePair<string, object?> JobTypeTag(string jobType) {
+	private static KeyValuePair<string, object?> _JobTypeTag(string jobType) {
 		return new KeyValuePair<string, object?>("job_type", jobType);
 	}
 
-	private void LogEvent(string eventName, string jobType) {
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+	private void _LogEvent(string eventName, string jobType) {
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"{JobsEvent} instance={Instance} job_type={JobType}",
 				eventName,
-				_instanceId,
+				_InstanceId,
 				jobType
 			);
 		}

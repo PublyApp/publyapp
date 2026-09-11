@@ -21,7 +21,7 @@ public sealed class PublicationEntitySpec {
 		AppEnvironment.Initialize();
 	}
 
-	private static IEntityType Model() {
+	private static IEntityType _Model() {
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql("Host=localhost;Database=publication_entity_guard")
 			.Options;
@@ -32,7 +32,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldConfigureCkPublicationStatusWithExactlyTheEnumValues() {
-		var entity = Model();
+		var entity = _Model();
 
 		var constraint = entity
 			.GetCheckConstraints()
@@ -49,7 +49,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldDeclareTheUniquePostAccountIndexAsPartialOnLiveRows() {
-		var entity = Model();
+		var entity = _Model();
 
 		var unique = entity.GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ux_publications_post_account"
@@ -71,7 +71,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldDeclareTheDueScanAndTenantListIndexes() {
-		var entity = Model();
+		var entity = _Model();
 
 		var dueScan = entity.GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ix_publications_status_scheduled_at"
@@ -96,7 +96,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldMapTheScheduleValueObjectColumns() {
-		var entity = Model();
+		var entity = _Model();
 		var table = StoreObjectIdentifier.Table("publications");
 
 		var instant = entity.FindProperty(nameof(Publication.ScheduledAtUtc));
@@ -113,7 +113,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldStoreTheIdempotencyKeyOnTheRow() {
-		var entity = Model();
+		var entity = _Model();
 
 		var key = entity.FindProperty(nameof(Publication.IdempotencyKey));
 		key.Should().NotBeNull(

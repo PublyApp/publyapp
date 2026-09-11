@@ -14,12 +14,12 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class GetVerificationLinkSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
+	private readonly HttpClient _Http;
 
 	public GetVerificationLinkSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -33,7 +33,7 @@ public sealed class GetVerificationLinkSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -54,7 +54,7 @@ public sealed class GetVerificationLinkSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -79,7 +79,7 @@ public sealed class GetVerificationLinkSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

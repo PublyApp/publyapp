@@ -15,22 +15,22 @@ using Xunit;
 namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 
 public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public EnqueueSystemJobJobSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldEnqueueExactlyOnceWhenFiredTwiceForTheSameScheduledInstant() {
-		var jobKey = NewJobKey("same-tick");
+		var jobKey = _NewJobKey("same-tick");
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await CreateDbContextAsync();
-			var job = NewJob(dbContext);
+			await _SeedDefinitionAsync(jobKey, epoch);
+			await using var dbContext = await _CreateDbContextAsync();
+			var job = _NewJob(dbContext);
 
 			await job.EnqueueOccurrenceAsync(
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
@@ -39,49 +39,49 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldEnqueueAgainForADistinctScheduledInstant() {
-		var jobKey = NewJobKey("distinct-tick");
+		var jobKey = _NewJobKey("distinct-tick");
 		var epoch = Guid.NewGuid();
 		var firstFireAt = DateTime.UtcNow.AddMinutes(1);
 		var secondFireAt = firstFireAt.AddMinutes(5);
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await CreateDbContextAsync();
-			var job = NewJob(dbContext);
+			await _SeedDefinitionAsync(jobKey, epoch);
+			await using var dbContext = await _CreateDbContextAsync();
+			var job = _NewJob(dbContext);
 
 			await job.EnqueueOccurrenceAsync(jobKey, firstFireAt, epoch, CancellationToken.None);
 			await job.EnqueueOccurrenceAsync(jobKey, secondFireAt, epoch, CancellationToken.None);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(2);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(2);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldNotResurrectAnOccurrenceAfterItsQueueRowIsDeleted() {
-		var jobKey = NewJobKey("durable");
+		var jobKey = _NewJobKey("durable");
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await CreateDbContextAsync();
-			var job = NewJob(dbContext);
+			await _SeedDefinitionAsync(jobKey, epoch);
+			await using var dbContext = await _CreateDbContextAsync();
+			var job = _NewJob(dbContext);
 
 			await job.EnqueueOccurrenceAsync(
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
@@ -93,27 +93,27 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(0);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1, "the durable ledger outlives successful queue-row deletion");
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldEnqueueOnlyOnceAcrossConcurrentLeadersFiringTheSameTick() {
-		var jobKey = NewJobKey("concurrent");
+		var jobKey = _NewJobKey("concurrent");
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch);
-			await using var firstContext = await CreateDbContextAsync();
-			await using var secondContext = await CreateDbContextAsync();
-			var firstJob = NewJob(firstContext);
-			var secondJob = NewJob(secondContext);
+			await _SeedDefinitionAsync(jobKey, epoch);
+			await using var firstContext = await _CreateDbContextAsync();
+			await using var secondContext = await _CreateDbContextAsync();
+			var firstJob = _NewJob(firstContext);
+			var secondJob = _NewJob(secondContext);
 
 			await Task.WhenAll(
 				firstJob.EnqueueOccurrenceAsync(
@@ -124,75 +124,75 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				)
 			);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRecordEnqueuedJobIdOnTheOccurrenceRow() {
-		var jobKey = NewJobKey("link");
+		var jobKey = _NewJobKey("link");
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await CreateDbContextAsync();
-			await NewJob(dbContext).EnqueueOccurrenceAsync(
+			await _SeedDefinitionAsync(jobKey, epoch);
+			await using var dbContext = await _CreateDbContextAsync();
+			await _NewJob(dbContext).EnqueueOccurrenceAsync(
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var queueRow = await verify.JobQueue.SingleAsync(row => row.JobType == jobKey);
 			var occurrence = await verify.SystemJobOccurrence
 				.SingleAsync(row => row.JobKey == jobKey);
 			occurrence.EnqueuedJobId.Should().Be(queueRow.Id);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldLeaveNoLedgerRowWhenTheEnqueueTransactionRollsBack() {
-		var jobKey = NewJobKey("rollback");
+		var jobKey = _NewJobKey("rollback");
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
 
 		try {
-			await SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await CreateDbContextAsync(
+			await _SeedDefinitionAsync(jobKey, epoch);
+			await using var dbContext = await _CreateDbContextAsync(
 				new ThrowBeforeSaveChangesInterceptor()
 			);
-			var act = async () => await NewJob(dbContext).EnqueueOccurrenceAsync(
+			var act = async () => await _NewJob(dbContext).EnqueueOccurrenceAsync(
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
 			await act.Should().ThrowAsync<InvalidOperationException>()
 				.WithMessage("forced enqueue failure");
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(0);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(0, "the occurrence insert rolls back with the queue insert");
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRejectARetiredEpochAndEnqueueTheCurrentEpoch() {
-		var jobKey = NewJobKey("epoch");
+		var jobKey = _NewJobKey("epoch");
 		var retiredEpoch = Guid.NewGuid();
 		var currentEpoch = Guid.NewGuid();
 		var logger = new CaptureLogger<EnqueueSystemJobJob>();
 
 		try {
-			await SeedDefinitionAsync(jobKey, currentEpoch);
-			await using var dbContext = await CreateDbContextAsync();
+			await _SeedDefinitionAsync(jobKey, currentEpoch);
+			await using var dbContext = await _CreateDbContextAsync();
 			var job = new EnqueueSystemJobJob(dbContext, logger);
 
 			await job.EnqueueOccurrenceAsync(
@@ -202,7 +202,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				jobKey, DateTime.UtcNow.AddMinutes(2), currentEpoch, CancellationToken.None
 			);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1, "a rejected stale fire must not claim an occurrence");
@@ -210,18 +210,18 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				message.Contains("system_job.fire_rejected", StringComparison.Ordinal)
 			);
 		} finally {
-			await CleanupAsync(jobKey);
+			await _CleanupAsync(jobKey);
 		}
 	}
 
-	private static EnqueueSystemJobJob NewJob(AppDbContext dbContext) {
+	private static EnqueueSystemJobJob _NewJob(AppDbContext dbContext) {
 		return new EnqueueSystemJobJob(
 			dbContext, NullLogger<EnqueueSystemJobJob>.Instance
 		);
 	}
 
-	private async Task SeedDefinitionAsync(string jobKey, Guid scheduleEpoch) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _SeedDefinitionAsync(string jobKey, Guid scheduleEpoch) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 			JobKey = jobKey,
 			CronExpression = "0 0/5 * * * ?",
@@ -230,8 +230,8 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task CleanupAsync(string jobKey) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _CleanupAsync(string jobKey) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
@@ -243,14 +243,14 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string NewJobKey(string suffix) {
+	private static string _NewJobKey(string suffix) {
 		return $"spec.system-job.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync(
+	private async Task<AppDbContext> _CreateDbContextAsync(
 		SaveChangesInterceptor? interceptor = null
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

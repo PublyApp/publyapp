@@ -16,22 +16,22 @@ namespace PublyApp.Api.Modules.Jobs.Services;
 // database-generated (F11) and these tests need deterministic failed_at
 // ordering for the keyset assertions.
 public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public DeadLetterQueryServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldListDeadLetterRowsInFailedAtDescOrder() {
-		var jobType = NewJobType("order");
+		var jobType = _NewJobType("order");
 
 		try {
-			await SeedRowAsync(jobType, minutesAgo: 30);
-			await SeedRowAsync(jobType, minutesAgo: 20);
-			await SeedRowAsync(jobType, minutesAgo: 10);
+			await _SeedRowAsync(jobType, minutesAgo: 30);
+			await _SeedRowAsync(jobType, minutesAgo: 20);
+			await _SeedRowAsync(jobType, minutesAgo: 10);
 
-			var service = await CreateServiceAsync();
+			var service = await _CreateServiceAsync();
 			var result = await service.FindAsync(new FindDeadLetterItemsArgs(
 				Cursor: Guid.Empty,
 				Limit: 10,
@@ -47,24 +47,24 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			page.Data.Select(row => row.FailedAt)
 				.Should().BeInDescendingOrder();
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByExternalStateStatusCsv() {
-		var jobType = NewJobType("status");
+		var jobType = _NewJobType("status");
 
 		try {
-			var unclassifiedA = await SeedRowAsync(
+			var unclassifiedA = await _SeedRowAsync(
 				jobType, minutesAgo: 30, externalStateStatus: 6
 			);
-			var unclassifiedB = await SeedRowAsync(
+			var unclassifiedB = await _SeedRowAsync(
 				jobType, minutesAgo: 20, externalStateStatus: 6
 			);
-			await SeedRowAsync(jobType, minutesAgo: 10, externalStateStatus: 0);
+			await _SeedRowAsync(jobType, minutesAgo: 10, externalStateStatus: 0);
 
-			var service = await CreateServiceAsync();
+			var service = await _CreateServiceAsync();
 			var result = await service.FindAsync(new FindDeadLetterItemsArgs(
 				Cursor: Guid.Empty,
 				Limit: 10,
@@ -89,22 +89,22 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			rejected.Should()
 				.BeOfType<FindDeadLetterItemsResult.InvalidStatusCsv>();
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByJobTypeAndTenantId() {
-		var jobType = NewJobType("filters");
-		var otherJobType = NewJobType("other");
+		var jobType = _NewJobType("filters");
+		var otherJobType = _NewJobType("other");
 		var tenantId = Guid.NewGuid();
 
 		try {
-			await SeedRowAsync(jobType, minutesAgo: 30, tenantId: tenantId);
-			await SeedRowAsync(jobType, minutesAgo: 20);
-			await SeedRowAsync(otherJobType, minutesAgo: 10, tenantId: tenantId);
+			await _SeedRowAsync(jobType, minutesAgo: 30, tenantId: tenantId);
+			await _SeedRowAsync(jobType, minutesAgo: 20);
+			await _SeedRowAsync(otherJobType, minutesAgo: 10, tenantId: tenantId);
 
-			var service = await CreateServiceAsync();
+			var service = await _CreateServiceAsync();
 			var result = await service.FindAsync(new FindDeadLetterItemsArgs(
 				Cursor: Guid.Empty,
 				Limit: 10,
@@ -119,19 +119,19 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			page.Data.Single().TenantId.Should().Be(tenantId);
 			page.Data.Single().JobType.Should().Be(jobType);
 		} finally {
-			await CleanupAsync(jobType);
-			await CleanupAsync(otherJobType);
+			await _CleanupAsync(jobType);
+			await _CleanupAsync(otherJobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldKeysetPaginateOnFailedAt() {
-		var jobType = NewJobType("keyset");
+		var jobType = _NewJobType("keyset");
 
 		try {
 			var seeded = new List<Guid>();
 			for (var index = 0; index < 5; index++) {
-				seeded.Add(await SeedRowAsync(
+				seeded.Add(await _SeedRowAsync(
 					jobType, minutesAgo: 50 - (index * 10)
 				));
 			}
@@ -139,7 +139,7 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			var visited = new List<Guid>();
 			Guid cursor = Guid.Empty;
 			while (true) {
-				var service = await CreateServiceAsync();
+				var service = await _CreateServiceAsync();
 				var result = await service.FindAsync(new FindDeadLetterItemsArgs(
 					Cursor: cursor,
 					Limit: 2,
@@ -160,20 +160,20 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			visited.Should().HaveCount(5);
 			visited.Should().OnlyHaveUniqueItems();
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldGetOneByIdWithEvents() {
-		var jobType = NewJobType("get-one");
+		var jobType = _NewJobType("get-one");
 		var tenantId = Guid.NewGuid();
 
 		try {
-			var id = await SeedRowAsync(
+			var id = await _SeedRowAsync(
 				jobType, minutesAgo: 15, tenantId: tenantId, externalStateStatus: 6
 			);
-			await using var dbContext = await CreateDbContextAsync();
+			await using var dbContext = await _CreateDbContextAsync();
 			dbContext.JobDeadLetterEvent.Add(new JobDeadLetterEvent {
 				DeadLetterId = id,
 				Event = JobDeadLetterEvents.MissingConfirmed,
@@ -184,7 +184,7 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			});
 			await dbContext.SaveChangesAsync();
 
-			var service = await CreateServiceAsync();
+			var service = await _CreateServiceAsync();
 			var detail = await service.GetByIdAsync(id);
 
 			detail.Should().NotBeNull();
@@ -194,13 +194,13 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			detail.Events.Single().Event.Should()
 				.Be(JobDeadLetterEvents.MissingConfirmed);
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var service = await CreateServiceAsync();
+		var service = await _CreateServiceAsync();
 
 		var detail = await service.GetByIdAsync(Guid.NewGuid());
 
@@ -209,15 +209,15 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRequeueAnExistingRowInsertingOneJobQueueRowAndOneEvent() {
-		var jobType = NewJobType("requeue");
+		var jobType = _NewJobType("requeue");
 		var originalJobId = Guid.NewGuid();
 
 		try {
-			var deadLetterId = await SeedRowAsync(
+			var deadLetterId = await _SeedRowAsync(
 				jobType, minutesAgo: 25, originalJobId: originalJobId
 			);
 
-			var service = await CreateServiceAsync();
+			var service = await _CreateServiceAsync();
 			var result = await service.RequeueAsync(
 				new RequeueDeadLetterArgs(deadLetterId)
 			);
@@ -227,7 +227,7 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			requeued.OriginalJobId.Should().Be(originalJobId);
 			requeued.NewJobId.Should().NotBe(originalJobId);
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var queueRows = await verify.JobQueue
 				.Where(row => row.RequeuedFromDeadLetterId == deadLetterId)
 				.ToListAsync();
@@ -247,19 +247,19 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			events.Should().ContainSingle();
 			events.Single().Event.Should().Be(JobDeadLetterEvents.Requeued);
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldLoseTheRequeueRaceCleanlyOnDoubleRequeue() {
-		var jobType = NewJobType("double-requeue");
+		var jobType = _NewJobType("double-requeue");
 
 		try {
-			var deadLetterId = await SeedRowAsync(jobType, minutesAgo: 25);
+			var deadLetterId = await _SeedRowAsync(jobType, minutesAgo: 25);
 
-			var first = await CreateServiceAsync();
-			var second = await CreateServiceAsync();
+			var first = await _CreateServiceAsync();
+			var second = await _CreateServiceAsync();
 
 			var firstResult = await first.RequeueAsync(
 				new RequeueDeadLetterArgs(deadLetterId)
@@ -273,7 +273,7 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			secondResult.Should()
 				.BeOfType<RequeueDeadLetterResult.AlreadyRequeued>();
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobQueue.CountAsync(
 				row => row.RequeuedFromDeadLetterId == deadLetterId
 			)).Should().Be(1);
@@ -282,16 +282,16 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 					&& row.Event == JobDeadLetterEvents.Requeued
 			)).Should().Be(1);
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
-	private async Task<DeadLetterQueryService> CreateServiceAsync() {
-		var dbContext = await CreateDbContextAsync();
+	private async Task<DeadLetterQueryService> _CreateServiceAsync() {
+		var dbContext = await _CreateDbContextAsync();
 		return new DeadLetterQueryService(dbContext);
 	}
 
-	private async Task<Guid> SeedRowAsync(
+	private async Task<Guid> _SeedRowAsync(
 		string jobType,
 		int minutesAgo,
 		Guid? tenantId = null,
@@ -303,7 +303,7 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 		// ck_job_dead_letter_external_state_bounds: statuses 1,2,4,5,6 carry
 		// recorded bounds; 0 and 3 keep all three columns NULL.
 		var needsBounds = externalStateStatus is not (0 or 3);
-		await using var dbContext = await CreateDbContextAsync();
+		await using var dbContext = await _CreateDbContextAsync();
 		if (needsBounds) {
 			await dbContext.Database.ExecuteSqlAsync(
 				$"""
@@ -348,8 +348,8 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 		return id;
 	}
 
-	private async Task CleanupAsync(string jobType) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _CleanupAsync(string jobType) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			DELETE FROM job_dead_letter_events
@@ -366,12 +366,12 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string NewJobType(string suffix) {
+	private static string _NewJobType(string suffix) {
 		return $"spec.dlq.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

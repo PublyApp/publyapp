@@ -35,11 +35,11 @@ public interface IStaffUserLifecycleService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 	public StaffUserLifecycleService(
 		AppDbContext dbContext
 	) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 	}
 
 	public async Task<SuspendStaffUserResult> SuspendStaffUserAsync(
@@ -49,7 +49,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		// Suspension for staff users is a global identity suspension (User.Status).
 		// This mirrors the tenant suspend/reactivate semantics: the staff UserAccount
 		// is still present, but the user can no longer authenticate/use staff routes.
-		var userData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		var userData = await _FindLiveStaffUserAsync(userId, cancellationToken);
 		if (userData is null) {
 			return new SuspendStaffUserResult.NotFound();
 		}
@@ -59,7 +59,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		}
 
 		var now = DateTime.UtcNow;
-		var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+		var updatedUserCount = await _BuildLiveStaffUserMutationQuery(userId)
 			.Where(x => x.Status != UserStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
@@ -69,7 +69,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			);
 
 		if (updatedUserCount == 0) {
-			return await ResolveSuspendStaffUserAfterNoRowsAsync(
+			return await _ResolveSuspendStaffUserAfterNoRowsAsync(
 				userId,
 				cancellationToken
 			);
@@ -87,7 +87,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		// Reactivation clears the global identity suspension and restores access.
 		// We keep this explicit (not part of the general PATCH) to make the operation
 		// harder to trigger accidentally and easier to permission-gate.
-		var userData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		var userData = await _FindLiveStaffUserAsync(userId, cancellationToken);
 		if (userData is null) {
 			return new ReactivateStaffUserResult.NotFound();
 		}
@@ -97,7 +97,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		}
 
 		var now = DateTime.UtcNow;
-		var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+		var updatedUserCount = await _BuildLiveStaffUserMutationQuery(userId)
 			.Where(x => x.Status == UserStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
@@ -107,7 +107,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			);
 
 		if (updatedUserCount == 0) {
-			return await ResolveReactivateStaffUserAfterNoRowsAsync(
+			return await _ResolveReactivateStaffUserAfterNoRowsAsync(
 				userId,
 				cancellationToken
 			);
@@ -127,7 +127,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			return new BulkStaffUserActionResult(0, 0, []);
 		}
 
-		var liveUserStatuses = await FindLiveStaffUserStatusesAsync(
+		var liveUserStatuses = await _FindLiveStaffUserStatusesAsync(
 			requestedIds,
 			cancellationToken
 		);
@@ -158,7 +158,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		var now = DateTime.UtcNow;
 
 		foreach (var userId in candidateUserIds) {
-			var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+			var updatedUserCount = await _BuildLiveStaffUserMutationQuery(userId)
 				.Where(x => x.Status != UserStatus.Suspended)
 				.ExecuteUpdateAsync(
 					setters => setters
@@ -172,7 +172,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				continue;
 			}
 
-			var resolvedResult = await ResolveSuspendStaffUserAfterNoRowsAsync(
+			var resolvedResult = await _ResolveSuspendStaffUserAfterNoRowsAsync(
 				userId,
 				cancellationToken
 			);
@@ -213,7 +213,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			return new BulkStaffUserActionResult(0, 0, []);
 		}
 
-		var liveUserStatuses = await FindLiveStaffUserStatusesAsync(
+		var liveUserStatuses = await _FindLiveStaffUserStatusesAsync(
 			requestedIds,
 			cancellationToken
 		);
@@ -244,7 +244,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		var now = DateTime.UtcNow;
 
 		foreach (var userId in candidateUserIds) {
-			var updatedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+			var updatedUserCount = await _BuildLiveStaffUserMutationQuery(userId)
 				.Where(x => x.Status == UserStatus.Suspended)
 				.ExecuteUpdateAsync(
 					setters => setters
@@ -258,7 +258,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				continue;
 			}
 
-			var resolvedResult = await ResolveReactivateStaffUserAfterNoRowsAsync(
+			var resolvedResult = await _ResolveReactivateStaffUserAfterNoRowsAsync(
 				userId,
 				cancellationToken
 			);
@@ -344,7 +344,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var target = await FindLiveStaffUserDeleteTargetAsync(
+		var target = await _FindLiveStaffUserDeleteTargetAsync(
 			userId,
 			cancellationToken
 		);
@@ -358,11 +358,11 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		}
 
 		var now = DateTime.UtcNow;
-		await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+		await using var transaction = await _DbContext.Database.BeginTransactionAsync(
 			cancellationToken
 		);
 
-		var deletedUserCount = await BuildLiveStaffUserMutationQuery(userId)
+		var deletedUserCount = await _BuildLiveStaffUserMutationQuery(userId)
 			.Where(x => x.Status == UserStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
@@ -374,13 +374,13 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 
 		if (deletedUserCount == 0) {
 			await transaction.RollbackAsync(cancellationToken);
-			return await ResolveDeleteStaffUserAfterNoRowsAsync(
+			return await _ResolveDeleteStaffUserAfterNoRowsAsync(
 				userId,
 				cancellationToken
 			);
 		}
 
-		var deletedUserAccountCount = await _dbContext.UserAccount
+		var deletedUserAccountCount = await _DbContext.UserAccount
 			.Where(x =>
 				x.Id == target.UserAccountId
 				&& x.UserId == userId
@@ -402,7 +402,7 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 
 		// Profile links have no independent lifecycle after the staff account is deleted.
 		// ExecuteDeleteAsync bypasses soft-delete conversion and removes membership rows.
-		await _dbContext.UserAccountProfile
+		await _DbContext.UserAccountProfile
 			.Where(x => x.UserAccountId == target.UserAccountId)
 			.ExecuteDeleteAsync(cancellationToken);
 
@@ -414,9 +414,9 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		);
 	}
 
-	private IQueryable<StaffUserData> BuildLiveStaffUserQuery(Guid userId) {
+	private IQueryable<StaffUserData> _BuildLiveStaffUserQuery(Guid userId) {
 		return
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -427,11 +427,11 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			};
 	}
 
-	private IQueryable<User> BuildLiveStaffUserMutationQuery(Guid userId) {
-		return _dbContext.User.Where(u =>
+	private IQueryable<User> _BuildLiveStaffUserMutationQuery(Guid userId) {
+		return _DbContext.User.Where(u =>
 			u.Id == userId
 			&& !u.IsDeleted
-			&& _dbContext.UserAccount.Any(ua =>
+			&& _DbContext.UserAccount.Any(ua =>
 				ua.UserId == u.Id
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -439,20 +439,20 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		);
 	}
 
-	private async Task<StaffUserData?> FindLiveStaffUserAsync(
+	private async Task<StaffUserData?> _FindLiveStaffUserAsync(
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		return await BuildLiveStaffUserQuery(userId)
+		return await _BuildLiveStaffUserQuery(userId)
 			.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	private async Task<LiveStaffUserDeleteTarget?> FindLiveStaffUserDeleteTargetAsync(
+	private async Task<LiveStaffUserDeleteTarget?> _FindLiveStaffUserDeleteTargetAsync(
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -467,12 +467,12 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		).FirstOrDefaultAsync(cancellationToken);
 	}
 
-	private async Task<Dictionary<Guid, UserStatus>> FindLiveStaffUserStatusesAsync(
+	private async Task<Dictionary<Guid, UserStatus>> _FindLiveStaffUserStatusesAsync(
 		IReadOnlyCollection<Guid> userIds,
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where userIds.Contains(ua.UserId)
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -493,11 +493,11 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		public required UserStatus Status { get; init; }
 	}
 
-	private async Task<SuspendStaffUserResult> ResolveSuspendStaffUserAfterNoRowsAsync(
+	private async Task<SuspendStaffUserResult> _ResolveSuspendStaffUserAfterNoRowsAsync(
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		var currentUserData = await _FindLiveStaffUserAsync(userId, cancellationToken);
 		if (currentUserData is null) {
 			return new SuspendStaffUserResult.NotFound();
 		}
@@ -511,11 +511,11 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		);
 	}
 
-	private async Task<ReactivateStaffUserResult> ResolveReactivateStaffUserAfterNoRowsAsync(
+	private async Task<ReactivateStaffUserResult> _ResolveReactivateStaffUserAfterNoRowsAsync(
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		var currentUserData = await _FindLiveStaffUserAsync(userId, cancellationToken);
 		if (currentUserData is null) {
 			return new ReactivateStaffUserResult.NotFound();
 		}
@@ -529,11 +529,11 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		);
 	}
 
-	private async Task<DeleteStaffUserResult> ResolveDeleteStaffUserAfterNoRowsAsync(
+	private async Task<DeleteStaffUserResult> _ResolveDeleteStaffUserAfterNoRowsAsync(
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await FindLiveStaffUserAsync(userId, cancellationToken);
+		var currentUserData = await _FindLiveStaffUserAsync(userId, cancellationToken);
 		if (currentUserData is null) {
 			return new DeleteStaffUserResult.NotFound();
 		}

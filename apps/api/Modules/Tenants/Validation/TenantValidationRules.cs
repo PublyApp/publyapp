@@ -13,7 +13,7 @@ namespace PublyApp.Api.Modules.Tenants.Validation;
 public static partial class TenantValidationRules {
 	// Wire contract: lowercase locale tokens. Drives future invitation-email
 	// language selection — not wired to any behavior yet.
-	private static readonly HashSet<string> AllowedLocales =
+	private static readonly HashSet<string> _AllowedLocales =
 		new(StringComparer.Ordinal) { "en", "fr" };
 
 	public const int LogoUrlMaxLength = 2048;
@@ -23,20 +23,20 @@ public static partial class TenantValidationRules {
 	// Matches exactly what CreateStaffUpload returns (see StaffUploadCreated.Url):
 	// "/files/" + the server-generated relative storage path.
 	[GeneratedRegex(@"^/files/uploads/\d{4}/\d{2}/[0-9a-f-]{36}\.(png|jpe?g|webp|gif)$")]
-	private static partial Regex ServedUploadLogoUrlPattern();
+	private static partial Regex _ServedUploadLogoUrlPattern();
 
 	/// <summary>
 	/// True when <paramref name="value"/> is either a served-upload path shaped like
-	/// <see cref="ServedUploadLogoUrlPattern"/> or an absolute http(s) URL, and is at
+	/// <see cref="_ServedUploadLogoUrlPattern"/> or an absolute http(s) URL, and is at
 	/// most <see cref="LogoUrlMaxLength"/> characters. Shared by the validators below
 	/// and by <c>TenantAsStaffService</c> to detect when a replaced logoUrl points at a
 	/// blob this API owns and can safely delete.
 	/// </summary>
 	public static bool IsServedUploadLogoUrl(string value) {
-		return ServedUploadLogoUrlPattern().IsMatch(value);
+		return _ServedUploadLogoUrlPattern().IsMatch(value);
 	}
 
-	private static bool IsValidLogoUrl(string value) {
+	private static bool _IsValidLogoUrl(string value) {
 		if (value.Length > LogoUrlMaxLength) {
 			return false;
 		}
@@ -70,12 +70,12 @@ public static partial class TenantValidationRules {
 				}
 				var str = e.Value.GetString();
 				// Whitespace-only is treated as a clear, matching the org-profile
-				// fields' NormalizeClearableString mapping to null — GetLogoUrl()
+				// fields' _NormalizeClearableString mapping to null — GetLogoUrl()
 				// routes the String case through the same helper.
 				if (string.IsNullOrWhiteSpace(str)) {
 					return true;
 				}
-				return str is not null && IsValidLogoUrl(str);
+				return str is not null && _IsValidLogoUrl(str);
 			})
 			.WithMessage(
 				"LogoUrl must be a served upload path or an absolute http(s) URL "
@@ -103,12 +103,12 @@ public static partial class TenantValidationRules {
 				}
 				var str = e.GetString();
 				// Whitespace-only is treated as a clear, matching the org-profile
-				// fields' NormalizeClearableString mapping to null — GetLogoUrl()
+				// fields' _NormalizeClearableString mapping to null — GetLogoUrl()
 				// routes the String case through the same helper.
 				if (string.IsNullOrWhiteSpace(str)) {
 					return true;
 				}
-				return str is not null && IsValidLogoUrl(str);
+				return str is not null && _IsValidLogoUrl(str);
 			})
 			.WithMessage(
 				"LogoUrl must be a served upload path or an absolute http(s) URL "
@@ -137,7 +137,7 @@ public static partial class TenantValidationRules {
 					return false;
 				}
 				var str = e.Value.GetString();
-				return str is not null && AllowedLocales.Contains(str);
+				return str is not null && _AllowedLocales.Contains(str);
 			})
 			.WithMessage("DefaultLocale must be 'en' or 'fr'");
 	}
@@ -161,7 +161,7 @@ public static partial class TenantValidationRules {
 					return false;
 				}
 				var str = e.GetString();
-				return str is not null && AllowedLocales.Contains(str);
+				return str is not null && _AllowedLocales.Contains(str);
 			})
 			.WithMessage("DefaultLocale must be 'en', 'fr', null, or omitted");
 	}

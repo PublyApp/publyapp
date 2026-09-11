@@ -38,18 +38,18 @@ public sealed class SchedulerSyncState {
 	// a single reference swap, so no reader can pair a leaderSince from one leadership era
 	// with a lastSyncAt from another. Epoch is a MONOTONIC leadership-era generation: each
 	// election increments it and it is NEVER reused (a demotion preserves it), so a sync that
-	// was started in one era can be told apart from a later era even across an A→Unelected→B
+	// was started in one era can be told apart from a later era even across an A→_Unelected→B
 	// re-election that lands the same leaderSince-shape — the era-ABA F4 completion CANNOT be
 	// stamped into the new leadership because its captured epoch no longer matches.
 	private sealed record Snapshot(long Epoch, DateTimeOffset? LeaderSince, DateTimeOffset? LastSyncAt);
 
-	private static readonly Snapshot Unelected = new(0, null, null);
+	private static readonly Snapshot _Unelected = new(0, null, null);
 
-	private Snapshot _snapshot = Unelected;
+	private Snapshot _Snapshot = _Unelected;
 
 	/// <summary>When this replica acquired leadership; null when it is not the leader.</summary>
 	public DateTimeOffset? LeaderSince {
-		get { return Volatile.Read(ref _snapshot).LeaderSince; }
+		get { return Volatile.Read(ref _Snapshot).LeaderSince; }
 	}
 
 	/// <summary>
@@ -57,7 +57,7 @@ public sealed class SchedulerSyncState {
 	/// one under its current leadership (including when it is not the leader).
 	/// </summary>
 	public DateTimeOffset? LastSyncAt {
-		get { return Volatile.Read(ref _snapshot).LastSyncAt; }
+		get { return Volatile.Read(ref _Snapshot).LastSyncAt; }
 	}
 
 	/// <summary>
@@ -67,7 +67,7 @@ public sealed class SchedulerSyncState {
 	/// </summary>
 	public DateTimeOffset? StalenessBaseline {
 		get {
-			var snapshot = Volatile.Read(ref _snapshot);
+			var snapshot = Volatile.Read(ref _Snapshot);
 			if (snapshot.LeaderSince is null) {
 				return null;
 			}
@@ -82,7 +82,7 @@ public sealed class SchedulerSyncState {
 	/// so a completion is stamped ONLY if leadership has not turned over meanwhile.
 	/// </summary>
 	public long CurrentEpoch {
-		get { return Volatile.Read(ref _snapshot).Epoch; }
+		get { return Volatile.Read(ref _Snapshot).Epoch; }
 	}
 
 	public void MarkLeadershipAcquired() {
@@ -95,10 +95,10 @@ public sealed class SchedulerSyncState {
 		// new leadership era never inherits the prior era's last-sync timestamp, and its epoch
 		// is strictly greater than any era a still-in-flight reconcile could have captured.
 		while (true) {
-			var current = Volatile.Read(ref _snapshot);
+			var current = Volatile.Read(ref _Snapshot);
 			var elected = new Snapshot(current.Epoch + 1, acquiredAt, null);
 			if (ReferenceEquals(
-				Interlocked.CompareExchange(ref _snapshot, elected, current), current
+				Interlocked.CompareExchange(ref _Snapshot, elected, current), current
 			)) {
 				return;
 			}
@@ -107,13 +107,13 @@ public sealed class SchedulerSyncState {
 
 	public void MarkLeadershipLost() {
 		// Demotion clears the timestamps but PRESERVES the epoch, so the next election's
-		// epoch = preserved + 1 is still strictly greater than this era's — an A→Unelected→B
+		// epoch = preserved + 1 is still strictly greater than this era's — an A→_Unelected→B
 		// cycle never reuses A's epoch, which is what makes the completion fence below sound.
 		while (true) {
-			var current = Volatile.Read(ref _snapshot);
+			var current = Volatile.Read(ref _Snapshot);
 			var demoted = new Snapshot(current.Epoch, null, null);
 			if (ReferenceEquals(
-				Interlocked.CompareExchange(ref _snapshot, demoted, current), current
+				Interlocked.CompareExchange(ref _Snapshot, demoted, current), current
 			)) {
 				return;
 			}
@@ -130,26 +130,26 @@ public sealed class SchedulerSyncState {
 	/// path uses <see cref="MarkSyncCompletedAt(DateTimeOffset, long)"/> with a captured epoch.
 	/// </summary>
 	public void MarkSyncCompletedAt(DateTimeOffset completedAt) {
-		MarkSyncCompletedAt(completedAt, Volatile.Read(ref _snapshot).Epoch);
+		MarkSyncCompletedAt(completedAt, Volatile.Read(ref _Snapshot).Epoch);
 	}
 
 	/// <summary>
 	/// Records a completed reconcile, fenced to the leadership era it ran under. The
 	/// compare-and-swap drops the completion when (a) this replica no longer leads, OR (b) a
 	/// re-election has advanced the era past <paramref name="epoch"/> — so an era-A reconcile
-	/// that finishes after an A→Unelected→B turnover cannot stamp a stale sync into era B and
+	/// that finishes after an A→_Unelected→B turnover cannot stamp a stale sync into era B and
 	/// make a newly elected but wedged scheduler look recently synced (F4).
 	/// </summary>
 	public void MarkSyncCompletedAt(DateTimeOffset completedAt, long epoch) {
 		while (true) {
-			var current = Volatile.Read(ref _snapshot);
+			var current = Volatile.Read(ref _Snapshot);
 			if (current.LeaderSince is null || current.Epoch != epoch) {
 				return;
 			}
 
 			var updated = current with { LastSyncAt = completedAt };
 			if (ReferenceEquals(
-				Interlocked.CompareExchange(ref _snapshot, updated, current), current
+				Interlocked.CompareExchange(ref _Snapshot, updated, current), current
 			)) {
 				return;
 			}

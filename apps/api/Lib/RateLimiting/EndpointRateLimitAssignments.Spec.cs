@@ -12,12 +12,12 @@ namespace PublyApp.Api.Lib.RateLimiting;
 
 public sealed class EndpointRateLimitAssignmentsSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public EndpointRateLimitAssignmentsSpec(
 		ApiFixture fixture
 	) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Theory]
@@ -85,7 +85,7 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		string endpointName,
 		string expectedPolicy
 	) {
-		var endpoint = GetRouteEndpoint(endpointName);
+		var endpoint = _GetRouteEndpoint(endpointName);
 		var metadata = endpoint.Metadata
 			.GetMetadata<EnableRateLimitingAttribute>();
 
@@ -94,10 +94,10 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		metadata.PolicyName.Should().Be(expectedPolicy);
 	}
 
-	private RouteEndpoint GetRouteEndpoint(
+	private RouteEndpoint _GetRouteEndpoint(
 		string endpointName
 	) {
-		return _fixture.Factory.Services
+		return _Fixture.Factory.Services
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints
 			.OfType<RouteEndpoint>()

@@ -62,7 +62,7 @@ internal interface IRateLimitCounterStore {
 /// protection. See docs/records/2026-08-26-plan-953-distributed-rate-limiting.md.
 /// </summary>
 public static class CounterFailModes {
-	private static readonly FrozenSet<string> FailClosedPolicies =
+	private static readonly FrozenSet<string> _FailClosedPolicies =
 		new[]
 			{
 				AnonymousAuthRateLimitPolicies.PerIp,
@@ -74,6 +74,6 @@ public static class CounterFailModes {
 			.ToFrozenSet(StringComparer.Ordinal);
 
 	public static bool MustFailClosed(string policyName) {
-		return FailClosedPolicies.Contains(policyName);
+		return _FailClosedPolicies.Contains(policyName);
 	}
 }

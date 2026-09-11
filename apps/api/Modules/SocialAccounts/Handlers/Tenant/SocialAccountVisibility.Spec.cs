@@ -20,24 +20,24 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 // under every project filter; an account attached to X appears under X's filter,
 // is absent under Y's, and both appear unfiltered.
 public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountVisibilitySpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldApplyTheProjectVisibilityRuleOverHttp() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
 
 		// Two projects.
 		var projectX = Guid.NewGuid();
 		var projectY = Guid.NewGuid();
-		await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			db.Project.AddRange(
 				new Project { TenantId = tenantId, Name = "Vis-X", },
@@ -51,27 +51,27 @@ public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
 		}
 
 		// Unattached account + attached-to-X account.
-		var roamingId = await ConnectAsync(tenantId, token, "roaming");
-		var attachedId = await ConnectAsync(tenantId, token, "attached");
+		var roamingId = await _ConnectAsync(tenantId, token, "roaming");
+		var attachedId = await _ConnectAsync(tenantId, token, "attached");
 		using (var put = new HttpRequestMessage(
 			HttpMethod.Put, $"/social-accounts/{attachedId}/projects"
 		).WithSessionToken(token).WithTenantId(tenantId)) {
 			put.Content = JsonContent.Create(new {
 				projectIds = new[] { projectX },
 			});
-			using var putResponse = await _http.SendAsync(put);
+			using var putResponse = await _Http.SendAsync(put);
 			putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		(var underX, var underY, var unfiltered) =
-			await ListIdsAsync(tenantId, token, projectX, projectY);
+			await _ListIdsAsync(tenantId, token, projectX, projectY);
 
 		underX.Should().Contain(attachedId).And.Contain(roamingId);
 		underY.Should().Contain(roamingId).And.NotContain(attachedId);
 		unfiltered.Should().Contain(attachedId).And.Contain(roamingId);
 	}
 
-	private async Task<Guid> ConnectAsync(
+	private async Task<Guid> _ConnectAsync(
 		Guid tenantId, string token, string prefix
 	) {
 		using var request = new HttpRequestMessage(
@@ -81,14 +81,14 @@ public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
 			identifier = $"{prefix}-{Guid.NewGuid():N}@example.com",
 			appPassword = "app-password-789",
 		});
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var created = await response.Content.ReadFromJsonAsync<SocialAccountCreated>();
 		return created!.Id;
 	}
 
 	private async Task<(List<Guid> UnderX, List<Guid> UnderY, List<Guid> Unfiltered)>
-		ListIdsAsync(Guid tenantId, string token, Guid projectX, Guid projectY) {
+		_ListIdsAsync(Guid tenantId, string token, Guid projectX, Guid projectY) {
 		async Task<List<Guid>> Fetch(string? projectId) {
 			var url = "/social-accounts/";
 			if (projectId is not null) {
@@ -97,7 +97,7 @@ public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
 			using var request = new HttpRequestMessage(HttpMethod.Get, url)
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.EnsureSuccessStatusCode();
 			var payload = await response.Content
 				.ReadFromJsonAsync<FindSocialAccountsForTenantResponse>();
@@ -110,12 +110,12 @@ public sealed class SocialAccountVisibilitySpec : IClassFixture<ApiFixture> {
 		return (underX, underY, unfiltered);
 	}
 
-	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.AcmeName
+			_Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
 		);
 		return (tenantId, token);

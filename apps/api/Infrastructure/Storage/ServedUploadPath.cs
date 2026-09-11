@@ -15,7 +15,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// </summary>
 public static partial class ServedUploadPath {
 	[GeneratedRegex(@"^/files/(uploads/\d{4}/\d{2}/[0-9a-f-]{36}\.(?:png|jpe?g|webp|gif))$")]
-	private static partial Regex ServedUrlPattern();
+	private static partial Regex _ServedUrlPattern();
 
 	/// <summary>
 	/// Returns the storage-relative path behind a served <c>/files/...</c> URL, or
@@ -28,7 +28,7 @@ public static partial class ServedUploadPath {
 			return null;
 		}
 
-		var match = ServedUrlPattern().Match(url);
+		var match = _ServedUrlPattern().Match(url);
 		return match.Success ? match.Groups[1].Value : null;
 	}
 }

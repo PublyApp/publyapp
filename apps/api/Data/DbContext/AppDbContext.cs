@@ -14,8 +14,8 @@ using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
-using PublyApp.Api.Modules.RateLimiting.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
+using PublyApp.Api.Modules.RateLimiting.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Uploads.Entities;
@@ -27,7 +27,7 @@ namespace PublyApp.Api.Data.DbContext;
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
 public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtectionKeyContext {
-	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
+	private static readonly Lazy<List<Type>> _SeederTypeCache = new(_DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session {
 		get { return Set<Session>(); }
@@ -186,8 +186,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		//    Observed ~0.5–2.0 µs (median varies by run) on Intel i5-12500T,
 		//    100k iterations, A/B alternating within the same loop.
 		//
-		// 2. INCREMENTAL DETECTION OVERHEAD: the UpdateStatementShape
-		//    + StatusColumnWord detection the guard adds above the baseline.
+		// 2. INCREMENTAL DETECTION OVERHEAD: the _UpdateStatementShape
+		//    + _StatusColumnWord detection the guard adds above the baseline.
 		//    Observed ~0.1–0.6 µs (median varies by run) on the same machine.
 		//
 		// ROBUSTNESS: The decision to keep the guard stands even if measurements
@@ -227,7 +227,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			}
 
 			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
-			SeedAll(dbContext, infrastructure.Instance);
+			_SeedAll(dbContext, infrastructure.Instance);
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
@@ -238,15 +238,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			}
 
 			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
-			await SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
+			await _SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
 		});
 	}
 
 	/// <summary>
 	/// Discovers and executes all entity seeders synchronously.
 	/// </summary>
-	private static void SeedAll(AppDbContext dbContext, IServiceProvider serviceProvider) {
-		Task.Run(() => SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
+	private static void _SeedAll(AppDbContext dbContext, IServiceProvider serviceProvider) {
+		Task.Run(() => _SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
 			.GetAwaiter()
 			.GetResult();
 	}
@@ -254,9 +254,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// <summary>
 	/// Discovers and executes all entity seeders asynchronously using reflection.
 	/// </summary>
-	private static async Task SeedAllAsync(AppDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
+	private static async Task _SeedAllAsync(AppDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
 		var logger = serviceProvider.GetService<ILogger<AppDbContext>>();
-		var seeders = CreateSeeders(serviceProvider);
+		var seeders = _CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
 			if (logger?.IsEnabled(LogLevel.Information) is true) {
@@ -269,8 +269,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// <summary>
 	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
 	/// </summary>
-	private static List<Type> DiscoverSeeders() {
-		return SeederTypeCache.Value;
+	private static List<Type> _DiscoverSeeders() {
+		return _SeederTypeCache.Value;
 	}
 
 	/// <summary>
@@ -278,8 +278,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// </summary>
 	/// <param name="serviceProvider">The service provider used for DI instantiation.</param>
 	/// <exception cref="InvalidOperationException">Thrown if a seeder cannot be instantiated.</exception>
-	private static List<IEntitySeeder> CreateSeeders(IServiceProvider serviceProvider) {
-		var seederTypes = DiscoverSeeders();
+	private static List<IEntitySeeder> _CreateSeeders(IServiceProvider serviceProvider) {
+		var seederTypes = _DiscoverSeeders();
 		var seeders = new List<IEntitySeeder>(seederTypes.Count);
 
 		foreach (var type in seederTypes) {
@@ -303,7 +303,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// <summary>
 	/// Performs the reflection scan to find available seeders. Results are cached.
 	/// </summary>
-	private static List<System.Type> DiscoverSeedersInternal() {
+	private static List<System.Type> _DiscoverSeedersInternal() {
 		var seederInterface = typeof(IEntitySeeder);
 		var assembly = typeof(AppDbContext).Assembly;
 
@@ -405,7 +405,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Automatically handles audit field updates for all entities.
 	/// </summary>
 	public override int SaveChanges() {
-		UpdateAuditFields();
+		_UpdateAuditFields();
 		return base.SaveChanges();
 	}
 
@@ -413,16 +413,16 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Automatically handles audit field updates for all entities.
 	/// </summary>
 	public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
-		UpdateAuditFields();
+		_UpdateAuditFields();
 		return await base.SaveChangesAsync(cancellationToken);
 	}
 
-	private readonly HashSet<object> _forceHardDeleteEntities = new();
+	private readonly HashSet<object> _ForceHardDeleteEntities = new();
 
 	/// <summary>
 	/// Updates audit fields and applies soft-delete conversion where supported.
 	/// </summary>
-	private void UpdateAuditFields() {
+	private void _UpdateAuditFields() {
 		var entries = ChangeTracker.Entries()
 			.Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
 
@@ -442,7 +442,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 						break;
 
 					case EntityState.Deleted:
-						_forceHardDeleteEntities.Remove(entry.Entity);
+						_ForceHardDeleteEntities.Remove(entry.Entity);
 						continue;
 					case EntityState.Detached:
 					case EntityState.Unchanged:
@@ -463,7 +463,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 					case EntityState.Added:
 						baseEntity.CreatedAt = now;
 						baseEntity.UpdatedAt = now;
-						SetConsistentSoftDeleteState(baseEntity, now);
+						_SetConsistentSoftDeleteState(baseEntity, now);
 						break;
 
 					case EntityState.Modified:
@@ -472,9 +472,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 					case EntityState.Deleted:
 						// Check if this is a forced hard delete
-						if (_forceHardDeleteEntities.Contains(entry.Entity)) {
+						if (_ForceHardDeleteEntities.Contains(entry.Entity)) {
 							// Allow actual deletion - don't convert to soft delete
-							_forceHardDeleteEntities.Remove(entry.Entity);
+							_ForceHardDeleteEntities.Remove(entry.Entity);
 							continue;
 						}
 
@@ -503,7 +503,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 					case EntityState.Added:
 						permission.CreatedAt = now;
 						permission.UpdatedAt = now;
-						SetConsistentSoftDeleteState(permission, now);
+						_SetConsistentSoftDeleteState(permission, now);
 						break;
 
 					case EntityState.Modified:
@@ -512,9 +512,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 					case EntityState.Deleted:
 						// Check if this is a forced hard delete
-						if (_forceHardDeleteEntities.Contains(entry.Entity)) {
+						if (_ForceHardDeleteEntities.Contains(entry.Entity)) {
 							// Allow actual deletion - don't convert to soft delete
-							_forceHardDeleteEntities.Remove(entry.Entity);
+							_ForceHardDeleteEntities.Remove(entry.Entity);
 							continue;
 						}
 
@@ -549,8 +549,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	///   database.
 	/// - A fully consistent pair is preserved as-is.
 	/// </summary>
-	private static void SetConsistentSoftDeleteState(BaseAttributesNoKey baseEntity, DateTime now) {
-		baseEntity.DeletedAt = NormalizeDeletedAt(baseEntity.DeletedAt);
+	private static void _SetConsistentSoftDeleteState(BaseAttributesNoKey baseEntity, DateTime now) {
+		baseEntity.DeletedAt = _NormalizeDeletedAt(baseEntity.DeletedAt);
 
 		if (baseEntity.IsDeleted && baseEntity.DeletedAt is null) {
 			baseEntity.DeletedAt = now;
@@ -562,8 +562,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		}
 	}
 
-	private static void SetConsistentSoftDeleteState(Permission permission, DateTime now) {
-		permission.DeletedAt = NormalizeDeletedAt(permission.DeletedAt);
+	private static void _SetConsistentSoftDeleteState(Permission permission, DateTime now) {
+		permission.DeletedAt = _NormalizeDeletedAt(permission.DeletedAt);
 
 		if (permission.IsDeleted && permission.DeletedAt is null) {
 			permission.DeletedAt = now;
@@ -584,7 +584,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// local and shift it by the host's offset, silently moving the deletion time by hours on
 	/// any non-UTC machine. Only a genuinely <c>Local</c> value needs converting.
 	/// </summary>
-	private static DateTime? NormalizeDeletedAt(DateTime? deletedAt) {
+	private static DateTime? _NormalizeDeletedAt(DateTime? deletedAt) {
 		if (deletedAt is null) {
 			return null;
 		}
@@ -605,7 +605,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Use with caution as this bypasses audit tracking.
 	/// </summary>
 	public void ForceHardDelete<TEntity>(TEntity entity) where TEntity : class {
-		_forceHardDeleteEntities.Add(entity);
+		_ForceHardDeleteEntities.Add(entity);
 		Remove(entity);
 	}
 

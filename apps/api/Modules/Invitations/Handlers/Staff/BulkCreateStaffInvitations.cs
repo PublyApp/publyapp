@@ -19,10 +19,10 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 public record BulkCreateStaffInvitationsBody {
 	public JsonElement Invitations { get; init; }
 	// cached parsed invitations
-	private List<BulkStaffInvitationItem> _invitations = new();
-	private bool _invitationsParsed = false;
+	private List<BulkStaffInvitationItem> _Invitations = new();
+	private bool _InvitationsParsed = false;
 
-	private List<BulkStaffInvitationItem> ParseInvitations() {
+	private List<BulkStaffInvitationItem> _ParseInvitations() {
 		var invitations = new List<BulkStaffInvitationItem>();
 
 		foreach (var item in Invitations.EnumerateArray()) {
@@ -60,14 +60,14 @@ public record BulkCreateStaffInvitationsBody {
 	}
 
 	public List<BulkStaffInvitationItem> GetInvitations() {
-		if (_invitationsParsed) {
-			return _invitations;
+		if (_InvitationsParsed) {
+			return _Invitations;
 		}
 
-		_invitations = ParseInvitations();
-		_invitationsParsed = true;
+		_Invitations = _ParseInvitations();
+		_InvitationsParsed = true;
 
-		return _invitations;
+		return _Invitations;
 	}
 }
 
@@ -144,7 +144,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 									$"invitations[{index}].email",
 									"Email is required"
 								);
-							} else if (!BeValidEmail(email)) {
+							} else if (!_BeValidEmail(email)) {
 								context.AddFailure(
 									$"invitations[{index}].email",
 									"Invalid email format"
@@ -218,7 +218,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 			});
 	}
 
-	private static bool BeValidEmail(string email) {
+	private static bool _BeValidEmail(string email) {
 		if (string.IsNullOrWhiteSpace(email)) {
 			return false;
 		}

@@ -15,10 +15,10 @@ using Xunit;
 namespace PublyApp.Api.Infrastructure.Jobs;
 
 public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public SystemJobDispatchSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -26,7 +26,7 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 		var marker = $"dispatch-cleanup-{Guid.NewGuid():N}";
 		Guid? jobId = null;
 
-		var connectionString = await GetTestConnectionStringAsync();
+		var connectionString = await _GetTestConnectionStringAsync();
 		var builder = Program.CreateWorkerHostBuilder([]);
 		builder.Services.RemoveAll<AppDbContext>();
 		builder.Services.RemoveAll<DbContextOptions<AppDbContext>>();
@@ -39,8 +39,8 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 			await using (var scope = host.Services.CreateAsyncScope()) {
 				var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 				var userIdQuery = from user in dbContext.User
-					where user.Email == TestConstants.StaffAdminEmail
-					select user.Id;
+													where user.Email == TestConstants.StaffAdminEmail
+													select user.Id;
 				var userId = await userIdQuery.SingleAsync();
 
 				if (userId is null) {
@@ -83,21 +83,21 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 			await using var cleanupScope = host.Services.CreateAsyncScope();
 			var cleanupContext = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var sessions = from session in cleanupContext.Session
-				where session.Token == marker
-				select session;
+										 where session.Token == marker
+										 select session;
 			await sessions.ExecuteDeleteAsync();
 
 			if (jobId is not null) {
 				var jobs = from job in cleanupContext.JobQueue
-					where job.Id == jobId
-					select job;
+									 where job.Id == jobId
+									 select job;
 				await jobs.ExecuteDeleteAsync();
 			}
 		}
 	}
 
-	private async Task<string> GetTestConnectionStringAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetTestConnectionStringAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

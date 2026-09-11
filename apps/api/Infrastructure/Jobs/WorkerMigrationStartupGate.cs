@@ -23,9 +23,9 @@ public sealed record WorkerMigrationStartupGateOptions {
 /// fresh the whole time.
 /// </summary>
 public sealed class WorkerMigrationStartupGate : IHostedService {
-	private readonly IDatabaseMigrationReadiness _migrationReadiness;
-	private readonly ILogger<WorkerMigrationStartupGate> _logger;
-	private readonly WorkerMigrationStartupGateOptions _options;
+	private readonly IDatabaseMigrationReadiness _MigrationReadiness;
+	private readonly ILogger<WorkerMigrationStartupGate> _Logger;
+	private readonly WorkerMigrationStartupGateOptions _Options;
 
 	public WorkerMigrationStartupGate(
 		IDatabaseMigrationReadiness migrationReadiness,
@@ -40,16 +40,16 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 			throw new ArgumentOutOfRangeException(nameof(options), "Retry delay must be positive.");
 		}
 
-		_migrationReadiness = migrationReadiness;
-		_logger = logger;
-		_options = options;
+		_MigrationReadiness = migrationReadiness;
+		_Logger = logger;
+		_Options = options;
 	}
 
 	public async Task StartAsync(CancellationToken cancellationToken) {
 		using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(
 			cancellationToken
 		);
-		timeoutSource.CancelAfter(_options.Timeout);
+		timeoutSource.CancelAfter(_Options.Timeout);
 		var waitToken = timeoutSource.Token;
 		var attempt = 0;
 
@@ -58,22 +58,22 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 			var shouldFailFast = false;
 			try {
 				await WorkerHeartbeat.TouchAsync(
-					_options.HeartbeatPath,
+					_Options.HeartbeatPath,
 					DateTime.UtcNow,
 					waitToken
 				);
-				var readiness = await _migrationReadiness.IsReadyAsync(waitToken);
+				var readiness = await _MigrationReadiness.IsReadyAsync(waitToken);
 				if (readiness.IsReady) {
-					_logger.LogInformation(
+					_Logger.LogInformation(
 						"Database migrations are applied; worker startup may continue"
 					);
 					return;
 				}
 
-				if (_options.FailFastWhenMigrationsPending) {
+				if (_Options.FailFastWhenMigrationsPending) {
 					shouldFailFast = true;
-				} else if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation(
+				} else if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation(
 						"Waiting for database migrations... attempt {Attempt}",
 						attempt
 					);
@@ -81,7 +81,7 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 			} catch (OperationCanceledException) when (waitToken.IsCancellationRequested) {
 				break;
 			} catch (Exception) {
-				_logger.LogWarning(
+				_Logger.LogWarning(
 					"Waiting for database migrations... liveness or database probe attempt "
 						+ "{Attempt} failed",
 					attempt
@@ -96,7 +96,7 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 			}
 
 			try {
-				await Task.Delay(_options.RetryDelay, waitToken);
+				await Task.Delay(_Options.RetryDelay, waitToken);
 			} catch (OperationCanceledException) when (waitToken.IsCancellationRequested) {
 				break;
 			}
@@ -104,14 +104,14 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 
 		cancellationToken.ThrowIfCancellationRequested();
 
-		if (_logger.IsEnabled(LogLevel.Critical)) {
-			_logger.LogCritical(
+		if (_Logger.IsEnabled(LogLevel.Critical)) {
+			_Logger.LogCritical(
 				"Worker startup timed out after {Timeout} while waiting for database migrations",
-				_options.Timeout
+				_Options.Timeout
 			);
 		}
 		throw new TimeoutException(
-			$"Database migrations were not ready within {_options.Timeout}."
+			$"Database migrations were not ready within {_Options.Timeout}."
 		);
 	}
 

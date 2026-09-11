@@ -20,20 +20,20 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 // writes share the engine's DLQ transaction. Proven against a real, scope-validated
 // ServiceProvider built the way JobsServiceRegistration.AddJobHandler wires things.
 public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public JobHandlerScopingSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldResolveAScopedHandlerFromAFreshScopePerJobUnderDiValidation() {
-		var jobType = UniqueType("scoping");
+		var jobType = _UniqueType("scoping");
 		var collector = new ScopeProbeCollector { JobType = jobType };
 
 		// ValidateOnBuild + ValidateScopes: a root-captured scoped dependency (the
 		// old instance-holding registry design) fails HERE, at build time.
-		await using var provider = await BuildValidatedProviderAsync(
+		await using var provider = await _BuildValidatedProviderAsync(
 			collector,
 			services => services.AddScoped<ScopedProbeHandler>(),
 			new JobHandlerRegistration(
@@ -41,11 +41,11 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 			)
 		);
 
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 2);
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 2);
 
 		try {
-			var processor = CreateProcessor(provider);
+			var processor = _CreateProcessor(provider);
 
 			var result = await processor.ProcessBatchAsync(CancellationToken.None);
 
@@ -58,24 +58,24 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 			collector.HandlerInstances.Distinct().Should().HaveCount(2);
 			collector.ContextInstances.Distinct().Should().HaveCount(2);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 			var remaining = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == jobType);
 			remaining.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldCommitTheHooksScopedDbContextWritesWithTheTerminalTransaction() {
-		var jobType = UniqueType("hook-commit");
+		var jobType = _UniqueType("hook-commit");
 		var collector = new ScopeProbeCollector {
 			JobType = jobType,
-			MarkerType = UniqueType("hook-marker")
+			MarkerType = _UniqueType("hook-marker")
 		};
 
-		await using var provider = await BuildValidatedProviderAsync(
+		await using var provider = await _BuildValidatedProviderAsync(
 			collector,
 			services => services.AddScoped<ScopedTerminalHandler>(),
 			new JobHandlerRegistration(
@@ -83,16 +83,16 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 			)
 		);
 
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 1);
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 1);
 		var jobId = seededIds.Single();
 
 		try {
-			var processor = CreateProcessor(provider);
+			var processor = _CreateProcessor(provider);
 
 			await processor.ProcessBatchAsync(CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 
 			// The engine's DLQ row and the hook's own scoped-context write (the
 			// marker) committed together with the queue delete.
@@ -111,21 +111,21 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 				.CountAsync(j => j.JobType == jobType);
 			queueCount.Should().Be(0);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
-			await DeleteJobsByTypeAsync(collector.MarkerType);
+			await _DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(collector.MarkerType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRollBackTheHooksScopedDbContextWritesWhenTheTerminalStepFails() {
-		var jobType = UniqueType("hook-rollback");
+		var jobType = _UniqueType("hook-rollback");
 		var collector = new ScopeProbeCollector {
 			JobType = jobType,
-			MarkerType = UniqueType("rollback-marker"),
+			MarkerType = _UniqueType("rollback-marker"),
 			ThrowAfterMarkerWrite = true
 		};
 
-		await using var provider = await BuildValidatedProviderAsync(
+		await using var provider = await _BuildValidatedProviderAsync(
 			collector,
 			services => services.AddScoped<ScopedTerminalHandler>(),
 			new JobHandlerRegistration(
@@ -133,16 +133,16 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 			)
 		);
 
-		await using var seedContext = await CreateDbContextAsync();
-		var seededIds = await SeedDueJobsAsync(seedContext, jobType, count: 1);
+		await using var seedContext = await _CreateDbContextAsync();
+		var seededIds = await _SeedDueJobsAsync(seedContext, jobType, count: 1);
 		var jobId = seededIds.Single();
 
 		try {
-			var processor = CreateProcessor(provider);
+			var processor = _CreateProcessor(provider);
 
 			await processor.ProcessBatchAsync(CancellationToken.None);
 
-			await using var verifyContext = await CreateDbContextAsync();
+			await using var verifyContext = await _CreateDbContextAsync();
 
 			// The hook FLUSHED its marker (SaveChanges inside the engine's open
 			// transaction) and then threw: the rollback must take the marker, the
@@ -163,8 +163,8 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 				"the still-leased row is retried whole after lease expiry"
 			);
 		} finally {
-			await DeleteJobsByTypeAsync(jobType);
-			await DeleteJobsByTypeAsync(collector.MarkerType);
+			await _DeleteJobsByTypeAsync(jobType);
+			await _DeleteJobsByTypeAsync(collector.MarkerType);
 		}
 	}
 
@@ -172,12 +172,12 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 
 	// Builds a scope-validated provider wired exactly like
 	// JobsServiceRegistration.AddJobHandler + AddWorkerServices would wire it.
-	private async Task<ServiceProvider> BuildValidatedProviderAsync(
+	private async Task<ServiceProvider> _BuildValidatedProviderAsync(
 		ScopeProbeCollector collector,
 		Action<IServiceCollection> registerHandler,
 		JobHandlerRegistration registration
 	) {
-		var connectionString = await GetConnectionStringAsync();
+		var connectionString = await _GetConnectionStringAsync();
 
 		var services = new ServiceCollection();
 		services.AddLogging(logging => logging.ClearProviders());
@@ -195,7 +195,7 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		});
 	}
 
-	private static JobQueueProcessor CreateProcessor(ServiceProvider provider) {
+	private static JobQueueProcessor _CreateProcessor(ServiceProvider provider) {
 		return new JobQueueProcessor(
 			provider.GetRequiredService<IServiceScopeFactory>(),
 			provider.GetRequiredService<JobHandlerRegistry>(),
@@ -205,11 +205,11 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string UniqueType(string prefix) {
+	private static string _UniqueType(string prefix) {
 		return $"spec.{prefix}.{Guid.NewGuid():N}";
 	}
 
-	private static async Task<List<Guid>> SeedDueJobsAsync(
+	private static async Task<List<Guid>> _SeedDueJobsAsync(
 		AppDbContext dbContext,
 		string jobType,
 		int count
@@ -226,8 +226,8 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		return ids;
 	}
 
-	private async Task DeleteJobsByTypeAsync(string jobType) {
-		await using var dbContext = await CreateDbContextAsync();
+	private async Task _DeleteJobsByTypeAsync(string jobType) {
+		await using var dbContext = await _CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type = {jobType}"
 		);
@@ -236,8 +236,8 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<string> GetConnectionStringAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetConnectionStringAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -251,10 +251,10 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		return connectionString;
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
+	private async Task<AppDbContext> _CreateDbContextAsync() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(await GetConnectionStringAsync())
+				.UseNpgsql(await _GetConnectionStringAsync())
 				.Options
 		);
 	}
@@ -271,24 +271,24 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 
 	// A scoped handler injecting AppDbContext exactly like a domain handler will.
 	private sealed class ScopedProbeHandler : IJobHandler {
-		private readonly AppDbContext _dbContext;
-		private readonly ScopeProbeCollector _collector;
+		private readonly AppDbContext _DbContext;
+		private readonly ScopeProbeCollector _Collector;
 
 		public ScopedProbeHandler(AppDbContext dbContext, ScopeProbeCollector collector) {
-			_dbContext = dbContext;
-			_collector = collector;
+			_DbContext = dbContext;
+			_Collector = collector;
 		}
 
 		public string JobType {
-			get { return _collector.JobType; }
+			get { return _Collector.JobType; }
 		}
 
 		public Task<JobOutcome> HandleAsync(
 			JobContext context,
 			CancellationToken cancellationToken
 		) {
-			_collector.HandlerInstances.Add(this);
-			_collector.ContextInstances.Add(_dbContext);
+			_Collector.HandlerInstances.Add(this);
+			_Collector.ContextInstances.Add(_DbContext);
 			return Task.FromResult<JobOutcome>(JobOutcome.Succeeded);
 		}
 	}
@@ -297,16 +297,16 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 	// context inside the terminal hook — flushing it so the commit/rollback
 	// assertions prove transaction sharing, not merely change-tracker sharing.
 	private sealed class ScopedTerminalHandler : IJobHandler {
-		private readonly AppDbContext _dbContext;
-		private readonly ScopeProbeCollector _collector;
+		private readonly AppDbContext _DbContext;
+		private readonly ScopeProbeCollector _Collector;
 
 		public ScopedTerminalHandler(AppDbContext dbContext, ScopeProbeCollector collector) {
-			_dbContext = dbContext;
-			_collector = collector;
+			_DbContext = dbContext;
+			_Collector = collector;
 		}
 
 		public string JobType {
-			get { return _collector.JobType; }
+			get { return _Collector.JobType; }
 		}
 
 		public Task<JobOutcome> HandleAsync(
@@ -324,13 +324,13 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		) {
 			var marker = new JobDeadLetter {
 				OriginalJobId = context.JobId,
-				JobType = _collector.MarkerType,
+				JobType = _Collector.MarkerType,
 				Payload = "{}"
 			};
-			await _dbContext.JobDeadLetter.AddAsync(marker, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.JobDeadLetter.AddAsync(marker, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
-			if (_collector.ThrowAfterMarkerWrite) {
+			if (_Collector.ThrowAfterMarkerWrite) {
 				throw new InvalidOperationException(
 					"ScopedTerminalHandler: simulated hook failure after flushed write"
 				);

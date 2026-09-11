@@ -22,17 +22,17 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // Statuses other than Scheduled are reached ONLY through
 // PublicationStatusTransitionService — this spec never assigns Status directly.
 public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindPublicationsForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string PublicationsUrl {
+	private static string _PublicationsUrl {
 		get {
 			return "/publishing/publications";
 		}
@@ -40,12 +40,12 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldListNewestFirstWithExcerptLabelAndWireStatus() {
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
-			HttpMethod.Get, PublicationsUrl
+			HttpMethod.Get, _PublicationsUrl
 		).WithSessionToken(acmeToken).WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content
@@ -74,14 +74,14 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSurfaceFailedRowCauseAndExternalLinkVerbatim() {
-		await SeedPublishedAndFailedRowsAsync();
+		await _SeedPublishedAndFailedRowsAsync();
 
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			PublicationsUrl + "?status=failed,published"
+			_PublicationsUrl + "?status=failed,published"
 		).WithSessionToken(acmeToken).WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content
@@ -102,14 +102,14 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHideForeignTenantRowsCompletely() {
-		await SeedForeignTenantPublicationAsync();
-		var foreignCount = await CountRowsAsync(tenantIsAcme: false);
+		await _SeedForeignTenantPublicationAsync();
+		var foreignCount = await _CountRowsAsync(tenantIsAcme: false);
 
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
-			HttpMethod.Get, PublicationsUrl + "?limit=100"
+			HttpMethod.Get, _PublicationsUrl + "?limit=100"
 		).WithSessionToken(acmeToken).WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content
@@ -121,12 +121,12 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422ForUnknownStatusTokenUnderStableKey() {
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
-			HttpMethod.Get, PublicationsUrl + "?status=bogus"
+			HttpMethod.Get, _PublicationsUrl + "?status=bogus"
 		).WithSessionToken(acmeToken).WithTenantId(acmeId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -138,18 +138,18 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldPaginateWithCursorUntilExhausted() {
-		var seeded = await SeedScheduledRowsAsync(3);
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var seeded = await _SeedScheduledRowsAsync(3);
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
 
 		var seenIds = new List<Guid>();
 		string? cursor = null;
 		for (var page = 0; page < 10; page++) {
-			var url = PublicationsUrl
+			var url = _PublicationsUrl
 				+ "?status=scheduled&limit=2"
 				+ (cursor is null ? "" : "&cursor=" + cursor);
 			using var request = new HttpRequestMessage(HttpMethod.Get, url)
 				.WithSessionToken(acmeToken).WithTenantId(acmeId);
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var payload = await response.Content
@@ -168,22 +168,22 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ────────────────────────────────────────────────────────
 
-	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 		return (tenantId, token);
 	}
 
-	private async Task<int> CountRowsAsync(bool tenantIsAcme) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<int> _CountRowsAsync(bool tenantIsAcme) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var acmeName = SeedConstants.Tenants.AcmeName;
 		return await (
@@ -195,7 +195,7 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 		).CountAsync();
 	}
 
-	private static async Task<Guid> SeedAccountAsync(
+	private static async Task<Guid> _SeedAccountAsync(
 		AppDbContext db,
 		Guid tenantId,
 		string handle
@@ -212,8 +212,8 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 		return account.GetRequiredId();
 	}
 
-	private async Task<List<Guid>> SeedScheduledRowsAsync(int count) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<List<Guid>> _SeedScheduledRowsAsync(int count) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var acmeName = SeedConstants.Tenants.AcmeName;
 		var tenant = await db.Tenant
@@ -232,7 +232,7 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 
 		var ids = new List<Guid>();
 		for (var index = 0; index < count; index++) {
-			var accountId = await SeedAccountAsync(
+			var accountId = await _SeedAccountAsync(
 				db, tenant.GetRequiredId(), $"@history-{index}.bsky.social"
 			);
 			var id = Guid.CreateVersion7();
@@ -254,9 +254,9 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 		return ids;
 	}
 
-	private async Task SeedPublishedAndFailedRowsAsync() {
-		var ids = await SeedScheduledRowsAsync(2);
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SeedPublishedAndFailedRowsAsync() {
+		var ids = await _SeedScheduledRowsAsync(2);
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var acmeName = SeedConstants.Tenants.AcmeName;
 		var tenantId = (await db.Tenant
@@ -291,8 +291,8 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task SeedForeignTenantPublicationAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SeedForeignTenantPublicationAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var techStartName = SeedConstants.Tenants.TechStartName;
 		var tenant = await db.Tenant
@@ -308,7 +308,7 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 		};
 		db.Post.Add(post);
 		await db.SaveChangesAsync();
-		var accountId = await SeedAccountAsync(
+		var accountId = await _SeedAccountAsync(
 			db, tenant.GetRequiredId(), "@foreign.bsky.social"
 		);
 		var id = Guid.CreateVersion7();

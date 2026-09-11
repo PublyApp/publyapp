@@ -23,24 +23,24 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 /// </summary>
 [Table("post_media_assets")]
 public class PostMediaAsset : BaseAttributes, ITenantEntity {
-	private Tenant? _tenant;
+	private Tenant? _Tenant;
 
 	[Column("tenant_id")]
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public Tenant Tenant {
-		get { return RequiredNavigation.Get(_tenant, nameof(PostMediaAsset), nameof(Tenant)); }
-		set { _tenant = value; }
+		get { return RequiredNavigation.Get(_Tenant, nameof(PostMediaAsset), nameof(Tenant)); }
+		set { _Tenant = value; }
 	}
 
 	[Column("post_id")]
 	public required Guid PostId { get; set; }
 	[JsonIgnore]
 	public Post Post {
-		get { return RequiredNavigation.Get(_post, nameof(PostMediaAsset), nameof(Post)); }
-		set { _post = value; }
+		get { return RequiredNavigation.Get(_Post, nameof(PostMediaAsset), nameof(Post)); }
+		set { _Post = value; }
 	}
-	private Post? _post;
+	private Post? _Post;
 
 	/// <summary>Storage-relative path owned by the uploads pipeline (blob referenced, never copied).</summary>
 	[Column("relative_path")]

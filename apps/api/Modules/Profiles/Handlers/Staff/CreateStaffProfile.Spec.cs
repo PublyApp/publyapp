@@ -25,17 +25,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public CreateStaffProfileSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetCreateProfileUrl() {
+	private static string _GetCreateProfileUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -52,12 +52,12 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldWriteADurableOutboxRowForANewUserInvitationInsteadOfOnlyFireAndForgetSending() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var invitedEmail = $"new-staff-invite-{Guid.NewGuid():N}@example.com";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		) {
 			Content = JsonContent.Create(new {
 				name = $"Outbox Durability {Guid.NewGuid():N}",
@@ -67,7 +67,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			})
 		}.WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var result = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
@@ -75,7 +75,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 		result.InvitationsSent.Should().Be(1);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var invitation = await dbContext.Invitation
@@ -101,10 +101,10 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldWriteADurableJobQueueRowForAnExistingUserJoinedStaffNotification() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var existingEmail = $"joined-staff-{Guid.NewGuid():N}@example.com";
 
-		await using var setupScope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var setupScope = _Fixture.Factory.Services.CreateAsyncScope();
 		var setupDb = setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		setupDb.User.Add(new User {
 			Email = existingEmail,
@@ -118,7 +118,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		) {
 			Content = JsonContent.Create(new {
 				name = $"Durable Joined Notification {Guid.NewGuid():N}",
@@ -128,7 +128,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			})
 		}.WithSessionToken(staffToken);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var result = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
@@ -136,7 +136,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 		result.UsersAssigned.Should().Be(1);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var joinedJobs = await dbContext.JobQueue.AsNoTracking()
@@ -144,11 +144,11 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			.ToListAsync();
 
 		joinedJobs
-			.Where(j => JobPayloadContainsUserId(j.Payload, existingUser.GetRequiredId()))
+			.Where(j => _JobPayloadContainsUserId(j.Payload, existingUser.GetRequiredId()))
 			.Should().HaveCount(1);
 	}
 
-	private static bool JobPayloadContainsUserId(string? payload, Guid userId) {
+	private static bool _JobPayloadContainsUserId(string? payload, Guid userId) {
 		if (string.IsNullOrWhiteSpace(payload)) {
 			return false;
 		}
@@ -208,12 +208,12 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateStaffProfileWithIconAndTone() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var name = $"Styled Staff Profile {Guid.NewGuid():N}";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(new {
 			name,
@@ -224,14 +224,14 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			emails = Array.Empty<string>(),
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
 		created.Should().NotBeNull();
 		Assert.NotNull(created);
 
-		var persistedProfile = await GetProfileByNameAsync(name);
+		var persistedProfile = await _GetProfileByNameAsync(name);
 		persistedProfile.Should().NotBeNull();
 		Assert.NotNull(persistedProfile);
 		persistedProfile.Icon.Should().Be("shield-check");
@@ -240,12 +240,12 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidIcon() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var name = $"Staff Profile Invalid Icon {Guid.NewGuid():N}";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(new {
 			name,
@@ -254,7 +254,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			emails = Array.Empty<string>(),
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -265,12 +265,12 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var name = $"Staff Profile Invalid Tone {Guid.NewGuid():N}";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			GetCreateProfileUrl()
+			_GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(new {
 			name,
@@ -279,7 +279,7 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 			emails = Array.Empty<string>(),
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -288,8 +288,8 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 		problem.Errors.Should().ContainKey("Tone");
 	}
 
-	private async Task<Profile?> GetProfileByNameAsync(string name) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Profile?> _GetProfileByNameAsync(string name) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.Profile

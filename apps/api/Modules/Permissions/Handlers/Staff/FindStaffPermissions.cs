@@ -40,20 +40,20 @@ public class FindStaffPermissionsQueryValidator : AbstractValidator<FindStaffPer
 		// Inline rule: no JsonElementRules.* equivalent for query-string language allowlists.
 		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
 		RuleFor(x => x.Language)
-			.Must(BeSupportedLanguage)
+			.Must(_BeSupportedLanguage)
 			.WithMessage(
 				"Language must be one of the following: "
 				+ string.Join(", ", SupportedLanguage.All)
 			)
-			.When(HasLanguage);
+			.When(_HasLanguage);
 	}
 
-	private static bool BeSupportedLanguage(string? language) {
+	private static bool _BeSupportedLanguage(string? language) {
 		return SupportedLanguage.All
 			.Contains(language, StringComparer.OrdinalIgnoreCase);
 	}
 
-	private static bool HasLanguage(FindStaffPermissionsQuery query) {
+	private static bool _HasLanguage(FindStaffPermissionsQuery query) {
 		return !string.IsNullOrEmpty(query.Language);
 	}
 }

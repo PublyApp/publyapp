@@ -30,17 +30,17 @@ public sealed record PasswordResetEmailPayload {
 /// </summary>
 public static class AuthEmailJobs {
 	// Elevated so transactional emails are claimed ahead of bulk work (design §4.1).
-	private const int EmailPriority = 100;
+	private const int _EmailPriority = 100;
 
 	public static readonly JobDefinition<VerifyEmailPayload> VerifyEmailV1 =
 		new() {
 			JobType = "email.verify.v1",
-			Priority = EmailPriority
+			Priority = _EmailPriority
 		};
 
 	public static readonly JobDefinition<PasswordResetEmailPayload> PasswordResetV1 =
 		new() {
 			JobType = "email.password-reset.v1",
-			Priority = EmailPriority
+			Priority = _EmailPriority
 		};
 }

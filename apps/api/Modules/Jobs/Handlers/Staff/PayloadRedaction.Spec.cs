@@ -9,7 +9,7 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // Everything else — email families, social-account families, messaging prepared
 // sends, and any UNKNOWN future key — is fully redacted by default.
 public sealed class PayloadRedactionSpec {
-	private const string RedactedEnvelope =
+	private const string _RedactedEnvelope =
 		"""{"redacted":true,"reason":"sensitive-payload-staff-redacted"}""";
 
 	[Fact]
@@ -17,7 +17,7 @@ public sealed class PayloadRedactionSpec {
 		PayloadRedaction.Redact(
 			"email.tenant-invitation.v1",
 			"""{"to":["a@b.c"],"body":"secret"}"""
-		).Should().Be(RedactedEnvelope);
+		).Should().Be(_RedactedEnvelope);
 	}
 
 	[Fact]
@@ -25,15 +25,15 @@ public sealed class PayloadRedactionSpec {
 		PayloadRedaction.Redact(
 			"email-prepared-sends-retention",
 			"""{"prepared":1}"""
-		).Should().Be(RedactedEnvelope);
+		).Should().Be(_RedactedEnvelope);
 	}
 
 	[Fact]
 	public void ItShouldRedactSocialAccountJobTypesInBothSpellings() {
 		PayloadRedaction.Redact("socialaccount.foo", "{}")
-			.Should().Be(RedactedEnvelope);
+			.Should().Be(_RedactedEnvelope);
 		PayloadRedaction.Redact("social-account-foo", "{}")
-			.Should().Be(RedactedEnvelope);
+			.Should().Be(_RedactedEnvelope);
 	}
 
 	[Fact]
@@ -41,13 +41,13 @@ public sealed class PayloadRedactionSpec {
 		PayloadRedaction.Redact(
 			"messaging.prepared-send-state",
 			"""{"token":"t"}"""
-		).Should().Be(RedactedEnvelope);
+		).Should().Be(_RedactedEnvelope);
 	}
 
 	[Fact]
 	public void ItShouldRedactUnknownJobTypesByDefault() {
 		PayloadRedaction.Redact("bogus.unknown", """{"a":1}""")
-			.Should().Be(RedactedEnvelope,
+			.Should().Be(_RedactedEnvelope,
 				"fail-closed: an unlisted key never leaks its payload");
 	}
 

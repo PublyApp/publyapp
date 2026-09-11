@@ -11,12 +11,12 @@ namespace PublyApp.Api.Modules.Tenants.Entities;
 [Table("tenants")]
 [Index(nameof(Code), IsUnique = true)]
 public class Tenant : BaseAttributes, INoTenantEntity {
-	private string _code = string.Empty;
+	private string _Code = string.Empty;
 
 	[Column("code")]
 	public required string Code {
-		get { return _code; }
-		set { _code = value.ToLowerInvariant(); }
+		get { return _Code; }
+		set { _Code = value.ToLowerInvariant(); }
 	}
 
 	[Column("name")]

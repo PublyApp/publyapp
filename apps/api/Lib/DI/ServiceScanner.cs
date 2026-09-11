@@ -72,7 +72,7 @@ public static class ServiceScanner {
 				continue;
 			}
 
-			var (primaryInterface, interfaceResolutionError) = FindPrimaryInterface(type);
+			var (primaryInterface, interfaceResolutionError) = _FindPrimaryInterface(type);
 
 			discovered.Add(new DiscoveredService {
 				ImplementationType = type,
@@ -91,7 +91,7 @@ public static class ServiceScanner {
 	/// Finds the primary interface I{ClassName} for a given type.
 	/// Returns null if not found, and returns an error if missing or ambiguous.
 	/// </summary>
-	private static (Type? Interface, string? Error) FindPrimaryInterface(Type implementationType) {
+	private static (Type? Interface, string? Error) _FindPrimaryInterface(Type implementationType) {
 		var expectedInterfaceName = $"I{implementationType.Name}";
 
 		var matches = implementationType

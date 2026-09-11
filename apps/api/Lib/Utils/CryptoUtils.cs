@@ -4,7 +4,7 @@ using System.Text;
 namespace PublyApp.Api.Lib.Utils;
 
 public static class CryptoUtils {
-	private static ReadOnlySpan<char> Chars {
+	private static ReadOnlySpan<char> _Chars {
 		get {
 			return [
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
@@ -35,7 +35,7 @@ public static class CryptoUtils {
 
 		// Use string.Create to avoid intermediate char array allocation
 		return string.Create(size, bytes, static (chars, randomBytes) => {
-			var charsSpan = Chars;
+			var charsSpan = _Chars;
 			for (int i = 0; i < chars.Length; i++) {
 				chars[i] = charsSpan[randomBytes[i] % charsSpan.Length];
 			}
@@ -44,7 +44,7 @@ public static class CryptoUtils {
 
 	// Secret key for string encoding - should be at least 32 bytes
 	// This matches the default secret from the TypeScript implementation
-	private const string STRING_ENCRYPTION_SECRET_DEFAULT = "kkV4WINee3ZuveFJkBTwja5jhQ6dJ1gtbutuhp1Ncjg=";
+	private const string _STRINGENCRYPTIONSECRETDEFAULT = "kkV4WINee3ZuveFJkBTwja5jhQ6dJ1gtbutuhp1Ncjg=";
 
 	/// <summary>
 	/// Encodes a string using AES-256-GCM encryption
@@ -60,7 +60,7 @@ public static class CryptoUtils {
 		}
 
 		try {
-			secret ??= STRING_ENCRYPTION_SECRET_DEFAULT;
+			secret ??= _STRINGENCRYPTIONSECRETDEFAULT;
 
 			// Generate a random IV (Initialization Vector) - 12 bytes for AES-GCM
 			var iv = new byte[12];
@@ -107,7 +107,7 @@ public static class CryptoUtils {
 		}
 
 		try {
-			secret ??= STRING_ENCRYPTION_SECRET_DEFAULT;
+			secret ??= _STRINGENCRYPTIONSECRETDEFAULT;
 
 			// Convert from URL-safe base64 back to regular base64
 			var base64 = encodedInput

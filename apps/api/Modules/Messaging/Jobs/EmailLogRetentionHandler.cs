@@ -20,17 +20,17 @@ namespace PublyApp.Api.Modules.Messaging.Jobs;
 public sealed class EmailLogRetentionHandler : IJobHandler {
 	public const string JobKey = "email-log-retention";
 
-	private const int BatchSize = 500;
+	private const int _BatchSize = 500;
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<EmailLogRetentionHandler> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<EmailLogRetentionHandler> _Logger;
 
 	public EmailLogRetentionHandler(
 		AppDbContext dbContext,
 		ILogger<EmailLogRetentionHandler> logger
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public string JobType {
@@ -48,14 +48,14 @@ public sealed class EmailLogRetentionHandler : IJobHandler {
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			deleted = await _dbContext.Database.ExecuteSqlAsync(
+			deleted = await _DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM email_log
 				WHERE id IN (
 					SELECT id FROM email_log
 					WHERE occurred_at < now() - make_interval(days => {retentionDays})
 					ORDER BY occurred_at, id
-					LIMIT {BatchSize}
+					LIMIT {_BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
@@ -63,10 +63,10 @@ public sealed class EmailLogRetentionHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == BatchSize);
+		} while (deleted == _BatchSize);
 
-		if (totalDeleted > 0 && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"email-log-retention deleted {Count} row(s) older than {Days} day(s)",
 				totalDeleted,
 				retentionDays

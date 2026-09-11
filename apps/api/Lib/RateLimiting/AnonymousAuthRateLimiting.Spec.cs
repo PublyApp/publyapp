@@ -27,26 +27,26 @@ namespace PublyApp.Api.Lib.RateLimiting;
 
 public sealed class AnonymousAuthRateLimitingSpec
 	: IClassFixture<ApiFixture> {
-	private const int LongWindowSeconds = 3_600;
-	private readonly ApiFixture _fixture;
+	private const int _LongWindowSeconds = 3_600;
+	private readonly ApiFixture _Fixture;
 
 	public AnonymousAuthRateLimitingSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReturnProblemDetailsAndRetryAfterWhenTheEmailLimitIsExceeded() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 2
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 		const string email = "rate-limit@example.com";
 
-		using var first = await SendPasswordResetAsync(client, email);
-		using var second = await SendPasswordResetAsync(client, email);
-		using var rejected = await SendPasswordResetAsync(client, email);
+		using var first = await _SendPasswordResetAsync(client, email);
+		using var second = await _SendPasswordResetAsync(client, email);
+		using var rejected = await _SendPasswordResetAsync(client, email);
 
 		first.StatusCode.Should().Be(HttpStatusCode.OK);
 		second.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -74,22 +74,22 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldLimitDifferentEmailsIndependentlyForTheSameClientIp() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 1
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 
-		using var firstEmail = await SendPasswordResetAsync(
+		using var firstEmail = await _SendPasswordResetAsync(
 			client,
 			"first-rate-limit@example.com"
 		);
-		using var secondEmail = await SendPasswordResetAsync(
+		using var secondEmail = await _SendPasswordResetAsync(
 			client,
 			"second-rate-limit@example.com"
 		);
-		using var firstEmailAgain = await SendPasswordResetAsync(
+		using var firstEmailAgain = await _SendPasswordResetAsync(
 			client,
 			"first-rate-limit@example.com"
 		);
@@ -101,19 +101,19 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldLimitTheSameNormalizedEmailAcrossDifferentClientIps() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 1
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 
-		using var firstIp = await SendPasswordResetAsync(
+		using var firstIp = await _SendPasswordResetAsync(
 			client,
 			"  Shared-Rate-Limit@Example.com  ",
 			"203.0.113.10"
 		);
-		using var secondIp = await SendPasswordResetAsync(
+		using var secondIp = await _SendPasswordResetAsync(
 			client,
 			"shared-rate-limit@example.com",
 			"203.0.113.11"
@@ -125,24 +125,24 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldUseForwardedClientIpOnlyFromTheTrustedProxy() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 1,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 100
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 
-		using var firstIp = await SendPasswordResetAsync(
+		using var firstIp = await _SendPasswordResetAsync(
 			client,
 			"xff-first@example.com",
 			"203.0.113.20"
 		);
-		using var firstIpAgain = await SendPasswordResetAsync(
+		using var firstIpAgain = await _SendPasswordResetAsync(
 			client,
 			"xff-second@example.com",
 			"203.0.113.20"
 		);
-		using var secondIp = await SendPasswordResetAsync(
+		using var secondIp = await _SendPasswordResetAsync(
 			client,
 			"xff-third@example.com",
 			"203.0.113.21"
@@ -155,12 +155,12 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldNotApplyAnonymousLimitsToAuthenticatedEndpoints() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 1,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 100
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 		var authClient = new TestAuthClient(client);
 		var token = await authClient.LoginAsStaffAdminAsync();
 
@@ -182,7 +182,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldScopeTheExpectedPolicyToEachAnonymousAuthWrite() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 100
@@ -191,54 +191,54 @@ public sealed class AnonymousAuthRateLimitingSpec
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints;
 
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.Login,
 			AnonymousAuthRateLimitPolicies.PerEmail
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.Register,
 			AnonymousAuthRateLimitPolicies.PerEmail
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.VerifyEmailRequest,
 			AnonymousAuthRateLimitPolicies
 				.PasswordResetPerEmail
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.RequestPasswordReset,
 			AnonymousAuthRateLimitPolicies
 				.PasswordResetPerEmail
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.ResetPassword,
 			AnonymousAuthRateLimitPolicies.PerIp
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.GetVerificationLink,
 			AnonymousAuthRateLimitPolicies.PerIp
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.CheckEmailVerificationToken,
 			AnonymousAuthRateLimitPolicies.PerIp
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.CheckResetPasswordToken,
 			AnonymousAuthRateLimitPolicies.PerIp
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Invitations.Anonymous.AcceptByToken,
 			AnonymousAuthRateLimitPolicies.PerIp
 		);
-		AssertPolicy(
+		_AssertPolicy(
 			endpoints,
 			AppRoutes.Auth.GetUserAuthData,
 			ApiRateLimitPolicies.AuthenticatedDefault
@@ -247,7 +247,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldIgnoreForwardedForFromAnUntrustedPeer() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 100
@@ -288,20 +288,20 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldUseBinderEquivalentCaseInsensitiveEmailMatching() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 1
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 		const string email = "mixed-case-limit@example.com";
 
-		using var first = await SendRawPasswordResetAsync(
+		using var first = await _SendRawPasswordResetAsync(
 			client,
 			$$"""{"email":"{{email}}"}""",
 			"203.0.113.100"
 		);
-		using var mixedCase = await SendRawPasswordResetAsync(
+		using var mixedCase = await _SendRawPasswordResetAsync(
 			client,
 			$$"""{"Email":"{{email}}"}""",
 			"203.0.113.101"
@@ -314,20 +314,20 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldUseTheLastBinderMatchedEmailWhenCasingIsDuplicated() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 1
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 		const string email = "duplicate-case-limit@example.com";
 
-		using var first = await SendRawPasswordResetAsync(
+		using var first = await _SendRawPasswordResetAsync(
 			client,
 			$$"""{"email":"{{email}}"}""",
 			"203.0.113.102"
 		);
-		using var duplicateCase = await SendRawPasswordResetAsync(
+		using var duplicateCase = await _SendRawPasswordResetAsync(
 			client,
 			$$"""{"email":"decoy@example.com","Email":"{{email}}"}""",
 			"203.0.113.103"
@@ -340,20 +340,20 @@ public sealed class AnonymousAuthRateLimitingSpec
 
 	[Fact]
 	public async Task ItShouldRejectOversizedEmailBodiesAcrossRotatingClientIps() {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 1
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 		var padding = new string('x', 20_000);
 
-		using var first = await SendRawPasswordResetAsync(
+		using var first = await _SendRawPasswordResetAsync(
 			client,
 			$$"""{"email":"oversized@example.com","padding":"{{padding}}"}""",
 			"203.0.113.104"
 		);
-		using var second = await SendRawPasswordResetAsync(
+		using var second = await _SendRawPasswordResetAsync(
 			client,
 			$$"""{"email":"oversized@example.com","padding":"{{padding}}"}""",
 			"203.0.113.105"
@@ -373,14 +373,14 @@ public sealed class AnonymousAuthRateLimitingSpec
 	public async Task ItShouldNotReturn500ForNonObjectJsonBodies(
 		string body
 	) {
-		await using var factory = CreateFactory(
+		await using var factory = _CreateFactory(
 			perIpPermitLimit: 100,
 			perEmailPermitLimit: 100,
 			passwordResetPerEmailPermitLimit: 100
 		);
-		using var client = CreateClient(factory);
+		using var client = _CreateClient(factory);
 
-		using var response = await SendRawPasswordResetAsync(
+		using var response = await _SendRawPasswordResetAsync(
 			client,
 			body
 		);
@@ -389,12 +389,12 @@ public sealed class AnonymousAuthRateLimitingSpec
 			.NotBe(HttpStatusCode.InternalServerError);
 	}
 
-	private static void AssertPolicy(
+	private static void _AssertPolicy(
 		IReadOnlyList<Endpoint> endpoints,
 		string routePattern,
 		string expectedPolicy
 	) {
-		var endpoint = GetRouteEndpoint(
+		var endpoint = _GetRouteEndpoint(
 			endpoints,
 			routePattern
 		);
@@ -406,7 +406,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 		metadata.PolicyName.Should().Be(expectedPolicy);
 	}
 
-	private static RouteEndpoint GetRouteEndpoint(
+	private static RouteEndpoint _GetRouteEndpoint(
 		IReadOnlyList<Endpoint> endpoints,
 		string routePattern
 	) {
@@ -418,7 +418,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 			);
 	}
 
-	private WebApplicationFactory<Program> CreateFactory(
+	private WebApplicationFactory<Program> _CreateFactory(
 		int perIpPermitLimit,
 		int perEmailPermitLimit,
 		int passwordResetPerEmailPermitLimit
@@ -426,19 +426,19 @@ public sealed class AnonymousAuthRateLimitingSpec
 		var settings = new AnonymousAuthRateLimitSettings(
 			PerIp: new RateLimitWindowSettings(
 				perIpPermitLimit,
-				LongWindowSeconds
+				_LongWindowSeconds
 			),
 			PerEmail: new RateLimitWindowSettings(
 				perEmailPermitLimit,
-				LongWindowSeconds
+				_LongWindowSeconds
 			),
 			PasswordResetPerEmail: new RateLimitWindowSettings(
 				passwordResetPerEmailPermitLimit,
-				LongWindowSeconds
+				_LongWindowSeconds
 			)
 		);
 
-		return _fixture.Factory.WithWebHostBuilder(builder => {
+		return _Fixture.Factory.WithWebHostBuilder(builder => {
 			builder.ConfigureServices(services => {
 				services.RemoveAll<AnonymousAuthRateLimitSettings>();
 				services.RemoveAll<IRateLimitCounterStore>();
@@ -452,7 +452,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 		});
 	}
 
-	private static HttpClient CreateClient(
+	private static HttpClient _CreateClient(
 		WebApplicationFactory<Program> factory
 	) {
 		return factory.CreateClient(
@@ -462,7 +462,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 		);
 	}
 
-	private static async Task<HttpResponseMessage> SendPasswordResetAsync(
+	private static async Task<HttpResponseMessage> _SendPasswordResetAsync(
 		HttpClient client,
 		string email,
 		string? forwardedFor = null
@@ -482,7 +482,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 	}
 
 	private static async Task<HttpResponseMessage>
-		SendRawPasswordResetAsync(
+		_SendRawPasswordResetAsync(
 			HttpClient client,
 			string body,
 			string? forwardedFor = null

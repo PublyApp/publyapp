@@ -130,7 +130,7 @@ public interface IDeadLetterQueryService {
 [Service(ServiceLifetime.Scoped)]
 public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQueryService {
 	private static readonly Dictionary<string, int>
-		StatusCsvValues = new(StringComparer.Ordinal) {
+		_StatusCsvValues = new(StringComparer.Ordinal) {
 			["0"] = (int)ExternalStateStatus.None,
 			["1"] = (int)ExternalStateStatus.Present,
 			["2"] = (int)ExternalStateStatus.Expired,
@@ -151,7 +151,7 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 		if (!string.IsNullOrWhiteSpace(args.ExternalStateStatusCsv)) {
 			statuses = [];
 			foreach (var token in args.ExternalStateStatusCsv.Split(',')) {
-				if (!StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
+				if (!_StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
 					return new FindDeadLetterItemsResult.InvalidStatusCsv(
 						args.ExternalStateStatusCsv
 					);
@@ -161,14 +161,14 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			}
 		}
 
-		var query = ApplyFilters(
-			BaseQuery(), args.TenantId, statuses, args.JobType
+		var query = _ApplyFilters(
+			_BaseQuery(), args.TenantId, statuses, args.JobType
 		);
 
 		IQueryable<JobDeadLetter> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
-				from item in BaseQuery()
+				from item in _BaseQuery()
 				where item.Id == args.Cursor
 				select new { item.FailedAt }
 			).FirstOrDefaultAsync(cancellationToken);
@@ -394,13 +394,13 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 		);
 	}
 
-	private IQueryable<JobDeadLetter> BaseQuery() {
+	private IQueryable<JobDeadLetter> _BaseQuery() {
 		return
 			from item in dbContext.JobDeadLetter.AsNoTracking()
 			select item;
 	}
 
-	private static IQueryable<JobDeadLetter> ApplyFilters(
+	private static IQueryable<JobDeadLetter> _ApplyFilters(
 		IQueryable<JobDeadLetter> query,
 		Guid? tenantId,
 		List<int>? statuses,

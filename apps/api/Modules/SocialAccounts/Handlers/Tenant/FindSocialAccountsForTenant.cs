@@ -23,11 +23,11 @@ public class FindSocialAccountsForTenantQueryValidator
 	: CursorPaginatedQueryValidator<FindSocialAccountsForTenantQuery> {
 	public FindSocialAccountsForTenantQueryValidator() {
 		RuleFor(x => x.ProjectId)
-			.Must(BeValidNullableGuid)
+			.Must(_BeValidNullableGuid)
 			.WithMessage("project_id must be a valid GUID");
 	}
 
-	private static bool BeValidNullableGuid(string? value) {
+	private static bool _BeValidNullableGuid(string? value) {
 		if (value is null) {
 			return true;
 		}

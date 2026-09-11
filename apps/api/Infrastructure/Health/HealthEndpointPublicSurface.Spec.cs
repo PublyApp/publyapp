@@ -36,18 +36,18 @@ namespace PublyApp.Api.Infrastructure.Health;
 /// host, over a REAL database row.
 /// </summary>
 public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
 
 	public HealthEndpointPublicSurfaceSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
 	public async Task ItShouldUseOnlyThePublicHealthSchemaOnHealthyEndpoints() {
 		foreach (var path in new[] { "/health/ready", "/health", "/health/drain" }) {
-			using var response = await _http.GetAsync(path);
+			using var response = await _Http.GetAsync(path);
 			var body = await response.Content.ReadAsStringAsync();
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -57,14 +57,14 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldRefuseDrainButPublishNoInternalNamingWhenDueJobsStayUnclaimed() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var stallThreshold = AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS;
 
 		try {
-			await InsertStalledPendingJobAsync(db, stallThreshold);
+			await _InsertStalledPendingJobAsync(db, stallThreshold);
 
-			using var response = await _http.GetAsync("/health/drain");
+			using var response = await _Http.GetAsync("/health/drain");
 			var body = await response.Content.ReadAsStringAsync();
 			HealthTestHelper.AssertPublicHealthBody(body);
 			var report = JsonSerializer.Deserialize<HealthTestHelper.HealthReportJson>(
@@ -104,7 +104,7 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldPublishNoInternalNamingOnTheReadinessBodyWhenMigrationsArePending() {
-		using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var migrations = dbContext.Database.GetMigrations().ToList();
 		migrations.Should().HaveCountGreaterThan(1);
@@ -115,13 +115,13 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 
 		await migrator.MigrateAsync(previousMigration);
 		try {
-			using var ready = await _http.GetAsync("/health/ready");
+			using var ready = await _Http.GetAsync("/health/ready");
 			ready.StatusCode.Should().Be(
 				HttpStatusCode.ServiceUnavailable,
 				"readiness must still refuse while a migration is pending"
 			);
 
-			using var aggregate = await _http.GetAsync("/health");
+			using var aggregate = await _Http.GetAsync("/health");
 			aggregate.StatusCode.Should().Be(
 				HttpStatusCode.ServiceUnavailable,
 				"the /health aggregate follows the readiness verdict"
@@ -205,7 +205,7 @@ public sealed class HealthEndpointPublicSurfaceSpec : IClassFixture<ApiFixture> 
 			);
 	}
 
-	private static async Task InsertStalledPendingJobAsync(
+	private static async Task _InsertStalledPendingJobAsync(
 		AppDbContext db,
 		int stallThresholdSeconds
 	) {

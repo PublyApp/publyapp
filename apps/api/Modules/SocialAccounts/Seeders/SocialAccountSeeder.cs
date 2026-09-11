@@ -25,10 +25,10 @@ namespace PublyApp.Api.Modules.SocialAccounts.Seeders;
 /// display handle, and inserts tolerate a concurrent-seeder unique violation.
 /// </summary>
 public class SocialAccountSeeder : IEntitySeeder {
-	private readonly ILogger<SocialAccountSeeder> _logger;
+	private readonly ILogger<SocialAccountSeeder> _Logger;
 
 	public SocialAccountSeeder(ILogger<SocialAccountSeeder>? logger = null) {
-		_logger = logger
+		_Logger = logger
 			?? SeederLoggerUtils.CreateDefault<SocialAccountSeeder>();
 	}
 
@@ -54,7 +54,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		// MigrateAsync passes (which would otherwise insert into a schema point that
 		// predates the social_accounts columns and throw).
 		if (!FakePublishingProviderEnabled.IsEnabled()) {
-			_logger.LogDebug(
+			_Logger.LogDebug(
 				"PUBLISHING_FAKE_PROVIDER not enabled; skipping demo social account seeding (e2e-only)."
 			);
 			return;
@@ -76,7 +76,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (tenants.Count == 0) {
-			_logger.LogWarning("No demo tenants found for social account seeding; skipping.");
+			_Logger.LogWarning("No demo tenants found for social account seeding; skipping.");
 			return;
 		}
 
@@ -96,7 +96,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 				continue;
 			}
 
-			var did = DeterministicDid(displayHandle);
+			var did = _DeterministicDid(displayHandle);
 			if (existingDidsSet.Contains(did)) {
 				continue;
 			}
@@ -113,7 +113,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		}
 
 		if (newAccounts.Count == 0) {
-			_logger.LogInformation(
+			_Logger.LogInformation(
 				"Social account seeding skipped; all demo accounts already exist."
 			);
 			return;
@@ -122,8 +122,8 @@ public class SocialAccountSeeder : IEntitySeeder {
 		await dbContext.SocialAccount.AddRangeAsync(newAccounts, cancellationToken);
 		try {
 			await dbContext.SaveChangesAsync(cancellationToken);
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Seeded {Count} demo social accounts.", newAccounts.Count
 				);
 			}
@@ -132,7 +132,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		) {
 			// Lost a race against a concurrent seeder inserting the same rows; the
 			// winner's rows satisfy the contract, so this is a skip, not an error.
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				ex,
 				"Duplicate demo social accounts detected during seeding; skipping insert."
 			);
@@ -147,7 +147,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 	// The DID derives deterministically from the handle so re-seeds stay idempotent:
 	// the same handle always maps to the same external account id, which the
 	// existence check above deduplicates on.
-	private static string DeterministicDid(string displayHandle) {
+	private static string _DeterministicDid(string displayHandle) {
 		var seed =
 			Math.Abs((long)StringComparer.Ordinal.GetHashCode(displayHandle));
 		return $"did:plc:{seed:x16}";

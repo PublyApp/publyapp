@@ -55,7 +55,7 @@ internal static class PublicationStatusCsv {
 		);
 		var statuses = new List<PublicationStatus>(tokens.Length);
 		foreach (var token in tokens) {
-			if (TryParseToken(token, out var status)) {
+			if (_TryParseToken(token, out var status)) {
 				statuses.Add(status);
 			}
 		}
@@ -84,7 +84,7 @@ internal static class PublicationStatusCsv {
 		}
 
 		foreach (var token in tokens) {
-			if (!TryParseToken(token, out _)) {
+			if (!_TryParseToken(token, out _)) {
 				return $"'{token}' is not a valid publication status.";
 			}
 		}
@@ -92,7 +92,7 @@ internal static class PublicationStatusCsv {
 		return null;
 	}
 
-	private static bool TryParseToken(
+	private static bool _TryParseToken(
 		string token,
 		out PublicationStatus status
 	) {

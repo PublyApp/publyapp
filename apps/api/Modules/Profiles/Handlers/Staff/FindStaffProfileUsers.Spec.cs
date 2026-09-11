@@ -21,17 +21,17 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class FindStaffProfileUsersSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindStaffProfileUsersSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string profileId) {
+	private static string _GetUrl(string profileId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -39,7 +39,7 @@ public sealed class FindStaffProfileUsersSpec
 		);
 	}
 
-	private static string GetCreateProfileUrl() {
+	private static string _GetCreateProfileUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -47,7 +47,7 @@ public sealed class FindStaffProfileUsersSpec
 		);
 	}
 
-	private static string GetUpdateUserProfilesUrl(string userId) {
+	private static string _GetUpdateUserProfilesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
@@ -59,55 +59,55 @@ public sealed class FindStaffProfileUsersSpec
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl("not-a-guid")
+			_GetUrl("not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -116,14 +116,14 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForNonExistentProfile() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(Guid.NewGuid().ToString())
+			_GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -132,12 +132,12 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldReturnAssignedUsers() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
-		var profileId = await CreateStaffProfileAsync(token);
+		var profileId = await _CreateStaffProfileAsync(token);
 
-		var staffUserId = await GetStaffUserIdByEmailAsync(
-			_http,
+		var staffUserId = await _GetStaffUserIdByEmailAsync(
+			_Http,
 			token,
 			TestConstants.StaffUserEmail
 		);
@@ -145,24 +145,24 @@ public sealed class FindStaffProfileUsersSpec
 		// Assign the newly created profile to the staff user.
 		using (var updateRequest = new HttpRequestMessage(
 			HttpMethod.Put,
-			GetUpdateUserProfilesUrl(staffUserId)
+			_GetUpdateUserProfilesUrl(staffUserId)
 		).WithSessionToken(token)) {
 			updateRequest.Content = JsonContent.Create(
 				new { profileIds = new[] { profileId } }
 			);
 
-			using var updateResponse = await _http.SendAsync(updateRequest);
+			using var updateResponse = await _Http.SendAsync(updateRequest);
 			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		var url = GetUrl(profileId) + "?limit=50&sort_id=created_at&sort_order=desc";
+		var url = _GetUrl(profileId) + "?limit=50&sort_id=created_at&sort_order=desc";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			url
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
@@ -176,24 +176,24 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldSupportSearchByQ() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		var alphaEmail = $"alpha.profile-{Guid.NewGuid():N}@example.com";
 		var betaEmail = $"beta.profile-{Guid.NewGuid():N}@example.com";
 
-		var alphaUserId = await CreateStaffUserAsync(token, alphaEmail, firstName: "Alpha");
-		var betaUserId = await CreateStaffUserAsync(token, betaEmail, firstName: "Beta");
+		var alphaUserId = await _CreateStaffUserAsync(token, alphaEmail, firstName: "Alpha");
+		var betaUserId = await _CreateStaffUserAsync(token, betaEmail, firstName: "Beta");
 
-		await AssignProfileToStaffUserAsync(token, alphaUserId, profileId);
-		await AssignProfileToStaffUserAsync(token, betaUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, alphaUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, betaUserId, profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(profileId) + "?limit=50&q=alpha.profile"
+			_GetUrl(profileId) + "?limit=50&q=alpha.profile"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
@@ -209,29 +209,29 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
 		var withPercentEmail = $"has-percent-{marker}@example.com";
 		var withoutPercentEmail = $"no-percent-{marker}@example.com";
 
-		var withPercentUserId = await CreateStaffUserAsync(
+		var withPercentUserId = await _CreateStaffUserAsync(
 			token, withPercentEmail, firstName: $"Has%Percent{marker}"
 		);
-		var withoutPercentUserId = await CreateStaffUserAsync(
+		var withoutPercentUserId = await _CreateStaffUserAsync(
 			token, withoutPercentEmail, firstName: $"NoPercentAtAll{marker}"
 		);
 
-		await AssignProfileToStaffUserAsync(token, withPercentUserId, profileId);
-		await AssignProfileToStaffUserAsync(token, withoutPercentUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, withPercentUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, withoutPercentUserId, profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(profileId) + $"?limit=50&q={Uri.EscapeDataString("%")}"
+			_GetUrl(profileId) + $"?limit=50&q={Uri.EscapeDataString("%")}"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
@@ -251,38 +251,38 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForInvalidSortId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(profileId) + "?limit=50&sort_id=not_real"
+			_GetUrl(profileId) + "?limit=50&sort_id=not_real"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldSortByEmailAscending() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		var emailA = $"a.sort-{Guid.NewGuid():N}@example.com";
 		var emailB = $"b.sort-{Guid.NewGuid():N}@example.com";
 
-		var userIdB = await CreateStaffUserAsync(token, emailB, firstName: "Bee");
-		var userIdA = await CreateStaffUserAsync(token, emailA, firstName: "Aye");
+		var userIdB = await _CreateStaffUserAsync(token, emailB, firstName: "Bee");
+		var userIdA = await _CreateStaffUserAsync(token, emailA, firstName: "Aye");
 
-		await AssignProfileToStaffUserAsync(token, userIdB, profileId);
-		await AssignProfileToStaffUserAsync(token, userIdA, profileId);
+		await _AssignProfileToStaffUserAsync(token, userIdB, profileId);
+		await _AssignProfileToStaffUserAsync(token, userIdA, profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(profileId) + "?limit=50&sort_id=email&sort_order=asc"
+			_GetUrl(profileId) + "?limit=50&sort_id=email&sort_order=asc"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
@@ -293,32 +293,32 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldSortByStatusAscending() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
 		var activeEmail = $"active.sort-{Guid.NewGuid():N}@example.com";
 		var suspendedEmail = $"suspended.sort-{Guid.NewGuid():N}@example.com";
 
-		var activeUserId = await CreateStaffUserAsync(token, activeEmail, firstName: "Active");
-		var suspendedUserId = await CreateStaffUserAsync(
+		var activeUserId = await _CreateStaffUserAsync(token, activeEmail, firstName: "Active");
+		var suspendedUserId = await _CreateStaffUserAsync(
 			token,
 			suspendedEmail,
 			firstName: "Suspended"
 		);
 
 		// Make the values distinct so sorting by status has a deterministic order.
-		await SetStaffUserStatusAsync(activeUserId, UserStatus.Active);
-		await SetStaffUserStatusAsync(suspendedUserId, UserStatus.Suspended);
+		await _SetStaffUserStatusAsync(activeUserId, UserStatus.Active);
+		await _SetStaffUserStatusAsync(suspendedUserId, UserStatus.Suspended);
 
-		await AssignProfileToStaffUserAsync(token, activeUserId, profileId);
-		await AssignProfileToStaffUserAsync(token, suspendedUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, activeUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, suspendedUserId, profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(profileId) + "?limit=50&sort_id=status&sort_order=asc"
+			_GetUrl(profileId) + "?limit=50&sort_id=status&sort_order=asc"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfileUsersResponse>();
@@ -331,32 +331,32 @@ public sealed class FindStaffProfileUsersSpec
 
 	[Fact]
 	public async Task ItShouldAcceptAllSupportedSortIds() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var profileId = await CreateStaffProfileAsync(token);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await _CreateStaffProfileAsync(token);
 
-		var staffUserId = await GetStaffUserIdByEmailAsync(
-			_http,
+		var staffUserId = await _GetStaffUserIdByEmailAsync(
+			_Http,
 			token,
 			TestConstants.StaffUserEmail
 		);
 
-		await AssignProfileToStaffUserAsync(token, staffUserId, profileId);
+		await _AssignProfileToStaffUserAsync(token, staffUserId, profileId);
 
 		var sortIds = new[] { "created_at", "email", "first_name", "last_name", "status" };
 		foreach (var sortId in sortIds) {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				GetUrl(profileId) + $"?limit=50&sort_id={sortId}&sort_order=desc"
+				_GetUrl(profileId) + $"?limit=50&sort_id={sortId}&sort_order=desc"
 			).WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 	}
 
 	// -- Helper methods --
 
-	private static async Task<string> GetStaffUserIdByEmailAsync(
+	private static async Task<string> _GetStaffUserIdByEmailAsync(
 		HttpClient http,
 		string staffToken,
 		string email
@@ -399,8 +399,8 @@ public sealed class FindStaffProfileUsersSpec
 		return user.Id.ToString();
 	}
 
-	private async Task<string> CreateStaffProfileAsync(string staffToken) {
-		var url = GetCreateProfileUrl();
+	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
+		var url = _GetCreateProfileUrl();
 
 		var name = "Test Profile Users " + Guid.NewGuid().ToString("N")[..8];
 
@@ -421,7 +421,7 @@ public sealed class FindStaffProfileUsersSpec
 			}
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
@@ -430,7 +430,7 @@ public sealed class FindStaffProfileUsersSpec
 		return created.ProfileId.ToString();
 	}
 
-	private async Task<string> CreateStaffUserAsync(
+	private async Task<string> _CreateStaffUserAsync(
 		string staffToken,
 		string email,
 		string? firstName = null,
@@ -439,7 +439,7 @@ public sealed class FindStaffProfileUsersSpec
 		_ = staffToken;
 		// Direct create is intentionally unmapped; profile tests seed setup users directly.
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_fixture,
+			_Fixture,
 			email,
 			firstName: firstName ?? "Test",
 			lastName: lastName ?? "User"
@@ -447,26 +447,26 @@ public sealed class FindStaffProfileUsersSpec
 		return userId.ToString();
 	}
 
-	private async Task AssignProfileToStaffUserAsync(
+	private async Task _AssignProfileToStaffUserAsync(
 		string staffToken,
 		string userId,
 		string profileId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
-			GetUpdateUserProfilesUrl(userId)
+			_GetUpdateUserProfilesUrl(userId)
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
 			new { profileIds = new[] { profileId } }
 		);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task SetStaffUserStatusAsync(string userId, UserStatus status) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _SetStaffUserStatusAsync(string userId, UserStatus status) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var id = Guid.Parse(userId);

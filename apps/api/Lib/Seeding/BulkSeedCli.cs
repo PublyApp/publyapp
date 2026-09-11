@@ -15,15 +15,15 @@ public static class BulkSeedCli {
 		}
 
 		return args[0] switch {
-			"seed-bulk" => RunBulkSeed(args),
-			"seed-bulk-reset" => RunBulkReset(args),
+			"seed-bulk" => _RunBulkSeed(args),
+			"seed-bulk-reset" => _RunBulkReset(args),
 			_ => false
 		};
 	}
 
-	private static bool RunBulkSeed(string[] args) {
+	private static bool _RunBulkSeed(string[] args) {
 		// Safety check: require Development env or --force for bulk seed operations
-		if (!IsOperationAllowed(command: "seed-bulk", isDestructiveOperation: false, args)) {
+		if (!_IsOperationAllowed(command: "seed-bulk", isDestructiveOperation: false, args)) {
 			return true; // Return true to indicate we handled the command (just blocked it)
 		}
 
@@ -49,9 +49,9 @@ public static class BulkSeedCli {
 		return true;
 	}
 
-	private static bool RunBulkReset(string[] args) {
+	private static bool _RunBulkReset(string[] args) {
 		// Safety check: require Development env or --force for destructive operations
-		if (!IsOperationAllowed(command: "seed-bulk-reset", isDestructiveOperation: true, args)) {
+		if (!_IsOperationAllowed(command: "seed-bulk-reset", isDestructiveOperation: true, args)) {
 			return true; // Return true to indicate we handled the command (just blocked it)
 		}
 
@@ -77,7 +77,7 @@ public static class BulkSeedCli {
 		return true;
 	}
 
-	private static bool IsOperationAllowed(string command, bool isDestructiveOperation, string[] args) {
+	private static bool _IsOperationAllowed(string command, bool isDestructiveOperation, string[] args) {
 		var isDevelopment = AppEnvironment.IsDevelopment;
 		var hasForceFlag = args.Contains("--force", StringComparer.OrdinalIgnoreCase);
 

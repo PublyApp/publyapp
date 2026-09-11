@@ -18,7 +18,7 @@ public class GetUserTenantsResult {
 }
 
 public sealed class GetUserTenants {
-	private const int MaxTenantsInList = 5;
+	private const int _MaxTenantsInList = 5;
 
 	public static async Task<Ok<GetUserTenantsResult>> Handle(
 		IRequestAuthContext authContext,
@@ -40,7 +40,7 @@ public sealed class GetUserTenants {
 			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
-		var result = await accountService.GetUserTenantsAsync(userId, MaxTenantsInList, cancellationToken);
+		var result = await accountService.GetUserTenantsAsync(userId, _MaxTenantsInList, cancellationToken);
 
 		return TypedResults.Ok(new GetUserTenantsResult {
 			Tenants = result.Tenants.Select(t => new TenantListItem {

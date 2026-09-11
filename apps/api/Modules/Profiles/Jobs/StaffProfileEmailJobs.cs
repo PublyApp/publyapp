@@ -22,11 +22,11 @@ public sealed record StaffJoinedNotificationEmailPayload {
 /// </summary>
 public static class StaffProfileEmailJobs {
 	// Elevated so transactional emails are claimed ahead of bulk work (design §4.1).
-	private const int EmailPriority = 100;
+	private const int _EmailPriority = 100;
 
 	public static readonly JobDefinition<StaffJoinedNotificationEmailPayload> StaffJoinedNotificationV1 =
 		new() {
 			JobType = "email.staff-joined-notification.v1",
-			Priority = EmailPriority
+			Priority = _EmailPriority
 		};
 }

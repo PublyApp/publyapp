@@ -75,7 +75,7 @@ public class Program {
 		// APP_ROLE decides composition (design §3.2). It defaults to All ONLY when the host
 		// environment is Development/Testing (§3.1). Under any other host environment —
 		// including an UNSET one, which resolves to Production — APP_ROLE is required and a
-		// missing value fails fast (AppEnvironment.GetOptionalAppRole); loading
+		// missing value fails fast (AppEnvironment._GetOptionalAppRole); loading
 		// .env.development does NOT change that classification. So bare `dotnet build`
 		// (OpenAPI generation runs the app) requires APP_ROLE=api: repo builds must use the
 		// pinned `just` recipes (build-api, generate-client), which export it.

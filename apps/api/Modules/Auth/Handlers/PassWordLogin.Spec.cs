@@ -13,12 +13,12 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class PasswordLoginSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
+	private readonly HttpClient _Http;
 
 	public PasswordLoginSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -29,7 +29,7 @@ public sealed class PasswordLoginSpec
 			password = TestConstants.SeedPassword
 		};
 
-		using var response = await _http.PostAsJsonAsync(
+		using var response = await _Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);
@@ -57,7 +57,7 @@ public sealed class PasswordLoginSpec
 			password = TestConstants.SeedPassword
 		};
 
-		using var response = await _http.PostAsJsonAsync(
+		using var response = await _Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);
@@ -80,7 +80,7 @@ public sealed class PasswordLoginSpec
 			password = "wrong-password-at-least-6-chars"
 		};
 
-		using var response = await _http.PostAsJsonAsync(
+		using var response = await _Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);
@@ -97,7 +97,7 @@ public sealed class PasswordLoginSpec
 			password = "any-password-at-least-6"
 		};
 
-		using var response = await _http.PostAsJsonAsync(
+		using var response = await _Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);

@@ -47,10 +47,10 @@ public abstract record ResolveDeadLetterUnclassifiedResult {
 /// </summary>
 [Service(ServiceLifetime.Scoped)]
 public class JobDeadLetterService : IJobDeadLetterService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public JobDeadLetterService(AppDbContext dbContext) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 	}
 
 	public async Task<ResolveDeadLetterUnclassifiedResult> ResolveUnclassifiedAsync(
@@ -61,7 +61,7 @@ public class JobDeadLetterService : IJobDeadLetterService {
 
 		// Read the lineage needed by the event row BEFORE the conditional transition:
 		// after it, a concurrent resolver may have already moved the row on.
-		var lineage = await _dbContext.JobDeadLetter
+		var lineage = await _DbContext.JobDeadLetter
 			.AsNoTracking()
 			.Where(d => d.Id == args.DeadLetterId)
 			.Select(d => new { d.OriginalJobId, d.JobType, d.ExternalStateStatus })
@@ -82,7 +82,7 @@ public class JobDeadLetterService : IJobDeadLetterService {
 		// (zero rows affected) instead of double-writing. Recorded bounds are kept —
 		// they describe WHEN effects were believed to exist, which is evidence, not
 		// something an operator edit should erase.
-		var updated = await _dbContext.Database.ExecuteSqlAsync(
+		var updated = await _DbContext.Database.ExecuteSqlAsync(
 			$"""
 			UPDATE job_dead_letter
 			SET external_state_status = {(int)ExternalStateStatus.Missing},
@@ -96,7 +96,7 @@ public class JobDeadLetterService : IJobDeadLetterService {
 		if (updated == 0) {
 			// A concurrent resolver won the race between our read and our UPDATE.
 			// Re-read so the handler can fail closed with the actual current state.
-			var racedStatus = await _dbContext.JobDeadLetter
+			var racedStatus = await _DbContext.JobDeadLetter
 				.AsNoTracking()
 				.Where(d => d.Id == args.DeadLetterId)
 				.Select(d => (ExternalStateStatus?)d.ExternalStateStatus)
@@ -109,7 +109,7 @@ public class JobDeadLetterService : IJobDeadLetterService {
 
 		var eventId = Guid.NewGuid();
 
-		_dbContext.JobDeadLetterEvent.Add(new JobDeadLetterEvent {
+		_DbContext.JobDeadLetterEvent.Add(new JobDeadLetterEvent {
 			DeadLetterId = args.DeadLetterId,
 			Event = JobDeadLetterEvents.MissingConfirmed,
 			DetectedBy = "operator",
@@ -124,7 +124,7 @@ public class JobDeadLetterService : IJobDeadLetterService {
 			OccurredAt = now
 		});
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
 		return new ResolveDeadLetterUnclassifiedResult.Resolved(eventId);
 	}

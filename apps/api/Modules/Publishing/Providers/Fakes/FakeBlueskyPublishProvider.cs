@@ -13,7 +13,7 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 	// Same collection constant the real provider writes; kept literal here so the
 	// fake has no dependency on the real client's HTTP surface.
-	private const string Collection = "app.bsky.feed.post";
+	private const string _Collection = "app.bsky.feed.post";
 
 	public Task<PublishResult> PublishAsync(
 		PublishRequest request,
@@ -21,7 +21,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 	) {
 		var rkey = $"pub-{request.IdempotencyKey}";
 		var did = request.Session.Did;
-		var recordId = $"at://{did}/{Collection}/{rkey}";
+		var recordId = $"at://{did}/{_Collection}/{rkey}";
 		var url = $"https://bsky.app/profile/{did}/post/{rkey}";
 
 		return Task.FromResult<PublishResult>(
@@ -41,17 +41,17 @@ public static partial class FakePublishingProviderEnabled {
 			return false;
 		}
 
-		return GetOptionalBool(
+		return _GetOptionalBool(
 			"PUBLISHING_FAKE_PROVIDER",
 			defaultValue: false
 		);
 	}
 
-	// Local mirror of AppEnvironment.GetOptionalBool: reading this flag must work
+	// Local mirror of AppEnvironment._GetOptionalBool: reading this flag must work
 	// BEFORE AppEnvironment.Initialize() runs (ServiceRegistration executes during
 	// builder composition), and the knob deliberately stays out of the validated
 	// environment set so it can never leak into a real deployment surface.
-	private static bool GetOptionalBool(string name, bool defaultValue) {
+	private static bool _GetOptionalBool(string name, bool defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
 
 		if (string.IsNullOrWhiteSpace(value)) {

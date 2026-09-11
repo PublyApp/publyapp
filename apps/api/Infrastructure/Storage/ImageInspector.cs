@@ -39,45 +39,45 @@ public static class ImageInspector {
 
 	// Fixed initial read window covering every format's fixed-size header
 	// (PNG IHDR ends at byte 24, WebP VP8X canvas at 30, WebP frames at 30).
-	private const int SniffWindowBytes = 64;
+	private const int _SniffWindowBytes = 64;
 
 	// Longest fixed magic prefix among supported types (WebP RIFF/size/WEBP).
-	private const int MinimumBytes = 12;
+	private const int _MinimumBytes = 12;
 
 	// JPEG SOF markers sit behind variable-length APPn segments (EXIF can be
 	// tens of KB), so that format walks markers streaming-style under a bound.
-	private const long MaxJpegScanBytes = 64 * 1024;
+	private const long _MaxJpegScanBytes = 64 * 1024;
 
 	public static Inspection Inspect(Stream stream) {
-		Span<byte> header = stackalloc byte[SniffWindowBytes];
+		Span<byte> header = stackalloc byte[_SniffWindowBytes];
 		var read = stream.ReadAtLeast(
 			header,
-			MinimumBytes,
+			_MinimumBytes,
 			throwOnEndOfStream: false
 		);
-		if (read < MinimumBytes) {
+		if (read < _MinimumBytes) {
 			return new UnknownType();
 		}
 
 		ReadOnlySpan<byte> view = header[..read];
 
-		if (IsPng(view)) {
-			return ParsePng(view);
+		if (_IsPng(view)) {
+			return _ParsePng(view);
 		}
-		if (IsGif(view)) {
-			return ParseGif(view);
+		if (_IsGif(view)) {
+			return _ParseGif(view);
 		}
-		if (IsWebP(view)) {
-			return ParseWebP(view);
+		if (_IsWebP(view)) {
+			return _ParseWebP(view);
 		}
-		if (IsJpeg(view)) {
-			return ParseJpeg(stream);
+		if (_IsJpeg(view)) {
+			return _ParseJpeg(stream);
 		}
 
 		return new UnknownType();
 	}
 
-	private static bool IsPng(ReadOnlySpan<byte> header) {
+	private static bool _IsPng(ReadOnlySpan<byte> header) {
 		return header.Length >= 16
 			&& header[..8].SequenceEqual(
 				(ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
@@ -85,7 +85,7 @@ public static class ImageInspector {
 			&& header[12..16].SequenceEqual("IHDR"u8);
 	}
 
-	private static Inspection ParsePng(ReadOnlySpan<byte> header) {
+	private static Inspection _ParsePng(ReadOnlySpan<byte> header) {
 		// IHDR payload: 4-byte big-endian width then height, bytes 16..23.
 		if (header.Length < 24) {
 			return new UnknownType();
@@ -98,13 +98,13 @@ public static class ImageInspector {
 		return new Inspected("image/png", ".png", width, height);
 	}
 
-	private static bool IsGif(ReadOnlySpan<byte> header) {
+	private static bool _IsGif(ReadOnlySpan<byte> header) {
 		return header.Length >= 10
 			&& (header[..6].SequenceEqual("GIF87a"u8)
 				|| header[..6].SequenceEqual("GIF89a"u8));
 	}
 
-	private static Inspection ParseGif(ReadOnlySpan<byte> header) {
+	private static Inspection _ParseGif(ReadOnlySpan<byte> header) {
 		// Logical screen descriptor: little-endian uint16 width then height.
 		// Zero-sized canvases stay rejected (round-5 F5 bar).
 		var width = header[6] | (header[7] << 8);
@@ -115,13 +115,13 @@ public static class ImageInspector {
 		return new Inspected("image/gif", ".gif", width, height);
 	}
 
-	private static bool IsWebP(ReadOnlySpan<byte> header) {
+	private static bool _IsWebP(ReadOnlySpan<byte> header) {
 		return header.Length >= 12
 			&& header[..4].SequenceEqual("RIFF"u8)
 			&& header[8..12].SequenceEqual("WEBP"u8);
 	}
 
-	private static Inspection ParseWebP(ReadOnlySpan<byte> header) {
+	private static Inspection _ParseWebP(ReadOnlySpan<byte> header) {
 		if (header.Length >= 16 && header[12..16].SequenceEqual("VP8X"u8)) {
 			// Extended format: flags + 3 reserved bytes at 20..23, then canvas
 			// (dimension - 1) as three little-endian bytes each at 24..29.
@@ -175,22 +175,22 @@ public static class ImageInspector {
 		return new UnknownType();
 	}
 
-	private static bool IsJpeg(ReadOnlySpan<byte> header) {
+	private static bool _IsJpeg(ReadOnlySpan<byte> header) {
 		return header.Length >= 3
 			&& header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
 	}
 
-	private static Inspection ParseJpeg(Stream stream) {
+	private static Inspection _ParseJpeg(Stream stream) {
 		// Walk marker segments from the stream start (the sniff left the
 		// position unspecified) until an SOFn carries the dimensions. Bounded
-		// by MaxJpegScanBytes so a malformed stream cannot spin the walk.
+		// by _MaxJpegScanBytes so a malformed stream cannot spin the walk.
 		stream.Position = 0;
 		var pair = new byte[2];
 		var sofHead = new byte[5];
 		long scanned = 0;
 
-		while (scanned <= MaxJpegScanBytes) {
-			if (!TryReadExactly(stream, pair)) {
+		while (scanned <= _MaxJpegScanBytes) {
+			if (!_TryReadExactly(stream, pair)) {
 				return new UnknownType();
 			}
 			scanned += pair.Length;
@@ -203,7 +203,7 @@ public static class ImageInspector {
 				continue;
 			}
 
-			if (!TryReadExactly(stream, pair)) {
+			if (!_TryReadExactly(stream, pair)) {
 				return new UnknownType();
 			}
 			scanned += pair.Length;
@@ -217,7 +217,7 @@ public static class ImageInspector {
 			if (isStartOfFrame) {
 				// SOFn body: precision byte, then big-endian uint16 height and
 				// width (height first per the JPEG spec).
-				if (!TryReadExactly(stream, sofHead)) {
+				if (!_TryReadExactly(stream, sofHead)) {
 					return new UnknownType();
 				}
 				var height = (sofHead[1] << 8) | sofHead[2];
@@ -238,7 +238,7 @@ public static class ImageInspector {
 		return new UnknownType();
 	}
 
-	private static bool TryReadExactly(Stream stream, byte[] buffer) {
+	private static bool _TryReadExactly(Stream stream, byte[] buffer) {
 		var offset = 0;
 		while (offset < buffer.Length) {
 			var read = stream.Read(buffer, offset, buffer.Length - offset);

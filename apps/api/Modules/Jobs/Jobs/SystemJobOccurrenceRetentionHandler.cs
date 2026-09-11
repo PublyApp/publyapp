@@ -14,17 +14,17 @@ namespace PublyApp.Api.Modules.Jobs.Jobs;
 public sealed class SystemJobOccurrenceRetentionHandler : IJobHandler {
 	public const string JobKey = "system-job-occurrence-retention";
 
-	private const int BatchSize = 500;
+	private const int _BatchSize = 500;
 
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<SystemJobOccurrenceRetentionHandler> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<SystemJobOccurrenceRetentionHandler> _Logger;
 
 	public SystemJobOccurrenceRetentionHandler(
 		AppDbContext dbContext,
 		ILogger<SystemJobOccurrenceRetentionHandler> logger
 	) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public string JobType {
@@ -41,24 +41,24 @@ public sealed class SystemJobOccurrenceRetentionHandler : IJobHandler {
 
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
-			deleted = await _dbContext.Database.ExecuteSqlAsync(
+			deleted = await _DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM system_job_occurrences
 				WHERE ctid IN (
 					SELECT ctid FROM system_job_occurrences
 					WHERE scheduled_fire_at < now() - make_interval(days => {retentionDays})
 					ORDER BY scheduled_fire_at
-					LIMIT {BatchSize}
+					LIMIT {_BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
 				cancellationToken
 			);
 			totalDeleted += deleted;
-		} while (deleted == BatchSize);
+		} while (deleted == _BatchSize);
 
-		if (totalDeleted > 0 && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"system-job-occurrence-retention deleted {Count} row(s) older than {Days} day(s)",
 				totalDeleted,
 				retentionDays

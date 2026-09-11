@@ -12,10 +12,10 @@ namespace PublyApp.Api.Lib.Filters;
 /// SECURITY (D9): Checks membership FIRST before revealing tenant status to prevent tenant ID probing.
 /// </summary>
 public class TenantAuthFilter : IEndpointFilter {
-	private readonly ILogger<TenantAuthFilter> _logger;
+	private readonly ILogger<TenantAuthFilter> _Logger;
 
 	public TenantAuthFilter(ILogger<TenantAuthFilter> logger) {
-		_logger = logger;
+		_Logger = logger;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -29,12 +29,12 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 1. Verify SessionAuthFilter has run
 		if (!authContext.IsAuthenticated) {
-			if (_logger.IsEnabled(LogLevel.Error)) {
-				_logger.LogError(
+			if (_Logger.IsEnabled(LogLevel.Error)) {
+				_Logger.LogError(
 					"Request userId or sessionToken is missing: {UserId}",
 					authContext.UserId
 				);
-				_logger.LogError(
+				_Logger.LogError(
 					"{SessionAuthFilter} must be passed before {TenantAuthFilter}",
 					nameof(SessionAuthFilter),
 					nameof(TenantAuthFilter)
@@ -48,13 +48,13 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 2. Verify CheckTenantHeaderFilter has run
 		if (string.IsNullOrEmpty(authContext.TenantId)) {
-			if (_logger.IsEnabled(LogLevel.Error)) {
-				_logger.LogError(
+			if (_Logger.IsEnabled(LogLevel.Error)) {
+				_Logger.LogError(
 					"Tenant ID is missing: {UserId} {TenantId}",
 					authContext.UserId,
 					authContext.TenantId
 				);
-				_logger.LogError(
+				_Logger.LogError(
 					"{CheckTenantHeaderFilter} must be passed before {TenantAuthFilter}",
 					nameof(CheckTenantHeaderFilter),
 					nameof(TenantAuthFilter)
@@ -72,8 +72,8 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 3. Parse tenant ID
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
-			if (_logger.IsEnabled(LogLevel.Warning)) {
-				_logger.LogWarning(
+			if (_Logger.IsEnabled(LogLevel.Warning)) {
+				_Logger.LogWarning(
 					"Invalid tenant ID format: {TenantId}",
 					authContext.TenantId
 				);
@@ -92,8 +92,8 @@ public class TenantAuthFilter : IEndpointFilter {
 		if (tenantAccount is null) {
 			// User is not a member - give generic 403
 			// DON'T reveal whether tenant exists, is suspended, or anything else
-			if (_logger.IsEnabled(LogLevel.Debug)) {
-				_logger.LogDebug(
+			if (_Logger.IsEnabled(LogLevel.Debug)) {
+				_Logger.LogDebug(
 					"User {UserId} does not have access to tenant {TenantId}",
 					userId,
 					tenantId
@@ -113,8 +113,8 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		if (tenant is null) {
 			// Tenant was deleted - member loses access (generic 403)
-			if (_logger.IsEnabled(LogLevel.Warning)) {
-				_logger.LogWarning(
+			if (_Logger.IsEnabled(LogLevel.Warning)) {
+				_Logger.LogWarning(
 					"Tenant {TenantId} not found (possibly deleted) for user {UserId}",
 					tenantId,
 					userId
@@ -128,8 +128,8 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 6. Check if tenant is suspended - only members see this specific message
 		if (tenant.IsSuspended()) {
-			if (_logger.IsEnabled(LogLevel.Debug)) {
-				_logger.LogDebug(
+			if (_Logger.IsEnabled(LogLevel.Debug)) {
+				_Logger.LogDebug(
 					"User {UserId} attempted to access suspended tenant {TenantId}",
 					userId,
 					tenantId
@@ -144,8 +144,8 @@ public class TenantAuthFilter : IEndpointFilter {
 		// 7. Check tenant is in a valid state (Active only at this point)
 		if (!tenant.IsActive()) {
 			// Pending/non-active tenants - treat as inaccessible (generic 403)
-			if (_logger.IsEnabled(LogLevel.Warning)) {
-				_logger.LogWarning(
+			if (_Logger.IsEnabled(LogLevel.Warning)) {
+				_Logger.LogWarning(
 					"Tenant {TenantId} is not active (status: {Status}) for user {UserId}",
 					tenantId,
 					tenant.Status,
@@ -178,8 +178,8 @@ public class TenantAuthFilter : IEndpointFilter {
 				// Best-effort: this write is ancillary usage metadata, not part of
 				// the tenant-auth contract. A transient failure here must never
 				// turn an otherwise-valid tenant request into a 500 (round-6 F8).
-				if (_logger.IsEnabled(LogLevel.Warning)) {
-					_logger.LogWarning(
+				if (_Logger.IsEnabled(LogLevel.Warning)) {
+					_Logger.LogWarning(
 						ex,
 						"Failed to record last-activity for tenant {TenantId}; continuing request",
 						tenantId

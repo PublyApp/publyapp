@@ -28,17 +28,17 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // tenant.socialaccounts.publish — a caller holding posts.view but NOT the
 // socialaccounts publish verb gets 403.
 public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetPublishTargetsForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string TargetsUrl(Guid? projectId) {
+	private static string _TargetsUrl(Guid? projectId) {
 		return projectId is null
 			? "/publishing/publish-targets"
 			: $"/publishing/publish-targets?project_id={projectId}";
@@ -46,10 +46,10 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOnlyActiveTenantTargetsNewestFirst() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
-		var seeded = await SeedTargetScenarioAsync(tenantId);
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var seeded = await _SeedTargetScenarioAsync(tenantId);
 
-		using var response = await GetTargetsAsync(token, tenantId, null);
+		using var response = await _GetTargetsAsync(token, tenantId, null);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
@@ -83,11 +83,11 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 	// spec owns its fixture so it does not depend on demo seeding running.
 	[Fact]
 	public async Task ItShouldListTheDemoSeededAcmeBlueskyAccountForATenantAdmin() {
-		var (_, token) = await LoginAsAcmeAdminAsync();
-		var acmeId = await GetAcmeIdAsync();
-		await SeedAcmeAccountAsync(acmeId);
+		var (_, token) = await _LoginAsAcmeAdminAsync();
+		var acmeId = await _GetAcmeIdAsync();
+		await _SeedAcmeAccountAsync(acmeId);
 
-		using var response = await GetTargetsAsync(token, acmeId, null);
+		using var response = await _GetTargetsAsync(token, acmeId, null);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
@@ -109,14 +109,14 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 	// does not depend on demo seeding running.
 	[Fact]
 	public async Task ItShouldListPublishTargetsForTheSeededNonAdminMember() {
-		var acmeId = await GetAcmeIdAsync();
-		await SeedAcmeAccountAsync(acmeId);
-		var (_, memberEmail) = await CreatePermittedUserAsync(
+		var acmeId = await _GetAcmeIdAsync();
+		await _SeedAcmeAccountAsync(acmeId);
+		var (_, memberEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(memberEmail, TestConstants.SeedPassword);
+		var token = await _AuthClient.LoginAsync(memberEmail, TestConstants.SeedPassword);
 
-		using var response = await GetTargetsAsync(token, acmeId, null);
+		using var response = await _GetTargetsAsync(token, acmeId, null);
 
 		response.StatusCode.Should().Be(
 			HttpStatusCode.OK,
@@ -131,13 +131,13 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldApplyTheVisibilityRuleWhenProjectIdIsProvided() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
-		var scenario = await SeedTargetScenarioAsync(tenantId);
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var scenario = await _SeedTargetScenarioAsync(tenantId);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var projectOne = await SeedProjectAsync(db, tenantId);
-		var projectTwo = await SeedProjectAsync(db, tenantId);
+		var projectOne = await _SeedProjectAsync(db, tenantId);
+		var projectTwo = await _SeedProjectAsync(db, tenantId);
 		db.SocialAccountProject.Add(new SocialAccountProject {
 			SocialAccountId = scenario.EverywhereActiveId,
 			ProjectId = projectOne,
@@ -149,7 +149,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 		// scenario.RecentActiveId stays unattached: visible in every project.
 
-		using var scopedResponse = await GetTargetsAsync(token, tenantId, projectOne);
+		using var scopedResponse = await _GetTargetsAsync(token, tenantId, projectOne);
 		scopedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var scopedPayload = await scopedResponse.Content
 			.ReadFromJsonAsync<TargetsPayload>();
@@ -176,7 +176,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 					+ "VisibleIn, newest-first"
 			);
 
-		using var otherResponse = await GetTargetsAsync(token, tenantId, projectTwo);
+		using var otherResponse = await _GetTargetsAsync(token, tenantId, projectTwo);
 		otherResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var otherPayload = await otherResponse.Content
 			.ReadFromJsonAsync<TargetsPayload>();
@@ -193,27 +193,27 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn400ForAMalformedProjectId() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			"/publishing/publish-targets?project_id=not-a-guid"
 		).WithSessionToken(token).WithTenantId(tenantId);
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutSocialAccountsPublishEvenWithPostsView() {
-		var (tenantId, memberEmail) = await CreatePermittedUserAsync(
+		var (tenantId, memberEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.Posts.VIEW.Key
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			memberEmail, TestConstants.SeedPassword
 		);
 
-		using var response = await GetTargetsAsync(token, tenantId, null);
+		using var response = await _GetTargetsAsync(token, tenantId, null);
 
 		response.StatusCode.Should().Be(
 			HttpStatusCode.Forbidden,
@@ -223,15 +223,15 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn200ForACallerHoldingOnlyThePublishVerb() {
-		var (tenantId, memberEmail) = await CreatePermittedUserAsync(
+		var (tenantId, memberEmail) = await _CreatePermittedUserAsync(
 			AppPermissions.Tenant.SocialAccounts.PUBLISH.Key
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			memberEmail, TestConstants.SeedPassword
 		);
-		await SeedTargetScenarioAsync(tenantId);
+		await _SeedTargetScenarioAsync(tenantId);
 
-		using var response = await GetTargetsAsync(token, tenantId, null);
+		using var response = await _GetTargetsAsync(token, tenantId, null);
 
 		response.StatusCode.Should().Be(
 			HttpStatusCode.OK,
@@ -241,48 +241,48 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ────────────────────────────────────────────────────────
 
-	private async Task<HttpResponseMessage> GetTargetsAsync(
+	private async Task<HttpResponseMessage> _GetTargetsAsync(
 		string token,
 		Guid tenantId,
 		Guid? projectId
 	) {
 		using var request = new HttpRequestMessage(
-			HttpMethod.Get, TargetsUrl(projectId)
+			HttpMethod.Get, _TargetsUrl(projectId)
 		).WithSessionToken(token).WithTenantId(tenantId);
-		return await _http.SendAsync(request);
+		return await _Http.SendAsync(request);
 	}
 
-	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetAcmeIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.AcmeName
+			_Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	// Creates a non-admin tenant member of Acme holding EXACTLY the given
 	// permission keys through a fresh profile, and returns the email to log
 	// in with (seed password).
-	private async Task<(Guid TenantId, string Email)> CreatePermittedUserAsync(
+	private async Task<(Guid TenantId, string Email)> _CreatePermittedUserAsync(
 		params string[] permissionKeys
 	) {
-		var acmeId = await GetAcmeIdAsync();
+		var acmeId = await _GetAcmeIdAsync();
 		var email = $"pub-targets-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -337,10 +337,10 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 
 	// Seeds one Active Acme Bluesky account (stands in for the e2e-only
 	// SocialAccountSeeder demo account, so this spec owns its fixture).
-	private async Task<Guid> SeedAcmeAccountAsync(Guid acmeId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedAcmeAccountAsync(Guid acmeId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await SeedAccountAsync(
+		return await _SeedAccountAsync(
 			db, acmeId, "@publish-targets-demo.bsky.social", minutesAgo: 1
 		);
 	}
@@ -348,28 +348,28 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 	// Seeds three Active Acme accounts with pinned CreatedAt values (old, then
 	// everywhere-only, then recent), one NeedsReconnect Acme account, and one
 	// Active TechStart account that must never leak into Acme's targets.
-	private async Task<SeededScenario> SeedTargetScenarioAsync(Guid acmeId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<SeededScenario> _SeedTargetScenarioAsync(Guid acmeId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		const string recentHandle = "@publish-targets-recent.bsky.social";
-		var oldActive = await SeedAccountAsync(
+		var oldActive = await _SeedAccountAsync(
 			db, acmeId, "@publish-targets-old.bsky.social", minutesAgo: 120
 		);
-		var everywhereActive = await SeedAccountAsync(
+		var everywhereActive = await _SeedAccountAsync(
 			db, acmeId, "@publish-targets-everywhere.bsky.social", minutesAgo: 90
 		);
-		var recentActive = await SeedAccountAsync(
+		var recentActive = await _SeedAccountAsync(
 			db, acmeId, recentHandle, minutesAgo: 60
 		);
-		var needsReconnect = await SeedStatusedAccountAsync(
+		var needsReconnect = await _SeedStatusedAccountAsync(
 			db, acmeId, SocialAccountStatus.NeedsReconnect, minutesAgo: 30
 		);
 
 		var techStartId = await db.Tenant
 			.Where(t => t.Name == SeedConstants.Tenants.TechStartName)
 			.SingleAsync();
-		var foreignActive = await SeedStatusedAccountAsync(
+		var foreignActive = await _SeedStatusedAccountAsync(
 			db, techStartId.GetRequiredId(), SocialAccountStatus.Active, minutesAgo: 10
 		);
 
@@ -386,18 +386,18 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 	// The SaveChanges interceptor rewrites CreatedAt for BaseAttributesNoKey
 	// descendants on insert, so the pinned creation order is applied with a raw
 	// UPDATE afterwards.
-	private static async Task<Guid> SeedAccountAsync(
+	private static async Task<Guid> _SeedAccountAsync(
 		AppDbContext db,
 		Guid tenantId,
 		string displayHandle,
 		int minutesAgo
 	) {
-		return await SeedStatusedAccountAsync(
+		return await _SeedStatusedAccountAsync(
 			db, tenantId, SocialAccountStatus.Active, minutesAgo, displayHandle
 		);
 	}
 
-	private static async Task<Guid> SeedStatusedAccountAsync(
+	private static async Task<Guid> _SeedStatusedAccountAsync(
 		AppDbContext db,
 		Guid tenantId,
 		SocialAccountStatus status,
@@ -420,7 +420,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		return account.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedProjectAsync(
+	private static async Task<Guid> _SeedProjectAsync(
 		AppDbContext db,
 		Guid tenantId
 	) {

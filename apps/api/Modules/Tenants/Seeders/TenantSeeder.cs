@@ -15,10 +15,10 @@ namespace PublyApp.Api.Modules.Tenants.Seeders;
 /// Seeds Tenant entities in the database.
 /// </summary>
 public class TenantSeeder : IEntitySeeder {
-	private readonly ILogger<TenantSeeder> _logger;
+	private readonly ILogger<TenantSeeder> _Logger;
 
 	public TenantSeeder(ILogger<TenantSeeder>? logger = null) {
-		_logger = logger
+		_Logger = logger
 			?? SeederLoggerUtils.CreateDefault<TenantSeeder>();
 	}
 
@@ -62,7 +62,7 @@ public class TenantSeeder : IEntitySeeder {
 			.ToList();
 
 		if (newTenants.Count == 0) {
-			_logger.LogInformation("Tenant seeding skipped; all tenants already exist.");
+			_Logger.LogInformation("Tenant seeding skipped; all tenants already exist.");
 			return;
 		}
 
@@ -76,12 +76,12 @@ public class TenantSeeder : IEntitySeeder {
 				await dbContext.Tenant.AddRangeAsync(newTenants, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded {Count} tenants.", newTenants.Count);
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded {Count} tenants.", newTenants.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				await transaction.RollbackAsync(cancellationToken);
-				_logger.LogWarning(ex, "Duplicate tenants detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate tenants detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -91,11 +91,11 @@ public class TenantSeeder : IEntitySeeder {
 			try {
 				await dbContext.Tenant.AddRangeAsync(newTenants, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded {Count} tenants.", newTenants.Count);
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded {Count} tenants.", newTenants.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				_logger.LogWarning(ex, "Duplicate tenants detected during seeding; skipping insert.");
+				_Logger.LogWarning(ex, "Duplicate tenants detected during seeding; skipping insert.");
 			}
 		}
 	}

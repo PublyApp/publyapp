@@ -9,20 +9,20 @@ namespace PublyApp.Api.Lib.ProblemResults;
 /// Auto-documents in OpenAPI via IEndpointMetadataProvider.
 /// </summary>
 public sealed class AppConflictHttpResult : IResult, IEndpointMetadataProvider {
-	private readonly AppProblemDetails _problemDetails;
+	private readonly AppProblemDetails _ProblemDetails;
 
 	internal AppConflictHttpResult(AppProblemDetails problemDetails) {
-		_problemDetails = problemDetails;
+		_ProblemDetails = problemDetails;
 	}
 
 	public async Task ExecuteAsync(HttpContext httpContext) {
-		_problemDetails.Instance ??= httpContext.Request.Path.Value;
-		_problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+		_ProblemDetails.Instance ??= httpContext.Request.Path.Value;
+		_ProblemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
 
 		httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
 		httpContext.Response.ContentType = "application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(
-			_problemDetails,
+			_ProblemDetails,
 			options: null,
 			contentType: "application/problem+json",
 			cancellationToken: httpContext.RequestAborted

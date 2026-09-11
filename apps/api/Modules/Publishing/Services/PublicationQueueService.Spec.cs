@@ -18,14 +18,14 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 // pins the read-only queue finder behind C4 reconnect/resume and disconnect/pause
 // orchestration — tenant-scoped loads, non-terminal rows only, honest instants.
 public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublicationQueueServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -43,12 +43,12 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static PublicationQueueService NewService(AppDbContext db) {
+	private static PublicationQueueService _NewService(AppDbContext db) {
 		return new PublicationQueueService(db);
 	}
 
 	private static async Task<(Guid TenantId, Guid AccountId, Guid UserId)>
-		SeedTenantAndAccountAsync(AppDbContext db) {
+		_SeedTenantAndAccountAsync(AppDbContext db) {
 		var tenant = new PublyApp.Api.Modules.Tenants.Entities.Tenant {
 			Name = $"pub-queue-{Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -76,7 +76,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 		return (tenant.GetRequiredId(), account.GetRequiredId(), user.GetRequiredId());
 	}
 
-	private static async Task<Guid> SeedPublicationAsync(
+	private static async Task<Guid> _SeedPublicationAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid accountId,
@@ -108,23 +108,23 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOnlyTheCallingTenantsNonTerminalRowsForTheAccount() {
-		using var db = await NewDbAsync();
-		var (tenantA, accountA, userA) = await SeedTenantAndAccountAsync(db);
-		var (tenantB, accountB, userB) = await SeedTenantAndAccountAsync(db);
-		var scheduledId = await SeedPublicationAsync(
+		using var db = await _NewDbAsync();
+		var (tenantA, accountA, userA) = await _SeedTenantAndAccountAsync(db);
+		var (tenantB, accountB, userB) = await _SeedTenantAndAccountAsync(db);
+		var scheduledId = await _SeedPublicationAsync(
 			db, tenantA, accountA, userA,
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
-		var pausedId = await SeedPublicationAsync(
+		var pausedId = await _SeedPublicationAsync(
 			db, tenantA, accountA, userA,
 			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-1)
 		);
-		await SeedPublicationAsync(
+		await _SeedPublicationAsync(
 			db, tenantB, accountB, userB,
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
 
-		var service = NewService(db);
+		var service = _NewService(db);
 		var rows = await service.FindNonTerminalForAccountAsync(
 			new FindPublicationsOfAccountArgs(tenantA, accountA),
 			CancellationToken.None
@@ -135,26 +135,26 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExcludePublishedAndFailedRows() {
-		using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
-		var scheduledId = await SeedPublicationAsync(
+		using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
+		var scheduledId = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
-		var pausedId = await SeedPublicationAsync(
+		var pausedId = await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-1)
 		);
-		await SeedPublicationAsync(
+		await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Published, DateTime.UtcNow.AddHours(-2)
 		);
-		await SeedPublicationAsync(
+		await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Failed, DateTime.UtcNow.AddHours(-3)
 		);
 
-		var service = NewService(db);
+		var service = _NewService(db);
 		var rows = await service.FindNonTerminalForAccountAsync(
 			new FindPublicationsOfAccountArgs(tenantId, accountId),
 			CancellationToken.None
@@ -165,14 +165,14 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnAnEmptyListWhenTheAccountHasNoQueuedRows() {
-		using var db = await NewDbAsync();
-		var (tenantId, accountId, userId) = await SeedTenantAndAccountAsync(db);
-		await SeedPublicationAsync(
+		using var db = await _NewDbAsync();
+		var (tenantId, accountId, userId) = await _SeedTenantAndAccountAsync(db);
+		await _SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Published, DateTime.UtcNow.AddHours(-1)
 		);
 
-		var service = NewService(db);
+		var service = _NewService(db);
 		var rows = await service.FindNonTerminalForAccountAsync(
 			new FindPublicationsOfAccountArgs(tenantId, Guid.NewGuid()),
 			CancellationToken.None
@@ -183,15 +183,15 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHideRowsWhenQueriedFromAnotherTenant() {
-		using var db = await NewDbAsync();
-		var (tenantA, accountA, userA) = await SeedTenantAndAccountAsync(db);
-		var (tenantB, _, _) = await SeedTenantAndAccountAsync(db);
-		await SeedPublicationAsync(
+		using var db = await _NewDbAsync();
+		var (tenantA, accountA, userA) = await _SeedTenantAndAccountAsync(db);
+		var (tenantB, _, _) = await _SeedTenantAndAccountAsync(db);
+		await _SeedPublicationAsync(
 			db, tenantA, accountA, userA,
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
 
-		var service = NewService(db);
+		var service = _NewService(db);
 		var rows = await service.FindNonTerminalForAccountAsync(
 			new FindPublicationsOfAccountArgs(tenantB, accountA),
 			CancellationToken.None

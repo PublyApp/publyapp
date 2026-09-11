@@ -14,20 +14,20 @@ public class ResendEmailAdapter : IEmailSender {
 	// Explicit provider HTTP timeout (design §5.4 step 3/step 4): the lock window over a
 	// network send is bounded so a blocked provider call can never stall the worker or a
 	// waiting revoke indefinitely. A timeout is a TRANSIENT fault → Retry, never Permanent.
-	private static readonly TimeSpan DefaultProviderTimeout = TimeSpan.FromSeconds(30);
+	private static readonly TimeSpan _DefaultProviderTimeout = TimeSpan.FromSeconds(30);
 
-	private readonly IResendEmailClient _resendClient;
-	private readonly TimeSpan _providerTimeout;
+	private readonly IResendEmailClient _ResendClient;
+	private readonly TimeSpan _ProviderTimeout;
 
 	public ResendEmailAdapter(IResendEmailClient resendClient)
-		: this(resendClient, DefaultProviderTimeout) {
+		: this(resendClient, _DefaultProviderTimeout) {
 	}
 
 	// Overload with an explicit bound: production always uses the 30 s default above;
 	// specs pass a tiny bound to drive the timeout->Retry classification without waiting.
 	public ResendEmailAdapter(IResendEmailClient resendClient, TimeSpan providerTimeout) {
-		_resendClient = resendClient;
-		_providerTimeout = providerTimeout;
+		_ResendClient = resendClient;
+		_ProviderTimeout = providerTimeout;
 	}
 
 	public async Task<EmailSendReceipt> SendAsync(
@@ -45,15 +45,15 @@ public class ResendEmailAdapter : IEmailSender {
 		// Bound the provider call at 30 s, linked to the job token so host shutdown still
 		// cancels promptly. A trip of the timeout (not the job token) is a transient fault.
 		using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		timeoutSource.CancelAfter(_providerTimeout);
+		timeoutSource.CancelAfter(_ProviderTimeout);
 
 		try {
 			var response = string.IsNullOrEmpty(idempotencyKey)
-				? await _resendClient.EmailSendAsync(resendMessage, timeoutSource.Token)
-				: await _resendClient.EmailSendAsync(idempotencyKey, resendMessage, timeoutSource.Token);
+				? await _ResendClient.EmailSendAsync(resendMessage, timeoutSource.Token)
+				: await _ResendClient.EmailSendAsync(idempotencyKey, resendMessage, timeoutSource.Token);
 
 			if (response.Exception is { } exception) {
-				throw Classify(exception, response.Limits?.RetryAfter);
+				throw _Classify(exception, response.Limits?.RetryAfter);
 			}
 
 			return new EmailSendReceipt(response.Content.ToString());
@@ -61,7 +61,7 @@ public class ResendEmailAdapter : IEmailSender {
 			// Defensive classification for callers configured with ThrowExceptions=true.
 			// Production disables it explicitly, but this boundary remains safe if the SDK
 			// option regresses or another IResend implementation throws directly.
-			throw Classify(ex, retryAfterSeconds: null);
+			throw _Classify(ex, retryAfterSeconds: null);
 		} catch (OperationCanceledException) when (
 			timeoutSource.IsCancellationRequested && !cancellationToken.IsCancellationRequested
 		) {
@@ -71,11 +71,11 @@ public class ResendEmailAdapter : IEmailSender {
 		}
 	}
 
-	// Classify a Resend failure into the engine's transient/permanent taxonomy (F3/F12).
+	// _Classify a Resend failure into the engine's transient/permanent taxonomy (F3/F12).
 	// Retries cannot fix a 4xx validation/suppression, but network faults, 5xx, and rate
 	// limits are worth retrying. The code is STABLE and PII-free (error type + status
 	// only) — never the recipient or the provider's raw message body (F20).
-	private static EmailProviderException Classify(
+	private static EmailProviderException _Classify(
 		ResendException exception,
 		int? retryAfterSeconds
 	) {

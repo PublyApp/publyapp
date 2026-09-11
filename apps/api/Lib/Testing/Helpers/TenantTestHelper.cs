@@ -13,7 +13,7 @@ namespace PublyApp.Api.Lib.Testing.Helpers;
 /// suspend/reactivate operations via the staff API.
 /// </summary>
 internal static class TenantTestHelper {
-	private static readonly string FindUrl =
+	private static readonly string _FindUrl =
 		PathUtils.Join(
 			AppRoutes.Staff.Root,
 			AppRoutes.Tenants.ForStaff.Root,
@@ -50,10 +50,10 @@ internal static class TenantTestHelper {
 		}
 
 		if (queryParams.Count == 0) {
-			return FindUrl;
+			return _FindUrl;
 		}
 
-		return FindUrl
+		return _FindUrl
 			+ "?"
 			+ string.Join("&", queryParams);
 	}

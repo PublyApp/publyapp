@@ -21,12 +21,12 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 /// is job_queue only.)
 /// </summary>
 public sealed class RecoverStaleJobsJob : IJob {
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<RecoverStaleJobsJob> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<RecoverStaleJobsJob> _Logger;
 
 	public RecoverStaleJobsJob(AppDbContext dbContext, ILogger<RecoverStaleJobsJob> logger) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public async Task Execute(IJobExecutionContext context) {
@@ -37,11 +37,11 @@ public sealed class RecoverStaleJobsJob : IJob {
 	// public-methods-for-determinism discipline) without faking IJobExecutionContext.
 	public async Task<int> RecoverAsync(CancellationToken cancellationToken) {
 		var reclaimed = await JobQueueProcessor.ResetExpiredLeasesAsync(
-			_dbContext, cancellationToken
+			_DbContext, cancellationToken
 		);
 
-		if (reclaimed > 0 && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation("Recovered {Count} stale job_queue row(s) to Pending", reclaimed);
+		if (reclaimed > 0 && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation("Recovered {Count} stale job_queue row(s) to Pending", reclaimed);
 		}
 
 		return reclaimed;

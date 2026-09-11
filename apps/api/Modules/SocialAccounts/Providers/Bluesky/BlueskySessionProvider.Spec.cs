@@ -23,20 +23,20 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 // session-open flips the stored row to NeedsReconnect with the sanitised cause
 // persisted (never a raw provider payload, never the app password).
 public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
-	private const string Password = "provider-spec-app-password";
+	private const string _Password = "provider-spec-app-password";
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public BlueskySessionProviderSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReturnOpenedWithLiveSessionValuesOnSuccess() {
-		await using var scope = CreateScope();
-		var accountId = await SeedConnectedAccountAsync(scope);
+		await using var scope = _CreateScope();
+		var accountId = await _SeedConnectedAccountAsync(scope);
 
-		var result = await ResolveProvider(scope)
+		var result = await _ResolveProvider(scope)
 			.OpenSessionAsync(accountId, CancellationToken.None);
 
 		var opened = result.Should()
@@ -46,18 +46,18 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 		opened.Session.AccessJwt.Should().NotBeNullOrWhiteSpace();
 		opened.Session.PdsHost.Should().Be("https://bsky.social");
 
-		await AssertRowUnchangedAsync(scope, accountId);
+		await _AssertRowUnchangedAsync(scope, accountId);
 	}
 
 	[Fact]
 	public async Task ItShouldMapARefusedSessionToAccountFailureAndFlipNeedsReconnect() {
-		await using var scope = CreateScope();
+		await using var scope = _CreateScope();
 		const string cause = "Credentials were refused by Bluesky.";
-		var fake = ResolveFake(scope);
+		var fake = _ResolveFake(scope);
 		fake.NextResult = new BlueskySessionResult.AccountFailure(cause);
-		var accountId = await SeedConnectedAccountAsync(scope);
+		var accountId = await _SeedConnectedAccountAsync(scope);
 
-		var result = await ResolveProvider(scope)
+		var result = await _ResolveProvider(scope)
 			.OpenSessionAsync(accountId, CancellationToken.None);
 
 		var failure = result.Should()
@@ -66,7 +66,7 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 
 		// Transparent failure causes: the account flips to needs-reconnect and the
 		// plain-words cause is persisted for the operator surface.
-		await using var verify = CreateFreshDbContext(scope);
+		await using var verify = _CreateFreshDbContext(scope);
 		var row = await verify.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == accountId);
 		row.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
@@ -78,9 +78,9 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldMapAnUnusableStoredCredentialToAccountFailure() {
-		await using var scope = CreateScope();
-		var db = ResolveDb(scope);
-		var tenantId = await SeedTenantAsync(db);
+		await using var scope = _CreateScope();
+		var db = _ResolveDb(scope);
+		var tenantId = await _SeedTenantAsync(db);
 		db.SocialAccount.Add(new SocialAccount {
 			TenantId = tenantId,
 			Provider = SocialProvider.Bluesky,
@@ -95,20 +95,20 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 			a => a.DisplayHandle == "tampered-blob.test"
 		)).GetRequiredId();
 
-		var result = await ResolveProvider(scope)
+		var result = await _ResolveProvider(scope)
 			.OpenSessionAsync(accountId, CancellationToken.None);
 
 		var failure = result.Should()
 			.BeOfType<SocialSessionResult.AccountFailure>().Subject;
 		failure.Cause.Should().Be("no usable stored credential");
-		ResolveFake(scope).Attempts.Should().BeEmpty();
+		_ResolveFake(scope).Attempts.Should().BeEmpty();
 	}
 
 	[Fact]
 	public async Task ItShouldMapAMissingSocialAccountToAccountFailure() {
-		await using var scope = CreateScope();
+		await using var scope = _CreateScope();
 
-		var result = await ResolveProvider(scope).OpenSessionAsync(Guid.NewGuid(), CancellationToken.None);
+		var result = await _ResolveProvider(scope).OpenSessionAsync(Guid.NewGuid(), CancellationToken.None);
 
 		var failure = result.Should()
 			.BeOfType<SocialSessionResult.AccountFailure>().Subject;
@@ -117,12 +117,12 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldMapTransientFailureWithoutFlippingTheStoredState() {
-		await using var scope = CreateScope();
-		var fake = ResolveFake(scope);
+		await using var scope = _CreateScope();
+		var fake = _ResolveFake(scope);
 		fake.NextResult = new BlueskySessionResult.Transient();
-		var accountId = await SeedConnectedAccountAsync(scope);
+		var accountId = await _SeedConnectedAccountAsync(scope);
 
-		var result = await ResolveProvider(scope)
+		var result = await _ResolveProvider(scope)
 			.OpenSessionAsync(accountId, CancellationToken.None);
 
 		var transient = result.Should()
@@ -131,7 +131,7 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 
 		// A transient outage is NOT an account problem: nothing about the stored
 		// row may change — jobs infrastructure retries later.
-		await using var verify = CreateFreshDbContext(scope);
+		await using var verify = _CreateFreshDbContext(scope);
 		var row = await verify.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == accountId);
 		row.Status.Should().Be(SocialAccountStatus.Active);
@@ -140,24 +140,24 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 		fake.NextResult = null;
 	}
 
-	private AsyncServiceScope CreateScope() {
-		return _fixture.Factory.Services.CreateAsyncScope();
+	private AsyncServiceScope _CreateScope() {
+		return _Fixture.Factory.Services.CreateAsyncScope();
 	}
 
-	private static AppDbContext ResolveDb(AsyncServiceScope scope) {
+	private static AppDbContext _ResolveDb(AsyncServiceScope scope) {
 		return scope.ServiceProvider.GetRequiredService<AppDbContext>();
 	}
 
-	private static ISocialSessionProvider ResolveProvider(AsyncServiceScope scope) {
+	private static ISocialSessionProvider _ResolveProvider(AsyncServiceScope scope) {
 		return scope.ServiceProvider.GetRequiredService<ISocialSessionProvider>();
 	}
 
-	private static FakeBlueskyClient ResolveFake(AsyncServiceScope scope) {
+	private static FakeBlueskyClient _ResolveFake(AsyncServiceScope scope) {
 		return scope.ServiceProvider.GetRequiredService<FakeBlueskyClient>();
 	}
 
-	private static AppDbContext CreateFreshDbContext(AsyncServiceScope scope) {
-		var reference = ResolveDb(scope);
+	private static AppDbContext _CreateFreshDbContext(AsyncServiceScope scope) {
+		var reference = _ResolveDb(scope);
 		var connectionString = reference.Database.GetConnectionString();
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
@@ -166,7 +166,7 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task<Guid> SeedTenantAsync(AppDbContext db) {
+	private static async Task<Guid> _SeedTenantAsync(AppDbContext db) {
 		var tenant = new Tenant {
 			Name = $"Session Provider {Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -178,9 +178,9 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 		return tenant.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedConnectedAccountAsync(AsyncServiceScope scope) {
-		var db = ResolveDb(scope);
-		var tenantId = await SeedTenantAsync(db);
+	private static async Task<Guid> _SeedConnectedAccountAsync(AsyncServiceScope scope) {
+		var db = _ResolveDb(scope);
+		var tenantId = await _SeedTenantAsync(db);
 		var protector = scope.ServiceProvider
 			.GetRequiredService<ICredentialProtector>();
 		var account = new SocialAccount {
@@ -190,7 +190,7 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 			DisplayHandle = $"session-provider-{Guid.NewGuid():N}"[..24] + ".test",
 			CredentialType = SocialCredentialType.AppPassword,
 			ProtectedCredentials = protector.Protect(
-				Password, SocialProvider.Bluesky
+				_Password, SocialProvider.Bluesky
 			),
 			Status = SocialAccountStatus.Active,
 			LastSuccessAt = DateTime.UtcNow,
@@ -200,11 +200,11 @@ public sealed class BlueskySessionProviderSpec : IClassFixture<ApiFixture> {
 		return account.GetRequiredId();
 	}
 
-	private static async Task AssertRowUnchangedAsync(
+	private static async Task _AssertRowUnchangedAsync(
 		AsyncServiceScope scope,
 		Guid accountId
 	) {
-		await using var verify = CreateFreshDbContext(scope);
+		await using var verify = _CreateFreshDbContext(scope);
 		var row = await verify.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == accountId);
 		row.Status.Should().Be(SocialAccountStatus.Active);

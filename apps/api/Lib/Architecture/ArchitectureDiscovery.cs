@@ -11,13 +11,13 @@ namespace PublyApp.Api.Lib.Architecture;
 /// Every new architecture spec must call this helper for type enumeration.
 /// </summary>
 public static class ArchitectureDiscovery {
-	private const string HandlerNamespaceFragment = ".Handlers.";
-	private const string ServiceNamespaceFragment = ".Services";
-	private const string RoutesRootFullName = "PublyApp.Api.Lib.Routes.Routes";
-	private const string EfMigrationsNamespacePrefix = "PublyApp.Api.Migrations";
-	private const string GeneratedNamespaceSegment = ".Generated.";
+	private const string _HandlerNamespaceFragment = ".Handlers.";
+	private const string _ServiceNamespaceFragment = ".Services";
+	private const string _RoutesRootFullName = "PublyApp.Api.Lib.Routes.Routes";
+	private const string _EfMigrationsNamespacePrefix = "PublyApp.Api.Migrations";
+	private const string _GeneratedNamespaceSegment = ".Generated.";
 
-	private static readonly string[] WireDtoSuffixes = [
+	private static readonly string[] _WireDtoSuffixes = [
 		"Body",
 		"Query",
 		"Result",
@@ -33,9 +33,9 @@ public static class ArchitectureDiscovery {
 	/// compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateApiTypes() {
-		return LoadApiAssembly()
+		return _LoadApiAssembly()
 			.GetTypes()
-			.Where(IsDiscoverableApiType)
+			.Where(_IsDiscoverableApiType)
 			.OrderBy(type => type.FullName, StringComparer.Ordinal)
 			.ToList();
 	}
@@ -49,7 +49,7 @@ public static class ArchitectureDiscovery {
 	/// compiler-generated types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<MethodInfo> EnumerateHandlerEntrypoints() {
-		return EnumerateHandlerTypes()
+		return _EnumerateHandlerTypes()
 			.Where(type =>
 				type is { IsClass: true, IsAbstract: false })
 			.Select(type => type.GetMethod(
@@ -77,7 +77,7 @@ public static class ArchitectureDiscovery {
 		return EnumerateApiTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					ServiceNamespaceFragment,
+					_ServiceNamespaceFragment,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
@@ -93,7 +93,7 @@ public static class ArchitectureDiscovery {
 	public static IReadOnlyList<RouteConstant> EnumerateRouteConstants() {
 		var constants = new List<RouteConstant>();
 
-		foreach (var routeType in EnumerateRouteConstantTypes()) {
+		foreach (var routeType in _EnumerateRouteConstantTypes()) {
 			var fields = routeType.GetFields(
 				BindingFlags.Public
 				| BindingFlags.Static
@@ -130,9 +130,9 @@ public static class ArchitectureDiscovery {
 	/// types, and anonymous types.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateWireDtoTypes() {
-		return EnumerateHandlerTypes()
+		return _EnumerateHandlerTypes()
 			.Where(type =>
-				WireDtoSuffixes.Any(suffix =>
+				_WireDtoSuffixes.Any(suffix =>
 					type.Name.EndsWith(suffix, StringComparison.Ordinal)))
 			.ToList();
 	}
@@ -163,7 +163,7 @@ public static class ArchitectureDiscovery {
 	/// types, and anonymous types, but includes misnamed <c>Handle*</c> candidates.
 	/// </remarks>
 	public static IReadOnlyList<Type> EnumerateHandlerEntrypointCandidateTypes() {
-		return EnumerateHandlerTypes()
+		return _EnumerateHandlerTypes()
 			.Where(type =>
 				type is { IsClass: true, IsAbstract: false }
 				&& type
@@ -184,7 +184,7 @@ public static class ArchitectureDiscovery {
 		return EnumerateApiTypes()
 			.Where(type =>
 				type.Namespace?.Contains(
-					HandlerNamespaceFragment,
+					_HandlerNamespaceFragment,
 					StringComparison.Ordinal
 				) is true)
 			.Where(type =>
@@ -218,15 +218,15 @@ public static class ArchitectureDiscovery {
 		return null;
 	}
 
-	private static Assembly LoadApiAssembly() {
+	private static Assembly _LoadApiAssembly() {
 		return typeof(Program).Assembly;
 	}
 
-	private static IReadOnlyList<Type> EnumerateHandlerTypes() {
+	private static IReadOnlyList<Type> _EnumerateHandlerTypes() {
 		return EnumerateApiTypes()
 			.Where(type =>
 				type.Namespace?.Contains(
-					HandlerNamespaceFragment,
+					_HandlerNamespaceFragment,
 					StringComparison.Ordinal
 				) is true)
 			.Where(type =>
@@ -234,33 +234,33 @@ public static class ArchitectureDiscovery {
 			.ToList();
 	}
 
-	private static IReadOnlyList<Type> EnumerateRouteConstantTypes() {
+	private static IReadOnlyList<Type> _EnumerateRouteConstantTypes() {
 		var routesRoot = EnumerateApiTypes()
 			.SingleOrDefault(type =>
 				type is { IsClass: true, IsAbstract: true, IsSealed: true }
-				&& type.FullName == RoutesRootFullName);
+				&& type.FullName == _RoutesRootFullName);
 
 		if (routesRoot is null) {
 			return [];
 		}
 
 		var discovered = new List<Type>();
-		CollectNestedTypes(routesRoot, discovered);
+		_CollectNestedTypes(routesRoot, discovered);
 		return discovered;
 	}
 
-	private static void CollectNestedTypes(Type type, List<Type> sink) {
+	private static void _CollectNestedTypes(Type type, List<Type> sink) {
 		sink.Add(type);
 
 		foreach (var nested in type.GetNestedTypes(BindingFlags.Public)) {
-			if (IsDiscoverableApiType(nested)) {
-				CollectNestedTypes(nested, sink);
+			if (_IsDiscoverableApiType(nested)) {
+				_CollectNestedTypes(nested, sink);
 			}
 		}
 	}
 
-	private static bool IsDiscoverableApiType(Type type) {
-		if (type.Assembly != LoadApiAssembly()) {
+	private static bool _IsDiscoverableApiType(Type type) {
+		if (type.Assembly != _LoadApiAssembly()) {
 			return false;
 		}
 
@@ -274,7 +274,7 @@ public static class ArchitectureDiscovery {
 		}
 
 		if (type.Namespace.StartsWith(
-			EfMigrationsNamespacePrefix,
+			_EfMigrationsNamespacePrefix,
 			StringComparison.Ordinal
 		)) {
 			// EF Core migration types are generated; arch invariants do not apply.
@@ -282,7 +282,7 @@ public static class ArchitectureDiscovery {
 		}
 
 		if (type.FullName.Contains(
-			GeneratedNamespaceSegment,
+			_GeneratedNamespaceSegment,
 			StringComparison.Ordinal
 		)) {
 			// Generated build output is not subject to authored API conventions.
@@ -292,7 +292,7 @@ public static class ArchitectureDiscovery {
 		if (type.IsGenericTypeDefinition
 			|| type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
 			|| type.Name.Contains('<', StringComparison.Ordinal)
-			|| IsAnonymousType(type)) {
+			|| _IsAnonymousType(type)) {
 			// Compiler-generated types (state machines, closures) are not subject to
 			// handler/service conventions.
 			// Anonymous types compile to internal sealed classes with non-stable names;
@@ -303,7 +303,7 @@ public static class ArchitectureDiscovery {
 		return true;
 	}
 
-	private static bool IsAnonymousType(Type type) {
+	private static bool _IsAnonymousType(Type type) {
 		return type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
 			&& type.Name.Contains("AnonymousType", StringComparison.Ordinal);
 	}

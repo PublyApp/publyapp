@@ -21,47 +21,47 @@ namespace PublyApp.Api.Migrations;
 // migration hard-deletes the loser's row. The assertions are therefore revert-sensitive:
 // without the repair, loserHasProfile is true and the profile-link count is two.
 public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
-	private const string PreviousMigrationId =
+	private const string _PreviousMigrationId =
 		"20260712114851_AddTenantOrganizationProfileFields";
-	private const string RepairMigrationId =
+	private const string _RepairMigrationId =
 		"20260723175718_RepairOrphanedUserAccountProfileLinks";
 
-	private PostgresContainerFixture _containerFixture = null!;
-	private string _dbName = null!;
-	private string _connectionString = null!;
+	private PostgresContainerFixture _ContainerFixture = null!;
+	private string _DbName = null!;
+	private string _ConnectionString = null!;
 
 	public async Task InitializeAsync() {
-		_containerFixture = await PostgresContainerFixture.GetSharedAsync();
-		_dbName = $"migtest_{Guid.NewGuid():N}";
+		_ContainerFixture = await PostgresContainerFixture.GetSharedAsync();
+		_DbName = $"migtest_{Guid.NewGuid():N}";
 
 		await using var adminConn = new NpgsqlConnection(
-			_containerFixture.AdminConnectionString
+			_ContainerFixture.AdminConnectionString
 		);
 		await adminConn.OpenAsync();
 		await using (var createCmd = new NpgsqlCommand(
-			$"CREATE DATABASE {_dbName}",
+			$"CREATE DATABASE {_DbName}",
 			adminConn
 		)) {
 			await createCmd.ExecuteNonQueryAsync();
 		}
 
 		var builder = new NpgsqlConnectionStringBuilder(
-			_containerFixture.AdminConnectionString
+			_ContainerFixture.AdminConnectionString
 		) {
-			Database = _dbName,
+			Database = _DbName,
 			Pooling = false
 		};
-		_connectionString = builder.ConnectionString;
+		_ConnectionString = builder.ConnectionString;
 	}
 
 	public async Task DisposeAsync() {
 		NpgsqlConnection.ClearAllPools();
 		await using var adminConn = new NpgsqlConnection(
-			_containerFixture.AdminConnectionString
+			_ContainerFixture.AdminConnectionString
 		);
 		await adminConn.OpenAsync();
 		await using var dropCmd = new NpgsqlCommand(
-			$"DROP DATABASE IF EXISTS {_dbName}",
+			$"DROP DATABASE IF EXISTS {_DbName}",
 			adminConn
 		);
 		await dropCmd.ExecuteNonQueryAsync();
@@ -70,9 +70,9 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 	[Fact]
 	public async Task
 	ItShouldPreserveAssignmentsAndRemoveLoserLinksAcrossAllMembershipScopes() {
-		await using var dbContext = CreateDbContext();
+		await using var dbContext = _CreateDbContext();
 		var migrator = dbContext.GetService<IMigrator>();
-		await migrator.MigrateAsync(PreviousMigrationId);
+		await migrator.MigrateAsync(_PreviousMigrationId);
 
 		var tenantId = Guid.NewGuid();
 		var legacyProjectTenantId = Guid.NewGuid();
@@ -92,9 +92,9 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			)
 		};
 
-		await using (var connection = new NpgsqlConnection(_connectionString)) {
+		await using (var connection = new NpgsqlConnection(_ConnectionString)) {
 			await connection.OpenAsync();
-			await SeedTenantAndProjectAsync(
+			await _SeedTenantAndProjectAsync(
 				connection,
 				tenantId,
 				legacyProjectTenantId,
@@ -102,17 +102,17 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			);
 
 			foreach (var partition in partitions) {
-				await SeedDuplicateMembershipAsync(connection, partition);
+				await _SeedDuplicateMembershipAsync(connection, partition);
 			}
 		}
 
-		await migrator.MigrateAsync(RepairMigrationId);
+		await migrator.MigrateAsync(_RepairMigrationId);
 
-		await using var verifyConnection = new NpgsqlConnection(_connectionString);
+		await using var verifyConnection = new NpgsqlConnection(_ConnectionString);
 		await verifyConnection.OpenAsync();
 
 		foreach (var partition in partitions) {
-			var loserIsDeleted = await IsAccountDeletedAsync(
+			var loserIsDeleted = await _IsAccountDeletedAsync(
 				verifyConnection,
 				partition.OlderAccountId
 			);
@@ -120,7 +120,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 				$"the older {partition.Name} duplicate must be the dedup loser"
 			);
 
-			var winnerIsDeleted = await IsAccountDeletedAsync(
+			var winnerIsDeleted = await _IsAccountDeletedAsync(
 				verifyConnection,
 				partition.NewerAccountId
 			);
@@ -128,7 +128,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 				$"the newer {partition.Name} membership must remain active"
 			);
 
-			var winnerHasProfile = await HasProfileLinkAsync(
+			var winnerHasProfile = await _HasProfileLinkAsync(
 				verifyConnection,
 				partition.NewerAccountId,
 				partition.ProfileId
@@ -137,7 +137,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 				$"the {partition.Name} assignment must be preserved on the winner"
 			);
 
-			var loserHasProfile = await HasProfileLinkAsync(
+			var loserHasProfile = await _HasProfileLinkAsync(
 				verifyConnection,
 				partition.OlderAccountId,
 				partition.ProfileId
@@ -146,7 +146,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 				$"the soft-deleted {partition.Name} loser cannot retain a live junction row"
 			);
 
-			var linkCount = await CountProfileLinksAsync(
+			var linkCount = await _CountProfileLinksAsync(
 				verifyConnection,
 				partition.ProfileId
 			);
@@ -159,24 +159,24 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldLeaveLegitimateLinksIntactWhenNoOrphanedResidueExists() {
-		await using var dbContext = CreateDbContext();
+		await using var dbContext = _CreateDbContext();
 		var migrator = dbContext.GetService<IMigrator>();
-		await migrator.MigrateAsync(PreviousMigrationId);
+		await migrator.MigrateAsync(_PreviousMigrationId);
 
 		var accountId = Guid.NewGuid();
 		var profileId = Guid.NewGuid();
 
-		await using (var connection = new NpgsqlConnection(_connectionString)) {
+		await using (var connection = new NpgsqlConnection(_ConnectionString)) {
 			await connection.OpenAsync();
-			await SeedLegitimateStaffMembershipAsync(connection, accountId, profileId);
+			await _SeedLegitimateStaffMembershipAsync(connection, accountId, profileId);
 		}
 
-		await migrator.MigrateAsync(RepairMigrationId);
+		await migrator.MigrateAsync(_RepairMigrationId);
 
-		await using var verifyConnection = new NpgsqlConnection(_connectionString);
+		await using var verifyConnection = new NpgsqlConnection(_ConnectionString);
 		await verifyConnection.OpenAsync();
 
-		var accountIsDeleted = await IsAccountDeletedAsync(
+		var accountIsDeleted = await _IsAccountDeletedAsync(
 			verifyConnection,
 			accountId
 		);
@@ -184,7 +184,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			"a non-duplicate membership must remain active"
 		);
 
-		var hasProfile = await HasProfileLinkAsync(
+		var hasProfile = await _HasProfileLinkAsync(
 			verifyConnection,
 			accountId,
 			profileId
@@ -193,22 +193,22 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 			"the repair must not remove a legitimate active-account link"
 		);
 
-		var linkCount = await CountProfileLinksAsync(verifyConnection, profileId);
+		var linkCount = await _CountProfileLinksAsync(verifyConnection, profileId);
 		linkCount.Should().Be(
 			1,
 			"a no-residue database must retain every legitimate assignment"
 		);
 	}
 
-	private AppDbContext CreateDbContext() {
+	private AppDbContext _CreateDbContext() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(_connectionString)
+				.UseNpgsql(_ConnectionString)
 				.Options
 		);
 	}
 
-	private static async Task SeedTenantAndProjectAsync(
+	private static async Task _SeedTenantAndProjectAsync(
 		NpgsqlConnection connection,
 		Guid tenantId,
 		Guid legacyProjectTenantId,
@@ -250,7 +250,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		await command.ExecuteNonQueryAsync();
 	}
 
-	private static async Task SeedDuplicateMembershipAsync(
+	private static async Task _SeedDuplicateMembershipAsync(
 		NpgsqlConnection connection,
 		MembershipPartition partition
 	) {
@@ -292,12 +292,12 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		command.Parameters.AddWithValue("olderId", partition.OlderAccountId);
 		command.Parameters.AddWithValue("newerId", partition.NewerAccountId);
 		command.Parameters.Add(
-			CreateNullableUuidParameter("olderTenantId", partition.OlderTenantId)
+			_CreateNullableUuidParameter("olderTenantId", partition.OlderTenantId)
 		);
 		command.Parameters.Add(
-			CreateNullableUuidParameter("newerTenantId", partition.NewerTenantId)
+			_CreateNullableUuidParameter("newerTenantId", partition.NewerTenantId)
 		);
-		command.Parameters.Add(CreateNullableUuidParameter("projectId", partition.ProjectId));
+		command.Parameters.Add(_CreateNullableUuidParameter("projectId", partition.ProjectId));
 		command.Parameters.AddWithValue("scope", partition.Scope);
 		command.Parameters.AddWithValue("profileId", partition.ProfileId);
 		command.Parameters.AddWithValue(
@@ -307,7 +307,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		await command.ExecuteNonQueryAsync();
 	}
 
-	private static async Task SeedLegitimateStaffMembershipAsync(
+	private static async Task _SeedLegitimateStaffMembershipAsync(
 		NpgsqlConnection connection,
 		Guid accountId,
 		Guid profileId
@@ -350,7 +350,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		await command.ExecuteNonQueryAsync();
 	}
 
-	private static NpgsqlParameter CreateNullableUuidParameter(
+	private static NpgsqlParameter _CreateNullableUuidParameter(
 		string name,
 		Guid? value
 	) {
@@ -359,7 +359,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		};
 	}
 
-	private static async Task<bool> IsAccountDeletedAsync(
+	private static async Task<bool> _IsAccountDeletedAsync(
 		NpgsqlConnection connection,
 		Guid accountId
 	) {
@@ -371,7 +371,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		return (bool)(await command.ExecuteScalarAsync() ?? false);
 	}
 
-	private static async Task<bool> HasProfileLinkAsync(
+	private static async Task<bool> _HasProfileLinkAsync(
 		NpgsqlConnection connection,
 		Guid accountId,
 		Guid profileId
@@ -392,7 +392,7 @@ public sealed class RepairOrphanedUserAccountProfileLinksSpec : IAsyncLifetime {
 		return (bool)(await command.ExecuteScalarAsync() ?? false);
 	}
 
-	private static async Task<int> CountProfileLinksAsync(
+	private static async Task<int> _CountProfileLinksAsync(
 		NpgsqlConnection connection,
 		Guid profileId
 	) {

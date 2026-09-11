@@ -63,7 +63,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// The closed set of publishing tenant routes (by endpoint name). Adding a route
 	// here is the review checkpoint; an unlisted publishing route fails the
 	// count assertion.
-	private static readonly string[] PublishingRouteEndpointNames = [
+	private static readonly string[] _PublishingRouteEndpointNames = [
 		"SchedulePostForTenant",
 		"EditPostScheduleForTenant",
 		"CancelPostScheduleForTenant",
@@ -84,7 +84,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// Route patterns are normalised to the ASP.NET route-template form with
 	// brace parameters (e.g. "/posts/{postId}/schedule"). The guard matches
 	// against RoutePattern.RawText, which is the template as registered.
-	private static readonly PublishingRouteInventoryEntry[] PublishingRouteInventory = [
+	private static readonly PublishingRouteInventoryEntry[] _PublishingRouteInventory = [
 		// ── Publishing routes (must carry permission + rate limit) ─────────────
 		new("/posts/publications", "GET", IsPublishing: true),
 		new("/posts/{postId}/schedule", "POST", IsPublishing: true),
@@ -106,20 +106,20 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────
 
-	private const string DueScanJobRelativePath =
+	private const string _DueScanJobRelativePath =
 		"Modules/Publishing/Jobs/DispatchDuePostsJob.cs";
 
 	// The scan must see AT LEAST the sanctioned claim itself; zero means the
 	// lexical pass collapsed and failed open — never trust a silent empty scan.
-	private const int MinimumTotalSkipLockedMatches = 1;
+	private const int _MinimumTotalSkipLockedMatches = 1;
 
-	private const string SkipLockedToken = "SKIP LOCKED";
-	private const string PublicationsTableToken = "publications";
+	private const string _SkipLockedToken = "SKIP LOCKED";
+	private const string _PublicationsTableToken = "publications";
 
-	private readonly RouteMapFactory _factory = new();
+	private readonly RouteMapFactory _Factory = new();
 
 	public void Dispose() {
-		_factory.Dispose();
+		_Factory.Dispose();
 	}
 
 	// ── (a) Every publishing tenant endpoint is guarded ──────────────────────
@@ -133,10 +133,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	/// </summary>
 	[Fact]
 	public void ItShouldRequirePermissionAndRateLimitOnEveryPublishingTenantEndpoint() {
-		var endpoints = GetRouteEndpoints();
+		var endpoints = _GetRouteEndpoints();
 
 		// (a1) Every publishing route by name still carries permission + rate limit.
-		foreach (var name in PublishingRouteEndpointNames) {
+		foreach (var name in _PublishingRouteEndpointNames) {
 			var endpoint = endpoints.SingleOrDefault(route =>
 				route.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName
 					== name
@@ -175,9 +175,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				return path.StartsWith("/posts", StringComparison.Ordinal);
 			})
 			.Select(endpoint => new {
-				Path = NormalizeRoutePath(
+				Path = _NormalizeRoutePath(
 					endpoint.RoutePattern.RawText ?? string.Empty),
-				Method = GetHttpMethod(endpoint),
+				Method = _GetHttpMethod(endpoint),
 				Endpoint = endpoint
 			})
 			.ToList();
@@ -189,9 +189,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 		var unknownRoutes = new List<string>();
 		foreach (var entry in postsRoutesOnMap) {
-			var match = PublishingRouteInventory.FirstOrDefault(inv =>
+			var match = _PublishingRouteInventory.FirstOrDefault(inv =>
 				string.Equals(
-					NormalizeRoutePath(inv.Path),
+					_NormalizeRoutePath(inv.Path),
 					entry.Path,
 					StringComparison.Ordinal)
 				&& string.Equals(inv.Method, entry.Method, StringComparison.Ordinal)
@@ -210,12 +210,12 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 					?.EndpointName;
 
 				if (endpointName is not null
-					&& !PublishingRouteEndpointNames.Contains(
+					&& !_PublishingRouteEndpointNames.Contains(
 						endpointName, StringComparer.Ordinal)) {
 					unknownRoutes.Add(
 						$"{entry.Method} {entry.Path} (endpoint '{endpointName}' "
 						+ "classified as publishing but absent from "
-						+ "PublishingRouteEndpointNames)"
+						+ "_PublishingRouteEndpointNames)"
 					);
 				}
 			}
@@ -224,7 +224,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		_ = unknownRoutes.Should().BeEmpty(
 			"every /posts/* route must be explicitly inventoried as publishing or "
 			+ "non-publishing — an unlisted route silently bypasses permission + "
-			+ "rate-limit enforcement; add it to PublishingRouteInventory with its "
+			+ "rate-limit enforcement; add it to _PublishingRouteInventory with its "
 			+ "classification (isPublishing flag):\n{0}",
 			string.Join("\n", unknownRoutes)
 		);
@@ -233,7 +233,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		// complete. If a route was removed from the API, this fails, forcing the
 		// inventory to ratchet down.
 		_ = postsRoutesOnMap.Should().HaveCount(
-			PublishingRouteInventory.Length,
+			_PublishingRouteInventory.Length,
 			"the /posts/* route count on the live map must equal the explicit "
 			+ "inventory length; adding or removing a route requires reconciling "
 			+ "this closed set"
@@ -244,8 +244,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	[Fact]
 	public void ItShouldLetOnlyTheDueScanJobLockPublicationRowsWithSkipLocked() {
-		var apiRoot = FindApiRoot();
-		var sources = EnumerateApiSources(apiRoot);
+		var apiRoot = _FindApiRoot();
+		var sources = _EnumerateApiSources(apiRoot);
 
 		_ = sources.Should().NotBeEmpty(
 			"an empty enumeration would silently drop the single-claimant "
@@ -254,7 +254,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 		// Specs are excluded (same precedent as PublicationArchitectureSpec):
 		// they quote SQL corpora and host this detector's own doc comments.
-		var scan = ScanForUpdateSkipLockedOnPublications(
+		var scan = _ScanForUpdateSkipLockedOnPublications(
 			sources.Where(entry => !entry.RelativePath.EndsWith(
 					".Spec.cs",
 					StringComparison.Ordinal
@@ -263,12 +263,12 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		);
 
 		_ = scan.TotalMatches.Should().BeGreaterThanOrEqualTo(
-			MinimumTotalSkipLockedMatches,
+			_MinimumTotalSkipLockedMatches,
 			"the sanctioned due-scan claim alone must be visible; a near-zero "
 				+ "count means the lexical scan collapsed and failed open"
 		);
 
-		_ = scan.SanctionedByFile.GetValueOrDefault(DueScanJobRelativePath)
+		_ = scan.SanctionedByFile.GetValueOrDefault(_DueScanJobRelativePath)
 			.Should().BeGreaterThanOrEqualTo(
 				1,
 				"the D3 due scan must still be seen claiming publications rows "
@@ -280,7 +280,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"only {0} may SELECT … FOR UPDATE SKIP LOCKED against the "
 				+ "publications table — a second claimant forks the "
 				+ "exactly-once dispatch guarantee; found {1} offender(s):\n{2}",
-			DueScanJobRelativePath,
+			_DueScanJobRelativePath,
 			scan.Offenders.Count,
 			string.Join("\n", scan.Offenders.Take(20))
 		);
@@ -288,8 +288,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── Helpers ──────────────────────────────────────────────────────────────
 
-	private IReadOnlyList<RouteEndpoint> GetRouteEndpoints() {
-		using var scope = _factory.Services.CreateScope();
+	private IReadOnlyList<RouteEndpoint> _GetRouteEndpoints() {
+		using var scope = _Factory.Services.CreateScope();
 		var dataSource = scope.ServiceProvider
 			.GetRequiredService<EndpointDataSource>();
 
@@ -298,7 +298,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			.ToList();
 	}
 
-	private static string NormalizeRoutePath(string path) {
+	private static string _NormalizeRoutePath(string path) {
 		// ASP.NET Core route templates may or may not carry a trailing slash
 		// depending on how they were registered (e.g. .MapPost("/") on a group
 		// at /posts yields "/posts/"). Trim trailing slashes so the inventory
@@ -309,7 +309,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		return path;
 	}
 
-	private static string GetHttpMethod(RouteEndpoint endpoint) {
+	private static string _GetHttpMethod(RouteEndpoint endpoint) {
 		var httpMethods = endpoint.Metadata
 			.OfType<HttpMethodMetadata>()
 			.SelectMany(metadata => metadata.HttpMethods)
@@ -343,7 +343,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		List<string> Offenders
 	);
 
-	private static ForUpdateScan ScanForUpdateSkipLockedOnPublications(
+	private static ForUpdateScan _ScanForUpdateSkipLockedOnPublications(
 		IReadOnlyList<(string RelativePath, string Source)> sources
 	) {
 		var offenders = new List<string>();
@@ -356,10 +356,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			// carry DESCRIPTIONS (data), so their contents are blanked too — raw
 			// string literals ("""…"""), where executable SQL lives, stay
 			// scannable. Both passes preserve length for line attribution.
-			var source = BlankCommentsAndDataStrings(rawSource);
+			var source = _BlankCommentsAndDataStrings(rawSource);
 			var index = 0;
 			while ((index = source.IndexOf(
-						SkipLockedToken,
+						_SkipLockedToken,
 						index,
 						StringComparison.OrdinalIgnoreCase
 					)) >= 0) {
@@ -373,27 +373,27 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				var statement = source[statementStart..index];
 
 				if (statement.Contains(
-						PublicationsTableToken,
+						_PublicationsTableToken,
 						StringComparison.OrdinalIgnoreCase
 					)) {
 					total++;
 
 					if (string.Equals(
 							relativePath,
-							DueScanJobRelativePath,
+							_DueScanJobRelativePath,
 							StringComparison.Ordinal
 						)) {
 						sanctionedByFile[relativePath] =
 							sanctionedByFile.GetValueOrDefault(relativePath) + 1;
 					} else {
 						offenders.Add(
-							$"{relativePath}:{LineOfOffset(source, index)}: "
-								+ $"{Flatten(statement + SkipLockedToken)}"
+							$"{relativePath}:{_LineOfOffset(source, index)}: "
+								+ $"{_Flatten(statement + _SkipLockedToken)}"
 						);
 					}
 				}
 
-				index += SkipLockedToken.Length;
+				index += _SkipLockedToken.Length;
 			}
 		}
 
@@ -401,7 +401,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	}
 
 	private static IReadOnlyList<(string RelativePath, string Source)>
-		EnumerateApiSources(string apiRoot) {
+		_EnumerateApiSources(string apiRoot) {
 		return Directory
 			.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)
 			.Select(path => (
@@ -409,13 +409,13 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				RelativePath: Path.GetRelativePath(apiRoot, path)
 					.Replace('\\', '/')
 			))
-			.Where(entry => !IsGeneratedOutput(entry.RelativePath))
+			.Where(entry => !_IsGeneratedOutput(entry.RelativePath))
 			.OrderBy(entry => entry.RelativePath, StringComparer.Ordinal)
 			.Select(entry => (entry.RelativePath, File.ReadAllText(entry.FullPath)))
 			.ToList();
 	}
 
-	private static bool IsGeneratedOutput(string relativePath) {
+	private static bool _IsGeneratedOutput(string relativePath) {
 		return relativePath.StartsWith("bin/", StringComparison.Ordinal)
 			|| relativePath.StartsWith("obj/", StringComparison.Ordinal)
 			|| relativePath.StartsWith(".artifacts/", StringComparison.Ordinal)
@@ -426,7 +426,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
 	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string FindApiRoot() {
+	private static string _FindApiRoot() {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 		while (directory is not null) {
 			if (File.Exists(
@@ -444,7 +444,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		);
 	}
 
-	private static string BlankCommentsAndDataStrings(string source) {
+	private static string _BlankCommentsAndDataStrings(string source) {
 		var chars = source.ToCharArray();
 		var i = 0;
 		while (i < chars.Length) {
@@ -471,9 +471,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 					chars[i + 1] = ' ';
 					i += 2;
 				}
-			} else if (IsRawStringDelimiter(chars, i)) {
+			} else if (_IsRawStringDelimiter(chars, i)) {
 				// Raw string literal: EXECUTABLE SQL territory — keep contents.
-				i += RawStringLength(chars, i);
+				i += _RawStringLength(chars, i);
 			} else if (chars[i] == '"') {
 				// Ordinary/interpolated single-line string: data (descriptions,
 				// log text). Blank the contents but keep the delimiters so
@@ -506,7 +506,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// Detects the start of a raw string literal: optional '$', then three or
 	// more quotes (C# 11 raw strings — the shape every ExecuteSqlInterpolated
 	// claim in this repo uses).
-	private static bool IsRawStringDelimiter(char[] chars, int i) {
+	private static bool _IsRawStringDelimiter(char[] chars, int i) {
 		if (chars[i] == '$') {
 			i++;
 		}
@@ -517,7 +517,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// Walks a raw string literal starting at its delimiter and returns how far
 	// to jump: past the closing quote run of equal length.
-	private static int RawStringLength(char[] chars, int start) {
+	private static int _RawStringLength(char[] chars, int start) {
 		var i = start;
 		var dollar = chars[i] == '$';
 		if (dollar) {
@@ -549,7 +549,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		return i - start;
 	}
 
-	private static int LineOfOffset(string source, int offset) {
+	private static int _LineOfOffset(string source, int offset) {
 		var line = 1;
 		for (var i = 0; i < offset && i < source.Length; i++) {
 			if (source[i] == '\n') {
@@ -560,13 +560,13 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		return line;
 	}
 
-	private static string Flatten(string snippet) {
-		var flattened = WhitespaceRun().Replace(snippet, " ").Trim();
+	private static string _Flatten(string snippet) {
+		var flattened = _WhitespaceRun().Replace(snippet, " ").Trim();
 		return flattened.Length <= 140 ? flattened : flattened[..140] + "…";
 	}
 
 	[GeneratedRegex(@"\s+")]
-	private static partial Regex WhitespaceRun();
+	private static partial Regex _WhitespaceRun();
 
 	/// <summary>
 	/// Minimal <see cref="WebApplicationFactory{TEntryPoint}"/> variant that

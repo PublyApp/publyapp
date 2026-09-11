@@ -222,12 +222,12 @@ public sealed class ExportTenantUsersAsStaff {
 			foreach (var item in items) {
 				cancellationToken.ThrowIfCancellationRequested();
 				var line = string.Join(",",
-					EscapeCsv(item.Email),
-					EscapeCsv(item.FirstName ?? ""),
-					EscapeCsv(item.LastName ?? ""),
-					EscapeCsv(item.Level.ToString()),
-					EscapeCsv(item.Status.ToString()),
-					EscapeCsv(item.CreatedAt.ToString("o"))
+					_EscapeCsv(item.Email),
+					_EscapeCsv(item.FirstName ?? ""),
+					_EscapeCsv(item.LastName ?? ""),
+					_EscapeCsv(item.Level.ToString()),
+					_EscapeCsv(item.Status.ToString()),
+					_EscapeCsv(item.CreatedAt.ToString("o"))
 				);
 				await writer.WriteLineAsync(line);
 			}
@@ -243,11 +243,11 @@ public sealed class ExportTenantUsersAsStaff {
 		}
 	}
 
-	private static string EscapeCsv(string value) {
+	private static string _EscapeCsv(string value) {
 		// Neutralize formula injection: prefix with single quote if the first
 		// non-whitespace/non-control character is a formula trigger. This
 		// prevents bypass via leading \t, \r, \n, spaces, or other control chars.
-		if (StartsWithFormulaTrigger(value)) {
+		if (_StartsWithFormulaTrigger(value)) {
 			value = "'" + value;
 		}
 
@@ -257,7 +257,7 @@ public sealed class ExportTenantUsersAsStaff {
 		return value;
 	}
 
-	private static bool StartsWithFormulaTrigger(string value) {
+	private static bool _StartsWithFormulaTrigger(string value) {
 		foreach (var c in value) {
 			if (c is '=' or '+' or '-' or '@') {
 				return true;

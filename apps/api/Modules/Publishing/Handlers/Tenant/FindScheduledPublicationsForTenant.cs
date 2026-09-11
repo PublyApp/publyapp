@@ -60,20 +60,20 @@ public class FindScheduledPublicationsQuery {
 
 public sealed class FindScheduledPublicationsQueryValidator
 	: AbstractValidator<FindScheduledPublicationsQuery> {
-	private const string IsoHint = "must be an ISO 8601 instant (e.g. "
+	private const string _IsoHint = "must be an ISO 8601 instant (e.g. "
 		+ "2026-09-01T00:00:00Z)";
 
 	public FindScheduledPublicationsQueryValidator() : base() {
 		RuleFor(x => x.From)
-			.Must(BeIsoInstant)
-			.WithMessage($"from {IsoHint}");
+			.Must(_BeIsoInstant)
+			.WithMessage($"from {_IsoHint}");
 
 		RuleFor(x => x.To)
-			.Must(BeIsoInstant)
-			.WithMessage($"to {IsoHint}");
+			.Must(_BeIsoInstant)
+			.WithMessage($"to {_IsoHint}");
 
 		RuleFor(x => x.Status)
-			.Must(BeParseableCsv)
+			.Must(_BeParseableCsv)
 			.WithMessage(
 				"status must be a comma-separated list of: scheduled, "
 				+ "in_progress, published, failed, paused"
@@ -88,7 +88,7 @@ public sealed class FindScheduledPublicationsQueryValidator
 			);
 	}
 
-	private static bool BeIsoInstant(string? value) {
+	private static bool _BeIsoInstant(string? value) {
 		if (value is null) {
 			return false;
 		}
@@ -101,7 +101,7 @@ public sealed class FindScheduledPublicationsQueryValidator
 		);
 	}
 
-	private static bool BeParseableCsv(string? value) {
+	private static bool _BeParseableCsv(string? value) {
 		return FindScheduledPublicationsParser.TryParseStatusCsv(
 			value,
 			out _

@@ -3,7 +3,7 @@ namespace PublyApp.Api.Lib.Utils;
 public static class SeederLoggerUtils {
 	private static readonly Lazy<
 		Microsoft.Extensions.Logging.ILoggerFactory
-	> ConsoleLoggerFactory = new(
+	> _ConsoleLoggerFactory = new(
 		() => Microsoft.Extensions.Logging.LoggerFactory.Create(
 			builder => {
 				builder.AddConsole();
@@ -22,6 +22,6 @@ public static class SeederLoggerUtils {
 				.NullLogger<T>.Instance;
 		}
 
-		return ConsoleLoggerFactory.Value.CreateLogger<T>();
+		return _ConsoleLoggerFactory.Value.CreateLogger<T>();
 	}
 }

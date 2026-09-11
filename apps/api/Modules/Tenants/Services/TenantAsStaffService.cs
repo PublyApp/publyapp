@@ -229,10 +229,10 @@ public interface ITenantAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public class TenantAsStaffService : ITenantAsStaffService {
-	private readonly AppDbContext _dbContext;
-	private readonly IInvitationEmailOutboxSignal _outboxSignal;
-	private readonly IUploadAssetReferenceService _uploadReferences;
-	private readonly ILogger<TenantAsStaffService> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly IInvitationEmailOutboxSignal _OutboxSignal;
+	private readonly IUploadAssetReferenceService _UploadReferences;
+	private readonly ILogger<TenantAsStaffService> _Logger;
 
 	public TenantAsStaffService(
 		AppDbContext dbContext,
@@ -240,21 +240,21 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		IUploadAssetReferenceService uploadReferences,
 		ILogger<TenantAsStaffService> logger
 	) {
-		_dbContext = dbContext;
-		_outboxSignal = outboxSignal;
-		_uploadReferences = uploadReferences;
-		_logger = logger;
+		_DbContext = dbContext;
+		_OutboxSignal = outboxSignal;
+		_UploadReferences = uploadReferences;
+		_Logger = logger;
 	}
 
 	public async Task<Tenant> CreateTenant(Tenant tenant, CancellationToken cancellationToken = default) {
-		var result = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		var result = await _DbContext.Tenant.AddAsync(tenant, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 		return result.Entity;
 	}
 
 	public async Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default) {
 		var query =
-			from tenant in _dbContext.Tenant
+			from tenant in _DbContext.Tenant
 			where tenant.Id == tenantId
 			select tenant;
 
@@ -269,7 +269,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 	public async Task<int> CountTenantsAsync(CancellationToken cancellationToken = default) {
 		var query =
-			from tenant in _dbContext.Tenant
+			from tenant in _DbContext.Tenant
 			where !tenant.IsDeleted
 			select tenant;
 
@@ -290,7 +290,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			StringComparer.OrdinalIgnoreCase
 		) {
 			["created_at"] = CursorSortFieldHandlerFactory.Create<Tenant, DateTime, Guid?>(
-				cursorLookupQuery: () => _dbContext.Tenant
+				cursorLookupQuery: () => _DbContext.Tenant
 					.AsNoTracking()
 					.Where(t => !t.IsDeleted),
 				keySelector: t => t.CreatedAt,
@@ -298,7 +298,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				cancellationToken
 			),
 			["updated_at"] = CursorSortFieldHandlerFactory.Create<Tenant, DateTime, Guid?>(
-				cursorLookupQuery: () => _dbContext.Tenant
+				cursorLookupQuery: () => _DbContext.Tenant
 					.AsNoTracking()
 					.Where(t => !t.IsDeleted),
 				keySelector: t => t.UpdatedAt,
@@ -306,7 +306,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				cancellationToken
 			),
 			["name"] = CursorSortFieldHandlerFactory.Create<Tenant, string, Guid?>(
-				cursorLookupQuery: () => _dbContext.Tenant
+				cursorLookupQuery: () => _DbContext.Tenant
 					.AsNoTracking()
 					.Where(t => !t.IsDeleted),
 				keySelector: t => t.Name,
@@ -314,7 +314,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				cancellationToken
 			),
 			["status"] = CursorSortFieldHandlerFactory.Create<Tenant, TenantStatus, Guid?>(
-				cursorLookupQuery: () => _dbContext.Tenant
+				cursorLookupQuery: () => _DbContext.Tenant
 					.AsNoTracking()
 					.Where(t => !t.IsDeleted),
 				keySelector: t => t.Status,
@@ -334,7 +334,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Build base query on Tenant entity only (no joins for pagination)
-		IQueryable<Tenant> baseQuery = _dbContext.Tenant
+		IQueryable<Tenant> baseQuery = _DbContext.Tenant
 			.AsNoTracking()
 			.Where(t => !t.IsDeleted && t.Id.HasValue);
 
@@ -385,7 +385,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		// Fetch users count for all tenant IDs
 		var usersCounts = await (
-			from ua in _dbContext.UserAccount.AsNoTracking()
+			from ua in _DbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
@@ -406,7 +406,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// Same page-bounded grouping as users counts: one grouped query over
 		// only this page's tenant ids — never a whole-table scan (#168).
 		var projectsCounts = await (
-			from project in _dbContext.Project.AsNoTracking()
+			from project in _DbContext.Project.AsNoTracking()
 			where !project.IsDeleted
 				&& tenantIds.Contains(project.TenantId)
 			group project by project.TenantId into g
@@ -446,7 +446,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		if (args.Code is not null) {
-			var codeTaken = await _dbContext.Tenant
+			var codeTaken = await _DbContext.Tenant
 				.AsNoTracking()
 				.Where(t => t.Code == args.Code)
 				.AnyAsync(cancellationToken);
@@ -462,13 +462,13 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			var code = args.Code ?? CryptoUtils.RandomString(10).ToLowerInvariant();
 
 			await using var transaction =
-				await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+				await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 
 			// A created tenant may already carry a served-upload logoUrl: acquire
 			// its asset reference inside this same transaction so the persisted
 			// URL can never outlive a zero-reference asset row (#807 F5).
 			if (ServedUploadPath.ExtractOrNull(args.LogoUrl) is { } createLogoPath) {
-				await _uploadReferences.TryAddReferenceAsync(
+				await _UploadReferences.TryAddReferenceAsync(
 					createLogoPath, cancellationToken
 				);
 			}
@@ -491,8 +491,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			};
 
 			try {
-				var savedTenant = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
-				await _dbContext.SaveChangesAsync(cancellationToken);
+				var savedTenant = await _DbContext.Tenant.AddAsync(tenant, cancellationToken);
+				await _DbContext.SaveChangesAsync(cancellationToken);
 				var tenantId = savedTenant.Entity.GetRequiredId();
 
 				// 2. Create "Default profile" for non-admin users, unless disabled
@@ -504,10 +504,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 						description: "Default profile with no permissions",
 						isDefault: true
 					);
-					var savedDefaultProfile = await _dbContext.Profile.AddAsync(
+					var savedDefaultProfile = await _DbContext.Profile.AddAsync(
 						defaultProfile, cancellationToken
 					);
-					await _dbContext.SaveChangesAsync(cancellationToken);
+					await _DbContext.SaveChangesAsync(cancellationToken);
 					defaultProfileId = savedDefaultProfile.Entity.GetRequiredId();
 				}
 
@@ -550,7 +550,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					invitation.AccountLevel = accountLevel;
 
 					invitation.ValidateInvitationType();
-					_dbContext.Invitation.Add(invitation);
+					_DbContext.Invitation.Add(invitation);
 
 					// Durable delivery record in the same transaction as the
 					// invitation and the tenant itself (round-5 API F3).
@@ -558,14 +558,14 @@ public class TenantAsStaffService : ITenantAsStaffService {
 						email, args.Name, token, accountLevel
 					);
 					initialUserOutboxRow.Invitation = invitation;
-					_dbContext.InvitationEmailOutbox.Add(initialUserOutboxRow);
+					_DbContext.InvitationEmailOutbox.Add(initialUserOutboxRow);
 
 					invitationTokens.Add((email, token, accountLevel));
 				}
 
-				await _dbContext.SaveChangesAsync(cancellationToken);
+				await _DbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				_outboxSignal.Notify();
+				_OutboxSignal.Notify();
 
 				return new CreateTenantWithInitialUsersOutcome.Success(
 					new CreateTenantWithInitialUsersResult {
@@ -573,11 +573,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 						InvitationTokens = invitationTokens
 					}
 				);
-			} catch (DbUpdateException ex) when (IsTenantCodeUniqueViolation(ex)) {
+			} catch (DbUpdateException ex) when (_IsTenantCodeUniqueViolation(ex)) {
 				// The pre-check keeps the common path friendly, but the unique index is the
 				// real guard against concurrent creates racing each other on the same code.
 				await transaction.RollbackAsync(cancellationToken);
-				_dbContext.Entry(tenant).State = EntityState.Detached;
+				_DbContext.Entry(tenant).State = EntityState.Detached;
 
 				if (args.Code is not null) {
 					return new CreateTenantWithInitialUsersOutcome.CodeAlreadyTaken(args.Code);
@@ -601,7 +601,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	/// Detects unique constraint violations on the tenants.code column.
 	/// PostgreSQL error code 23505 = unique_violation.
 	/// </summary>
-	private static bool IsTenantCodeUniqueViolation(DbUpdateException ex) {
+	private static bool _IsTenantCodeUniqueViolation(DbUpdateException ex) {
 		if (ex.InnerException is Npgsql.PostgresException pgEx) {
 			return pgEx.SqlState == "23505"
 				&& pgEx.TableName is not null
@@ -617,7 +617,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	) {
 		// Use AsNoTracking for initial query to avoid EF tracking conflicts
 		var tenant = await (
-			from t in _dbContext.Tenant.AsNoTracking()
+			from t in _DbContext.Tenant.AsNoTracking()
 			where t.Id == tenantId && !t.IsDeleted
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
@@ -633,7 +633,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Atomic update with WHERE clause checking current state (race condition safe)
-		var rowsAffected = await _dbContext.Tenant
+		var rowsAffected = await _DbContext.Tenant
 			.Where(t =>
 				t.Id == tenantId &&
 				!t.IsDeleted &&
@@ -652,7 +652,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		// Re-fetch tenant to return current state
 		var updatedTenant = await (
-			from t in _dbContext.Tenant.AsNoTracking()
+			from t in _DbContext.Tenant.AsNoTracking()
 			where t.Id == tenantId
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
@@ -672,7 +672,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	) {
 		// Use AsNoTracking for initial query to avoid EF tracking conflicts
 		var tenant = await (
-			from t in _dbContext.Tenant.AsNoTracking()
+			from t in _DbContext.Tenant.AsNoTracking()
 			where t.Id == tenantId && !t.IsDeleted
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
@@ -685,7 +685,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Atomic update with WHERE clause checking current state (race condition safe)
-		var rowsAffected = await _dbContext.Tenant
+		var rowsAffected = await _DbContext.Tenant
 			.Where(t =>
 				t.Id == tenantId &&
 				!t.IsDeleted &&
@@ -703,7 +703,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 		// Re-fetch tenant to return current state
 		var updatedTenant = await (
-			from t in _dbContext.Tenant.AsNoTracking()
+			from t in _DbContext.Tenant.AsNoTracking()
 			where t.Id == tenantId
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
@@ -723,7 +723,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	) {
 		// Staff can see suspended tenants (but not deleted ones)
 		return await (
-			from tenant in _dbContext.Tenant
+			from tenant in _DbContext.Tenant
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant
 		).FirstOrDefaultAsync(cancellationToken);
@@ -734,11 +734,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		// Excludes soft-deleted users for parity with every list/export query
-		// over the same membership rows (e.g. TenantUserQueryService.BuildExportBaseQuery) —
+		// over the same membership rows (e.g. TenantUserQueryService._BuildExportBaseQuery) —
 		// otherwise a staff-deleted user's still-present account row inflates this count
 		// past what the tenant users list actually shows.
 		var count =
-			from ua in _dbContext.UserAccount
+			from ua in _DbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -755,9 +755,9 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// Excludes soft-deleted users (same parity rationale as CountTenantUsersAsync).
 		// Suspended admins still count as owners here — this counts *assigned*
 		// Admin-level accounts, not the *active* admins tracked by the last-admin
-		// invariant in TenantUserMembershipOperations.BuildActiveTenantAdminAccountsQuery.
+		// invariant in TenantUserMembershipOperations._BuildActiveTenantAdminAccountsQuery.
 		var count =
-			from ua in _dbContext.UserAccount
+			from ua in _DbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.Level == AccountLevel.Admin
@@ -774,7 +774,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var tenant = await (
-			from t in _dbContext.Tenant
+			from t in _DbContext.Tenant
 			where t.Id == tenantId && !t.IsDeleted
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
@@ -804,7 +804,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// URL persisted while its asset still reads zero references.
 		if (args.LogoUrl.IsPresent
 			&& ServedUploadPath.ExtractOrNull(args.LogoUrl.Value) is { } acquiredPath) {
-			await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+			await _UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
 		}
 
 		// Mutate tracked entity
@@ -847,15 +847,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// same transaction as the entity write (#807 F5): splitting them would
 		// let the sweeper physically delete a blob whose URL is still visible.
 		// When no transaction is ambient (the usual path) one is opened here.
-		var hadAmbientTransaction = _dbContext.Database.CurrentTransaction is not null;
+		var hadAmbientTransaction = _DbContext.Database.CurrentTransaction is not null;
 		var updateTransaction = hadAmbientTransaction
 			? null
-			: await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+			: await _DbContext.Database.BeginTransactionAsync(cancellationToken);
 		try {
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			if (args.LogoUrl.IsPresent) {
-				await ReleaseReplacedLogoReferenceAsync(
+				await _ReleaseReplacedLogoReferenceAsync(
 					tenantId, previousLogoUrl, tenant.LogoUrl, cancellationToken
 				);
 			}
@@ -877,7 +877,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 	// legacy blobs persisted before upload_assets existed have no row to release,
 	// and absolute http(s) URLs were never this API's blobs. Physical deletion of
 	// the orphaned blob is exclusively the sweeper job's — never inline.
-	private async Task ReleaseReplacedLogoReferenceAsync(
+	private async Task _ReleaseReplacedLogoReferenceAsync(
 		Guid tenantId,
 		string? previousLogoUrl,
 		string? newLogoUrl,
@@ -896,11 +896,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return;
 		}
 
-		var released = await _uploadReferences.TryReleaseReferenceAsync(
+		var released = await _UploadReferences.TryReleaseReferenceAsync(
 			previousPath, cancellationToken
 		);
-		if (!released && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (!released && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Replaced tenant logo {PreviousLogoUrl} for tenant {TenantId} has no "
 				+ "tracked asset row; nothing to release (pre-#807 or foreign blob)",
 				previousLogoUrl,
@@ -914,7 +914,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		var tenant = await (
-			from t in _dbContext.Tenant.AsNoTracking()
+			from t in _DbContext.Tenant.AsNoTracking()
 			where t.Id == tenantId && !t.IsDeleted
 			select t
 		).FirstOrDefaultAsync(cancellationToken);
@@ -928,7 +928,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Atomic soft-delete with WHERE clause (race-condition safe)
-		var rowsAffected = await _dbContext.Tenant
+		var rowsAffected = await _DbContext.Tenant
 			.Where(t =>
 				t.Id == tenantId
 				&& !t.IsDeleted
@@ -962,7 +962,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new BulkSuspendResult(0, 0, [], []);
 		}
 
-		var tenantStatuses = await FindBulkTenantStatusesAsync(
+		var tenantStatuses = await _FindBulkTenantStatusesAsync(
 			requestedIds,
 			cancellationToken
 		);
@@ -988,7 +988,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			candidateIds.Add(tenantId);
 		}
 
-		var succeededIds = await BulkSuspendTenantRowsAsync(
+		var succeededIds = await _BulkSuspendTenantRowsAsync(
 			candidateIds,
 			cancellationToken
 		);
@@ -1017,7 +1017,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new BulkReactivateResult(0, 0, [], []);
 		}
 
-		var tenantStatuses = await FindBulkTenantStatusesAsync(
+		var tenantStatuses = await _FindBulkTenantStatusesAsync(
 			requestedIds,
 			cancellationToken
 		);
@@ -1038,7 +1038,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			candidateIds.Add(tenantId);
 		}
 
-		var succeededIds = await BulkReactivateTenantRowsAsync(
+		var succeededIds = await _BulkReactivateTenantRowsAsync(
 			candidateIds,
 			cancellationToken
 		);
@@ -1067,7 +1067,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new BulkDeleteResult(0, 0, [], []);
 		}
 
-		var tenantStatuses = await FindBulkTenantStatusesAsync(
+		var tenantStatuses = await _FindBulkTenantStatusesAsync(
 			requestedIds,
 			cancellationToken
 		);
@@ -1088,7 +1088,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			candidateIds.Add(tenantId);
 		}
 
-		var succeededIds = await BulkDeleteTenantRowsAsync(
+		var succeededIds = await _BulkDeleteTenantRowsAsync(
 			candidateIds,
 			cancellationToken
 		);
@@ -1108,7 +1108,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		);
 	}
 
-	private async Task<List<Guid>> BulkSuspendTenantRowsAsync(
+	private async Task<List<Guid>> _BulkSuspendTenantRowsAsync(
 		IReadOnlyCollection<Guid> tenantIds,
 		CancellationToken cancellationToken
 	) {
@@ -1121,7 +1121,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var activeStatus = (int)TenantStatus.Active;
 		var suspendedStatus = (int)TenantStatus.Suspended;
 
-		return await _dbContext.Database.SqlQuery<Guid>(
+		return await _DbContext.Database.SqlQuery<Guid>(
 			$"""
 			UPDATE tenants
 			SET status = {suspendedStatus}, updated_at = {now}
@@ -1133,7 +1133,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).ToListAsync(cancellationToken);
 	}
 
-	private async Task<List<Guid>> BulkReactivateTenantRowsAsync(
+	private async Task<List<Guid>> _BulkReactivateTenantRowsAsync(
 		IReadOnlyCollection<Guid> tenantIds,
 		CancellationToken cancellationToken
 	) {
@@ -1146,7 +1146,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var activeStatus = (int)TenantStatus.Active;
 		var suspendedStatus = (int)TenantStatus.Suspended;
 
-		return await _dbContext.Database.SqlQuery<Guid>(
+		return await _DbContext.Database.SqlQuery<Guid>(
 			$"""
 			UPDATE tenants
 			SET status = {activeStatus}, updated_at = {now}
@@ -1158,7 +1158,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).ToListAsync(cancellationToken);
 	}
 
-	private async Task<List<Guid>> BulkDeleteTenantRowsAsync(
+	private async Task<List<Guid>> _BulkDeleteTenantRowsAsync(
 		IReadOnlyCollection<Guid> tenantIds,
 		CancellationToken cancellationToken
 	) {
@@ -1170,7 +1170,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var now = DateTime.UtcNow;
 		var suspendedStatus = (int)TenantStatus.Suspended;
 
-		return await _dbContext.Database.SqlQuery<Guid>(
+		return await _DbContext.Database.SqlQuery<Guid>(
 			$"""
 			UPDATE tenants
 			SET is_deleted = TRUE, deleted_at = {now}, updated_at = {now}
@@ -1182,12 +1182,12 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		).ToListAsync(cancellationToken);
 	}
 
-	private async Task<Dictionary<Guid, TenantStatus>> FindBulkTenantStatusesAsync(
+	private async Task<Dictionary<Guid, TenantStatus>> _FindBulkTenantStatusesAsync(
 		IReadOnlyCollection<Guid> tenantIds,
 		CancellationToken cancellationToken
 	) {
 		var tenantStatuses = await (
-			from tenant in _dbContext.Tenant.AsNoTracking()
+			from tenant in _DbContext.Tenant.AsNoTracking()
 			where tenant.Id.HasValue
 				&& tenantIds.Contains(tenant.Id.Value)
 				&& !tenant.IsDeleted

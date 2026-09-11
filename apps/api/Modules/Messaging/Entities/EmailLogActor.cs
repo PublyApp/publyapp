@@ -29,15 +29,15 @@ public sealed record EmailLogActor {
 
 	/// <summary>An authenticated, idempotently processed provider webhook (§4.4).</summary>
 	public static EmailLogActor ProviderWebhook(string id) {
-		return new EmailLogActor(EmailLogActorKinds.ProviderWebhook, ValidateId(id));
+		return new EmailLogActor(EmailLogActorKinds.ProviderWebhook, _ValidateId(id));
 	}
 
 	/// <summary>An import of provider-side logs reconciling historical rows (§4.4).</summary>
 	public static EmailLogActor ProviderReconciliation(string id) {
-		return new EmailLogActor(EmailLogActorKinds.ProviderReconciliation, ValidateId(id));
+		return new EmailLogActor(EmailLogActorKinds.ProviderReconciliation, _ValidateId(id));
 	}
 
-	private static string ValidateId(string id) {
+	private static string _ValidateId(string id) {
 		if (string.IsNullOrWhiteSpace(id)) {
 			throw new EmailLogActorException(
 				"id is required: every email_log evidence row names its author (#866).");

@@ -16,14 +16,14 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// </para>
 /// </summary>
 public static class SocialAccountsMasterKeyWitness {
-	private static readonly byte[] Sentinel =
+	private static readonly byte[] _Sentinel =
 		System.Text.Encoding.UTF8.GetBytes("__social_accounts_master_key_sentinel__");
 
 	// The committed all-zero base64 string shared by apps/api/Dockerfile (both build-time
 	// Production blocks), .github/workflows/ci.yml, the just recipes and the e2e history:
 	// the repo's DOCUMENTED, publicly known build placeholder. Kept byte-exact in sync
-	// with AppEnvironmentBuildEnvCompletenessSpec.PlaceholderMasterKey.
-	private static readonly byte[] DocumentedBuildPlaceholder =
+	// with AppEnvironmentBuildEnvCompletenessSpec._PlaceholderMasterKey.
+	private static readonly byte[] _DocumentedBuildPlaceholder =
 		Convert.FromBase64String("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 
 	/// <summary>
@@ -79,14 +79,14 @@ public static class SocialAccountsMasterKeyWitness {
 		// publicly known placeholder and degenerate low-entropy values BEFORE the canary
 		// round-trip. An operator pasting the placeholder into Dokploy would otherwise run
 		// the whole deployment under a key anyone can read off the repository (#1294).
-		RejectKnownNonSecretOrDegenerateValue(key);
+		_RejectKnownNonSecretOrDegenerateValue(key);
 
 		try {
 			var stored = canaryStore.Read();
 			if (string.IsNullOrEmpty(stored)) {
 				// First boot (or canary lost): mint it under the current key. From now on
 				// every boot with a different key value fails below.
-				canaryStore.Write(ProtectSentinel(key));
+				canaryStore.Write(_ProtectSentinel(key));
 
 				// #1416: re-read what is ACTUALLY stored before declaring victory.
 				// Concurrent first boots all mint at once; with the unique partial index,
@@ -109,14 +109,14 @@ public static class SocialAccountsMasterKeyWitness {
 				}
 			}
 
-			VerifyPersistedCanary(key, stored);
+			_VerifyPersistedCanary(key, stored);
 			logger?.LogInformation(CanaryPassedLogLine);
 		} catch (Exception ex) when (ex is CryptographicException or FormatException or ArgumentException) {
-			throw WrongKey(ex);
+			throw _WrongKey(ex);
 		}
 	}
 
-	private static void VerifyPersistedCanary(byte[] key, string storedBlob) {
+	private static void _VerifyPersistedCanary(byte[] key, string storedBlob) {
 		var parts = storedBlob.Split(':');
 		if (parts.Length != 3) {
 			throw new FormatException("Malformed master-key canary blob.");
@@ -129,19 +129,19 @@ public static class SocialAccountsMasterKeyWitness {
 		var decrypted = new byte[ciphertext.Length];
 		aes.Decrypt(nonce, ciphertext, tag, decrypted);
 
-		if (!decrypted.AsSpan().SequenceEqual(Sentinel)) {
+		if (!decrypted.AsSpan().SequenceEqual(_Sentinel)) {
 			throw new CryptographicException("Canary decrypted to an unexpected value.");
 		}
 	}
 
-	private static string ProtectSentinel(byte[] key) {
+	private static string _ProtectSentinel(byte[] key) {
 		var nonce = new byte[AesGcm.NonceByteSizes.MaxSize]; // 12 bytes
 		RandomNumberGenerator.Fill(nonce);
-		var ciphertext = new byte[Sentinel.Length];
+		var ciphertext = new byte[_Sentinel.Length];
 		var tag = new byte[AesGcm.TagByteSizes.MaxSize];
 
 		using var aes = new AesGcm(key, AesGcm.TagByteSizes.MaxSize);
-		aes.Encrypt(nonce, Sentinel, ciphertext, tag);
+		aes.Encrypt(nonce, _Sentinel, ciphertext, tag);
 
 		return string.Create(
 			System.Globalization.CultureInfo.InvariantCulture,
@@ -159,20 +159,20 @@ public static class SocialAccountsMasterKeyWitness {
 	// The floor therefore rejects degenerate operator input at a REAL boot with a false
 	// positive rate that is negligible, and the all-same-byte family (any single value
 	// repeated 32 times, not just the all-zero placeholder) fails both checks explicitly.
-	private const int MinimumDistinctBytes = 16;
+	private const int _MinimumDistinctBytes = 16;
 
-	private static void RejectKnownNonSecretOrDegenerateValue(byte[] key) {
+	private static void _RejectKnownNonSecretOrDegenerateValue(byte[] key) {
 		string? reason = null;
 
-		if (key.AsSpan().SequenceEqual(DocumentedBuildPlaceholder)) {
+		if (key.AsSpan().SequenceEqual(_DocumentedBuildPlaceholder)) {
 			reason = "it is the repository's publicly documented build placeholder";
 		} else {
-			var distinct = DistinctByteCount(key);
+			var distinct = _DistinctByteCount(key);
 			if (distinct == 1) {
 				reason = "all 32 of its bytes are the same value";
-			} else if (distinct < MinimumDistinctBytes) {
+			} else if (distinct < _MinimumDistinctBytes) {
 				reason = $"it carries only {distinct} distinct byte values across its "
-					+ $"32 bytes (fewer than {MinimumDistinctBytes})";
+					+ $"32 bytes (fewer than {_MinimumDistinctBytes})";
 			}
 		}
 
@@ -188,7 +188,7 @@ public static class SocialAccountsMasterKeyWitness {
 		);
 	}
 
-	private static int DistinctByteCount(byte[] key) {
+	private static int _DistinctByteCount(byte[] key) {
 		var seen = new bool[256];
 		var count = 0;
 		foreach (var b in key) {
@@ -209,7 +209,7 @@ public static class SocialAccountsMasterKeyWitness {
 		"SOCIAL_ACCOUNTS_MASTER_KEY does not match the master-key canary stored beside "
 			+ "the Data Protection key ring:";
 
-	private static InvalidOperationException WrongKey(Exception cause) {
+	private static InvalidOperationException _WrongKey(Exception cause) {
 		return new InvalidOperationException(
 			WrongKeyMessagePrefix + " credentials were encrypted under a DIFFERENT "
 				+ "key, so this process would silently fail to decrypt them. The API/worker "

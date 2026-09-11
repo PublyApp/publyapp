@@ -24,19 +24,19 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // Contract: 200 page containing the seeded row, status CSV filter honored,
 // 400 unknown status token, 401 without a session, 403 unprivileged staff.
 public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
-	private const string EmptyJson = "{}";
+	private const string _EmptyJson = "{}";
 
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindDeadLettersForStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string Url() {
+	private static string _Url() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Jobs.ForStaff.JobsRoot,
@@ -46,16 +46,16 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldListDeadLettersIncludingTheSeededRow() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var jobType = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var jobType = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.Unclassified
 		);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Get, Url())
+			var request = new HttpRequestMessage(HttpMethod.Get, _Url())
 				.WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -68,24 +68,24 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 					== (int)ExternalStateStatus.Unclassified
 			);
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByExternalStateStatusCsv() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var jobType = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var jobType = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.Missing
 		);
 
 		try {
-			var url = $"{Url()}?job_type={Uri.EscapeDataString(jobType)}"
+			var url = $"{_Url()}?job_type={Uri.EscapeDataString(jobType)}"
 				+ "&external_state_status=4";
 			var request = new HttpRequestMessage(HttpMethod.Get, url)
 				.WithSessionToken(token);
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -96,49 +96,49 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 					item.GetProperty("jobType").GetString() == jobType
 				);
 		} finally {
-			await CleanupAsync(jobType);
+			await _CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForAnUnknownStatusToken() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{Url()}?external_state_status=999"
+			$"{_Url()}?external_state_status=999"
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldRequireASession() {
-		using var response = await _http.GetAsync(Url());
+		using var response = await _Http.GetAsync(_Url());
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var unprivileged = await CreateUnprivilegedStaffUserAsync();
+		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Get, Url())
+		var request = new HttpRequestMessage(HttpMethod.Get, _Url())
 			.WithSessionToken(unprivileged.Token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	// --- helpers ------------------------------------------------------------------------
 
-	private async Task<string> InsertDeadLetterAsync(int status) {
+	private async Task<string> _InsertDeadLetterAsync(int status) {
 		var jobType = $"spec.a5.dlq-list.{Guid.NewGuid():N}";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await dbContext.Database.ExecuteSqlAsync(
@@ -148,7 +148,7 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 				 enqueued_at, failed_at, external_state_status,
 				 external_state_prepared_at, external_state_expires_at)
 			VALUES (
-				{Guid.NewGuid()}, {jobType}, {EmptyJson}::jsonb, 0, 10, 10,
+				{Guid.NewGuid()}, {jobType}, {_EmptyJson}::jsonb, 0, 10, 10,
 				now(), now(), {status}, now(),
 				now() + make_interval(days => 7)
 			)
@@ -158,8 +158,8 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 		return jobType;
 	}
 
-	private async Task CleanupAsync(string jobType) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(string jobType) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter WHERE job_type = {jobType}"
@@ -167,10 +167,10 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(string Token, Guid UserId)>
-		CreateUnprivilegedStaffUserAsync() {
+		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-dlq-list-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -191,7 +191,7 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

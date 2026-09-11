@@ -49,45 +49,45 @@ public class CreateTenantAsStaffBody {
 	}
 
 	public string? GetLogoUrl() {
-		return NormalizeClearableString(LogoUrl.GetValueAsStringOrNull());
+		return _NormalizeClearableString(LogoUrl.GetValueAsStringOrNull());
 	}
 
 	public string? GetLegalName() {
-		return NormalizeClearableString(LegalName.GetValueAsStringOrNull());
+		return _NormalizeClearableString(LegalName.GetValueAsStringOrNull());
 	}
 
 	public string? GetDescription() {
-		return NormalizeClearableString(Description.GetValueAsStringOrNull());
+		return _NormalizeClearableString(Description.GetValueAsStringOrNull());
 	}
 
 	public string? GetWebsiteUrl() {
-		return NormalizeClearableString(WebsiteUrl.GetValueAsStringOrNull());
+		return _NormalizeClearableString(WebsiteUrl.GetValueAsStringOrNull());
 	}
 
 	public string? GetBillingEmail() {
-		return NormalizeClearableString(BillingEmail.GetValueAsStringOrNull());
+		return _NormalizeClearableString(BillingEmail.GetValueAsStringOrNull());
 	}
 
 	public string? GetSupportEmail() {
-		return NormalizeClearableString(SupportEmail.GetValueAsStringOrNull());
+		return _NormalizeClearableString(SupportEmail.GetValueAsStringOrNull());
 	}
 
 	public string? GetDefaultLocale() {
-		return NormalizeClearableString(DefaultLocale.GetValueAsStringOrNull());
+		return _NormalizeClearableString(DefaultLocale.GetValueAsStringOrNull());
 	}
 
 	public string? GetTimezone() {
-		return NormalizeClearableString(Timezone.GetValueAsStringOrNull());
+		return _NormalizeClearableString(Timezone.GetValueAsStringOrNull());
 	}
 
 	public string? GetNotes() {
-		return NormalizeClearableString(Notes.GetValueAsStringOrNull());
+		return _NormalizeClearableString(Notes.GetValueAsStringOrNull());
 	}
 
 	// Trims and maps whitespace-only input to null so "cleared"/"omitted" has a
 	// single representation — otherwise {"legalName": "  "} would persist a
 	// non-null value the UI has to separately treat as empty alongside actual null.
-	private static string? NormalizeClearableString(string? value) {
+	private static string? _NormalizeClearableString(string? value) {
 		if (value is null) {
 			return null;
 		}
@@ -130,11 +130,11 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 	// Lowercase letters, digits, and single hyphens between segments — mirrors the canonical
 	// shape of the random codes (Tenant.Code setter also lowercases, but we reject uppercase
 	// input outright rather than silently transforming it into a different string than sent).
-	private const int CodeMinLength = 3;
-	private const int CodeMaxLength = 40;
+	private const int _CodeMinLength = 3;
+	private const int _CodeMaxLength = 40;
 
 	[GeneratedRegex("^[a-z0-9]+(?:-[a-z0-9]+)*$")]
-	private static partial Regex CodeFormatRegex();
+	private static partial Regex _CodeFormatRegex();
 
 	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
@@ -154,7 +154,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			context.AddFailure("MaxUsers must be a number, null, or undefined");
 		});
 
-		RuleFor(x => x.Code).Custom(ValidateCode);
+		RuleFor(x => x.Code).Custom(_ValidateCode);
 
 		RuleFor(x => x.SeedDefaultProfile)
 			.MustBeNullableBoolean("SeedDefaultProfile");
@@ -187,10 +187,10 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			.MustBeNullableStringWithMaxLength("Notes", 4000);
 
 		RuleFor(x => x.InitialUsers)
-			.Custom(ValidateInitialUsers);
+			.Custom(_ValidateInitialUsers);
 	}
 
-	private static void ValidateCode(
+	private static void _ValidateCode(
 		JsonElement? element,
 		ValidationContext<CreateTenantAsStaffBody> context
 	) {
@@ -214,14 +214,14 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			return;
 		}
 
-		if (code.Length is < CodeMinLength or > CodeMaxLength) {
+		if (code.Length is < _CodeMinLength or > _CodeMaxLength) {
 			context.AddFailure(
-				$"Code must be between {CodeMinLength} and {CodeMaxLength} characters"
+				$"Code must be between {_CodeMinLength} and {_CodeMaxLength} characters"
 			);
 			return;
 		}
 
-		if (!CodeFormatRegex().IsMatch(code)) {
+		if (!_CodeFormatRegex().IsMatch(code)) {
 			context.AddFailure(
 				"Code must contain only lowercase letters, digits, and hyphens, "
 				+ "and cannot start or end with a hyphen"
@@ -229,7 +229,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 		}
 	}
 
-	private static void ValidateInitialUsers(
+	private static void _ValidateInitialUsers(
 		JsonElement element,
 		ValidationContext<CreateTenantAsStaffBody> context
 	) {
@@ -286,7 +286,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			} else if (emailElement.ValueKind != JsonValueKind.String) {
 				context.AddFailure($"initialUsers[{i}].email", "Must be a string");
 			} else {
-				ValidateInitialUserEmail(context, emailOccurrences, i, emailElement);
+				_ValidateInitialUserEmail(context, emailOccurrences, i, emailElement);
 			}
 
 			if (!item.TryGetProperty("accountLevel", out var levelElement)) {
@@ -330,7 +330,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 		}
 	}
 
-	private static void ValidateInitialUserEmail(
+	private static void _ValidateInitialUserEmail(
 		ValidationContext<CreateTenantAsStaffBody> context,
 		Dictionary<string, List<int>> emailOccurrences,
 		int index,
@@ -339,7 +339,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 		var email = emailElement.GetString();
 		if (string.IsNullOrWhiteSpace(email)) {
 			context.AddFailure($"initialUsers[{index}].email", "Email is required");
-		} else if (!IsValidEmail(email)) {
+		} else if (!_IsValidEmail(email)) {
 			context.AddFailure($"initialUsers[{index}].email", "Invalid email format");
 		} else {
 			if (!emailOccurrences.TryGetValue(email, out var indices)) {
@@ -350,7 +350,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 		}
 	}
 
-	private static bool IsValidEmail(string email) {
+	private static bool _IsValidEmail(string email) {
 		if (string.IsNullOrWhiteSpace(email)) {
 			return false;
 		}

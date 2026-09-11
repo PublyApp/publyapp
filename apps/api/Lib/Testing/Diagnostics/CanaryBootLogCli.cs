@@ -60,7 +60,7 @@ public static class CanaryBootLogCli {
 					+ $"arg actually wired into Program.Main? Stdout:\n{stdout}");
 		}
 
-		return ExtractLines(stdout);
+		return _ExtractLines(stdout);
 	}
 
 	/// <summary>
@@ -110,7 +110,7 @@ public static class CanaryBootLogCli {
 				if (!env.TryGetValue(key, out var pinnedValue)
 					|| string.IsNullOrWhiteSpace(pinnedValue)) {
 					// Not pinned, or pinned-absent: the child must not inherit this
-					// process's copy (GetHostEnvironmentName would read it otherwise).
+					// process's copy (_GetHostEnvironmentName would read it otherwise).
 					startInfo.Environment.Remove(key);
 					continue;
 				}
@@ -147,7 +147,7 @@ public static class CanaryBootLogCli {
 		);
 	}
 
-	private static IReadOnlyList<string> ExtractLines(string stdout) {
+	private static IReadOnlyList<string> _ExtractLines(string stdout) {
 		return stdout.Split('\n')
 			.Where(line => line.StartsWith(CanaryBootLogProbe.LinePrefix, StringComparison.Ordinal))
 			.Select(line => line[CanaryBootLogProbe.LinePrefix.Length..])

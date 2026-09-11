@@ -28,7 +28,7 @@ public sealed record JobHandlerRegistration(
 /// domain handlers exist yet, so the registry is legitimately empty at runtime.
 /// </summary>
 public sealed class JobHandlerRegistry {
-	private readonly Dictionary<string, JobHandlerRegistration> _registrations;
+	private readonly Dictionary<string, JobHandlerRegistration> _Registrations;
 
 	// DI injects the scope factory, enabling the eager consistency check; spec code
 	// constructing a registry from ad-hoc registrations may omit it.
@@ -36,21 +36,21 @@ public sealed class JobHandlerRegistry {
 		IEnumerable<JobHandlerRegistration> registrations,
 		IServiceScopeFactory? scopeFactory = null
 	) {
-		_registrations = new Dictionary<string, JobHandlerRegistration>(StringComparer.Ordinal);
+		_Registrations = new Dictionary<string, JobHandlerRegistration>(StringComparer.Ordinal);
 
 		foreach (var registration in registrations) {
-			if (_registrations.ContainsKey(registration.JobType)) {
+			if (_Registrations.ContainsKey(registration.JobType)) {
 				throw new InvalidOperationException(
 					$"Duplicate job handler registered for job type '{registration.JobType}'. "
 					+ "Each job_type must map to exactly one handler."
 				);
 			}
 
-			_registrations.Add(registration.JobType, registration);
+			_Registrations.Add(registration.JobType, registration);
 		}
 
 		if (scopeFactory is not null) {
-			ValidateRegistrationConsistency(scopeFactory);
+			_ValidateRegistrationConsistency(scopeFactory);
 		}
 	}
 
@@ -58,10 +58,10 @@ public sealed class JobHandlerRegistry {
 	// handler whose own JobType matches the registered key — a drift is a pure
 	// config error and must die at startup, never at dispatch (the engine's
 	// runtime PermanentFailure classification is only defense in depth).
-	private void ValidateRegistrationConsistency(IServiceScopeFactory scopeFactory) {
+	private void _ValidateRegistrationConsistency(IServiceScopeFactory scopeFactory) {
 		using var scope = scopeFactory.CreateScope();
 
-		foreach (var registration in _registrations.Values) {
+		foreach (var registration in _Registrations.Values) {
 			var handler = registration.Factory(scope.ServiceProvider);
 
 			if (!string.Equals(handler.JobType, registration.JobType, StringComparison.Ordinal)) {
@@ -78,11 +78,11 @@ public sealed class JobHandlerRegistry {
 		string jobType,
 		[NotNullWhen(true)] out JobHandlerRegistration? registration
 	) {
-		return _registrations.TryGetValue(jobType, out registration);
+		return _Registrations.TryGetValue(jobType, out registration);
 	}
 
 	public IReadOnlyCollection<string> RegisteredJobTypes {
-		get { return _registrations.Keys.ToList(); }
+		get { return _Registrations.Keys.ToList(); }
 	}
 
 	/// <summary>
@@ -101,7 +101,7 @@ public sealed class JobHandlerRegistry {
 		).Distinct().ToListAsync(cancellationToken);
 
 		var orphaned = deadLetterTypes
-			.Where(t => !_registrations.ContainsKey(t))
+			.Where(t => !_Registrations.ContainsKey(t))
 			.ToList();
 
 		if (orphaned.Count > 0 && logger.IsEnabled(LogLevel.Warning)) {

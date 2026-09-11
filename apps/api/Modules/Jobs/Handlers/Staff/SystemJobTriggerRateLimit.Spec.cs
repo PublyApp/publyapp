@@ -35,10 +35,10 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // while still consuming exactly one limiter permit — the limiter fires before
 // any handler logic. Zero side effects, full rate-limit coverage.
 public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public SystemJobTriggerRateLimitSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
@@ -46,11 +46,11 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		var permitLimit = AppEnvironment
 			.Instance.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT;
 
-		var definitionId = await SeedDisabledDefinitionAsync();
+		var definitionId = await _SeedDisabledDefinitionAsync();
 
 		try {
-			await using var factory = CreateFactory(permitLimit: permitLimit);
-			using var client = CreateClient(factory);
+			await using var factory = _CreateFactory(permitLimit: permitLimit);
+			using var client = _CreateClient(factory);
 
 			var firstToken = await new TestAuthClient(client)
 				.LoginAsStaffAdminAsync();
@@ -63,7 +63,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 					requestNumber <= permitLimit + 1;
 					requestNumber++
 				) {
-					using var request = CreateTriggerRequest(
+					using var request = _CreateTriggerRequest(
 						firstToken, definitionId
 					);
 					var response = await client.SendAsync(request);
@@ -81,7 +81,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 			} finally {
 				if (rejected is not null) {
 					using (rejected) {
-						await AssertRateLimitedResponseAsync(rejected);
+						await _AssertRateLimitedResponseAsync(rejected);
 					}
 				}
 			}
@@ -92,7 +92,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 			var secondToken = await new TestAuthClient(client)
 				.LoginAsStaffAdminAsync();
 			using var secondSessionRequest =
-				CreateTriggerRequest(secondToken, definitionId);
+				_CreateTriggerRequest(secondToken, definitionId);
 			using var secondSessionResponse =
 				await client.SendAsync(secondSessionRequest);
 			secondSessionResponse.StatusCode.Should().Be(
@@ -101,11 +101,11 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 				+ "not a global bucket"
 			);
 		} finally {
-			await CleanupAsync(definitionId);
+			await _CleanupAsync(definitionId);
 		}
 	}
 
-	private static HttpRequestMessage CreateTriggerRequest(
+	private static HttpRequestMessage _CreateTriggerRequest(
 		string token,
 		string definitionId
 	) {
@@ -121,8 +121,8 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		).WithSessionToken(token);
 	}
 
-	private async Task<string> SeedDisabledDefinitionAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _SeedDisabledDefinitionAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var definition = new SystemJobDefinition {
@@ -140,8 +140,8 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		)).ToString();
 	}
 
-	private async Task CleanupAsync(string definitionId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(string definitionId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM audit_logs WHERE target_id = {Guid.Parse(definitionId)}"
@@ -151,7 +151,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private WebApplicationFactory<Program> CreateFactory(int permitLimit) {
+	private WebApplicationFactory<Program> _CreateFactory(int permitLimit) {
 		const int longWindowSeconds = 3600;
 		const int generousOtherLimits = 10000;
 		var anonymousSettings = new AnonymousAuthRateLimitSettings(
@@ -212,7 +212,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 			)
 		);
 
-		return _fixture.Factory.WithWebHostBuilder(
+		return _Fixture.Factory.WithWebHostBuilder(
 			builder => {
 				builder.ConfigureServices(services => {
 					services.RemoveAll<AnonymousAuthRateLimitSettings>();
@@ -224,7 +224,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static HttpClient CreateClient(
+	private static HttpClient _CreateClient(
 		WebApplicationFactory<Program> factory
 	) {
 		return factory.CreateClient(
@@ -234,7 +234,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task AssertRateLimitedResponseAsync(
+	private static async Task _AssertRateLimitedResponseAsync(
 		HttpResponseMessage response
 	) {
 		response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);

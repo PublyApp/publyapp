@@ -80,7 +80,7 @@ namespace PublyApp.Api.Lib.Architecture {
 					t.GetProperties()
 						.Select(p => (Type: t, Prop: p)))
 				.Where(x =>
-					ContainsPatchField(x.Prop.PropertyType))
+					_ContainsPatchField(x.Prop.PropertyType))
 				.Select(x =>
 					$"{x.Type.Name}.{x.Prop.Name}")
 				.OrderBy(name => name, StringComparer.Ordinal)
@@ -102,17 +102,17 @@ namespace PublyApp.Api.Lib.Architecture {
 				.Options;
 			using var dbContext = new AppDbContext(options);
 
-			AssertCompositeJunctionKey<UserAccountProfile>(
+			_AssertCompositeJunctionKey<UserAccountProfile>(
 				dbContext,
 				[nameof(UserAccountProfile.UserAccountId), nameof(UserAccountProfile.ProfileId)]
 			);
-			AssertCompositeJunctionKey<ProfilePermission>(
+			_AssertCompositeJunctionKey<ProfilePermission>(
 				dbContext,
 				[nameof(ProfilePermission.ProfileId), nameof(ProfilePermission.PermissionKey)]
 			);
 		}
 
-		private static void AssertCompositeJunctionKey<TEntity>(
+		private static void _AssertCompositeJunctionKey<TEntity>(
 			AppDbContext dbContext,
 			string[] expectedKeyPropertyNames
 		) {
@@ -135,14 +135,14 @@ namespace PublyApp.Api.Lib.Architecture {
 			entityType.FindProperty("UpdatedAt").Should().NotBeNull();
 		}
 
-		private static bool ContainsPatchField(Type type) {
-			return ContainsPatchField(
+		private static bool _ContainsPatchField(Type type) {
+			return _ContainsPatchField(
 				type,
 				new HashSet<Type>()
 			);
 		}
 
-		private static bool ContainsPatchField(
+		private static bool _ContainsPatchField(
 			Type type,
 			HashSet<Type> visited
 		) {
@@ -154,14 +154,14 @@ namespace PublyApp.Api.Lib.Architecture {
 
 			if (type.IsByRef || type.IsPointer) {
 				Type? elementType = type.GetElementType();
-				return elementType is not null && ContainsPatchField(
+				return elementType is not null && _ContainsPatchField(
 					elementType, visited
 				);
 			}
 
 			if (type.IsArray) {
 				Type? elementType = type.GetElementType();
-				return elementType is not null && ContainsPatchField(
+				return elementType is not null && _ContainsPatchField(
 					elementType, visited
 				);
 			}
@@ -169,18 +169,18 @@ namespace PublyApp.Api.Lib.Architecture {
 			return (type.IsGenericType
 				&& type.GetGenericArguments()
 					.Any(arg =>
-						ContainsPatchField(
+						_ContainsPatchField(
 							arg, visited
-						))) || (!IsTerminalType(type) && visited.Add(type) && type.GetProperties(
+						))) || (!_IsTerminalType(type) && visited.Add(type) && type.GetProperties(
 				BindingFlags.Public
 				| BindingFlags.Instance
 			).Any(prop =>
-				ContainsPatchField(
+				_ContainsPatchField(
 					prop.PropertyType, visited
 				)));
 		}
 
-		private static bool IsTerminalType(Type type) {
+		private static bool _IsTerminalType(Type type) {
 			return type.IsPrimitive || type.IsEnum || type == typeof(string)
 				|| type == typeof(decimal)
 				|| type == typeof(DateTime)

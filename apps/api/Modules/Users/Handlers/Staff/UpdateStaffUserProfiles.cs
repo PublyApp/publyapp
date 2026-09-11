@@ -15,10 +15,10 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 public sealed class UpdateStaffUserProfilesBody {
 	public JsonElement ProfileIds { get; init; }
 
-	private bool _parsed;
-	private List<Guid> _profileIds = [];
+	private bool _Parsed;
+	private List<Guid> _ProfileIds = [];
 
-	private List<Guid> ParseProfileIds() {
+	private List<Guid> _ParseProfileIds() {
 		if (ProfileIds.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("ProfileIds must be an array");
 		}
@@ -41,13 +41,13 @@ public sealed class UpdateStaffUserProfilesBody {
 	}
 
 	public List<Guid> GetProfileIds() {
-		if (_parsed) {
-			return _profileIds;
+		if (_Parsed) {
+			return _ProfileIds;
 		}
 
-		_profileIds = ParseProfileIds();
-		_parsed = true;
-		return _profileIds;
+		_ProfileIds = _ParseProfileIds();
+		_Parsed = true;
+		return _ProfileIds;
 	}
 }
 

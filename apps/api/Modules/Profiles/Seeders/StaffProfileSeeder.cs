@@ -13,10 +13,10 @@ namespace PublyApp.Api.Modules.Profiles.Seeders;
 /// Seeds foundational staff profiles for runtime assignment.
 /// </summary>
 public class StaffProfileSeeder : IEntitySeeder {
-	private readonly ILogger<StaffProfileSeeder> _logger;
+	private readonly ILogger<StaffProfileSeeder> _Logger;
 
 	public StaffProfileSeeder(ILogger<StaffProfileSeeder>? logger = null) {
-		_logger = logger
+		_Logger = logger
 			?? SeederLoggerUtils.CreateDefault<StaffProfileSeeder>();
 	}
 
@@ -39,7 +39,7 @@ public class StaffProfileSeeder : IEntitySeeder {
 			)
 			.SingleAsync(cancellationToken);
 		if (!profileStyleColumnsExist) {
-			_logger.LogInformation(
+			_Logger.LogInformation(
 				"Staff profile seeding skipped; profile style columns do not exist yet."
 			);
 			return;
@@ -67,7 +67,7 @@ public class StaffProfileSeeder : IEntitySeeder {
 		}
 
 		if (newProfiles.Count == 0) {
-			_logger.LogInformation("Staff profile seeding skipped; profiles already exist.");
+			_Logger.LogInformation("Staff profile seeding skipped; profiles already exist.");
 			return;
 		}
 
@@ -80,8 +80,8 @@ public class StaffProfileSeeder : IEntitySeeder {
 				await dbContext.Profile.AddRangeAsync(newProfiles, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_logger.IsEnabled(LogLevel.Information)) {
-					_logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
+				if (_Logger.IsEnabled(LogLevel.Information)) {
+					_Logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
 				}
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
@@ -90,8 +90,8 @@ public class StaffProfileSeeder : IEntitySeeder {
 		} else {
 			await dbContext.Profile.AddRangeAsync(newProfiles, cancellationToken);
 			await dbContext.SaveChangesAsync(cancellationToken);
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
 			}
 		}
 	}

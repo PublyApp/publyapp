@@ -35,7 +35,7 @@ namespace PublyApp.Api.Lib.Logging;
 // assumption R2-8 rejects.
 public sealed class LoggerSinkGraphSpec {
 	// Sink types that write durable output and therefore MUST be sanitized first.
-	private static readonly string[] OutputSinkMarkers = [
+	private static readonly string[] _OutputSinkMarkers = [
 		"Serilog.Sinks.SystemConsole",
 		"Serilog.Sinks.File",
 	];
@@ -47,14 +47,14 @@ public sealed class LoggerSinkGraphSpec {
 	public void ItShouldPlaceEveryOutputSinkBehindTheSanitizingWrapperForEachEnvironment(
 		string environmentName
 	) {
-		using var logger = BuildLogger(environmentName);
+		using var logger = _BuildLogger(environmentName);
 
-		var nodes = WalkSinkGraph(logger);
+		var nodes = _WalkSinkGraph(logger);
 
 		nodes.Should().NotBeEmpty("the composed logger must actually have sinks");
 
 		var unsanitized = nodes
-			.Where(node => IsOutputSink(node.SinkType) && !node.HasSanitizingAncestor)
+			.Where(node => _IsOutputSink(node.SinkType) && !node.HasSanitizingAncestor)
 			.Select(node => node.Path)
 			.ToList();
 
@@ -72,9 +72,9 @@ public sealed class LoggerSinkGraphSpec {
 	[InlineData(EnvironmentNames.Testing)]
 	[InlineData(EnvironmentNames.Production)]
 	public void ItShouldComposeExactlyOneSanitizingWrapperForEachEnvironment(string environmentName) {
-		using var logger = BuildLogger(environmentName);
+		using var logger = _BuildLogger(environmentName);
 
-		var wrapperCount = WalkSinkGraph(logger)
+		var wrapperCount = _WalkSinkGraph(logger)
 			.Count(node => node.SinkType == typeof(SanitizingLogEventSink));
 
 		wrapperCount.Should().Be(
@@ -91,7 +91,7 @@ public sealed class LoggerSinkGraphSpec {
 	[Fact]
 	public void ItShouldDetectAnOutputSinkAddedOutsideTheWrapper() {
 		var loggerConfig = new LoggerConfiguration();
-		BuildLoggerConfiguration(loggerConfig, EnvironmentNames.Production);
+		_BuildLoggerConfiguration(loggerConfig, EnvironmentNames.Production);
 
 		// The exact regression this guard exists to catch: a plain top-level console sink
 		// added alongside the sanitized graph.
@@ -99,8 +99,8 @@ public sealed class LoggerSinkGraphSpec {
 
 		using var logger = loggerConfig.CreateLogger();
 
-		var unsanitized = WalkSinkGraph(logger)
-			.Where(node => IsOutputSink(node.SinkType) && !node.HasSanitizingAncestor)
+		var unsanitized = _WalkSinkGraph(logger)
+			.Where(node => _IsOutputSink(node.SinkType) && !node.HasSanitizingAncestor)
 			.ToList();
 
 		unsanitized.Should().NotBeEmpty(
@@ -124,7 +124,7 @@ public sealed class LoggerSinkGraphSpec {
 	[InlineData(LogEventLevel.Warning)]
 	[InlineData(LogEventLevel.Information)]
 	public void ItShouldWriteToStdoutForEachNonDebugLevelInProduction(LogEventLevel level) {
-		var captured = CaptureProductionStdout(logger =>
+		var captured = _CaptureProductionStdout(logger =>
 			logger.Write(level, "publyapp-stdout-probe")
 		);
 
@@ -140,7 +140,7 @@ public sealed class LoggerSinkGraphSpec {
 	// deliberately NOT Debug/Verbose, so production stdout never fills with debug noise.
 	[Fact]
 	public void ItShouldNotWriteDebugToStdoutInProduction() {
-		var captured = CaptureProductionStdout(logger =>
+		var captured = _CaptureProductionStdout(logger =>
 			logger.Write(LogEventLevel.Debug, "publyapp-debug-probe")
 		);
 
@@ -155,7 +155,7 @@ public sealed class LoggerSinkGraphSpec {
 
 	// Redirects Console.Out BEFORE the logger is built, because Serilog's console sink
 	// resolves its output writer at construction time.
-	private static string CaptureProductionStdout(Action<Logger> emit) {
+	private static string _CaptureProductionStdout(Action<Logger> emit) {
 		var originalOut = Console.Out;
 		using var captured = new StringWriter();
 		Console.SetOut(captured);
@@ -163,7 +163,7 @@ public sealed class LoggerSinkGraphSpec {
 		try {
 			// Disposing inside the redirect flushes the async sinks before Console.Out is
 			// restored, so nothing races the assertion.
-			using var logger = BuildLogger(EnvironmentNames.Production);
+			using var logger = _BuildLogger(EnvironmentNames.Production);
 			emit(logger);
 		} finally {
 			Console.SetOut(originalOut);
@@ -172,14 +172,14 @@ public sealed class LoggerSinkGraphSpec {
 		return captured.ToString();
 	}
 
-	private static Logger BuildLogger(string environmentName) {
+	private static Logger _BuildLogger(string environmentName) {
 		var loggerConfig = new LoggerConfiguration();
-		BuildLoggerConfiguration(loggerConfig, environmentName);
+		_BuildLoggerConfiguration(loggerConfig, environmentName);
 
 		return loggerConfig.CreateLogger();
 	}
 
-	private static void BuildLoggerConfiguration(
+	private static void _BuildLoggerConfiguration(
 		LoggerConfiguration loggerConfig,
 		string environmentName
 	) {
@@ -200,10 +200,10 @@ public sealed class LoggerSinkGraphSpec {
 			new NullFileProvider();
 	}
 
-	private static bool IsOutputSink(Type sinkType) {
+	private static bool _IsOutputSink(Type sinkType) {
 		var typeName = sinkType.FullName ?? sinkType.Name;
 
-		return OutputSinkMarkers.Any(marker => typeName.StartsWith(marker, StringComparison.Ordinal));
+		return _OutputSinkMarkers.Any(marker => typeName.StartsWith(marker, StringComparison.Ordinal));
 	}
 
 	private sealed record SinkNode(Type SinkType, string Path, bool HasSanitizingAncestor);
@@ -213,18 +213,18 @@ public sealed class LoggerSinkGraphSpec {
 	// ILogEventSink or a collection of them. This is agnostic to Serilog's internal
 	// wrapper types (aggregate, filtering, restricted, async, secondary-logger), which is
 	// what keeps the guard from breaking on a Serilog upgrade.
-	private static List<SinkNode> WalkSinkGraph(Logger logger) {
+	private static List<SinkNode> _WalkSinkGraph(Logger logger) {
 		var nodes = new List<SinkNode>();
 		var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
-		foreach (var rootSink in FindChildSinks(logger)) {
-			Visit(rootSink, path: rootSink.GetType().Name, sanitizedAncestor: false, nodes, visited);
+		foreach (var rootSink in _FindChildSinks(logger)) {
+			_Visit(rootSink, path: rootSink.GetType().Name, sanitizedAncestor: false, nodes, visited);
 		}
 
 		return nodes;
 	}
 
-	private static void Visit(
+	private static void _Visit(
 		ILogEventSink sink,
 		string path,
 		bool sanitizedAncestor,
@@ -240,12 +240,12 @@ public sealed class LoggerSinkGraphSpec {
 
 		var sanitizedBelow = sanitizedAncestor || sinkType == typeof(SanitizingLogEventSink);
 
-		foreach (var child in FindChildSinks(sink)) {
-			Visit(child, $"{path} -> {child.GetType().Name}", sanitizedBelow, nodes, visited);
+		foreach (var child in _FindChildSinks(sink)) {
+			_Visit(child, $"{path} -> {child.GetType().Name}", sanitizedBelow, nodes, visited);
 		}
 	}
 
-	private static IEnumerable<ILogEventSink> FindChildSinks(object owner) {
+	private static IEnumerable<ILogEventSink> _FindChildSinks(object owner) {
 		var fields = owner.GetType().GetFields(
 			BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
 		);

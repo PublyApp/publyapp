@@ -13,15 +13,15 @@ using Xunit;
 namespace PublyApp.Api.Migrations;
 
 public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public AddSystemJobSweepIndexesSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldApplyEverySweepAndMonitorIndex() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var indexNames = await dbContext.Database.SqlQuery<string>(

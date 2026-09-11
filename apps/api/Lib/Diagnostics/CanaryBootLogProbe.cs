@@ -40,8 +40,8 @@ public static class CanaryBootLogProbe {
 	// so a misconfigured container command dies with a distinctly non-zero, non-crash code.
 	public const int RejectedExitCode = 78;
 
-	private static bool _requested;
-	private static BootLogCaptureSink? _sink;
+	private static bool _Requested;
+	private static BootLogCaptureSink? _Sink;
 
 	/// <summary>
 	/// Program.Main calls this before any host builder runs, so the capture sink exists
@@ -74,24 +74,24 @@ public static class CanaryBootLogProbe {
 			return false;
 		}
 
-		EnforceTestOnlyGate();
-		_requested = true;
-		_sink = new BootLogCaptureSink();
+		_EnforceTestOnlyGate();
+		_Requested = true;
+		_Sink = new BootLogCaptureSink();
 		return true;
 	}
 
 	// Exits the process when the probe arg is present without an explicit test-only
 	// opt-in, or outside a test-shaped hosting environment. Never returns on the refusal
 	// path.
-	private static void EnforceTestOnlyGate() {
+	private static void _EnforceTestOnlyGate() {
 		var rawValue = Environment.GetEnvironmentVariable(TestOnlyFlagName);
-		if (IsTestOnlyFlagValueAccepted(rawValue)
+		if (_IsTestOnlyFlagValueAccepted(rawValue)
 			&& AppEnvironment.IsProbeAllowedHostEnvironment()) {
 			return;
 		}
 
 		Console.Error.WriteLine(
-			$"{EmitArg} was refused: {DescribeRefusalCause(rawValue)}.");
+			$"{EmitArg} was refused: {_DescribeRefusalCause(rawValue)}.");
 		Environment.Exit(RejectedExitCode);
 	}
 
@@ -101,9 +101,9 @@ public static class CanaryBootLogProbe {
 	// name when there is one, stating the unset case explicitly for a bare container —
 	// then the flag half when the flag itself is absent/unaccepted, then the
 	// sanctioned-shape tail naming <see cref="TestOnlyFlagName"/>.
-	private static string DescribeRefusalCause(string? rawValue) {
+	private static string _DescribeRefusalCause(string? rawValue) {
 		var causes = new List<string>();
-		var flagAccepted = IsTestOnlyFlagValueAccepted(rawValue);
+		var flagAccepted = _IsTestOnlyFlagValueAccepted(rawValue);
 
 		if (!AppEnvironment.IsProbeAllowedHostEnvironment()) {
 			causes.Add(AppEnvironment.TryGetHostEnvironmentName(out var resolved)
@@ -131,7 +131,7 @@ public static class CanaryBootLogProbe {
 	// Exact-value contract: unset/blank refuses, "1"/"true" (case-insensitive) accepts,
 	// anything else refuses loudly (never a silent fallback). Ordinal comparisons —
 	// never ToLower() dispatch (PUBLY0003).
-	private static bool IsTestOnlyFlagValueAccepted(string? rawValue) {
+	private static bool _IsTestOnlyFlagValueAccepted(string? rawValue) {
 		if (string.IsNullOrWhiteSpace(rawValue)) {
 			return false;
 		}
@@ -147,8 +147,8 @@ public static class CanaryBootLogProbe {
 	/// only when) the probe activated. No-op for every normal boot.
 	/// </summary>
 	public static void AttachSinkIfRequested(LoggerSinkConfiguration sinkConfiguration) {
-		if (_sink is not null) {
-			sinkConfiguration.Sink(_sink);
+		if (_Sink is not null) {
+			sinkConfiguration.Sink(_Sink);
 		}
 	}
 
@@ -159,12 +159,12 @@ public static class CanaryBootLogProbe {
 	/// (Main returns without starting the host). Returns false immediately otherwise.
 	/// </summary>
 	public static bool TryExitAfterBootGate() {
-		if (!_requested || _sink is null) {
+		if (!_Requested || _Sink is null) {
 			return false;
 		}
 
 		Console.WriteLine(BeginMarker);
-		foreach (var message in _sink.Snapshot()) {
+		foreach (var message in _Sink.Snapshot()) {
 			Console.WriteLine(LinePrefix + message);
 		}
 		Console.WriteLine(EndMarker);
@@ -179,13 +179,13 @@ public static class CanaryBootLogProbe {
 /// snapshot at the exit ramp.
 /// </summary>
 public sealed class BootLogCaptureSink : ILogEventSink {
-	private readonly ConcurrentQueue<string> _messages = new();
+	private readonly ConcurrentQueue<string> _Messages = new();
 
 	public IReadOnlyList<string> Snapshot() {
-		return _messages.ToArray();
+		return _Messages.ToArray();
 	}
 
 	public void Emit(LogEvent logEvent) {
-		_messages.Enqueue(logEvent.RenderMessage(CultureInfo.InvariantCulture));
+		_Messages.Enqueue(logEvent.RenderMessage(CultureInfo.InvariantCulture));
 	}
 }

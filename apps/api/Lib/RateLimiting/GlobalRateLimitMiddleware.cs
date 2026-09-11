@@ -1,17 +1,17 @@
 namespace PublyApp.Api.Lib.RateLimiting;
 
 internal sealed class GlobalRateLimitMiddleware {
-	private readonly RequestDelegate _next;
+	private readonly RequestDelegate _Next;
 
 	public GlobalRateLimitMiddleware(
 		RequestDelegate next
 	) {
-		_next = next;
+		_Next = next;
 	}
 
 	public async Task InvokeAsync(HttpContext context) {
 		if (IsExcluded(context)) {
-			await _next(context);
+			await _Next(context);
 			return;
 		}
 
@@ -38,7 +38,7 @@ internal sealed class GlobalRateLimitMiddleware {
 			return;
 		}
 
-		await _next(context);
+		await _Next(context);
 	}
 
 	internal static bool IsExcluded(

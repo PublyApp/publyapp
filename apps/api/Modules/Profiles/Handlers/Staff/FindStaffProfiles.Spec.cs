@@ -18,17 +18,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindStaffProfilesSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string query = "") {
+	private static string _GetUrl(string query = "") {
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForStaff.Root,
@@ -40,17 +40,17 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		var withPercentId = await SeedStaffProfileAsync($"Has%Percent{marker}");
-		var withoutPercentId = await SeedStaffProfileAsync($"NoPercentAtAll{marker}");
+		var withPercentId = await _SeedStaffProfileAsync($"Has%Percent{marker}");
+		var withoutPercentId = await _SeedStaffProfileAsync($"NoPercentAtAll{marker}");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl($"limit=100&q={Uri.EscapeDataString("%")}")
+			_GetUrl($"limit=100&q={Uri.EscapeDataString("%")}")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -66,21 +66,21 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnPersistedIconAndToneOnEachItem() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		var profileId = await SeedStaffProfileAsync(
+		var profileId = await _SeedStaffProfileAsync(
 			$"Styled {marker}",
 			icon: "star",
 			tone: "3"
 		);
-		var bareId = await SeedStaffProfileAsync($"Bare{marker}");
+		var bareId = await _SeedStaffProfileAsync($"Bare{marker}");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl($"limit=100&q={Uri.EscapeDataString(marker)}")
+			_GetUrl($"limit=100&q={Uri.EscapeDataString(marker)}")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -98,12 +98,12 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 		bare.Tone.Should().BeNull();
 	}
 
-	private async Task<Guid> SeedStaffProfileAsync(
+	private async Task<Guid> _SeedStaffProfileAsync(
 		string name,
 		string? icon = null,
 		string? tone = null
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(name);

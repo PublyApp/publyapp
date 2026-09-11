@@ -27,17 +27,17 @@ public sealed record StaffInvitationEmailPayload {
 /// </summary>
 public static class InvitationEmailJobs {
 	// Elevated so transactional emails are claimed ahead of bulk work (design §4.1).
-	private const int EmailPriority = 100;
+	private const int _EmailPriority = 100;
 
 	public static readonly JobDefinition<TenantInvitationEmailPayload> TenantInvitationV1 =
 		new() {
 			JobType = "email.tenant-invitation.v1",
-			Priority = EmailPriority
+			Priority = _EmailPriority
 		};
 
 	public static readonly JobDefinition<StaffInvitationEmailPayload> StaffInvitationV1 =
 		new() {
 			JobType = "email.staff-invitation.v1",
-			Priority = EmailPriority
+			Priority = _EmailPriority
 		};
 }

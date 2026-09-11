@@ -10,7 +10,7 @@ namespace PublyApp.Api.Lib;
 
 /// <summary>
 /// Pins #1019: <c>DotNetEnv.LoadOptions.NoClobber()</c> (AppEnvironment.cs,
-/// <c>LoadDotEnvIfDevelopment</c>) must make an explicit process environment variable win
+/// <c>_LoadDotEnvIfDevelopment</c>) must make an explicit process environment variable win
 /// over the checked-in <c>.env.development</c> file's value for it, while a variable the
 /// process never sets must still fall back to the file — for ANY dotenv-backed variable,
 /// not only APP_ROLE.
@@ -19,7 +19,7 @@ namespace PublyApp.Api.Lib;
 /// (<see cref="HostedServiceManifestCli"/>) against a synthetic, throwaway
 /// <c>.env.development</c> in an isolated temp directory — never the repo's own file. No
 /// Docker involved: POSTGRES_CONNECTION_STRING only needs to be well-formed
-/// (<c>BeValidPostgresConnectionString</c> parses it with <c>NpgsqlConnectionStringBuilder</c>
+/// (<c>_BeValidPostgresConnectionString</c> parses it with <c>NpgsqlConnectionStringBuilder</c>
 /// and never connects), and the probe never calls <c>IHostedService.StartAsync</c>.
 ///
 /// Round-2 review of this spec found two of its five assertions could pass for the wrong
@@ -52,7 +52,7 @@ namespace PublyApp.Api.Lib;
 ///   separately-compiled assembly, with the process manually setting APP_ROLE=api itself.
 /// - <c>RunProbe</c>'s 30-second timeout was unreachable for an ordinary hung child: synchronous
 ///   <c>ReadToEnd()</c> calls on stdout/stderr blocked forever before <c>WaitForExit</c> was ever
-///   reached. <c>RunProcessWithTimeoutAsync</c> now races <c>WaitForExitAsync()</c> against the
+///   reached. <c>_RunProcessWithTimeoutAsync</c> now races <c>WaitForExitAsync()</c> against the
 ///   timeout directly, with asynchronous stream reads running concurrently, and kills the whole
 ///   process tree on timeout instead of hanging the test process too.
 ///
@@ -79,10 +79,10 @@ namespace PublyApp.Api.Lib;
 ///   <c>ReadToEnd()</c>-before-<c>WaitForExit</c> ordering round-2 rejected, making ITS OWN
 ///   120-second timeout unreachable too — the second time this ordering shipped on this branch.
 ///   Deleting the fixture deletes the bug; the replacement drives the recipe entirely through
-///   <see cref="RunProcessWithTimeoutAsync"/>, the one helper in this file with the correct
+///   <see cref="_RunProcessWithTimeoutAsync"/>, the one helper in this file with the correct
 ///   async-read/<c>WaitForExitAsync</c> race.
 /// - The synthetic <c>POSTGRES_CONNECTION_STRING</c> every case in this file shares
-///   (<see cref="BaseRequiredValues"/>) pointed at port 5454 — this repository's actual shared
+///   (<see cref="_BaseRequiredValues"/>) pointed at port 5454 — this repository's actual shared
 ///   local development PostgreSQL endpoint (Aspire AppHost, port 5454). The real
 ///   document-generation case genuinely starts the hosted-service graph when no-clobber
 ///   regresses (see below), so a permanent regression test using that port could reach a real,
@@ -107,7 +107,7 @@ namespace PublyApp.Api.Lib;
 ///   (non-regressed) NoClobber(), the child's ALREADY-SET inherited value beat the file — the
 ///   file's safety was irrelevant on that path. Fixed by explicitly setting the child's
 ///   POSTGRES_CONNECTION_STRING to the exact same
-///   <see cref="UnreachablePostgresConnectionString"/> the synthetic file also carries:
+///   <see cref="_UnreachablePostgresConnectionString"/> the synthetic file also carries:
 ///   whichever side NoClobber() makes win — process (correct behavior) or file (regressed
 ///   behavior) — the value actually used is now identical and safe, instead of depending on
 ///   which side happens to prevail. Combined with pointing that shared constant at 192.0.2.1
@@ -143,11 +143,11 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// Registered only for the Worker/All roles (JobsServiceRegistration.AddWorkerServices) —
 	// its presence/absence in the resolved hosted-service manifest is the observable proof of
 	// which APP_ROLE actually won.
-	private const string WorkerOnlyHostedServiceTypeName =
+	private const string _WorkerOnlyHostedServiceTypeName =
 		"PublyApp.Api.Infrastructure.Jobs.WorkerMigrationStartupGate";
 
-	private readonly string _tempDirectory;
-	private readonly string _envFilePath;
+	private readonly string _TempDirectory;
+	private readonly string _EnvFilePath;
 
 	// Round-4 review: a closed LOCAL port ("Host=localhost;Port=1") is not a structural
 	// safety boundary — it depends on nothing happening to listen on this machine. The
@@ -167,7 +167,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// machine, independent of what happens to be running locally. `Timeout=1` bounds any
 	// connection attempt regardless of how the network stack responds to the reserved
 	// address (immediate reject, or silent drop until Npgsql's own timeout fires).
-	private const string UnreachablePostgresConnectionString =
+	private const string _UnreachablePostgresConnectionString =
 		"Host=192.0.2.1;Port=1;Database=publyapp_precedence_test;" +
 		"Username=postgres;Password=not-a-real-password;Timeout=1";
 
@@ -175,17 +175,17 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// .env.example). Individual tests override only the key(s) they care about — never share
 	// a single fixed file across tests, so each case's file contents are exactly what that
 	// case's comment claims.
-	private static readonly Dictionary<string, string> BaseRequiredValues = new() {
+	private static readonly Dictionary<string, string> _BaseRequiredValues = new() {
 		["APP_NAME"] = "PublyApp",
 		["FRONT_URL"] = "http://localhost:5050",
 		// Round-3 review: this MUST NOT be port 5454 — this repository's actual shared local
 		// development PostgreSQL endpoint (Aspire AppHost). The probe-based cases
-		// below never dial it (BeValidPostgresConnectionString only parses it), but the real
+		// below never dial it (_BeValidPostgresConnectionString only parses it), but the real
 		// document-generation case DOES start the hosted-service graph when no-clobber
 		// regresses, and a permanent regression test is explicitly designed to activate that
 		// graph on a regression. Round-4 review: a closed local port is not enough of a
-		// safety boundary either — see UnreachablePostgresConnectionString's own comment.
-		["POSTGRES_CONNECTION_STRING"] = UnreachablePostgresConnectionString,
+		// safety boundary either — see _UnreachablePostgresConnectionString's own comment.
+		["POSTGRES_CONNECTION_STRING"] = _UnreachablePostgresConnectionString,
 		["RESEND_API_KEY"] = "not-a-real-key",
 		["DEFAULT_EMAIL_SENDER_NAME"] = "PublyApp Support",
 		["DEFAULT_EMAIL_SENDER_EMAIL"] = "no-reply@example.com",
@@ -204,19 +204,19 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	};
 
 	public AppEnvironmentDotEnvPrecedenceSpec() {
-		_tempDirectory = Directory.CreateTempSubdirectory("publyapp-dotenv-precedence-").FullName;
-		_envFilePath = Path.Combine(_tempDirectory, ".env.development");
+		_TempDirectory = Directory.CreateTempSubdirectory("publyapp-dotenv-precedence-").FullName;
+		_EnvFilePath = Path.Combine(_TempDirectory, ".env.development");
 	}
 
 	public void Dispose() {
-		Directory.Delete(_tempDirectory, recursive: true);
+		Directory.Delete(_TempDirectory, recursive: true);
 	}
 
-	// Writes the synthetic .env.development for one test case: BaseRequiredValues with the
+	// Writes the synthetic .env.development for one test case: _BaseRequiredValues with the
 	// given overrides applied. Called explicitly per test (never in the constructor) so each
 	// test's file contents are visible at its own call site, not shared/implicit.
-	private void WriteEnvFile(IReadOnlyDictionary<string, string>? overrides = null) {
-		var values = new Dictionary<string, string>(BaseRequiredValues);
+	private void _WriteEnvFile(IReadOnlyDictionary<string, string>? overrides = null) {
+		var values = new Dictionary<string, string>(_BaseRequiredValues);
 		if (overrides is not null) {
 			foreach (var (key, value) in overrides) {
 				values[key] = value;
@@ -224,21 +224,21 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		}
 
 		var lines = values.Select(pair => $"{pair.Key}=\"{pair.Value}\"");
-		File.WriteAllText(_envFilePath, string.Join('\n', lines));
+		File.WriteAllText(_EnvFilePath, string.Join('\n', lines));
 	}
 
 	[Fact]
 	public async Task ItShouldResolveApiRoleWhenTheProcessExplicitlySetsAppRoleOverTheFilesAll() {
-		WriteEnvFile(); // APP_ROLE="all" (the base/default value).
+		_WriteEnvFile(); // APP_ROLE="all" (the base/default value).
 
-		var resolved = ParseHostedServices(await RunProbeAsync(
+		var resolved = _ParseHostedServices(await _RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> { ["APP_ROLE"] = "api" }));
 
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 		resolved.Should().NotContain(
-			WorkerOnlyHostedServiceTypeName,
+			_WorkerOnlyHostedServiceTypeName,
 			"an explicit process APP_ROLE=api must win over .env.development's APP_ROLE=\"all\" " +
 				"(#1019) — if the file clobbered it, the worker gate would be registered");
 	}
@@ -248,7 +248,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// IsAppRoleDefaultAllowed). That meant a mutation which silently applied the language
 	// default instead of ever reading the file produced the identical observed graph, and the
 	// test could not tell the difference. Verified directly: mutating
-	// LoadDotEnvIfDevelopment() to delete APP_ROLE whenever the process had not set it (so the
+	// _LoadDotEnvIfDevelopment() to delete APP_ROLE whenever the process had not set it (so the
 	// file is genuinely never consulted for that key) still passed the original assertion.
 	//
 	// Fixed by using file APP_ROLE="api" — a value Development's default NEVER produces on its
@@ -258,16 +258,16 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// observably different, so this assertion has a real mutation that fails it.
 	[Fact]
 	public async Task ItShouldFallBackToTheFilesAppRoleWhenTheProcessNeverSetsIt() {
-		WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "api" });
+		_WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "api" });
 
-		var resolved = ParseHostedServices(await RunProbeAsync(
+		var resolved = _ParseHostedServices(await _RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> { ["APP_ROLE"] = null }));
 
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 		resolved.Should().NotContain(
-			WorkerOnlyHostedServiceTypeName,
+			_WorkerOnlyHostedServiceTypeName,
 			"omitting the process value entirely must fall back to the FILE's APP_ROLE=\"api\" " +
 				"(#1019's other direction) — deliberately NOT \"all\", which is also " +
 				"Development's own default for a missing APP_ROLE and would pass even if the " +
@@ -283,7 +283,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// too.
 	//
 	// FRONT_URL's validity is the discriminator: the file's value fails
-	// AppEnvironmentValidator.BeValidUrl outright, while the process's value is well-formed. If
+	// AppEnvironmentValidator._BeValidUrl outright, while the process's value is well-formed. If
 	// NoClobber protects FRONT_URL like every other key, the process's valid value wins and
 	// Initialize() (and therefore the whole probe) succeeds. If a mutation clobbers FRONT_URL
 	// specifically (while leaving APP_ROLE alone, as the round-2 mutation did), the file's
@@ -291,9 +291,9 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// the CLI probe dispatch, and the process exits non-zero with no EndMarker.
 	[Fact]
 	public async Task ItShouldResolveTheProcessFrontUrlOverTheFilesInvalidOne() {
-		WriteEnvFile(new Dictionary<string, string> { ["FRONT_URL"] = "not-a-valid-url" });
+		_WriteEnvFile(new Dictionary<string, string> { ["FRONT_URL"] = "not-a-valid-url" });
 
-		var result = await RunProbeAsync(
+		var result = await _RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> {
 				["APP_ROLE"] = "api",
@@ -312,7 +312,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// APP_ROLE=api export actually takes effect during a doc-generation run, not by reading
 	// the recipe. Every case above forces ASPNETCORE_ENVIRONMENT=Development, which is NOT
 	// that path: build-time OpenAPI generation runs with BOTH host-environment variables
-	// unset (AppEnvironment.cs's own LoadDotEnvIfDevelopment comment; AGENTS.md). This case
+	// unset (AppEnvironment.cs's own _LoadDotEnvIfDevelopment comment; AGENTS.md). This case
 	// reproduces that classification exactly — genuinely unset, not forced to any value — with
 	// the same APP_ROLE=api export `just build-api` uses and file APP_ROLE="all".
 	//
@@ -333,9 +333,9 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// #1019's specific doc-generation acceptance requirement.
 	[Fact]
 	public async Task ItShouldResolveApiRoleUnderTheUnsetHostEnvironmentDocGenerationUses() {
-		WriteEnvFile();
+		_WriteEnvFile();
 
-		var resolved = ParseHostedServices(await RunProbeAsync(
+		var resolved = _ParseHostedServices(await _RunProbeAsync(
 			hostEnvironment: null,
 			processOverrides: new Dictionary<string, string?> {
 				["APP_ROLE"] = "api",
@@ -348,7 +348,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 		resolved.Should().NotContain(
-			WorkerOnlyHostedServiceTypeName,
+			_WorkerOnlyHostedServiceTypeName,
 			"the process's APP_ROLE=api export — exactly what `just build-api` and the EF " +
 				"tooling recipes rely on — must win over the file's APP_ROLE=\"all\" under the " +
 				"SAME unset-host-environment classification build-time OpenAPI generation " +
@@ -415,7 +415,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	//    but a real connection to the shared local development database from a permanent
 	//    regression test is exactly the defect Finding 3 already named once). The synthetic file
 	//    placed in apps/api here carries the SAME safe closed-port POSTGRES_CONNECTION_STRING as
-	//    BaseRequiredValues, so whichever side NoClobber makes win, no real network path exists.
+	//    _BaseRequiredValues, so whichever side NoClobber makes win, no real network path exists.
 	//
 	// Verified against a real regression (see the commit message for the transcript): reverting
 	// AppEnvironment.cs to bare Env.Load(path) lets this file's APP_ROLE="all" win over
@@ -425,11 +425,11 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// tool's own IHost.StartAsync(). That hosted service retries against the closed-port
 	// connection string every 2 seconds (its RetryDelay) without ever completing, and the real
 	// build hangs — exactly the "worker path blocking an otherwise DB-less tooling process"
-	// failure #1019 exists to prevent. RunProcessWithTimeoutAsync's fixed timeout is what catches
+	// failure #1019 exists to prevent. _RunProcessWithTimeoutAsync's fixed timeout is what catches
 	// that deterministically here instead of hanging the whole suite.
 	[Fact]
 	public async Task ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun() {
-		var repoRootDirectory = FindRepoRootDirectory();
+		var repoRootDirectory = _FindRepoRootDirectory();
 		var apiProjectDirectory = Path.Combine(repoRootDirectory, "apps", "api");
 		var rspPath = Path.Combine(apiProjectDirectory, "MSBuild.rsp");
 		var openApiFilesCachePath = Path.Combine(
@@ -457,7 +457,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 					"the likely cause; it is safe to delete this file once you've confirmed that).");
 		}
 
-		var outputDirectory = Path.Combine(_tempDirectory, "docgen-out");
+		var outputDirectory = Path.Combine(_TempDirectory, "docgen-out");
 		Directory.CreateDirectory(outputDirectory);
 		var redirectedCachePath = Path.Combine(
 			outputDirectory, "PublyApp.Api.OpenApiFiles.cache");
@@ -493,8 +493,8 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 
 			// See point 3 above: APP_ROLE="all" is the discriminator #1019 protects; every
 			// other value (including POSTGRES_CONNECTION_STRING) is the same
-			// UnreachablePostgresConnectionString every other case in this file uses.
-			var syntheticValues = new Dictionary<string, string>(BaseRequiredValues) {
+			// _UnreachablePostgresConnectionString every other case in this file uses.
+			var syntheticValues = new Dictionary<string, string>(_BaseRequiredValues) {
 				["APP_ROLE"] = "all",
 			};
 			var syntheticDotEnvContent = string.Join(
@@ -533,12 +533,12 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			// process value beats the file — so the real worker, when it started on the
 			// deliberately-regressed recipe mutation, dialed the INHERITED placeholder, not
 			// the synthetic file's value; see the class doc comment's round-4 section. Setting
-			// it explicitly here to the SAME UnreachablePostgresConnectionString the synthetic
+			// it explicitly here to the SAME _UnreachablePostgresConnectionString the synthetic
 			// file also carries makes both sides of NoClobber() identically safe: whichever
 			// value wins, it is this one — never the test host's own inherited placeholder.
-			startInfo.Environment["POSTGRES_CONNECTION_STRING"] = UnreachablePostgresConnectionString;
+			startInfo.Environment["POSTGRES_CONNECTION_STRING"] = _UnreachablePostgresConnectionString;
 
-			var result = await RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(120));
+			var result = await _RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(120));
 
 			result.ExitCode.Should().Be(
 				0,
@@ -591,12 +591,12 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		}
 	}
 
-	// Testing/Staging/Production must never reach LoadDotEnvIfDevelopment's DotNetEnv.Env.Load
+	// Testing/Staging/Production must never reach _LoadDotEnvIfDevelopment's DotNetEnv.Env.Load
 	// call at all — confirmed here by observation, not by reading the early-return. The
 	// synthetic .env.development supplies every required variable (including
 	// POSTGRES_CONNECTION_STRING); the process supplies NONE of them. If the file were
 	// consulted, Initialize() would succeed. If it is genuinely skipped, the very first
-	// GetRequiredString call (POSTGRES_CONNECTION_STRING) throws before Program.Main ever
+	// _GetRequiredString call (POSTGRES_CONNECTION_STRING) throws before Program.Main ever
 	// reaches the --print-hosted-services dispatch, so the process exits non-zero and the
 	// exception naming that variable appears on stderr.
 	[Theory]
@@ -606,11 +606,11 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	public async Task ItShouldNeverConsultTheFileForNonDevelopmentHostEnvironments(
 		string hostEnvironment
 	) {
-		WriteEnvFile();
+		_WriteEnvFile();
 
-		var processOverrides = RequiredVariableNames
+		var processOverrides = _RequiredVariableNames
 			.ToDictionary(name => name, string? (name) => null);
-		var result = await RunProbeAsync(hostEnvironment, processOverrides);
+		var result = await _RunProbeAsync(hostEnvironment, processOverrides);
 
 		result.ExitCode.Should().NotBe(
 			HostedServiceManifestCli.SuccessExitCode,
@@ -627,7 +627,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			"Initialize() must throw before Program.Main ever reaches the CLI probe dispatch");
 	}
 
-	private static readonly string[] RequiredVariableNames = [
+	private static readonly string[] _RequiredVariableNames = [
 		"POSTGRES_CONNECTION_STRING",
 		"FRONT_URL",
 		"RESEND_API_KEY",
@@ -648,7 +648,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// DotNetArtifactsRoot for every project under apps/api to a shared apps/api/.artifacts/)
 	// until it finds the repo-root `justfile` — the file `just build-api` (justfile:101) is
 	// defined in, and the directory `just` resolves its `api_dir` variable relative to.
-	private static string FindRepoRootDirectory() {
+	private static string _FindRepoRootDirectory() {
 		var assemblyDirectory = Path.GetDirectoryName(typeof(Program).Assembly.Location);
 		if (assemblyDirectory is null) {
 			throw new InvalidOperationException("Could not determine the test assembly's directory.");
@@ -678,7 +678,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// process — used both to inject an explicit value and to strip one this test process
 	// might itself carry (e.g. a Testcontainers-supplied POSTGRES_CONNECTION_STRING), which
 	// would otherwise mask the very condition under test.
-	private Task<ProbeResult> RunProbeAsync(
+	private Task<ProbeResult> _RunProbeAsync(
 		string? hostEnvironment,
 		IReadOnlyDictionary<string, string?> processOverrides
 	) {
@@ -689,7 +689,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
 			UseShellExecute = false,
-			WorkingDirectory = _tempDirectory,
+			WorkingDirectory = _TempDirectory,
 		};
 		startInfo.ArgumentList.Add("exec");
 		startInfo.ArgumentList.Add(assemblyPath);
@@ -711,7 +711,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			}
 		}
 
-		return RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(30));
+		return _RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(30));
 	}
 
 	// Round-2 fix: the ORIGINAL version of this method called the SYNCHRONOUS
@@ -729,7 +729,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// redirected pipes open, which is exactly the mechanism that orphaned a live process earlier
 	// in this remediation (see the commit message) — so every caller of this helper must let it
 	// own the kill, never send a bare SIGTERM/Kill() to `process` itself.
-	private static async Task<ProbeResult> RunProcessWithTimeoutAsync(
+	private static async Task<ProbeResult> _RunProcessWithTimeoutAsync(
 		ProcessStartInfo startInfo,
 		TimeSpan timeout
 	) {
@@ -745,10 +745,10 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 
 		var finished = await Task.WhenAny(exitTask, Task.Delay(timeout));
 		if (finished != exitTask) {
-			TryKillEntireProcessTree(process);
+			_TryKillEntireProcessTree(process);
 
-			var partialStdout = await ReadWithGraceAsync(stdoutTask);
-			var partialStderr = await ReadWithGraceAsync(stderrTask);
+			var partialStdout = await _ReadWithGraceAsync(stdoutTask);
+			var partialStderr = await _ReadWithGraceAsync(stderrTask);
 			throw new TimeoutException(
 				$"Child process did not exit within {timeout.TotalSeconds}s; killed the whole " +
 					$"process tree. Partial stdout: {partialStdout} Partial stderr: {partialStderr}");
@@ -759,7 +759,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		return new ProbeResult(process.ExitCode, stdout, stderr);
 	}
 
-	private static void TryKillEntireProcessTree(Process process) {
+	private static void _TryKillEntireProcessTree(Process process) {
 		try {
 			process.Kill(entireProcessTree: true);
 		} catch (InvalidOperationException) {
@@ -770,7 +770,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// Bounds the wait for a stream read after the process tree has already been killed. A
 	// grandchild that survived the kill (or a stream whose handle is still draining) should never
 	// re-hang the test itself — report what's available and move on.
-	private static async Task<string> ReadWithGraceAsync(Task<string> readTask) {
+	private static async Task<string> _ReadWithGraceAsync(Task<string> readTask) {
 		var finished = await Task.WhenAny(readTask, Task.Delay(TimeSpan.FromSeconds(5)));
 		if (finished != readTask) {
 			return "(unavailable — a surviving grandchild process may still hold the stream open)";
@@ -779,7 +779,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		return await readTask;
 	}
 
-	private static List<string> ParseHostedServices(ProbeResult result) {
+	private static List<string> _ParseHostedServices(ProbeResult result) {
 		result.ExitCode.Should().Be(
 			HostedServiceManifestCli.SuccessExitCode,
 			"the probe composes and exits cleanly; stdout: " + result.Stdout +

@@ -64,9 +64,9 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// ".Handlers.<Scope>" (no trailing dot — C# namespaces have no trailing dot).
 	// Using EndsWith ensures we match the scope segment exactly rather than a
 	// coincidental substring of a longer namespace like ".Handlers.StaffFoo".
-	private const string StaffNamespaceSuffix = ".Handlers.Staff";
-	private const string TenantNamespaceSuffix = ".Handlers.Tenant";
-	private const string AnonymousNamespaceSuffix = ".Handlers.Anonymous";
+	private const string _StaffNamespaceSuffix = ".Handlers.Staff";
+	private const string _TenantNamespaceSuffix = ".Handlers.Tenant";
+	private const string _AnonymousNamespaceSuffix = ".Handlers.Anonymous";
 
 	// ---------------------------------------------------------------------------
 	// Allowlist — baseline-then-ratchet
@@ -77,7 +77,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// (e.g. CreateSystemNotice → CreateSystemNoticeForStaff), remove the entry
 	// here, and update the corresponding endpoint file and route constant.
 	// ---------------------------------------------------------------------------
-	private static readonly HashSet<string> StaffScopeAllowlist = new(
+	private static readonly HashSet<string> _StaffScopeAllowlist = new(
 		StringComparer.Ordinal
 	) {
 		// AuditLogs — admin-only audit log handlers that predate the scope-fragment
@@ -104,7 +104,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 	public void ItShouldDiscoverScopedHandlerEntrypointsToGuard() {
 		// Vacuity check: a silent zero-count (e.g. from a broken namespace filter)
 		// would make the scope-naming guards pass for the wrong reason.
-		var scopedHandlers = DiscoverScopedHandlerEntrypointTypes();
+		var scopedHandlers = _DiscoverScopedHandlerEntrypointTypes();
 
 		_ = scopedHandlers.Should().NotBeEmpty(
 			"scoped handler-entrypoint discovery (Staff/Tenant/Anonymous) must "
@@ -126,10 +126,10 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// "Tenant". See the class-level doc comment for the ratchet plan.
 	[Fact]
 	public void ItShouldNameStaffHandlersWithStaffOrTenantScopeMarker() {
-		var staffHandlers = DiscoverScopedHandlerEntrypointTypes()
+		var staffHandlers = _DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					StaffNamespaceSuffix,
+					_StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
@@ -141,8 +141,8 @@ public sealed class HandlerScopeNamingGuardSpec {
 		);
 
 		List<string> offenders = staffHandlers
-			.Where(type => !IsAllowlisted(type, StaffScopeAllowlist))
-			.Where(type => !HasStaffScopeMarker(type.Name))
+			.Where(type => !_IsAllowlisted(type, _StaffScopeAllowlist))
+			.Where(type => !_HasStaffScopeMarker(type.Name))
 			.Select(type =>
 				$"{type.FullName} (expected name to contain 'Staff' or 'Tenant')")
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -152,7 +152,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 			"a handler class in Handlers/Staff/ must contain 'Staff' or 'Tenant' "
 			+ "in its name to signal its auth scope unambiguously. Rename toward "
 			+ "the canonical *ForStaff or *ForTenantAsStaff form for new handlers, "
-			+ "or add a justified entry to StaffScopeAllowlist for pre-existing "
+			+ "or add a justified entry to _StaffScopeAllowlist for pre-existing "
 			+ "domain-named handlers."
 		);
 	}
@@ -163,16 +163,16 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// correct scope marker.
 	[Fact]
 	public void ItShouldNameTenantHandlersWithTenantScopeMarker() {
-		var tenantHandlers = DiscoverScopedHandlerEntrypointTypes()
+		var tenantHandlers = _DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					TenantNamespaceSuffix,
+					_TenantNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
 
 		List<string> offenders = tenantHandlers
-			.Where(type => !HasTenantScopeMarker(type.Name))
+			.Where(type => !_HasTenantScopeMarker(type.Name))
 			.Select(type =>
 				$"{type.FullName} (expected name to contain 'Tenant' or 'ForTenant')")
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -192,10 +192,10 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// when handlers are expected.
 	[Fact]
 	public void ItShouldDiscoverAnonymousHandlers() {
-		var anonymousHandlers = DiscoverScopedHandlerEntrypointTypes()
+		var anonymousHandlers = _DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					AnonymousNamespaceSuffix,
+					_AnonymousNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
@@ -214,19 +214,19 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// downward over time.
 	[Fact]
 	public void ItShouldKeepStaffAllowlistEntriesRelevant() {
-		var allHandlerFullNames = DiscoverScopedHandlerEntrypointTypes()
+		var allHandlerFullNames = _DiscoverScopedHandlerEntrypointTypes()
 			.Select(type => type.FullName!)
 			.ToHashSet(StringComparer.Ordinal);
 
-		var staffHandlersByFullName = DiscoverScopedHandlerEntrypointTypes()
+		var staffHandlersByFullName = _DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					StaffNamespaceSuffix,
+					_StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToDictionary(type => type.FullName!, StringComparer.Ordinal);
 
-		List<string> staleEntries = StaffScopeAllowlist
+		List<string> staleEntries = _StaffScopeAllowlist
 			.Where(entry => {
 				// Stale if the type no longer exists at all.
 				if (!allHandlerFullNames.Contains(entry)) {
@@ -235,7 +235,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 
 				// Stale if the type now HAS a scope marker — the ratchet succeeded.
 				if (staffHandlersByFullName.TryGetValue(entry, out var type)
-					&& HasStaffScopeMarker(type.Name)) {
+					&& _HasStaffScopeMarker(type.Name)) {
 					return true;
 				}
 
@@ -262,26 +262,26 @@ public sealed class HandlerScopeNamingGuardSpec {
 	/// namespace ends with <c>.Handlers</c> without a scope segment, so the
 	/// <c>EndsWith</c> checks below do not match them.
 	/// </summary>
-	private static IReadOnlyList<Type> DiscoverScopedHandlerEntrypointTypes() {
+	private static IReadOnlyList<Type> _DiscoverScopedHandlerEntrypointTypes() {
 		return ArchitectureDiscovery
 			.EnumerateHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					StaffNamespaceSuffix,
+					_StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true
 				|| type.Namespace?.EndsWith(
-					TenantNamespaceSuffix,
+					_TenantNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true
 				|| type.Namespace?.EndsWith(
-					AnonymousNamespaceSuffix,
+					_AnonymousNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
 	}
 
-	private static bool HasStaffScopeMarker(string className) {
+	private static bool _HasStaffScopeMarker(string className) {
 		// Accepts both the canonical new-code forms (*ForStaff, *ForTenantAsStaff)
 		// and the established alternate forms (*AsStaff, *StaffUser, *StaffProfile,
 		// *TenantsAsStaff, *TenantPermissions, …).
@@ -289,12 +289,12 @@ public sealed class HandlerScopeNamingGuardSpec {
 			|| className.Contains("Tenant", StringComparison.Ordinal);
 	}
 
-	private static bool HasTenantScopeMarker(string className) {
+	private static bool _HasTenantScopeMarker(string className) {
 		return className.Contains("Tenant", StringComparison.Ordinal)
 			|| className.Contains("ForTenant", StringComparison.Ordinal);
 	}
 
-	private static bool IsAllowlisted(
+	private static bool _IsAllowlisted(
 		Type type,
 		HashSet<string> allowlist
 	) {

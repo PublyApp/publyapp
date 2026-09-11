@@ -25,49 +25,49 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // every Scheduled/Paused publication; the WHOLE edit is refused with a plain-words
 // 409 while any publication is InProgress.
 public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public EditPostScheduleForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
-		_http.DefaultRequestHeaders.Accept.Clear();
-		_http.DefaultRequestHeaders.Accept.Add(
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
+		_Http.DefaultRequestHeaders.Accept.Clear();
+		_Http.DefaultRequestHeaders.Accept.Add(
 			new MediaTypeWithQualityHeaderValue("application/json")
 		);
 	}
 
-	private static string ScheduleUrl(string postId) {
+	private static string _ScheduleUrl(string postId) {
 		return $"/posts/{postId}/schedule";
 	}
 
 	// 09:00 on 2099-12-15 in Europe/Paris winter time is 08:00Z. The wire field
 	// carries an ISO INSTANT.
-	private const string WinterInstantJson = "2099-12-15T08:00:00Z";
-	private static readonly DateTimeOffset WinterInstant =
+	private const string _WinterInstantJson = "2099-12-15T08:00:00Z";
+	private static readonly DateTimeOffset _WinterInstant =
 		new(2099, 12, 15, 8, 0, 0, TimeSpan.Zero);
-	private const string ParisZone = "Europe/Paris";
+	private const string _ParisZone = "Europe/Paris";
 
 	[Fact]
 	public async Task ItShouldPatchTextAndInstantAndRescheduleEveryPublication() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body = "edited body for the scheduled post",
-			scheduledAtLocal = WinterInstantJson,
-			timeZone = ParisZone,
+			scheduledAtLocal = _WinterInstantJson,
+			timeZone = _ParisZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var post = await db.Post.AsNoTracking().SingleAsync(
 			p => p.Id == Guid.Parse(postId)
@@ -84,9 +84,9 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		publications.Should().HaveCount(2);
 		foreach (var publication in publications) {
 			new DateTimeOffset(publication.ScheduledAtUtc).Should().Be(
-				WinterInstant
+				_WinterInstant
 			);
-			publication.ScheduledTimeZone.Should().Be(ParisZone);
+			publication.ScheduledTimeZone.Should().Be(_ParisZone);
 			publication.Status.Should().Be(PublicationStatus.Scheduled);
 			publication.LastError.Should().BeNull();
 			publication.ExternalRecordId.Should().BeNull();
@@ -106,10 +106,10 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldClearLastErrorAndExternalRefsOnReschedule() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		// Give the rows a failed-looking state to prove reschedule cleans them up.
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await db.Publication
 			.Where(p => p.PostId == Guid.Parse(postId)
@@ -126,19 +126,19 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 				));
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
-			scheduledAtLocal = WinterInstantJson,
-			timeZone = ParisZone,
+			scheduledAtLocal = _WinterInstantJson,
+			timeZone = _ParisZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var publications = await (
@@ -156,10 +156,10 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldPatchTextOnlyWithoutTouchingTheSchedule() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		await using var beforeScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var beforeDb =
 			beforeScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var before = await (
@@ -170,18 +170,18 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		before.Should().NotBeEmpty();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body = "text only edit",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		await using var afterScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var afterDb =
 			afterScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var publications = await (
@@ -196,12 +196,12 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRefuseTheWholeEditWhileAnyPublicationIsInProgress() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		// One row is mid-flight (InProgress): the handler's InProgress gate must
 		// refuse the edit. Seeded as a tracked insert (the #1446 guard permits
 		// Status on Added rows; only raw/unstamped Status UPDATEs are rejected).
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var inProgress = await db.Publication
 			.AsNoTracking()
@@ -233,16 +233,16 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body = "should never be applied",
-			scheduledAtLocal = WinterInstantJson,
-			timeZone = ParisZone,
+			scheduledAtLocal = _WinterInstantJson,
+			timeZone = _ParisZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 		var problem =
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -252,7 +252,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 		// The refusal covers the TEXT too: nothing may change.
 		await using var verifyScope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var post = await verifyDb.Post.AsNoTracking().SingleAsync(
@@ -263,18 +263,18 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenTimeZoneIsUnknown() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
-			scheduledAtLocal = WinterInstantJson,
+			scheduledAtLocal = _WinterInstantJson,
 			timeZone = "Mars/Olympus_Mons",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -286,18 +286,18 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenInstantIsInThePastBeyondDrift() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			scheduledAtLocal = "2001-01-01T12:00:00Z",
-			timeZone = ParisZone,
+			timeZone = _ParisZone,
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem =
 			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -307,31 +307,31 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishPermission() {
-		var tenantId = await GetAcmeIdAsync();
-		var postId = await CreateScheduledPostAsync(tenantId);
+		var tenantId = await _GetAcmeIdAsync();
+		var postId = await _CreateScheduledPostAsync(tenantId);
 
-		var userToken = await _authClient.LoginAsync(
+		var userToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(userToken)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new { body = "no permission" });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
-			await SeedScheduledPostAsync();
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+			await _SeedScheduledPostAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var techStartId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -339,49 +339,49 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		using var unknownRequest =
 			new HttpRequestMessage(
 				HttpMethod.Patch,
-				ScheduleUrl(Guid.NewGuid().ToString())
+				_ScheduleUrl(Guid.NewGuid().ToString())
 			)
 				.WithSessionToken(acmeToken)
 				.WithTenantId(acmeTenantId);
 		unknownRequest.Content = JsonContent.Create(new { body = "x" });
-		using var unknownResponse = await _http.SendAsync(unknownRequest);
+		using var unknownResponse = await _Http.SendAsync(unknownRequest);
 		unknownResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-		var techStartToken = await _authClient.LoginAsync(
+		var techStartToken = await _AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail,
 			TestConstants.SeedPassword
 		);
 		using var foreignRequest =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(techStartToken)
 				.WithTenantId(techStartId);
 		foreignRequest.Content = JsonContent.Create(new { body = "x" });
-		using var foreignResponse = await _http.SendAsync(foreignRequest);
+		using var foreignResponse = await _Http.SendAsync(foreignRequest);
 		foreignResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn400WhenNoFieldsAreProvided() {
-		var (tenantId, token, postId) = await SeedScheduledPostAsync();
+		var (tenantId, token, postId) = await _SeedScheduledPostAsync();
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Patch, ScheduleUrl(postId))
+			new HttpRequestMessage(HttpMethod.Patch, _ScheduleUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	private async Task<(Guid TenantId, string Token, string PostId)>
-	SeedScheduledPostAsync() {
-		var tenantId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+	_SeedScheduledPostAsync() {
+		var tenantId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var postId = await CreateScheduledPostAsync(tenantId);
+		var postId = await _CreateScheduledPostAsync(tenantId);
 		return (tenantId, token, postId);
 	}
 
@@ -389,8 +389,8 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	/// Seeds an Acme post bound to two Scheduled publications (future instants) and
 	/// returns the persisted post id as a string for URL building.
 	/// </summary>
-	private async Task<string> CreateScheduledPostAsync(Guid tenantId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _CreateScheduledPostAsync(Guid tenantId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var author = await db.User.AsNoTracking().SingleAsync(
@@ -428,7 +428,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 				SocialAccountId = account.GetRequiredId(),
 				Status = PublicationStatus.Scheduled,
 				ScheduledAtUtc = DateTime.UtcNow.AddDays(30),
-				ScheduledTimeZone = ParisZone,
+				ScheduledTimeZone = _ParisZone,
 				IdempotencyKey = "pending",
 			});
 		}
@@ -437,10 +437,10 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		return post.GetRequiredId().ToString();
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetAcmeIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);

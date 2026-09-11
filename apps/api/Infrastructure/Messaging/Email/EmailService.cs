@@ -1,7 +1,6 @@
 using PublyApp.Api.Lib;
-using PublyApp.Api.Modules.Users.Entities;
-
 using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 public interface IEmailService {
@@ -32,9 +31,9 @@ public interface IEmailService {
 /// via <see cref="IEmailSender"/> directly with an idempotency key.
 /// </summary>
 public class EmailService : IEmailService {
-	private readonly IEmailSender _emailSender;
+	private readonly IEmailSender _EmailSender;
 
-	private static string CreateHtmlLink(string url, string text) {
+	private static string _CreateHtmlLink(string url, string text) {
 		string linkStyle = "text-decoration: underline; color: #007bff;";
 		return $"<a href=\"{url}\" style=\"{linkStyle}\">{text}</a>";
 	}
@@ -42,20 +41,20 @@ public class EmailService : IEmailService {
 	public EmailService(
 		IEmailSender emailSender
 	) {
-		_emailSender = emailSender;
+		_EmailSender = emailSender;
 	}
 
 	// used when a staff member is created and user is new, hence needs to verify email
 	public async Task<EmailSendReceipt> SendStaffWelcomeEmailAsync(string email, string token) {
-		return await _emailSender.SendAsync(EmailTemplates.EmailVerificationWelcome(email, token));
+		return await _EmailSender.SendAsync(EmailTemplates.EmailVerificationWelcome(email, token));
 	}
 
 	// Used when a staff membership is added to an existing user, so verification is
 	// unnecessary.
 	public async Task<EmailSendReceipt> SendJoinedStaffNotificationEmailAsync(string email) {
 		var env = AppEnvironment.Instance;
-		var loginLink = CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
-		return await _emailSender.SendAsync(new EmailRequest {
+		var loginLink = _CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
+		return await _EmailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>",
 			Subject = $"You have been added as a staff member",
@@ -69,19 +68,19 @@ public class EmailService : IEmailService {
 
 	// used when a user is created and needs to verify email
 	public async Task<EmailSendReceipt> SendWelComeEmailAsync(string email, string token) {
-		return await _emailSender.SendAsync(EmailTemplates.EmailVerificationWelcome(email, token));
+		return await _EmailSender.SendAsync(EmailTemplates.EmailVerificationWelcome(email, token));
 	}
 
 	// used when a user requests to verify his/her email
 	public async Task<EmailSendReceipt> SendEmailVerificationRequestAsync(string email, string token) {
-		return await _emailSender.SendAsync(EmailTemplates.EmailVerificationRequest(email, token));
+		return await _EmailSender.SendAsync(EmailTemplates.EmailVerificationRequest(email, token));
 	}
 
 	// used when a user's email is verified following the verification process
 	public async Task<EmailSendReceipt> SendEmailVerifiedNotificationAsync(string email) {
 		var env = AppEnvironment.Instance;
-		var loginLink = CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
-		return await _emailSender.SendAsync(new EmailRequest {
+		var loginLink = _CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
+		return await _EmailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>",
 			Subject = $"Your email has been verified",
@@ -97,14 +96,14 @@ public class EmailService : IEmailService {
 		string email,
 		string token
 	) {
-		return await _emailSender.SendAsync(EmailTemplates.PasswordReset(email, token));
+		return await _EmailSender.SendAsync(EmailTemplates.PasswordReset(email, token));
 	}
 
 	// used when a user's password is reset following the reset process
 	public async Task<EmailSendReceipt> SendPasswordResetNotificationEmailAsync(string email) {
 		var env = AppEnvironment.Instance;
-		var loginLink = CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
-		return await _emailSender.SendAsync(new EmailRequest {
+		var loginLink = _CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
+		return await _EmailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{env.DEFAULT_EMAIL_SENDER_NAME} <{env.DEFAULT_EMAIL_SENDER_EMAIL}>",
 			Subject = $"Your password has been reset",
@@ -121,7 +120,7 @@ public class EmailService : IEmailService {
 		string email,
 		string token
 	) {
-		return await _emailSender.SendAsync(EmailTemplates.StaffInvitation(email, token));
+		return await _EmailSender.SendAsync(EmailTemplates.StaffInvitation(email, token));
 	}
 
 	// used when a user is invited to join a tenant
@@ -131,7 +130,7 @@ public class EmailService : IEmailService {
 		string token,
 		AccountLevel level
 	) {
-		return await _emailSender.SendAsync(
+		return await _EmailSender.SendAsync(
 			EmailTemplates.TenantInvitation(email, tenantName, token, level)
 		);
 	}

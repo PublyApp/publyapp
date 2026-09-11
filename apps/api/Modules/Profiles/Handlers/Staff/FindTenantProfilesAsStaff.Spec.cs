@@ -22,17 +22,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantProfilesAsStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl(string tenantId, string query = "") {
+	private static string _GetUrl(string tenantId, string query = "") {
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Profiles.ForTenantAsStaff.RootFn(tenantId),
@@ -44,46 +44,46 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnZeroPermissionsCountForProfileWithNoPermissions() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var profileId = await SeedTenantProfileAsync(tenantId, permissionCount: 0);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var profileId = await _SeedTenantProfileAsync(tenantId, permissionCount: 0);
 
-		var profile = await FindProfileAsync(token, tenantId, profileId);
+		var profile = await _FindProfileAsync(token, tenantId, profileId);
 
 		profile.PermissionsCount.Should().Be(0);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnOnePermissionsCountForProfileWithOnePermission() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var profileId = await SeedTenantProfileAsync(tenantId, permissionCount: 1);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var profileId = await _SeedTenantProfileAsync(tenantId, permissionCount: 1);
 
-		var profile = await FindProfileAsync(token, tenantId, profileId);
+		var profile = await _FindProfileAsync(token, tenantId, profileId);
 
 		profile.PermissionsCount.Should().Be(1);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnManyPermissionsCountForProfileWithManyPermissions() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var profileId = await SeedTenantProfileAsync(tenantId, permissionCount: 3);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var profileId = await _SeedTenantProfileAsync(tenantId, permissionCount: 3);
 
-		var profile = await FindProfileAsync(token, tenantId, profileId);
+		var profile = await _FindProfileAsync(token, tenantId, profileId);
 
 		profile.PermissionsCount.Should().Be(3);
 	}
 
 	[Fact]
 	public async Task ItShouldComputePermissionsCountsForMultipleProfilesInOneBatch() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
-		var firstProfileId = await SeedTenantProfileAsync(tenantId, permissionCount: 2);
-		var secondProfileId = await SeedTenantProfileAsync(tenantId, permissionCount: 0);
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
+		var firstProfileId = await _SeedTenantProfileAsync(tenantId, permissionCount: 2);
+		var secondProfileId = await _SeedTenantProfileAsync(tenantId, permissionCount: 0);
 
-		var firstProfile = await FindProfileAsync(token, tenantId, firstProfileId);
-		var secondProfile = await FindProfileAsync(token, tenantId, secondProfileId);
+		var firstProfile = await _FindProfileAsync(token, tenantId, firstProfileId);
+		var secondProfile = await _FindProfileAsync(token, tenantId, secondProfileId);
 
 		firstProfile.PermissionsCount.Should().Be(2);
 		secondProfile.PermissionsCount.Should().Be(0);
@@ -91,23 +91,23 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOnlyDefaultProfilesWhenIsDefaultTrue() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		// A dedicated tenant avoids racing the "one active default profile per
 		// tenant" unique constraint against other tests seeding Acme in parallel.
-		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault True");
-		var defaultProfileId = await SeedTenantProfileAsync(
+		var tenantId = await _SeedFreshTenantAsync("Profiles IsDefault True");
+		var defaultProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: true
 		);
-		var customProfileId = await SeedTenantProfileAsync(
+		var customProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), "limit=100&is_default=true")
+			_GetUrl(tenantId.ToString(), "limit=100&is_default=true")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -121,21 +121,21 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOnlyCustomProfilesWhenIsDefaultFalse() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault False");
-		var defaultProfileId = await SeedTenantProfileAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _SeedFreshTenantAsync("Profiles IsDefault False");
+		var defaultProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: true
 		);
-		var customProfileId = await SeedTenantProfileAsync(
+		var customProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), "limit=100&is_default=false")
+			_GetUrl(tenantId.ToString(), "limit=100&is_default=false")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -149,21 +149,21 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBothProfileTypesWhenIsDefaultIsAbsent() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault Absent");
-		var defaultProfileId = await SeedTenantProfileAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _SeedFreshTenantAsync("Profiles IsDefault Absent");
+		var defaultProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: true
 		);
-		var customProfileId = await SeedTenantProfileAsync(
+		var customProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), "limit=100")
+			_GetUrl(tenantId.ToString(), "limit=100")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -176,21 +176,21 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBothProfileTypesWhenIsDefaultIsWhitespace() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await SeedFreshTenantAsync("Profiles IsDefault Whitespace");
-		var defaultProfileId = await SeedTenantProfileAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _SeedFreshTenantAsync("Profiles IsDefault Whitespace");
+		var defaultProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: true
 		);
-		var customProfileId = await SeedTenantProfileAsync(
+		var customProfileId = await _SeedTenantProfileAsync(
 			tenantId, permissionCount: 0, isDefault: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), $"limit=100&is_default={Uri.EscapeDataString(" ")}")
+			_GetUrl(tenantId.ToString(), $"limit=100&is_default={Uri.EscapeDataString(" ")}")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -203,18 +203,18 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await SeedFreshTenantAsync("Profiles Percent Search");
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _SeedFreshTenantAsync("Profiles Percent Search");
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		var withPercentId = await SeedTenantProfileWithNameAsync(tenantId, $"Has%Percent{marker}");
-		var withoutPercentId = await SeedTenantProfileWithNameAsync(tenantId, $"NoPercentAtAll{marker}");
+		var withPercentId = await _SeedTenantProfileWithNameAsync(tenantId, $"Has%Percent{marker}");
+		var withoutPercentId = await _SeedTenantProfileWithNameAsync(tenantId, $"NoPercentAtAll{marker}");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), $"limit=100&q={Uri.EscapeDataString("%")}")
+			_GetUrl(tenantId.ToString(), $"limit=100&q={Uri.EscapeDataString("%")}")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -230,29 +230,29 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidIsDefaultValue() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var tenantId = await GetTenantIdAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await _GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), "is_default=not-a-bool")
+			_GetUrl(tenantId.ToString(), "is_default=not-a-bool")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
-	private async Task<Guid> GetTenantIdAsync() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetTenantIdAsync() {
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
-	private async Task<Guid> SeedFreshTenantAsync(string namePrefix) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedFreshTenantAsync(string namePrefix) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -267,8 +267,8 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 		return tenant.GetRequiredId();
 	}
 
-	private async Task<Guid> SeedTenantProfileWithNameAsync(Guid tenantId, string name) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _SeedTenantProfileWithNameAsync(Guid tenantId, string name) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(tenantId, name, isDefault: false);
@@ -278,12 +278,12 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 		return profile.GetRequiredId();
 	}
 
-	private async Task<Guid> SeedTenantProfileAsync(
+	private async Task<Guid> _SeedTenantProfileAsync(
 		Guid tenantId,
 		int permissionCount,
 		bool isDefault = false
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(
@@ -313,17 +313,17 @@ public sealed class FindTenantProfilesAsStaffSpec : IClassFixture<ApiFixture> {
 		return profileId;
 	}
 
-	private async Task<TenantProfileItemResponse> FindProfileAsync(
+	private async Task<TenantProfileItemResponse> _FindProfileAsync(
 		string token,
 		Guid tenantId,
 		Guid profileId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetUrl(tenantId.ToString(), "limit=100")
+			_GetUrl(tenantId.ToString(), "limit=100")
 		).WithSessionToken(token);
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();

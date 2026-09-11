@@ -24,7 +24,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	// #1424: prefix of the plain-words refusal when the canary read/write cannot reach
 	// Postgres at boot. Public so specs assert the REAL cause text instead of a copy.
 	// Round 2: the prefix stays ONLY for genuine TRANSPORT failures — see
-	// <see cref="HasCanaryTranslation"/>; every other infrastructure shape gets its own
+	// <see cref="_HasCanaryTranslation"/>; every other infrastructure shape gets its own
 	// truthful prefix instead of an unreachable claim.
 	public const string UnreachablePrefix = "cannot reach the database at ";
 
@@ -48,14 +48,14 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	public const string ServerRejectedPrefix =
 		"the database rejected the master-key canary check";
 
-	private readonly IServiceScopeFactory _scopeFactory;
+	private readonly IServiceScopeFactory _ScopeFactory;
 
 	public PostgresKeyRingCanaryStore(IServiceScopeFactory scopeFactory) {
-		_scopeFactory = scopeFactory;
+		_ScopeFactory = scopeFactory;
 	}
 
 	public string? Read() {
-		using var scope = _scopeFactory.CreateScope();
+		using var scope = _ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		try {
@@ -85,13 +85,13 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			}
 
 			return blobs.Count == 0 ? null : blobs[0];
-		} catch (Exception ex) when (HasCanaryTranslation(ex)) {
-			throw TranslateCause(dbContext, ex);
+		} catch (Exception ex) when (_HasCanaryTranslation(ex)) {
+			throw _TranslateCause(dbContext, ex);
 		}
 	}
 
 	public void Write(string blob) {
-		using var scope = _scopeFactory.CreateScope();
+		using var scope = _ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// #1416: BLIND insert. Concurrent first boots all read an empty canary and all
@@ -114,11 +114,11 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			// winner's row untouched — a loser must NOT overwrite it (a divergent api/worker
 			// key would otherwise be masked instead of failing the boot). The witness
 			// re-reads and verifies the winner's blob right after this returns.
-		} catch (Exception ex) when (HasCanaryTranslation(ex)) {
+		} catch (Exception ex) when (_HasCanaryTranslation(ex)) {
 			// #1424: the mint's INSERT hit a database infrastructure failure (first boot,
 			// Postgres down/restarting/firewalled, or the unmigrated-schema race). Same
 			// truthful plain-words refusal as the read path.
-			throw TranslateCause(dbContext, ex);
+			throw _TranslateCause(dbContext, ex);
 		}
 	}
 
@@ -144,8 +144,8 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	/// <see cref="NpgsqlException"/> carrying no SqlState of its own.</item>
 	/// </list>
 	/// </summary>
-	private static bool HasCanaryTranslation(Exception ex) {
-		return ClassifyChain(ex) != CanaryFailureKind.None;
+	private static bool _HasCanaryTranslation(Exception ex) {
+		return _ClassifyChain(ex) != CanaryFailureKind.None;
 	}
 
 	private enum CanaryFailureKind {
@@ -156,7 +156,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 		ServerRejection
 	}
 
-	private static CanaryFailureKind ClassifyChain(Exception ex) {
+	private static CanaryFailureKind _ClassifyChain(Exception ex) {
 		var kind = CanaryFailureKind.None;
 
 		for (var current = (Exception?)ex; current is not null; current = current.InnerException) {
@@ -213,7 +213,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	/// <see cref="InvalidOperationException"/> propagate, so this becomes the cause
 	/// operators read in crash-loop logs.
 	/// </summary>
-	private static InvalidOperationException TranslateCause(
+	private static InvalidOperationException _TranslateCause(
 		AppDbContext dbContext,
 		Exception cause
 	) {
@@ -226,18 +226,18 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			endpoint = "<unparseable connection string>";
 		}
 
-		var kind = ClassifyChain(cause);
+		var kind = _ClassifyChain(cause);
 		string message;
 		if (kind is CanaryFailureKind.None or CanaryFailureKind.TransportUnreachable) {
 			message =
-				UnreachablePrefix + endpoint + ": " + SanitizeReason(cause)
+				UnreachablePrefix + endpoint + ": " + _SanitizeReason(cause)
 					+ " — the master-key check could not run; the API will not start. "
 					+ "Verify the database container/service is running and reachable "
 					+ "from this service, then restart.";
 		} else if (kind == CanaryFailureKind.ServerMissingSchema) {
 			message =
 				MissingSchemaPrefix + " (SqlState "
-					+ RedactedReason(cause) + "). The database at " + endpoint
+					+ _RedactedReason(cause) + "). The database at " + endpoint
 					+ " answered, so it is reachable — the schema simply does not exist "
 					+ "yet; the master-key check could not run and the API will not "
 					+ "start. Wait for the one-shot migrate task (publyapp-migrate) to "
@@ -246,13 +246,13 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 		} else if (kind == CanaryFailureKind.ServerConnectionClassError) {
 			message =
 				ServerRejectedPrefix + ": the server refused the CONNECTION itself ("
-					+ RedactedReason(cause) + ") — the master-key check could not run; "
+					+ _RedactedReason(cause) + ") — the master-key check could not run; "
 					+ "the API will not start. Check the PostgreSQL server's "
 					+ "connection limits and access rules (pg_hba.conf) for this "
 					+ "service, then restart.";
 		} else {
 			message =
-				ServerRejectedPrefix + " (" + RedactedReason(cause)
+				ServerRejectedPrefix + " (" + _RedactedReason(cause)
 					+ ") — the master-key check could not run; the API will not start. "
 					+ "The database answered and rejected the canary statement; compare "
 					+ "its schema state with the deployed migrations, then restart.";
@@ -267,7 +267,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	/// USERNAME verbatim in several of these (e.g. 28P01 password failures), and this
 	/// text travels to crash-loop logs.
 	/// </summary>
-	private static string RedactedReason(Exception cause) {
+	private static string _RedactedReason(Exception cause) {
 		Exception? innermost = cause;
 		while (innermost.InnerException is not null) {
 			innermost = innermost.InnerException;
@@ -278,10 +278,10 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 		if (innermost is PostgresException serverError) {
 			// Use the server's OWN MessageText: it carries no SqlState prefix and no
 			// POSITION suffix, so prefixing the SqlState here never duplicates either.
-			return sqlState + ": " + SanitizeText(serverError.MessageText);
+			return sqlState + ": " + _SanitizeText(serverError.MessageText);
 		}
 
-		return sqlState + ": " + SanitizeText(innermost?.Message);
+		return sqlState + ": " + _SanitizeText(innermost?.Message);
 	}
 
 	/// <summary>
@@ -291,27 +291,27 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	/// username), so anything between the planted-marker delimiters used by the
 	/// credential spec is stripped before this text reaches an operator log.
 	/// </summary>
-	private static string SanitizeReason(Exception cause) {
+	private static string _SanitizeReason(Exception cause) {
 		Exception? innermost = cause;
 		while (innermost.InnerException is not null) {
 			innermost = innermost.InnerException;
 		}
 
-		return SanitizeText(innermost?.Message);
+		return _SanitizeText(innermost?.Message);
 	}
 
 	/// <summary>
 	/// Flattens one driver/server message onto a single line and strips anything that
-	/// could echo connection-string credentials (see <see cref="StripDelimited"/>).
+	/// could echo connection-string credentials (see <see cref="_StripDelimited"/>).
 	/// </summary>
-	private static string SanitizeText(string? raw) {
+	private static string _SanitizeText(string? raw) {
 		var message = (raw ?? "unknown driver failure")
 			.Replace("\r", " ", StringComparison.Ordinal)
 			.Replace("\n", " ", StringComparison.Ordinal)
 			.Trim();
 
-		message = StripDelimited(message, '"');
-		message = StripDelimited(message, '\'');
+		message = _StripDelimited(message, '"');
+		message = _StripDelimited(message, '\'');
 
 		return message.Length <= 300 ? message : message[..300];
 	}
@@ -324,7 +324,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	/// original text and cannot re-match its own output, so the work is bounded by the
 	/// input length instead of the call-stack depth.
 	/// </summary>
-	private static string StripDelimited(string message, char delimiter) {
+	private static string _StripDelimited(string message, char delimiter) {
 		var result = message;
 		while (true) {
 			var opening = result.IndexOf(delimiter);

@@ -77,7 +77,7 @@ public class ExportAuditLogsQueryValidator
 		RuleFor(x => x.Format)
 			.NotEmpty()
 			.WithMessage("format is required")
-			.Must(BeValidFormat)
+			.Must(_BeValidFormat)
 			.WithMessage(
 				"format must be 'csv' or 'json'"
 			);
@@ -146,7 +146,7 @@ public class ExportAuditLogsQueryValidator
 			});
 	}
 
-	private static bool BeValidFormat(string? value) {
+	private static bool _BeValidFormat(string? value) {
 		if (value is null) {
 			return false;
 		}
@@ -219,13 +219,13 @@ public sealed class ExportAuditLogs {
 		);
 
 		if (format == "csv") {
-			await WriteCsvAsync(
+			await _WriteCsvAsync(
 				httpContext.Response.Body,
 				items,
 				cancellationToken
 			);
 		} else {
-			await WriteJsonAsync(
+			await _WriteJsonAsync(
 				httpContext.Response.Body,
 				items,
 				cancellationToken
@@ -235,7 +235,7 @@ public sealed class ExportAuditLogs {
 		return Results.Empty;
 	}
 
-	private static async Task WriteCsvAsync(
+	private static async Task _WriteCsvAsync(
 		Stream stream,
 		IAsyncEnumerable<AuditLogExportItem> items,
 		CancellationToken cancellationToken
@@ -254,17 +254,17 @@ public sealed class ExportAuditLogs {
 			.WithCancellation(cancellationToken)
 		) {
 			var line = string.Join(",",
-				EscapeCsv(item.Id.ToString()),
-				EscapeCsv(item.UserName),
-				EscapeCsv(item.UserEmail),
-				EscapeCsv(item.Action),
-				EscapeCsv(
+				_EscapeCsv(item.Id.ToString()),
+				_EscapeCsv(item.UserName),
+				_EscapeCsv(item.UserEmail),
+				_EscapeCsv(item.Action),
+				_EscapeCsv(
 					item.TargetId?.ToString() ?? ""
 				),
-				EscapeCsv(item.Details ?? ""),
-				EscapeCsv(item.IpAddress ?? ""),
-				EscapeCsv(item.UserAgent ?? ""),
-				EscapeCsv(
+				_EscapeCsv(item.Details ?? ""),
+				_EscapeCsv(item.IpAddress ?? ""),
+				_EscapeCsv(item.UserAgent ?? ""),
+				_EscapeCsv(
 					item.CreatedAt.ToString("o")
 				)
 			);
@@ -274,7 +274,7 @@ public sealed class ExportAuditLogs {
 		await writer.FlushAsync(cancellationToken);
 	}
 
-	private static async Task WriteJsonAsync(
+	private static async Task _WriteJsonAsync(
 		Stream stream,
 		IAsyncEnumerable<AuditLogExportItem> items,
 		CancellationToken cancellationToken
@@ -348,13 +348,13 @@ public sealed class ExportAuditLogs {
 		await writer.FlushAsync(cancellationToken);
 	}
 
-	private static string EscapeCsv(string value) {
+	private static string _EscapeCsv(string value) {
 		// Neutralize formula injection: prefix with
 		// single quote if the first non-whitespace /
 		// non-control character is a formula trigger.
 		// This prevents bypass via leading \t, \r, \n,
 		// spaces, or other control characters.
-		if (StartsWithFormulaTrigger(value)) {
+		if (_StartsWithFormulaTrigger(value)) {
 			value = "'" + value;
 		}
 
@@ -370,7 +370,7 @@ public sealed class ExportAuditLogs {
 		return value;
 	}
 
-	private static bool StartsWithFormulaTrigger(
+	private static bool _StartsWithFormulaTrigger(
 		string value
 	) {
 		foreach (var c in value) {

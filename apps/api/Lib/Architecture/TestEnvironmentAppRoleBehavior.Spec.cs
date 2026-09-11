@@ -17,16 +17,16 @@ namespace PublyApp.Api.Lib.Architecture;
 /// the integration host on the All composition and its job-handler graph.
 /// </summary>
 public sealed class TestEnvironmentAppRoleBehaviorSpec {
-	private const string ProbeEnvironmentVariable =
+	private const string _ProbeEnvironmentVariable =
 		"PUBLYAPP_TEST_ENVIRONMENT_APP_ROLE_PROBE";
-	private const string SafeConnectionString =
+	private const string _SafeConnectionString =
 		"Host=192.0.2.1;Port=1;Database=publyapp_test;"
 		+ "Username=postgres;Password=not-a-real-password;Timeout=1";
 
 	[Fact]
 	public async Task ItShouldPinAllBeforeComposingTheApiFactoryWhenDotEnvSetsApi() {
-		if (IsChildProbe()) {
-			RunChildProbe();
+		if (_IsChildProbe()) {
+			_RunChildProbe();
 			return;
 		}
 
@@ -44,9 +44,9 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 			);
 		}
 
-		File.WriteAllText(envFilePath, SyntheticDotEnv);
+		File.WriteAllText(envFilePath, _SyntheticDotEnv);
 		try {
-			var result = await RunChildTestAsync(testAssemblyDirectory);
+			var result = await _RunChildTestAsync(testAssemblyDirectory);
 
 			result.ExitCode.Should().Be(
 				0,
@@ -60,16 +60,16 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 		}
 	}
 
-	private static bool IsChildProbe() {
+	private static bool _IsChildProbe() {
 		return string.Equals(
-			Environment.GetEnvironmentVariable(ProbeEnvironmentVariable),
+			Environment.GetEnvironmentVariable(_ProbeEnvironmentVariable),
 			"1",
 			StringComparison.Ordinal
 		);
 	}
 
-	private static void RunChildProbe() {
-		TestEnvironment.InitializeOnce(SafeConnectionString);
+	private static void _RunChildProbe() {
+		TestEnvironment.InitializeOnce(_SafeConnectionString);
 		AppEnvironment.Initialize().Role.Should().Be(
 			AppRole.All,
 			"the real TestEnvironment bootstrap must re-pin APP_ROLE after dotenv loading"
@@ -84,17 +84,17 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 			"publyapp-test-environment-storage-"
 		);
 		try {
-			using var factory = new ApiFactory(SafeConnectionString, storageRoot.FullName);
+			using var factory = new ApiFactory(_SafeConnectionString, storageRoot.FullName);
 			factory.Services.GetRequiredService<JobHandlerRegistry>().Should().NotBeNull();
 		} finally {
 			storageRoot.Delete(recursive: true);
 		}
 	}
 
-	private static async Task<(int ExitCode, string Stdout, string Stderr)> RunChildTestAsync(
+	private static async Task<(int ExitCode, string Stdout, string Stderr)> _RunChildTestAsync(
 		string workingDirectory
 	) {
-		var projectPath = FindRepositoryFile(
+		var projectPath = _FindRepositoryFile(
 			"apps/api/Tests/PublyApp.Api.Tests.csproj"
 		);
 		var startInfo = new ProcessStartInfo {
@@ -117,7 +117,7 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 		);
 		startInfo.ArgumentList.Add("--logger");
 		startInfo.ArgumentList.Add("console;verbosity=minimal");
-		startInfo.Environment[ProbeEnvironmentVariable] = "1";
+		startInfo.Environment[_ProbeEnvironmentVariable] = "1";
 
 		using var process = Process.Start(startInfo);
 		if (process is null) {
@@ -144,7 +144,7 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 		);
 	}
 
-	private static string FindRepositoryFile(string relativePath) {
+	private static string _FindRepositoryFile(string relativePath) {
 		var starts = new[] {
 			new DirectoryInfo(Directory.GetCurrentDirectory()),
 			new DirectoryInfo(AppContext.BaseDirectory),
@@ -166,9 +166,9 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 		);
 	}
 
-	private static readonly string SyntheticDotEnv = $"""
+	private static readonly string _SyntheticDotEnv = $"""
 		APP_ROLE="api"
-		POSTGRES_CONNECTION_STRING="{SafeConnectionString}"
+		POSTGRES_CONNECTION_STRING="{_SafeConnectionString}"
 		FRONT_URL="http://localhost:5050"
 		RESEND_API_KEY="not-a-real-key"
 		STAFF_OWNER_EMAIL="owner@example.com"

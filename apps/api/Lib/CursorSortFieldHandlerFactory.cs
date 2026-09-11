@@ -34,9 +34,9 @@ namespace PublyApp.Api.Lib;
 /// SQL, real cursors, real page walks) is pinned by the *CursorBehaviorSpec integration anchors.
 /// </summary>
 public static class CursorSortFieldHandlerFactory {
-	private static readonly MethodInfo StringCompareToMethod = ResolveStringCompareTo();
+	private static readonly MethodInfo _StringCompareToMethod = _ResolveStringCompareTo();
 
-	private static readonly Expression Zero = Expression.Constant(0, typeof(int));
+	private static readonly Expression _Zero = Expression.Constant(0, typeof(int));
 
 	/// <summary>
 	/// Cursor projection target. Settable properties keep this a shape EF Core translates in a
@@ -75,11 +75,11 @@ public static class CursorSortFieldHandlerFactory {
 	)
 		where TKey : notnull {
 		var parameter = Expression.Parameter(typeof(TEntity), "entity");
-		var keyBody = RequireVisited(
+		var keyBody = _RequireVisited(
 			new ReplaceParameter(keySelector.Parameters[0], parameter),
 			keySelector.Body
 		);
-		var idBody = RequireVisited(
+		var idBody = _RequireVisited(
 			new ReplaceParameter(idSelector.Parameters[0], parameter),
 			idSelector.Body
 		);
@@ -106,7 +106,7 @@ public static class CursorSortFieldHandlerFactory {
 
 		Func<Guid, Task<object?>> getCursorValue = async guid => {
 			var idEqualsCursor = Expression.Lambda<Func<TEntity, bool>>(
-				Compare(idBody, Expression.Constant(guid, typeof(TId)), Expression.Equal),
+				_Compare(idBody, Expression.Constant(guid, typeof(TId)), Expression.Equal),
 				parameter
 			);
 			var item = await cursorLookupQuery()
@@ -135,10 +135,10 @@ public static class CursorSortFieldHandlerFactory {
 
 				var keyset = Expression.Lambda<Func<TEntity, bool>>(
 					Expression.OrElse(
-						Compare(keyBody, keyValue, beyondCursor),
+						_Compare(keyBody, keyValue, beyondCursor),
 						Expression.AndAlso(
-							Compare(keyBody, keyValue, Expression.Equal),
-							Compare(idBody, idValue, beyondCursor)
+							_Compare(keyBody, keyValue, Expression.Equal),
+							_Compare(idBody, idValue, beyondCursor)
 						)
 					),
 					parameter
@@ -160,7 +160,7 @@ public static class CursorSortFieldHandlerFactory {
 	/// <summary>
 	/// Applies one comparison to a key/id operand pair in the shape the inline lambdas compiled to.
 	/// </summary>
-	private static Expression Compare(
+	private static Expression _Compare(
 		Expression operand,
 		Expression cursorValue,
 		Func<Expression, Expression, BinaryExpression> op
@@ -170,7 +170,7 @@ public static class CursorSortFieldHandlerFactory {
 		// Enum operands have no comparison operators of their own: `t.Status > cursorStatus`
 		// compiled to a comparison over the underlying integral type, so reproduce that. Equality
 		// followed the same conversion, which keeps both branches of the keyset predicate aligned.
-		var underlying = ResolveEnumComparisonType(operand.Type);
+		var underlying = _ResolveEnumComparisonType(operand.Type);
 		if (underlying is not null) {
 			return op(
 				Expression.Convert(operand, underlying),
@@ -182,7 +182,7 @@ public static class CursorSortFieldHandlerFactory {
 		// renders as a plain ordering comparison) but stay on `==` for equality: routing equality
 		// through CompareTo(...) == 0 would emit a CASE expression instead of a simple equality.
 		if (operand.Type == typeof(string) && !isEquality) {
-			return op(Expression.Call(operand, StringCompareToMethod, cursorValue), Zero);
+			return op(Expression.Call(operand, _StringCompareToMethod, cursorValue), _Zero);
 		}
 
 		return op(operand, cursorValue);
@@ -192,7 +192,7 @@ public static class CursorSortFieldHandlerFactory {
 	/// Returns the type an enum (or nullable enum) operand must be converted to before comparison,
 	/// or null when the operand is not an enum and needs no conversion.
 	/// </summary>
-	private static Type? ResolveEnumComparisonType(Type operandType) {
+	private static Type? _ResolveEnumComparisonType(Type operandType) {
 		var nonNullable = Nullable.GetUnderlyingType(operandType);
 		var isNullable = nonNullable is not null;
 		var effective = nonNullable ?? operandType;
@@ -206,7 +206,7 @@ public static class CursorSortFieldHandlerFactory {
 			: underlying;
 	}
 
-	private static T RequireVisited<T>(ExpressionVisitor visitor, T node)
+	private static T _RequireVisited<T>(ExpressionVisitor visitor, T node)
 		where T : Expression {
 		if (visitor.Visit(node) is not T visited) {
 			throw new InvalidOperationException(
@@ -217,7 +217,7 @@ public static class CursorSortFieldHandlerFactory {
 		return visited;
 	}
 
-	private static MethodInfo ResolveStringCompareTo() {
+	private static MethodInfo _ResolveStringCompareTo() {
 		var method = typeof(string).GetMethod(nameof(string.CompareTo), [typeof(string)]);
 		if (method is null) {
 			throw new InvalidOperationException("string.CompareTo(string) must exist.");

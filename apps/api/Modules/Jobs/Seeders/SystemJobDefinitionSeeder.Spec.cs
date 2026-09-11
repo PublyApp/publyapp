@@ -24,7 +24,7 @@ namespace PublyApp.Api.Modules.Jobs.Seeders;
 // seeded contract (all keys present, each key == its handler's JobType so the cron →
 // EnqueueSystemJobJob → processor path resolves, crons are valid Quartz) and idempotency.
 public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
-	private const string PreJobsMigrationId =
+	private const string _PreJobsMigrationId =
 		"20260714135430_AddUserAccountMembershipUniqueness";
 
 	// The design's default for EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES (§3.1). Mirrored as a
@@ -32,17 +32,17 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 	// blocked on the job_dead_letter.external_state_* columns; point this at
 	// AppEnvironment once that lands, and the assertion below stops being an approximation
 	// of the threshold and starts being the threshold.
-	private const int MaxSweepLagMinutes = 60;
+	private const int _MaxSweepLagMinutes = 60;
 
 	// "Materially shorter" made concrete: at most a quarter of the overdue threshold, so a
 	// single failed pass cannot put the fleet straight into breach and an alert means the
 	// sweep is genuinely broken rather than merely jittery.
-	private static readonly TimeSpan MaxPreparedSweepCadence =
-		TimeSpan.FromMinutes(MaxSweepLagMinutes / 4.0);
+	private static readonly TimeSpan _MaxPreparedSweepCadence =
+		TimeSpan.FromMinutes(_MaxSweepLagMinutes / 4.0);
 
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
-	private static readonly string[] ExpectedKeys = [
+	private static readonly string[] _ExpectedKeys = [
 		CleanupExpiredSessionsHandler.JobKey,
 		EmailLogRetentionHandler.JobKey,
 		DeadLetterRetentionHandler.JobKey,
@@ -53,7 +53,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 	];
 
 	public SystemJobDefinitionSeederSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	// Issue #1912: the seeded rows must be ENABLED — this asserts the REAL artifact
@@ -70,14 +70,14 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 	// (ItShouldReinsertAMissingKeyWithDefaultsWhileLeavingOperatorEditsUntouched).
 	[Fact]
 	public async Task ItShouldSeedEverySystemJobDefinitionWithAValidCron() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var rows = await dbContext.SystemJobDefinition
-			.Where(d => ExpectedKeys.Contains(d.JobKey) && !d.IsDeleted)
+			.Where(d => _ExpectedKeys.Contains(d.JobKey) && !d.IsDeleted)
 			.ToListAsync();
 
-		rows.Select(r => r.JobKey).Should().BeEquivalentTo(ExpectedKeys);
+		rows.Select(r => r.JobKey).Should().BeEquivalentTo(_ExpectedKeys);
 		rows.Should().OnlyContain(
 			r => r.IsEnabled,
 			"seeded system jobs are enabled — the entity default (the seeder's single "
@@ -100,7 +100,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		var defaults = SystemJobDefinitionSeeder.GetCodeDefinedDefaults();
 
 		defaults.Select(definition => definition.JobKey).Should().BeEquivalentTo(
-			ExpectedKeys,
+			_ExpectedKeys,
 			"the restore source must cover exactly the code-defined system jobs"
 		);
 		defaults.Should().OnlyContain(
@@ -132,7 +132,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 	// from the first two fires after UtcNow.
 	[Fact]
 	public void ItShouldKeepEverySeededPreparedSendsGapBelowTheMaxSweepLagAcrossAFullLeapYear() {
-		using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var seeded = dbContext.SystemJobDefinition
@@ -174,21 +174,21 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 			+ "stopped recurring would fail here rather than pass vacuously"
 		);
 		maxGap.Should().BeLessThanOrEqualTo(
-			MaxPreparedSweepCadence,
+			_MaxPreparedSweepCadence,
 			$"every adjacent gap and both horizon edges must stay at or under "
-				+ $"{MaxPreparedSweepCadence.TotalMinutes} min — a quarter of the "
-				+ $"{MaxSweepLagMinutes}-minute overdue threshold (§7.3/K-3): the cadence, not "
+				+ $"{_MaxPreparedSweepCadence.TotalMinutes} min — a quarter of the "
+				+ $"{_MaxSweepLagMinutes}-minute overdue threshold (§7.3/K-3): the cadence, not "
 				+ "the predicate, bounds how long token-bearing bytes stay on disk once eligible"
 		);
 	}
 
 	[Fact]
 	public async Task ItShouldNotDuplicateRowsWhenRunAgain() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var before = await dbContext.SystemJobDefinition
-			.CountAsync(d => ExpectedKeys.Contains(d.JobKey));
+			.CountAsync(d => _ExpectedKeys.Contains(d.JobKey));
 
 		var seeder = new SystemJobDefinitionSeeder(
 			NullLogger<SystemJobDefinitionSeeder>.Instance
@@ -196,15 +196,15 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		await seeder.SeedAsync(dbContext, CancellationToken.None);
 
 		var after = await dbContext.SystemJobDefinition
-			.CountAsync(d => ExpectedKeys.Contains(d.JobKey));
+			.CountAsync(d => _ExpectedKeys.Contains(d.JobKey));
 
 		after.Should().Be(before, "re-seeding only inserts missing keys — never duplicates");
-		before.Should().Be(ExpectedKeys.Length);
+		before.Should().Be(_ExpectedKeys.Length);
 	}
 
 	[Fact]
 	public async Task ItShouldReinsertAMissingKeyWithDefaultsWhileLeavingOperatorEditsUntouched() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var missingKey = CleanupExpiredSessionsHandler.JobKey;
@@ -305,15 +305,15 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 				NullLogger<SystemJobDefinitionSeeder>.Instance
 			);
 
-			await migrator.MigrateAsync(PreJobsMigrationId);
-			(await SystemJobDefinitionsTableExistsAsync(connectionString)).Should().BeFalse();
+			await migrator.MigrateAsync(_PreJobsMigrationId);
+			(await _SystemJobDefinitionsTableExistsAsync(connectionString)).Should().BeFalse();
 
 			var seedHistoricalSchema = async () =>
 				await seeder.SeedAsync(dbContext, CancellationToken.None);
 			await seedHistoricalSchema.Should().NotThrowAsync(
 				"historical-target migration specs run the full seed pipeline before jobs tables exist"
 			);
-			(await SystemJobDefinitionsTableExistsAsync(connectionString)).Should().BeFalse(
+			(await _SystemJobDefinitionsTableExistsAsync(connectionString)).Should().BeFalse(
 				"the no-op must neither create the table nor insert rows"
 			);
 
@@ -324,7 +324,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 				.AsNoTracking()
 				.Select(d => d.JobKey)
 				.ToListAsync();
-			seededKeys.Should().BeEquivalentTo(ExpectedKeys);
+			seededKeys.Should().BeEquivalentTo(_ExpectedKeys);
 		} finally {
 			await using var adminConnection = new NpgsqlConnection(
 				containerFixture.AdminConnectionString
@@ -338,7 +338,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private static async Task<bool> SystemJobDefinitionsTableExistsAsync(
+	private static async Task<bool> _SystemJobDefinitionsTableExistsAsync(
 		string connectionString
 	) {
 		await using var connection = new NpgsqlConnection(connectionString);

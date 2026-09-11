@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 
 using FluentAssertions;
+
 using Npgsql;
 
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -37,7 +38,7 @@ public sealed class SeederGateProbeSpec {
 			);
 			await createCommand.ExecuteNonQueryAsync();
 
-			var results = await RunSeederGateProbeAsync(dbBuilder.ConnectionString);
+			var results = await _RunSeederGateProbeAsync(dbBuilder.ConnectionString);
 
 			results.ExitCode.Should().Be(0, "the seed gate should pass in Production");
 			results.Payload.Should().NotBeNull("the probe should emit a JSON result payload");
@@ -49,11 +50,11 @@ public sealed class SeederGateProbeSpec {
 			results.Payload.HasOwnerAccount.Should().BeTrue();
 			results.Payload.OwnerPasswordIsNotSeedPassword.Should().BeTrue();
 		} finally {
-			await DropDatabaseIfExistsAsync(adminConnection, dbName);
+			await _DropDatabaseIfExistsAsync(adminConnection, dbName);
 		}
 	}
 
-	private static async Task<(int ExitCode, SeederGatePayload? Payload)> RunSeederGateProbeAsync(
+	private static async Task<(int ExitCode, SeederGatePayload? Payload)> _RunSeederGateProbeAsync(
 		string connectionString
 	) {
 		var assemblyPath = typeof(PublyApp.Api.Program).Assembly.Location;
@@ -109,7 +110,7 @@ public sealed class SeederGateProbeSpec {
 		return (process.ExitCode, payload);
 	}
 
-	private static async Task DropDatabaseIfExistsAsync(
+	private static async Task _DropDatabaseIfExistsAsync(
 		NpgsqlConnection adminConnection,
 		string dbName
 	) {

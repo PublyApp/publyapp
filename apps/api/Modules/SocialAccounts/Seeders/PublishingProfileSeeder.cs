@@ -24,7 +24,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Seeders;
 /// permissions by design, so without this seeder the block is hidden and the
 /// scenario cannot run. Admins are deliberately NOT touched: the admin bypass is
 /// already pinned elsewhere, and granting extra keys to admins would prove nothing.
-/// Production excludes every IsDemo seeder (AppDbContext.CreateSeeders), so these
+/// Production excludes every IsDemo seeder (AppDbContext._CreateSeeders), so these
 /// rows never exist in a real deployment.
 ///
 /// Idempotent: profiles are found by their pinned names scoped to the tenant, and
@@ -32,10 +32,10 @@ namespace PublyApp.Api.Modules.SocialAccounts.Seeders;
 /// and concurrent seeders converge without duplicating anything.
 /// </summary>
 public class PublishingProfileSeeder : IEntitySeeder {
-	private readonly ILogger<PublishingProfileSeeder> _logger;
+	private readonly ILogger<PublishingProfileSeeder> _Logger;
 
 	public PublishingProfileSeeder(ILogger<PublishingProfileSeeder>? logger = null) {
-		_logger = logger
+		_Logger = logger
 			?? SeederLoggerUtils.CreateDefault<PublishingProfileSeeder>();
 	}
 
@@ -61,7 +61,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 		// during a partial MigrateAsync pass (which would target a schema point before
 		// the profiles.icon column existed and throw).
 		if (!FakePublishingProviderEnabled.IsEnabled()) {
-			_logger.LogDebug(
+			_Logger.LogDebug(
 				"PUBLISHING_FAKE_PROVIDER not enabled; skipping demo publishing-profile seeding (e2e-only)."
 			);
 			return;
@@ -71,7 +71,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 			.Where(t => !t.IsDeleted)
 			.ToListAsync(cancellationToken);
 		if (tenants.Count == 0) {
-			_logger.LogWarning("No demo tenants found for publishing profile seeding; skipping.");
+			_Logger.LogWarning("No demo tenants found for publishing profile seeding; skipping.");
 			return;
 		}
 
@@ -112,7 +112,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 			// .ContainsKey(...) inside a query (runtime translation failure).
 			var nonAdminAccountIds = nonAdminAccounts.Keys.ToHashSet();
 
-			var profileName = PublishingProfileName(tenant.Code);
+			var profileName = _PublishingProfileName(tenant.Code);
 			var profile = await dbContext.Profile
 				.Where(p => p.Name == profileName && p.Scope == ProfileScope.Tenant)
 				.SingleOrDefaultAsync(cancellationToken);
@@ -175,7 +175,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 				} catch (DbUpdateException ex) when (
 					ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505"
 				) {
-					_logger.LogWarning(
+					_Logger.LogWarning(
 						ex,
 						"Duplicate publishing-profile rows detected during seeding; skipping insert."
 					);
@@ -185,7 +185,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 	}
 
 	// Deterministic per-tenant profile name — the idempotency key for re-seeds.
-	private static string PublishingProfileName(string tenantCode) {
+	private static string _PublishingProfileName(string tenantCode) {
 		return $"demo-publishing-{tenantCode}";
 	}
 }

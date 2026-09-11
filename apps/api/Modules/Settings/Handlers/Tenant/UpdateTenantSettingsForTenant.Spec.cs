@@ -31,17 +31,17 @@ namespace PublyApp.Api.Modules.Settings.Handlers.Tenant;
 [Collection("AcmeTenantMutation")]
 public sealed class UpdateTenantSettingsForTenantSpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public UpdateTenantSettingsForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string GetUrl() {
+	private static string _GetUrl() {
 		return PathUtils.Join(
 			Routes.Tenant.Root,
 			Routes.Settings.ForTenant.Root,
@@ -53,12 +53,12 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldUpdateTheGeneralSettingsAndReturnTheUpdatedValues() {
 		var (acmeId, acmeAdminToken, original) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				GetUrl()
+				_GetUrl()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
@@ -75,7 +75,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				timezone = "Europe/Paris",
 			});
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -93,7 +93,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			result.DefaultLocale.Should().Be("fr");
 			result.Timezone.Should().Be("Europe/Paris");
 
-			var persisted = await GetTenantRowAsync(acmeId);
+			var persisted = await _GetTenantRowAsync(acmeId);
 			persisted.Name.Should().Be("Acme Corporation Updated");
 			persisted.LogoUrl.Should().Be("https://cdn.example.test/logo.png");
 			persisted.LegalName.Should().Be("Acme Corporation SA");
@@ -104,7 +104,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			persisted.DefaultLocale.Should().Be("fr");
 			persisted.Timezone.Should().Be("Europe/Paris");
 		} finally {
-			await RestoreTenantAsync(acmeId, original);
+			await _RestoreTenantAsync(acmeId, original);
 		}
 	}
 
@@ -112,12 +112,12 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldClearOptionalFieldsAndLeaveAbsentFieldsUntouched() {
 		var (acmeId, acmeAdminToken, original) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				GetUrl()
+				_GetUrl()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
@@ -127,7 +127,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				websiteUrl = (string?)null,
 			});
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -140,12 +140,12 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			result.WebsiteUrl.Should().BeNull();
 			result.Name.Should().Be(original.Name);
 
-			var persisted = await GetTenantRowAsync(acmeId);
+			var persisted = await _GetTenantRowAsync(acmeId);
 			persisted.Description.Should().BeNull();
 			persisted.WebsiteUrl.Should().BeNull();
 			persisted.Name.Should().Be(original.Name);
 		} finally {
-			await RestoreTenantAsync(acmeId, original);
+			await _RestoreTenantAsync(acmeId, original);
 		}
 	}
 
@@ -153,18 +153,18 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnBadRequestForAnEmptyBody() {
 		var (acmeId, acmeAdminToken, _) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -183,12 +183,12 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		// staff-only keys must behave like an empty body (400, no write) so
 		// the tenant write surface can never silently widen.
 		var (acmeId, acmeAdminToken, original) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				GetUrl()
+				_GetUrl()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
@@ -199,7 +199,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				notes = "tenant notes",
 			});
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 			var problem = await response.Content
@@ -208,7 +208,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			Assert.NotNull(problem);
 			problem.Detail.Should().Be("No fields to update");
 
-			var persisted = await GetTenantRowAsync(acmeId);
+			var persisted = await _GetTenantRowAsync(acmeId);
 			persisted.Name.Should().Be(original.Name);
 			persisted.LogoUrl.Should().Be(original.LogoUrl);
 			persisted.LegalName.Should().Be(original.LegalName);
@@ -219,7 +219,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			persisted.DefaultLocale.Should().Be(original.DefaultLocale);
 			persisted.Timezone.Should().Be(original.Timezone);
 		} finally {
-			await RestoreTenantAsync(acmeId, original);
+			await _RestoreTenantAsync(acmeId, original);
 		}
 	}
 
@@ -227,11 +227,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldRejectANameShorterThanFiveCharacters() {
 		var (acmeId, acmeAdminToken, _) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -240,7 +240,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			name = "abc",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -254,11 +254,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldRejectAnInvalidWebsiteUrl() {
 		var (acmeId, acmeAdminToken, _) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -267,7 +267,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			websiteUrl = "not-a-url",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -281,11 +281,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldRejectAnInvalidBillingEmail() {
 		var (acmeId, acmeAdminToken, _) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -294,7 +294,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			billingEmail = "not-an-email",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -308,11 +308,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldRejectAnInvalidDefaultLocale() {
 		var (acmeId, acmeAdminToken, _) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -321,7 +321,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			defaultLocale = "de",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -335,11 +335,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldRejectAnInvalidTimezone() {
 		var (acmeId, acmeAdminToken, _) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -348,7 +348,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			timezone = "Mars/Olympus",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -361,17 +361,17 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForANonAdminTenantUserWithoutSettingsEdit() {
-		var acmeId = await GetAcmeIdAsync();
+		var acmeId = await _GetAcmeIdAsync();
 		// Round 2: the seeded Acme member holds publishing permissions via the demo
 		// profile, but nothing grants settings.* here, so the check must still deny.
-		var acmeUserToken = await _authClient.LoginAsync(
+		var acmeUserToken = await _AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			GetUrl()
+			_GetUrl()
 		)
 			.WithSessionToken(acmeUserToken)
 			.WithTenantId(acmeId);
@@ -380,7 +380,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			name = "Acme Corporation Updated",
 		});
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -389,30 +389,30 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldAllowANonAdminTenantUserWithSettingsEditToUpdate() {
 		var (acmeId, _, original) =
-			await PrepareAcmeAdminAsync();
+			await _PrepareAcmeAdminAsync();
 		var createdProfileIds = new List<Guid>();
 
 		try {
-			var profileId = await CreateTenantProfileWithPermissionsAsync(
+			var profileId = await _CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Settings.EDIT.Key]
 			);
 			createdProfileIds.Add(profileId);
 
-			await AssignProfileToTenantUserAsync(
+			await _AssignProfileToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeUserToken = await _authClient.LoginAsync(
+			var acmeUserToken = await _AuthClient.LoginAsync(
 				TestConstants.AcmeUserEmail,
 				TestConstants.SeedPassword
 			);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				GetUrl()
+				_GetUrl()
 			)
 				.WithSessionToken(acmeUserToken)
 				.WithTenantId(acmeId);
@@ -421,7 +421,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				description = "Updated by a non-admin with settings.edit",
 			});
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -431,8 +431,8 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			result.Description.Should()
 				.Be("Updated by a non-admin with settings.edit");
 		} finally {
-			await RestoreTenantAsync(acmeId, original);
-			await CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await _RestoreTenantAsync(acmeId, original);
+			await _CleanupTenantProfileArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -444,7 +444,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnNotFoundWhenTheTenantIsMissing() {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<ITenantAsStaffService>();
 
@@ -469,31 +469,31 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	}
 
 	private async Task<(Guid TenantId, string Token, TenantRow Original)>
-	PrepareAcmeAdminAsync() {
-		var acmeId = await GetAcmeIdAsync();
-		var token = await _authClient.LoginAsync(
+	_PrepareAcmeAdminAsync() {
+		var acmeId = await _GetAcmeIdAsync();
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var original = await GetTenantRowAsync(acmeId);
+		var original = await _GetTenantRowAsync(acmeId);
 
 		return (acmeId, token, original);
 	}
 
-	private async Task<Guid> GetAcmeIdAsync() {
+	private async Task<Guid> _GetAcmeIdAsync() {
 		var staffToken =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
-	private async Task<TenantRow> GetTenantRowAsync(Guid tenantId) {
+	private async Task<TenantRow> _GetTenantRowAsync(Guid tenantId) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -514,12 +514,12 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			.SingleAsync();
 	}
 
-	private async Task RestoreTenantAsync(
+	private async Task _RestoreTenantAsync(
 		Guid tenantId,
 		TenantRow original
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -538,12 +538,12 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				.SetProperty(tenant => tenant.UpdatedAt, DateTime.UtcNow));
 	}
 
-	private async Task<Guid> CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -573,7 +573,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		return profileId;
 	}
 
-	private async Task AssignProfileToTenantUserAsync(
+	private async Task _AssignProfileToTenantUserAsync(
 		string email,
 		Guid tenantId,
 		IReadOnlyCollection<Guid> profileIds
@@ -581,7 +581,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -623,7 +623,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task CleanupTenantProfileArtifactsAsync(
+	private async Task _CleanupTenantProfileArtifactsAsync(
 		IReadOnlyCollection<Guid> profileIds
 	) {
 		if (profileIds.Count == 0) {
@@ -631,7 +631,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		}
 
 		await using var scope =
-			_fixture.Factory.Services.CreateAsyncScope();
+			_Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

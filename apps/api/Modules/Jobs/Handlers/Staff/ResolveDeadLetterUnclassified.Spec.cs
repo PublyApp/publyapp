@@ -29,17 +29,17 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // 404 unknown/malformed id, 409 when not Unclassified, 403 without the new
 // staff.jobs.resolve permission, and a race-safe single-statement transition.
 public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public ResolveDeadLetterUnclassifiedForStaffSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private static string Url(Guid id) {
+	private static string _Url(Guid id) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Jobs.ForStaff.Root,
@@ -49,19 +49,19 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 
 	[Fact]
 	public async Task ItShouldResolveAnUnclassifiedRowStampingMissingWithEventAndAudit() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (deadLetterId, originalJobId, jobType) = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (deadLetterId, originalJobId, jobType) = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.Unclassified
 		);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new {
 				note = "Checked the provider; the referenced upload was never created."
 			});
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content.ReadFromJsonAsync<ResolvedResponse>();
@@ -71,7 +71,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			result.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
 
 			// Row stamped 4 Missing; recorded bounds kept as evidence.
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var row = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
 			row.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
 			row.ExternalStatePreparedAt.Should().NotBeNull("recorded bounds are kept");
@@ -104,28 +104,28 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			audit.Should().NotBeNull("the resolution is audit-logged against the real actor");
 			Assert.NotNull(audit);
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			Url(Guid.NewGuid())
+			_Url(Guid.NewGuid())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
@@ -136,7 +136,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			.WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 
 		// No route constraints on ID parameters (repo rule): a malformed id must
 		// surface as 404 from the handler, never a framework 400/404 mismatch.
@@ -145,17 +145,17 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 
 	[Fact]
 	public async Task ItShouldReturnConflictWhenRowIsNotAwaitingTriage() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (deadLetterId, _, _) = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (deadLetterId, _, _) = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.NeverPrepared
 		);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 			var problem = await response.Content
@@ -164,70 +164,70 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			problem.RootElement.GetProperty("detail").GetString()
 				.Should().Contain("NeverPrepared", "the conflict names the actual current state");
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var unprivileged = await CreateUnprivilegedStaffUserAsync();
-		var (deadLetterId, _, _) = await InsertDeadLetterAsync(
+		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
+		var (deadLetterId, _, _) = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.Unclassified
 		);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(unprivileged.Token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
 			// Nothing changed: still Unclassified, no event row.
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var row = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
 			row.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Unclassified);
 			(await verify.JobDeadLetterEvent.AnyAsync(e => e.DeadLetterId == deadLetterId))
 				.Should().BeFalse();
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldLoseTheRaceCleanlyOnDoubleResolution() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (deadLetterId, _, _) = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (deadLetterId, _, _) = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.Unclassified
 		);
 
 		try {
 			// First resolution wins.
-			var first = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var first = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(token);
 			first.Content = JsonContent.Create(new { });
-			using var firstResponse = await _http.SendAsync(first);
+			using var firstResponse = await _Http.SendAsync(first);
 			firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			// Second resolution of the same row hits the conditional transition's
 			// guard: zero rows updated → 409 naming the new state, NOT a second
 			// event or a silent double-write.
-			var second = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var second = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(token);
 			second.Content = JsonContent.Create(new { });
-			using var secondResponse = await _http.SendAsync(second);
+			using var secondResponse = await _Http.SendAsync(second);
 			secondResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
 			var problem = await secondResponse.Content.ReadFromJsonAsync<JsonDocument>();
 			Assert.NotNull(problem);
 			problem.RootElement.GetProperty("detail").GetString()
 				.Should().Contain("Missing", "the conflict names the post-resolution state");
 
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			(await verify.JobDeadLetterEvent.CountAsync(e => e.DeadLetterId == deadLetterId))
 				.Should().Be(1, "exactly one evidence event exists after the race");
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
@@ -240,13 +240,13 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 	// shipped resolution path agree on one contract.
 	[Fact]
 	public async Task ItShouldResolveAProducerClassifiedRowEndToEnd() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
 		var jobType = $"spec.dlq-e2e.{Guid.NewGuid():N}";
 		var deadLetterId = Guid.Empty;
 
 		try {
 			// Producer leg: dead-letter a real job_queue row through the engine.
-			await using (var dbContext = await CreateDbContextAsync()) {
+			await using (var dbContext = await _CreateDbContextAsync()) {
 				var row = new JobQueueItem { JobType = jobType };
 				await dbContext.JobQueue.AddAsync(row);
 				await dbContext.SaveChangesAsync();
@@ -256,7 +256,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 				);
 				await dbContext.Entry(row).ReloadAsync();
 
-				var processor = CreateProcessor();
+				var processor = _CreateProcessor();
 				var result = await processor.ProcessOneAsync(
 					row, claimed.Single(c => c.Id == row.Id).LockToken,
 					CancellationToken.None
@@ -275,24 +275,24 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			}
 
 			// Resolution leg: the operator triage endpoint on that same row.
-			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new {
 				note = "Producer-classified row; provider resource confirmed absent."
 			});
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			// Final state: 4 Missing — out of the exempt class, retention-eligible again.
-			await using var verify = await CreateDbContextAsync();
+			await using var verify = await _CreateDbContextAsync();
 			var resolved = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
 			resolved.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
 		} finally {
 			if (deadLetterId != Guid.Empty) {
-				await CleanupAsync(deadLetterId);
+				await _CleanupAsync(deadLetterId);
 			}
-			await using var sweep = await CreateDbContextAsync();
+			await using var sweep = await _CreateDbContextAsync();
 			await sweep.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {jobType}"
 			);
@@ -304,17 +304,17 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 	// it from the status code alone.
 	[Fact]
 	public async Task ItShouldReturnTheResolvedSuccessResponseKeyOnSuccess() {
-		var token = await _authClient.LoginAsStaffAdminAsync();
-		var (deadLetterId, _, _) = await InsertDeadLetterAsync(
+		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var (deadLetterId, _, _) = await _InsertDeadLetterAsync(
 			status: (int)ExternalStateStatus.Unclassified
 		);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var problem = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -324,7 +324,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 				"the success response names its outcome with the stable translation key"
 			);
 		} finally {
-			await CleanupAsync(deadLetterId);
+			await _CleanupAsync(deadLetterId);
 		}
 	}
 
@@ -332,9 +332,9 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 
 	// Builds a real processor against the fixture host's DI scope factory; its per-job
 	// scope shares this test host, exactly as production wiring does.
-	private JobQueueProcessor CreateProcessor() {
+	private JobQueueProcessor _CreateProcessor() {
 		return new JobQueueProcessor(
-			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			new JobHandlerRegistry([]),
 			new JobsMetrics(new JobWorkerInstance(), NullLogger<JobsMetrics>.Instance),
 			new JobWorkerInstance(),
@@ -342,10 +342,10 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 		);
 	}
 
-	private async Task<(string Token, Guid UserId)> CreateUnprivilegedStaffUserAsync() {
+	private async Task<(string Token, Guid UserId)> _CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-dlq-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -366,19 +366,19 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 
-	private const string EmptyJson = "{}";
+	private const string _EmptyJson = "{}";
 
-	private async Task<(Guid Id, Guid OriginalJobId, string JobType)> InsertDeadLetterAsync(
+	private async Task<(Guid Id, Guid OriginalJobId, string JobType)> _InsertDeadLetterAsync(
 		int status
 	) {
 		var jobType = $"spec.dlq-resolve.{Guid.NewGuid():N}";
 		var originalJobId = Guid.NewGuid();
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await dbContext.Database.ExecuteSqlAsync(
@@ -388,7 +388,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 				 enqueued_at, failed_at, external_state_status,
 				 external_state_prepared_at, external_state_expires_at)
 			VALUES (
-				{originalJobId}, {jobType}, {EmptyJson}::jsonb, 0, 10, 10,
+				{originalJobId}, {jobType}, {_EmptyJson}::jsonb, 0, 10, 10,
 				now(), now(),
 				{status},
 				CASE WHEN {status} IN (1, 2, 4, 5, 6) THEN now() ELSE NULL END,
@@ -398,7 +398,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			"""
 		);
 
-		await using var verify = await CreateDbContextAsync();
+		await using var verify = await _CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
 		var deadLetterId = row.Id ?? throw new InvalidOperationException(
 			"Inserted job_dead_letter row came back with a NULL id."
@@ -406,16 +406,16 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 		return (deadLetterId, originalJobId, jobType);
 	}
 
-	private async Task CleanupAsync(Guid deadLetterId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task _CleanupAsync(Guid deadLetterId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter WHERE id = {deadLetterId}"
 		);
 	}
 
-	private async Task<AppDbContext> CreateDbContextAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _CreateDbContextAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

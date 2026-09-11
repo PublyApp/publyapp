@@ -20,37 +20,37 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 public sealed class BlueskyPublishProvider : IPublishProvider {
 	public const string HttpClientName = "BlueskyPublishProvider";
 
-	private const string Collection = "app.bsky.feed.post";
+	private const string _Collection = "app.bsky.feed.post";
 
-	private static readonly JsonSerializerOptions WireOptions = new(JsonSerializerDefaults.Web);
+	private static readonly JsonSerializerOptions _WireOptions = new(JsonSerializerDefaults.Web);
 
-	private readonly IHttpClientFactory _httpClientFactory;
+	private readonly IHttpClientFactory _HttpClientFactory;
 
 	public BlueskyPublishProvider(IHttpClientFactory httpClientFactory) {
-		_httpClientFactory = httpClientFactory;
+		_HttpClientFactory = httpClientFactory;
 	}
 
 	public async Task<PublishResult> PublishAsync(
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
-		var client = _httpClientFactory.CreateClient(HttpClientName);
+		var client = _HttpClientFactory.CreateClient(HttpClientName);
 		var rkey = $"pub-{request.IdempotencyKey}";
 
 		try {
-			using var response = await SendCreateRecordAsync(
+			using var response = await _SendCreateRecordAsync(
 				client, request, rkey, cancellationToken
 			);
 
 			if (response.IsSuccessStatusCode) {
-				var payload = await ReadJsonAsync(response, cancellationToken);
+				var payload = await _ReadJsonAsync(response, cancellationToken);
 				return new PublishResult.Published(
-					RecordIdentity(payload, request.Session.Did, rkey),
-					WebUrl(RecordIdentity(payload, request.Session.Did, rkey), request.Session.Did, rkey)
+					_RecordIdentity(payload, request.Session.Did, rkey),
+					_WebUrl(_RecordIdentity(payload, request.Session.Did, rkey), request.Session.Did, rkey)
 				);
 			}
 
-			var (error, message) = await ReadErrorAsync(response, cancellationToken);
+			var (error, message) = await _ReadErrorAsync(response, cancellationToken);
 			var cause = $"{(int)response.StatusCode} {error}: {message}";
 
 			if (response.StatusCode is HttpStatusCode.Unauthorized
@@ -61,8 +61,8 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				);
 			}
 
-			if (LooksLikeAlreadyExists(error, message)) {
-				return await ReadExistingBackAsync(client, request.Session, rkey, cancellationToken);
+			if (_LooksLikeAlreadyExists(error, message)) {
+				return await _ReadExistingBackAsync(client, request.Session, rkey, cancellationToken);
 			}
 
 			if ((int)response.StatusCode >= 500) {
@@ -88,7 +88,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 	}
 
-	private static async Task<HttpResponseMessage> SendCreateRecordAsync(
+	private static async Task<HttpResponseMessage> _SendCreateRecordAsync(
 		HttpClient client,
 		PublishRequest request,
 		string rkey,
@@ -96,10 +96,10 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var payload = new Dictionary<string, object?> {
 			["repo"] = request.Session.Did,
-			["collection"] = Collection,
+			["collection"] = _Collection,
 			["rkey"] = rkey,
 			["record"] = new Dictionary<string, object?> {
-				["$type"] = Collection,
+				["$type"] = _Collection,
 				["text"] = request.PostBody,
 				["createdAt"] = DateTime.SpecifyKind(request.ScheduledAtUtc, DateTimeKind.Utc)
 					.ToString("o", CultureInfo.InvariantCulture),
@@ -115,7 +115,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			request.Session.AccessJwt
 		);
 		httpRequest.Content = new StringContent(
-			JsonSerializer.Serialize(payload, WireOptions),
+			JsonSerializer.Serialize(payload, _WireOptions),
 			Encoding.UTF8,
 			"application/json"
 		);
@@ -123,7 +123,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		return await client.SendAsync(httpRequest, cancellationToken);
 	}
 
-	private static async Task<PublishResult> ReadExistingBackAsync(
+	private static async Task<PublishResult> _ReadExistingBackAsync(
 		HttpClient client,
 		SocialSession session,
 		string rkey,
@@ -131,21 +131,21 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
 			+ $"?repo={Uri.EscapeDataString(session.Did)}"
-			+ $"&collection={Uri.EscapeDataString(Collection)}"
+			+ $"&collection={Uri.EscapeDataString(_Collection)}"
 			+ $"&rkey={Uri.EscapeDataString(rkey)}";
 
 		try {
 			using var response = await client.GetAsync(url, cancellationToken);
 			if (response.IsSuccessStatusCode) {
-				var payload = await ReadJsonAsync(response, cancellationToken);
-				var recordId = RecordIdentity(payload, session.Did, rkey);
+				var payload = await _ReadJsonAsync(response, cancellationToken);
+				var recordId = _RecordIdentity(payload, session.Did, rkey);
 				return new PublishResult.AlreadyExistsTreatedAsPublished(
 					recordId,
-					WebUrl(recordId, session.Did, rkey)
+					_WebUrl(recordId, session.Did, rkey)
 				);
 			}
 
-			var (error, message) = await ReadErrorAsync(response, cancellationToken);
+			var (error, message) = await _ReadErrorAsync(response, cancellationToken);
 			return new PublishResult.TransientFailure(
 				LastErrorSanitiser.Sanitize(
 					$"an existing record answered already-exists but could not be read back "
@@ -161,13 +161,13 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 	}
 
-	private static bool LooksLikeAlreadyExists(string error, string message) {
+	private static bool _LooksLikeAlreadyExists(string error, string message) {
 		return error.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
 			|| message.Contains("already_exists", StringComparison.OrdinalIgnoreCase)
 			|| message.Contains("already exists", StringComparison.OrdinalIgnoreCase);
 	}
 
-	private static string RecordIdentity(JsonElement payload, string did, string rkey) {
+	private static string _RecordIdentity(JsonElement payload, string did, string rkey) {
 		if (payload.TryGetProperty("uri", out var uri)) {
 			var value = uri.GetString();
 			if (!string.IsNullOrWhiteSpace(value)) {
@@ -175,24 +175,24 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			}
 		}
 
-		return $"at://{did}/{Collection}/{rkey}";
+		return $"at://{did}/{_Collection}/{rkey}";
 	}
 
-	private static string WebUrl(string recordId, string did, string rkey) {
-		var marker = $"{Collection}/";
+	private static string _WebUrl(string recordId, string did, string rkey) {
+		var marker = $"{_Collection}/";
 		var index = recordId.IndexOf(marker, StringComparison.Ordinal);
 		var suffix = index < 0 ? rkey : recordId[(index + marker.Length)..];
 		return $"https://bsky.app/profile/{did}/post/{suffix}";
 	}
 
-	private static async Task<(string Error, string Message)> ReadErrorAsync(
+	private static async Task<(string Error, string Message)> _ReadErrorAsync(
 		HttpResponseMessage response,
 		CancellationToken cancellationToken
 	) {
 		var error = "unknown_error";
 		var message = "the PDS returned an error without a parsable body";
 		try {
-			var payload = await ReadJsonAsync(response, cancellationToken);
+			var payload = await _ReadJsonAsync(response, cancellationToken);
 			if (payload.TryGetProperty("error", out var errorElement)) {
 				error = errorElement.GetString() ?? error;
 			}
@@ -207,7 +207,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		return (error, message);
 	}
 
-	private static async Task<JsonElement> ReadJsonAsync(
+	private static async Task<JsonElement> _ReadJsonAsync(
 		HttpResponseMessage response,
 		CancellationToken cancellationToken
 	) {

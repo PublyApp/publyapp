@@ -50,7 +50,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		AppEnvironment.Initialize();
 	}
 
-	private static readonly string[] MediaHandlerFullNames = [
+	private static readonly string[] _MediaHandlerFullNames = [
 		"PublyApp.Api.Modules.Posts.Handlers.Tenant.AttachPostImageForTenant",
 		"PublyApp.Api.Modules.Posts.Handlers.Tenant.RemovePostImageForTenant",
 		"PublyApp.Api.Modules.Posts.Handlers.Tenant.DeletePostForTenant",
@@ -79,8 +79,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	public void ItShouldKeepMediaHandlersFreeOfDbContext() {
 		var offenders = new List<string>();
 
-		foreach (var handlerFullName in MediaHandlerFullNames) {
-			var handler = ResolveApiType(handlerFullName);
+		foreach (var handlerFullName in _MediaHandlerFullNames) {
+			var handler = _ResolveApiType(handlerFullName);
 			handler.Should().NotBeNull(
 				$"the pinned slice handler {handlerFullName} must exist; if it was "
 				+ "renamed or removed, update this slice pin deliberately"
@@ -88,7 +88,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 			Assert.NotNull(handler);
 
 			var dbContextTouchpoints =
-				CollectMemberTypes(handler).Where(IsDbContextType);
+				_CollectMemberTypes(handler).Where(_IsDbContextType);
 			foreach (var touchpoint in dbContextTouchpoints) {
 				offenders.Add($"{handler.FullName} -> {touchpoint.Name}");
 			}
@@ -105,8 +105,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	public void ItShouldConsumeTheAssetServiceThroughItsAbstraction() {
 		var offenders = new List<string>();
 
-		foreach (var handlerFullName in MediaHandlerFullNames) {
-			var handler = ResolveApiType(handlerFullName);
+		foreach (var handlerFullName in _MediaHandlerFullNames) {
+			var handler = _ResolveApiType(handlerFullName);
 			Assert.NotNull(handler);
 
 			var handle = handler.GetMethod(
@@ -144,7 +144,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 
 	[Fact]
 	public void ItShouldPinPostMediaAssetServiceDependencies() {
-		var service = ResolveApiType(
+		var service = _ResolveApiType(
 			"PublyApp.Api.Modules.Posts.Services.PostMediaAssetService"
 		);
 		service.Should().NotBeNull(
@@ -166,22 +166,22 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 				$"{service.Name}.ctor({parameter.Name}: {parameter.ParameterType.Name})")
 			.ToList();
 
-			_ = offenders.Should().BeEmpty(
-			"PostMediaAssetService may depend only on its DbContext (#1461 ratchet: "
-				+ "the #807 F5 reference discipline (acquire/release) moved to the "
-				+ "calling handlers; the uploads reference service moved to the calling "
-				+ "handlers); adding another domain-service dependency couples slices "
-				+ "and belongs behind a deliberate change to this pin"
-			);
+		_ = offenders.Should().BeEmpty(
+		"PostMediaAssetService may depend only on its DbContext (#1461 ratchet: "
+			+ "the #807 F5 reference discipline (acquire/release) moved to the "
+			+ "calling handlers; the uploads reference service moved to the calling "
+			+ "handlers); adding another domain-service dependency couples slices "
+			+ "and belongs behind a deliberate change to this pin"
+		);
 	}
 
 	// ── route-map facts ─────────────────────────────────────────────────
 
 	/// <summary>Tenant-scope mount point of the posts slice.</summary>
-	private const string TenantPostsPrefix = "/posts";
+	private const string _TenantPostsPrefix = "/posts";
 
 	/// <summary>Route suffix shared by attach/remove image.</summary>
-	private const string ImageSuffix = "/{postId}/image";
+	private const string _ImageSuffix = "/{postId}/image";
 
 	/// <summary>
 	/// Route-level authorization: every mutating media endpoint of the slice
@@ -195,8 +195,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		var offenders = new List<string>();
 		var matched = 0;
 
-		foreach (var endpoint in GetAllRouteEndpoints()) {
-			if (!IsTenantMutatingMediaEndpoint(endpoint, out var isImageRoute)) {
+		foreach (var endpoint in _GetAllRouteEndpoints()) {
+			if (!_IsTenantMutatingMediaEndpoint(endpoint, out var isImageRoute)) {
 				continue;
 			}
 
@@ -207,7 +207,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 			if (!hasPermissionMetadata) {
 				offenders.Add(
 					(isImageRoute ? "image-route " : "delete-route ")
-					+ BuildEndpointKey(endpoint));
+					+ _BuildEndpointKey(endpoint));
 			}
 		}
 
@@ -231,13 +231,13 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	/// </summary>
 	[Fact]
 	public void ItShouldRequireUploadRateLimitPolicyOnAttachImage() {
-		var attachEndpoints = GetAllRouteEndpoints()
+		var attachEndpoints = _GetAllRouteEndpoints()
 			.Where(endpoint => {
 				var path = endpoint.RoutePattern.RawText ?? string.Empty;
 				return path.StartsWith(
-						TenantPostsPrefix + "/",
+						_TenantPostsPrefix + "/",
 						StringComparison.Ordinal)
-					&& path.EndsWith(ImageSuffix, StringComparison.Ordinal)
+					&& path.EndsWith(_ImageSuffix, StringComparison.Ordinal)
 					&& endpoint.Metadata
 						.OfType<HttpMethodMetadata>()
 						.Any(metadata =>
@@ -274,14 +274,14 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	/// POST /posts/{postId}/image and DELETE /posts/{postId}/image. Read
 	/// routes (GET by id/list) are outside this pin.
 	/// </summary>
-	private static bool IsTenantMutatingMediaEndpoint(
+	private static bool _IsTenantMutatingMediaEndpoint(
 		RouteEndpoint candidate,
 		out bool isImageRoute
 	) {
 		isImageRoute = false;
 		var path = candidate.RoutePattern.RawText ?? string.Empty;
 		if (!path.StartsWith(
-				TenantPostsPrefix + "/",
+				_TenantPostsPrefix + "/",
 				StringComparison.Ordinal)) {
 			return false;
 		}
@@ -293,12 +293,12 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 
 		if (httpMethods.Contains("DELETE")
 			&& path.EndsWith("/{postId}", StringComparison.Ordinal)
-			&& !path.EndsWith(ImageSuffix, StringComparison.Ordinal)) {
+			&& !path.EndsWith(_ImageSuffix, StringComparison.Ordinal)) {
 			isImageRoute = false;
 			return true;
 		}
 
-		if (path.EndsWith(ImageSuffix, StringComparison.Ordinal)
+		if (path.EndsWith(_ImageSuffix, StringComparison.Ordinal)
 			&& (httpMethods.Contains("POST") || httpMethods.Contains("DELETE"))) {
 			isImageRoute = true;
 			return true;
@@ -307,7 +307,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		return false;
 	}
 
-	private static string BuildEndpointKey(RouteEndpoint endpoint) {
+	private static string _BuildEndpointKey(RouteEndpoint endpoint) {
 		var httpMethodMetadata = endpoint.Metadata
 			.OfType<HttpMethodMetadata>()
 			.FirstOrDefault();
@@ -316,8 +316,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		return $"{method} {path}";
 	}
 
-	private IReadOnlyList<RouteEndpoint> GetAllRouteEndpoints() {
-		using var scope = _factory.Services.CreateScope();
+	private IReadOnlyList<RouteEndpoint> _GetAllRouteEndpoints() {
+		using var scope = _Factory.Services.CreateScope();
 		var dataSource = scope.ServiceProvider
 			.GetRequiredService<EndpointDataSource>();
 
@@ -327,7 +327,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	}
 
 	public void Dispose() {
-		_factory.Dispose();
+		_Factory.Dispose();
 	}
 
 	/// <summary>
@@ -360,9 +360,9 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		}
 	}
 
-	private readonly RouteMapFactory _factory = new();
+	private readonly RouteMapFactory _Factory = new();
 
-	private static Type? ResolveApiType(string fullName) {
+	private static Type? _ResolveApiType(string fullName) {
 		return ArchitectureDiscovery
 			.EnumerateApiTypes()
 			.FirstOrDefault(type =>
@@ -373,7 +373,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 				));
 	}
 
-	private static IEnumerable<Type> CollectMemberTypes(Type type) {
+	private static IEnumerable<Type> _CollectMemberTypes(Type type) {
 		const BindingFlags instanceScope =
 			BindingFlags.Public
 			| BindingFlags.NonPublic
@@ -403,7 +403,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		}
 	}
 
-	private static bool IsDbContextType(Type candidate) {
+	private static bool _IsDbContextType(Type candidate) {
 		if (candidate == typeof(AppDbContext)) {
 			return true;
 		}

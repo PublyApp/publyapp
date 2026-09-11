@@ -17,34 +17,34 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 // composer may target; this spec pins the Active filter, the tenant scope, and
 // the stable created_at/id order over real ephemeral Postgres.
 public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public PublishTargetServiceSpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReturnOnlyActiveTenantTargetsInCreatedAtIdOrder() {
-		await using var db = await NewDbAsync();
-		var (tenantId, foreignTenantId) = await SeedTenantsAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, foreignTenantId) = await _SeedTenantsAsync(db);
 
-		var oldActive = await SeedAccountAsync(
+		var oldActive = await _SeedAccountAsync(
 			db, tenantId, "@targets-old.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 120
 		);
-		var everywhere = await SeedAccountAsync(
+		var everywhere = await _SeedAccountAsync(
 			db, tenantId, "@targets-everywhere.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 90
 		);
-		var recentActive = await SeedAccountAsync(
+		var recentActive = await _SeedAccountAsync(
 			db, tenantId, "@targets-recent.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 60
 		);
-		await SeedAccountAsync(
+		await _SeedAccountAsync(
 			db, tenantId, "@targets-stale.bsky.social",
 			SocialAccountStatus.NeedsReconnect, minutesAgo: 30
 		);
-		await SeedAccountAsync(
+		await _SeedAccountAsync(
 			db, foreignTenantId, "@foreign-target.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 10
 		);
@@ -62,19 +62,19 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldApplyTheSingleVisibilityRulePerProject() {
-		await using var db = await NewDbAsync();
-		var (tenantId, _) = await SeedTenantsAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, _) = await _SeedTenantsAsync(db);
 
-		var attached = await SeedAccountAsync(
+		var attached = await _SeedAccountAsync(
 			db, tenantId, "@targets-attached.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 100
 		);
-		var roaming = await SeedAccountAsync(
+		var roaming = await _SeedAccountAsync(
 			db, tenantId, "@targets-roaming.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 80
 		);
-		var projectOne = await SeedProjectAsync(db, tenantId);
-		var projectTwo = await SeedProjectAsync(db, tenantId);
+		var projectOne = await _SeedProjectAsync(db, tenantId);
+		var projectTwo = await _SeedProjectAsync(db, tenantId);
 		db.SocialAccountProject.Add(new SocialAccountProject {
 			SocialAccountId = attached,
 			ProjectId = projectOne,
@@ -97,10 +97,10 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNeverLeakAnotherTenantsAccounts() {
-		await using var db = await NewDbAsync();
-		var (tenantId, foreignTenantId) = await SeedTenantsAsync(db);
+		await using var db = await _NewDbAsync();
+		var (tenantId, foreignTenantId) = await _SeedTenantsAsync(db);
 
-		await SeedAccountAsync(
+		await _SeedAccountAsync(
 			db, foreignTenantId, "@leak-probe.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 1
 		);
@@ -116,8 +116,8 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ────────────────────────────────────────────────────────
 
-	private async Task<AppDbContext> NewDbAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<AppDbContext> _NewDbAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -135,7 +135,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static async Task<(Guid TenantId, Guid ForeignTenantId)> SeedTenantsAsync(
+	private static async Task<(Guid TenantId, Guid ForeignTenantId)> _SeedTenantsAsync(
 		AppDbContext db
 	) {
 		var tenant = new PublyApp.Api.Modules.Tenants.Entities.Tenant {
@@ -159,7 +159,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 	// The SaveChanges interceptor rewrites CreatedAt for BaseAttributesNoKey
 	// descendants on insert, so the pinned creation order is applied with a raw
 	// UPDATE afterwards.
-	private static async Task<Guid> SeedAccountAsync(
+	private static async Task<Guid> _SeedAccountAsync(
 		AppDbContext db,
 		Guid tenantId,
 		string displayHandle,
@@ -182,7 +182,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 		return account.GetRequiredId();
 	}
 
-	private static async Task<Guid> SeedProjectAsync(
+	private static async Task<Guid> _SeedProjectAsync(
 		AppDbContext db,
 		Guid tenantId
 	) {

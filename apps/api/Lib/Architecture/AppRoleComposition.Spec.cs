@@ -38,7 +38,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// must never appear in the api role. InvitationEmailOutboxDispatcher is on this list
 	// even though it lives outside Infrastructure.Jobs: it is a BackgroundService that
 	// claims outbox rows, which is what makes it a job hosted service (design §3.2, C5).
-	private static readonly Type[] JobHostedServiceTypes = [
+	private static readonly Type[] _JobHostedServiceTypes = [
 		typeof(WorkerMigrationStartupGate),
 		typeof(JobQueueProcessor),
 		typeof(SchedulerLeaderService),
@@ -51,7 +51,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// The ONLY hosted services permitted in the Api-role graph. Every entry needs a
 	// reason it performs no background/queue work. Identified by full type name because
 	// the framework types here are internal and cannot be referenced with typeof.
-	private static readonly string[] ApiRoleAllowedHostedServices = [
+	private static readonly string[] _ApiRoleAllowedHostedServices = [
 		// Registered by AddHealthChecks() in AddInfraServices. It only pushes health
 		// results to registered IHealthCheckPublisher implementations — we register
 		// none, so it is inert. It claims no work and touches no queue.
@@ -82,19 +82,19 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public void ItShouldMapEndpointsAndRegisterZeroJobHostedServicesForTheApiRole() {
 		var builder = Program.CreateWebHostBuilder([], AppRole.Api);
-		AssertNoDirectHostedServiceCollectionRegistration(builder.Services);
-		AssertAllHostedServiceDescriptorsAreSingleton(builder.Services);
+		_AssertNoDirectHostedServiceCollectionRegistration(builder.Services);
+		_AssertAllHostedServiceDescriptorsAreSingleton(builder.Services);
 
 		using var app = builder.Build();
 		Program.ConfigureHttpPipeline(app);
 
-		AssertResolvedHostedServicesAreAllowlisted(app.Services);
+		_AssertResolvedHostedServicesAreAllowlisted(app.Services);
 
-		CountMappedEndpoints(app).Should().BeGreaterThan(0, "the api role maps the HTTP surface");
+		_CountMappedEndpoints(app).Should().BeGreaterThan(0, "the api role maps the HTTP surface");
 		app.Services.GetService<IServer>()
 			.Should().NotBeNull("the api role hosts a real HTTP server");
 
-		AssertJobProducerResolves(app.Services, "api");
+		_AssertJobProducerResolves(app.Services, "api");
 	}
 
 	// --- worker role: Generic Host — NO HTTP server exists, full graph resolves --
@@ -104,7 +104,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		var builder = Program.CreateWorkerHostBuilder([]);
 
 		// The worker runs the job engine ...
-		AssertHasJobHostedServices(builder.Services);
+		_AssertHasJobHostedServices(builder.Services);
 
 		using var host = builder.Build();
 
@@ -125,8 +125,8 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		scope.ServiceProvider.GetRequiredService<AppDbContext>()
 			.Should().NotBeNull("the worker must resolve AppDbContext to run jobs");
 
-		AssertJobProducerResolves(host.Services, "worker");
-		AssertEmailJobHandlersResolve(host.Services);
+		_AssertJobProducerResolves(host.Services, "worker");
+		_AssertEmailJobHandlersResolve(host.Services);
 	}
 
 	// --- all role: both surfaces -------------------------------------------------
@@ -134,17 +134,17 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public void ItShouldRegisterBothSurfacesForTheAllRole() {
 		var builder = Program.CreateWebHostBuilder([], AppRole.All);
-		AssertHasJobHostedServices(builder.Services);
+		_AssertHasJobHostedServices(builder.Services);
 
 		using var app = builder.Build();
 		Program.ConfigureHttpPipeline(app);
 
-		CountMappedEndpoints(app).Should().BeGreaterThan(0, "the all role maps the HTTP surface");
+		_CountMappedEndpoints(app).Should().BeGreaterThan(0, "the all role maps the HTTP surface");
 		app.Services.GetService<IServer>()
 			.Should().NotBeNull("the all role hosts a real HTTP server");
 
-		AssertJobProducerResolves(app.Services, "all");
-		AssertEmailJobHandlersResolve(app.Services);
+		_AssertJobProducerResolves(app.Services, "all");
+		_AssertEmailJobHandlersResolve(app.Services);
 	}
 
 	// --- red controls: the guard must FAIL on a hosted-service leak -----------------
@@ -160,7 +160,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 
 		using var app = builder.Build();
 
-		var act = () => AssertResolvedHostedServicesAreAllowlisted(app.Services);
+		var act = () => _AssertResolvedHostedServicesAreAllowlisted(app.Services);
 
 		act.Should().Throw<Exception>("a re-added job hosted service must be caught by the allowlist")
 			.Which.Message.Should().Contain(nameof(InvitationEmailOutboxDispatcher));
@@ -190,7 +190,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 				"DI resolves the direct IEnumerable<IHostedService> registration verbatim");
 
 		// The shape guard rejects it at construction time.
-		var act = () => AssertNoDirectHostedServiceCollectionRegistration(builder.Services);
+		var act = () => _AssertNoDirectHostedServiceCollectionRegistration(builder.Services);
 
 		act.Should().Throw<Exception>("a direct hosted-service collection must be rejected")
 			.Which.Message.Should().Contain("IEnumerable<IHostedService>");
@@ -232,7 +232,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		// keys on the descriptor LIFETIME — the split-resolution vector — not on what the
 		// factory returns (a factory's concrete type is unknowable before resolution, which
 		// is precisely why a resolved snapshot cannot be trusted for a non-singleton).
-		var act = () => AssertAllHostedServiceDescriptorsAreSingleton(builder.Services);
+		var act = () => _AssertAllHostedServiceDescriptorsAreSingleton(builder.Services);
 
 		act.Should().Throw<Exception>("a non-singleton hosted service must be rejected by shape")
 			.Which.Message.Should().Contain(nameof(ServiceLifetime.Transient));
@@ -246,7 +246,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// allowlist then catches the Production-only leak it would otherwise miss.
 	[Fact]
 	public void ItShouldCatchAProductionOnlyHostedServiceWhenComposedUnderProduction() {
-		var builder = CreateApiBuilderUnderProduction();
+		var builder = _CreateApiBuilderUnderProduction();
 
 		builder.Environment.IsProduction().Should().BeTrue(
 			"the guard must compose the api graph under Production so a Production-only "
@@ -258,7 +258,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 
 		using var app = builder.Build();
 
-		var act = () => AssertResolvedHostedServicesAreAllowlisted(app.Services);
+		var act = () => _AssertResolvedHostedServicesAreAllowlisted(app.Services);
 
 		act.Should().Throw<Exception>("a Production-only job hosted service must be caught")
 			.Which.Message.Should().Contain(nameof(InvitationEmailOutboxDispatcher));
@@ -269,13 +269,13 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// graph starts are the allowlisted web-host + health-publisher services.
 	[Fact]
 	public void ItShouldRegisterZeroJobHostedServicesForTheApiRoleUnderProduction() {
-		var builder = CreateApiBuilderUnderProduction();
-		AssertNoDirectHostedServiceCollectionRegistration(builder.Services);
-		AssertAllHostedServiceDescriptorsAreSingleton(builder.Services);
+		var builder = _CreateApiBuilderUnderProduction();
+		_AssertNoDirectHostedServiceCollectionRegistration(builder.Services);
+		_AssertAllHostedServiceDescriptorsAreSingleton(builder.Services);
 
 		using var app = builder.Build();
 
-		AssertResolvedHostedServicesAreAllowlisted(app.Services);
+		_AssertResolvedHostedServicesAreAllowlisted(app.Services);
 	}
 
 	// The strongest fidelity control (finding F2): resolve the api-role hosted-service graph
@@ -286,13 +286,13 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// service the deployed api process would START is on the allowlist.
 	[Fact]
 	public void ItShouldStartOnlyAllowlistedHostedServicesForTheApiRoleInAProductionProcess() {
-		var resolved = RunHostedServiceManifestInProductionProcess(appRole: "api");
+		var resolved = _RunHostedServiceManifestInProductionProcess(appRole: "api");
 
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 
 		List<string> unexpected = resolved
-			.Where(name => !ApiRoleAllowedHostedServices.Contains(name, StringComparer.Ordinal))
+			.Where(name => !_ApiRoleAllowedHostedServices.Contains(name, StringComparer.Ordinal))
 			.ToList();
 
 		unexpected.Should().BeEmpty(
@@ -307,9 +307,9 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// bind a port). This asserts the manifest of an isolated Production worker process.
 	[Fact]
 	public void ItShouldStartJobHostedServicesAndNoHttpServerForTheWorkerRoleInAProductionProcess() {
-		var resolved = RunHostedServiceManifestInProductionProcess(appRole: "worker");
+		var resolved = _RunHostedServiceManifestInProductionProcess(appRole: "worker");
 
-		foreach (var hostedServiceType in JobHostedServiceTypes) {
+		foreach (var hostedServiceType in _JobHostedServiceTypes) {
 			if (hostedServiceType.FullName is null) {
 				throw new InvalidOperationException(
 					$"{hostedServiceType.Name} has no full name"
@@ -336,14 +336,14 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// standard --environment switch, without mutating the process-wide ASPNETCORE_ENVIRONMENT
 	// the integration fixture set to Testing. This flips builder.Environment (the
 	// IHostEnvironment source composition gates hosted registrations on) to Production.
-	private static WebApplicationBuilder CreateApiBuilderUnderProduction() {
+	private static WebApplicationBuilder _CreateApiBuilderUnderProduction() {
 		return Program.CreateWebHostBuilder(
 			["--environment", EnvironmentNames.Production], AppRole.Api);
 	}
 
 	// Spawns the shipped api assembly as an isolated child process configured exactly like a
 	// production api deployment and parses the --print-hosted-services manifest it emits.
-	private static List<string> RunHostedServiceManifestInProductionProcess(string appRole) {
+	private static List<string> _RunHostedServiceManifestInProductionProcess(string appRole) {
 		var assemblyPath = typeof(Program).Assembly.Location;
 
 		var startInfo = new ProcessStartInfo {
@@ -405,7 +405,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private static int CountMappedEndpoints(WebApplication app) {
+	private static int _CountMappedEndpoints(WebApplication app) {
 		return ((IEndpointRouteBuilder)app).DataSources.Sum(dataSource => dataSource.Endpoints.Count);
 	}
 
@@ -433,18 +433,18 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// instances the host would start — whatever registration shape produced them, an
 	// individual descriptor, a factory, or a direct collection registration — so their real
 	// concrete types are always inspected, never assumed.
-	private static void AssertResolvedHostedServicesAreAllowlisted(IServiceProvider services) {
+	private static void _AssertResolvedHostedServicesAreAllowlisted(IServiceProvider services) {
 		List<string> unexpected = services
 			.GetServices<IHostedService>()
 			.Select(hostedService =>
 				hostedService.GetType().FullName ?? hostedService.GetType().Name)
-			.Where(name => !ApiRoleAllowedHostedServices.Contains(name, StringComparer.Ordinal))
+			.Where(name => !_ApiRoleAllowedHostedServices.Contains(name, StringComparer.Ordinal))
 			.ToList();
 
 		unexpected.Should().BeEmpty(
 			"the api role must START ZERO job/worker hosted services (design §3.2, D1); "
 			+ "if one of these is genuinely api-safe, add it to "
-			+ nameof(ApiRoleAllowedHostedServices) + " with the reason it runs no background work"
+			+ nameof(_ApiRoleAllowedHostedServices) + " with the reason it runs no background work"
 		);
 	}
 
@@ -455,12 +455,12 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// directly, so the SHAPE is rejected at construction time: it keeps "fail by
 	// construction" intact for a registration whose future contents a resolved snapshot
 	// cannot vouch will stay allowlisted.
-	private static void AssertNoDirectHostedServiceCollectionRegistration(
+	private static void _AssertNoDirectHostedServiceCollectionRegistration(
 		IServiceCollection services
 	) {
 		List<string> direct = services
 			.Where(descriptor => descriptor.ServiceType == typeof(IEnumerable<IHostedService>))
-			.Select(DescribeHostedServiceCollection)
+			.Select(_DescribeHostedServiceCollection)
 			.ToList();
 
 		direct.Should().BeEmpty(
@@ -468,7 +468,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			+ "resolves such a registration instead of synthesizing the collection from "
 			+ "individual IHostedService descriptors, so Host.StartAsync would start whatever "
 			+ "it yields with no per-descriptor entry for "
-			+ nameof(ApiRoleAllowedHostedServices) + " to inspect (design §3.2, D1)"
+			+ nameof(_ApiRoleAllowedHostedServices) + " to inspect (design §3.2, D1)"
 		);
 	}
 
@@ -480,13 +480,13 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// type and the host a job service. There is no api-safe reason to register a non-singleton
 	// hosted service, so the LIFETIME is rejected at construction time — keeping the allowlist
 	// snapshot trustworthy by construction.
-	private static void AssertAllHostedServiceDescriptorsAreSingleton(IServiceCollection services) {
+	private static void _AssertAllHostedServiceDescriptorsAreSingleton(IServiceCollection services) {
 		List<string> nonSingleton = services
 			.Where(descriptor =>
 				descriptor.ServiceType == typeof(IHostedService)
 				&& descriptor.Lifetime != ServiceLifetime.Singleton)
 			.Select(descriptor =>
-				$"{DescribeHostedServiceImplementation(descriptor)} ({descriptor.Lifetime})")
+				$"{_DescribeHostedServiceImplementation(descriptor)} ({descriptor.Lifetime})")
 			.ToList();
 
 		nonSingleton.Should().BeEmpty(
@@ -499,7 +499,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 
 	// Best-effort concrete type name for an IHostedService descriptor, whatever registration
 	// shape it took (implementation type, instance, or factory).
-	private static string DescribeHostedServiceImplementation(ServiceDescriptor descriptor) {
+	private static string _DescribeHostedServiceImplementation(ServiceDescriptor descriptor) {
 		if (descriptor.ImplementationType is not null) {
 			return descriptor.ImplementationType.FullName ?? descriptor.ImplementationType.Name;
 		}
@@ -515,7 +515,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		return "(IHostedService factory registration)";
 	}
 
-	private static string DescribeHostedServiceCollection(ServiceDescriptor descriptor) {
+	private static string _DescribeHostedServiceCollection(ServiceDescriptor descriptor) {
 		if (descriptor.ImplementationType is not null) {
 			return descriptor.ImplementationType.FullName ?? descriptor.ImplementationType.Name;
 		}
@@ -532,13 +532,13 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 	// The trusted enqueue boundary (IJobEnqueuer) is the producer surface and must
 	// resolve in EVERY role (design §3.2 matrix, last row). Scoped, so resolve inside
 	// a scope; resolving also proves its dependency graph (AppDbContext) is intact.
-	private static void AssertJobProducerResolves(IServiceProvider services, string roleName) {
+	private static void _AssertJobProducerResolves(IServiceProvider services, string roleName) {
 		using var scope = services.CreateScope();
 		scope.ServiceProvider.GetService<IJobEnqueuer>()
 			.Should().NotBeNull($"the {roleName} role must resolve the IJobEnqueuer producer boundary");
 	}
 
-	private static void AssertEmailJobHandlersResolve(IServiceProvider services) {
+	private static void _AssertEmailJobHandlersResolve(IServiceProvider services) {
 		var registry = services.GetRequiredService<JobHandlerRegistry>();
 		registry.RegisteredJobTypes.Should().BeEquivalentTo([
 			InvitationEmailJobs.TenantInvitationV1.JobType,
@@ -557,12 +557,12 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		]);
 	}
 
-	private static void AssertHasJobHostedServices(IServiceCollection services) {
+	private static void _AssertHasJobHostedServices(IServiceCollection services) {
 		var jobHostedServiceOrder = services
 			.Where(descriptor =>
 				descriptor.ServiceType == typeof(IHostedService)
 				&& descriptor.ImplementationType is not null
-				&& JobHostedServiceTypes.Contains(descriptor.ImplementationType))
+				&& _JobHostedServiceTypes.Contains(descriptor.ImplementationType))
 			.Select(descriptor => descriptor.ImplementationType)
 			.ToList();
 
@@ -572,13 +572,13 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			"the migration gate must start before every job-processing hosted service"
 		);
 
-		foreach (var hostedServiceType in JobHostedServiceTypes) {
-			HasHostedService(services, hostedServiceType)
+		foreach (var hostedServiceType in _JobHostedServiceTypes) {
+			_HasHostedService(services, hostedServiceType)
 				.Should().BeTrue($"the worker/all role must register {hostedServiceType.Name}");
 		}
 	}
 
-	private static bool HasHostedService(IServiceCollection services, Type implementationType) {
+	private static bool _HasHostedService(IServiceCollection services, Type implementationType) {
 		return services.Any(descriptor =>
 			descriptor.ServiceType == typeof(IHostedService)
 			&& descriptor.ImplementationType == implementationType);

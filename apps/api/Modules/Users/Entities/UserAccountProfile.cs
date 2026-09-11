@@ -21,34 +21,34 @@ public class UserAccountProfile : INoTenantEntity {
 	[Column("user_account_id")]
 	public Guid UserAccountId { get; set; }
 
-	private UserAccount? _userAccount;
+	private UserAccount? _UserAccount;
 	[JsonIgnore]
 	public UserAccount UserAccount {
 		get {
 			return RequiredNavigation.Get(
-				_userAccount,
+				_UserAccount,
 				nameof(UserAccountProfile),
 				nameof(UserAccount)
 			);
 		}
-		set { _userAccount = value; }
+		set { _UserAccount = value; }
 	}
 
 	// Foreign key to profiles.id; second half of the composite primary key.
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
 
-	private PublyApp.Api.Modules.Profiles.Entities.Profile? _profile;
+	private PublyApp.Api.Modules.Profiles.Entities.Profile? _Profile;
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Profiles.Entities.Profile Profile {
 		get {
 			return RequiredNavigation.Get(
-				_profile,
+				_Profile,
 				nameof(UserAccountProfile),
 				nameof(Profile)
 			);
 		}
-		set { _profile = value; }
+		set { _Profile = value; }
 	}
 
 	// Keep assignment timestamps because profile-user lists sort by when the link was created.

@@ -57,12 +57,12 @@ public interface IPublishNowService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class PublishNowService : IPublishNowService {
-	private readonly AppDbContext _db;
-	private readonly IJobEnqueuer _jobEnqueuer;
+	private readonly AppDbContext _Db;
+	private readonly IJobEnqueuer _JobEnqueuer;
 
 	public PublishNowService(AppDbContext db, IJobEnqueuer jobEnqueuer) {
-		_db = db;
-		_jobEnqueuer = jobEnqueuer;
+		_Db = db;
+		_JobEnqueuer = jobEnqueuer;
 	}
 
 	public async Task<PublishNowResult> PublishNowAsync(
@@ -73,7 +73,7 @@ public sealed class PublishNowService : IPublishNowService {
 			.Distinct()
 			.ToList();
 
-		var post = await _db.Post.SingleOrDefaultAsync(
+		var post = await _Db.Post.SingleOrDefaultAsync(
 			p => p.Id == args.PostId
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted,
@@ -83,12 +83,12 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.PostNotFound();
 		}
 
-		var candidates = await _db.SocialAccount
+		var candidates = await _Db.SocialAccount
 			.Where(account => account.TenantId == args.TenantId
 				&& account.Id != null
 				&& requestedIds.Contains(account.Id.Value))
 			.ToListAsync(cancellationToken);
-		await AttachProjectLinksAsync(candidates, cancellationToken);
+		await _AttachProjectLinksAsync(candidates, cancellationToken);
 
 		var knownIds = candidates
 			.Select(account => account.GetRequiredId())
@@ -111,7 +111,7 @@ public sealed class PublishNowService : IPublishNowService {
 			.Select(account => account.GetRequiredId())
 			.ToList();
 
-		var liveAccountIds = await LivePairAccountIdsAsync(
+		var liveAccountIds = await _LivePairAccountIdsAsync(
 			post.GetRequiredId(),
 			eligibleIds,
 			cancellationToken
@@ -120,7 +120,7 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
 		}
 
-		return await CreatePublicationsAndEnqueueAsync(
+		return await _CreatePublicationsAndEnqueueAsync(
 			args,
 			post.GetRequiredId(),
 			eligible,
@@ -131,14 +131,14 @@ public sealed class PublishNowService : IPublishNowService {
 	// The batch write: publications + their delivery jobs commit together or not
 	// at all. The row id is minted BEFORE insert so the deterministic key derives
 	// from the true id (pattern proven in JobQueueProcessor.cs).
-	private async Task<PublishNowResult> CreatePublicationsAndEnqueueAsync(
+	private async Task<PublishNowResult> _CreatePublicationsAndEnqueueAsync(
 		PublishNowArgs args,
 		Guid postId,
 		List<SocialAccount> candidates,
 		CancellationToken cancellationToken
 	) {
 		await using var transaction =
-			await _db.Database.BeginTransactionAsync(cancellationToken);
+			await _Db.Database.BeginTransactionAsync(cancellationToken);
 		try {
 			var scheduledAtUtc = DateTime.UtcNow;
 			var keysByPublicationId = new List<(Guid PublicationId, string Key)>(
@@ -157,14 +157,14 @@ public sealed class PublishNowService : IPublishNowService {
 					IdempotencyKey = idempotencyKey,
 				};
 				publication.Id = publicationId;
-				_db.Publication.Add(publication);
+				_Db.Publication.Add(publication);
 				keysByPublicationId.Add((publicationId, idempotencyKey));
 			}
 
-			await _db.SaveChangesAsync(cancellationToken);
+			await _Db.SaveChangesAsync(cancellationToken);
 
 			foreach (var (publicationId, key) in keysByPublicationId) {
-				await _jobEnqueuer.EnqueueAsync(
+				await _JobEnqueuer.EnqueueAsync(
 					PublishingJobs.PublishPublicationV1,
 					new PublishPublicationPayload {
 						PublicationId = publicationId,
@@ -189,11 +189,11 @@ public sealed class PublishNowService : IPublishNowService {
 			// violation into the SAME plain-words structured outcome the proactive
 			// check returns — never a raw 500. The tracker still holds the rolled-back
 			// Added rows; clear it so the follow-up audit write cannot re-insert them.
-			_db.ChangeTracker.Clear();
+			_Db.ChangeTracker.Clear();
 			var candidateIds = candidates
 				.Select(account => account.GetRequiredId())
 				.ToList();
-			var occupiedIds = await _db.Publication
+			var occupiedIds = await _Db.Publication
 				.Where(publication => !publication.IsDeleted)
 				.Where(publication => publication.PostId == postId)
 				.Where(publication => candidateIds.Contains(publication.SocialAccountId))
@@ -215,12 +215,12 @@ public sealed class PublishNowService : IPublishNowService {
 	// pair through the index: the remote record already exists and a second
 	// delivery would double-post; a caller racing past this check meets the index
 	// and gets the same outcome via the constraint translation below.
-	private async Task<List<Guid>> LivePairAccountIdsAsync(
+	private async Task<List<Guid>> _LivePairAccountIdsAsync(
 		Guid postId,
 		IReadOnlyList<Guid> accountIds,
 		CancellationToken cancellationToken
 	) {
-		return await _db.Publication
+		return await _Db.Publication
 			.Where(publication => !publication.IsDeleted)
 			.Where(publication =>
 				publication.Status == PublicationStatus.Scheduled
@@ -235,7 +235,7 @@ public sealed class PublishNowService : IPublishNowService {
 
 	// SocialAccount.Projects is [NotMapped]: the junction rows are loaded explicitly
 	// so the single-source VisibleIn.Visible rule sees real project links.
-	private async Task AttachProjectLinksAsync(
+	private async Task _AttachProjectLinksAsync(
 		List<SocialAccount> accounts,
 		CancellationToken cancellationToken
 	) {
@@ -246,7 +246,7 @@ public sealed class PublishNowService : IPublishNowService {
 		var accountIds = accounts
 			.Select(account => account.GetRequiredId())
 			.ToList();
-		var links = await _db.SocialAccountProject
+		var links = await _Db.SocialAccountProject
 			.Where(link => accountIds.Contains(link.SocialAccountId))
 			.ToListAsync(cancellationToken);
 

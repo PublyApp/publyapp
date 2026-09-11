@@ -15,24 +15,24 @@ namespace PublyApp.Api.Modules.SystemNotices.Handlers.Staff;
 
 public sealed class GetSystemNoticeByIdSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public GetSystemNoticeByIdSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkForExistingNotice() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_http, token,
+				_Http, token,
 				severity: "critical",
 				title: "Get Test Notice",
 				message: "Detailed message content"
@@ -46,7 +46,7 @@ public sealed class GetSystemNoticeByIdSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -69,7 +69,7 @@ public sealed class GetSystemNoticeByIdSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_http, token, noticeId
+						_Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -81,10 +81,10 @@ public sealed class GetSystemNoticeByIdSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutAuth() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_http, token
+				_Http, token
 			);
 
 		try {
@@ -95,7 +95,7 @@ public sealed class GetSystemNoticeByIdSpec
 			);
 
 			using var response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
@@ -103,7 +103,7 @@ public sealed class GetSystemNoticeByIdSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_http, token, noticeId
+						_Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -115,7 +115,7 @@ public sealed class GetSystemNoticeByIdSpec
 	public async Task
 	ItShouldReturnNotFoundForNonexistent() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var url = SystemNoticeTestHelper
 			.GetNoticeUrl(Guid.NewGuid());
 
@@ -124,7 +124,7 @@ public sealed class GetSystemNoticeByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -141,7 +141,7 @@ public sealed class GetSystemNoticeByIdSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var token =
-			await _authClient.LoginAsStaffAdminAsync();
+			await _AuthClient.LoginAsStaffAdminAsync();
 		var tempId = Guid.NewGuid();
 		var url = SystemNoticeTestHelper
 			.GetNoticeUrl(tempId)
@@ -157,7 +157,7 @@ public sealed class GetSystemNoticeByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);

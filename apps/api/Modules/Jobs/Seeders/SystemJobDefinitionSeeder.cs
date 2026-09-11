@@ -30,10 +30,10 @@ namespace PublyApp.Api.Modules.Jobs.Seeders;
 /// so only the CADENCE lives here.
 /// </summary>
 public class SystemJobDefinitionSeeder : IEntitySeeder {
-	private readonly ILogger<SystemJobDefinitionSeeder> _logger;
+	private readonly ILogger<SystemJobDefinitionSeeder> _Logger;
 
 	public SystemJobDefinitionSeeder(ILogger<SystemJobDefinitionSeeder>? logger = null) {
-		_logger = logger ?? SeederLoggerUtils.CreateDefault<SystemJobDefinitionSeeder>();
+		_Logger = logger ?? SeederLoggerUtils.CreateDefault<SystemJobDefinitionSeeder>();
 	}
 
 	// After the core reference data (permissions 10 … user accounts 40); these rows have
@@ -57,7 +57,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			return;
 		}
 
-		var definitions = GetDefinitions();
+		var definitions = _GetDefinitions();
 
 		var existingKeys = await (
 			from definition in dbContext.SystemJobDefinition
@@ -69,7 +69,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			.ToList();
 
 		if (missing.Count == 0) {
-			_logger.LogInformation(
+			_Logger.LogInformation(
 				"System job definition seeding skipped; all definitions already exist."
 			);
 			return;
@@ -94,8 +94,8 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			);
 		}
 
-		if (insertedCount > 0 && _logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation("Seeded {Count} system job definition(s).", insertedCount);
+		if (insertedCount > 0 && _Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation("Seeded {Count} system job definition(s).", insertedCount);
 		}
 	}
 
@@ -104,10 +104,10 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 	// definition drifts from this source of truth (an invalid or emptied cron), the
 	// reconcile reverts it to these values instead of honoring the corruption.
 	internal static IReadOnlyList<SystemJobDefinition> GetCodeDefinedDefaults() {
-		return GetDefinitions();
+		return _GetDefinitions();
 	}
 
-	private static List<SystemJobDefinition> GetDefinitions() {
+	private static List<SystemJobDefinition> _GetDefinitions() {
 		// #1912: IsEnabled is intentionally NOT set per row — the entity default
 		// (`public bool IsEnabled { get; set; } = true;`) is the single source of
 		// truth. The old explicit `IsEnabled = true` assignments were invisible to

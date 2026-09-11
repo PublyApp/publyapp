@@ -9,17 +9,17 @@ namespace PublyApp.Api.Infrastructure.Messaging.Email;
 /// directly — a future Resend SDK upgrade breaks here alone, never in tests or specs.
 /// </summary>
 public sealed class ResendEmailClientAdapter : IResendEmailClient {
-	private readonly IResend _resendClient;
+	private readonly IResend _ResendClient;
 
 	public ResendEmailClientAdapter(IResend resendClient) {
-		_resendClient = resendClient;
+		_ResendClient = resendClient;
 	}
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
-		return await _resendClient.EmailSendAsync(email, cancellationToken);
+		return await _ResendClient.EmailSendAsync(email, cancellationToken);
 	}
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
@@ -27,6 +27,6 @@ public sealed class ResendEmailClientAdapter : IResendEmailClient {
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
-		return await _resendClient.EmailSendAsync(idempotencyKey, email, cancellationToken);
+		return await _ResendClient.EmailSendAsync(idempotencyKey, email, cancellationToken);
 	}
 }

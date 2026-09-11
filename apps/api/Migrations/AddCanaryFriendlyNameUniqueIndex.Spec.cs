@@ -33,34 +33,34 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 	// migrations-assembly ordering instead of a hard-coded id (review round 2): a pinned
 	// predecessor silently drifts every time a migration is inserted above the target,
 	// widening what "the remaining migrations" means without failing anything.
-	private const string MigrationUnderTestSuffix = "_AddCanaryFriendlyNameUniqueIndex";
+	private const string _MigrationUnderTestSuffix = "_AddCanaryFriendlyNameUniqueIndex";
 
-	private PostgresContainerFixture _containerFixture = null!;
-	private string _dbName = null!;
-	private string _connectionString = null!;
+	private PostgresContainerFixture _ContainerFixture = null!;
+	private string _DbName = null!;
+	private string _ConnectionString = null!;
 
 	public async Task InitializeAsync() {
-		_containerFixture = await PostgresContainerFixture.GetSharedAsync();
-		_dbName = $"migtest_{Guid.NewGuid():N}";
+		_ContainerFixture = await PostgresContainerFixture.GetSharedAsync();
+		_DbName = $"migtest_{Guid.NewGuid():N}";
 
-		await using var adminConn = new NpgsqlConnection(_containerFixture.AdminConnectionString);
+		await using var adminConn = new NpgsqlConnection(_ContainerFixture.AdminConnectionString);
 		await adminConn.OpenAsync();
-		await using (var createCmd = new NpgsqlCommand($"CREATE DATABASE {_dbName}", adminConn)) {
+		await using (var createCmd = new NpgsqlCommand($"CREATE DATABASE {_DbName}", adminConn)) {
 			await createCmd.ExecuteNonQueryAsync();
 		}
 
-		var builder = new NpgsqlConnectionStringBuilder(_containerFixture.AdminConnectionString) {
-			Database = _dbName,
+		var builder = new NpgsqlConnectionStringBuilder(_ContainerFixture.AdminConnectionString) {
+			Database = _DbName,
 			Pooling = false
 		};
-		_connectionString = builder.ConnectionString;
+		_ConnectionString = builder.ConnectionString;
 	}
 
 	public async Task DisposeAsync() {
 		NpgsqlConnection.ClearAllPools();
-		await using var adminConn = new NpgsqlConnection(_containerFixture.AdminConnectionString);
+		await using var adminConn = new NpgsqlConnection(_ContainerFixture.AdminConnectionString);
 		await adminConn.OpenAsync();
-		await using var dropCmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS {_dbName}", adminConn);
+		await using var dropCmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS {_DbName}", adminConn);
 		await dropCmd.ExecuteNonQueryAsync();
 	}
 
@@ -68,19 +68,19 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 	public async Task
 	ItShouldSucceedAndDeduplicateWhenLegacyDataHasDuplicateCanaryRows() {
 		await using var dbContext = new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_connectionString).Options
+			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_ConnectionString).Options
 		);
 		var migrator = dbContext.GetService<IMigrator>();
 
 		// 1) Schema as of the migration immediately BEFORE the unique index.
-		await migrator.MigrateAsync(PreviousMigrationId(dbContext));
+		await migrator.MigrateAsync(_PreviousMigrationId(dbContext));
 
 		// 2) Seed exactly what the first-boot race produced in production (#1416): two
 		//    canary rows (the earliest boot keeps the lowest id), plus an ordinary Data
 		//    Protection key-ring row that must stay untouched.
 		const int winnerId = 100;
 		const int loserId = 200;
-		await using (var conn = new NpgsqlConnection(_connectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
 			await conn.OpenAsync();
 
 			await using var insertWinner = new NpgsqlCommand(
@@ -127,7 +127,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				+ "production database");
 
 		// 4) Exactly one canary survivor — the LOWEST id, carrying the earliest blob.
-		await using (var conn = new NpgsqlConnection(_connectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
 			await conn.OpenAsync();
 
 			await using var survivors = new NpgsqlCommand(
@@ -156,15 +156,15 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		}
 
 		// 5) The ordinary key-ring row is untouched by the repair.
-		(await CountRowsAsync("key-abc123")).Should().Be(1);
+		(await _CountRowsAsync("key-abc123")).Should().Be(1);
 
 		// 6) The partial unique index exists on the canary name only.
-		(await IndexExistsAsync("ux_data_protection_keys_canary_friendly_name"))
+		(await _IndexExistsAsync("ux_data_protection_keys_canary_friendly_name"))
 			.Should().BeTrue("the canary row name must be unique at the DATABASE level");
 
 		// 7) Enforcement: a second canary row is now impossible; another key-ring name
 		//    still inserts fine (the partial filter leaves every other row alone).
-		await using (var conn = new NpgsqlConnection(_connectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
 			await conn.OpenAsync();
 
 			await using var duplicateCanary = new NpgsqlCommand(
@@ -192,7 +192,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 			var insertOther = async () => await otherKeyRingRow.ExecuteNonQueryAsync();
 			await insertOther.Should().NotThrowAsync(
 				"Data Protection key-ring names keep working unchanged");
-			(await CountRowsAsync("key-def456")).Should().Be(1);
+			(await _CountRowsAsync("key-def456")).Should().Be(1);
 		}
 	}
 
@@ -202,20 +202,20 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 	/// drifts silently every time another migration is inserted above the target, so the
 	/// spec would migrate to an ever-staler schema point while staying green.
 	/// </summary>
-	private static string PreviousMigrationId(AppDbContext dbContext) {
+	private static string _PreviousMigrationId(AppDbContext dbContext) {
 		var orderedIds = dbContext.GetService<IMigrationsAssembly>()
 			.Migrations.Keys
 			.ToList();
 		var index = orderedIds.FindIndex(id =>
-			id.EndsWith(MigrationUnderTestSuffix, StringComparison.Ordinal));
+			id.EndsWith(_MigrationUnderTestSuffix, StringComparison.Ordinal));
 		index.Should().BeGreaterThan(
 			0,
 			"the migration under test must have a predecessor in the migrations assembly");
 		return orderedIds[index - 1];
 	}
 
-	private async Task<int> CountRowsAsync(string friendlyName) {
-		await using var conn = new NpgsqlConnection(_connectionString);
+	private async Task<int> _CountRowsAsync(string friendlyName) {
+		await using var conn = new NpgsqlConnection(_ConnectionString);
 		await conn.OpenAsync();
 		await using var cmd = new NpgsqlCommand(
 			"""
@@ -229,8 +229,8 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		return Convert.ToInt32(raw, System.Globalization.CultureInfo.InvariantCulture);
 	}
 
-	private async Task<bool> IndexExistsAsync(string indexName) {
-		await using var conn = new NpgsqlConnection(_connectionString);
+	private async Task<bool> _IndexExistsAsync(string indexName) {
+		await using var conn = new NpgsqlConnection(_ConnectionString);
 		await conn.OpenAsync();
 		await using var cmd = new NpgsqlCommand(
 			"""
@@ -253,19 +253,19 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldApplyAsANoOpAndStayIdempotentWhenTheCanaryIsAbsent() {
-		await using var dbContext = NewMigratorDbContext();
+		await using var dbContext = _NewMigratorDbContext();
 		var migrator = dbContext.GetService<IMigrator>();
 
 		// Schema as of the migration immediately BEFORE the unique index; no canary row
 		// seeded: the fresh-install shape.
-		await migrator.MigrateAsync(PreviousMigrationId(dbContext));
-		(await CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(0);
+		await migrator.MigrateAsync(_PreviousMigrationId(dbContext));
+		(await _CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(0);
 
 		var applyRemaining = async () => await migrator.MigrateAsync();
 		await applyRemaining.Should().NotThrowAsync(
 			"the dedupe DELETE must be a no-op on an empty canary set, never a bare error");
 
-		(await IndexExistsAsync("ux_data_protection_keys_canary_friendly_name"))
+		(await _IndexExistsAsync("ux_data_protection_keys_canary_friendly_name"))
 			.Should().BeTrue("the guard index must still be created on fresh installs");
 
 		// Idempotency: the migrate one-shot service may re-run the same migration on an
@@ -277,14 +277,14 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldLeaveASingleCanaryUntouchedAndStayIdempotentWhenTheCanaryIsPresentOnce() {
-		await using var dbContext = NewMigratorDbContext();
+		await using var dbContext = _NewMigratorDbContext();
 		var migrator = dbContext.GetService<IMigrator>();
 
-		await migrator.MigrateAsync(PreviousMigrationId(dbContext));
+		await migrator.MigrateAsync(_PreviousMigrationId(dbContext));
 
 		// Seed the healthy shape: exactly ONE canary row plus an ordinary key-ring row.
 		const int survivorId = 100;
-		await using (var conn = new NpgsqlConnection(_connectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
 			await conn.OpenAsync();
 			await using var insertSingle = new NpgsqlCommand(
 				"""
@@ -314,7 +314,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 			"the dedupe DELETE must remove nothing when there is exactly one canary row");
 
 		// The healthy row survives byte-identical; the ordinary key-ring row too.
-		await using (var conn = new NpgsqlConnection(_connectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
 			await conn.OpenAsync();
 			await using var read = new NpgsqlCommand(
 				"""
@@ -337,8 +337,8 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				"the repair must not touch or rewrite the surviving blob");
 		}
 
-		(await CountRowsAsync("key-abc123")).Should().Be(1);
-		(await IndexExistsAsync("ux_data_protection_keys_canary_friendly_name"))
+		(await _CountRowsAsync("key-abc123")).Should().Be(1);
+		(await _IndexExistsAsync("ux_data_protection_keys_canary_friendly_name"))
 			.Should().BeTrue("the guard index is created over the healthy row");
 
 		// Idempotent re-run (see the absent-state spec).
@@ -346,12 +346,12 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		await reapply.Should().NotThrowAsync("the migration is idempotent on re-run");
 
 		// And the enforcement still holds after everything: duplicates stay uninsertable.
-		(await CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(1);
+		(await _CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(1);
 	}
 
-	private AppDbContext NewMigratorDbContext() {
+	private AppDbContext _NewMigratorDbContext() {
 		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_connectionString).Options
+			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_ConnectionString).Options
 		);
 	}
 }

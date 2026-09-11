@@ -12,10 +12,10 @@ namespace PublyApp.Api.Lib.Filters;
 /// Sets UserId in AuthContext after successful authentication.
 /// </summary>
 public class SessionAuthFilter : IEndpointFilter {
-	private readonly ILogger<SessionAuthFilter> _logger;
+	private readonly ILogger<SessionAuthFilter> _Logger;
 
 	public SessionAuthFilter(ILogger<SessionAuthFilter> logger) {
-		_logger = logger;
+		_Logger = logger;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -31,7 +31,7 @@ public class SessionAuthFilter : IEndpointFilter {
 			?? httpContext.Request.Headers[env.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
-			_logger.LogDebug("Session token is missing in request");
+			_Logger.LogDebug("Session token is missing in request");
 			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
 		}
 
@@ -43,7 +43,7 @@ public class SessionAuthFilter : IEndpointFilter {
 			ApiRateLimitPartitionKeys
 				.WasSessionValidationAttempted(httpContext)
 		) {
-			_logger.LogDebug(
+			_Logger.LogDebug(
 				"Session token is invalid or expired"
 			);
 			return TypedProblems.Unauthorized(
@@ -56,7 +56,7 @@ public class SessionAuthFilter : IEndpointFilter {
 		var sessionData = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (sessionData is null) {
-			_logger.LogDebug("Session token is invalid or expired");
+			_Logger.LogDebug("Session token is invalid or expired");
 			return TypedProblems.Unauthorized("Session token is invalid or expired", ResponseKeys.Unauthorized);
 		}
 
@@ -65,7 +65,7 @@ public class SessionAuthFilter : IEndpointFilter {
 		authContext.UserId = sessionData.User.Id;
 
 		if (!authContext.IsAuthenticated) {
-			_logger.LogError("Failed to authenticate user, session has no user attached");
+			_Logger.LogError("Failed to authenticate user, session has no user attached");
 			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
 		}
 

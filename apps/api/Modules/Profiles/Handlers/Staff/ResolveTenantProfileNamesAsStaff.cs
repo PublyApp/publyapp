@@ -5,9 +5,9 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Localization;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 
@@ -16,10 +16,10 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 public sealed class ResolveTenantProfileNamesAsStaffBody {
 	public JsonElement Names { get; init; }
 
-	private bool _parsed;
-	private List<string> _names = [];
+	private bool _Parsed;
+	private List<string> _Names = [];
 
-	private List<string> ParseNames() {
+	private List<string> _ParseNames() {
 		if (Names.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("Names must be an array");
 		}
@@ -42,13 +42,13 @@ public sealed class ResolveTenantProfileNamesAsStaffBody {
 	}
 
 	public List<string> GetNames() {
-		if (_parsed) {
-			return _names;
+		if (_Parsed) {
+			return _Names;
 		}
 
-		_names = ParseNames();
-		_parsed = true;
-		return _names;
+		_Names = _ParseNames();
+		_Parsed = true;
+		return _Names;
 	}
 }
 

@@ -18,7 +18,7 @@ public enum JobQueueStatus {
 /// A durable, generic background job. Deliberately NOT a <see cref="BaseAttributes"/>
 /// entity: success is a HARD delete and terminal failure copies the row to
 /// job_dead_letter then hard-deletes it, so the soft-delete conversion in
-/// AppDbContext.UpdateAuditFields would actively fight the design. Only
+/// AppDbContext._UpdateAuditFields would actively fight the design. Only
 /// Pending/Processing are ever persisted — there is no Succeeded/Failed status
 /// (design §4.0/§4.1). Every engine transition (claim, renewal, requeue, complete,
 /// dead-letter) runs as raw SQL conditioned on <see cref="LockToken"/>, evaluated

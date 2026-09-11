@@ -14,12 +14,12 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class VerifyEmailRequestSpec
 	: IClassFixture<ApiFixture> {
-	private readonly HttpClient _http;
+	private readonly HttpClient _Http;
 
 	public VerifyEmailRequestSpec(
 		ApiFixture fixture
 	) {
-		_http = fixture.HttpClient;
+		_Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -35,7 +35,7 @@ public sealed class VerifyEmailRequestSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -58,7 +58,7 @@ public sealed class VerifyEmailRequestSpec
 		);
 
 		using var response =
-			await _http.SendAsync(request);
+			await _Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

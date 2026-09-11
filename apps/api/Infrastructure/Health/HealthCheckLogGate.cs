@@ -12,7 +12,7 @@ namespace PublyApp.Api.Infrastructure.Health;
 public sealed class HealthCheckLogGate {
 	public static readonly TimeSpan SampleInterval = TimeSpan.FromMinutes(1);
 
-	private readonly ConcurrentDictionary<string, LogState> _states = new(
+	private readonly ConcurrentDictionary<string, LogState> _States = new(
 		StringComparer.Ordinal
 	);
 
@@ -22,7 +22,7 @@ public sealed class HealthCheckLogGate {
 		string? failureReason,
 		DateTimeOffset now
 	) {
-		var state = _states.GetOrAdd(checkName, _ => new LogState());
+		var state = _States.GetOrAdd(checkName, _ => new LogState());
 
 		lock (state) {
 			if (state.LastStatus is null) {

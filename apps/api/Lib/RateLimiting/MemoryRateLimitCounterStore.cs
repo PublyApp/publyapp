@@ -13,7 +13,7 @@ internal sealed class MemoryRateLimitCounterStore
 	private readonly ConcurrentDictionary<
 		string,
 		WindowState
-	> _windows = new(StringComparer.Ordinal);
+	> _Windows = new(StringComparer.Ordinal);
 
 	public Task<CounterLeaseResult> AcquireAsync(
 		string policyName,
@@ -28,7 +28,7 @@ internal sealed class MemoryRateLimitCounterStore
 				utcNow,
 				window
 			);
-		var state = _windows.GetOrAdd(
+		var state = _Windows.GetOrAdd(
 			$"{policyName}\n{partitionKey}",
 			_ => new WindowState()
 		);
@@ -55,7 +55,7 @@ internal sealed class MemoryRateLimitCounterStore
 	}
 
 	public ValueTask DisposeAsync() {
-		_windows.Clear();
+		_Windows.Clear();
 		return ValueTask.CompletedTask;
 	}
 

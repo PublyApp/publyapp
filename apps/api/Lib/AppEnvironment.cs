@@ -16,15 +16,15 @@ public class AppEnvironment {
 	internal const long DefaultUploadPerStaffMaxBytes = 104_857_600;
 
 	// Static accessor for use outside DI
-	private static AppEnvironment? _instance;
-	private static readonly Lock InitLock = new();
+	private static AppEnvironment? _Instance;
+	private static readonly Lock _InitLock = new();
 
 	/// <summary>
 	/// Gets the initialized instance. Throws if Initialize() hasn't been called.
 	/// </summary>
 	public static AppEnvironment Instance {
 		get {
-			var instance = Volatile.Read(ref _instance);
+			var instance = Volatile.Read(ref _Instance);
 			if (instance is null) {
 				throw new InvalidOperationException(
 					"AppEnvironment not initialized. "
@@ -125,7 +125,7 @@ public class AppEnvironment {
 	// job engine) so local dev and the worker integration fixtures need no extra config.
 	//
 	// In EVERY other host environment — Production, Staging, or an unset
-	// ASPNETCORE_ENVIRONMENT/DOTNET_ENVIRONMENT, which GetHostEnvironmentName resolves to
+	// ASPNETCORE_ENVIRONMENT/DOTNET_ENVIRONMENT, which _GetHostEnvironmentName resolves to
 	// Production — a missing or blank APP_ROLE is a fail-fast startup error (C6/F24).
 	// `All` composes the job engine into the process, so inheriting it by omission would
 	// silently run the worker surface inside a container an operator intended as
@@ -223,7 +223,7 @@ public class AppEnvironment {
 	public static bool IsDevelopment {
 		get {
 			return string.Equals(
-		GetHostEnvironmentName(),
+		_GetHostEnvironmentName(),
 		EnvironmentNames.Development,
 		StringComparison.OrdinalIgnoreCase
 	);
@@ -233,7 +233,7 @@ public class AppEnvironment {
 	public static bool IsProduction {
 		get {
 			return string.Equals(
-		GetHostEnvironmentName(),
+		_GetHostEnvironmentName(),
 		EnvironmentNames.Production,
 		StringComparison.OrdinalIgnoreCase
 	);
@@ -243,7 +243,7 @@ public class AppEnvironment {
 	public static bool IsTesting {
 		get {
 			return string.Equals(
-		GetHostEnvironmentName(),
+		_GetHostEnvironmentName(),
 		EnvironmentNames.Testing,
 		StringComparison.OrdinalIgnoreCase
 	);
@@ -256,7 +256,7 @@ public class AppEnvironment {
 	// Production, Staging, or an UNSET host environment (what a bare container gets)
 	// refuses — fail closed.
 	public static bool IsProbeAllowedHostEnvironment() {
-		var name = GetHostEnvironmentName();
+		var name = _GetHostEnvironmentName();
 		return string.Equals(
 				name,
 				EnvironmentNames.Development,
@@ -271,7 +271,7 @@ public class AppEnvironment {
 
 	// Resolves the host environment name WITHOUT the Production fallback, so callers can
 	// distinguish "resolved to X" from "nothing is set" (bare container). Mirrors
-	// GetHostEnvironmentName()'s precedence: ASPNETCORE_ENVIRONMENT first, then
+	// _GetHostEnvironmentName()'s precedence: ASPNETCORE_ENVIRONMENT first, then
 	// DOTNET_ENVIRONMENT. Blank values count as unset — an empty variable must never be
 	// reported as a resolved environment name.
 	public static bool TryGetHostEnvironmentName(out string name) {
@@ -313,7 +313,7 @@ public class AppEnvironment {
 
 	public static string EnvironmentName {
 		get {
-			return GetHostEnvironmentName();
+			return _GetHostEnvironmentName();
 		}
 	}
 #pragma warning restore CA1822
@@ -405,7 +405,7 @@ public class AppEnvironment {
 		RESEND_API_KEY = resendApiKey;
 		STAFF_OWNER_EMAIL = staffOwnerEmail;
 		STAFF_OWNER_BOOTSTRAP_CODE = staffOwnerBootstrapCode;
-		SocialAccountsMasterKey = ParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", socialAccountsMasterKey);
+		SocialAccountsMasterKey = _ParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", socialAccountsMasterKey);
 		APP_NAME = appName;
 		DEFAULT_EMAIL_SENDER_EMAIL = defaultEmailSenderEmail;
 		DEFAULT_EMAIL_SENDER_NAME = defaultEmailSenderName;
@@ -508,51 +508,51 @@ public class AppEnvironment {
 		//   and certain hosting scenarios can cause multiple entrypoints/threads to access config.
 		// - We guarantee exactly-once initialization with a lock + Volatile reads/writes so that
 		//   any thread that reads `Instance` after initialization sees a fully-constructed object.
-		var existing = Volatile.Read(ref _instance);
+		var existing = Volatile.Read(ref _Instance);
 		if (existing is not null) {
 			return existing;
 		}
 
-		lock (InitLock) {
-			existing = Volatile.Read(ref _instance);
+		lock (_InitLock) {
+			existing = Volatile.Read(ref _Instance);
 			if (existing is not null) {
 				return existing;
 			}
 
-			LoadDotEnvIfDevelopment();
+			_LoadDotEnvIfDevelopment();
 
 			var settings = new AppEnvironment(
 				// Environment variables
-				postgresConnectionString: GetRequiredString(nameof(POSTGRES_CONNECTION_STRING)),
-				frontUrl: GetRequiredString(nameof(FRONT_URL)),
-				resendApiKey: GetRequiredString(nameof(RESEND_API_KEY)),
-				staffOwnerEmail: GetRequiredString(nameof(STAFF_OWNER_EMAIL)),
-				staffOwnerBootstrapCode: GetRequiredString(nameof(STAFF_OWNER_BOOTSTRAP_CODE)),
-				socialAccountsMasterKey: GetRequiredString("SOCIAL_ACCOUNTS_MASTER_KEY"),
-				appName: GetRequiredString(nameof(APP_NAME)),
-				defaultEmailSenderEmail: GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_EMAIL)),
-				defaultEmailSenderName: GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_NAME)),
-				sessionTokenHeaderKey: GetRequiredString(nameof(SESSION_TOKEN_HEADER_KEY)),
-				tenantIdHeaderKey: GetRequiredString(nameof(TENANT_ID_HEADER_KEY)),
-				sessionExpiryDays: GetRequiredInt(nameof(SESSION_EXPIRY_DAYS)),
-				emailVerifyTokenValidityDuration: GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_VALIDITY_DURATION)),
-				passwordResetTokenValidityDuration: GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_VALIDITY_DURATION)),
-				passwordMinLength: GetRequiredInt(nameof(PASSWORD_MIN_LENGTH)),
-				emailVerifyTokenLength: GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_LENGTH)),
-				passwordResetTokenLength: GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_LENGTH)),
-				invitationTokenLength: GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
-				diManifestEnabled: GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
-				auditLogExportMaxRows: GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
-				maxProfilesPerUser: GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5),
-				tenantUserExportMaxRows: GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000),
-				tenantActivityThrottleMinutes: GetOptionalInt(nameof(TENANT_ACTIVITY_THROTTLE_MINUTES), 5),
+				postgresConnectionString: _GetRequiredString(nameof(POSTGRES_CONNECTION_STRING)),
+				frontUrl: _GetRequiredString(nameof(FRONT_URL)),
+				resendApiKey: _GetRequiredString(nameof(RESEND_API_KEY)),
+				staffOwnerEmail: _GetRequiredString(nameof(STAFF_OWNER_EMAIL)),
+				staffOwnerBootstrapCode: _GetRequiredString(nameof(STAFF_OWNER_BOOTSTRAP_CODE)),
+				socialAccountsMasterKey: _GetRequiredString("SOCIAL_ACCOUNTS_MASTER_KEY"),
+				appName: _GetRequiredString(nameof(APP_NAME)),
+				defaultEmailSenderEmail: _GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_EMAIL)),
+				defaultEmailSenderName: _GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_NAME)),
+				sessionTokenHeaderKey: _GetRequiredString(nameof(SESSION_TOKEN_HEADER_KEY)),
+				tenantIdHeaderKey: _GetRequiredString(nameof(TENANT_ID_HEADER_KEY)),
+				sessionExpiryDays: _GetRequiredInt(nameof(SESSION_EXPIRY_DAYS)),
+				emailVerifyTokenValidityDuration: _GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_VALIDITY_DURATION)),
+				passwordResetTokenValidityDuration: _GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_VALIDITY_DURATION)),
+				passwordMinLength: _GetRequiredInt(nameof(PASSWORD_MIN_LENGTH)),
+				emailVerifyTokenLength: _GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_LENGTH)),
+				passwordResetTokenLength: _GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_LENGTH)),
+				invitationTokenLength: _GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
+				diManifestEnabled: _GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
+				auditLogExportMaxRows: _GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
+				maxProfilesPerUser: _GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5),
+				tenantUserExportMaxRows: _GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000),
+				tenantActivityThrottleMinutes: _GetOptionalInt(nameof(TENANT_ACTIVITY_THROTTLE_MINUTES), 5),
 				// Relative to the process's current working directory — mirrors how
 				// the Serilog file sink resolves ".artifacts/logs" (see LoggerConfigExtensions).
 				// This keeps the default identical across `dotnet watch run` (CWD = apps/api),
 				// `dotnet test` (CWD = test output dir), and the published container (CWD = /app),
 				// with no repo-root lookup needed.
-				fileStorageRoot: GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
-				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
+				fileStorageRoot: _GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
+				uploadMaxBytes: _GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
 				uploadGlobalMaxBytes: GetOptionalLong(
 					nameof(UPLOAD_GLOBAL_MAX_BYTES),
 					DefaultUploadGlobalMaxBytes
@@ -561,153 +561,153 @@ public class AppEnvironment {
 					nameof(UPLOAD_PER_STAFF_MAX_BYTES),
 					DefaultUploadPerStaffMaxBytes
 				),
-				uploadOrphanGraceDays: GetOptionalInt(nameof(UPLOAD_ORPHAN_GRACE_DAYS), 7),
-				uploadStaleReservationTtlMinutes: GetOptionalInt(
+				uploadOrphanGraceDays: _GetOptionalInt(nameof(UPLOAD_ORPHAN_GRACE_DAYS), 7),
+				uploadStaleReservationTtlMinutes: _GetOptionalInt(
 					nameof(UPLOAD_STALE_RESERVATION_TTL_MINUTES), 60
 				),
-				uploadStoredOrphanTtlMinutes: GetOptionalInt(
+				uploadStoredOrphanTtlMinutes: _GetOptionalInt(
 					nameof(UPLOAD_STORED_ORPHAN_TTL_MINUTES), 1440
 				),
-				trustedProxyCidrs: GetOptionalCsvList(
+				trustedProxyCidrs: _GetOptionalCsvList(
 					nameof(TRUSTED_PROXY_CIDRS),
 					["127.0.0.1/32", "::1/128"]
 				),
-				anonAuthIpRateLimitPermitLimit: GetOptionalInt(
+				anonAuthIpRateLimitPermitLimit: _GetOptionalInt(
 					nameof(ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				anonAuthIpRateLimitWindowSeconds: GetOptionalInt(
+				anonAuthIpRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				anonAuthEmailRateLimitPermitLimit: GetOptionalInt(
+				anonAuthEmailRateLimitPermitLimit: _GetOptionalInt(
 					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				anonAuthEmailRateLimitWindowSeconds: GetOptionalInt(
+				anonAuthEmailRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				passwordResetEmailRateLimitPermitLimit: GetOptionalInt(
+				passwordResetEmailRateLimitPermitLimit: _GetOptionalInt(
 					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					3
 				),
-				passwordResetEmailRateLimitWindowSeconds: GetOptionalInt(
+				passwordResetEmailRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					900
 				),
-				globalRateLimitPermitLimit: GetOptionalInt(
+				globalRateLimitPermitLimit: _GetOptionalInt(
 					nameof(GLOBAL_RATE_LIMIT_PERMIT_LIMIT),
 					6_000
 				),
-				globalRateLimitWindowSeconds: GetOptionalInt(
+				globalRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(GLOBAL_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				anonymousOtherRateLimitPermitLimit: GetOptionalInt(
+				anonymousOtherRateLimitPermitLimit: _GetOptionalInt(
 					nameof(ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT),
 					120
 				),
-				anonymousOtherRateLimitWindowSeconds: GetOptionalInt(
+				anonymousOtherRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				authenticatedRateLimitPermitLimit: GetOptionalInt(
+				authenticatedRateLimitPermitLimit: _GetOptionalInt(
 					nameof(AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT),
 					600
 				),
-				authenticatedRateLimitWindowSeconds: GetOptionalInt(
+				authenticatedRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				heavySearchRateLimitPermitLimit: GetOptionalInt(
+				heavySearchRateLimitPermitLimit: _GetOptionalInt(
 					nameof(HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT),
 					180
 				),
-				heavySearchRateLimitWindowSeconds: GetOptionalInt(
+				heavySearchRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				bulkRateLimitPermitLimit: GetOptionalInt(
+				bulkRateLimitPermitLimit: _GetOptionalInt(
 					nameof(BULK_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				bulkRateLimitWindowSeconds: GetOptionalInt(
+				bulkRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(BULK_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				tenantBulkRateLimitPermitLimit: GetOptionalInt(
+				tenantBulkRateLimitPermitLimit: _GetOptionalInt(
 					nameof(TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT),
 					120
 				),
-				tenantBulkRateLimitWindowSeconds: GetOptionalInt(
+				tenantBulkRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				emailRateLimitPermitLimit: GetOptionalInt(
+				emailRateLimitPermitLimit: _GetOptionalInt(
 					nameof(EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					10
 				),
-				emailRateLimitWindowSeconds: GetOptionalInt(
+				emailRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					900
 				),
-				tenantEmailRateLimitPermitLimit: GetOptionalInt(
+				tenantEmailRateLimitPermitLimit: _GetOptionalInt(
 					nameof(TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					50
 				),
-				tenantEmailRateLimitWindowSeconds: GetOptionalInt(
+				tenantEmailRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					900
 				),
-				exportRateLimitPermitLimit: GetOptionalInt(
+				exportRateLimitPermitLimit: _GetOptionalInt(
 					nameof(EXPORT_RATE_LIMIT_PERMIT_LIMIT),
 					10
 				),
-				exportRateLimitWindowSeconds: GetOptionalInt(
+				exportRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(EXPORT_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				tenantExportRateLimitPermitLimit: GetOptionalInt(
+				tenantExportRateLimitPermitLimit: _GetOptionalInt(
 					nameof(TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT),
 					40
 				),
-				tenantExportRateLimitWindowSeconds: GetOptionalInt(
+				tenantExportRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				uploadRateLimitPermitLimit: GetOptionalInt(
+				uploadRateLimitPermitLimit: _GetOptionalInt(
 					nameof(UPLOAD_RATE_LIMIT_PERMIT_LIMIT),
 					20
 				),
-				uploadRateLimitWindowSeconds: GetOptionalInt(
+				uploadRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(UPLOAD_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
 				// Stricter-than-read window for the routes that call Bluesky with
 				// user-supplied credentials (Epic C §4): 5 attempts per hour by default.
-				socialConnectRateLimitPermitLimit: GetOptionalInt(
+				socialConnectRateLimitPermitLimit: _GetOptionalInt(
 					nameof(SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT),
 					5
 				),
-				socialConnectRateLimitWindowSeconds: GetOptionalInt(
+				socialConnectRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS),
 					3600
 				),
 				// A real enqueue into job_queue per accepted request (#636): per-minute,
 				// not per-hour. 30 triggers / 60 s by default, env-overridable.
-				systemJobTriggerRateLimitPermitLimit: GetOptionalInt(
+				systemJobTriggerRateLimitPermitLimit: _GetOptionalInt(
 					nameof(SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				systemJobTriggerRateLimitWindowSeconds: GetOptionalInt(
+				systemJobTriggerRateLimitWindowSeconds: _GetOptionalInt(
 					nameof(SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
 				// Optional (#953): defaults to postgres so scaling to a second replica
 				// still yields one fleet-wide budget per partition; 'memory' is the
 				// explicit operator escape hatch.
-				rateLimitCounterStore: GetOptionalString(
+				rateLimitCounterStore: _GetOptionalString(
 					nameof(RATE_LIMIT_COUNTER_STORE),
 					"postgres"
 				),
@@ -715,27 +715,27 @@ public class AppEnvironment {
 				// before the validator runs — neither an unparseable role nor an absent one
 				// outside Development/Testing can produce an enum value to range-check
 				// (design §3.1, C6/F24). The `All` argument is the DEV/TEST-ONLY default;
-				// GetOptionalAppRole applies it only in those environments.
-				role: GetOptionalAppRole(AppRoleVariableName, AppRole.All),
-				jobQueueBatchSize: GetOptionalInt(nameof(JOB_QUEUE_BATCH_SIZE), 20),
-				jobQueuePollSeconds: GetOptionalInt(nameof(JOB_QUEUE_POLL_SECONDS), 5),
-				jobLeaseSeconds: GetOptionalInt(nameof(JOB_LEASE_SECONDS), 300),
-				jobQueueDrainBudgetSeconds: GetOptionalInt(
+				// _GetOptionalAppRole applies it only in those environments.
+				role: _GetOptionalAppRole(AppRoleVariableName, AppRole.All),
+				jobQueueBatchSize: _GetOptionalInt(nameof(JOB_QUEUE_BATCH_SIZE), 20),
+				jobQueuePollSeconds: _GetOptionalInt(nameof(JOB_QUEUE_POLL_SECONDS), 5),
+				jobLeaseSeconds: _GetOptionalInt(nameof(JOB_LEASE_SECONDS), 300),
+				jobQueueDrainBudgetSeconds: _GetOptionalInt(
 					nameof(JOB_QUEUE_DRAIN_BUDGET_SECONDS), 60),
-				jobQueueDrainStallSeconds: GetOptionalInt(
+				jobQueueDrainStallSeconds: _GetOptionalInt(
 					nameof(JOB_QUEUE_DRAIN_STALL_SECONDS), 120),
-				emailLogRetentionDays: GetOptionalInt(nameof(EMAIL_LOG_RETENTION_DAYS), 180),
-				jobDeadLetterRetentionDays: GetOptionalInt(
+				emailLogRetentionDays: _GetOptionalInt(nameof(EMAIL_LOG_RETENTION_DAYS), 180),
+				jobDeadLetterRetentionDays: _GetOptionalInt(
 					nameof(JOB_DEAD_LETTER_RETENTION_DAYS), 90),
-				emailPreparedSendRetentionDays: GetOptionalInt(
+				emailPreparedSendRetentionDays: _GetOptionalInt(
 					nameof(EMAIL_PREPARED_SEND_RETENTION_DAYS), 7),
-				emailPreparedSweepMaxLagMinutes: GetOptionalInt(
+				emailPreparedSweepMaxLagMinutes: _GetOptionalInt(
 					nameof(EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES), 60),
-				systemJobOccurrenceRetentionDays: GetOptionalInt(
+				systemJobOccurrenceRetentionDays: _GetOptionalInt(
 					nameof(SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS), 30),
-				jobAlertLeaseRetentionDays: GetOptionalInt(
+				jobAlertLeaseRetentionDays: _GetOptionalInt(
 					nameof(JOB_ALERT_LEASE_RETENTION_DAYS), 30),
-				jobRegistryDlqOrphanAllowlist: GetOptionalCsvList(
+				jobRegistryDlqOrphanAllowlist: _GetOptionalCsvList(
 					nameof(JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST))
 			);
 
@@ -747,12 +747,12 @@ public class AppEnvironment {
 				throw new InvalidOperationException($"Environment validation failed:\n  • {errors}");
 			}
 
-			Volatile.Write(ref _instance, settings);
+			Volatile.Write(ref _Instance, settings);
 			return settings;
 		}
 	}
 
-	private static string GetRequiredString(string name) {
+	private static string _GetRequiredString(string name) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
 			throw new InvalidOperationException($"Environment variable '{name}' is not set");
@@ -761,7 +761,7 @@ public class AppEnvironment {
 		return value.Trim();
 	}
 
-	private static int GetRequiredInt(string name) {
+	private static int _GetRequiredInt(string name) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
 			throw new InvalidOperationException($"Environment variable '{name}' is not set");
@@ -775,7 +775,7 @@ public class AppEnvironment {
 		return result;
 	}
 
-	private static bool GetOptionalBool(string name, bool defaultValue) {
+	private static bool _GetOptionalBool(string name, bool defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
 			return defaultValue;
@@ -794,12 +794,12 @@ public class AppEnvironment {
 			$"Environment variable '{name}' must be a valid boolean (true/false/1/0), got '{trimmed}'");
 	}
 
-	private static string GetOptionalString(string name, string defaultValue) {
+	private static string _GetOptionalString(string name, string defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
 		return string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim();
 	}
 
-	private static int GetOptionalInt(string name, int defaultValue) {
+	private static int _GetOptionalInt(string name, int defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
 			return defaultValue;
@@ -855,14 +855,14 @@ public class AppEnvironment {
 
 	// The ONLY environments where an absent APP_ROLE may fall back to `All` (design §3.1,
 	// C6/F24). Note an unset ASPNETCORE_ENVIRONMENT resolves to Production (see
-	// GetHostEnvironmentName), so it is correctly NOT covered here — the build-time
+	// _GetHostEnvironmentName), so it is correctly NOT covered here — the build-time
 	// OpenAPI path runs with the host environment unset and must pin APP_ROLE=api.
 	internal static bool IsAppRoleDefaultAllowed {
 		get { return IsDevelopment || IsTesting; }
 	}
 
 	// Whether APP_ROLE was explicitly provided. Backs the validator's defense-in-depth
-	// rule mirroring GetOptionalAppRole's fail-fast.
+	// rule mirroring _GetOptionalAppRole's fail-fast.
 	internal static bool IsAppRoleExplicitlySet {
 		get {
 			return !string.IsNullOrWhiteSpace(
@@ -883,7 +883,7 @@ public class AppEnvironment {
 
 	// Case-insensitive APP_ROLE parse via an explicit map (never ToLower() — PUBLY0003).
 	// The map is the whole accepted set; anything else fails fast.
-	private static readonly IReadOnlyDictionary<string, AppRole> AppRoleMap =
+	private static readonly IReadOnlyDictionary<string, AppRole> _AppRoleMap =
 		new Dictionary<string, AppRole>(StringComparer.OrdinalIgnoreCase) {
 			["api"] = AppRole.Api,
 			["worker"] = AppRole.Worker,
@@ -892,10 +892,10 @@ public class AppEnvironment {
 
 	// Environment-gated (design §3.1, C6/F24): <paramref name="defaultValue"/> is applied
 	// ONLY under Development/Testing. Everywhere else a missing/blank APP_ROLE is invalid
-	// and fails fast on the same InvalidOperationException path GetRequiredString uses, so
+	// and fails fast on the same InvalidOperationException path _GetRequiredString uses, so
 	// `All` — which composes the job engine — can never leak into a production-like
 	// process by omission.
-	private static AppRole GetOptionalAppRole(string name, AppRole defaultValue) {
+	private static AppRole _GetOptionalAppRole(string name, AppRole defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
 			if (IsAppRoleDefaultAllowed) {
@@ -904,7 +904,7 @@ public class AppEnvironment {
 
 			throw new InvalidOperationException(
 				$"Environment variable '{name}' is not set. It is REQUIRED in the "
-				+ $"'{GetHostEnvironmentName()}' environment and must be one of 'api', "
+				+ $"'{_GetHostEnvironmentName()}' environment and must be one of 'api', "
 				+ "'worker', or 'all' (case-insensitive). It defaults to 'all' only in the "
 				+ $"'{EnvironmentNames.Development}' and '{EnvironmentNames.Testing}' "
 				+ "environments: 'all' composes the job engine into the process, so it must "
@@ -913,7 +913,7 @@ public class AppEnvironment {
 				+ "APP_ROLE=worker for the job engine).");
 		}
 
-		if (AppRoleMap.TryGetValue(value.Trim(), out var role)) {
+		if (_AppRoleMap.TryGetValue(value.Trim(), out var role)) {
 			return role;
 		}
 
@@ -924,7 +924,7 @@ public class AppEnvironment {
 
 	// Splits an optional CSV env var into trimmed, non-empty entries, preserving order
 	// and dropping duplicates. Absent/blank yields an empty list.
-	private static IReadOnlyList<string> GetOptionalCsvList(
+	private static IReadOnlyList<string> _GetOptionalCsvList(
 		string name,
 		IReadOnlyList<string>? defaultValue = null
 	) {
@@ -939,7 +939,7 @@ public class AppEnvironment {
 			.ToList();
 	}
 
-	private static byte[] ParseMasterKey(string name, string value) {
+	private static byte[] _ParseMasterKey(string name, string value) {
 		var trimmed = (value ?? string.Empty).Trim();
 		if (trimmed.Length == 0) {
 			throw new InvalidOperationException(
@@ -962,13 +962,13 @@ public class AppEnvironment {
 		return bytes;
 	}
 
-	private static string GetHostEnvironmentName() {
+	private static string _GetHostEnvironmentName() {
 		return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
 		?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
 		?? EnvironmentNames.Production;
 	}
 
-	private static void LoadDotEnvIfDevelopment() {
+	private static void _LoadDotEnvIfDevelopment() {
 		// Why this exists (important, non-obvious):
 		//
 		// 1) Local development:
@@ -985,8 +985,8 @@ public class AppEnvironment {
 		//      so the app can boot far enough to emit the document.
 		//
 		// IMPORTANT (APP_ROLE, design §3.1): loading `.env.development` does NOT change
-		// `GetHostEnvironmentName()`. An unset host environment is still classified as Production,
-		// where APP_ROLE is REQUIRED and a missing value fails fast in `GetOptionalAppRole`. So this
+		// `_GetHostEnvironmentName()`. An unset host environment is still classified as Production,
+		// where APP_ROLE is REQUIRED and a missing value fails fast in `_GetOptionalAppRole`. So this
 		// method does NOT make bare `dotnet build` work on its own — the build additionally needs
 		// APP_ROLE=api. Repo builds must use the pinned `just` recipes (build-api, generate-client,
 		// db-*), which export APP_ROLE=api; that is the sanctioned path, not a bare `dotnet build`.
@@ -1010,7 +1010,7 @@ public class AppEnvironment {
 			&& string.IsNullOrWhiteSpace(dotNetEnvironment);
 
 		var isDevelopment = string.Equals(
-			GetHostEnvironmentName(),
+			_GetHostEnvironmentName(),
 			EnvironmentNames.Development,
 			StringComparison.OrdinalIgnoreCase
 		);
@@ -1065,12 +1065,12 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		// Environment variables
 		RuleFor(x => x.POSTGRES_CONNECTION_STRING)
 			.NotEmpty().WithMessage("POSTGRES_CONNECTION_STRING is not set or is empty")
-			.Must(BeValidPostgresConnectionString)
+			.Must(_BeValidPostgresConnectionString)
 			.WithMessage("POSTGRES_CONNECTION_STRING must be a valid PostgreSQL connection string");
 
 		RuleFor(x => x.FRONT_URL)
 			.NotEmpty().WithMessage("FRONT_URL is not set or is empty")
-			.Must(BeValidUrl)
+			.Must(_BeValidUrl)
 			.WithMessage("FRONT_URL must be a valid URL");
 
 		RuleFor(x => x.RESEND_API_KEY)
@@ -1355,14 +1355,14 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.WithMessage(
 				"SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 3600");
 
-		// APP_ROLE is already parsed to a defined enum by GetOptionalAppRole (which
+		// APP_ROLE is already parsed to a defined enum by _GetOptionalAppRole (which
 		// fails fast on any other string); this rule is defense-in-depth against an
 		// undefined enum value ever reaching startup.
 		RuleFor(x => x.Role)
 			.IsInEnum().WithMessage("APP_ROLE must be a valid hosting role (api/worker/all)");
 
 		// Environment-gated default (design §3.1, C6/F24). Defense in depth mirroring
-		// GetOptionalAppRole's fail-fast: outside Development/Testing, a role that was
+		// _GetOptionalAppRole's fail-fast: outside Development/Testing, a role that was
 		// never set must not boot. `All` composes the job engine, so a process that
 		// inherited it by omission would run the worker surface — and double-claim queue
 		// rows — inside a container an operator intended as API-only.
@@ -1429,15 +1429,15 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 				+ "wildcards ('*', '?', '%') are not allowed");
 
 		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
-			.Must(BeValidHeaderName)
+			.Must(_BeValidHeaderName)
 			.WithMessage("SESSION_TOKEN_HEADER_KEY must be a valid HTTP header name");
 
 		RuleFor(x => x.TENANT_ID_HEADER_KEY)
-			.Must(BeValidHeaderName)
+			.Must(_BeValidHeaderName)
 			.WithMessage("TENANT_ID_HEADER_KEY must be a valid HTTP header name");
 	}
 
-	private static bool BeValidUrl(string url) {
+	private static bool _BeValidUrl(string url) {
 		return Uri.TryCreate(url, UriKind.Absolute, out var uri)
 		&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
 		&& !string.IsNullOrWhiteSpace(uri.Host)
@@ -1447,12 +1447,12 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		&& string.IsNullOrEmpty(uri.Fragment);
 	}
 
-	private static bool BeValidHeaderName(string headerName) {
+	private static bool _BeValidHeaderName(string headerName) {
 		return !string.IsNullOrWhiteSpace(headerName)
 		&& headerName.All(c => char.IsLetterOrDigit(c) || c == '-');
 	}
 
-	private static bool BeValidPostgresConnectionString(string connectionString) {
+	private static bool _BeValidPostgresConnectionString(string connectionString) {
 		try {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString);
 			return !string.IsNullOrWhiteSpace(builder.Host)

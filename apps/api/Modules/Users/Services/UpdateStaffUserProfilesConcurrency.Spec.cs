@@ -19,19 +19,19 @@ namespace PublyApp.Api.Modules.Users.Services;
 
 public sealed class UpdateStaffUserProfilesConcurrencySpec
 	: IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
+	private readonly ApiFixture _Fixture;
 
 	public UpdateStaffUserProfilesConcurrencySpec(ApiFixture fixture) {
-		_fixture = fixture;
+		_Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnSuccessAndLetDeleteSweepInsertedLinksWhenProfileUpdateCommitsFirst() {
-		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
-		var profileId = await CreateStaffProfileAsync();
+		var userId = await _CreateStaffUserAsync(UserStatus.Suspended);
+		var profileId = await _CreateStaffProfileAsync();
 
-		var result = await RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
+		var result = await _RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 			userId,
 			service => service.UpdateStaffUserProfilesAsync(
 				userId,
@@ -51,7 +51,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 		result.DeleteResult.Should().BeOfType<DeleteStaffUserResult.Success>();
 
-		var state = await GetStaffUserProfileStateAsync(userId);
+		var state = await _GetStaffUserProfileStateAsync(userId);
 		state.IsDeleted.Should().BeTrue();
 		state.HasLiveStaffAccount.Should().BeFalse();
 		state.ActiveProfileLinks.Should().BeEmpty();
@@ -62,11 +62,11 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 	[Fact]
 	public async Task
 	ItShouldReturnSuccessAndLetDeleteSweepExistingLinksWhenProfileUpdateCommitsFirst() {
-		var userId = await CreateStaffUserAsync(UserStatus.Suspended);
-		var profileId = await CreateStaffProfileAsync();
-		await CreateStaffUserProfileLinkAsync(userId, profileId);
+		var userId = await _CreateStaffUserAsync(UserStatus.Suspended);
+		var profileId = await _CreateStaffProfileAsync();
+		await _CreateStaffUserProfileLinkAsync(userId, profileId);
 
-		var result = await RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
+		var result = await _RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 			userId,
 			service => service.UpdateStaffUserProfilesAsync(
 				userId,
@@ -83,7 +83,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 		result.DeleteResult.Should().BeOfType<DeleteStaffUserResult.Success>();
 
-		var state = await GetStaffUserProfileStateAsync(userId);
+		var state = await _GetStaffUserProfileStateAsync(userId);
 		state.IsDeleted.Should().BeTrue();
 		state.HasLiveStaffAccount.Should().BeFalse();
 		state.ActiveProfileLinks.Should().BeEmpty();
@@ -91,8 +91,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		state.AllProfileLinks.Should().BeEmpty();
 	}
 
-	private async Task<Guid> CreateStaffUserAsync(UserStatus status) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _CreateStaffUserAsync(UserStatus status) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -116,8 +116,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		return userId;
 	}
 
-	private async Task<Guid> CreateStaffProfileAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<Guid> _CreateStaffProfileAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(
@@ -132,11 +132,11 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		return profile.GetRequiredId();
 	}
 
-	private async Task CreateStaffUserProfileLinkAsync(
+	private async Task _CreateStaffUserProfileLinkAsync(
 		Guid userId,
 		Guid profileId
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var staffAccountId = await (
@@ -165,11 +165,11 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		ConcurrentDeleteAtProfileCommitResult<
 			UpdateStaffUserProfilesServiceResult
 		>
-	> RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
+	> _RunWithConcurrentDeleteAtProfileTransactionCommitAsync(
 		Guid userId,
 		Func<StaffUserProfileAssignmentService, Task<UpdateStaffUserProfilesServiceResult>> operationAsync
 	) {
-		var connectionString = await GetConnectionStringAsync();
+		var connectionString = await _GetConnectionStringAsync();
 		await using var coordinator =
 			new ConcurrentDeleteAtProfileCommitCoordinator(
 				connectionString,
@@ -201,7 +201,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 	}
 
 	private static async Task<DeleteStaffUserResult>
-	RunDeleteStaffUserDuringProfileCommitAsync(
+	_RunDeleteStaffUserDuringProfileCommitAsync(
 		string connectionString,
 		Guid userId,
 		TaskCompletionSource<int> deleteUserAccountUpdatePidSource,
@@ -229,8 +229,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		);
 	}
 
-	private async Task<string> GetConnectionStringAsync() {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<string> _GetConnectionStringAsync() {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var connectionString = dbContext.Database.GetConnectionString();
@@ -243,8 +243,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		return connectionString;
 	}
 
-	private async Task<StaffUserProfileState> GetStaffUserProfileStateAsync(Guid userId) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+	private async Task<StaffUserProfileState> _GetStaffUserProfileStateAsync(Guid userId) {
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User
@@ -301,24 +301,24 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private sealed class ConcurrentDeleteAtProfileCommitCoordinator
 		: IAsyncDisposable {
-		private static readonly TimeSpan DeleteOperationTimeout =
+		private static readonly TimeSpan _DeleteOperationTimeout =
 			TimeSpan.FromSeconds(10);
-		private static readonly TimeSpan BlockedDeleteObservationTimeout =
+		private static readonly TimeSpan _BlockedDeleteObservationTimeout =
 			TimeSpan.FromSeconds(10);
 
-		private readonly string _connectionString;
-		private readonly Guid _userId;
-		private readonly TaskCompletionSource<int> _deleteUserAccountUpdatePidSource =
+		private readonly string _ConnectionString;
+		private readonly Guid _UserId;
+		private readonly TaskCompletionSource<int> _DeleteUserAccountUpdatePidSource =
 			new(TaskCreationOptions.RunContinuationsAsynchronously);
-		private CancellationTokenSource? _deleteCancellationTokenSource;
-		private Task<DeleteStaffUserResult>? _deleteTask;
+		private CancellationTokenSource? _DeleteCancellationTokenSource;
+		private Task<DeleteStaffUserResult>? _DeleteTask;
 
 		public ConcurrentDeleteAtProfileCommitCoordinator(
 			string connectionString,
 			Guid userId
 		) {
-			_connectionString = connectionString;
-			_userId = userId;
+			_ConnectionString = connectionString;
+			_UserId = userId;
 		}
 
 		public async Task
@@ -326,7 +326,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			DbTransaction transaction,
 			CancellationToken cancellationToken
 		) {
-			if (_deleteTask is not null) {
+			if (_DeleteTask is not null) {
 				throw new InvalidOperationException(
 					"Concurrent delete was already started for this profile-update operation."
 				);
@@ -343,28 +343,28 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 				CancellationTokenSource.CreateLinkedTokenSource(
 					cancellationToken
 				);
-			deleteCancellationTokenSource.CancelAfter(DeleteOperationTimeout);
-			_deleteCancellationTokenSource = deleteCancellationTokenSource;
-			_deleteTask = Task.Run(
-				() => RunDeleteStaffUserDuringProfileCommitAsync(
-					_connectionString,
-					_userId,
-					_deleteUserAccountUpdatePidSource,
+			deleteCancellationTokenSource.CancelAfter(_DeleteOperationTimeout);
+			_DeleteCancellationTokenSource = deleteCancellationTokenSource;
+			_DeleteTask = Task.Run(
+				() => _RunDeleteStaffUserDuringProfileCommitAsync(
+					_ConnectionString,
+					_UserId,
+					_DeleteUserAccountUpdatePidSource,
 					deleteCancellationTokenSource.Token
 				),
 				deleteCancellationTokenSource.Token
 			);
-			_ = _deleteTask.ContinueWith(
+			_ = _DeleteTask.ContinueWith(
 				task => {
 					if (task.IsCanceled) {
-						_deleteUserAccountUpdatePidSource.TrySetCanceled(
+						_DeleteUserAccountUpdatePidSource.TrySetCanceled(
 							deleteCancellationTokenSource.Token
 						);
 						return;
 					}
 
 					if (task.Exception is not null) {
-						_deleteUserAccountUpdatePidSource.TrySetException(
+						_DeleteUserAccountUpdatePidSource.TrySetException(
 							task.Exception.InnerExceptions
 						);
 					}
@@ -372,8 +372,8 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 				TaskScheduler.Default
 			);
 
-			var deletePid = await _deleteUserAccountUpdatePidSource.Task.WaitAsync(
-				DeleteOperationTimeout,
+			var deletePid = await _DeleteUserAccountUpdatePidSource.Task.WaitAsync(
+				_DeleteOperationTimeout,
 				cancellationToken
 			);
 
@@ -381,7 +381,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			// that the delete session is actually blocked by this transaction. That
 			// proves the race reached the commit window and the row lock, not timing
 			// luck, is what serializes the final outcome.
-			await WaitUntilDeleteIsBlockedByProfileCommitAsync(
+			await _WaitUntilDeleteIsBlockedByProfileCommitAsync(
 				deletePid,
 				profileUpdatePid,
 				cancellationToken
@@ -389,31 +389,31 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 		}
 
 		public async Task<DeleteStaffUserResult> WaitForDeleteResultAsync() {
-			if (_deleteTask is null) {
+			if (_DeleteTask is null) {
 				throw new InvalidOperationException(
 					"Concurrent delete never started for this profile-update operation."
 				);
 			}
 
-			return await _deleteTask.WaitAsync(DeleteOperationTimeout);
+			return await _DeleteTask.WaitAsync(_DeleteOperationTimeout);
 		}
 
 		public async ValueTask DisposeAsync() {
-			_deleteCancellationTokenSource?.Cancel();
+			_DeleteCancellationTokenSource?.Cancel();
 
-			if (_deleteTask is not null) {
+			if (_DeleteTask is not null) {
 				try {
-					_ = await _deleteTask.WaitAsync(
-						DeleteOperationTimeout
+					_ = await _DeleteTask.WaitAsync(
+						_DeleteOperationTimeout
 					);
 				} catch (OperationCanceledException) {
 				}
 			}
 
-			_deleteCancellationTokenSource?.Dispose();
+			_DeleteCancellationTokenSource?.Dispose();
 		}
 
-		private async Task WaitUntilDeleteIsBlockedByProfileCommitAsync(
+		private async Task _WaitUntilDeleteIsBlockedByProfileCommitAsync(
 			int deletePid,
 			int profileUpdatePid,
 			CancellationToken cancellationToken
@@ -423,12 +423,12 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 					cancellationToken
 				);
 			linkedCancellationTokenSource.CancelAfter(
-				BlockedDeleteObservationTimeout
+				_BlockedDeleteObservationTimeout
 			);
 			var linkedCancellationToken = linkedCancellationTokenSource.Token;
 
 			await using var observerConnection = new NpgsqlConnection(
-				_connectionString
+				_ConnectionString
 			);
 			try {
 				await observerConnection.OpenAsync(linkedCancellationToken);
@@ -474,13 +474,13 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private sealed class BeforeProfileTransactionCommitInterceptor
 		: DbTransactionInterceptor {
-		private readonly Func<DbTransaction, CancellationToken, Task> _beforeCommitAsync;
-		private bool _hasRun;
+		private readonly Func<DbTransaction, CancellationToken, Task> _BeforeCommitAsync;
+		private bool _HasRun;
 
 		public BeforeProfileTransactionCommitInterceptor(
 			Func<DbTransaction, CancellationToken, Task> beforeCommitAsync
 		) {
-			_beforeCommitAsync = beforeCommitAsync;
+			_BeforeCommitAsync = beforeCommitAsync;
 		}
 
 		public override async ValueTask<InterceptionResult>
@@ -490,9 +490,9 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			InterceptionResult result,
 			CancellationToken cancellationToken = default
 		) {
-			if (!_hasRun) {
-				_hasRun = true;
-				await _beforeCommitAsync(transaction, cancellationToken);
+			if (!_HasRun) {
+				_HasRun = true;
+				await _BeforeCommitAsync(transaction, cancellationToken);
 			}
 
 			return await base.TransactionCommittingAsync(
@@ -506,13 +506,13 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 
 	private sealed class BeforeDeleteUserAccountUpdateInterceptor
 		: DbCommandInterceptor {
-		private readonly Action<int> _beforeDeleteUserAccountUpdate;
-		private bool _hasRun;
+		private readonly Action<int> _BeforeDeleteUserAccountUpdate;
+		private bool _HasRun;
 
 		public BeforeDeleteUserAccountUpdateInterceptor(
 			Action<int> beforeDeleteUserAccountUpdate
 		) {
-			_beforeDeleteUserAccountUpdate = beforeDeleteUserAccountUpdate;
+			_BeforeDeleteUserAccountUpdate = beforeDeleteUserAccountUpdate;
 		}
 
 		public override async ValueTask<InterceptionResult<int>>
@@ -523,7 +523,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 			CancellationToken cancellationToken = default
 		) {
 			if (
-				!_hasRun
+				!_HasRun
 				&& (
 					command.CommandText.Contains(
 						"UPDATE user_accounts",
@@ -535,7 +535,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 					)
 				)
 			) {
-				_hasRun = true;
+				_HasRun = true;
 
 				if (command.Connection is not NpgsqlConnection deleteConnection) {
 					throw new InvalidOperationException(
@@ -543,7 +543,7 @@ public sealed class UpdateStaffUserProfilesConcurrencySpec
 					);
 				}
 
-				_beforeDeleteUserAccountUpdate(deleteConnection.ProcessID);
+				_BeforeDeleteUserAccountUpdate(deleteConnection.ProcessID);
 			}
 
 			return await base.NonQueryExecutingAsync(

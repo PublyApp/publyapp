@@ -20,20 +20,20 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 // list. Tenant B's admin token + X-Tenant-Id B against tenant A's account id must
 // yield 404 everywhere, and A's account must be absent from B's list.
 public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountIsolationSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn404AndHideForeignAccountsFromAnotherTenant() {
-		var (tenantAId, tokenA, accountId) = await ConnectForAcmeAsync();
-		var (tenantBId, tokenB) = await LoginAsTechStartAdminAsync();
+		var (tenantAId, tokenA, accountId) = await _ConnectForAcmeAsync();
+		var (tenantBId, tokenB) = await _LoginAsTechStartAdminAsync();
 
 		// Id-addressed routes with B's credentials on A's account → 404.
 		var probes = new[] {
@@ -52,7 +52,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 			if (payload is not null) {
 				request.Content = JsonContent.Create(payload);
 			}
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(
 				HttpStatusCode.NotFound,
 				$"tenant B hitting {method} {url} on A's account must 404"
@@ -63,13 +63,13 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 		using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/social-accounts/")
 			.WithSessionToken(tokenB)
 			.WithTenantId(tenantBId);
-		using var listResponse = await _http.SendAsync(listRequest);
+		using var listResponse = await _Http.SendAsync(listRequest);
 		listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var listBody = await listResponse.Content.ReadAsStringAsync();
 		listBody.Should().NotContain(accountId.ToString());
 
 		// And A's row was untouched by all of B's attempts.
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var row = await db.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == accountId);
@@ -79,7 +79,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldListEveryAccountForItsOwnTenantOnly() {
-		var (acmeTenantId, acmeToken, firstId) = await ConnectForAcmeAsync();
+		var (acmeTenantId, acmeToken, firstId) = await _ConnectForAcmeAsync();
 
 		// Second account, same tenant.
 		Guid secondId;
@@ -90,7 +90,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 				identifier = $"second-{Guid.NewGuid():N}@example.com",
 				appPassword = "app-password-456",
 			});
-			using var connectResponse = await _http.SendAsync(connectRequest);
+			using var connectResponse = await _Http.SendAsync(connectRequest);
 			connectResponse.EnsureSuccessStatusCode();
 			var created = await connectResponse.Content
 				.ReadFromJsonAsync<SocialAccountCreated>();
@@ -100,7 +100,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 		using var listRequest = new HttpRequestMessage(HttpMethod.Get, "/social-accounts/")
 			.WithSessionToken(acmeToken)
 			.WithTenantId(acmeTenantId);
-		using var listResponse = await _http.SendAsync(listRequest);
+		using var listResponse = await _Http.SendAsync(listRequest);
 		listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var body = await listResponse.Content.ReadFromJsonAsync<
@@ -112,12 +112,12 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token, Guid AccountId)>
-		ConnectForAcmeAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		_ConnectForAcmeAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.AcmeName
+			_Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
 		);
 		using var request = new HttpRequestMessage(
@@ -127,19 +127,19 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 			identifier = $"iso-{Guid.NewGuid():N}@example.com",
 			appPassword = "app-password-123",
 		});
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var created = await response.Content.ReadFromJsonAsync<SocialAccountCreated>();
 		return (tenantId, token, created!.Id);
 	}
 
 	private async Task<(Guid TenantId, string Token)>
-		LoginAsTechStartAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		_LoginAsTechStartAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.TechStartName
+			_Http, staffToken, SeedConstants.Tenants.TechStartName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail, TestConstants.SeedPassword
 		);
 		return (tenantId, token);

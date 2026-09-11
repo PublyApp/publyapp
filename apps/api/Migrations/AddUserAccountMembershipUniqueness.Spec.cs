@@ -26,34 +26,34 @@ namespace PublyApp.Api.Migrations;
 // ApiFixture template) because the assertion is about migration STATE
 // transitions, not app behavior after all migrations have already run.
 public sealed class AddUserAccountMembershipUniquenessSpec : IAsyncLifetime {
-	private const string PreviousMigrationId = "20260712114851_AddTenantOrganizationProfileFields";
+	private const string _PreviousMigrationId = "20260712114851_AddTenantOrganizationProfileFields";
 
-	private PostgresContainerFixture _containerFixture = null!;
-	private string _dbName = null!;
-	private string _connectionString = null!;
+	private PostgresContainerFixture _ContainerFixture = null!;
+	private string _DbName = null!;
+	private string _ConnectionString = null!;
 
 	public async Task InitializeAsync() {
-		_containerFixture = await PostgresContainerFixture.GetSharedAsync();
-		_dbName = $"migtest_{Guid.NewGuid():N}";
+		_ContainerFixture = await PostgresContainerFixture.GetSharedAsync();
+		_DbName = $"migtest_{Guid.NewGuid():N}";
 
-		await using var adminConn = new NpgsqlConnection(_containerFixture.AdminConnectionString);
+		await using var adminConn = new NpgsqlConnection(_ContainerFixture.AdminConnectionString);
 		await adminConn.OpenAsync();
-		await using (var createCmd = new NpgsqlCommand($"CREATE DATABASE {_dbName}", adminConn)) {
+		await using (var createCmd = new NpgsqlCommand($"CREATE DATABASE {_DbName}", adminConn)) {
 			await createCmd.ExecuteNonQueryAsync();
 		}
 
-		var builder = new NpgsqlConnectionStringBuilder(_containerFixture.AdminConnectionString) {
-			Database = _dbName,
+		var builder = new NpgsqlConnectionStringBuilder(_ContainerFixture.AdminConnectionString) {
+			Database = _DbName,
 			Pooling = false
 		};
-		_connectionString = builder.ConnectionString;
+		_ConnectionString = builder.ConnectionString;
 	}
 
 	public async Task DisposeAsync() {
 		NpgsqlConnection.ClearAllPools();
-		await using var adminConn = new NpgsqlConnection(_containerFixture.AdminConnectionString);
+		await using var adminConn = new NpgsqlConnection(_ContainerFixture.AdminConnectionString);
 		await adminConn.OpenAsync();
-		await using var dropCmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS {_dbName}", adminConn);
+		await using var dropCmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS {_DbName}", adminConn);
 		await dropCmd.ExecuteNonQueryAsync();
 	}
 
@@ -61,19 +61,19 @@ public sealed class AddUserAccountMembershipUniquenessSpec : IAsyncLifetime {
 	public async Task
 	ItShouldSucceedAndDeduplicateWhenLegacyDataHasDuplicateActiveStaffMemberships() {
 		await using var dbContext = new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_connectionString).Options
+			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_ConnectionString).Options
 		);
 		var migrator = dbContext.GetService<IMigrator>();
 
 		// 1) Schema as of the migration immediately before this one.
-		await migrator.MigrateAsync(PreviousMigrationId);
+		await migrator.MigrateAsync(_PreviousMigrationId);
 
 		var userId = Guid.NewGuid();
 		var olderAccountId = Guid.NewGuid();
 		var newerAccountId = Guid.NewGuid();
 		var profileId = Guid.NewGuid();
 
-		await using (var conn = new NpgsqlConnection(_connectionString)) {
+		await using (var conn = new NpgsqlConnection(_ConnectionString)) {
 			await conn.OpenAsync();
 
 			await using (var cmd = new NpgsqlCommand(
@@ -142,7 +142,7 @@ public sealed class AddUserAccountMembershipUniquenessSpec : IAsyncLifetime {
 			+ "not abort with a 23505 unique violation"
 		);
 
-		await using var verifyConn = new NpgsqlConnection(_connectionString);
+		await using var verifyConn = new NpgsqlConnection(_ConnectionString);
 		await verifyConn.OpenAsync();
 
 		int activeCount;

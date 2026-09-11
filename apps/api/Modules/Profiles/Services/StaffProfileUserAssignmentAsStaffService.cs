@@ -107,13 +107,13 @@ public interface IStaffProfileUserAssignmentAsStaffService {
 
 [Service(ServiceLifetime.Scoped)]
 public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignmentAsStaffService {
-	private readonly AppDbContext _dbContext;
+	private readonly AppDbContext _DbContext;
 
 	public StaffProfileUserAssignmentAsStaffService(
 		AppDbContext dbContext,
 		ILogger<StaffProfileUserAssignmentAsStaffService> logger
 	) {
-		_dbContext = dbContext;
+		_DbContext = dbContext;
 		_ = logger;
 	}
 
@@ -132,7 +132,7 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// This endpoint is specifically "staff profile -> users", so tenant/project profiles
 		// are not addressable here either (also treated as not-found).
 		var profileExists = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -150,9 +150,9 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// - The UI can disable actions for non-actionable statuses, but hiding rows causes
 		//   confusing "disappearing" behavior right after a status mutation.
 		var query =
-			from uap in _dbContext.UserAccountProfile
-			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
-			join u in _dbContext.User on ua.UserId equals u.Id
+			from uap in _DbContext.UserAccountProfile
+			join ua in _DbContext.UserAccount on uap.UserAccountId equals ua.Id
+			join u in _DbContext.User on ua.UserId equals u.Id
 			where uap.ProfileId == args.ProfileId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -237,7 +237,7 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// Guard early: this endpoint is strictly "staff profile -> users" so tenant/project
 		// profiles are treated as not found.
 		var profileExists = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -261,9 +261,9 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// - Deleted/suspended users/accounts are treated as not assignable via staff tooling
 		// - Junction links are hard-deleted when users are unassigned
 		var assignedUserIds = await (
-			from ua in _dbContext.UserAccount
-			join uap in _dbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
-			join u in _dbContext.User on ua.UserId equals u.Id
+			from ua in _DbContext.UserAccount
+			join uap in _DbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
+			join u in _DbContext.User on ua.UserId equals u.Id
 			where userIdsNullable.Contains(u.Id)
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -302,7 +302,7 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// This endpoint is strictly "staff profile -> users", so tenant/project profiles
 		// are treated as not found.
 		var profileExists = await (
-			from p in _dbContext.Profile
+			from p in _DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -326,7 +326,7 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// and admin tooling often needs to clean up assignments on non-active users.
 		var userIdsNullable = requestedUserIds.Select(id => (Guid?)id).ToList();
 		var staffAccountUserIds = await (
-			from ua in _dbContext.UserAccount
+			from ua in _DbContext.UserAccount
 			where userIdsNullable.Contains(ua.UserId)
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -345,8 +345,8 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 
 		// Existing junction links for this profile over the resolved accounts.
 		var accountLinkRows = await (
-			from uap in _dbContext.UserAccountProfile
-			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
+			from uap in _DbContext.UserAccountProfile
+			join ua in _DbContext.UserAccount on uap.UserAccountId equals ua.Id
 			where userIdsNullable.Contains(ua.UserId)
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -385,8 +385,8 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// Hard-delete junction links to avoid unique constraint conflicts when links are re-added later.
 		var linksToRemove = accountLinkRows.Select(row => row.Link).ToList();
 		if (linksToRemove.Count > 0) {
-			_dbContext.ForceHardDeleteRange(linksToRemove);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			_DbContext.ForceHardDeleteRange(linksToRemove);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		return new UnassignStaffProfileUsersServiceResult.Success(

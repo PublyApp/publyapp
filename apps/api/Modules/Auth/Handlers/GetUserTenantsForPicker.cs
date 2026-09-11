@@ -31,7 +31,7 @@ public class GetUserTenantsForPickerResponse {
 /// front can distinguish "all deleted" from "never invited anywhere" (#258).
 /// </summary>
 public sealed class GetUserTenantsForPicker {
-	private const int MaxTenantsInList = 50;
+	private const int _MaxTenantsInList = 50;
 
 	public static async Task<Ok<GetUserTenantsForPickerResponse>> Handle(
 		IRequestAuthContext authContext,
@@ -56,7 +56,7 @@ public sealed class GetUserTenantsForPicker {
 		}
 
 		var result = await accountService.GetUserTenantsForPickerAsync(
-			userId, MaxTenantsInList, cancellationToken
+			userId, _MaxTenantsInList, cancellationToken
 		);
 
 		return TypedResults.Ok(new GetUserTenantsForPickerResponse {

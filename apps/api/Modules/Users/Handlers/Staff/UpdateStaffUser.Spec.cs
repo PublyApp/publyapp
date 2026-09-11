@@ -23,17 +23,17 @@ using Xunit;
 namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 	public sealed class UpdateStaffUserSpec
 		: IClassFixture<ApiFixture> {
-		private readonly ApiFixture _fixture;
-		private readonly HttpClient _http;
-		private readonly TestAuthClient _authClient;
+		private readonly ApiFixture _Fixture;
+		private readonly HttpClient _Http;
+		private readonly TestAuthClient _AuthClient;
 
 		public UpdateStaffUserSpec(ApiFixture fixture) {
-			_fixture = fixture;
-			_http = fixture.HttpClient;
-			_authClient = new TestAuthClient(_http);
+			_Fixture = fixture;
+			_Http = fixture.HttpClient;
+			_AuthClient = new TestAuthClient(_Http);
 		}
 
-		private static string GetUrl(string userId) {
+		private static string _GetUrl(string userId) {
 			return PathUtils.Join(
 				Routes.Staff.Root,
 				Routes.Users.ForStaff.Root,
@@ -45,8 +45,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnNotFoundForNonExistentId() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
-			string url = GetUrl(Guid.NewGuid().ToString());
+				await _AuthClient.LoginAsStaffAdminAsync();
+			string url = _GetUrl(Guid.NewGuid().ToString());
 
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
@@ -57,7 +57,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.NotFound);
@@ -71,15 +71,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnNotFoundAndNotMutateTenantOnlyUser() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
+				await _AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				_http,
+				_Http,
 				token,
 				SeedConstants.Tenants.AcmeName
 			);
-			Guid userId = await CreateTenantOnlyUserAsync(tenantId);
+			Guid userId = await _CreateTenantOnlyUserAsync(tenantId);
 
-			string url = GetUrl(userId.ToString());
+			string url = _GetUrl(userId.ToString());
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -89,13 +89,13 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.NotFound);
 
 			await using AsyncServiceScope scope =
-				_fixture.Factory.Services.CreateAsyncScope();
+				_Fixture.Factory.Services.CreateAsyncScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			User user = await dbContext.User
@@ -109,8 +109,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnBadRequestForMalformedId() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
-			string url = GetUrl("not-a-guid");
+				await _AuthClient.LoginAsStaffAdminAsync();
+			string url = _GetUrl("not-a-guid");
 
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
@@ -121,7 +121,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.BadRequest);
@@ -134,7 +134,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnUnauthorizedWithoutSession() {
-			string url = GetUrl(Guid.NewGuid().ToString());
+			string url = _GetUrl(Guid.NewGuid().ToString());
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			) {
@@ -144,7 +144,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			};
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
@@ -154,12 +154,12 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnForbiddenForNonStaffUser() {
 			string token =
-				await _authClient.LoginAsync(
+				await _AuthClient.LoginAsync(
 					TestConstants.AcmeAdminEmail,
 					TestConstants.SeedPassword
 				);
 
-			string url = GetUrl(Guid.NewGuid().ToString());
+			string url = _GetUrl(Guid.NewGuid().ToString());
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -169,7 +169,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -180,17 +180,17 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		ItShouldReturnForbiddenForStaffWithoutPermission() {
 			// Use an isolated staff user with no profiles, so permissions are guaranteed empty even if
 			// other integration tests assign profiles to the seeded staff-user@example.com.
-			string token = await CreateUnprivilegedStaffUserTokenAsync();
+			string token = await _CreateUnprivilegedStaffUserTokenAsync();
 
 			// Use an existing user id so the permission failure cannot be masked by a 404 from the handler.
-			string adminToken = await _authClient.LoginAsStaffAdminAsync();
-			string existingUserId = await GetStaffUserIdByEmailAsync(
-				_http,
+			string adminToken = await _AuthClient.LoginAsStaffAdminAsync();
+			string existingUserId = await _GetStaffUserIdByEmailAsync(
+				_Http,
 				adminToken,
 				TestConstants.StaffAdminEmail
 			);
 
-			string url = GetUrl(existingUserId);
+			string url = _GetUrl(existingUserId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -200,7 +200,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -210,16 +210,16 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldUpdateFirstName() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
+				await _AuthClient.LoginAsStaffAdminAsync();
 
 			// Get a staff user ID
-			string userId = await GetStaffUserIdByEmailAsync(
-				_http,
+			string userId = await _GetStaffUserIdByEmailAsync(
+				_Http,
 				token,
 				TestConstants.StaffUserEmail
 			);
 
-			string url = GetUrl(userId);
+			string url = _GetUrl(userId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -229,7 +229,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -245,16 +245,16 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldUpdateAccountLevel() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
+				await _AuthClient.LoginAsStaffAdminAsync();
 
 			// Get a staff user ID
-			string userId = await GetStaffUserIdByEmailAsync(
-				_http,
+			string userId = await _GetStaffUserIdByEmailAsync(
+				_Http,
 				token,
 				TestConstants.StaffUserEmail
 			);
 
-			string url = GetUrl(userId);
+			string url = _GetUrl(userId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -264,7 +264,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -280,15 +280,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnUnprocessableEntityForEmptyAvatarUrl() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
+				await _AuthClient.LoginAsStaffAdminAsync();
 
-			string userId = await GetStaffUserIdByEmailAsync(
-				_http,
+			string userId = await _GetStaffUserIdByEmailAsync(
+				_Http,
 				token,
 				TestConstants.StaffUserEmail
 			);
 
-			string url = GetUrl(userId);
+			string url = _GetUrl(userId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -298,7 +298,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			// avatarUrl has no "blank means clear" semantics on this endpoint —
 			// unlike websiteUrl on the tenant org profile, an empty string must
@@ -311,15 +311,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
+				await _AuthClient.LoginAsStaffAdminAsync();
 
-			string userId = await GetStaffUserIdByEmailAsync(
-				_http,
+			string userId = await _GetStaffUserIdByEmailAsync(
+				_Http,
 				token,
 				TestConstants.StaffUserEmail
 			);
 
-			string url = GetUrl(userId);
+			string url = _GetUrl(userId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -329,7 +329,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
@@ -345,15 +345,15 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
 			string token =
-				await _authClient.LoginAsStaffAdminAsync();
+				await _AuthClient.LoginAsStaffAdminAsync();
 
-			string userId = await GetStaffUserIdByEmailAsync(
-				_http,
+			string userId = await _GetStaffUserIdByEmailAsync(
+				_Http,
 				token,
 				TestConstants.StaffUserEmail
 			);
 
-			string url = GetUrl(userId);
+			string url = _GetUrl(userId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -366,7 +366,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			);
 
 			using HttpResponseMessage response =
-				await _http.SendAsync(request);
+				await _Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
@@ -380,7 +380,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 
 		// -- Helper methods --
 
-		private static async Task<string> GetStaffUserIdByEmailAsync(
+		private static async Task<string> _GetStaffUserIdByEmailAsync(
 			HttpClient http,
 			string staffToken,
 			string email
@@ -435,11 +435,11 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			public string Level { get; init; } = string.Empty;
 		}
 
-		private async Task<string> CreateUnprivilegedStaffUserTokenAsync() {
+		private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 			string email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
 			await using AsyncServiceScope scope =
-				_fixture.Factory.Services.CreateAsyncScope();
+				_Fixture.Factory.Services.CreateAsyncScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -461,14 +461,14 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			_ = dbContext.UserAccount.Add(staffAccount);
 			_ = await dbContext.SaveChangesAsync();
 
-			return await _authClient.LoginAsync(email, TestConstants.SeedPassword);
+			return await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		}
 
-		private async Task<Guid> CreateTenantOnlyUserAsync(Guid tenantId) {
+		private async Task<Guid> _CreateTenantOnlyUserAsync(Guid tenantId) {
 			string email = $"tenant-only-{Guid.NewGuid():N}@example.com";
 
 			await using AsyncServiceScope scope =
-				_fixture.Factory.Services.CreateAsyncScope();
+				_Fixture.Factory.Services.CreateAsyncScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 

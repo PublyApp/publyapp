@@ -21,38 +21,38 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 // with their sanitised cause — never another tenant's rows, never an empty-cause
 // failure (transparent-failure product rule).
 public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public FindNeedsReconnectAccountsForTenantSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
-	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http,
+			_Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _authClient.LoginAsync(
+		var token = await _AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> GetOtherTenantIdAsync() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+	private async Task<Guid> _GetOtherTenantIdAsync() {
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.GlobalName
+			_Http, staffToken, SeedConstants.Tenants.GlobalName
 		);
 	}
 
-	private static HttpRequestMessage GetRequest(string token, Guid tenantId) {
+	private static HttpRequestMessage _GetRequest(string token, Guid tenantId) {
 		return new HttpRequestMessage(
 				HttpMethod.Get,
 				"/social-accounts/needs-reconnect-accounts"
@@ -61,13 +61,13 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 			.WithTenantId(tenantId);
 	}
 
-	private async Task SeedAccountAsync(
+	private async Task _SeedAccountAsync(
 		Guid tenantId,
 		string externalAccountId,
 		SocialAccountStatus status,
 		string? lastError = null
 	) {
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		db.SocialAccount.Add(new SocialAccount {
 			TenantId = tenantId,
@@ -82,12 +82,12 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 
 	[Fact]
 	public async Task ItShouldReturnOnlyNeedsReconnectAccountsOfTheCallingTenant() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
-		await SeedAccountAsync(
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		await _SeedAccountAsync(
 			tenantId, "did:plc:test", SocialAccountStatus.NeedsReconnect, "Bluesky refused"
 		);
 
-		using var response = await _http.SendAsync(GetRequest(token, tenantId));
+		using var response = await _Http.SendAsync(_GetRequest(token, tenantId));
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
@@ -118,9 +118,9 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 
 	[Fact]
 	public async Task ItShouldReturnEmptyListWhenNoAccountNeedsReconnect() {
-		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
 
-		using var response = await _http.SendAsync(GetRequest(token, tenantId));
+		using var response = await _Http.SendAsync(_GetRequest(token, tenantId));
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
@@ -130,13 +130,13 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 
 	[Fact]
 	public async Task ItShouldNotLeakAnotherTenantsAccounts() {
-		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
-		var globalId = await GetOtherTenantIdAsync();
-		await SeedAccountAsync(
+		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
+		var globalId = await _GetOtherTenantIdAsync();
+		await _SeedAccountAsync(
 			globalId, "did:plc:other", SocialAccountStatus.NeedsReconnect, "Bluesky refused"
 		);
 
-		using var response = await _http.SendAsync(GetRequest(acmeToken, acmeId));
+		using var response = await _Http.SendAsync(_GetRequest(acmeToken, acmeId));
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();

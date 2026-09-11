@@ -22,23 +22,23 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 // without the socialaccounts permissions gets 403 everywhere; a missing session
 // gets 401; 403 never logs out.
 public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fixture;
-	private readonly HttpClient _http;
-	private readonly TestAuthClient _authClient;
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountPermissionSpec(ApiFixture fixture) {
-		_fixture = fixture;
-		_http = fixture.HttpClient;
-		_authClient = new TestAuthClient(_http);
+		_Fixture = fixture;
+		_Http = fixture.HttpClient;
+		_AuthClient = new TestAuthClient(_Http);
 	}
 
 	// Creates a bare Acme tenant member with NO profiles at all (round 2: the
 	// seeded AcmeUserEmail member holds socialaccounts.publish + view through
 	// demo-publishing-acme, so a no-verb proof needs a fresh member).
-	private async Task<string> CreateBareAcmeMemberAsync(Guid tenantId) {
+	private async Task<string> _CreateBareAcmeMemberAsync(Guid tenantId) {
 		var email = $"sa-perm-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -62,14 +62,14 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403OnEveryRouteWithoutTheVerb() {
-		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_http, staffToken, SeedConstants.Tenants.AcmeName
+			_Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
 		// Round 2: probe a dedicated profile-less member - the seeded Acme member
 		// now legitimately holds publish + view via the demo profile.
-		var bareEmail = await CreateBareAcmeMemberAsync(tenantId);
-		var token = await _authClient.LoginAsync(
+		var bareEmail = await _CreateBareAcmeMemberAsync(tenantId);
+		var token = await _AuthClient.LoginAsync(
 			bareEmail, TestConstants.SeedPassword
 		);
 
@@ -94,7 +94,7 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 			if (payload is not null) {
 				request.Content = JsonContent.Create(payload);
 			}
-			using var response = await _http.SendAsync(request);
+			using var response = await _Http.SendAsync(request);
 			response.StatusCode.Should().Be(
 				HttpStatusCode.Forbidden,
 				$"no-permission user hitting {method} {url} must be 403"
@@ -109,7 +109,7 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn401WithoutASession() {
 		using var request = new HttpRequestMessage(HttpMethod.Get, "/social-accounts/");
-		using var response = await _http.SendAsync(request);
+		using var response = await _Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 }

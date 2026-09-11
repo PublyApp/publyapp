@@ -11,7 +11,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// are always server-generated (UUID v7 file names under a year/month
 /// folder) and the extension is validated against a strict allowlist
 /// pattern, so callers never influence the on-disk layout;
-/// <see cref="ResolveFullPath"/> also rejects any path that would resolve
+/// <see cref="_ResolveFullPath"/> also rejects any path that would resolve
 /// outside the storage root, guarding the read/exists/delete paths against
 /// traversal even if ever called with unexpected input.
 /// </summary>
@@ -19,19 +19,19 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 	// Lowercase letters/digits only, 1-8 chars after the leading dot — rejects path
 	// separators, traversal segments, and embedded NUL bytes in a caller-supplied extension.
 	[GeneratedRegex(@"^\.[a-z0-9]{1,8}$")]
-	private static partial Regex ExtensionPattern();
+	private static partial Regex _ExtensionPattern();
 
-	private readonly string _rootPath;
+	private readonly string _RootPath;
 
 	public string RootPath {
 		get {
-			return _rootPath;
+			return _RootPath;
 		}
 	}
 
 	public LocalDiskFileStorage(string rootPath) {
-		_rootPath = Path.GetFullPath(rootPath);
-		Directory.CreateDirectory(_rootPath);
+		_RootPath = Path.GetFullPath(rootPath);
+		Directory.CreateDirectory(_RootPath);
 	}
 
 	public async Task<string> SaveAsync(
@@ -39,7 +39,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		string extension,
 		CancellationToken cancellationToken = default
 	) {
-		if (string.IsNullOrWhiteSpace(extension) || !ExtensionPattern().IsMatch(extension)) {
+		if (string.IsNullOrWhiteSpace(extension) || !_ExtensionPattern().IsMatch(extension)) {
 			throw new ArgumentException(
 				"Extension must match ^\\.[a-z0-9]{1,8}$",
 				nameof(extension)
@@ -56,7 +56,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 			fileName
 		);
 
-		var fullPath = ResolveFullPath(relativePath);
+		var fullPath = _ResolveFullPath(relativePath);
 		var directory = Path.GetDirectoryName(fullPath);
 		if (directory is null) {
 			throw new InvalidOperationException(
@@ -96,24 +96,24 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		string relativePath,
 		CancellationToken cancellationToken = default
 	) {
-		var fullPath = ResolveFullPath(relativePath);
+		var fullPath = _ResolveFullPath(relativePath);
 		if (File.Exists(fullPath)) {
 			File.Delete(fullPath);
 		}
 		return Task.FromResult(!File.Exists(fullPath));
 	}
 
-	private string ResolveFullPath(string relativePath) {
-		var fullPath = Path.GetFullPath(Path.Combine(_rootPath, relativePath));
-		var rootWithSeparator = _rootPath.EndsWith(Path.DirectorySeparatorChar)
-			? _rootPath
-			: _rootPath + Path.DirectorySeparatorChar;
+	private string _ResolveFullPath(string relativePath) {
+		var fullPath = Path.GetFullPath(Path.Combine(_RootPath, relativePath));
+		var rootWithSeparator = _RootPath.EndsWith(Path.DirectorySeparatorChar)
+			? _RootPath
+			: _RootPath + Path.DirectorySeparatorChar;
 
 		var isWithinRoot = fullPath.StartsWith(rootWithSeparator, StringComparison.Ordinal)
-			|| string.Equals(fullPath, _rootPath, StringComparison.Ordinal);
+			|| string.Equals(fullPath, _RootPath, StringComparison.Ordinal);
 		if (!isWithinRoot) {
 			throw new InvalidOperationException(
-				$"Resolved storage path '{fullPath}' escapes the storage root '{_rootPath}'."
+				$"Resolved storage path '{fullPath}' escapes the storage root '{_RootPath}'."
 			);
 		}
 

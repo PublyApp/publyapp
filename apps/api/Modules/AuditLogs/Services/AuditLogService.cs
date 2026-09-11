@@ -23,31 +23,31 @@ public interface IAuditLogService {
 
 [Service(ServiceLifetime.Scoped)]
 public class AuditLogService : IAuditLogService {
-	private readonly AppDbContext _dbContext;
-	private readonly IHttpContextAccessor _httpContextAccessor;
-	private readonly ILogger<AuditLogService> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly IHttpContextAccessor _HttpContextAccessor;
+	private readonly ILogger<AuditLogService> _Logger;
 
 	public AuditLogService(
 		AppDbContext dbContext,
 		IHttpContextAccessor httpContextAccessor,
 		ILogger<AuditLogService> logger
 	) {
-		_dbContext = dbContext;
-		_httpContextAccessor = httpContextAccessor;
-		_logger = logger;
+		_DbContext = dbContext;
+		_HttpContextAccessor = httpContextAccessor;
+		_Logger = logger;
 	}
 
 	public async Task LogAsync(
 		CreateAuditLogArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var auditLog = BuildAuditLog(args);
+		var auditLog = _BuildAuditLog(args);
 
-		await _dbContext.AuditLog.AddAsync(auditLog, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.AuditLog.AddAsync(auditLog, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Audit log created for action {Action} by user {UserId} targeting {TargetId}",
 				args.Action,
 				args.UserId,
@@ -64,21 +64,21 @@ public class AuditLogService : IAuditLogService {
 			return;
 		}
 
-		var auditLogs = argsList.Select(BuildAuditLog).ToList();
+		var auditLogs = argsList.Select(_BuildAuditLog).ToList();
 
-		await _dbContext.AuditLog.AddRangeAsync(auditLogs, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.AuditLog.AddRangeAsync(auditLogs, cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"Audit log batch of {Count} entries created",
 				argsList.Count
 			);
 		}
 	}
 
-	private AuditLog BuildAuditLog(CreateAuditLogArgs args) {
-		var httpContext = _httpContextAccessor.HttpContext;
+	private AuditLog _BuildAuditLog(CreateAuditLogArgs args) {
+		var httpContext = _HttpContextAccessor.HttpContext;
 
 		return AuditLog.CreateEntry(
 			args.UserId,

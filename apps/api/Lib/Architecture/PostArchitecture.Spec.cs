@@ -101,12 +101,12 @@ public sealed class PostArchitectureSpec {
 		// guard itself cannot drift with analyzer suppressions. Paired proof:
 		// remove && project.TenantId == tenantId from
 		// ProjectExistsForTenantAsync and this guard must fail.
-		var path = FindPostServicePath();
+		var path = _FindPostServicePath();
 		var source = File.ReadAllText(path);
 
 		// Split by method declarations that contain Guid tenantId
 		var methodPattern = "public async Task";
-		var methods = SplitMethods(source, methodPattern);
+		var methods = _SplitMethods(source, methodPattern);
 
 		var offenders = new List<string>();
 		foreach (var method in methods) {
@@ -137,7 +137,7 @@ public sealed class PostArchitectureSpec {
 		);
 	}
 
-	private static string FindPostServicePath() {
+	private static string _FindPostServicePath() {
 		var directory = new DirectoryInfo(AppContext.BaseDirectory);
 		while (directory is not null) {
 			if (File.Exists(Path.Combine(directory.FullName, "justfile"))) {
@@ -164,7 +164,7 @@ public sealed class PostArchitectureSpec {
 
 	private sealed record MethodSlice(string Signature, string Body);
 
-	private static List<MethodSlice> SplitMethods(
+	private static List<MethodSlice> _SplitMethods(
 		string source,
 		string methodMarker
 	) {

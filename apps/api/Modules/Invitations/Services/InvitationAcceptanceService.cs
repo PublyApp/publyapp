@@ -45,12 +45,12 @@ public interface IInvitationAcceptanceService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
-	private readonly AppDbContext _dbContext;
-	private readonly ILogger<InvitationAcceptanceService> _logger;
+	private readonly AppDbContext _DbContext;
+	private readonly ILogger<InvitationAcceptanceService> _Logger;
 
 	public InvitationAcceptanceService(AppDbContext dbContext, ILogger<InvitationAcceptanceService> logger) {
-		_dbContext = dbContext;
-		_logger = logger;
+		_DbContext = dbContext;
+		_Logger = logger;
 	}
 
 	public async Task<UserEntity> AcceptStaffInvitationAsync(
@@ -61,7 +61,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		var firstName = args.FirstName;
 		var lastName = args.LastName;
 		var passwordHash = args.PasswordHash;
-		await using var tx = await _dbContext.Database
+		await using var tx = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
 			// Create user
@@ -73,27 +73,27 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				Status = UserStatus.Active,
 				IsVerified = true
 			};
-			await _dbContext.User.AddAsync(user, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.User.AddAsync(user, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			// Create staff account
 			var account = UserAccount.CreateStaffAccount(
 				user.GetRequiredId(),
 				AccountLevel.User
 			);
-			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.UserAccount.AddAsync(account, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			// Load invitation profiles
 			var invitationProfiles = await (
-				from ip in _dbContext.InvitationProfile
+				from ip in _DbContext.InvitationProfile
 				where ip.InvitationId == invitation.GetRequiredId()
 				select ip
 			).ToListAsync(cancellationToken);
 
 			// Assign ALL profiles from the invitation
 			foreach (var invitationProfile in invitationProfiles) {
-				await _dbContext.UserAccountProfile.AddAsync(
+				await _DbContext.UserAccountProfile.AddAsync(
 					new UserAccountProfile {
 						UserAccountId = account.GetRequiredId(),
 						ProfileId = invitationProfile.ProfileId
@@ -108,12 +108,12 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Synchronous outbox cancellation retired (design §5.4): the email job's
 			// send-time locked eligibility recheck is now the authoritative gate — an
 			// accepted invitation resolves to CancelledIneligible at send, in email_log.
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Staff invitation accepted: User {UserId} created with {ProfileCount} profiles from invitation {InvitationId}",
 					user.GetRequiredId(),
 					invitationProfiles.Count,
@@ -136,7 +136,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		var firstName = args.FirstName;
 		var lastName = args.LastName;
 		var passwordHash = args.PasswordHash;
-		await using var tx = await _dbContext.Database
+		await using var tx = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
 			// Validate invitation has TenantId
@@ -158,8 +158,8 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				Status = UserStatus.Active,
 				IsVerified = true
 			};
-			await _dbContext.User.AddAsync(user, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.User.AddAsync(user, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			// Create tenant account
 			var account = UserAccount.CreateTenantAccount(
@@ -167,19 +167,19 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				tenantId,
 				accountLevel
 			);
-			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.UserAccount.AddAsync(account, cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			// Load invitation profiles
 			var invitationProfiles = await (
-				from ip in _dbContext.InvitationProfile
+				from ip in _DbContext.InvitationProfile
 				where ip.InvitationId == invitation.GetRequiredId()
 				select ip
 			).ToListAsync(cancellationToken);
 
 			// Assign ALL profiles from the invitation
 			foreach (var invitationProfile in invitationProfiles) {
-				await _dbContext.UserAccountProfile.AddAsync(
+				await _DbContext.UserAccountProfile.AddAsync(
 					new UserAccountProfile {
 						UserAccountId = account.GetRequiredId(),
 						ProfileId = invitationProfile.ProfileId
@@ -189,7 +189,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			}
 
 			var tenant = await (
-				from t in _dbContext.Tenant
+				from t in _DbContext.Tenant
 				where t.Id == tenantId && !t.IsDeleted
 				select t
 			).FirstOrDefaultAsync(cancellationToken);
@@ -211,12 +211,12 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Synchronous outbox cancellation retired (design §5.4): the email job's
 			// send-time locked eligibility recheck is now the authoritative gate — an
 			// accepted invitation resolves to CancelledIneligible at send, in email_log.
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
 					user.GetRequiredId(),
 					tenantId,
@@ -238,7 +238,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		await using var tx = await _dbContext.Database
+		await using var tx = await _DbContext.Database
 			.BeginTransactionAsync(cancellationToken);
 		try {
 			if (invitation.TenantId is null) {
@@ -251,7 +251,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;
 
 			var user = await (
-				from u in _dbContext.User
+				from u in _DbContext.User
 				where u.Id == userId && !u.IsDeleted
 				select u
 			).FirstOrDefaultAsync(cancellationToken);
@@ -263,7 +263,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			}
 
 			var hasStaffAccount = await (
-				from ua in _dbContext.UserAccount
+				from ua in _DbContext.UserAccount
 				where ua.UserId == userId
 					&& ua.Scope == AccountScope.Staff
 					&& !ua.IsDeleted
@@ -277,7 +277,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			}
 
 			var existingTenantAccount = await (
-				from ua in _dbContext.UserAccount
+				from ua in _DbContext.UserAccount
 				where ua.UserId == userId
 					&& ua.TenantId == tenantId
 					&& ua.Scope == AccountScope.Tenant
@@ -296,28 +296,28 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				tenantId,
 				accountLevel
 			);
-			var addedAccount = await _dbContext.UserAccount.AddAsync(account, cancellationToken);
+			var addedAccount = await _DbContext.UserAccount.AddAsync(account, cancellationToken);
 
 			try {
-				await _dbContext.SaveChangesAsync(cancellationToken);
-			} catch (DbUpdateException ex) when (IsUserAccountUniqueViolation(ex)) {
+				await _DbContext.SaveChangesAsync(cancellationToken);
+			} catch (DbUpdateException ex) when (_IsUserAccountUniqueViolation(ex)) {
 				// Race condition: a concurrent request accepted the same tenant
 				// invitation between our existence check and this insert. The
 				// database-enforced membership invariant (ux_user_accounts_tenant_active)
 				// rejected the duplicate row; treat this as the same
 				// already-member outcome the synchronous check above returns.
-				_dbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
+				_DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
 				throw new InvalidOperationException("User is already member of tenant");
 			}
 
 			var invitationProfiles = await (
-				from ip in _dbContext.InvitationProfile
+				from ip in _DbContext.InvitationProfile
 				where ip.InvitationId == invitation.GetRequiredId()
 				select ip
 			).ToListAsync(cancellationToken);
 
 			foreach (var invitationProfile in invitationProfiles) {
-				await _dbContext.UserAccountProfile.AddAsync(
+				await _DbContext.UserAccountProfile.AddAsync(
 					new UserAccountProfile {
 						UserAccountId = account.GetRequiredId(),
 						ProfileId = invitationProfile.ProfileId
@@ -327,7 +327,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			}
 
 			var tenant = await (
-				from t in _dbContext.Tenant
+				from t in _DbContext.Tenant
 				where t.Id == tenantId && !t.IsDeleted
 				select t
 			).FirstOrDefaultAsync(cancellationToken);
@@ -348,12 +348,12 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			// Synchronous outbox cancellation retired (design §5.4): the email job's
 			// send-time locked eligibility recheck is now the authoritative gate — an
 			// accepted invitation resolves to CancelledIneligible at send, in email_log.
-			await _dbContext.SaveChangesAsync(cancellationToken);
+			await _DbContext.SaveChangesAsync(cancellationToken);
 
 			await tx.CommitAsync(cancellationToken);
 
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
 					userId,
 					tenantId,
@@ -374,12 +374,12 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		Guid invitationId,
 		CancellationToken cancellationToken = default
 	) {
-		var invitation = await _dbContext.Invitation
+		var invitation = await _DbContext.Invitation
 			.FindAsync([invitationId], cancellationToken);
 
 		if (invitation is null) {
-			if (_logger.IsEnabled(LogLevel.Warning)) {
-				_logger.LogWarning(
+			if (_Logger.IsEnabled(LogLevel.Warning)) {
+				_Logger.LogWarning(
 					"Attempt to mark non-existent invitation {InvitationId} as accepted",
 					invitationId
 				);
@@ -388,8 +388,8 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		}
 
 		if (invitation.IsAccepted()) {
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
+			if (_Logger.IsEnabled(LogLevel.Information)) {
+				_Logger.LogInformation(
 					"Invitation {InvitationId} is already accepted; no-op",
 					invitationId
 				);
@@ -403,10 +403,10 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 		// Synchronous outbox cancellation retired (design §5.4): the send-time locked
 		// eligibility recheck is the authoritative gate.
 
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		await _DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
 		}
 	}
 
@@ -415,7 +415,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 	/// PostgreSQL error code 23505 = unique_violation.
 	/// Checks table name to avoid masking unrelated unique violations.
 	/// </summary>
-	private static bool IsUserAccountUniqueViolation(DbUpdateException ex) {
+	private static bool _IsUserAccountUniqueViolation(DbUpdateException ex) {
 		if (ex.InnerException is Npgsql.PostgresException pgEx) {
 			return pgEx.SqlState == "23505"
 				&& pgEx.TableName is not null
