@@ -27,10 +27,10 @@ public sealed class CoalesceThrowAnalyzer : DiagnosticAnalyzer {
 		context.EnableConcurrentExecution();
 		// The `x ?? throw ...` pattern parses to a CoalesceExpression with a ThrowExpression on
 		// the right-hand side.
-		context.RegisterSyntaxNodeAction(AnalyzeCoalesceExpression, SyntaxKind.CoalesceExpression);
+		context.RegisterSyntaxNodeAction(_AnalyzeCoalesceExpression, SyntaxKind.CoalesceExpression);
 	}
 
-	private static void AnalyzeCoalesceExpression(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeCoalesceExpression(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not BinaryExpressionSyntax coalesceExpression) {
 			return;
 		}

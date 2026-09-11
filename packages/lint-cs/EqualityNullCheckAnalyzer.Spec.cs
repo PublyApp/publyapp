@@ -17,14 +17,14 @@ namespace PublyApp.Analyzers;
 
 public sealed class EqualityNullCheckAnalyzerSpec
 {
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
 		dotnet_diagnostic.PUBLY0008.severity = warning
 		""";
 
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Use 'is null' / 'is not null' pattern matching instead of direct null equality checks";
 
 	[Fact]
@@ -42,7 +42,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -62,7 +62,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -80,7 +80,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -98,7 +98,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -116,7 +116,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -147,7 +147,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -177,7 +177,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -228,7 +228,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-			await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+			await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -279,7 +279,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -297,7 +297,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("GeneratedExample.designer.cs", source);
+		await _VerifyEnabledWithFileNameAsync("GeneratedExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -362,7 +362,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -395,7 +395,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -415,15 +415,15 @@ public sealed class EqualityNullCheckAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static DiagnosticResult ExpectedDiagnostic(int location)
+	private static DiagnosticResult _ExpectedDiagnostic(int location)
 	{
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0008)
 			.WithLocation(location)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		params DiagnosticResult[] expected)
 	{
@@ -432,18 +432,18 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
 	}
 
-	private static async Task VerifyEnabledWithFileNameAsync(string fileName, string source)
+	private static async Task _VerifyEnabledWithFileNameAsync(string fileName, string source)
 	{
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		await test.RunAsync();
 	}
 }

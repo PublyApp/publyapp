@@ -21,19 +21,19 @@ public sealed class EndpointRateLimitAnalyzer
 		NonTerminal,
 	}
 
-	private const string AspNetBuilderNamespace =
+	private const string _AspNetBuilderNamespace =
 		"Microsoft.AspNetCore.Builder";
-	private const string RateLimiterExtensionsType =
+	private const string _RateLimiterExtensionsType =
 		"RateLimiterEndpointConventionBuilderExtensions";
-	private const string RateLimitingNamespace =
+	private const string _RateLimitingNamespace =
 		"PublyApp.Api.Lib.RateLimiting";
-	private const string ApiRateLimitExtensionsType =
+	private const string _ApiRateLimitExtensionsType =
 		"ApiRateLimitEndpointExtensions";
-	private const string AnonymousAuthExtensionsType =
+	private const string _AnonymousAuthExtensionsType =
 		"AnonymousAuthRateLimitExtensions";
 
 	private static readonly ImmutableHashSet<string>
-		KnownNamedPolicies =
+		_KnownNamedPolicies =
 			ImmutableHashSet.Create(
 				StringComparer.Ordinal,
 				"anonymous-auth-per-ip",
@@ -54,7 +54,7 @@ public sealed class EndpointRateLimitAnalyzer
 				"system-job-trigger"
 			);
 	private static readonly ImmutableHashSet<string>
-		ApprovedNamedPolicyHelpers =
+		_ApprovedNamedPolicyHelpers =
 			ImmutableHashSet.Create(
 				StringComparer.Ordinal,
 				"RequireAnonymousAuthIpRateLimit",
@@ -78,12 +78,12 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 		context.EnableConcurrentExecution();
 		context.RegisterSyntaxNodeAction(
-			AnalyzeInvocation,
+			_AnalyzeInvocation,
 			SyntaxKind.InvocationExpression
 		);
 	}
 
-	private static void AnalyzeInvocation(
+	private static void _AnalyzeInvocation(
 		SyntaxNodeAnalysisContext context
 	) {
 		if (
@@ -98,7 +98,7 @@ public sealed class EndpointRateLimitAnalyzer
 		var methodName =
 			memberAccess.Name.Identifier.ValueText;
 		if (
-			!IsEndpointMapping(
+			!_IsEndpointMapping(
 				invocation,
 				memberAccess,
 				context
@@ -107,39 +107,39 @@ public sealed class EndpointRateLimitAnalyzer
 			return;
 		}
 
-		var chainRoot = GetFluentChainRoot(invocation);
+		var chainRoot = _GetFluentChainRoot(invocation);
 		var capturedInvocations =
-			GetCapturedEndpointInvocations(
+			_GetCapturedEndpointInvocations(
 				chainRoot,
 				context.SemanticModel,
 				context.CancellationToken
 			);
 		if (
 			(
-				HasDisableRateLimiting(
+				_HasDisableRateLimiting(
 					chainRoot,
 					context.SemanticModel,
 					context.CancellationToken
 				)
 				|| capturedInvocations.Any(
 					candidate =>
-						IsIntendedMethod(
+						_IsIntendedMethod(
 							candidate,
 							"DisableRateLimiting",
-							AspNetBuilderNamespace,
-							RateLimiterExtensionsType,
+							_AspNetBuilderNamespace,
+							_RateLimiterExtensionsType,
 							context.SemanticModel,
 							context.CancellationToken
 						)
 				)
 			)
 			&& !(
-				HasReasonedOptOut(
+				_HasReasonedOptOut(
 					chainRoot,
 					context.SemanticModel,
 					context.CancellationToken
 				)
-				|| HasReasonedOptOut(
+				|| _HasReasonedOptOut(
 					capturedInvocations,
 					context.SemanticModel,
 					context.CancellationToken
@@ -157,12 +157,12 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 
 		if (
-			HasDisposition(
+			_HasDisposition(
 				chainRoot,
 				context.SemanticModel,
 				context.CancellationToken
 			)
-			|| HasDisposition(
+			|| _HasDisposition(
 				capturedInvocations,
 				context.SemanticModel,
 				context.CancellationToken
@@ -175,7 +175,7 @@ public sealed class EndpointRateLimitAnalyzer
 			SymbolEqualityComparer.Default
 		);
 		if (
-			HasInheritedDisposition(
+			_HasInheritedDisposition(
 				memberAccess.Expression,
 				context.SemanticModel,
 				context.CancellationToken,
@@ -194,7 +194,7 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 	}
 
-	private static bool IsEndpointMapping(
+	private static bool _IsEndpointMapping(
 		InvocationExpressionSyntax invocation,
 		MemberAccessExpressionSyntax memberAccess,
 		SyntaxNodeAnalysisContext context
@@ -232,11 +232,11 @@ public sealed class EndpointRateLimitAnalyzer
 				"Map",
 				StringComparison.Ordinal
 			)
-			|| !IsOrImplements(
+			|| !_IsOrImplements(
 				receiverType,
 				routeBuilderType
 			)
-			|| !IsOrImplements(
+			|| !_IsOrImplements(
 				method.ReturnType,
 				conventionBuilderType
 			)
@@ -258,7 +258,7 @@ public sealed class EndpointRateLimitAnalyzer
 			new Dictionary<ISymbol, MappingTerminality>(
 				SymbolEqualityComparer.Default
 			);
-		return GetMappingTerminality(
+		return _GetMappingTerminality(
 			method,
 			routeBuilderType,
 			conventionBuilderType,
@@ -274,7 +274,7 @@ public sealed class EndpointRateLimitAnalyzer
 	}
 
 	private static MappingTerminality
-		GetMappingTerminality(
+		_GetMappingTerminality(
 		IMethodSymbol method,
 		INamedTypeSymbol routeBuilderType,
 		INamedTypeSymbol conventionBuilderType,
@@ -302,14 +302,14 @@ public sealed class EndpointRateLimitAnalyzer
 
 		visited.Add(definition);
 		if (
-			IsAspNetCoreMappingApi(
+			_IsAspNetCoreMappingApi(
 				method,
 				routeBuilderType,
 				conventionBuilderType
 			)
 		) {
 			var frameworkTerminality =
-				ClassifyMappingResultType(
+				_ClassifyMappingResultType(
 				method.ReturnType,
 				routeBuilderType,
 				routeGroupBuilderType,
@@ -345,7 +345,7 @@ public sealed class EndpointRateLimitAnalyzer
 			);
 #pragma warning restore RS1030
 			var declarationTerminality =
-				GetDeclarationTerminality(
+				_GetDeclarationTerminality(
 					declaration,
 					semanticModel,
 					routeBuilderType,
@@ -384,7 +384,7 @@ public sealed class EndpointRateLimitAnalyzer
 	}
 
 	private static MappingTerminality
-		GetDeclarationTerminality(
+		_GetDeclarationTerminality(
 		MethodDeclarationSyntax declaration,
 		SemanticModel semanticModel,
 		INamedTypeSymbol routeBuilderType,
@@ -401,7 +401,7 @@ public sealed class EndpointRateLimitAnalyzer
 			declaration.ExpressionBody?.Expression
 				is ExpressionSyntax expression
 		) {
-			return GetExpressionTerminality(
+			return _GetExpressionTerminality(
 				expression,
 				semanticModel,
 				routeBuilderType,
@@ -438,7 +438,7 @@ public sealed class EndpointRateLimitAnalyzer
 		MappingTerminality? terminality = null;
 		foreach (var returnExpression in returnExpressions) {
 			var returnTerminality =
-				GetExpressionTerminality(
+				_GetExpressionTerminality(
 					returnExpression,
 					semanticModel,
 					routeBuilderType,
@@ -473,7 +473,7 @@ public sealed class EndpointRateLimitAnalyzer
 	}
 
 	private static MappingTerminality
-		GetExpressionTerminality(
+		_GetExpressionTerminality(
 		ExpressionSyntax expression,
 		SemanticModel semanticModel,
 		INamedTypeSymbol routeBuilderType,
@@ -490,7 +490,7 @@ public sealed class EndpointRateLimitAnalyzer
 			expression
 				is ParenthesizedExpressionSyntax parenthesized
 		) {
-			return GetExpressionTerminality(
+			return _GetExpressionTerminality(
 				parenthesized.Expression,
 				semanticModel,
 				routeBuilderType,
@@ -505,7 +505,7 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 
 		if (expression is CastExpressionSyntax cast) {
-			return GetExpressionTerminality(
+			return _GetExpressionTerminality(
 				cast.Expression,
 				semanticModel,
 				routeBuilderType,
@@ -534,7 +534,7 @@ public sealed class EndpointRateLimitAnalyzer
 						ExpressionSyntax initializer,
 				}
 		) {
-			return GetExpressionTerminality(
+			return _GetExpressionTerminality(
 				initializer,
 				semanticModel,
 				routeBuilderType,
@@ -560,13 +560,13 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 
 		if (
-			IsAspNetCoreMappingApi(
+			_IsAspNetCoreMappingApi(
 				method,
 				routeBuilderType,
 				conventionBuilderType
 			)
 		) {
-			return ClassifyMappingResultType(
+			return _ClassifyMappingResultType(
 				method.ReturnType,
 				routeBuilderType,
 				routeGroupBuilderType,
@@ -575,13 +575,13 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 
 		if (
-			IsMappingMethodCandidate(
+			_IsMappingMethodCandidate(
 				method,
 				routeBuilderType,
 				conventionBuilderType
 			)
 		) {
-			return GetMappingTerminality(
+			return _GetMappingTerminality(
 				method,
 				routeBuilderType,
 				conventionBuilderType,
@@ -598,7 +598,7 @@ public sealed class EndpointRateLimitAnalyzer
 			invocation.Expression
 				is MemberAccessExpressionSyntax memberAccess
 		) {
-			return GetExpressionTerminality(
+			return _GetExpressionTerminality(
 				memberAccess.Expression,
 				semanticModel,
 				routeBuilderType,
@@ -615,7 +615,7 @@ public sealed class EndpointRateLimitAnalyzer
 		return MappingTerminality.Undecidable;
 	}
 
-	private static bool IsMappingMethodCandidate(
+	private static bool _IsMappingMethodCandidate(
 		IMethodSymbol method,
 		INamedTypeSymbol routeBuilderType,
 		INamedTypeSymbol conventionBuilderType
@@ -624,17 +624,17 @@ public sealed class EndpointRateLimitAnalyzer
 				"Map",
 				StringComparison.Ordinal
 			)
-			&& IsOrImplements(
-				GetMappingReceiverType(method),
+			&& _IsOrImplements(
+				_GetMappingReceiverType(method),
 				routeBuilderType
 			)
-			&& IsOrImplements(
+			&& _IsOrImplements(
 				method.ReturnType,
 				conventionBuilderType
 			);
 	}
 
-	private static bool IsAspNetCoreMappingApi(
+	private static bool _IsAspNetCoreMappingApi(
 		IMethodSymbol method,
 		INamedTypeSymbol routeBuilderType,
 		INamedTypeSymbol conventionBuilderType
@@ -657,14 +657,14 @@ public sealed class EndpointRateLimitAnalyzer
 			);
 
 		return isFrameworkSymbol
-			&& IsMappingMethodCandidate(
+			&& _IsMappingMethodCandidate(
 				method,
 				routeBuilderType,
 				conventionBuilderType
 			);
 	}
 
-	private static ITypeSymbol GetMappingReceiverType(
+	private static ITypeSymbol _GetMappingReceiverType(
 		IMethodSymbol method
 	) {
 		var definition = method.ReducedFrom
@@ -681,7 +681,7 @@ public sealed class EndpointRateLimitAnalyzer
 	}
 
 	private static MappingTerminality
-		ClassifyMappingResultType(
+		_ClassifyMappingResultType(
 		ITypeSymbol returnType,
 		INamedTypeSymbol routeBuilderType,
 		INamedTypeSymbol? routeGroupBuilderType,
@@ -707,7 +707,7 @@ public sealed class EndpointRateLimitAnalyzer
 			return MappingTerminality.Terminal;
 		}
 
-		return IsOrImplements(
+		return _IsOrImplements(
 			returnType,
 			routeBuilderType
 		)
@@ -715,7 +715,7 @@ public sealed class EndpointRateLimitAnalyzer
 			: MappingTerminality.Terminal;
 	}
 
-	private static bool IsOrImplements(
+	private static bool _IsOrImplements(
 		ITypeSymbol type,
 		INamedTypeSymbol target
 	) {
@@ -733,7 +733,7 @@ public sealed class EndpointRateLimitAnalyzer
 
 	private static IReadOnlyList<
 		InvocationExpressionSyntax
-	> GetCapturedEndpointInvocations(
+	> _GetCapturedEndpointInvocations(
 		SyntaxNode chainRoot,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
@@ -764,7 +764,7 @@ public sealed class EndpointRateLimitAnalyzer
 			.DescendantNodes()
 			.OfType<InvocationExpressionSyntax>()
 			.Where(candidate =>
-				IsEndpointConventionChainRootedInLocal(
+				_IsEndpointConventionChainRootedInLocal(
 					candidate,
 					endpointLocal,
 					conventionBuilderType,
@@ -776,7 +776,7 @@ public sealed class EndpointRateLimitAnalyzer
 	}
 
 	private static bool
-		IsEndpointConventionChainRootedInLocal(
+		_IsEndpointConventionChainRootedInLocal(
 		InvocationExpressionSyntax invocation,
 		ILocalSymbol endpointLocal,
 		INamedTypeSymbol conventionBuilderType,
@@ -790,7 +790,7 @@ public sealed class EndpointRateLimitAnalyzer
 				invocation,
 				cancellationToken
 			).Type is not ITypeSymbol resultType
-			|| !IsOrImplements(
+			|| !_IsOrImplements(
 				resultType,
 				conventionBuilderType
 			)
@@ -808,7 +808,7 @@ public sealed class EndpointRateLimitAnalyzer
 				).Type;
 			if (
 				receiverType is null
-				|| !IsOrImplements(
+				|| !_IsOrImplements(
 					receiverType,
 					conventionBuilderType
 				)
@@ -849,7 +849,7 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 	}
 
-	private static bool HasDisableRateLimiting(
+	private static bool _HasDisableRateLimiting(
 		SyntaxNode root,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
@@ -858,23 +858,23 @@ public sealed class EndpointRateLimitAnalyzer
 			.DescendantNodesAndSelf()
 			.OfType<InvocationExpressionSyntax>()
 			.Any(invocation =>
-				IsIntendedMethod(
+				_IsIntendedMethod(
 					invocation,
 					"DisableRateLimiting",
-					AspNetBuilderNamespace,
-					RateLimiterExtensionsType,
+					_AspNetBuilderNamespace,
+					_RateLimiterExtensionsType,
 					semanticModel,
 					cancellationToken
 				)
 			);
 	}
 
-	private static bool HasReasonedOptOut(
+	private static bool _HasReasonedOptOut(
 		SyntaxNode root,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
-		return HasReasonedOptOut(
+		return _HasReasonedOptOut(
 			root.DescendantNodesAndSelf()
 				.OfType<InvocationExpressionSyntax>(),
 			semanticModel,
@@ -882,7 +882,7 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 	}
 
-	private static bool HasReasonedOptOut(
+	private static bool _HasReasonedOptOut(
 		IEnumerable<InvocationExpressionSyntax>
 			invocations,
 		SemanticModel semanticModel,
@@ -890,15 +890,15 @@ public sealed class EndpointRateLimitAnalyzer
 		) {
 		return invocations
 			.Any(invocation =>
-				IsIntendedMethod(
+				_IsIntendedMethod(
 					invocation,
 					"WithRateLimitOptOut",
-					RateLimitingNamespace,
-					ApiRateLimitExtensionsType,
+					_RateLimitingNamespace,
+					_ApiRateLimitExtensionsType,
 					semanticModel,
 					cancellationToken
 				)
-				&& HasNonEmptyConstantReason(
+				&& _HasNonEmptyConstantReason(
 					invocation,
 					semanticModel,
 					cancellationToken
@@ -906,7 +906,7 @@ public sealed class EndpointRateLimitAnalyzer
 			);
 	}
 
-	private static bool HasInheritedDisposition(
+	private static bool _HasInheritedDisposition(
 		ExpressionSyntax receiver,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken,
@@ -945,7 +945,7 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 
 		if (
-			HasDisposition(
+			_HasDisposition(
 				initializer,
 				semanticModel,
 				cancellationToken
@@ -958,7 +958,7 @@ public sealed class EndpointRateLimitAnalyzer
 			.DescendantNodesAndSelf()
 			.OfType<InvocationExpressionSyntax>()
 			.FirstOrDefault(candidate =>
-				GetInvokedMethodName(candidate)
+				_GetInvokedMethodName(candidate)
 					== "MapGroup"
 			);
 		if (
@@ -969,7 +969,7 @@ public sealed class EndpointRateLimitAnalyzer
 			return false;
 		}
 
-		return HasInheritedDisposition(
+		return _HasInheritedDisposition(
 			mapGroupAccess.Expression,
 			semanticModel,
 			cancellationToken,
@@ -977,12 +977,12 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 	}
 
-	private static bool HasDisposition(
+	private static bool _HasDisposition(
 		SyntaxNode root,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
-		return HasDisposition(
+		return _HasDisposition(
 			root.DescendantNodesAndSelf()
 				.OfType<InvocationExpressionSyntax>(),
 			semanticModel,
@@ -990,7 +990,7 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 	}
 
-	private static bool HasDisposition(
+	private static bool _HasDisposition(
 		IEnumerable<InvocationExpressionSyntax>
 			invocations,
 		SemanticModel semanticModel,
@@ -1000,7 +1000,7 @@ public sealed class EndpointRateLimitAnalyzer
 			var invocation in invocations
 		) {
 			if (
-				IsNamedPolicyInvocation(
+				_IsNamedPolicyInvocation(
 					invocation,
 					semanticModel,
 					cancellationToken
@@ -1010,11 +1010,11 @@ public sealed class EndpointRateLimitAnalyzer
 			}
 
 			if (
-				IsIntendedMethod(
+				_IsIntendedMethod(
 					invocation,
 					"WithGlobalRateLimitOnly",
-					RateLimitingNamespace,
-					ApiRateLimitExtensionsType,
+					_RateLimitingNamespace,
+					_ApiRateLimitExtensionsType,
 					semanticModel,
 					cancellationToken
 				)
@@ -1023,15 +1023,15 @@ public sealed class EndpointRateLimitAnalyzer
 			}
 
 			if (
-				IsIntendedMethod(
+				_IsIntendedMethod(
 					invocation,
 					"WithRateLimitOptOut",
-					RateLimitingNamespace,
-					ApiRateLimitExtensionsType,
+					_RateLimitingNamespace,
+					_ApiRateLimitExtensionsType,
 					semanticModel,
 					cancellationToken
 				)
-				&& HasNonEmptyConstantReason(
+				&& _HasNonEmptyConstantReason(
 					invocation,
 					semanticModel,
 					cancellationToken
@@ -1044,21 +1044,21 @@ public sealed class EndpointRateLimitAnalyzer
 		return false;
 	}
 
-	private static bool IsNamedPolicyInvocation(
+	private static bool _IsNamedPolicyInvocation(
 		InvocationExpressionSyntax invocation,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
 		var methodName =
-			GetInvokedMethodName(invocation);
+			_GetInvokedMethodName(invocation);
 		if (
 			methodName is not null
-			&& ApprovedNamedPolicyHelpers.Contains(methodName)
-			&& IsIntendedMethod(
+			&& _ApprovedNamedPolicyHelpers.Contains(methodName)
+			&& _IsIntendedMethod(
 				invocation,
 				methodName,
-				RateLimitingNamespace,
-				AnonymousAuthExtensionsType,
+				_RateLimitingNamespace,
+				_AnonymousAuthExtensionsType,
 				semanticModel,
 				cancellationToken
 			)
@@ -1067,11 +1067,11 @@ public sealed class EndpointRateLimitAnalyzer
 		}
 
 		if (
-			!IsIntendedMethod(
+			!_IsIntendedMethod(
 				invocation,
 				"RequireRateLimiting",
-				AspNetBuilderNamespace,
-				RateLimiterExtensionsType,
+				_AspNetBuilderNamespace,
+				_RateLimiterExtensionsType,
 				semanticModel,
 				cancellationToken
 			)
@@ -1092,10 +1092,10 @@ public sealed class EndpointRateLimitAnalyzer
 		);
 		return constant.HasValue
 			&& constant.Value is string policyName
-			&& KnownNamedPolicies.Contains(policyName);
+			&& _KnownNamedPolicies.Contains(policyName);
 	}
 
-	private static bool IsIntendedMethod(
+	private static bool _IsIntendedMethod(
 		InvocationExpressionSyntax invocation,
 		string methodName,
 		string containingNamespace,
@@ -1122,7 +1122,7 @@ public sealed class EndpointRateLimitAnalyzer
 				== containingNamespace;
 	}
 
-	private static bool HasNonEmptyConstantReason(
+	private static bool _HasNonEmptyConstantReason(
 		InvocationExpressionSyntax invocation,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
@@ -1143,7 +1143,7 @@ public sealed class EndpointRateLimitAnalyzer
 			&& !string.IsNullOrWhiteSpace(reason);
 	}
 
-	private static SyntaxNode GetFluentChainRoot(
+	private static SyntaxNode _GetFluentChainRoot(
 		InvocationExpressionSyntax invocation
 	) {
 		SyntaxNode root = invocation;
@@ -1168,7 +1168,7 @@ public sealed class EndpointRateLimitAnalyzer
 		return root;
 	}
 
-	private static string? GetInvokedMethodName(
+	private static string? _GetInvokedMethodName(
 		InvocationExpressionSyntax invocation
 	) {
 		if (

@@ -94,13 +94,13 @@ public static partial class MeasureStatusGuardOverhead {
 		//   word, so the subtraction isolates the guard's incremental cost.
 		bool GuardedPath(string sql) {
 			foreach (var statement in sql.Split(';')) {
-				if (!PublicationsTableWord.IsMatch(statement)) {
+				if (!_PublicationsTableWord.IsMatch(statement)) {
 					continue;
 				}
 
-				foreach (Match match in UpdateStatementShape.Matches(
+				foreach (Match match in _UpdateStatementShape.Matches(
 					StripSqlComments(statement))) {
-					if (StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
+					if (_StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
 						return true;
 					}
 				}
@@ -110,11 +110,11 @@ public static partial class MeasureStatusGuardOverhead {
 		}
 
 		// The unguarded baseline runs the SAME chain but skips the guard's
-		// UpdateStatementShape + StatusColumnWord detection — it only fast-fails
+		// _UpdateStatementShape + _StatusColumnWord detection — it only fast-fails
 		// on publications presence (which is the work the guard piggy-backs on).
 		bool UnguardedBaseline(string sql) {
 			foreach (var statement in sql.Split(';')) {
-				if (!PublicationsTableWord.IsMatch(statement)) {
+				if (!_PublicationsTableWord.IsMatch(statement)) {
 					continue;
 				}
 
@@ -125,7 +125,7 @@ public static partial class MeasureStatusGuardOverhead {
 		}
 
 		static string StripSqlComments(string sql) {
-			return SqlBlockComment.Replace(SqlLineComment.Replace(sql, " "), " ");
+			return _SqlBlockComment.Replace(_SqlLineComment.Replace(sql, " "), " ");
 		}
 
 		// ── Warmup ──────────────────────────────────────────────────────────
@@ -175,8 +175,8 @@ public static partial class MeasureStatusGuardOverhead {
 		}
 
 		// ── Statistics ──────────────────────────────────────────────────────
-		// Percentile convention (documented for r3, D5):
-		//   Percentile(sorted, p) = sorted[Ceiling(p * n) - 1]
+		// _Percentile convention (documented for r3, D5):
+		//   _Percentile(sorted, p) = sorted[Ceiling(p * n) - 1]
 		// For an even-length set at p=0.50 this returns the UPPER of the two
 		// central elements (index n/2), not their average. This matches the
 		// nearest-rank method used by the r2 benchmark and is stated explicitly
@@ -195,12 +195,12 @@ public static partial class MeasureStatusGuardOverhead {
 			var name = kv.Key;
 			var (guardedArr, unguardedArr) = results[name];
 
-			var gMed = Percentile(guardedArr, 0.50);
-			var gP90 = Percentile(guardedArr, 0.90);
-			var uMed = Percentile(unguardedArr, 0.50);
+			var gMed = _Percentile(guardedArr, 0.50);
+			var gP90 = _Percentile(guardedArr, 0.90);
+			var uMed = _Percentile(unguardedArr, 0.50);
 
 			Console.WriteLine(
-				$"  {PadRight(name, 33)} {Fmt(gMed),8:F1} {Fmt(gP90),8:F1} {Fmt(uMed),8:F1}"
+				$"  {_PadRight(name, 33)} {_Fmt(gMed),8:F1} {_Fmt(gP90),8:F1} {_Fmt(uMed),8:F1}"
 			);
 		}
 
@@ -223,12 +223,12 @@ public static partial class MeasureStatusGuardOverhead {
 			var name = kv.Key;
 			var (guardedArr, unguardedArr) = results[name];
 
-			var gMed = Percentile(guardedArr, 0.50);
-			var uMed = Percentile(unguardedArr, 0.50);
+			var gMed = _Percentile(guardedArr, 0.50);
+			var uMed = _Percentile(unguardedArr, 0.50);
 			var netUs = (gMed - uMed) * ticksToUs;
 
 			Console.WriteLine(
-				$"  {PadRight(name, 33)} {netUs,8:F4}"
+				$"  {_PadRight(name, 33)} {netUs,8:F4}"
 			);
 
 			if (name == "Publication SELECT (read)") {
@@ -245,10 +245,10 @@ public static partial class MeasureStatusGuardOverhead {
 		Console.WriteLine("── Guard correctness (UpdatesPublicationsStatus) ───────────");
 
 		var expectedResults = new Dictionary<string, bool> {
-			["Publication SELECT (read)"]         = false,
-			["Unrelated SELECT (fast-fail)"]      = false,
-			["Commented publication SELECT"]      = false,
-			["Status UPDATE (must detect)"]       = true,
+			["Publication SELECT (read)"] = false,
+			["Unrelated SELECT (fast-fail)"] = false,
+			["Commented publication SELECT"] = false,
+			["Status UPDATE (must detect)"] = true,
 		};
 
 		var failures = new List<string>();
@@ -260,7 +260,7 @@ public static partial class MeasureStatusGuardOverhead {
 			var status = match ? "PASS" : "FAIL";
 
 			Console.WriteLine(
-				$"  [{status}] {PadRight(name, 33)} detected: {actual} (expected: {expected})"
+				$"  [{status}] {_PadRight(name, 33)} detected: {actual} (expected: {expected})"
 			);
 
 			if (!match) {
@@ -287,7 +287,7 @@ public static partial class MeasureStatusGuardOverhead {
 		Console.WriteLine("     including comment stripping and status detection.");
 		Console.WriteLine();
 		Console.WriteLine($"  2. INCREMENTAL DETECTION OVERHEAD: ~{pubNet:F2} µs (median)");
-		Console.WriteLine("     The UpdateStatementShape + StatusColumnWord detection");
+		Console.WriteLine("     The _UpdateStatementShape + _StatusColumnWord detection");
 		Console.WriteLine("     above the baseline (comment stripping + word matching).");
 		Console.WriteLine();
 		Console.WriteLine(
@@ -352,24 +352,24 @@ public static partial class MeasureStatusGuardOverhead {
 	// path that could change timing characteristics.)
 
 	[GeneratedRegex(@"\bpublications\b", RegexOptions.IgnoreCase)]
-	private static partial Regex PublicationsTableWord { get; }
+	private static partial Regex _PublicationsTableWord { get; }
 
 	[GeneratedRegex(
 		@"\bUPDATE\b.*?\bSET\b(?<setList>.*?)(?:\b(?:WHERE|FROM|RETURNING)\b|$)",
 		RegexOptions.Singleline | RegexOptions.IgnoreCase
 	)]
-	private static partial Regex UpdateStatementShape { get; }
+	private static partial Regex _UpdateStatementShape { get; }
 
 	[GeneratedRegex(@"\bstatus\b", RegexOptions.IgnoreCase)]
-	private static partial Regex StatusColumnWord { get; }
+	private static partial Regex _StatusColumnWord { get; }
 
 	[GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline)]
-	private static partial Regex SqlBlockComment { get; }
+	private static partial Regex _SqlBlockComment { get; }
 
 	[GeneratedRegex(@"--[^\r\n]*")]
-	private static partial Regex SqlLineComment { get; }
+	private static partial Regex _SqlLineComment { get; }
 
-	private static double Percentile(long[] sorted, double p) {
+	private static double _Percentile(long[] sorted, double p) {
 		// Nearest-rank method: index = ceil(p * n) - 1, clamped to [0, n-1].
 		// For p=0.50 on an even-length array this returns the upper-middle
 		// element (the n/2-th), NOT the average of the two central elements.
@@ -378,11 +378,11 @@ public static partial class MeasureStatusGuardOverhead {
 		return sorted[Math.Max(0, Math.Min(idx, sorted.Length - 1))];
 	}
 
-	private static string PadRight(string s, int total) {
+	private static string _PadRight(string s, int total) {
 		return s.Length >= total ? s[..total] : s.PadRight(total);
 	}
 
-	private static string Fmt(double v) {
+	private static string _Fmt(double v) {
 		return v.ToString("F1", CultureInfo.InvariantCulture);
 	}
 }

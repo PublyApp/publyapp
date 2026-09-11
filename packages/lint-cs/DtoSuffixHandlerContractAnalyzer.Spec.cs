@@ -13,21 +13,21 @@ namespace PublyApp.Analyzers;
 
 public sealed class DtoSuffixHandlerContractAnalyzerSpec
 {
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
 		dotnet_diagnostic.PUBLY0004.severity = warning
 		""";
 
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Do not use the Dto suffix for handler contract types; use named contracts like "
 		+ "Body, Query, Result, Response, or Item";
 
 	// Positional records in the fixtures generate init-only setters, which require the
 	// IsExternalInit marker type. The analyzer test compilation's reference set does not include
 	// it, so provide a minimal polyfill (outside any handler path so the analyzer ignores it).
-	private const string IsExternalInitPolyfill = """
+	private const string _IsExternalInitPolyfill = """
 		namespace System.Runtime.CompilerServices
 		{
 			internal static class IsExternalInit
@@ -50,9 +50,9 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0004)
 			.WithLocation(0)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUserHandler.cs",
 			expected
@@ -71,9 +71,9 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0004)
 			.WithLocation(0)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUserHandler.cs",
 			expected
@@ -92,9 +92,9 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0004)
 			.WithLocation(0)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUserHandler.cs",
 			expected
@@ -110,7 +110,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 			public sealed record CreateUserDto(int UserId, string Name);
 			""";
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Dtos/CreateUserDto.cs"
 		);
@@ -125,7 +125,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 			public sealed record CreateUserDto(int UserId, string Name);
 			""";
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUser.Spec.cs"
 		);
@@ -147,7 +147,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			source,
 			"apps/api/modules/users/handlers/CreateUser/request.cs"
 		);
@@ -169,7 +169,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		string filePath,
 		params DiagnosticResult[] expected)
@@ -177,8 +177,8 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var test = new CSharpAnalyzerTest<DtoSuffixHandlerContractAnalyzer, DefaultVerifier>();
 
 		test.TestState.Sources.Add((filePath, source));
-		test.TestState.Sources.Add(("IsExternalInitPolyfill.cs", IsExternalInitPolyfill));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.Sources.Add(("IsExternalInitPolyfill.cs", _IsExternalInitPolyfill));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

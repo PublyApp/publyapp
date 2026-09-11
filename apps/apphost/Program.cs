@@ -432,19 +432,19 @@ builder.Build().Run();
 // Linux: sin_family(2)=AF_INET, sin_port(2)=htons(5454), sin_addr(4)=127.0.0.1,
 // sin_zero(8) — packed little-endian.
 internal static partial class RawPlainBind {
-	private const int AfInet = 2;      // AF_INET
-	private const int SockStream = 1;  // SOCK_STREAM (Linux)
-	private const int TcpProtocol = 6; // IPPROTO_TCP
-	private const int Port = 5454;
+	private const int _AfInet = 2;      // AF_INET
+	private const int _SockStream = 1;  // SOCK_STREAM (Linux)
+	private const int _TcpProtocol = 6; // IPPROTO_TCP
+	private const int _Port = 5454;
 
 	[DllImport("libc", SetLastError = true)]
-	private static extern int socket(int domain, int type, int protocol);
+	private static extern int _socket(int domain, int type, int protocol);
 
 	[DllImport("libc", SetLastError = true)]
-	private static extern int bind(int sockfd, byte[] address, int length);
+	private static extern int _bind(int sockfd, byte[] address, int length);
 
 	[DllImport("libc", SetLastError = true)]
-	private static extern int close(int fd);
+	private static extern int _close(int fd);
 
 	public static bool CanBindLoopbackPort5454() {
 		if (!OperatingSystem.IsLinux()) {
@@ -458,16 +458,16 @@ internal static partial class RawPlainBind {
 		}
 
 		var address = new byte[16];
-		address[0] = AfInet;                // family, little-endian
+		address[0] = _AfInet;                // family, little-endian
 		address[1] = 0;
-		address[2] = Port >> 8;             // port, big-endian (network order)
-		address[3] = Port & 0xFF;
+		address[2] = _Port >> 8;             // port, big-endian (network order)
+		address[3] = _Port & 0xFF;
 		address[4] = 127;                   // 127.0.0.1
 		address[5] = 0;
 		address[6] = 0;
 		address[7] = 1;
 
-		var fd = socket(AfInet, SockStream, TcpProtocol);
+		var fd = _socket(_AfInet, _SockStream, _TcpProtocol);
 		if (fd < 0) {
 			// Cannot even create a probe socket (exotic sandbox): report as
 			// occupied — a LOUD failure, never a silent pass.
@@ -475,9 +475,9 @@ internal static partial class RawPlainBind {
 		}
 
 		try {
-			return bind(fd, address, address.Length) == 0;
+			return _bind(fd, address, address.Length) == 0;
 		} finally {
-			close(fd);
+			_close(fd);
 		}
 	}
 }

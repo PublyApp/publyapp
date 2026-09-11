@@ -34,21 +34,21 @@ internal static class ExplicitMemberAccessHelper {
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
 	) {
-		if (node is not SimpleNameSyntax name || IsExcludedName(name)) {
+		if (node is not SimpleNameSyntax name || _IsExcludedName(name)) {
 			return null;
 		}
 
-		if (IsGeneratedFile(name, semanticModel, cancellationToken)) {
+		if (_IsGeneratedFile(name, semanticModel, cancellationToken)) {
 			return null;
 		}
 
-		var containingType = GetNearestContainingType(name, semanticModel, cancellationToken);
+		var containingType = _GetNearestContainingType(name, semanticModel, cancellationToken);
 		if (containingType is null) {
 			return null;
 		}
 
 		var symbolInfo = semanticModel.GetSymbolInfo(name, cancellationToken);
-		var symbols = GetCandidateSymbols(symbolInfo);
+		var symbols = _GetCandidateSymbols(symbolInfo);
 		if (symbols.Length == 0 || (symbolInfo.Symbol is null
 			&& symbolInfo.CandidateReason != CandidateReason.MemberGroup)) {
 			return null;
@@ -56,7 +56,7 @@ internal static class ExplicitMemberAccessHelper {
 
 		var supportedSymbols = ImmutableArray.CreateBuilder<ISymbol>();
 		foreach (var symbol in symbols) {
-			if (!IsSupportedMember(symbol, containingType)) {
+			if (!_IsSupportedMember(symbol, containingType)) {
 				return null;
 			}
 
@@ -64,9 +64,9 @@ internal static class ExplicitMemberAccessHelper {
 		}
 
 		var first = supportedSymbols[0];
-		var isStatic = IsStatic(first);
+		var isStatic = _IsStatic(first);
 		for (var index = 1; index < supportedSymbols.Count; index++) {
-			if (IsStatic(supportedSymbols[index]) != isStatic) {
+			if (_IsStatic(supportedSymbols[index]) != isStatic) {
 				return null;
 			}
 		}
@@ -90,7 +90,7 @@ internal static class ExplicitMemberAccessHelper {
 	) {
 		var replacementName = name.WithoutTrivia();
 		if (info.Kind == ExplicitMemberAccessKind.Instance) {
-			var instanceReplacement = CreateMemberAccess(
+			var instanceReplacement = _CreateMemberAccess(
 				SyntaxFactory.ThisExpression(),
 				replacementName,
 				name
@@ -105,9 +105,9 @@ internal static class ExplicitMemberAccessHelper {
 				: null;
 		}
 
-		var typeName = GetContainingTypeName(info.ContainingType);
+		var typeName = _GetContainingTypeName(info.ContainingType);
 		var receiver = SyntaxFactory.ParseExpression(typeName);
-		var replacement = CreateMemberAccess(receiver, replacementName, name);
+		var replacement = _CreateMemberAccess(receiver, replacementName, name);
 		if (BindsToSameSymbols(
 			replacement,
 			name,
@@ -123,7 +123,7 @@ internal static class ExplicitMemberAccessHelper {
 		var fullyQualifiedReceiver = SyntaxFactory.ParseExpression(
 			fullyQualifiedTypeName
 		);
-		var fullyQualifiedReplacement = CreateMemberAccess(
+		var fullyQualifiedReplacement = _CreateMemberAccess(
 			fullyQualifiedReceiver,
 			replacementName,
 			name
@@ -138,7 +138,7 @@ internal static class ExplicitMemberAccessHelper {
 			: null;
 	}
 
-	private static string GetContainingTypeName(INamedTypeSymbol containingType) {
+	private static string _GetContainingTypeName(INamedTypeSymbol containingType) {
 		var fullName = containingType.ToDisplayString(
 			SymbolDisplayFormat.FullyQualifiedFormat
 		);
@@ -161,18 +161,18 @@ internal static class ExplicitMemberAccessHelper {
 		SemanticModel semanticModel,
 		ImmutableArray<ISymbol> expectedSymbols
 	) {
-		var contextualNode = GetContextualNode(original);
+		var contextualNode = _GetContextualNode(original);
 		if (contextualNode is not null
-			&& TryGetContextualSymbolInfo(
+			&& _TryGetContextualSymbolInfo(
 				contextualNode,
 				replacement,
 				original,
 				semanticModel,
 				out var contextualSymbolInfo
 			)) {
-			return SameSymbols(
+			return _SameSymbols(
 				expectedSymbols,
-				GetCandidateSymbols(contextualSymbolInfo)
+				_GetCandidateSymbols(contextualSymbolInfo)
 			);
 		}
 
@@ -181,10 +181,10 @@ internal static class ExplicitMemberAccessHelper {
 			replacement,
 			SpeculativeBindingOption.BindAsExpression
 		);
-		return SameSymbols(expectedSymbols, GetCandidateSymbols(replacementInfo));
+		return _SameSymbols(expectedSymbols, _GetCandidateSymbols(replacementInfo));
 	}
 
-	private static SyntaxNode? GetContextualNode(SyntaxNode original) {
+	private static SyntaxNode? _GetContextualNode(SyntaxNode original) {
 		foreach (var ancestor in original.Ancestors()) {
 			if (ancestor is ArrowExpressionClauseSyntax
 				or StatementSyntax
@@ -199,7 +199,7 @@ internal static class ExplicitMemberAccessHelper {
 		);
 	}
 
-	private static bool TryGetContextualSymbolInfo(
+	private static bool _TryGetContextualSymbolInfo(
 		SyntaxNode contextualNode,
 		ExpressionSyntax replacement,
 		SyntaxNode original,
@@ -263,7 +263,7 @@ internal static class ExplicitMemberAccessHelper {
 		return true;
 	}
 
-	private static ExpressionSyntax CreateMemberAccess(
+	private static ExpressionSyntax _CreateMemberAccess(
 		ExpressionSyntax receiver,
 		SimpleNameSyntax name,
 		SimpleNameSyntax originalName
@@ -277,7 +277,7 @@ internal static class ExplicitMemberAccessHelper {
 			.WithTrailingTrivia(originalName.GetTrailingTrivia());
 	}
 
-	private static ImmutableArray<ISymbol> GetCandidateSymbols(SymbolInfo symbolInfo) {
+	private static ImmutableArray<ISymbol> _GetCandidateSymbols(SymbolInfo symbolInfo) {
 		if (symbolInfo.Symbol is not null) {
 			return ImmutableArray.Create(symbolInfo.Symbol);
 		}
@@ -285,7 +285,7 @@ internal static class ExplicitMemberAccessHelper {
 		return symbolInfo.CandidateSymbols;
 	}
 
-	private static INamedTypeSymbol? GetNearestContainingType(
+	private static INamedTypeSymbol? _GetNearestContainingType(
 		SimpleNameSyntax name,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
@@ -304,7 +304,7 @@ internal static class ExplicitMemberAccessHelper {
 		return null;
 	}
 
-	private static bool IsSupportedMember(
+	private static bool _IsSupportedMember(
 		ISymbol symbol,
 		INamedTypeSymbol containingType
 	) {
@@ -321,10 +321,10 @@ internal static class ExplicitMemberAccessHelper {
 		}
 
 		return symbol.ContainingType is not null
-			&& IsInContainingTypeHierarchy(symbol.ContainingType, containingType);
+			&& _IsInContainingTypeHierarchy(symbol.ContainingType, containingType);
 	}
 
-	private static bool IsInContainingTypeHierarchy(
+	private static bool _IsInContainingTypeHierarchy(
 		INamedTypeSymbol declaringType,
 		INamedTypeSymbol containingType
 	) {
@@ -343,7 +343,7 @@ internal static class ExplicitMemberAccessHelper {
 		return false;
 	}
 
-	private static bool IsStatic(ISymbol symbol) {
+	private static bool _IsStatic(ISymbol symbol) {
 		return symbol switch {
 			IFieldSymbol field => field.IsStatic,
 			IPropertySymbol property => property.IsStatic,
@@ -353,7 +353,7 @@ internal static class ExplicitMemberAccessHelper {
 		};
 	}
 
-	private static bool IsExcludedName(SimpleNameSyntax name) {
+	private static bool _IsExcludedName(SimpleNameSyntax name) {
 		if (name.Parent is MemberAccessExpressionSyntax memberAccess
 			&& memberAccess.Name == name) {
 			return true;
@@ -378,14 +378,14 @@ internal static class ExplicitMemberAccessHelper {
 			return true;
 		}
 
-		if (IsInitializerDesignator(name) || IsPropertyPatternDesignator(name)) {
+		if (_IsInitializerDesignator(name) || _IsPropertyPatternDesignator(name)) {
 			return true;
 		}
 
 		return false;
 	}
 
-	private static bool IsInitializerDesignator(SimpleNameSyntax name) {
+	private static bool _IsInitializerDesignator(SimpleNameSyntax name) {
 		if (name.Parent is not AssignmentExpressionSyntax assignment
 			|| assignment.Left != name) {
 			return false;
@@ -394,14 +394,14 @@ internal static class ExplicitMemberAccessHelper {
 		return assignment.Parent is InitializerExpressionSyntax;
 	}
 
-	private static bool IsPropertyPatternDesignator(SimpleNameSyntax name) {
+	private static bool _IsPropertyPatternDesignator(SimpleNameSyntax name) {
 		return name.Parent is NameColonSyntax nameColon
 			&& nameColon.Name == name
 			&& nameColon.Parent is SubpatternSyntax
 			&& nameColon.Parent.Parent is PropertyPatternClauseSyntax;
 	}
 
-	private static bool SameSymbols(
+	private static bool _SameSymbols(
 		ImmutableArray<ISymbol> expectedSymbols,
 		ImmutableArray<ISymbol> actualSymbols
 	) {
@@ -420,7 +420,7 @@ internal static class ExplicitMemberAccessHelper {
 		return true;
 	}
 
-	private static bool IsRepositoryGeneratedPath(string path) {
+	private static bool _IsRepositoryGeneratedPath(string path) {
 		var normalizedPath = path.Replace('\\', '/');
 		var migrationsPath = "/apps/api/Migrations/";
 		if (normalizedPath.IndexOf(migrationsPath, StringComparison.Ordinal) < 0
@@ -435,10 +435,10 @@ internal static class ExplicitMemberAccessHelper {
 	}
 
 	public static bool IsRepositoryGeneratedFile(SyntaxTree syntaxTree) {
-		return IsRepositoryGeneratedPath(syntaxTree.FilePath);
+		return _IsRepositoryGeneratedPath(syntaxTree.FilePath);
 	}
 
-	private static bool IsGeneratedFile(
+	private static bool _IsGeneratedFile(
 		SimpleNameSyntax name,
 		SemanticModel semanticModel,
 		CancellationToken cancellationToken
@@ -469,7 +469,7 @@ internal static class ExplicitMemberAccessHelper {
 			}
 
 			var symbol = semanticModel.GetDeclaredSymbol(declaration, cancellationToken);
-			if (symbol is not null && HasGeneratedCodeAttribute(symbol)) {
+			if (symbol is not null && _HasGeneratedCodeAttribute(symbol)) {
 				return true;
 			}
 		}
@@ -477,7 +477,7 @@ internal static class ExplicitMemberAccessHelper {
 		return false;
 	}
 
-	private static bool HasGeneratedCodeAttribute(ISymbol symbol) {
+	private static bool _HasGeneratedCodeAttribute(ISymbol symbol) {
 		return symbol.GetAttributes().Any(attribute =>
 			attribute.AttributeClass?.ToDisplayString() ==
 			"System.CodeDom.Compiler.GeneratedCodeAttribute"
@@ -495,13 +495,13 @@ public sealed class ExplicitMemberAccessAnalyzer : DiagnosticAnalyzer {
 		context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 		context.EnableConcurrentExecution();
 		context.RegisterSyntaxNodeAction(
-			AnalyzeName,
+			_AnalyzeName,
 			SyntaxKind.IdentifierName,
 			SyntaxKind.GenericName
 		);
 	}
 
-	private static void AnalyzeName(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeName(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not SimpleNameSyntax name) {
 			return;
 		}

@@ -19,10 +19,10 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
-	private const string FluentValidationNamespace = "FluentValidation";
-	private const string PublyJsonElementRulesNamespace = "PublyApp.Api.Lib.Validation";
+	private const string _FluentValidationNamespace = "FluentValidation";
+	private const string _PublyJsonElementRulesNamespace = "PublyApp.Api.Lib.Validation";
 
-	private static readonly ImmutableHashSet<string> InlineValidationOperators = [
+	private static readonly ImmutableHashSet<string> _InlineValidationOperators = [
 		"NotEmpty",
 		"NotNull",
 		"MaximumLength",
@@ -36,7 +36,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		"LessThanOrEqualTo",
 	];
 
-	private static readonly ImmutableHashSet<string> FluentValidationOperatorTypes = [
+	private static readonly ImmutableHashSet<string> _FluentValidationOperatorTypes = [
 		"DefaultValidatorExtensions",
 		"PredicateValidatorExtensions",
 		"ComparisonValidatorExtensions",
@@ -52,34 +52,34 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		// Ignore compiler-generated trees so this rule does not block clients or build output.
 		context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 		context.EnableConcurrentExecution();
-		context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+		context.RegisterSyntaxNodeAction(_AnalyzeInvocation, SyntaxKind.InvocationExpression);
 	}
 
-	private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not InvocationExpressionSyntax invocation) {
 			return;
 		}
 
-		if (!IsOutermostInvocation(invocation)) {
+		if (!_IsOutermostInvocation(invocation)) {
 			return;
 		}
 
-		if (!IsValidatorType(invocation, context.SemanticModel, out var ruleForInvocation)
+		if (!_IsValidatorType(invocation, context.SemanticModel, out var ruleForInvocation)
 			|| ruleForInvocation is null) {
 			return;
 		}
 
-		if (!IsJsonElementRuleFor(ruleForInvocation, context.SemanticModel)) {
+		if (!_IsJsonElementRuleFor(ruleForInvocation, context.SemanticModel)) {
 			return;
 		}
 
-		var chain = GetInvocationChain(invocation);
+		var chain = _GetInvocationChain(invocation);
 
-		if (!ContainsInlineValidationOperator(chain, context.SemanticModel)) {
+		if (!_ContainsInlineValidationOperator(chain, context.SemanticModel)) {
 			return;
 		}
 
-		var ruleForName = GetInvocationNameSyntax(ruleForInvocation);
+		var ruleForName = _GetInvocationNameSyntax(ruleForInvocation);
 		if (ruleForName is null) {
 			return;
 		}
@@ -91,18 +91,18 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		context.ReportDiagnostic(diagnostic);
 	}
 
-	private static bool IsOutermostInvocation(InvocationExpressionSyntax invocation) {
+	private static bool _IsOutermostInvocation(InvocationExpressionSyntax invocation) {
 		return invocation.Parent is not MemberAccessExpressionSyntax {
 			Parent: InvocationExpressionSyntax
 		};
 	}
 
-	private static bool IsValidatorType(
+	private static bool _IsValidatorType(
 		InvocationExpressionSyntax invocation,
 		SemanticModel semanticModel,
 		out InvocationExpressionSyntax? ruleForInvocation
 	) {
-		ruleForInvocation = GetContainingRuleForInvocation(invocation, semanticModel);
+		ruleForInvocation = _GetContainingRuleForInvocation(invocation, semanticModel);
 		if (ruleForInvocation is null) {
 			return false;
 		}
@@ -116,7 +116,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		var containingTypeSymbol = semanticModel.GetDeclaredSymbol(containingType);
 
 		for (var current = containingTypeSymbol; current is not null; current = current.BaseType) {
-			if (IsAbstractValidatorType(current)) {
+			if (_IsAbstractValidatorType(current)) {
 				return true;
 			}
 		}
@@ -124,18 +124,18 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		return false;
 	}
 
-	private static InvocationExpressionSyntax? GetContainingRuleForInvocation(
+	private static InvocationExpressionSyntax? _GetContainingRuleForInvocation(
 		InvocationExpressionSyntax invocation,
 		SemanticModel semanticModel
 	) {
-		foreach (var current in GetInvocationChain(invocation)) {
-			var methodSymbol = GetMethodSymbol(current, semanticModel);
+		foreach (var current in _GetInvocationChain(invocation)) {
+			var methodSymbol = _GetMethodSymbol(current, semanticModel);
 			if (methodSymbol is null) {
 				continue;
 			}
 
 			if (methodSymbol.Name == "RuleFor"
-				&& IsAbstractValidatorType(methodSymbol.ContainingType)) {
+				&& _IsAbstractValidatorType(methodSymbol.ContainingType)) {
 				return current;
 			}
 		}
@@ -143,7 +143,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		return null;
 	}
 
-	private static bool IsJsonElementRuleFor(
+	private static bool _IsJsonElementRuleFor(
 		InvocationExpressionSyntax ruleForInvocation,
 		SemanticModel semanticModel
 	) {
@@ -160,20 +160,20 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		}
 
 		var selectorType = semanticModel.GetTypeInfo(lambda.Body).Type;
-		return IsJsonElementOrNullableJsonElement(selectorType);
+		return _IsJsonElementOrNullableJsonElement(selectorType);
 	}
 
-	private static bool ContainsInlineValidationOperator(
+	private static bool _ContainsInlineValidationOperator(
 		IEnumerable<InvocationExpressionSyntax> chain,
 		SemanticModel semanticModel
 	) {
 		foreach (var invocation in chain) {
-			var methodSymbol = GetMethodSymbol(invocation, semanticModel);
+			var methodSymbol = _GetMethodSymbol(invocation, semanticModel);
 			if (methodSymbol is null) {
 				continue;
 			}
 
-			if (IsInlineValidationOperator(methodSymbol)) {
+			if (_IsInlineValidationOperator(methodSymbol)) {
 				return true;
 			}
 		}
@@ -181,7 +181,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		return false;
 	}
 
-	private static IEnumerable<InvocationExpressionSyntax> GetInvocationChain(
+	private static IEnumerable<InvocationExpressionSyntax> _GetInvocationChain(
 		InvocationExpressionSyntax invocation
 	) {
 		var chain = new List<InvocationExpressionSyntax>([invocation]);
@@ -196,7 +196,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		return chain;
 	}
 
-	private static SimpleNameSyntax? GetInvocationNameSyntax(InvocationExpressionSyntax invocation) {
+	private static SimpleNameSyntax? _GetInvocationNameSyntax(InvocationExpressionSyntax invocation) {
 		if (invocation.Expression is MemberAccessExpressionSyntax memberAccess) {
 			return memberAccess.Name;
 		}
@@ -208,7 +208,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		return invocation.Expression as IdentifierNameSyntax;
 	}
 
-	private static IMethodSymbol? GetMethodSymbol(
+	private static IMethodSymbol? _GetMethodSymbol(
 		InvocationExpressionSyntax invocation,
 		SemanticModel semanticModel
 	) {
@@ -216,12 +216,12 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 		return symbolInfo.Symbol as IMethodSymbol;
 	}
 
-	private static bool IsInlineValidationOperator(IMethodSymbol methodSymbol) {
-		if (IsPublyJsonElementRulesMethod(methodSymbol)) {
+	private static bool _IsInlineValidationOperator(IMethodSymbol methodSymbol) {
+		if (_IsPublyJsonElementRulesMethod(methodSymbol)) {
 			return false;
 		}
 
-		if (!InlineValidationOperators.Contains(methodSymbol.Name)) {
+		if (!_InlineValidationOperators.Contains(methodSymbol.Name)) {
 			return false;
 		}
 
@@ -230,36 +230,36 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 			return false;
 		}
 
-		return IsInNamespace(containingType, FluentValidationNamespace)
-			&& (FluentValidationOperatorTypes.Contains(containingType.Name)
+		return _IsInNamespace(containingType, _FluentValidationNamespace)
+			&& (_FluentValidationOperatorTypes.Contains(containingType.Name)
 				|| containingType.Name.IndexOf("RuleBuilder", StringComparison.Ordinal) >= 0);
 	}
 
-	private static bool IsAbstractValidatorType(INamedTypeSymbol? type) {
+	private static bool _IsAbstractValidatorType(INamedTypeSymbol? type) {
 		if (type is null) {
 			return false;
 		}
 
 		return type.OriginalDefinition.Name == "AbstractValidator"
 			&& type.OriginalDefinition.Arity == 1
-			&& IsInNamespace(type.OriginalDefinition, FluentValidationNamespace);
+			&& _IsInNamespace(type.OriginalDefinition, _FluentValidationNamespace);
 	}
 
-	private static bool IsPublyJsonElementRulesMethod(IMethodSymbol methodSymbol) {
+	private static bool _IsPublyJsonElementRulesMethod(IMethodSymbol methodSymbol) {
 		var containingType = methodSymbol.ContainingType;
 		if (containingType is null) {
 			return false;
 		}
 
 		return containingType.Name == "JsonElementRules"
-			&& IsInNamespace(containingType, PublyJsonElementRulesNamespace);
+			&& _IsInNamespace(containingType, _PublyJsonElementRulesNamespace);
 	}
 
-	private static bool IsInNamespace(INamedTypeSymbol type, string expectedNamespace) {
+	private static bool _IsInNamespace(INamedTypeSymbol type, string expectedNamespace) {
 		return type.ContainingNamespace?.ToDisplayString() == expectedNamespace;
 	}
 
-	private static bool IsJsonElementOrNullableJsonElement(ITypeSymbol? type) {
+	private static bool _IsJsonElementOrNullableJsonElement(ITypeSymbol? type) {
 		if (type is null) {
 			return false;
 		}
@@ -272,7 +272,7 @@ public sealed class InlineFluentValidationChainAnalyzer : DiagnosticAnalyzer {
 			&& namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
 			&& namedType.TypeArguments.Length == 1) {
 			var argumentType = namedType.TypeArguments[0];
-			return IsJsonElementOrNullableJsonElement(argumentType);
+			return _IsJsonElementOrNullableJsonElement(argumentType);
 		}
 
 		return false;

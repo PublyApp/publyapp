@@ -7,7 +7,7 @@ namespace PublyApp.Scripts.Commands;
 public static class GenerateTranslationKeys {
 	public static int Run(IReadOnlyList<string> args) {
 		if (args.Count != 2) {
-			WriteUsage();
+			_WriteUsage();
 			return 1;
 		}
 
@@ -15,7 +15,7 @@ public static class GenerateTranslationKeys {
 		var outputFile = args[1];
 
 		try {
-			var didWrite = GenerateKeysClass(inputFile, outputFile);
+			var didWrite = _GenerateKeysClass(inputFile, outputFile);
 			var state = didWrite ? "Generated" : "Translation keys unchanged";
 			Console.WriteLine($"{state}: {outputFile}");
 			return 0;
@@ -25,13 +25,13 @@ public static class GenerateTranslationKeys {
 		}
 	}
 
-	private static void WriteUsage() {
+	private static void _WriteUsage() {
 		Console.Error.WriteLine(
 			"Usage: generate-translation-keys <input-json-file> <output-cs-file>"
 		);
 	}
 
-	private static bool GenerateKeysClass(string inputFile, string outputFile) {
+	private static bool _GenerateKeysClass(string inputFile, string outputFile) {
 		if (!File.Exists(inputFile)) {
 			throw new FileNotFoundException($"Input file not found: {inputFile}");
 		}
@@ -62,8 +62,8 @@ public static class GenerateTranslationKeys {
 		sortedKeys.Sort((a, b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
 
 		foreach (var (key, value) in sortedKeys) {
-			var propertyName = ToPascalCase(key);
-			var escapedValue = EscapeXmlComment(value);
+			var propertyName = _ToPascalCase(key);
+			var escapedValue = _EscapeXmlComment(value);
 
 			sb.AppendLine("\t/// <summary>");
 			sb.AppendLine(CultureInfo.InvariantCulture, $"\t/// {escapedValue}");
@@ -97,7 +97,7 @@ public static class GenerateTranslationKeys {
 		return true;
 	}
 
-	private static string ToPascalCase(string input) {
+	private static string _ToPascalCase(string input) {
 		if (string.IsNullOrEmpty(input)) {
 			return input;
 		}
@@ -119,7 +119,7 @@ public static class GenerateTranslationKeys {
 		return result.ToString();
 	}
 
-	private static string EscapeXmlComment(string text) {
+	private static string _EscapeXmlComment(string text) {
 		if (string.IsNullOrEmpty(text)) {
 			return string.Empty;
 		}

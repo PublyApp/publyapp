@@ -19,7 +19,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 {
 	// PUBLY0009 ships disabled-by-default, so the test harness must explicitly enable it via an
 	// .editorconfig entry before the analyzer will surface any diagnostic.
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
@@ -29,12 +29,12 @@ public sealed class TypedResultsForbidAnalyzerSpec
 	// The descriptor carries no format arguments, so the produced message is identical to its
 	// MessageFormat literal in DiagnosticCatalog.cs. Kept here so message assertions stay in
 	// lockstep with the descriptor.
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Do not use 'TypedResults.Forbid()'; use 'TypedProblems.*' (RFC 7807) instead";
 
 	// Minimal stubs so fixtures compile without ASP.NET Core references; the analyzer matches
 	// syntactically on the `TypedResults` type and `Forbid` member name.
-	private const string ResultStubs = """
+	private const string _ResultStubs = """
 		namespace Microsoft.AspNetCore.Http
 		{
 			public interface IResult { }
@@ -72,7 +72,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -90,7 +90,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -110,7 +110,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -130,7 +130,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -150,7 +150,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -172,7 +172,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -200,7 +200,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			"DefaultOffAssembly",
 			[
 				CSharpSyntaxTree.ParseText(source),
-				CSharpSyntaxTree.ParseText(ResultStubs),
+				CSharpSyntaxTree.ParseText(_ResultStubs),
 			],
 			[
 				MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
@@ -232,15 +232,15 @@ public sealed class TypedResultsForbidAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static DiagnosticResult ExpectedAt(int marker)
+	private static DiagnosticResult _ExpectedAt(int marker)
 	{
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0009)
 			.WithLocation(marker)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		params DiagnosticResult[] expected)
 	{
@@ -249,8 +249,8 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.Sources.Add(("ResultStubs.cs", ResultStubs));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.Sources.Add(("ResultStubs.cs", _ResultStubs));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

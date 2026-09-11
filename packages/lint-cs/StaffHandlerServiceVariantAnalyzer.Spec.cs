@@ -14,17 +14,17 @@ namespace PublyApp.Analyzers;
 
 public sealed class StaffHandlerServiceVariantAnalyzerSpec
 {
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
 		dotnet_diagnostic.PUBLY0007.severity = warning
 		""";
 
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Call the staff service variant when available in staff handlers";
 
-	private const string StaffHandlerPath = "apps/api/Modules/Tenants/Handlers/Staff/TenantHandler.cs";
+	private const string _StaffHandlerPath = "apps/api/Modules/Tenants/Handlers/Staff/TenantHandler.cs";
 
 	[Fact]
 	public async Task ItShouldFlagBaseServiceCallInStaffHandlerWhenStaffVariantExists()
@@ -59,9 +59,9 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 
 		var expected = Verifier.Diagnostic(DiagnosticIds.PUBLY0007)
 			.WithLocation(0)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 
-		await VerifyEnabledAsync(StaffHandlerPath, source, expected);
+		await _VerifyEnabledAsync(_StaffHandlerPath, source, expected);
 	}
 
 	[Fact]
@@ -95,8 +95,8 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(
-			StaffHandlerPath,
+		await _VerifyEnabledAsync(
+			_StaffHandlerPath,
 			source);
 	}
 
@@ -126,8 +126,8 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(
-			StaffHandlerPath,
+		await _VerifyEnabledAsync(
+			_StaffHandlerPath,
 			source);
 	}
 
@@ -162,7 +162,7 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(StaffHandlerPath, source);
+		await _VerifyEnabledAsync(_StaffHandlerPath, source);
 	}
 
 	[Fact]
@@ -197,9 +197,9 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 
 		var expected = Verifier.Diagnostic(DiagnosticIds.PUBLY0007)
 			.WithLocation(0)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 
-		await VerifyEnabledAsync(StaffHandlerPath, source, expected);
+		await _VerifyEnabledAsync(_StaffHandlerPath, source, expected);
 	}
 
 	[Fact]
@@ -234,7 +234,7 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(StaffHandlerPath, source);
+		await _VerifyEnabledAsync(_StaffHandlerPath, source);
 	}
 
 	[Fact]
@@ -268,7 +268,7 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(
+		await _VerifyEnabledAsync(
 			"apps/api/Modules/Tenants/Handlers/Tenant/TenantHandler.cs",
 			source);
 	}
@@ -289,7 +289,7 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string fileName,
 		string source,
 		params DiagnosticResult[] expected
@@ -297,7 +297,7 @@ public sealed class StaffHandlerServiceVariantAnalyzerSpec
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
