@@ -26,6 +26,9 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\PublyApp.Api.csproj" />
+		<ProjectReference Include="..\..\..\packages\lint-cs\PublyApp.Analyzers.csproj"
+						  OutputItemType="Analyzer"
+						  ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<!-- Keep integration tests physically next to handlers (Vertical Slice friendly),
