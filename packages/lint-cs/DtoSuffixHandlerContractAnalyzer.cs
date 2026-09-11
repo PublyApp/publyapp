@@ -22,14 +22,14 @@ public sealed class DtoSuffixHandlerContractAnalyzer : DiagnosticAnalyzer {
 		context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 		context.EnableConcurrentExecution();
 		context.RegisterSyntaxNodeAction(
-			AnalyzeTypeDeclaration,
+			_AnalyzeTypeDeclaration,
 			SyntaxKind.ClassDeclaration,
 			SyntaxKind.RecordStructDeclaration,
 			SyntaxKind.RecordDeclaration,
 			SyntaxKind.StructDeclaration);
 	}
 
-	private static void AnalyzeTypeDeclaration(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeTypeDeclaration(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not TypeDeclarationSyntax typeDeclaration) {
 			return;
 		}
@@ -39,7 +39,7 @@ public sealed class DtoSuffixHandlerContractAnalyzer : DiagnosticAnalyzer {
 			return;
 		}
 
-		if (!IsInHandlersFolder(context.Node.SyntaxTree.FilePath)) {
+		if (!_IsInHandlersFolder(context.Node.SyntaxTree.FilePath)) {
 			return;
 		}
 
@@ -49,10 +49,10 @@ public sealed class DtoSuffixHandlerContractAnalyzer : DiagnosticAnalyzer {
 		context.ReportDiagnostic(diagnostic);
 	}
 
-	private static bool IsInHandlersFolder(string filePath) {
+	private static bool _IsInHandlersFolder(string filePath) {
 		var normalizedPath = filePath.Replace('\\', '/');
 
-		if (IsTestFilePath(normalizedPath)) {
+		if (_IsTestFilePath(normalizedPath)) {
 			return false;
 		}
 
@@ -60,7 +60,7 @@ public sealed class DtoSuffixHandlerContractAnalyzer : DiagnosticAnalyzer {
 			&& normalizedPath.Contains("/Handlers/", StringComparison.OrdinalIgnoreCase);
 	}
 
-	private static bool IsTestFilePath(string normalizedPath) {
+	private static bool _IsTestFilePath(string normalizedPath) {
 		return normalizedPath.EndsWith(".Spec.cs", StringComparison.OrdinalIgnoreCase)
 			|| normalizedPath.EndsWith(".Specs.cs", StringComparison.OrdinalIgnoreCase)
 			|| normalizedPath.EndsWith(".Tests.cs", StringComparison.OrdinalIgnoreCase)

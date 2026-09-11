@@ -19,7 +19,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 {
 	// PUBLY0001 ships disabled-by-default, so the test harness must explicitly enable it via an
 	// .editorconfig entry before the analyzer will surface any diagnostic.
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
@@ -29,7 +29,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 	// The descriptor carries no format arguments, so the produced message is identical to its
 	// MessageFormat literal in DiagnosticCatalog.cs. Kept here so message assertions stay in lockstep
 	// with the descriptor.
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Do not use the null-forgiving operator '!'; handle null explicitly with a guard clause or "
 		+ "a safe accessor";
 
@@ -53,7 +53,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -74,9 +74,9 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -106,7 +106,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			Verifier.Diagnostic(DiagnosticIds.PUBLY0001).WithLocation(1),
 		};
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -128,7 +128,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -154,7 +154,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -182,7 +182,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			DiagnosticResult.CompilerError("CS8715").WithLocation(2),
 		};
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -204,7 +204,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -228,7 +228,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -250,7 +250,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -271,7 +271,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -300,7 +300,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -321,7 +321,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -342,7 +342,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await VerifyEnabledAsync(source, expected);
+		await _VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -361,7 +361,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -380,7 +380,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -401,7 +401,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -421,7 +421,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
+		await _VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
 	}
 
 	[Fact]
@@ -440,7 +440,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
+		await _VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -493,7 +493,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		params DiagnosticResult[] expected)
 	{
@@ -502,20 +502,20 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
 	}
 
-	private static async Task VerifyEnabledWithFileNameAsync(string fileName, string source)
+	private static async Task _VerifyEnabledWithFileNameAsync(string fileName, string source)
 	{
 		// Name the source file so Roslyn's generated-code-by-file-name heuristic applies; the analyzer
 		// opts out of generated code, so no PUBLY0001 is expected even with the rule enabled.
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 
 		await test.RunAsync();
 	}

@@ -27,11 +27,11 @@ public sealed class NullForgivingOperatorAnalyzer : DiagnosticAnalyzer {
 		context.EnableConcurrentExecution();
 		// The postfix `x!` parses to a SuppressNullableWarningExpression node.
 		context.RegisterSyntaxNodeAction(
-			AnalyzeSuppressNullableWarning,
+			_AnalyzeSuppressNullableWarning,
 			SyntaxKind.SuppressNullableWarningExpression);
 	}
 
-	private static void AnalyzeSuppressNullableWarning(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeSuppressNullableWarning(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not PostfixUnaryExpressionSyntax postfix) {
 			return;
 		}

@@ -21,25 +21,25 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 		context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 		context.EnableConcurrentExecution();
 		context.RegisterSyntaxNodeAction(
-			AnalyzeEqualityExpression,
+			_AnalyzeEqualityExpression,
 			SyntaxKind.EqualsExpression,
 			SyntaxKind.NotEqualsExpression);
 	}
 
-	private static void AnalyzeEqualityExpression(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeEqualityExpression(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not BinaryExpressionSyntax binaryExpression) {
 			return;
 		}
 
-		if (!IsNullLiteral(binaryExpression.Left) && !IsNullLiteral(binaryExpression.Right)) {
+		if (!_IsNullLiteral(binaryExpression.Left) && !_IsNullLiteral(binaryExpression.Right)) {
 			return;
 		}
 
-		if (IsInsideExpressionTreeLambda(context.SemanticModel, binaryExpression)) {
+		if (_IsInsideExpressionTreeLambda(context.SemanticModel, binaryExpression)) {
 			return;
 		}
 
-		if (IsInsideIQueryableQueryExpression(context.SemanticModel, binaryExpression)) {
+		if (_IsInsideIQueryableQueryExpression(context.SemanticModel, binaryExpression)) {
 			return;
 		}
 
@@ -50,11 +50,11 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 		context.ReportDiagnostic(diagnostic);
 	}
 
-	private static bool IsNullLiteral(ExpressionSyntax expression) {
+	private static bool _IsNullLiteral(ExpressionSyntax expression) {
 		return expression.IsKind(SyntaxKind.NullLiteralExpression);
 	}
 
-	private static bool IsInsideExpressionTreeLambda(
+	private static bool _IsInsideExpressionTreeLambda(
 		SemanticModel semanticModel,
 		BinaryExpressionSyntax binaryExpression
 	) {
@@ -66,7 +66,7 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 			if (current is SimpleLambdaExpressionSyntax or ParenthesizedLambdaExpressionSyntax) {
 				var convertedType = semanticModel.GetTypeInfo(current).ConvertedType;
 
-				return IsExpressionTreeType(convertedType);
+				return _IsExpressionTreeType(convertedType);
 			}
 		}
 
@@ -80,7 +80,7 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 	/// Those queries lower to expression trees, so <c>is null</c> would be a
 	/// CS8122 compile error and must not be flagged.
 	/// </summary>
-	private static bool IsInsideIQueryableQueryExpression(
+	private static bool _IsInsideIQueryableQueryExpression(
 		SemanticModel semanticModel,
 		BinaryExpressionSyntax binaryExpression
 	) {
@@ -99,7 +99,7 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 			var typeInfo = semanticModel.GetTypeInfo(sourceExpression);
 			var sourceType = typeInfo.Type ?? typeInfo.ConvertedType;
 
-			if (IsIQueryableType(sourceType)) {
+			if (_IsIQueryableType(sourceType)) {
 				return true;
 			}
 
@@ -109,19 +109,19 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 		return false;
 	}
 
-	private static bool IsIQueryableType(ITypeSymbol? type) {
+	private static bool _IsIQueryableType(ITypeSymbol? type) {
 		if (type is null) {
 			return false;
 		}
 
 		// Check the type itself and its original definition (handles IQueryable<T>).
-		if (IsIQueryableNamedType(type)) {
+		if (_IsIQueryableNamedType(type)) {
 			return true;
 		}
 
 		// Also check all implemented interfaces (e.g. DbSet<T> implements IQueryable<T>).
 		foreach (var iface in type.AllInterfaces) {
-			if (IsIQueryableNamedType(iface)) {
+			if (_IsIQueryableNamedType(iface)) {
 				return true;
 			}
 		}
@@ -129,7 +129,7 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 		return false;
 	}
 
-	private static bool IsIQueryableNamedType(ITypeSymbol type) {
+	private static bool _IsIQueryableNamedType(ITypeSymbol type) {
 		if (type is not INamedTypeSymbol named) {
 			return false;
 		}
@@ -138,7 +138,7 @@ public sealed class EqualityNullCheckAnalyzer : DiagnosticAnalyzer {
 			&& named.Name == "IQueryable";
 	}
 
-	private static bool IsExpressionTreeType(ITypeSymbol? type) {
+	private static bool _IsExpressionTreeType(ITypeSymbol? type) {
 		if (type is not INamedTypeSymbol namedType) {
 			return false;
 		}

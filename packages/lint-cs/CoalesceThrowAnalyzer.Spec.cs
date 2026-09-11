@@ -19,7 +19,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 {
 	// PUBLY0002 ships disabled-by-default, so the test harness must explicitly enable it via an
 	// .editorconfig entry before the analyzer will surface any diagnostic.
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
@@ -29,7 +29,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 	// The descriptor carries no format arguments, so the produced message is identical to its
 	// MessageFormat literal in DiagnosticCatalog.cs. Kept here so message assertions stay in
 	// lockstep with the descriptor.
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Do not use '?? throw'; use an explicit if guard clause for null-then-throw patterns";
 
 	[Fact]
@@ -57,7 +57,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -77,7 +77,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -99,7 +99,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -118,7 +118,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -139,7 +139,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -164,7 +164,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedAt(0));
+		await _VerifyEnabledAsync(source, _ExpectedAt(0));
 	}
 
 	[Fact]
@@ -184,7 +184,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -211,7 +211,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -228,7 +228,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -250,7 +250,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -272,7 +272,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
+		await _VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
 	}
 
 	[Fact]
@@ -293,7 +293,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
+		await _VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -351,15 +351,15 @@ public sealed class CoalesceThrowAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static DiagnosticResult ExpectedAt(int marker)
+	private static DiagnosticResult _ExpectedAt(int marker)
 	{
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0002)
 			.WithLocation(marker)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		params DiagnosticResult[] expected)
 	{
@@ -368,20 +368,20 @@ public sealed class CoalesceThrowAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
 	}
 
-	private static async Task VerifyEnabledWithFileNameAsync(string fileName, string source)
+	private static async Task _VerifyEnabledWithFileNameAsync(string fileName, string source)
 	{
 		// Name the source file so Roslyn's generated-code-by-file-name heuristic applies; the
 		// analyzer opts out of generated code, so no PUBLY0002 is expected even with the rule enabled.
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 
 		await test.RunAsync();
 	}

@@ -16,8 +16,8 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class TypedResultsForbidAnalyzer : DiagnosticAnalyzer {
-	private const string TypedResultsTypeName = "TypedResults";
-	private const string ForbidMethodName = "Forbid";
+	private const string _TypedResultsTypeName = "TypedResults";
+	private const string _ForbidMethodName = "Forbid";
 
 	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics {
 		get { return ImmutableArray.Create(DiagnosticCatalog.TypedResultsForbid); }
@@ -32,10 +32,10 @@ public sealed class TypedResultsForbidAnalyzer : DiagnosticAnalyzer {
 		context.EnableConcurrentExecution();
 		// `TypedResults.Forbid(...)` parses to an InvocationExpression whose expression is a
 		// member access naming `Forbid` on the `TypedResults` type.
-		context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+		context.RegisterSyntaxNodeAction(_AnalyzeInvocation, SyntaxKind.InvocationExpression);
 	}
 
-	private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not InvocationExpressionSyntax invocation) {
 			return;
 		}
@@ -44,11 +44,11 @@ public sealed class TypedResultsForbidAnalyzer : DiagnosticAnalyzer {
 			return;
 		}
 
-		if (!string.Equals(memberAccess.Name.Identifier.ValueText, ForbidMethodName, StringComparison.Ordinal)) {
+		if (!string.Equals(memberAccess.Name.Identifier.ValueText, _ForbidMethodName, StringComparison.Ordinal)) {
 			return;
 		}
 
-		if (!IsTypedResultsReceiver(memberAccess.Expression)) {
+		if (!_IsTypedResultsReceiver(memberAccess.Expression)) {
 			return;
 		}
 
@@ -60,12 +60,12 @@ public sealed class TypedResultsForbidAnalyzer : DiagnosticAnalyzer {
 		context.ReportDiagnostic(diagnostic);
 	}
 
-	private static bool IsTypedResultsReceiver(ExpressionSyntax receiver) {
+	private static bool _IsTypedResultsReceiver(ExpressionSyntax receiver) {
 		// `TypedResults.Forbid()` — receiver is the bare type name.
 		if (receiver is IdentifierNameSyntax identifier) {
 			return string.Equals(
 				identifier.Identifier.ValueText,
-				TypedResultsTypeName,
+				_TypedResultsTypeName,
 				StringComparison.Ordinal);
 		}
 
@@ -74,7 +74,7 @@ public sealed class TypedResultsForbidAnalyzer : DiagnosticAnalyzer {
 		if (receiver is MemberAccessExpressionSyntax qualified) {
 			return string.Equals(
 				qualified.Name.Identifier.ValueText,
-				TypedResultsTypeName,
+				_TypedResultsTypeName,
 				StringComparison.Ordinal);
 		}
 

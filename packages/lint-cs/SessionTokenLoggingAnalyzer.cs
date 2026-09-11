@@ -40,11 +40,11 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
-	private const string SessionTokenVocabulary = "sessiontoken";
-	private const string SessionTokenHeaderName = "X-Session-Token";
+	private const string _SessionTokenVocabulary = "sessiontoken";
+	private const string _SessionTokenHeaderName = "X-Session-Token";
 
 	// Logging method names treated as "interesting". Mirrors the repo's existing name-based style.
-	private static readonly ImmutableHashSet<string> LoggingMethodNames =
+	private static readonly ImmutableHashSet<string> _LoggingMethodNames =
 		ImmutableHashSet.Create(
 			StringComparer.Ordinal,
 			"Log",
@@ -67,10 +67,10 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 		// Required for analyzers that call thread-safe Roslyn APIs; the SDK enforces this when
 		// EnforceExtendedAnalyzerRules is enabled.
 		context.EnableConcurrentExecution();
-		context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
+		context.RegisterSyntaxNodeAction(_AnalyzeInvocation, SyntaxKind.InvocationExpression);
 	}
 
-	private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
 		if (context.Node is not InvocationExpressionSyntax invocation) {
 			return;
 		}
@@ -79,16 +79,16 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 			return;
 		}
 
-		if (!LoggingMethodNames.Contains(memberAccess.Name.Identifier.ValueText)) {
+		if (!_LoggingMethodNames.Contains(memberAccess.Name.Identifier.ValueText)) {
 			return;
 		}
 
-		if (!IsLoggerShapedReceiver(memberAccess.Expression)) {
+		if (!_IsLoggerShapedReceiver(memberAccess.Expression)) {
 			return;
 		}
 
 		foreach (var argument in invocation.ArgumentList.Arguments) {
-			if (!ArgumentReferencesSessionToken(argument.Expression)) {
+			if (!_ArgumentReferencesSessionToken(argument.Expression)) {
 				continue;
 			}
 
@@ -108,7 +108,7 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 	/// <c>this.Logger</c>, <c>_someLogger.Logger</c>. This keeps the rule from firing on unrelated
 	/// <c>Log*</c> methods on non-logger receivers.
 	/// </summary>
-	private static bool IsLoggerShapedReceiver(ExpressionSyntax receiver) {
+	private static bool _IsLoggerShapedReceiver(ExpressionSyntax receiver) {
 		var receiverName = receiver switch {
 			IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
 			MemberAccessExpressionSyntax member => member.Name.Identifier.ValueText,
@@ -128,11 +128,11 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 	/// "SessionToken" (case-insensitive), or a string literal equal to the X-Session-Token header
 	/// name.
 	/// </summary>
-	private static bool ArgumentReferencesSessionToken(SyntaxNode node) {
+	private static bool _ArgumentReferencesSessionToken(SyntaxNode node) {
 		foreach (var descendant in node.DescendantNodesAndSelf()) {
 			switch (descendant) {
 				case IdentifierNameSyntax identifier
-					when ContainsSessionTokenVocabulary(identifier.Identifier.ValueText):
+					when _ContainsSessionTokenVocabulary(identifier.Identifier.ValueText):
 					// Skip the Name node of a MemberAccessExpression — the member-access case
 					// handles the whole chain (e.g. authContext.SessionToken is examined as a
 					// MemberAccessExpressionSyntax; we must not double-count the raw name).
@@ -140,16 +140,16 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 						&& memberParent.Name == identifier) {
 						break;
 					}
-					if (IsNameEqualsOrNameColonLabel(identifier)) {
+					if (_IsNameEqualsOrNameColonLabel(identifier)) {
 						break;
 					}
-					if (IsNullPresenceCheckOperand(identifier)) {
+					if (_IsNullPresenceCheckOperand(identifier)) {
 						break;
 					}
 					return true;
 				case MemberAccessExpressionSyntax member
-					when ContainsSessionTokenVocabulary(member.Name.Identifier.ValueText):
-					if (IsNullPresenceCheckOperand(member)) {
+					when _ContainsSessionTokenVocabulary(member.Name.Identifier.ValueText):
+					if (_IsNullPresenceCheckOperand(member)) {
 						break;
 					}
 					return true;
@@ -157,7 +157,7 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 					when literal.IsKind(SyntaxKind.StringLiteralExpression)
 						&& string.Equals(
 							literal.Token.ValueText,
-							SessionTokenHeaderName,
+							_SessionTokenHeaderName,
 							StringComparison.OrdinalIgnoreCase):
 					return true;
 				default:
@@ -173,7 +173,7 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 	/// declarator (<c>new { HasSessionToken = expr }</c>) or a named-argument label
 	/// (<c>foo(sessionToken: expr)</c>). These are syntactic labels, not value expressions.
 	/// </summary>
-	private static bool IsNameEqualsOrNameColonLabel(SyntaxNode node) {
+	private static bool _IsNameEqualsOrNameColonLabel(SyntaxNode node) {
 		return node.Parent is NameEqualsSyntax or NameColonSyntax;
 	}
 
@@ -188,12 +188,12 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 	///   <item><description><c>null == M</c> / <c>null != M</c></description></item>
 	/// </list>
 	/// </summary>
-	private static bool IsNullPresenceCheckOperand(ExpressionSyntax node) {
+	private static bool _IsNullPresenceCheckOperand(ExpressionSyntax node) {
 		var parent = node.Parent;
 
 		// Pattern: M is [not] null
 		if (parent is IsPatternExpressionSyntax isPattern && isPattern.Expression == node) {
-			return IsNullPattern(isPattern.Pattern);
+			return _IsNullPattern(isPattern.Pattern);
 		}
 
 		// Pattern: M == null / M != null
@@ -204,11 +204,11 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 			}
 
 			// M op null
-			if (binary.Left == node && IsNullLiteral(binary.Right)) {
+			if (binary.Left == node && _IsNullLiteral(binary.Right)) {
 				return true;
 			}
 			// null op M
-			if (binary.Right == node && IsNullLiteral(binary.Left)) {
+			if (binary.Right == node && _IsNullLiteral(binary.Left)) {
 				return true;
 			}
 		}
@@ -220,7 +220,7 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 	/// Returns <see langword="true"/> for a pattern that matches only <see langword="null"/>:
 	/// <c>null</c> (ConstantPattern) or <c>not null</c> (UnaryPattern wrapping a ConstantPattern null).
 	/// </summary>
-	private static bool IsNullPattern(PatternSyntax pattern) {
+	private static bool _IsNullPattern(PatternSyntax pattern) {
 		if (pattern is ConstantPatternSyntax constant) {
 			return constant.Expression.IsKind(SyntaxKind.NullLiteralExpression);
 		}
@@ -234,11 +234,11 @@ public sealed class SessionTokenLoggingAnalyzer : DiagnosticAnalyzer {
 		return false;
 	}
 
-	private static bool IsNullLiteral(ExpressionSyntax expression) {
+	private static bool _IsNullLiteral(ExpressionSyntax expression) {
 		return expression.IsKind(SyntaxKind.NullLiteralExpression);
 	}
 
-	private static bool ContainsSessionTokenVocabulary(string name) {
-		return name.IndexOf(SessionTokenVocabulary, StringComparison.OrdinalIgnoreCase) >= 0;
+	private static bool _ContainsSessionTokenVocabulary(string name) {
+		return name.IndexOf(_SessionTokenVocabulary, StringComparison.OrdinalIgnoreCase) >= 0;
 	}
 }

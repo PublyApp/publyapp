@@ -12,14 +12,14 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
-	private static readonly global::System.Collections.Immutable.ImmutableHashSet<string> ParsingSensitiveReturnTypeMetadataNames =
+	private static readonly global::System.Collections.Immutable.ImmutableHashSet<string> _ParsingSensitiveReturnTypeMetadataNames =
 		global::System.Collections.Immutable.ImmutableHashSet.Create(
 		global::System.StringComparer.Ordinal,
 		"PatchField`1"
-		// Extend in phase-2 enforcement:
-		// - TrimmedString
-		// - ParsedDateTime
-		// - ParsedEnum
+	// Extend in phase-2 enforcement:
+	// - TrimmedString
+	// - ParsedDateTime
+	// - ParsedEnum
 	);
 
 	public override global::System.Collections.Immutable.ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics {
@@ -34,15 +34,15 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 		// EnforceExtendedAnalyzerRules is enabled.
 		context.EnableConcurrentExecution();
 		// Analyze each operation block so we can reason across getter call sites in one method.
-		context.RegisterOperationBlockStartAction(AnalyzeHandleOperationBlock);
+		context.RegisterOperationBlockStartAction(_AnalyzeHandleOperationBlock);
 	}
 
-	private static void AnalyzeHandleOperationBlock(OperationBlockStartAnalysisContext context) {
+	private static void _AnalyzeHandleOperationBlock(OperationBlockStartAnalysisContext context) {
 		if (context.OwningSymbol is not IMethodSymbol handleMethod) {
 			return;
 		}
 
-		if (!IsHandlerHandleMethod(handleMethod)) {
+		if (!_IsHandlerHandleMethod(handleMethod)) {
 			return;
 		}
 
@@ -59,7 +59,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 				return;
 			}
 
-			if (!TryGetTrackedInvocation(
+			if (!_TryGetTrackedInvocation(
 				invocation,
 				out var requestParameter,
 				out var getterMethod)
@@ -74,11 +74,11 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 			}
 
 			if (!byMethod.TryGetValue(getterMethod, out var usage)) {
-				usage = new GetterUsage(isParsingSensitive: IsParsingSensitiveReturnType(getterMethod));
+				usage = new GetterUsage(isParsingSensitive: _IsParsingSensitiveReturnType(getterMethod));
 				byMethod[getterMethod] = usage;
 			}
 
-			var isCacheDecl = IsInvocationCachedToLocal(invocation);
+			var isCacheDecl = _IsInvocationCachedToLocal(invocation);
 			usage.Invocations.Add(invocation);
 			if (isCacheDecl) {
 				usage.IsCachedToLocal = true;
@@ -96,7 +96,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 					var getterMethod = methodPair.Key;
 					var usage = methodPair.Value;
 
-					if (!ShouldReport(usage)) {
+					if (!_ShouldReport(usage)) {
 						continue;
 					}
 
@@ -117,7 +117,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 		}
 	}
 
-	private static bool IsHandlerHandleMethod(IMethodSymbol method) {
+	private static bool _IsHandlerHandleMethod(IMethodSymbol method) {
 		if (!method.IsStatic || method.Name != "Handle") {
 			return false;
 		}
@@ -131,7 +131,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 			&& containingType.IsSealed;
 	}
 
-	private static bool TryGetTrackedInvocation(
+	private static bool _TryGetTrackedInvocation(
 		IInvocationOperation invocation,
 		out IParameterSymbol? requestParameter,
 		out IMethodSymbol? getterMethod
@@ -139,8 +139,7 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 		requestParameter = null;
 		getterMethod = null;
 
-		var parameterRef = invocation.Instance as IParameterReferenceOperation;
-		if (parameterRef is null) {
+		if (invocation.Instance is not IParameterReferenceOperation parameterRef) {
 			return false;
 		}
 
@@ -172,12 +171,12 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 		return true;
 	}
 
-	private static bool IsInvocationCachedToLocal(IInvocationOperation invocation) {
+	private static bool _IsInvocationCachedToLocal(IInvocationOperation invocation) {
 		return invocation.Syntax.Parent is EqualsValueClauseSyntax equalsValueClause
 			&& equalsValueClause.Parent is VariableDeclaratorSyntax;
 	}
 
-	private static bool ShouldReport(GetterUsage usage) {
+	private static bool _ShouldReport(GetterUsage usage) {
 		var directCount = usage.DirectInvocations.Count;
 		// Cached once and used only via the local → no report.
 		// Cached once + 1+ additional direct call → report (mixed anti-pattern).
@@ -188,13 +187,12 @@ public sealed class UncachedBodyGetterAnalyzer : DiagnosticAnalyzer {
 			|| ((usage.IsParsingSensitive || usage.IsCachedToLocal) && directCount >= 1);
 	}
 
-	private static bool IsParsingSensitiveReturnType(IMethodSymbol getterMethod) {
-		var returnType = getterMethod.ReturnType as INamedTypeSymbol;
-		if (returnType is null) {
+	private static bool _IsParsingSensitiveReturnType(IMethodSymbol getterMethod) {
+		if (getterMethod.ReturnType is not INamedTypeSymbol returnType) {
 			return false;
 		}
 
-		return ParsingSensitiveReturnTypeMetadataNames.Contains(returnType.MetadataName);
+		return _ParsingSensitiveReturnTypeMetadataNames.Contains(returnType.MetadataName);
 	}
 
 	private sealed class GetterUsage {

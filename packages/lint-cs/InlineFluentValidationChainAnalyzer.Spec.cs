@@ -19,18 +19,18 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 {
 	// PUBLY0005 ships disabled-by-default, so the test harness must explicitly enable it via
 	// .editorconfig before the analyzer will surface any diagnostic.
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
 		dotnet_diagnostic.PUBLY0005.severity = warning
 		""";
 
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Replace inline FluentValidation chains on JsonElement getters with JsonElementRules "
 			+ "helpers";
 
-	private const string ValidatorStub =
+	private const string _ValidatorStub =
 		"""
 			namespace System.Text.Json {
 				public struct JsonElement {
@@ -108,9 +108,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + ValidatorStub;
+			""" + _ValidatorStub;
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -132,9 +132,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + ValidatorStub;
+			""" + _ValidatorStub;
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -155,9 +155,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + ValidatorStub;
+			""" + _ValidatorStub;
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -179,9 +179,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + ValidatorStub;
+			""" + _ValidatorStub;
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -202,9 +202,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + ValidatorStub;
+			""" + _ValidatorStub;
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -257,7 +257,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 			}
 		""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -298,7 +298,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 			}
 		""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -382,15 +382,15 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static DiagnosticResult ExpectedDiagnostic(int location)
+	private static DiagnosticResult _ExpectedDiagnostic(int location)
 	{
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0005)
 			.WithLocation(location)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		params DiagnosticResult[] expected
 	) {
@@ -399,7 +399,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

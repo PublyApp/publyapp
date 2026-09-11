@@ -20,16 +20,16 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 	public override void Initialize(AnalysisContext context) {
 		context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 		context.EnableConcurrentExecution();
-		context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
+		context.RegisterOperationAction(_AnalyzeInvocation, OperationKind.Invocation);
 	}
 
-	private static void AnalyzeInvocation(OperationAnalysisContext context) {
+	private static void _AnalyzeInvocation(OperationAnalysisContext context) {
 		if (context.Operation is not IInvocationOperation invocation) {
 			return;
 		}
 
 		var filePath = invocation.Syntax.SyntaxTree?.FilePath;
-		if (!IsStaffHandlerFile(filePath)) {
+		if (!_IsStaffHandlerFile(filePath)) {
 			return;
 		}
 
@@ -43,27 +43,27 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 			return;
 		}
 
-		var staffVariantName = GetStaffVariantName(methodName);
+		var staffVariantName = _GetStaffVariantName(methodName);
 		if (method.ContainingType is null) {
 			return;
 		}
 
-		if (!IsDomainServiceType(method.ContainingType)) {
+		if (!_IsDomainServiceType(method.ContainingType)) {
 			return;
 		}
 
-		if (!HasForStaffVariant(method.ContainingType, method, staffVariantName)) {
+		if (!_HasForStaffVariant(method.ContainingType, method, staffVariantName)) {
 			return;
 		}
 
-		var location = GetInvocationTargetLocation(invocation.Syntax as InvocationExpressionSyntax)
+		var location = _GetInvocationTargetLocation(invocation.Syntax as InvocationExpressionSyntax)
 			?? invocation.Syntax.GetLocation();
 		var diagnostic = Diagnostic.Create(DiagnosticCatalog.StaffHandlerServiceVariant, location);
 
 		context.ReportDiagnostic(diagnostic);
 	}
 
-	private static bool IsStaffHandlerFile(string? filePath) {
+	private static bool _IsStaffHandlerFile(string? filePath) {
 		if (string.IsNullOrEmpty(filePath)) {
 			return false;
 		}
@@ -72,7 +72,7 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 		return normalizedPath.Contains("/Handlers/Staff/", StringComparison.Ordinal);
 	}
 
-	private static string GetStaffVariantName(string methodName) {
+	private static string _GetStaffVariantName(string methodName) {
 		const string asyncSuffix = "Async";
 		return methodName.EndsWith(asyncSuffix, StringComparison.Ordinal)
 			? methodName.Substring(0, methodName.Length - asyncSuffix.Length)
@@ -80,12 +80,12 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 			: methodName + "ForStaff";
 	}
 
-	private static bool IsDomainServiceType(INamedTypeSymbol containingType) {
+	private static bool _IsDomainServiceType(INamedTypeSymbol containingType) {
 		var typeName = containingType.Name;
 		return typeName.EndsWith("Service", StringComparison.Ordinal);
 	}
 
-	private static bool HasForStaffVariant(
+	private static bool _HasForStaffVariant(
 		INamedTypeSymbol? containingType,
 		IMethodSymbol method,
 		string staffVariantName
@@ -119,8 +119,8 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 				continue;
 			}
 
-			var comparisonMethod = ConstructWithTypeArguments(staffMethod, method);
-			if (HasMatchingParameterSignature(comparisonMethod, method)) {
+			var comparisonMethod = _ConstructWithTypeArguments(staffMethod, method);
+			if (_HasMatchingParameterSignature(comparisonMethod, method)) {
 				return true;
 			}
 		}
@@ -128,7 +128,7 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 		return false;
 	}
 
-	private static IMethodSymbol ConstructWithTypeArguments(
+	private static IMethodSymbol _ConstructWithTypeArguments(
 		IMethodSymbol staffMethod,
 		IMethodSymbol method
 	) {
@@ -144,7 +144,7 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 		return staffMethod.Construct(typeArguments);
 	}
 
-	private static bool HasMatchingParameterSignature(
+	private static bool _HasMatchingParameterSignature(
 		IMethodSymbol staffMethod,
 		IMethodSymbol method
 	) {
@@ -164,7 +164,7 @@ public sealed class StaffHandlerServiceVariantAnalyzer : DiagnosticAnalyzer {
 		return true;
 	}
 
-	private static Location? GetInvocationTargetLocation(InvocationExpressionSyntax? invocation) {
+	private static Location? _GetInvocationTargetLocation(InvocationExpressionSyntax? invocation) {
 		if (invocation is null) {
 			return null;
 		}

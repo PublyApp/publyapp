@@ -17,14 +17,14 @@ namespace PublyApp.Analyzers;
 
 public sealed class ToLowerForComparisonAnalyzerSpec
 {
-	private const string EnableConfig = """
+	private const string _EnableConfig = """
 		root = true
 
 		[*.cs]
 		dotnet_diagnostic.PUBLY0003.severity = warning
 		""";
 
-	private const string ExpectedMessage =
+	private const string _ExpectedMessage =
 		"Do not use ToLower()/ToLowerInvariant() for comparison or dispatch; use "
 		+ "StringComparison overloads or case-insensitive comparers";
 
@@ -43,7 +43,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -61,7 +61,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -79,7 +79,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -97,7 +97,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -115,7 +115,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -133,7 +133,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -151,7 +151,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -169,7 +169,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source, ExpectedDiagnostic(0));
+		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -194,7 +194,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -213,7 +213,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -231,7 +231,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -249,7 +249,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledAsync(source);
+		await _VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -269,7 +269,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
+		await _VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
 	}
 
 	[Fact]
@@ -288,7 +288,7 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			}
 			""";
 
-		await VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
+		await _VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -337,15 +337,15 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 		Assert.False(descriptor.IsEnabledByDefault);
 	}
 
-	private static DiagnosticResult ExpectedDiagnostic(int location)
+	private static DiagnosticResult _ExpectedDiagnostic(int location)
 	{
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0003)
 			.WithLocation(location)
-			.WithMessage(ExpectedMessage);
+			.WithMessage(_ExpectedMessage);
 	}
 
-	private static async Task VerifyEnabledAsync(
+	private static async Task _VerifyEnabledAsync(
 		string source,
 		params DiagnosticResult[] expected)
 	{
@@ -354,20 +354,20 @@ public sealed class ToLowerForComparisonAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
 	}
 
-	private static async Task VerifyEnabledWithFileNameAsync(string fileName, string source)
+	private static async Task _VerifyEnabledWithFileNameAsync(string fileName, string source)
 	{
 		// Name the source file so Roslyn's generated-code-by-file-name heuristic applies; the analyzer
 		// opts out of generated code, so no PUBLY0003 is expected even with the rule enabled.
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
 
 		await test.RunAsync();
 	}
