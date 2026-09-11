@@ -18,30 +18,30 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// from ApiFixture.InitializeAsync().
 /// </summary>
 public sealed class PostgresContainerFixture : IAsyncDisposable {
-	private static readonly TimeSpan _processExitDisposeTimeout =
+	private static readonly TimeSpan _ProcessExitDisposeTimeout =
 		TimeSpan.FromSeconds(5);
-	private static readonly SemaphoreSlim _initLock =
+	private static readonly SemaphoreSlim _InitLock =
 		new(1, 1);
-	private static PostgresContainerFixture? _sharedInstance;
+	private static PostgresContainerFixture? _SharedInstance;
 
-	private PostgreSqlContainer? _container;
-	private int _disposeStarted;
+	private PostgreSqlContainer? _ContainerOrNull;
+	private int _DisposeStarted;
 
 	public string AdminConnectionString { get; private set; }
 		= string.Empty;
 	public string TemplateDbName { get; } = "publyapp_api_template";
 
 	private PostgresContainerFixture() {
-		AppDomain.CurrentDomain.ProcessExit += HandleProcessExit;
+		AppDomain.CurrentDomain.ProcessExit += _HandleProcessExit;
 	}
 
-	private PostgreSqlContainer Container {
+	private PostgreSqlContainer _Container {
 		get {
-			if (_container is null) {
+			if (_ContainerOrNull is null) {
 				throw new InvalidOperationException("Postgres container has not been initialized.");
 			}
 
-			return _container;
+			return _ContainerOrNull;
 		}
 	}
 
@@ -53,28 +53,28 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 	/// </summary>
 	public static async Task<PostgresContainerFixture>
 	GetSharedAsync() {
-		var instance = Volatile.Read(ref _sharedInstance);
+		var instance = Volatile.Read(ref _SharedInstance);
 		if (instance is not null) {
 			return instance;
 		}
 
-		await _initLock.WaitAsync();
+		await _InitLock.WaitAsync();
 		try {
-			instance = Volatile.Read(ref _sharedInstance);
+			instance = Volatile.Read(ref _SharedInstance);
 			if (instance is not null) {
 				return instance;
 			}
 
 			var fixture = new PostgresContainerFixture();
-			await fixture.InitializeAsync();
-			Volatile.Write(ref _sharedInstance, fixture);
+			await fixture._InitializeAsync();
+			Volatile.Write(ref _SharedInstance, fixture);
 			return fixture;
 		} finally {
-			_initLock.Release();
+			_InitLock.Release();
 		}
 	}
 
-	private async Task InitializeAsync() {
+	private async Task _InitializeAsync() {
 		// Use Testcontainers default wait strategy (more
 		// robust than UntilPortIsAvailable — waits for
 		// pg_isready or equivalent health check)
@@ -88,8 +88,8 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 				.WithLogger(NullLogger.Instance);
 		}
 
-		_container = containerBuilder.Build();
-		var container = Container;
+		_ContainerOrNull = containerBuilder.Build();
+		var container = _Container;
 
 		try {
 			await container.StartAsync();
@@ -135,19 +135,19 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 	}
 
 	public async ValueTask DisposeAsync() {
-		if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) {
+		if (Interlocked.Exchange(ref _DisposeStarted, 1) != 0) {
 			return;
 		}
 
-		AppDomain.CurrentDomain.ProcessExit -= HandleProcessExit;
+		AppDomain.CurrentDomain.ProcessExit -= _HandleProcessExit;
 
-		var container = Interlocked.Exchange(ref _container, null);
+		var container = Interlocked.Exchange(ref _ContainerOrNull, null);
 		if (container is not null) {
 			await container.DisposeAsync();
 		}
 	}
 
-	private void HandleProcessExit(object? sender, EventArgs args) {
+	private void _HandleProcessExit(object? sender, EventArgs args) {
 		try {
 			var disposeTask = DisposeAsync().AsTask();
 			_ = disposeTask.ContinueWith(
@@ -159,7 +159,7 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 					| TaskContinuationOptions.ExecuteSynchronously,
 				TaskScheduler.Default
 			);
-			disposeTask.Wait(_processExitDisposeTimeout);
+			disposeTask.Wait(_ProcessExitDisposeTimeout);
 		} catch {
 			// Process-exit cleanup is best-effort. Ryuk remains
 			// the fallback when deterministic disposal fails.
