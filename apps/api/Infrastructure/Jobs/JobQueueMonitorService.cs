@@ -104,22 +104,22 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 	// derived from the cadence constant itself so the two cannot drift apart.
 	public const int SchedulerSyncStaleSeconds = SchedulerLeaderService.SyncIntervalSeconds * 2;
 
-	private static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(60);
+	private static readonly TimeSpan _SampleInterval = TimeSpan.FromSeconds(60);
 
-	private readonly IServiceScopeFactory _scopeFactory;
-	private readonly ILogger<JobQueueMonitorService> _logger;
-	private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
-	private readonly SchedulerSyncState _syncState;
-	private readonly Meter _meter;
+	private readonly IServiceScopeFactory _ScopeFactory;
+	private readonly ILogger<JobQueueMonitorService> _Logger;
+	private readonly Func<TimeSpan, CancellationToken, Task> _DelayAsync;
+	private readonly SchedulerSyncState _SyncState;
+	private readonly Meter _Meter;
 
-	private volatile JobQueueSample _last = JobQueueSample.Empty;
-	private int _processingOverLeaseStreak;
+	private volatile JobQueueSample _Last = JobQueueSample.Empty;
+	private int _ProcessingOverLeaseStreak;
 
 	public JobQueueMonitorService(
 		IServiceScopeFactory scopeFactory,
 		ILogger<JobQueueMonitorService> logger,
 		SchedulerSyncState syncState
-	) : this(scopeFactory, logger, syncState, DelayAsync) {
+	) : this(scopeFactory, logger, syncState, _DefaultDelayAsync) {
 	}
 
 	public JobQueueMonitorService(
@@ -128,49 +128,49 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		SchedulerSyncState syncState,
 		Func<TimeSpan, CancellationToken, Task> delayAsync
 	) {
-		_scopeFactory = scopeFactory;
-		_logger = logger;
-		_syncState = syncState;
-		_delayAsync = delayAsync;
+		_ScopeFactory = scopeFactory;
+		_Logger = logger;
+		_SyncState = syncState;
+		_DelayAsync = delayAsync;
 
 		// Gauges pull from the latest sample. Named on the engine meter so every
 		// job-related signal lives under one meter (§7.1/§7.2).
-		_meter = new Meter(JobsMetrics.MeterName);
+		_Meter = new Meter(JobsMetrics.MeterName);
 
-		_meter.CreateObservableGauge("jobs.due_depth", ObserveDueDepth);
-		_meter.CreateObservableGauge("jobs.oldest_due_age_seconds", ObserveOldestDueAge);
-		_meter.CreateObservableGauge(
-			"jobs.processing_over_lease", () => _last.ProcessingOverLeaseCount
+		_Meter.CreateObservableGauge("jobs.due_depth", _ObserveDueDepth);
+		_Meter.CreateObservableGauge("jobs.oldest_due_age_seconds", _ObserveOldestDueAge);
+		_Meter.CreateObservableGauge(
+			"jobs.processing_over_lease", () => _Last.ProcessingOverLeaseCount
 		);
-		_meter.CreateObservableGauge("jobs.dlq_size", () => _last.DeadLetterSize);
-		_meter.CreateObservableGauge("jobs.dlq_growth_1h", () => _last.DeadLetterGrowth1h);
-		_meter.CreateObservableGauge(
-			"jobs.dlq.untriaged_missing", () => _last.MissingTriagedCount
+		_Meter.CreateObservableGauge("jobs.dlq_size", () => _Last.DeadLetterSize);
+		_Meter.CreateObservableGauge("jobs.dlq_growth_1h", () => _Last.DeadLetterGrowth1h);
+		_Meter.CreateObservableGauge(
+			"jobs.dlq.untriaged_missing", () => _Last.MissingTriagedCount
 		);
-		_meter.CreateObservableGauge(
-			"email.log_failures_1h", () => _last.EmailLogFailures1h
+		_Meter.CreateObservableGauge(
+			"email.log_failures_1h", () => _Last.EmailLogFailures1h
 		);
-		_meter.CreateObservableGauge(
-			"jobs.queue_dead_tuples", () => _last.JobQueueDeadTuples
+		_Meter.CreateObservableGauge(
+			"jobs.queue_dead_tuples", () => _Last.JobQueueDeadTuples
 		);
 
 		// Prepared-state sweep lag (#865/K-3): observes the latest sample like every
 		// other §7.2 gauge. The UNKNOWN (-1, pre-first-sample) state emits NOTHING, so
 		// the series never carries a fabricated age before a real sample lands.
-		_meter.CreateObservableGauge("jobs.prepared_state_overdue_seconds", ObservePreparedStateOverdue);
+		_Meter.CreateObservableGauge("jobs.prepared_state_overdue_seconds", _ObservePreparedStateOverdue);
 
 		// Leader observability (design §7.2/R2-10). scheduler.leader_present is emitted by
 		// EVERY replica — that is the whole point: the round-1 design leader-gated the
 		// sampler, so when leadership vanished nothing sampled and silence became the
 		// symptom. scheduler.last_sync_at is leader-emitted (no leadership, no series), so
 		// it observes only when this replica owes a sync.
-		_meter.CreateObservableGauge("scheduler.leader_present", ObserveLeaderPresent);
-		_meter.CreateObservableGauge("scheduler.last_sync_at", ObserveLastSyncAt);
+		_Meter.CreateObservableGauge("scheduler.leader_present", _ObserveLeaderPresent);
+		_Meter.CreateObservableGauge("scheduler.last_sync_at", _ObserveLastSyncAt);
 	}
 
 	/// <summary>The most recent sample; gauges observe this. Exposed for specs.</summary>
 	public JobQueueSample LastSample {
-		get { return _last; }
+		get { return _Last; }
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -181,11 +181,11 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				break;
 			} catch (Exception ex) {
 				// A sampler failure must never take the worker down; the next tick retries.
-				_logger.LogWarning(ex, "Job-queue monitor sample failed");
+				_Logger.LogWarning(ex, "Job-queue monitor sample failed");
 			}
 
 			try {
-				await _delayAsync(SampleInterval, stoppingToken);
+				await _DelayAsync(_SampleInterval, stoppingToken);
 			} catch (OperationCanceledException) {
 				break;
 			}
@@ -194,7 +194,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 
 	/// <summary>Runs one scoped sample/evaluation cycle through a deterministic seam.</summary>
 	public async Task RunOneCycleAsync(CancellationToken cancellationToken) {
-		using var scope = _scopeFactory.CreateScope();
+		using var scope = _ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var sample = await SampleAsync(dbContext, cancellationToken);
@@ -359,10 +359,10 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			JobQueueDeadTuples = row.JobQueueDeadTuples,
 			PreparedStateOverdueSeconds = row.PreparedStateOverdueSeconds,
 			LeaderPresent = row.LeaderPresent,
-			SchedulerSyncAgeSeconds = ReadSyncAgeSeconds(),
+			SchedulerSyncAgeSeconds = _ReadSyncAgeSeconds(),
 		};
 
-		_last = sample;
+		_Last = sample;
 		return sample;
 	}
 
@@ -376,8 +376,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 	public IReadOnlyList<string> EvaluateAndAlert(JobQueueSample sample) {
 		var breaches = new List<string>();
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
+		if (_Logger.IsEnabled(LogLevel.Information)) {
+			_Logger.LogInformation(
 				"jobs.queue_sample due_high={DueHigh} due_bulk={DueBulk} "
 				+ "oldest_high_s={OldestHigh} oldest_bulk_s={OldestBulk} "
 				+ "processing_over_lease={OverLease} dlq_size={DlqSize} "
@@ -402,7 +402,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 
 		if (sample.DueDepthTotal > DueDepthWarnThreshold) {
 			breaches.Add("due_depth");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert due_depth={DueDepth} exceeds {Threshold}",
 				sample.DueDepthTotal,
 				DueDepthWarnThreshold
@@ -411,7 +411,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 
 		if (sample.OldestDueAgeSecondsHigh > OldestAgeHighWarnSeconds) {
 			breaches.Add("oldest_due_age_high");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert oldest_due_age_high_s={Age} exceeds {Threshold}",
 				sample.OldestDueAgeSecondsHigh,
 				OldestAgeHighWarnSeconds
@@ -420,7 +420,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 
 		if (sample.OldestDueAgeSecondsBulk > OldestAgeBulkWarnSeconds) {
 			breaches.Add("oldest_due_age_bulk");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert oldest_due_age_bulk_s={Age} exceeds {Threshold}",
 				sample.OldestDueAgeSecondsBulk,
 				OldestAgeBulkWarnSeconds
@@ -430,14 +430,14 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		// Consecutive-sample gate: reclaim being broken is a sustained condition, so a
 		// lone breached sample is not alerted (a claim can momentarily out-race reclaim).
 		if (sample.ProcessingOverLeaseCount > 0) {
-			_processingOverLeaseStreak++;
+			_ProcessingOverLeaseStreak++;
 		} else {
-			_processingOverLeaseStreak = 0;
+			_ProcessingOverLeaseStreak = 0;
 		}
 
-		if (_processingOverLeaseStreak >= ProcessingOverLeaseConsecutiveSamples) {
+		if (_ProcessingOverLeaseStreak >= ProcessingOverLeaseConsecutiveSamples) {
 			breaches.Add("processing_over_lease");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert processing_over_lease={Count} sustained over {Samples} samples",
 				sample.ProcessingOverLeaseCount,
 				ProcessingOverLeaseConsecutiveSamples
@@ -446,7 +446,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 
 		if (sample.DeadLetterGrowth1h > 0) {
 			breaches.Add("dlq_growth");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert dlq_growth_1h={Growth} new dead-letter row(s) in the last hour",
 				sample.DeadLetterGrowth1h
 			);
@@ -458,7 +458,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		// recovers when the count reaches 0 (i.e. when each row is triaged or deleted).
 		if (sample.MissingTriagedCount > 0) {
 			breaches.Add("dlq_untriaged_missing");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert dlq_untriaged_missing={Count} dead-letter row(s) hold an "
 				+ "untriaged missing-state anomaly; retention keeps them past its window "
 				+ "until each row is explicitly acknowledged",
@@ -476,7 +476,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		// never mapped to absent, so "no sample yet" cannot manufacture a page.
 		if (sample.LeaderPresent is false) {
 			breaches.Add("scheduler_leader_absent");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert scheduler.leader_present=0 — no replica holds the scheduler-leader "
 				+ "advisory lock; cron triggers are not being scheduled fleet-wide"
 			);
@@ -487,7 +487,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		// so a null age is a follower, not a breach.
 		if (sample.SchedulerSyncAgeSeconds > SchedulerSyncStaleSeconds) {
 			breaches.Add("scheduler_sync_stale");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert scheduler.last_sync_at is {Age}s stale, over the {Threshold}s "
 				+ "threshold — this replica holds leadership but its reconcile has stalled",
 				sample.SchedulerSyncAgeSeconds,
@@ -504,7 +504,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			AppEnvironment.Instance.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES * 60;
 		if (sample.PreparedStateOverdueSeconds > preparedLagThresholdSeconds) {
 			breaches.Add("prepared_state_sweep_overdue");
-			_logger.LogWarning(
+			_Logger.LogWarning(
 				"jobs.alert prepared_state_sweep_overdue overdue_seconds={OverdueSeconds} "
 					+ "threshold_seconds={ThresholdSeconds} - deletable token-bearing prepared "
 					+ "bytes are still on disk past the configured lag window; the "
@@ -519,8 +519,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		return breaches;
 	}
 
-	private IEnumerable<Measurement<long>> ObserveDueDepth() {
-		var sample = _last;
+	private IEnumerable<Measurement<long>> _ObserveDueDepth() {
+		var sample = _Last;
 		return [
 			new Measurement<long>(
 				sample.DueDepthHigh,
@@ -533,8 +533,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		];
 	}
 
-	private IEnumerable<Measurement<double>> ObserveOldestDueAge() {
-		var sample = _last;
+	private IEnumerable<Measurement<double>> _ObserveOldestDueAge() {
+		var sample = _Last;
 		return [
 			new Measurement<double>(
 				sample.OldestDueAgeSecondsHigh,
@@ -547,15 +547,15 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		];
 	}
 
-	private static Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) {
+	private static Task _DefaultDelayAsync(TimeSpan delay, CancellationToken cancellationToken) {
 		return Task.Delay(delay, cancellationToken);
 	}
 
 	// Null unless this replica is the leader: a follower runs no reconcile, so it owes no
 	// sync and must not alert on one. Process clock on both sides of the subtraction —
 	// this is an in-process liveness signal, not a durable cross-process predicate (F11).
-	private double? ReadSyncAgeSeconds() {
-		var baseline = _syncState.StalenessBaseline;
+	private double? _ReadSyncAgeSeconds() {
+		var baseline = _SyncState.StalenessBaseline;
 
 		if (baseline is null) {
 			return null;
@@ -566,8 +566,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 
 	// Emits 1/0 only once a real probe has reported; UNKNOWN (null, pre-first-sample) emits
 	// NOTHING, so the series never carries a fabricated "leader present" before any probe.
-	private IEnumerable<Measurement<int>> ObserveLeaderPresent() {
-		var leaderPresent = _last.LeaderPresent;
+	private IEnumerable<Measurement<int>> _ObserveLeaderPresent() {
+		var leaderPresent = _Last.LeaderPresent;
 
 		if (leaderPresent is null) {
 			return [];
@@ -577,10 +577,10 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 	}
 
 	// Emits the sampled overdue age; UNKNOWN (-1, pre-first-sample) emits NOTHING —
-	// mirroring ObserveLeaderPresent's null discipline so no alerting backend can read
+	// mirroring _ObserveLeaderPresent's null discipline so no alerting backend can read
 	// a fabricated value before any sample completed.
-	private IEnumerable<Measurement<double>> ObservePreparedStateOverdue() {
-		var overdue = _last.PreparedStateOverdueSeconds;
+	private IEnumerable<Measurement<double>> _ObservePreparedStateOverdue() {
+		var overdue = _Last.PreparedStateOverdueSeconds;
 
 		if (overdue < 0) {
 			return [];
@@ -589,8 +589,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		return [new Measurement<double>(overdue)];
 	}
 
-	private IEnumerable<Measurement<long>> ObserveLastSyncAt() {
-		var lastSyncAt = _syncState.LastSyncAt;
+	private IEnumerable<Measurement<long>> _ObserveLastSyncAt() {
+		var lastSyncAt = _SyncState.LastSyncAt;
 
 		if (lastSyncAt is null) {
 			return [];
@@ -615,7 +615,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 	}
 
 	public override void Dispose() {
-		_meter.Dispose();
+		_Meter.Dispose();
 		base.Dispose();
 	}
 }

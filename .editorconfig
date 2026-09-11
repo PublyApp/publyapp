@@ -95,6 +95,38 @@ dotnet_diagnostic.CA1869.severity = warning    # Cache and reuse JsonSerializerO
 dotnet_diagnostic.CA1873.severity = warning    # Avoid potentially expensive method calls as arguments
 dotnet_diagnostic.CA2201.severity = warning    # Do not raise reserved exception types
 dotnet_diagnostic.CA2251.severity = warning    # Use string.Equals overload instead of string.Compare
+# Symbol groups: only fields, properties, events, and ordinary methods.
+dotnet_naming_symbols.private_member_symbols.applicable_kinds = field,property,event,method
+dotnet_naming_symbols.private_member_symbols.applicable_accessibilities = private
+
+# Explicit intersection: private const fields must win over broader const/static rules.
+dotnet_naming_symbols.private_constant_fields.applicable_kinds = field
+dotnet_naming_symbols.private_constant_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_constant_fields.required_modifiers = const
+
+dotnet_naming_symbols.non_private_member_symbols.applicable_kinds = field,property,event,method
+dotnet_naming_symbols.non_private_member_symbols.applicable_accessibilities = public,protected,internal,protected_internal,private_protected
+
+dotnet_naming_style.private_pascal_underscore.capitalization = pascal_case
+dotnet_naming_style.private_pascal_underscore.required_prefix = _
+dotnet_naming_style.non_private_pascal.capitalization = pascal_case
+
+dotnet_naming_rule.private_members_must_be_underscored_pascal_case.symbols = private_member_symbols
+dotnet_naming_rule.private_members_must_be_underscored_pascal_case.style = private_pascal_underscore
+dotnet_naming_rule.private_members_must_be_underscored_pascal_case.severity = warning
+
+dotnet_naming_rule.private_constants_must_be_underscored_pascal_case.symbols = private_constant_fields
+dotnet_naming_rule.private_constants_must_be_underscored_pascal_case.style = private_pascal_underscore
+dotnet_naming_rule.private_constants_must_be_underscored_pascal_case.severity = warning
+
+dotnet_naming_rule.non_private_members_must_be_pascal_case.symbols = non_private_member_symbols
+dotnet_naming_rule.non_private_members_must_be_pascal_case.style = non_private_pascal
+dotnet_naming_rule.non_private_members_must_be_pascal_case.severity = warning
+
+# IDE1006 is the native naming-rule diagnostic; this entry makes warning
+# severity effective during command-line builds under TreatWarningsAsErrors.
+dotnet_diagnostic.IDE1006.severity = warning
+
 dotnet_diagnostic.CS0168.severity = warning    # Variable declared but never used
 dotnet_diagnostic.CS0219.severity = warning    # Variable assigned but value never used
 dotnet_diagnostic.PUBLY0001.severity = warning   # Disallow null-forgiving operator (!) in C#
@@ -153,6 +185,10 @@ dotnet_diagnostic.IDE0005.severity = none
 # Generated migrations emit `new[] { ... }` arrays; do not auto-rewrite them
 dotnet_diagnostic.IDE0300.severity = none
 dotnet_diagnostic.CA1861.severity = none   # Migrations use new[] {} for column lists; don't auto-rewrite
+dotnet_diagnostic.IDE1006.severity = none
+
+[**/Migrations/*.Spec.cs]
+dotnet_diagnostic.IDE1006.severity = warning
 
 # Test code overrides
 [**/Tests/**/*.cs]
