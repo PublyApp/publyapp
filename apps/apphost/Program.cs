@@ -437,14 +437,14 @@ internal static partial class RawPlainBind {
 	private const int _TcpProtocol = 6; // IPPROTO_TCP
 	private const int _Port = 5454;
 
-	[DllImport("libc", SetLastError = true)]
-	private static extern int _socket(int domain, int type, int protocol);
+	[DllImport("libc", SetLastError = true, EntryPoint = "socket")]
+	private static extern int _Socket(int domain, int type, int protocol);
 
-	[DllImport("libc", SetLastError = true)]
-	private static extern int _bind(int sockfd, byte[] address, int length);
+	[DllImport("libc", SetLastError = true, EntryPoint = "bind")]
+	private static extern int _Bind(int sockfd, byte[] address, int length);
 
-	[DllImport("libc", SetLastError = true)]
-	private static extern int _close(int fd);
+	[DllImport("libc", SetLastError = true, EntryPoint = "close")]
+	private static extern int _Close(int fd);
 
 	public static bool CanBindLoopbackPort5454() {
 		if (!OperatingSystem.IsLinux()) {
@@ -467,7 +467,7 @@ internal static partial class RawPlainBind {
 		address[6] = 0;
 		address[7] = 1;
 
-		var fd = _socket(_AfInet, _SockStream, _TcpProtocol);
+		var fd = _Socket(_AfInet, _SockStream, _TcpProtocol);
 		if (fd < 0) {
 			// Cannot even create a probe socket (exotic sandbox): report as
 			// occupied — a LOUD failure, never a silent pass.
@@ -475,9 +475,9 @@ internal static partial class RawPlainBind {
 		}
 
 		try {
-			return _bind(fd, address, address.Length) == 0;
+			return _Bind(fd, address, address.Length) == 0;
 		} finally {
-			_close(fd);
+			_Close(fd);
 		}
 	}
 }
