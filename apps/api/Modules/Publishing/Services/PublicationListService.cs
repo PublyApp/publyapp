@@ -53,7 +53,7 @@ public sealed class PublicationListService : IPublicationListService {
 	private readonly AppDbContext _Db;
 
 	public PublicationListService(AppDbContext db) {
-		_Db = db;
+		this._Db = db;
 	}
 
 	public async Task<FindPublicationsResult> FindForTenantAsync(
@@ -63,7 +63,7 @@ public sealed class PublicationListService : IPublicationListService {
 		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 
-		var query = _Db.Publication
+		var query = this._Db.Publication
 			.AsNoTracking()
 			.Where(publication => publication.TenantId == args.TenantId
 				&& !publication.IsDeleted);
@@ -73,7 +73,7 @@ public sealed class PublicationListService : IPublicationListService {
 				return new FindPublicationsResult.CursorNotFound(args.Cursor);
 			}
 
-			var cursorRow = await _Db.Publication
+			var cursorRow = await this._Db.Publication
 				.AsNoTracking()
 				.Where(publication => publication.Id == cursorId
 					&& publication.TenantId == args.TenantId)
@@ -117,7 +117,7 @@ public sealed class PublicationListService : IPublicationListService {
 
 		return new FindPublicationsResult.Success(
 			new CursorPaginatedResult<PublicationListItem> {
-				Data = rows.Select(ToListItem).ToList(),
+				Data = rows.Select(PublicationListService.ToListItem).ToList(),
 				NextCursor = nextCursor,
 			}
 		);
@@ -127,9 +127,9 @@ public sealed class PublicationListService : IPublicationListService {
 		return new PublicationListItem {
 			Id = row.Publication.GetRequiredId(),
 			PostId = row.Publication.PostId,
-			PostExcerpt = row.PostBody.Length <= _ExcerptLength
+			PostExcerpt = row.PostBody.Length <= PublicationListService._ExcerptLength
 				? row.PostBody
-				: row.PostBody[.._ExcerptLength],
+				: row.PostBody[..PublicationListService._ExcerptLength],
 			Status = PublicationWire.FormatStatus(row.Publication.Status),
 			SocialAccountId = row.Publication.SocialAccountId,
 			AccountLabel = row.AccountHandle,

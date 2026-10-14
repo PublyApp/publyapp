@@ -160,7 +160,7 @@ public static class ServiceRegistration {
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) => {
 			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-			var tenantId = _GetCurrentTenantId(httpContextAccessor);
+			var tenantId = ServiceRegistration._GetCurrentTenantId(httpContextAccessor);
 
 			options.UseNpgsql(AppEnvironment.Instance.POSTGRES_CONNECTION_STRING);
 
@@ -230,7 +230,7 @@ public static class ServiceRegistration {
 	/// </summary>
 	public static IHostApplicationBuilder AddAppServices(this IHostApplicationBuilder builder) {
 		// Validate [Service] attributed classes up front (fail-fast).
-		var discoveredServices = ValidateServiceAttributes();
+		var discoveredServices = ServiceRegistration.ValidateServiceAttributes();
 
 		// Optional DI manifest logging (gated by config).
 		// Important: do not build a temporary ServiceProvider here. We only capture the formatted manifest into DI;
@@ -274,7 +274,7 @@ public static class ServiceRegistration {
 
 		// Register [Service] attributed classes after the explicit framework/app registrations above.
 		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
-		_RegisterDiscoveredServices(builder.Services, discoveredServices);
+		ServiceRegistration._RegisterDiscoveredServices(builder.Services, discoveredServices);
 
 		// Validate services at build time. ConfigureContainer with the default factory is
 		// the IHostApplicationBuilder-portable equivalent of
@@ -335,7 +335,7 @@ public static class ServiceRegistration {
 				foreach (var descriptor in group) {
 					message.AppendLine(
 						CultureInfo.InvariantCulture,
-						$"      explicit: {_DescribeServiceDescriptor(descriptor)}"
+						$"      explicit: {ServiceRegistration._DescribeServiceDescriptor(descriptor)}"
 					);
 				}
 			}
@@ -347,13 +347,13 @@ public static class ServiceRegistration {
 		// Register discovered services deterministically for stable IEnumerable<T> ordering and reproducible diagnostics
 		var ordered = discoveredServices
 			.Where(s => s.ServiceInterface is not null)
-			.OrderBy(s => _GetRequiredServiceInterface(s).FullName, StringComparer.Ordinal)
+			.OrderBy(s => ServiceRegistration._GetRequiredServiceInterface(s).FullName, StringComparer.Ordinal)
 			.ThenBy(s => s.Key ?? string.Empty, StringComparer.Ordinal)
 			.ThenBy(s => s.ImplementationType.FullName, StringComparer.Ordinal)
 			.ToList();
 
 		foreach (var service in ordered) {
-			var serviceInterface = _GetRequiredServiceInterface(service);
+			var serviceInterface = ServiceRegistration._GetRequiredServiceInterface(service);
 
 			if (service.Key is null) {
 				services.Add(new ServiceDescriptor(

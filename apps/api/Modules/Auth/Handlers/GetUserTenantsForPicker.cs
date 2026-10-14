@@ -56,7 +56,7 @@ public sealed class GetUserTenantsForPicker {
 		}
 
 		var result = await accountService.GetUserTenantsForPickerAsync(
-			userId, _MaxTenantsInList, cancellationToken
+			userId, GetUserTenantsForPicker._MaxTenantsInList, cancellationToken
 		);
 
 		return TypedResults.Ok(new GetUserTenantsForPickerResponse {

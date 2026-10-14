@@ -34,8 +34,8 @@ public sealed class StorageWriteException : InvalidOperationException {
 		bool cleanupConfirmed,
 		Exception innerException
 	) : base("The upload could not be written safely.", innerException) {
-		RelativePath = relativePath;
-		CleanupConfirmed = cleanupConfirmed;
+		this.RelativePath = relativePath;
+		this.CleanupConfirmed = cleanupConfirmed;
 	}
 
 	public string RelativePath { get; }

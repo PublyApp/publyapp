@@ -81,7 +81,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 	public StaffProfileQueryAsStaffService(
 		AppDbContext dbContext
 	) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	/// <summary>
@@ -124,7 +124,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 			StringComparer.OrdinalIgnoreCase
 		) {
 			["id"] = CursorSortFieldHandlerFactory.Create<Profile, Guid, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Scope == ProfileScope.Staff
 						&& !p.IsDeleted),
@@ -133,7 +133,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 				cancellationToken
 			),
 			["name"] = CursorSortFieldHandlerFactory.Create<Profile, string, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Id != null
 						&& p.Scope == ProfileScope.Staff
@@ -143,7 +143,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 				cancellationToken
 			),
 			["created_at"] = CursorSortFieldHandlerFactory.Create<Profile, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Id != null
 						&& p.Scope == ProfileScope.Staff
@@ -153,7 +153,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 				cancellationToken
 			),
 			["user_account_count"] = CursorSortFieldHandlerFactory.Create<Profile, int, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Id != null
 						&& p.Scope == ProfileScope.Staff
@@ -181,7 +181,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 		// ───────────────────────────────────────────────────────────────────────
 		// Start with staff profiles only, excluding soft-deleted records
 		var baseQuery =
-			from p in _DbContext.Profile.AsNoTracking()
+			from p in this._DbContext.Profile.AsNoTracking()
 			where p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
 				&& p.Id != null
@@ -272,7 +272,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 		// This is a staff-only route, so we only allow staff-scoped profiles here.
 		// Missing/non-staff profiles are treated as not-found for consistency with other staff endpoints.
 		var profile = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Id == profileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -298,7 +298,7 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 		CancellationToken cancellationToken = default
 	) {
 		var profileExists = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Id == profileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
@@ -313,8 +313,8 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 		// This keeps the UI consistent if a permission is removed from the DB later,
 		// and prevents mixing staff profiles with tenant/project permissions.
 		var permissionKeys = await (
-			from pp in _DbContext.ProfilePermission
-			join p in _DbContext.Permission on pp.PermissionKey equals p.Key
+			from pp in this._DbContext.ProfilePermission
+			join p in this._DbContext.Permission on pp.PermissionKey equals p.Key
 			where pp.ProfileId == profileId
 				&& !p.IsDeleted
 				&& p.Scope == PermissionScope.Staff

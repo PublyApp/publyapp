@@ -70,7 +70,7 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 	private readonly AppDbContext _DbContext;
 
 	public TenantUserCompanyQueryService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 
@@ -79,11 +79,11 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from u in _DbContext.User.AsNoTracking()
+			from u in this._DbContext.User.AsNoTracking()
 			where u.Id == userId
 				&& !u.IsDeleted
 				&& (
-					from ua in _DbContext.UserAccount.AsNoTracking()
+					from ua in this._DbContext.UserAccount.AsNoTracking()
 					where ua.UserId == u.Id
 						&& ua.Scope == AccountScope.Tenant
 					select ua
@@ -108,9 +108,9 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		StringComparer.OrdinalIgnoreCase
 	) {
 		["tenant_name"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, string, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
-			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+			.Join(this._DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
 				Account = ua,
 				User = ua.User,
 				Tenant = t,
@@ -127,9 +127,9 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		cancellationToken
 	),
 		["status"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, int, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
-			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+			.Join(this._DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
 				Account = ua,
 				User = ua.User,
 				Tenant = t,
@@ -146,9 +146,9 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		cancellationToken
 	),
 		["level"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, AccountLevel, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
-			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+			.Join(this._DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
 				Account = ua,
 				User = ua.User,
 				Tenant = t,
@@ -165,9 +165,9 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		cancellationToken
 	),
 		["created_at"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, DateTime, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
-			.Join(_DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
+			.Join(this._DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
 				Account = ua,
 				User = ua.User,
 				Tenant = t,
@@ -197,10 +197,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		}
 
 		var baseQuery =
-			from ua in _DbContext.UserAccount.AsNoTracking()
-			join u in _DbContext.User.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
+			join u in this._DbContext.User.AsNoTracking()
 				on ua.UserId equals u.Id
-			join tenant in _DbContext.Tenant.AsNoTracking()
+			join tenant in this._DbContext.Tenant.AsNoTracking()
 				on ua.TenantId equals tenant.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
@@ -220,8 +220,8 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		// tenant users must remain a 404; bad cursors for existing identities are
 		// reported as 400 below.
 		var hasTenantUserIdentity = await (
-			from ua in _DbContext.UserAccount.IgnoreQueryFilters()
-			join u in _DbContext.User.AsNoTracking()
+			from ua in this._DbContext.UserAccount.IgnoreQueryFilters()
+			join u in this._DbContext.User.AsNoTracking()
 				on ua.UserId equals u.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant

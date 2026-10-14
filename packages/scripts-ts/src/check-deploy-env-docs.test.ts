@@ -390,6 +390,43 @@ public class AppEnvironment {
 	assert.ok(result.has('SOCIAL_ACCOUNTS_MASTER_KEY'));
 });
 
+test('extractApiRequiredStrings: accepts a member-access-qualified nameof', () => {
+	const dir = createFixture({
+		'AppEnvironment.cs': `
+public class AppEnvironment {
+    internal const string AppRoleVariableName = "APP_ROLE";
+    public string POSTGRES_CONNECTION_STRING { get; }
+
+    public static AppEnvironment Initialize() {
+        var existing = Volatile.Read(ref _instance);
+        if (existing is not null) {
+            return existing;
+        }
+
+        lock (InitLock) {
+            LoadDotEnvIfDevelopment();
+            var settings = new AppEnvironment(
+                postgresConnectionString: AppEnvironment._GetRequiredString(nameof(AppEnvironment.POSTGRES_CONNECTION_STRING)),
+                sessionExpiryDays: AppEnvironment._GetRequiredInt(nameof(this.SESSION_EXPIRY_DAYS)),
+                role: AppEnvironment.GetOptionalAppRole(AppEnvironment.AppRoleVariableName, AppRole.All),
+                socialKey: GetRequiredString("SOCIAL_ACCOUNTS_MASTER_KEY")
+            );
+            return settings;
+        }
+    }
+}
+`,
+	});
+
+	const result = extractApiRequiredStrings(path.join(dir, 'AppEnvironment.cs'));
+	assert.deepEqual([...result].sort(), [
+		'APP_ROLE',
+		'POSTGRES_CONNECTION_STRING',
+		'SESSION_EXPIRY_DAYS',
+		'SOCIAL_ACCOUNTS_MASTER_KEY',
+	]);
+});
+
 test('extractApiRequiredStrings: throws when no calls found', () => {
 	const dir = createFixture({
 		'AppEnvironment.cs': `

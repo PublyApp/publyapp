@@ -27,147 +27,147 @@ namespace PublyApp.Api.Data.DbContext;
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
 public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtectionKeyContext {
-	private static readonly Lazy<List<Type>> _SeederTypeCache = new(_DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
+	private static readonly Lazy<List<Type>> _SeederTypeCache = new(AppDbContext._DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session {
-		get { return Set<Session>(); }
+		get { return this.Set<Session>(); }
 	}
 	public DbSet<User> User {
-		get { return Set<User>(); }
+		get { return this.Set<User>(); }
 	}
 	public DbSet<Tenant> Tenant {
-		get { return Set<Tenant>(); }
+		get { return this.Set<Tenant>(); }
 	}
 
 	// Project system entities (still needed for Project entity)
 	public DbSet<Project> Project {
-		get { return Set<Project>(); }
+		get { return this.Set<Project>(); }
 	}
 
 	// Unified permission system entities
 	public DbSet<Permission> Permission {
-		get { return Set<Permission>(); }
+		get { return this.Set<Permission>(); }
 	}
 	public DbSet<Profile> Profile {
-		get { return Set<Profile>(); }
+		get { return this.Set<Profile>(); }
 	}
 	public DbSet<ProfilePermission> ProfilePermission {
-		get { return Set<ProfilePermission>(); }
+		get { return this.Set<ProfilePermission>(); }
 	}
 	public DbSet<UserAccountProfile> UserAccountProfile {
-		get { return Set<UserAccountProfile>(); }
+		get { return this.Set<UserAccountProfile>(); }
 	}
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
 	public DbSet<UserAccount> UserAccount {
-		get { return Set<UserAccount>(); }
+		get { return this.Set<UserAccount>(); }
 	}
 
 	// Unified invitation system (Staff/Tenant/Project)
 	public DbSet<Invitation> Invitation {
-		get { return Set<Invitation>(); }
+		get { return this.Set<Invitation>(); }
 	}
 	public DbSet<InvitationProfile> InvitationProfile {
-		get { return Set<InvitationProfile>(); }
+		get { return this.Set<InvitationProfile>(); }
 	}
 	public DbSet<InvitationEmailOutbox> InvitationEmailOutbox {
-		get { return Set<InvitationEmailOutbox>(); }
+		get { return this.Set<InvitationEmailOutbox>(); }
 	}
 
 	// Generic background job engine (Infrastructure/Jobs). Entities live in
 	// Modules/Jobs by convention; behavior lives in Infrastructure/Jobs.
 	public DbSet<JobQueueItem> JobQueue {
-		get { return Set<JobQueueItem>(); }
+		get { return this.Set<JobQueueItem>(); }
 	}
 	public DbSet<JobDeadLetter> JobDeadLetter {
-		get { return Set<JobDeadLetter>(); }
+		get { return this.Set<JobDeadLetter>(); }
 	}
 	public DbSet<JobDeadLetterEvent> JobDeadLetterEvent {
-		get { return Set<JobDeadLetterEvent>(); }
+		get { return this.Set<JobDeadLetterEvent>(); }
 	}
 
 	// Dashboard-configurable recurring system jobs, reconciled into the leader's Quartz
 	// scheduler by SyncSystemJobsJob (design §4.3).
 	public DbSet<SystemJobDefinition> SystemJobDefinition {
-		get { return Set<SystemJobDefinition>(); }
+		get { return this.Set<SystemJobDefinition>(); }
 	}
 	public DbSet<SystemJobOccurrence> SystemJobOccurrence {
-		get { return Set<SystemJobOccurrence>(); }
+		get { return this.Set<SystemJobOccurrence>(); }
 	}
 
 	// Append-only email delivery record + send-once envelope scratch (design §4.4/§4.5,
 	// Modules/Messaging). Written by the email job handlers; never read by the engine.
 	public DbSet<EmailLog> EmailLog {
-		get { return Set<EmailLog>(); }
+		get { return this.Set<EmailLog>(); }
 	}
 	public DbSet<EmailPreparedSend> EmailPreparedSend {
-		get { return Set<EmailPreparedSend>(); }
+		get { return this.Set<EmailPreparedSend>(); }
 	}
 	// §4.4 provider-evidence transition history (#866/K-6): the actor-named evidence
 	// table for transitions audit_logs cannot carry (a webhook has no user).
 	public DbSet<EmailLogEvidenceEvent> EmailLogEvidenceEvent {
-		get { return Set<EmailLogEvidenceEvent>(); }
+		get { return this.Set<EmailLogEvidenceEvent>(); }
 	}
 
 	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog {
-		get { return Set<AuditLog>(); }
+		get { return this.Set<AuditLog>(); }
 	}
 	public DbSet<SystemNotice> SystemNotice {
-		get { return Set<SystemNotice>(); }
+		get { return this.Set<SystemNotice>(); }
 	}
 
 	// Durable upload admission control + asset lifecycle (#807). Entities live in
 	// Modules/Uploads by convention; the accounting engine lives beside them.
 	public DbSet<UploadAsset> UploadAsset {
-		get { return Set<UploadAsset>(); }
+		get { return this.Set<UploadAsset>(); }
 	}
 	public DbSet<UploadBudget> UploadBudget {
-		get { return Set<UploadBudget>(); }
+		get { return this.Set<UploadBudget>(); }
 	}
 
 	// Distributed rate-limit counters (#953): one fixed-window budget row per
 	// (policy, hashed partition key, window). Tenant-free by design — anonymous
 	// and per-IP partitions carry no tenant id.
 	public DbSet<RateLimitCounter> RateLimitCounter {
-		get { return Set<RateLimitCounter>(); }
+		get { return this.Set<RateLimitCounter>(); }
 	}
 
 	// Tenant content entities
 	public DbSet<Post> Post {
-		get { return Set<Post>(); }
+		get { return this.Set<Post>(); }
 	}
 
 	// One image per post (lane 639 / #629 wave B3). The blob stays owned by the
 	// uploads pipeline; this row is the tenant-scoped attachment record.
 	public DbSet<PostMediaAsset> PostMediaAsset {
-		get { return Set<PostMediaAsset>(); }
+		get { return this.Set<PostMediaAsset>(); }
 	}
 
 	// Data Protection key ring (C1-bis): keys persisted in Postgres, encrypted at rest
 	// with SOCIAL_ACCOUNTS_MASTER_KEY.
 	public DbSet<DataProtectionKey> DataProtectionKeys {
-		get { return Set<DataProtectionKey>(); }
+		get { return this.Set<DataProtectionKey>(); }
 	}
 
 	// Social accounts (C1-bis)
 	public DbSet<Modules.SocialAccounts.Entities.SocialAccount> SocialAccount {
-		get { return Set<Modules.SocialAccounts.Entities.SocialAccount>(); }
+		get { return this.Set<Modules.SocialAccounts.Entities.SocialAccount>(); }
 	}
 	public DbSet<Modules.SocialAccounts.Entities.SocialAccountProject> SocialAccountProject {
-		get { return Set<Modules.SocialAccounts.Entities.SocialAccountProject>(); }
+		get { return this.Set<Modules.SocialAccounts.Entities.SocialAccountProject>(); }
 	}
 
 	// Publishing lifecycle (Epic D / D1)
 	public DbSet<Modules.Publishing.Entities.Publication> Publication {
-		get { return Set<Modules.Publishing.Entities.Publication>(); }
+		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}
 
 	public Guid? TenantId { get; set; }
 
 	public AppDbContext(DbContextOptions options) : base(options) {
 		var extension = options.FindExtension<TenantExtension>();
-		TenantId = extension?.TenantId;
+		this.TenantId = extension?.TenantId;
 	}
 
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
@@ -227,7 +227,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			}
 
 			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
-			_SeedAll(dbContext, infrastructure.Instance);
+			AppDbContext._SeedAll(dbContext, infrastructure.Instance);
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
@@ -238,7 +238,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			}
 
 			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
-			await _SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
+			await AppDbContext._SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
 		});
 	}
 
@@ -246,7 +246,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Discovers and executes all entity seeders synchronously.
 	/// </summary>
 	private static void _SeedAll(AppDbContext dbContext, IServiceProvider serviceProvider) {
-		Task.Run(() => _SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
+		Task.Run(() => AppDbContext._SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
 			.GetAwaiter()
 			.GetResult();
 	}
@@ -256,7 +256,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// </summary>
 	private static async Task _SeedAllAsync(AppDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
 		var logger = serviceProvider.GetService<ILogger<AppDbContext>>();
-		var seeders = _CreateSeeders(serviceProvider);
+		var seeders = AppDbContext._CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
 			if (logger?.IsEnabled(LogLevel.Information) is true) {
@@ -270,7 +270,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
 	/// </summary>
 	private static List<Type> _DiscoverSeeders() {
-		return _SeederTypeCache.Value;
+		return AppDbContext._SeederTypeCache.Value;
 	}
 
 	/// <summary>
@@ -279,7 +279,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// <param name="serviceProvider">The service provider used for DI instantiation.</param>
 	/// <exception cref="InvalidOperationException">Thrown if a seeder cannot be instantiated.</exception>
 	private static List<IEntitySeeder> _CreateSeeders(IServiceProvider serviceProvider) {
-		var seederTypes = _DiscoverSeeders();
+		var seederTypes = AppDbContext._DiscoverSeeders();
 		var seeders = new List<IEntitySeeder>(seederTypes.Count);
 
 		foreach (var type in seederTypes) {
@@ -340,11 +340,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			.HasFilter("\"FriendlyName\" = 'social-accounts-master-key-canary'");
 
 		// Apply matching query filters to ensure consistent filtering
-		if (TenantId is not null) {
+		if (this.TenantId is not null) {
 			// UserAccountProfile gets a filter that matches the Profile's tenant
 			// This ensures both entities in the relationship are filtered consistently
 			modelBuilder.Entity<UserAccountProfile>()
-				.HasQueryFilter(uap => uap.Profile.TenantId == TenantId);
+				.HasQueryFilter(uap => uap.Profile.TenantId == this.TenantId);
 		}
 
 		// Configure other entities with generic approach
@@ -366,11 +366,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				modelBuilder.Entity(entityType.ClrType);
 
-				if (TenantId is not null) {
+				if (this.TenantId is not null) {
 					// Dynamically apply query filter for tenant-filtered entities
 					var parameter = Expression.Parameter(entityType.ClrType, "x");
-					var tenantIdProperty = Expression.Property(parameter, nameof(TenantId));
-					var tenantIdConstant = Expression.Constant(TenantId);
+					var tenantIdProperty = Expression.Property(parameter, nameof(this.TenantId));
+					var tenantIdConstant = Expression.Constant(this.TenantId);
 					var equalExpression = Expression.Equal(tenantIdProperty, tenantIdConstant);
 					var lambda = Expression.Lambda(equalExpression, parameter);
 
@@ -405,7 +405,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Automatically handles audit field updates for all entities.
 	/// </summary>
 	public override int SaveChanges() {
-		_UpdateAuditFields();
+		this._UpdateAuditFields();
 		return base.SaveChanges();
 	}
 
@@ -413,7 +413,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Automatically handles audit field updates for all entities.
 	/// </summary>
 	public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
-		_UpdateAuditFields();
+		this._UpdateAuditFields();
 		return await base.SaveChangesAsync(cancellationToken);
 	}
 
@@ -423,7 +423,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Updates audit fields and applies soft-delete conversion where supported.
 	/// </summary>
 	private void _UpdateAuditFields() {
-		var entries = ChangeTracker.Entries()
+		var entries = this.ChangeTracker.Entries()
 			.Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
 
 		foreach (var entry in entries) {
@@ -442,7 +442,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 						break;
 
 					case EntityState.Deleted:
-						_ForceHardDeleteEntities.Remove(entry.Entity);
+						this._ForceHardDeleteEntities.Remove(entry.Entity);
 						continue;
 					case EntityState.Detached:
 					case EntityState.Unchanged:
@@ -463,7 +463,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 					case EntityState.Added:
 						baseEntity.CreatedAt = now;
 						baseEntity.UpdatedAt = now;
-						_SetConsistentSoftDeleteState(baseEntity, now);
+						AppDbContext._SetConsistentSoftDeleteState(baseEntity, now);
 						break;
 
 					case EntityState.Modified:
@@ -472,9 +472,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 					case EntityState.Deleted:
 						// Check if this is a forced hard delete
-						if (_ForceHardDeleteEntities.Contains(entry.Entity)) {
+						if (this._ForceHardDeleteEntities.Contains(entry.Entity)) {
 							// Allow actual deletion - don't convert to soft delete
-							_ForceHardDeleteEntities.Remove(entry.Entity);
+							this._ForceHardDeleteEntities.Remove(entry.Entity);
 							continue;
 						}
 
@@ -503,7 +503,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 					case EntityState.Added:
 						permission.CreatedAt = now;
 						permission.UpdatedAt = now;
-						_SetConsistentSoftDeleteState(permission, now);
+						AppDbContext._SetConsistentSoftDeleteState(permission, now);
 						break;
 
 					case EntityState.Modified:
@@ -512,9 +512,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 					case EntityState.Deleted:
 						// Check if this is a forced hard delete
-						if (_ForceHardDeleteEntities.Contains(entry.Entity)) {
+						if (this._ForceHardDeleteEntities.Contains(entry.Entity)) {
 							// Allow actual deletion - don't convert to soft delete
-							_ForceHardDeleteEntities.Remove(entry.Entity);
+							this._ForceHardDeleteEntities.Remove(entry.Entity);
 							continue;
 						}
 
@@ -550,7 +550,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// - A fully consistent pair is preserved as-is.
 	/// </summary>
 	private static void _SetConsistentSoftDeleteState(BaseAttributesNoKey baseEntity, DateTime now) {
-		baseEntity.DeletedAt = _NormalizeDeletedAt(baseEntity.DeletedAt);
+		baseEntity.DeletedAt = AppDbContext._NormalizeDeletedAt(baseEntity.DeletedAt);
 
 		if (baseEntity.IsDeleted && baseEntity.DeletedAt is null) {
 			baseEntity.DeletedAt = now;
@@ -563,7 +563,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	}
 
 	private static void _SetConsistentSoftDeleteState(Permission permission, DateTime now) {
-		permission.DeletedAt = _NormalizeDeletedAt(permission.DeletedAt);
+		permission.DeletedAt = AppDbContext._NormalizeDeletedAt(permission.DeletedAt);
 
 		if (permission.IsDeleted && permission.DeletedAt is null) {
 			permission.DeletedAt = now;
@@ -605,8 +605,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// Use with caution as this bypasses audit tracking.
 	/// </summary>
 	public void ForceHardDelete<TEntity>(TEntity entity) where TEntity : class {
-		_ForceHardDeleteEntities.Add(entity);
-		Remove(entity);
+		this._ForceHardDeleteEntities.Add(entity);
+		this.Remove(entity);
 	}
 
 	/// <summary>
@@ -614,7 +614,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// </summary>
 	public void ForceHardDeleteRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class {
 		foreach (var entity in entities) {
-			ForceHardDelete(entity);
+			this.ForceHardDelete(entity);
 		}
 	}
 

@@ -34,7 +34,7 @@ namespace PublyApp.Api.Lib;
 /// SQL, real cursors, real page walks) is pinned by the *CursorBehaviorSpec integration anchors.
 /// </summary>
 public static class CursorSortFieldHandlerFactory {
-	private static readonly MethodInfo _StringCompareToMethod = _ResolveStringCompareTo();
+	private static readonly MethodInfo _StringCompareToMethod = CursorSortFieldHandlerFactory._ResolveStringCompareTo();
 
 	private static readonly Expression _Zero = Expression.Constant(0, typeof(int));
 
@@ -75,11 +75,11 @@ public static class CursorSortFieldHandlerFactory {
 	)
 		where TKey : notnull {
 		var parameter = Expression.Parameter(typeof(TEntity), "entity");
-		var keyBody = _RequireVisited(
+		var keyBody = CursorSortFieldHandlerFactory._RequireVisited(
 			new ReplaceParameter(keySelector.Parameters[0], parameter),
 			keySelector.Body
 		);
-		var idBody = _RequireVisited(
+		var idBody = CursorSortFieldHandlerFactory._RequireVisited(
 			new ReplaceParameter(idSelector.Parameters[0], parameter),
 			idSelector.Body
 		);
@@ -106,7 +106,7 @@ public static class CursorSortFieldHandlerFactory {
 
 		Func<Guid, Task<object?>> getCursorValue = async guid => {
 			var idEqualsCursor = Expression.Lambda<Func<TEntity, bool>>(
-				_Compare(idBody, Expression.Constant(guid, typeof(TId)), Expression.Equal),
+				CursorSortFieldHandlerFactory._Compare(idBody, Expression.Constant(guid, typeof(TId)), Expression.Equal),
 				parameter
 			);
 			var item = await cursorLookupQuery()
@@ -135,10 +135,10 @@ public static class CursorSortFieldHandlerFactory {
 
 				var keyset = Expression.Lambda<Func<TEntity, bool>>(
 					Expression.OrElse(
-						_Compare(keyBody, keyValue, beyondCursor),
+						CursorSortFieldHandlerFactory._Compare(keyBody, keyValue, beyondCursor),
 						Expression.AndAlso(
-							_Compare(keyBody, keyValue, Expression.Equal),
-							_Compare(idBody, idValue, beyondCursor)
+							CursorSortFieldHandlerFactory._Compare(keyBody, keyValue, Expression.Equal),
+							CursorSortFieldHandlerFactory._Compare(idBody, idValue, beyondCursor)
 						)
 					),
 					parameter
@@ -170,7 +170,7 @@ public static class CursorSortFieldHandlerFactory {
 		// Enum operands have no comparison operators of their own: `t.Status > cursorStatus`
 		// compiled to a comparison over the underlying integral type, so reproduce that. Equality
 		// followed the same conversion, which keeps both branches of the keyset predicate aligned.
-		var underlying = _ResolveEnumComparisonType(operand.Type);
+		var underlying = CursorSortFieldHandlerFactory._ResolveEnumComparisonType(operand.Type);
 		if (underlying is not null) {
 			return op(
 				Expression.Convert(operand, underlying),
@@ -182,7 +182,7 @@ public static class CursorSortFieldHandlerFactory {
 		// renders as a plain ordering comparison) but stay on `==` for equality: routing equality
 		// through CompareTo(...) == 0 would emit a CASE expression instead of a simple equality.
 		if (operand.Type == typeof(string) && !isEquality) {
-			return op(Expression.Call(operand, _StringCompareToMethod, cursorValue), _Zero);
+			return op(Expression.Call(operand, CursorSortFieldHandlerFactory._StringCompareToMethod, cursorValue), CursorSortFieldHandlerFactory._Zero);
 		}
 
 		return op(operand, cursorValue);

@@ -28,42 +28,42 @@ public record CreateTenantProfileAsStaffBody {
 	private List<string> _PermissionKeys = [];
 
 	public string GetName() {
-		return Name.GetValueAsString();
+		return this.Name.GetValueAsString();
 	}
 
 	public string? GetDescription() {
-		return Description.GetValueAsStringOrNull();
+		return this.Description.GetValueAsStringOrNull();
 	}
 
 	public string? GetIcon() {
-		return Icon.GetValueAsStringOrNull();
+		return this.Icon.GetValueAsStringOrNull();
 	}
 
 	public string? GetTone() {
-		return Tone.GetValueAsStringOrNull();
+		return this.Tone.GetValueAsStringOrNull();
 	}
 
 	public List<string> GetPermissionKeys() {
-		if (_ParsedPermissionKeys) {
-			return _PermissionKeys;
+		if (this._ParsedPermissionKeys) {
+			return this._PermissionKeys;
 		}
 
 		if (
-			PermissionKeys.ValueKind is JsonValueKind.Undefined
+			this.PermissionKeys.ValueKind is JsonValueKind.Undefined
 			or JsonValueKind.Null
 		) {
-			_PermissionKeys = [];
-			_ParsedPermissionKeys = true;
-			return _PermissionKeys;
+			this._PermissionKeys = [];
+			this._ParsedPermissionKeys = true;
+			return this._PermissionKeys;
 		}
 
-		if (PermissionKeys.ValueKind != JsonValueKind.Array) {
+		if (this.PermissionKeys.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException(
 				"PermissionKeys must be an array"
 			);
 		}
 
-		_PermissionKeys = PermissionKeys
+		this._PermissionKeys = this.PermissionKeys
 			.EnumerateArray()
 			.Select(element => {
 				var permissionKey = element.GetString();
@@ -79,33 +79,33 @@ public record CreateTenantProfileAsStaffBody {
 			})
 			.ToList();
 
-		_ParsedPermissionKeys = true;
-		return _PermissionKeys;
+		this._ParsedPermissionKeys = true;
+		return this._PermissionKeys;
 	}
 }
 
 public class CreateTenantProfileAsStaffBodyValidator
 	: AbstractValidator<CreateTenantProfileAsStaffBody> {
 	public CreateTenantProfileAsStaffBodyValidator() {
-		RuleFor(x => x.Name)
+		this.RuleFor(x => x.Name)
 			.MustBeRequiredStringWithLength("Name", 2, 100, trim: true);
 
-		RuleFor(x => x.Description)
+		this.RuleFor(x => x.Description)
 			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
 
-		RuleFor(x => x.Icon)
+		this.RuleFor(x => x.Icon)
 			.MustBePatchFieldStringInSet(
 				"Icon",
 				ProfileStyleValidationRules.Icons
 			);
 
-		RuleFor(x => x.Tone)
+		this.RuleFor(x => x.Tone)
 			.MustBePatchFieldStringInSet(
 				"Tone",
 				ProfileStyleValidationRules.Tones
 			);
 
-		RuleFor(x => x.PermissionKeys).Custom((element, context) => {
+		this.RuleFor(x => x.PermissionKeys).Custom((element, context) => {
 			if (
 				element.ValueKind is JsonValueKind.Undefined
 				or JsonValueKind.Null

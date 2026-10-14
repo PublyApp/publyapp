@@ -35,7 +35,7 @@ public interface IPermissionAsStaffService {
 public class PermissionAsStaffService : IPermissionAsStaffService {
 	private readonly AppDbContext _DbContext;
 	public PermissionAsStaffService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public Task<Dictionary<
@@ -45,7 +45,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 		string? language = null,
 		CancellationToken? cancellationToken = default
 	) {
-		return _FindPermissionsAsync(
+		return this._FindPermissionsAsync(
 			AppPermissions.Staff,
 			language,
 			cancellationToken
@@ -59,7 +59,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 		string? language = null,
 		CancellationToken? cancellationToken = default
 	) {
-		return _FindPermissionsAsync(
+		return this._FindPermissionsAsync(
 			AppPermissions.Tenant,
 			language,
 			cancellationToken
@@ -127,7 +127,7 @@ public class PermissionAsStaffService : IPermissionAsStaffService {
 
 		// Query database to find which permissions exist
 		var query =
-			from p in _DbContext.Permission
+			from p in this._DbContext.Permission
 			where runtimePermissionsKeys.Contains(p.Key) && !p.IsDeleted
 			select p;
 

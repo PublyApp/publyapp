@@ -51,11 +51,11 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	private readonly IServiceScopeFactory _ScopeFactory;
 
 	public PostgresKeyRingCanaryStore(IServiceScopeFactory scopeFactory) {
-		_ScopeFactory = scopeFactory;
+		this._ScopeFactory = scopeFactory;
 	}
 
 	public string? Read() {
-		using var scope = _ScopeFactory.CreateScope();
+		using var scope = this._ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		try {
@@ -65,7 +65,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			// rows) and the ACTION (keep the lowest id, delete the rest).
 			var blobs = dbContext.DataProtectionKeys
 				.AsNoTracking()
-				.Where(k => k.FriendlyName == RowName)
+				.Where(k => k.FriendlyName == PostgresKeyRingCanaryStore.RowName)
 				.Select(k => k.Xml)
 				.ToList();
 
@@ -74,24 +74,24 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 					"The master-key canary is corrupted: found "
 						+ blobs.Count
 						+ " duplicate "
-						+ RowName
+						+ PostgresKeyRingCanaryStore.RowName
 						+ " rows in data_protection_keys, so the boot refuses to guess which blob "
 						+ "to trust. Repair by keeping only the lowest-id row and deleting the "
 						+ "others, for example: DELETE FROM data_protection_keys WHERE "
-						+ "\"FriendlyName\" = '" + RowName + "' AND \"Id\" <> (SELECT MIN(\"Id\") "
-						+ "FROM data_protection_keys WHERE \"FriendlyName\" = '" + RowName
+						+ "\"FriendlyName\" = '" + PostgresKeyRingCanaryStore.RowName + "' AND \"Id\" <> (SELECT MIN(\"Id\") "
+						+ "FROM data_protection_keys WHERE \"FriendlyName\" = '" + PostgresKeyRingCanaryStore.RowName
 						+ "'); then restart this service."
 				);
 			}
 
 			return blobs.Count == 0 ? null : blobs[0];
-		} catch (Exception ex) when (_HasCanaryTranslation(ex)) {
-			throw _TranslateCause(dbContext, ex);
+		} catch (Exception ex) when (PostgresKeyRingCanaryStore._HasCanaryTranslation(ex)) {
+			throw PostgresKeyRingCanaryStore._TranslateCause(dbContext, ex);
 		}
 	}
 
 	public void Write(string blob) {
-		using var scope = _ScopeFactory.CreateScope();
+		using var scope = this._ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// #1416: BLIND insert. Concurrent first boots all read an empty canary and all
@@ -100,7 +100,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 		// crash-loop every later boot) or a silent overwrite of the winner.
 		dbContext.DataProtectionKeys.Add(
 			new DataProtectionKey {
-				FriendlyName = RowName,
+				FriendlyName = PostgresKeyRingCanaryStore.RowName,
 				Xml = blob,
 			}
 		);
@@ -114,11 +114,11 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			// winner's row untouched — a loser must NOT overwrite it (a divergent api/worker
 			// key would otherwise be masked instead of failing the boot). The witness
 			// re-reads and verifies the winner's blob right after this returns.
-		} catch (Exception ex) when (_HasCanaryTranslation(ex)) {
+		} catch (Exception ex) when (PostgresKeyRingCanaryStore._HasCanaryTranslation(ex)) {
 			// #1424: the mint's INSERT hit a database infrastructure failure (first boot,
 			// Postgres down/restarting/firewalled, or the unmigrated-schema race). Same
 			// truthful plain-words refusal as the read path.
-			throw _TranslateCause(dbContext, ex);
+			throw PostgresKeyRingCanaryStore._TranslateCause(dbContext, ex);
 		}
 	}
 
@@ -145,7 +145,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	/// </list>
 	/// </summary>
 	private static bool _HasCanaryTranslation(Exception ex) {
-		return _ClassifyChain(ex) != CanaryFailureKind.None;
+		return PostgresKeyRingCanaryStore._ClassifyChain(ex) != CanaryFailureKind.None;
 	}
 
 	private enum CanaryFailureKind {
@@ -226,18 +226,18 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			endpoint = "<unparseable connection string>";
 		}
 
-		var kind = _ClassifyChain(cause);
+		var kind = PostgresKeyRingCanaryStore._ClassifyChain(cause);
 		string message;
 		if (kind is CanaryFailureKind.None or CanaryFailureKind.TransportUnreachable) {
 			message =
-				UnreachablePrefix + endpoint + ": " + _SanitizeReason(cause)
+				PostgresKeyRingCanaryStore.UnreachablePrefix + endpoint + ": " + PostgresKeyRingCanaryStore._SanitizeReason(cause)
 					+ " — the master-key check could not run; the API will not start. "
 					+ "Verify the database container/service is running and reachable "
 					+ "from this service, then restart.";
 		} else if (kind == CanaryFailureKind.ServerMissingSchema) {
 			message =
-				MissingSchemaPrefix + " (SqlState "
-					+ _RedactedReason(cause) + "). The database at " + endpoint
+				PostgresKeyRingCanaryStore.MissingSchemaPrefix + " (SqlState "
+					+ PostgresKeyRingCanaryStore._RedactedReason(cause) + "). The database at " + endpoint
 					+ " answered, so it is reachable — the schema simply does not exist "
 					+ "yet; the master-key check could not run and the API will not "
 					+ "start. Wait for the one-shot migrate task (publyapp-migrate) to "
@@ -245,14 +245,14 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 					+ "succeed.";
 		} else if (kind == CanaryFailureKind.ServerConnectionClassError) {
 			message =
-				ServerRejectedPrefix + ": the server refused the CONNECTION itself ("
-					+ _RedactedReason(cause) + ") — the master-key check could not run; "
+				PostgresKeyRingCanaryStore.ServerRejectedPrefix + ": the server refused the CONNECTION itself ("
+					+ PostgresKeyRingCanaryStore._RedactedReason(cause) + ") — the master-key check could not run; "
 					+ "the API will not start. Check the PostgreSQL server's "
 					+ "connection limits and access rules (pg_hba.conf) for this "
 					+ "service, then restart.";
 		} else {
 			message =
-				ServerRejectedPrefix + " (" + _RedactedReason(cause)
+				PostgresKeyRingCanaryStore.ServerRejectedPrefix + " (" + PostgresKeyRingCanaryStore._RedactedReason(cause)
 					+ ") — the master-key check could not run; the API will not start. "
 					+ "The database answered and rejected the canary statement; compare "
 					+ "its schema state with the deployed migrations, then restart.";
@@ -278,10 +278,10 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 		if (innermost is PostgresException serverError) {
 			// Use the server's OWN MessageText: it carries no SqlState prefix and no
 			// POSITION suffix, so prefixing the SqlState here never duplicates either.
-			return sqlState + ": " + _SanitizeText(serverError.MessageText);
+			return sqlState + ": " + PostgresKeyRingCanaryStore._SanitizeText(serverError.MessageText);
 		}
 
-		return sqlState + ": " + _SanitizeText(innermost?.Message);
+		return sqlState + ": " + PostgresKeyRingCanaryStore._SanitizeText(innermost?.Message);
 	}
 
 	/// <summary>
@@ -297,7 +297,7 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			innermost = innermost.InnerException;
 		}
 
-		return _SanitizeText(innermost?.Message);
+		return PostgresKeyRingCanaryStore._SanitizeText(innermost?.Message);
 	}
 
 	/// <summary>
@@ -310,8 +310,8 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 			.Replace("\n", " ", StringComparison.Ordinal)
 			.Trim();
 
-		message = _StripDelimited(message, '"');
-		message = _StripDelimited(message, '\'');
+		message = PostgresKeyRingCanaryStore._StripDelimited(message, '"');
+		message = PostgresKeyRingCanaryStore._StripDelimited(message, '\'');
 
 		return message.Length <= 300 ? message : message[..300];
 	}

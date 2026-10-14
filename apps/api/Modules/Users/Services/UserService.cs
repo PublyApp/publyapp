@@ -83,20 +83,20 @@ public class UserService : IUserService {
 	private readonly AppDbContext _DbContext;
 
 	public UserService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default) {
 		// check if user already exists
-		var existingUser = await _DbContext.User
+		var existingUser = await this._DbContext.User
 			.FirstOrDefaultAsync(u => u.Email == user.Email, cancellationToken);
 
 		if (existingUser is not null) {
 			return new CreateUserResult.UserAlreadyExists(existingUser);
 		}
 
-		var result = await _DbContext.User.AddAsync(user, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		var result = await this._DbContext.User.AddAsync(user, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return new CreateUserResult.Success(result.Entity);
 	}
@@ -104,7 +104,7 @@ public class UserService : IUserService {
 	public async Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default) {
 		var normalizedEmail = email.ToLowerInvariant();
 		var query =
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.Email == normalizedEmail
 			&& !u.IsDeleted
 			// Check status and verification in the login handler so it can return tailored errors.
@@ -114,14 +114,14 @@ public class UserService : IUserService {
 	}
 
 	public async Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default) {
-		_DbContext.User.Update(user);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		this._DbContext.User.Update(user);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 		return user;
 	}
 
 	public async Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default) {
 		var query =
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.Id == id
 			select u;
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -129,7 +129,7 @@ public class UserService : IUserService {
 
 	public async Task<User?> GetUserByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default) {
 		var query =
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.EmailVerifyToken == token
 			select u;
 
@@ -138,7 +138,7 @@ public class UserService : IUserService {
 
 	public async Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default) {
 		var query =
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.PasswordResetToken == token
 			select u;
 

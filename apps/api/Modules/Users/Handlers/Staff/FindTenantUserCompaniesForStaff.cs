@@ -30,11 +30,11 @@ public class FindTenantUserCompaniesForStaffQuery : CursorPaginatedQuery {
 	public string? Search { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (string.IsNullOrWhiteSpace(Search)) {
+		if (string.IsNullOrWhiteSpace(this.Search)) {
 			return null;
 		}
 
-		return Search.Trim();
+		return this.Search.Trim();
 	}
 }
 
@@ -43,7 +43,7 @@ public class FindTenantUserCompaniesForStaffQueryValidator
 		FindTenantUserCompaniesForStaffQuery
 	> {
 	public FindTenantUserCompaniesForStaffQueryValidator() {
-		RuleFor(x => x.Search)
+		this.RuleFor(x => x.Search)
 			.MaximumLength(200);
 	}
 }

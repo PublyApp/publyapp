@@ -19,12 +19,12 @@ public sealed class UpdateStaffUserProfilesBody {
 	private List<Guid> _ProfileIds = [];
 
 	private List<Guid> _ParseProfileIds() {
-		if (ProfileIds.ValueKind != JsonValueKind.Array) {
+		if (this.ProfileIds.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("ProfileIds must be an array");
 		}
 
 		var ids = new List<Guid>();
-		foreach (var e in ProfileIds.EnumerateArray()) {
+		foreach (var e in this.ProfileIds.EnumerateArray()) {
 			var str = e.GetString();
 			if (str is null) {
 				// Post-validation invariant: the endpoint uses FluentValidation to ensure every
@@ -41,20 +41,20 @@ public sealed class UpdateStaffUserProfilesBody {
 	}
 
 	public List<Guid> GetProfileIds() {
-		if (_Parsed) {
-			return _ProfileIds;
+		if (this._Parsed) {
+			return this._ProfileIds;
 		}
 
-		_ProfileIds = _ParseProfileIds();
-		_Parsed = true;
-		return _ProfileIds;
+		this._ProfileIds = this._ParseProfileIds();
+		this._Parsed = true;
+		return this._ProfileIds;
 	}
 }
 
 public sealed class UpdateStaffUserProfilesBodyValidator
 	: AbstractValidator<UpdateStaffUserProfilesBody> {
 	public UpdateStaffUserProfilesBodyValidator() {
-		RuleFor(x => x.ProfileIds)
+		this.RuleFor(x => x.ProfileIds)
 			.Custom((element, context) => {
 				if (element.ValueKind
 					is JsonValueKind.Undefined

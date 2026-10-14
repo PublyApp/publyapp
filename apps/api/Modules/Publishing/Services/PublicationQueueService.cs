@@ -35,7 +35,7 @@ public sealed class PublicationQueueService(AppDbContext db) : IPublicationQueue
 			FindPublicationsOfAccountArgs args,
 			CancellationToken cancellationToken
 		) {
-		var rows = await _Db.Publication.AsNoTracking()
+		var rows = await this._Db.Publication.AsNoTracking()
 			.Where(p => p.TenantId == args.TenantId
 				&& p.SocialAccountId == args.SocialAccountId
 				&& !p.IsDeleted

@@ -23,9 +23,9 @@ public sealed class MasterKeyXmlEncryptor : IXmlEncryptor {
 		var tag = new byte[System.Security.Cryptography.AesGcm.TagByteSizes.MaxSize];
 		aes.Encrypt(nonce, plaintext, ciphertext, tag);
 
-		var blob = new byte[_Magic.Length + 1 + nonce.Length + ciphertext.Length + tag.Length];
+		var blob = new byte[MasterKeyXmlEncryptor._Magic.Length + 1 + nonce.Length + ciphertext.Length + tag.Length];
 		var offset = 0;
-		Array.Copy(_Magic, 0, blob, offset, _Magic.Length); offset += _Magic.Length;
+		Array.Copy(MasterKeyXmlEncryptor._Magic, 0, blob, offset, MasterKeyXmlEncryptor._Magic.Length); offset += MasterKeyXmlEncryptor._Magic.Length;
 		blob[offset++] = 1; // version
 		Array.Copy(nonce, 0, blob, offset, nonce.Length); offset += nonce.Length;
 		Array.Copy(ciphertext, 0, blob, offset, ciphertext.Length); offset += ciphertext.Length;

@@ -20,7 +20,7 @@ public static class DateUtils {
 
 		var ok = DateTimeOffset.TryParseExact(
 			raw,
-			_IsoFormats,
+			DateUtils._IsoFormats,
 			CultureInfo.InvariantCulture,
 			DateTimeStyles.AssumeUniversal
 				| DateTimeStyles.AdjustToUniversal,

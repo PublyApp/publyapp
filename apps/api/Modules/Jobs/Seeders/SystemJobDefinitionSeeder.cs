@@ -33,7 +33,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 	private readonly ILogger<SystemJobDefinitionSeeder> _Logger;
 
 	public SystemJobDefinitionSeeder(ILogger<SystemJobDefinitionSeeder>? logger = null) {
-		_Logger = logger ?? SeederLoggerUtils.CreateDefault<SystemJobDefinitionSeeder>();
+		this._Logger = logger ?? SeederLoggerUtils.CreateDefault<SystemJobDefinitionSeeder>();
 	}
 
 	// After the core reference data (permissions 10 … user accounts 40); these rows have
@@ -57,7 +57,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			return;
 		}
 
-		var definitions = _GetDefinitions();
+		var definitions = SystemJobDefinitionSeeder._GetDefinitions();
 
 		var existingKeys = await (
 			from definition in dbContext.SystemJobDefinition
@@ -69,7 +69,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			.ToList();
 
 		if (missing.Count == 0) {
-			_Logger.LogInformation(
+			this._Logger.LogInformation(
 				"System job definition seeding skipped; all definitions already exist."
 			);
 			return;
@@ -94,8 +94,8 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			);
 		}
 
-		if (insertedCount > 0 && _Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation("Seeded {Count} system job definition(s).", insertedCount);
+		if (insertedCount > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation("Seeded {Count} system job definition(s).", insertedCount);
 		}
 	}
 
@@ -104,7 +104,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 	// definition drifts from this source of truth (an invalid or emptied cron), the
 	// reconcile reverts it to these values instead of honoring the corruption.
 	internal static IReadOnlyList<SystemJobDefinition> GetCodeDefinedDefaults() {
-		return _GetDefinitions();
+		return SystemJobDefinitionSeeder._GetDefinitions();
 	}
 
 	private static List<SystemJobDefinition> _GetDefinitions() {

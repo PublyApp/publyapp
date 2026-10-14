@@ -8,19 +8,19 @@ public static partial class Routes {
 	/// </summary>
 	public static class Auth {
 		public const string Root = "/auth";
-		public const string Login = $"{Root}/login";
-		public const string Register = $"{Root}/register";
-		public const string GetUserAuthData = $"{Root}/user-auth-data";
-		public const string GetScopeAuthData = $"{Root}/scope-auth-data";
-		public const string GetUserTenants = $"{Root}/user-tenants";
-		public const string VerifyEmailRequest = $"{Root}/verify-email-request";
-		public const string GetVerificationLink = $"{Root}/verification-link";
-		public const string GetRedirectCode = $"{Root}/redirect-code";
-		public const string CheckEmailVerificationToken = $"{Root}/check-email-verification-token";
-		public const string CheckResetPasswordToken = $"{Root}/check-reset-password-token";
-		public const string RequestPasswordReset = $"{Root}/request-password-reset";
-		public const string ResetPassword = $"{Root}/reset-password";
-		public const string GetUserTenantsForPicker = $"{Root}/tenants-for-picker";
-		public const string RevokeSession = $"{Root}/revoke-session";
+		public const string Login = $"{Routes.Auth.Root}/login";
+		public const string Register = $"{Routes.Auth.Root}/register";
+		public const string GetUserAuthData = $"{Routes.Auth.Root}/user-auth-data";
+		public const string GetScopeAuthData = $"{Routes.Auth.Root}/scope-auth-data";
+		public const string GetUserTenants = $"{Routes.Auth.Root}/user-tenants";
+		public const string VerifyEmailRequest = $"{Routes.Auth.Root}/verify-email-request";
+		public const string GetVerificationLink = $"{Routes.Auth.Root}/verification-link";
+		public const string GetRedirectCode = $"{Routes.Auth.Root}/redirect-code";
+		public const string CheckEmailVerificationToken = $"{Routes.Auth.Root}/check-email-verification-token";
+		public const string CheckResetPasswordToken = $"{Routes.Auth.Root}/check-reset-password-token";
+		public const string RequestPasswordReset = $"{Routes.Auth.Root}/request-password-reset";
+		public const string ResetPassword = $"{Routes.Auth.Root}/reset-password";
+		public const string GetUserTenantsForPicker = $"{Routes.Auth.Root}/tenants-for-picker";
+		public const string RevokeSession = $"{Routes.Auth.Root}/revoke-session";
 	}
 }

@@ -8,7 +8,7 @@ public static class PathUtils {
 #pragma warning restore SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
 
 	public static string Join(params string[] paths) {
-		return _CollapseSlashesRegex.Replace("/" + string.Join("/", paths), "/");
+		return PathUtils._CollapseSlashesRegex.Replace("/" + string.Join("/", paths), "/");
 	}
 
 	public static string GetLastSegment(string path, int n = 1) {

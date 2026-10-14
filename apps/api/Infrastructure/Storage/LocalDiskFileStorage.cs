@@ -25,13 +25,13 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 
 	public string RootPath {
 		get {
-			return _RootPath;
+			return this._RootPath;
 		}
 	}
 
 	public LocalDiskFileStorage(string rootPath) {
-		_RootPath = Path.GetFullPath(rootPath);
-		Directory.CreateDirectory(_RootPath);
+		this._RootPath = Path.GetFullPath(rootPath);
+		Directory.CreateDirectory(this._RootPath);
 	}
 
 	public async Task<string> SaveAsync(
@@ -39,7 +39,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		string extension,
 		CancellationToken cancellationToken = default
 	) {
-		if (string.IsNullOrWhiteSpace(extension) || !_ExtensionPattern().IsMatch(extension)) {
+		if (string.IsNullOrWhiteSpace(extension) || !LocalDiskFileStorage._ExtensionPattern().IsMatch(extension)) {
 			throw new ArgumentException(
 				"Extension must match ^\\.[a-z0-9]{1,8}$",
 				nameof(extension)
@@ -56,7 +56,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 			fileName
 		);
 
-		var fullPath = _ResolveFullPath(relativePath);
+		var fullPath = this._ResolveFullPath(relativePath);
 		var directory = Path.GetDirectoryName(fullPath);
 		if (directory is null) {
 			throw new InvalidOperationException(
@@ -96,7 +96,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		string relativePath,
 		CancellationToken cancellationToken = default
 	) {
-		var fullPath = _ResolveFullPath(relativePath);
+		var fullPath = this._ResolveFullPath(relativePath);
 		if (File.Exists(fullPath)) {
 			File.Delete(fullPath);
 		}
@@ -104,16 +104,16 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 	}
 
 	private string _ResolveFullPath(string relativePath) {
-		var fullPath = Path.GetFullPath(Path.Combine(_RootPath, relativePath));
-		var rootWithSeparator = _RootPath.EndsWith(Path.DirectorySeparatorChar)
-			? _RootPath
-			: _RootPath + Path.DirectorySeparatorChar;
+		var fullPath = Path.GetFullPath(Path.Combine(this._RootPath, relativePath));
+		var rootWithSeparator = this._RootPath.EndsWith(Path.DirectorySeparatorChar)
+			? this._RootPath
+			: this._RootPath + Path.DirectorySeparatorChar;
 
 		var isWithinRoot = fullPath.StartsWith(rootWithSeparator, StringComparison.Ordinal)
-			|| string.Equals(fullPath, _RootPath, StringComparison.Ordinal);
+			|| string.Equals(fullPath, this._RootPath, StringComparison.Ordinal);
 		if (!isWithinRoot) {
 			throw new InvalidOperationException(
-				$"Resolved storage path '{fullPath}' escapes the storage root '{_RootPath}'."
+				$"Resolved storage path '{fullPath}' escapes the storage root '{this._RootPath}'."
 			);
 		}
 

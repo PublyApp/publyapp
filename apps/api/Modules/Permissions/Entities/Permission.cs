@@ -68,8 +68,8 @@ public record Permission : INoTenantEntity {
 			);
 		}
 
-		Key = key;
-		Scope = scope;
+		this.Key = key;
+		this.Scope = scope;
 	}
 
 	// Navigation properties
@@ -81,7 +81,7 @@ public record Permission : INoTenantEntity {
 		Dictionary<string, PermissionTranslation>? translations = null
 	) {
 		return new Permission(
-			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLowerInvariant() }),
+			string.Join(Permission.KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLowerInvariant() }),
 			PermissionScope.Tenant
 		) {
 			Translations = translations ?? new()
@@ -93,7 +93,7 @@ public record Permission : INoTenantEntity {
 		Dictionary<string, PermissionTranslation>? translations = null
 	) {
 		return new Permission(
-			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLowerInvariant() }),
+			string.Join(Permission.KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLowerInvariant() }),
 			PermissionScope.Staff
 		) {
 			Translations = translations ?? new()
@@ -105,7 +105,7 @@ public record Permission : INoTenantEntity {
 		Dictionary<string, PermissionTranslation>? translations = null
 	) {
 		return new Permission(
-			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLowerInvariant() }),
+			string.Join(Permission.KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLowerInvariant() }),
 			PermissionScope.Project
 		) {
 			Translations = translations ?? new()
@@ -124,7 +124,7 @@ public record Permission : INoTenantEntity {
 	/// Gets the translation for a specific locale, or null if not found.
 	/// </summary>
 	public PermissionTranslation? GetTranslation(string locale) {
-		return Translations.TryGetValue(locale, out var translation) ? translation : null;
+		return this.Translations.TryGetValue(locale, out var translation) ? translation : null;
 	}
 
 	/// <summary>
@@ -132,7 +132,7 @@ public record Permission : INoTenantEntity {
 	/// Returns a new record instance with the updated translation.
 	/// </summary>
 	public Permission SetTranslation(string locale, PermissionTranslation translation) {
-		var updatedTranslations = new Dictionary<string, PermissionTranslation>(Translations) {
+		var updatedTranslations = new Dictionary<string, PermissionTranslation>(this.Translations) {
 			[locale] = translation
 		};
 		return this with {
@@ -144,7 +144,7 @@ public record Permission : INoTenantEntity {
 	/// Gets all translations as a dictionary.
 	/// </summary>
 	public Dictionary<string, PermissionTranslation> GetAllTranslations() {
-		return Translations;
+		return this.Translations;
 	}
 
 	/// <summary>

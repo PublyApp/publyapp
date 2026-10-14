@@ -18,12 +18,12 @@ public sealed class ResolveStaffProfileUserAssignmentsBody {
 	private List<Guid> _UserIds = [];
 
 	private List<Guid> _ParseUserIds() {
-		if (UserIds.ValueKind != JsonValueKind.Array) {
+		if (this.UserIds.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("UserIds must be an array");
 		}
 
 		var ids = new List<Guid>();
-		foreach (var e in UserIds.EnumerateArray()) {
+		foreach (var e in this.UserIds.EnumerateArray()) {
 			var str = e.GetString();
 			if (str is null) {
 				// Post-validation invariant: the endpoint uses FluentValidation to ensure every
@@ -39,13 +39,13 @@ public sealed class ResolveStaffProfileUserAssignmentsBody {
 	}
 
 	public List<Guid> GetUserIds() {
-		if (_Parsed) {
-			return _UserIds;
+		if (this._Parsed) {
+			return this._UserIds;
 		}
 
-		_UserIds = _ParseUserIds();
-		_Parsed = true;
-		return _UserIds;
+		this._UserIds = this._ParseUserIds();
+		this._Parsed = true;
+		return this._UserIds;
 	}
 }
 
@@ -54,7 +54,7 @@ public sealed class ResolveStaffProfileUserAssignmentsBodyValidator
 	private const int _MaxUserIds = 200;
 
 	public ResolveStaffProfileUserAssignmentsBodyValidator() {
-		RuleFor(x => x.UserIds)
+		this.RuleFor(x => x.UserIds)
 			.Custom((element, context) => {
 				if (element.ValueKind
 					is JsonValueKind.Undefined
@@ -69,10 +69,10 @@ public sealed class ResolveStaffProfileUserAssignmentsBodyValidator
 				}
 
 				var array = element.EnumerateArray().ToList();
-				if (array.Count > _MaxUserIds) {
+				if (array.Count > ResolveStaffProfileUserAssignmentsBodyValidator._MaxUserIds) {
 					context.AddFailure(
 						"userIds",
-						$"At most {_MaxUserIds} userIds are supported per request"
+						$"At most {ResolveStaffProfileUserAssignmentsBodyValidator._MaxUserIds} userIds are supported per request"
 					);
 					return;
 				}

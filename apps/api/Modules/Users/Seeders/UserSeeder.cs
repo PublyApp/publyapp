@@ -23,7 +23,7 @@ public class UserSeeder : IEntitySeeder {
 	private readonly ILogger<UserSeeder> _Logger;
 
 	public UserSeeder(ILogger<UserSeeder>? logger = null) {
-		_Logger = logger
+		this._Logger = logger
 			?? SeederLoggerUtils.CreateDefault<UserSeeder>();
 	}
 
@@ -40,7 +40,7 @@ public class UserSeeder : IEntitySeeder {
 	}
 
 	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
-		var seedPassword = _GetSeedPassword();
+		var seedPassword = UserSeeder._GetSeedPassword();
 
 		// Seed all users (staff and tenant users)
 		var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)>();
@@ -82,7 +82,7 @@ public class UserSeeder : IEntitySeeder {
 			.ToList();
 
 		if (newUsers.Count == 0) {
-			_Logger.LogInformation("User seeding skipped; all users already exist.");
+			this._Logger.LogInformation("User seeding skipped; all users already exist.");
 			return;
 		}
 
@@ -96,12 +96,12 @@ public class UserSeeder : IEntitySeeder {
 				await dbContext.User.AddRangeAsync(newUsers, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation("Seeded {Count} users.", newUsers.Count);
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation("Seeded {Count} users.", newUsers.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				await transaction.RollbackAsync(cancellationToken);
-				_Logger.LogWarning(ex, "Duplicate users detected during seeding; skipping insert.");
+				this._Logger.LogWarning(ex, "Duplicate users detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -111,11 +111,11 @@ public class UserSeeder : IEntitySeeder {
 			try {
 				await dbContext.User.AddRangeAsync(newUsers, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation("Seeded {Count} users.", newUsers.Count);
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation("Seeded {Count} users.", newUsers.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				_Logger.LogWarning(ex, "Duplicate users detected during seeding; skipping insert.");
+				this._Logger.LogWarning(ex, "Duplicate users detected during seeding; skipping insert.");
 			}
 		}
 	}
@@ -124,6 +124,6 @@ public class UserSeeder : IEntitySeeder {
 	/// Retrieves the cached seed password hash, ensuring the expensive hashing operation runs once.
 	/// </summary>
 	private static string _GetSeedPassword() {
-		return _CachedSeedPassword.Value;
+		return UserSeeder._CachedSeedPassword.Value;
 	}
 }

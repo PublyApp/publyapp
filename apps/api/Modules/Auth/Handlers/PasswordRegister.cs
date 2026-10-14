@@ -20,27 +20,27 @@ public class PasswordRegisterBody : PasswordLoginBody {
 	public JsonElement LastName { get; set; }
 
 	public string GetFirstName() {
-		return FirstName.GetValueAsString().Trim();
+		return this.FirstName.GetValueAsString().Trim();
 	}
 
 	public string GetLastName() {
-		return LastName.GetValueAsString().Trim();
+		return this.LastName.GetValueAsString().Trim();
 	}
 }
 
 public class PasswordRegisterBodyValidator
 	: AbstractValidator<PasswordRegisterBody> {
 	public PasswordRegisterBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		RuleFor(x => x.Password)
+		this.RuleFor(x => x.Password)
 			.MustBeRequiredPassword();
 
-		RuleFor(x => x.FirstName)
+		this.RuleFor(x => x.FirstName)
 			.MustBeRequiredStringWithLength("FirstName", 1, 100, trim: true);
 
-		RuleFor(x => x.LastName)
+		this.RuleFor(x => x.LastName)
 			.MustBeRequiredStringWithLength("LastName", 1, 100, trim: true);
 	}
 }

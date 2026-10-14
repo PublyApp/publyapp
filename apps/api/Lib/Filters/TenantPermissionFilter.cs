@@ -17,15 +17,15 @@ public class TenantPermissionFilter : IEndpointFilter {
 			throw new ArgumentException("At least one permission is required.", nameof(requiredPermissions));
 		}
 
-		_RequiredPermissions = requiredPermissions;
-		_CustomPermissionChecker = null;
+		this._RequiredPermissions = requiredPermissions;
+		this._CustomPermissionChecker = null;
 	}
 
 	public TenantPermissionFilter(Func<HashSet<string>, bool> customPermissionChecker) {
 		ArgumentNullException.ThrowIfNull(customPermissionChecker);
 
-		_RequiredPermissions = null;
-		_CustomPermissionChecker = customPermissionChecker;
+		this._RequiredPermissions = null;
+		this._CustomPermissionChecker = customPermissionChecker;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -57,8 +57,8 @@ public class TenantPermissionFilter : IEndpointFilter {
 		if (accountTenant.Level != AccountLevel.Admin) {
 			// Check if any permissions need to be validated
 			if (
-				(_RequiredPermissions is not null && _RequiredPermissions.Length > 0)
-				|| _CustomPermissionChecker is not null
+				(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
+				|| this._CustomPermissionChecker is not null
 			) {
 				// Get user's effective tenant permissions using the profile-derived system.
 				var userPermissions = await permissionService.GetTenantPermissionsAsync(accountTenant.UserId, tenantId);
@@ -81,12 +81,12 @@ public class TenantPermissionFilter : IEndpointFilter {
 
 				bool hasRequiredPermissions;
 
-				if (_CustomPermissionChecker is not null) {
+				if (this._CustomPermissionChecker is not null) {
 					// Use custom permission checker
-					hasRequiredPermissions = _CustomPermissionChecker(userPermissions);
-				} else if (_RequiredPermissions is not null && _RequiredPermissions.Length > 0) {
+					hasRequiredPermissions = this._CustomPermissionChecker(userPermissions);
+				} else if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
 					// Use default logic: user must have ALL required permissions
-					var requiredPermissionKeys = _RequiredPermissions.Select(p => p.Key);
+					var requiredPermissionKeys = this._RequiredPermissions.Select(p => p.Key);
 					hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
 				} else {
 					// No permissions required
@@ -100,7 +100,7 @@ public class TenantPermissionFilter : IEndpointFilter {
 							userId = accountTenant.UserId,
 							tenantId,
 							userPermissionsCount = userPermissions.Count,
-							hasCustomChecker = _CustomPermissionChecker is not null
+							hasCustomChecker = this._CustomPermissionChecker is not null
 						});
 					}
 

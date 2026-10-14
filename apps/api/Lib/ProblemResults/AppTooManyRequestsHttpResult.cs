@@ -15,13 +15,13 @@ public sealed class AppTooManyRequestsHttpResult
 	internal AppTooManyRequestsHttpResult(
 		AppProblemDetails problemDetails
 	) {
-		_ProblemDetails = problemDetails;
+		this._ProblemDetails = problemDetails;
 	}
 
 	public async Task ExecuteAsync(HttpContext httpContext) {
-		_ProblemDetails.Instance ??=
+		this._ProblemDetails.Instance ??=
 			httpContext.Request.Path.Value;
-		_ProblemDetails.Extensions["traceId"] =
+		this._ProblemDetails.Extensions["traceId"] =
 			httpContext.TraceIdentifier;
 
 		httpContext.Response.StatusCode =
@@ -29,7 +29,7 @@ public sealed class AppTooManyRequestsHttpResult
 		httpContext.Response.ContentType =
 			"application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(
-			_ProblemDetails,
+			this._ProblemDetails,
 			options: null,
 			contentType: "application/problem+json",
 			cancellationToken:

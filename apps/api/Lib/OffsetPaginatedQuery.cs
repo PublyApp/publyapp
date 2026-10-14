@@ -9,49 +9,49 @@ public class OffsetPaginatedQuery {
 	[FromQuery(Name = "sort_order")] public string? SortOrder { get; set; }
 
 	public int? GetPage() {
-		if (Page is null) {
+		if (this.Page is null) {
 			return null;
 		}
 
-		if (!int.TryParse(Page, out var page)) {
-			throw new ArgumentException("Page must be a valid number", nameof(Page));
+		if (!int.TryParse(this.Page, out var page)) {
+			throw new ArgumentException("Page must be a valid number", nameof(this.Page));
 		}
 		return page;
 	}
 
 	public int? GetLimit() {
-		if (Limit is null) {
+		if (this.Limit is null) {
 			return null;
 		}
 
-		if (!int.TryParse(Limit, out var limit)) {
-			throw new ArgumentException("Limit must be a valid number", nameof(Limit));
+		if (!int.TryParse(this.Limit, out var limit)) {
+			throw new ArgumentException("Limit must be a valid number", nameof(this.Limit));
 		}
 
 		return limit;
 	}
 
 	public string? GetSortId() {
-		if (SortId is null) {
+		if (this.SortId is null) {
 			return null;
 		}
 
-		return SortId;
+		return this.SortId;
 	}
 
 	public SortOrder GetSortOrder() {
-		if (SortOrder is null) {
+		if (this.SortOrder is null) {
 			return Lib.SortOrder.Desc;
 		}
 
 		if (
-			!SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)
-			&& !SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase)
+			!this.SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)
+			&& !this.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase)
 		) {
-			throw new ArgumentException("SortOrder must equal 'asc' or 'desc'", nameof(SortOrder));
+			throw new ArgumentException("SortOrder must equal 'asc' or 'desc'", nameof(this.SortOrder));
 		}
 
-		if (SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)) {
+		if (this.SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)) {
 			return Lib.SortOrder.Asc;
 		} else {
 			return Lib.SortOrder.Desc;

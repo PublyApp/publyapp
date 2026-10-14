@@ -17,9 +17,9 @@ namespace PublyApp.Api.Modules.RateLimiting.Entities;
 /// </summary>
 [Table("rate_limit_counters")]
 [PrimaryKey(
-	nameof(PolicyName),
-	nameof(PartitionKeyHash),
-	nameof(WindowStartedAt)
+	nameof(RateLimitCounter.PolicyName),
+	nameof(RateLimitCounter.PartitionKeyHash),
+	nameof(RateLimitCounter.WindowStartedAt)
 )]
 public class RateLimitCounter : INoTenantEntity {
 	[Column("policy_name")]

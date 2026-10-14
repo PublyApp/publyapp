@@ -29,14 +29,14 @@ public static partial class TenantUserFilterQuery {
 	private static partial Regex _SnakeCaseBoundaryRegex();
 
 	private static string _ToSnakeCase(string value) {
-		return _SnakeCaseBoundaryRegex().Replace(value, "_$1").ToLowerInvariant();
+		return TenantUserFilterQuery._SnakeCaseBoundaryRegex().Replace(value, "_$1").ToLowerInvariant();
 	}
 
 	public static readonly HashSet<string> AllowedStatusSet =
-		new(_AllowedStatuses.Select(_ToSnakeCase), StringComparer.OrdinalIgnoreCase);
+		new(TenantUserFilterQuery._AllowedStatuses.Select(TenantUserFilterQuery._ToSnakeCase), StringComparer.OrdinalIgnoreCase);
 
 	public static readonly string AllowedStatusesDisplay =
-		string.Join(", ", _AllowedStatuses.Select(_ToSnakeCase).Order());
+		string.Join(", ", TenantUserFilterQuery._AllowedStatuses.Select(TenantUserFilterQuery._ToSnakeCase).Order());
 
 	// AccountLevel members are single-word (Admin, User), so plain ToLowerInvariant is safe here
 	// (unlike the multi-word TenantUserStatus set above, which needs the snake-case helper).
@@ -46,10 +46,10 @@ public static partial class TenantUserFilterQuery {
 	];
 
 	public static readonly HashSet<string> AllowedLevelSet =
-		new(_AllowedLevels, StringComparer.OrdinalIgnoreCase);
+		new(TenantUserFilterQuery._AllowedLevels, StringComparer.OrdinalIgnoreCase);
 
 	public static readonly string AllowedLevelsDisplay =
-		string.Join(", ", _AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
+		string.Join(", ", TenantUserFilterQuery._AllowedLevels.Select(s => s.ToLowerInvariant()).Order());
 
 	public static string? NormalizeSearch(string? search) {
 		if (search is null) {

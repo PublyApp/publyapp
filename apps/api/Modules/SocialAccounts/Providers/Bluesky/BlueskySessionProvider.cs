@@ -36,10 +36,10 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 		IBlueskyClient bluesky,
 		ILogger<BlueskySessionProvider> logger
 	) {
-		_Db = db;
-		_Protector = protector;
-		_Bluesky = bluesky;
-		_Logger = logger;
+		this._Db = db;
+		this._Protector = protector;
+		this._Bluesky = bluesky;
+		this._Logger = logger;
 	}
 
 	public async Task<SocialSessionResult> OpenSessionAsync(
@@ -47,7 +47,7 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 		CancellationToken cancellationToken
 	) {
 		var account = await (
-			from a in _Db.SocialAccount.AsNoTracking()
+			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.Id == socialAccountId
 				&& a.Provider == SocialProvider.Bluesky
 				&& !a.IsDeleted
@@ -58,7 +58,7 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 			return new SocialSessionResult.AccountFailure("social account not found");
 		}
 
-		var unprotect = _Protector.Unprotect(
+		var unprotect = this._Protector.Unprotect(
 			account.ProtectedCredentials,
 			SocialProvider.Bluesky
 		);
@@ -70,7 +70,7 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 
 		// The stored handle identifies the account; the decrypted app password exists
 		// only for the duration of this call and is never logged or returned (Epic C §4).
-		var result = await _Bluesky.CreateSessionAsync(
+		var result = await this._Bluesky.CreateSessionAsync(
 			new BlueskyCredentials(
 				Identifier: account.DisplayHandle,
 				AppPassword: unprotect.Plaintext
@@ -94,7 +94,7 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 			// provider payload, never the app password. The tracked read entity above
 			// is AsNoTracking, so this targeted set-update cannot collide with it.
 			await (
-				from a in _Db.SocialAccount
+				from a in this._Db.SocialAccount
 				where a.Id == socialAccountId && !a.IsDeleted
 				select a
 			).ExecuteUpdateAsync(setters => setters
@@ -106,8 +106,8 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 			return new SocialSessionResult.AccountFailure(refused.Reason);
 		}
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Bluesky session open for account {SocialAccountId} hit a transient failure",
 				socialAccountId
 			);

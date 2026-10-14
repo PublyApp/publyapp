@@ -28,12 +28,12 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 		int permitLimit,
 		TimeSpan window
 	) {
-		_CounterStore = counterStore;
-		_PolicyName = policyName;
-		_PartitionKey = partitionKey;
-		_PermitLimit = permitLimit;
-		_Window = window;
-		_LastAccessTimestamp =
+		this._CounterStore = counterStore;
+		this._PolicyName = policyName;
+		this._PartitionKey = partitionKey;
+		this._PermitLimit = permitLimit;
+		this._Window = window;
+		this._LastAccessTimestamp =
 			TimeProvider.System.GetTimestamp();
 	}
 
@@ -41,37 +41,37 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 		get {
 			// Eligible for eviction one full window after the last access,
 			// reported as time since that threshold passed.
-			var lastAccess = Volatile.Read(ref _LastAccessTimestamp);
+			var lastAccess = Volatile.Read(ref this._LastAccessTimestamp);
 			var elapsed = TimeProvider.System
 				.GetElapsedTime(lastAccess);
-			if (elapsed < _Window) {
+			if (elapsed < this._Window) {
 				return null;
 			}
 
-			return elapsed - _Window;
+			return elapsed - this._Window;
 		}
 	}
 
 	protected override RateLimitLease AttemptAcquireCore(
 		int permitCount
 	) {
-		_MarkAccess();
-		if (permitCount > _PermitLimit) {
-			return new CounterLease(false, _RemainingWindow());
+		this._MarkAccess();
+		if (permitCount > this._PermitLimit) {
+			return new CounterLease(false, this._RemainingWindow());
 		}
 
-		var result = _CounterStore
+		var result = this._CounterStore
 			.AcquireAsync(
-				_PolicyName,
-				_PartitionKey,
-				_PermitLimit,
-				_Window,
+				this._PolicyName,
+				this._PartitionKey,
+				this._PermitLimit,
+				this._Window,
 				permitCount,
 				TimeProvider.System.GetUtcNow()
 			)
 			.GetAwaiter()
 			.GetResult();
-		return _ToLease(result);
+		return this._ToLease(result);
 	}
 
 	protected override async ValueTask<RateLimitLease>
@@ -79,21 +79,21 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 			int permitCount,
 			CancellationToken cancellationToken
 		) {
-		_MarkAccess();
+		this._MarkAccess();
 		cancellationToken.ThrowIfCancellationRequested();
-		if (permitCount > _PermitLimit) {
-			return new CounterLease(false, _RemainingWindow());
+		if (permitCount > this._PermitLimit) {
+			return new CounterLease(false, this._RemainingWindow());
 		}
 
-		var result = await _CounterStore.AcquireAsync(
-			_PolicyName,
-			_PartitionKey,
-			_PermitLimit,
-			_Window,
+		var result = await this._CounterStore.AcquireAsync(
+			this._PolicyName,
+			this._PartitionKey,
+			this._PermitLimit,
+			this._Window,
 			permitCount,
 			TimeProvider.System.GetUtcNow()
 		);
-		return _ToLease(result);
+		return this._ToLease(result);
 	}
 
 	protected override void Dispose(bool disposing) {
@@ -113,18 +113,18 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 	private RateLimitLease _ToLease(CounterLeaseResult result) {
 		return result.Acquired
 			? new CounterLease(true, null)
-			: new CounterLease(false, _RemainingWindow());
+			: new CounterLease(false, this._RemainingWindow());
 	}
 
 	private TimeSpan _RemainingWindow() {
 		var utcNow = TimeProvider.System.GetUtcNow();
-		var ticksInWindow = _Window.Ticks;
+		var ticksInWindow = this._Window.Ticks;
 		var windowIndex = utcNow.UtcTicks / ticksInWindow;
 		var windowStart = new DateTimeOffset(
 			windowIndex * ticksInWindow,
 			TimeSpan.Zero
 		);
-		var remaining = windowStart.Add(_Window) - utcNow;
+		var remaining = windowStart.Add(this._Window) - utcNow;
 		return remaining > TimeSpan.Zero
 			? remaining
 			: TimeSpan.Zero;
@@ -132,7 +132,7 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 
 	private void _MarkAccess() {
 		Interlocked.Exchange(
-			ref _LastAccessTimestamp,
+			ref this._LastAccessTimestamp,
 			TimeProvider.System.GetTimestamp()
 		);
 	}
@@ -141,15 +141,15 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 		private readonly TimeSpan? _RetryAfter;
 
 		public CounterLease(bool isAcquired, TimeSpan? retryAfter) {
-			IsAcquired = isAcquired;
-			_RetryAfter = isAcquired ? null : retryAfter;
+			this.IsAcquired = isAcquired;
+			this._RetryAfter = isAcquired ? null : retryAfter;
 		}
 
 		public override bool IsAcquired { get; }
 
 		public override IEnumerable<string> MetadataNames {
 			get {
-				if (_RetryAfter is not null) {
+				if (this._RetryAfter is not null) {
 					yield return MetadataName.RetryAfter.Name;
 				}
 			}
@@ -160,10 +160,10 @@ internal sealed class CounterBackedFixedWindowRateLimiter
 			out object? metadata
 		) {
 			if (
-				_RetryAfter is not null
+				this._RetryAfter is not null
 				&& metadataName == MetadataName.RetryAfter.Name
 			) {
-				metadata = _RetryAfter.Value;
+				metadata = this._RetryAfter.Value;
 				return true;
 			}
 

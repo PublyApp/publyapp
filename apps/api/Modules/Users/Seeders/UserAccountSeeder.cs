@@ -18,7 +18,7 @@ public class UserAccountSeeder : IEntitySeeder {
 	private readonly ILogger<UserAccountSeeder> _Logger;
 
 	public UserAccountSeeder(ILogger<UserAccountSeeder>? logger = null) {
-		_Logger = logger
+		this._Logger = logger
 			?? SeederLoggerUtils.CreateDefault<UserAccountSeeder>();
 	}
 
@@ -38,15 +38,15 @@ public class UserAccountSeeder : IEntitySeeder {
 		var newAccounts = new List<UserAccount>();
 
 		// Seed staff accounts
-		var staffAccounts = await _SeedStaffAccountsAsync(dbContext, cancellationToken);
+		var staffAccounts = await this._SeedStaffAccountsAsync(dbContext, cancellationToken);
 		newAccounts.AddRange(staffAccounts);
 
 		// Seed tenant accounts
-		var tenantAccounts = await _SeedTenantAccountsAsync(dbContext, cancellationToken);
+		var tenantAccounts = await this._SeedTenantAccountsAsync(dbContext, cancellationToken);
 		newAccounts.AddRange(tenantAccounts);
 
 		if (newAccounts.Count == 0) {
-			_Logger.LogInformation("UserAccount seeding skipped; all accounts already exist.");
+			this._Logger.LogInformation("UserAccount seeding skipped; all accounts already exist.");
 			return;
 		}
 
@@ -60,12 +60,12 @@ public class UserAccountSeeder : IEntitySeeder {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				await transaction.RollbackAsync(cancellationToken);
-				_Logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
+				this._Logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -75,11 +75,11 @@ public class UserAccountSeeder : IEntitySeeder {
 			try {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				_Logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
+				this._Logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
 			}
 		}
 	}
@@ -100,7 +100,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (users.Count == 0) {
-			_Logger.LogWarning("No staff users found for account creation.");
+			this._Logger.LogWarning("No staff users found for account creation.");
 			return [];
 		}
 
@@ -161,7 +161,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (users.Count == 0) {
-			_Logger.LogWarning("No tenant users found for account creation.");
+			this._Logger.LogWarning("No tenant users found for account creation.");
 			return [];
 		}
 
@@ -181,7 +181,7 @@ public class UserAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (tenants.Count == 0) {
-			_Logger.LogWarning("No tenants found for account creation.");
+			this._Logger.LogWarning("No tenants found for account creation.");
 			return [];
 		}
 

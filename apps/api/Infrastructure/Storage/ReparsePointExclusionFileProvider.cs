@@ -70,8 +70,8 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		PhysicalFileProvider inner,
 		ILogger<ReparsePointExclusionFileProvider> logger
 	) {
-		_Inner = inner;
-		_Logger = logger;
+		this._Inner = inner;
+		this._Logger = logger;
 	}
 
 	/// <summary>
@@ -83,7 +83,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	/// bare 404 so the client learns nothing about why.
 	/// </summary>
 	public IFileInfo GetFileInfo(string subpath) {
-		var info = _Inner.GetFileInfo(subpath);
+		var info = this._Inner.GetFileInfo(subpath);
 		if (info is null || !info.Exists) {
 			return new NotFoundFileInfo(subpath);
 		}
@@ -98,12 +98,12 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 		// the entry. This covers both leaf symlinks (the final path
 		// component is a reparse point) and intermediate-directory symlinks
 		// (an ancestor directory in the path is a reparse point).
-		if (_HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
+		if (ReparsePointExclusionFileProvider._HasReparsePointInPath(physicalPath, subpath, out var offendingComponent)) {
 			// The {Component} field logs the full filesystem path of the offending
 			// entry. This is NOT a secret — it is an operator-facing diagnostic that
 			// never carries sensitive values (session tokens, user data, etc.). Its
 			// purpose is to help operators locate and remove a stray symlink.
-			_Logger.LogWarning(
+			this._Logger.LogWarning(
 				"Reparse-point guard masked entry: subpath {Subpath}, component {Component}",
 				subpath,
 				offendingComponent
@@ -115,7 +115,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	}
 
 	public IDirectoryContents GetDirectoryContents(string subpath) {
-		var contents = _Inner.GetDirectoryContents(subpath);
+		var contents = this._Inner.GetDirectoryContents(subpath);
 		if (contents is null) {
 			return NotFoundDirectoryContents.Instance;
 		}
@@ -137,8 +137,8 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 				continue;
 			}
 
-			if (_IsReparsePoint(entryPath)) {
-				_Logger.LogWarning(
+			if (ReparsePointExclusionFileProvider._IsReparsePoint(entryPath)) {
+				this._Logger.LogWarning(
 					"Reparse-point guard masked directory entry: subpath {Subpath}, entry {Entry}",
 					subpath,
 					entry.Name
@@ -152,7 +152,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 	}
 
 	public Microsoft.Extensions.Primitives.IChangeToken Watch(string filter) {
-		return _Inner.Watch(filter);
+		return this._Inner.Watch(filter);
 	}
 
 	/// <summary>
@@ -199,7 +199,7 @@ public sealed class ReparsePointExclusionFileProvider : IFileProvider {
 				? partial
 				: Path.Combine(rootPath, partial);
 
-			if (_IsReparsePoint(currentPath)) {
+			if (ReparsePointExclusionFileProvider._IsReparsePoint(currentPath)) {
 				offendingComponent = currentPath;
 				return true;
 			}

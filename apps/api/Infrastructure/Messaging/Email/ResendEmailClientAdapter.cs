@@ -12,14 +12,14 @@ public sealed class ResendEmailClientAdapter : IResendEmailClient {
 	private readonly IResend _ResendClient;
 
 	public ResendEmailClientAdapter(IResend resendClient) {
-		_ResendClient = resendClient;
+		this._ResendClient = resendClient;
 	}
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
-		return await _ResendClient.EmailSendAsync(email, cancellationToken);
+		return await this._ResendClient.EmailSendAsync(email, cancellationToken);
 	}
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
@@ -27,6 +27,6 @@ public sealed class ResendEmailClientAdapter : IResendEmailClient {
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
-		return await _ResendClient.EmailSendAsync(idempotencyKey, email, cancellationToken);
+		return await this._ResendClient.EmailSendAsync(idempotencyKey, email, cancellationToken);
 	}
 }

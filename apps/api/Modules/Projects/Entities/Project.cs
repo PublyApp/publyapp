@@ -10,7 +10,7 @@ using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Projects.Entities;
 
 [Table("projects")]
-[Index(nameof(TenantId), nameof(Name), IsUnique = true)]
+[Index(nameof(Project.TenantId), nameof(Project.Name), IsUnique = true)]
 public class Project : BaseAttributes, ITenantEntity {
 	private PublyApp.Api.Modules.Tenants.Entities.Tenant? _Tenant;
 
@@ -18,8 +18,8 @@ public class Project : BaseAttributes, ITenantEntity {
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_Tenant, nameof(Project), nameof(Tenant)); }
-		set { _Tenant = value; }
+		get { return RequiredNavigation.Get(this._Tenant, nameof(Project), nameof(this.Tenant)); }
+		set { this._Tenant = value; }
 	}
 
 	[Column("name")]
@@ -60,11 +60,11 @@ public class Project : BaseAttributes, ITenantEntity {
 	}
 
 	public bool IsActive() {
-		return IsActive(Status);
+		return Project.IsActive(this.Status);
 	}
 
 	public bool IsInactive() {
-		return IsInactive(Status);
+		return Project.IsInactive(this.Status);
 	}
 
 	public static bool IsActive(ProjectStatus status) {

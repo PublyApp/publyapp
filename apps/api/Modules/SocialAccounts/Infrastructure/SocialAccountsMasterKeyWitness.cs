@@ -79,14 +79,14 @@ public static class SocialAccountsMasterKeyWitness {
 		// publicly known placeholder and degenerate low-entropy values BEFORE the canary
 		// round-trip. An operator pasting the placeholder into Dokploy would otherwise run
 		// the whole deployment under a key anyone can read off the repository (#1294).
-		_RejectKnownNonSecretOrDegenerateValue(key);
+		SocialAccountsMasterKeyWitness._RejectKnownNonSecretOrDegenerateValue(key);
 
 		try {
 			var stored = canaryStore.Read();
 			if (string.IsNullOrEmpty(stored)) {
 				// First boot (or canary lost): mint it under the current key. From now on
 				// every boot with a different key value fails below.
-				canaryStore.Write(_ProtectSentinel(key));
+				canaryStore.Write(SocialAccountsMasterKeyWitness._ProtectSentinel(key));
 
 				// #1416: re-read what is ACTUALLY stored before declaring victory.
 				// Concurrent first boots all mint at once; with the unique partial index,
@@ -109,10 +109,10 @@ public static class SocialAccountsMasterKeyWitness {
 				}
 			}
 
-			_VerifyPersistedCanary(key, stored);
-			logger?.LogInformation(CanaryPassedLogLine);
+			SocialAccountsMasterKeyWitness._VerifyPersistedCanary(key, stored);
+			logger?.LogInformation(SocialAccountsMasterKeyWitness.CanaryPassedLogLine);
 		} catch (Exception ex) when (ex is CryptographicException or FormatException or ArgumentException) {
-			throw _WrongKey(ex);
+			throw SocialAccountsMasterKeyWitness._WrongKey(ex);
 		}
 	}
 
@@ -129,7 +129,7 @@ public static class SocialAccountsMasterKeyWitness {
 		var decrypted = new byte[ciphertext.Length];
 		aes.Decrypt(nonce, ciphertext, tag, decrypted);
 
-		if (!decrypted.AsSpan().SequenceEqual(_Sentinel)) {
+		if (!decrypted.AsSpan().SequenceEqual(SocialAccountsMasterKeyWitness._Sentinel)) {
 			throw new CryptographicException("Canary decrypted to an unexpected value.");
 		}
 	}
@@ -137,11 +137,11 @@ public static class SocialAccountsMasterKeyWitness {
 	private static string _ProtectSentinel(byte[] key) {
 		var nonce = new byte[AesGcm.NonceByteSizes.MaxSize]; // 12 bytes
 		RandomNumberGenerator.Fill(nonce);
-		var ciphertext = new byte[_Sentinel.Length];
+		var ciphertext = new byte[SocialAccountsMasterKeyWitness._Sentinel.Length];
 		var tag = new byte[AesGcm.TagByteSizes.MaxSize];
 
 		using var aes = new AesGcm(key, AesGcm.TagByteSizes.MaxSize);
-		aes.Encrypt(nonce, _Sentinel, ciphertext, tag);
+		aes.Encrypt(nonce, SocialAccountsMasterKeyWitness._Sentinel, ciphertext, tag);
 
 		return string.Create(
 			System.Globalization.CultureInfo.InvariantCulture,
@@ -164,15 +164,15 @@ public static class SocialAccountsMasterKeyWitness {
 	private static void _RejectKnownNonSecretOrDegenerateValue(byte[] key) {
 		string? reason = null;
 
-		if (key.AsSpan().SequenceEqual(_DocumentedBuildPlaceholder)) {
+		if (key.AsSpan().SequenceEqual(SocialAccountsMasterKeyWitness._DocumentedBuildPlaceholder)) {
 			reason = "it is the repository's publicly documented build placeholder";
 		} else {
-			var distinct = _DistinctByteCount(key);
+			var distinct = SocialAccountsMasterKeyWitness._DistinctByteCount(key);
 			if (distinct == 1) {
 				reason = "all 32 of its bytes are the same value";
-			} else if (distinct < _MinimumDistinctBytes) {
+			} else if (distinct < SocialAccountsMasterKeyWitness._MinimumDistinctBytes) {
 				reason = $"it carries only {distinct} distinct byte values across its "
-					+ $"32 bytes (fewer than {_MinimumDistinctBytes})";
+					+ $"32 bytes (fewer than {SocialAccountsMasterKeyWitness._MinimumDistinctBytes})";
 			}
 		}
 
@@ -211,7 +211,7 @@ public static class SocialAccountsMasterKeyWitness {
 
 	private static InvalidOperationException _WrongKey(Exception cause) {
 		return new InvalidOperationException(
-			WrongKeyMessagePrefix + " credentials were encrypted under a DIFFERENT "
+			SocialAccountsMasterKeyWitness.WrongKeyMessagePrefix + " credentials were encrypted under a DIFFERENT "
 				+ "key, so this process would silently fail to decrypt them. The API/worker "
 				+ "will not start. Restore the original SOCIAL_ACCOUNTS_MASTER_KEY value for "
 				+ "ALL services (api, worker, migrate), or deliberately rotate: export the old "

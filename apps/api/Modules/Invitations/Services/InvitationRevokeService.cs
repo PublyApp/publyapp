@@ -59,19 +59,19 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 	private readonly ILogger<InvitationRevokeService> _Logger;
 
 	public InvitationRevokeService(AppDbContext dbContext, ILogger<InvitationRevokeService> logger) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public async Task<RevokeInvitationForStaffResult> RevokeInvitationForStaffAsync(
 		Guid invitationId,
 		CancellationToken cancellationToken = default
 	) {
-		Invitation? invitation = await _DbContext.Invitation
+		Invitation? invitation = await this._DbContext.Invitation
 			.Where(inv => inv.Id == invitationId && inv.Scope == InvitationScope.Staff)
 			.FirstOrDefaultAsync(cancellationToken);
 
-		return await _RevokeInvitationInternalAsync(
+		return await this._RevokeInvitationInternalAsync(
 			invitation,
 			invitationId,
 			cancellationToken
@@ -95,7 +95,7 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 
 		// 1 SELECT for all candidates, scope-filtered. Mirrors the per-item
 		// RevokeInvitationForStaffAsync read predicate.
-		var rows = await _DbContext.Invitation
+		var rows = await this._DbContext.Invitation
 			.Where(inv =>
 				inv.Id != null
 				&& requestedInvitationIds.Contains(inv.Id.Value)
@@ -122,8 +122,8 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 			// Mirror _RevokeInvitationInternalAsync classification:
 			// already-revoked is a success no-op; accepted is a hard failure.
 			if (invitation.IsRevoked()) {
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation(
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation(
 						"Invitation {InvitationId} is already revoked; no-op",
 						invitationId
 					);
@@ -133,8 +133,8 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 			}
 
 			if (invitation.IsAccepted()) {
-				if (_Logger.IsEnabled(LogLevel.Warning)) {
-					_Logger.LogWarning(
+				if (this._Logger.IsEnabled(LogLevel.Warning)) {
+					this._Logger.LogWarning(
 						"Attempt to revoke accepted invitation {InvitationId} blocked",
 						invitationId
 					);
@@ -151,8 +151,8 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 			invitation.RevokedAt = now;
 			succeededCount++;
 
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
 			}
 		}
 
@@ -161,7 +161,7 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		// job's send-time locked eligibility recheck is the authoritative gate. A revoked
 		// invitation's pending job resolves to CancelledIneligible at send, visible in
 		// email_log — so bulk revoke no longer mutates queue/outbox rows here.
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return new BulkStaffInvitationActionResult(
 			SucceededCount: succeededCount,
@@ -175,7 +175,7 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		Guid invitationId,
 		CancellationToken cancellationToken = default
 	) {
-		Invitation? invitation = await _DbContext.Invitation
+		Invitation? invitation = await this._DbContext.Invitation
 			.Where(inv =>
 				inv.Id == invitationId
 				&& inv.Scope == InvitationScope.Tenant
@@ -183,7 +183,7 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 			)
 			.FirstOrDefaultAsync(cancellationToken);
 
-		RevokeInvitationForStaffResult result = await _RevokeInvitationInternalAsync(
+		RevokeInvitationForStaffResult result = await this._RevokeInvitationInternalAsync(
 			invitation,
 			invitationId,
 			cancellationToken
@@ -208,8 +208,8 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		}
 
 		if (invitation.IsRevoked()) {
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation(
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation(
 					"Invitation {InvitationId} is already revoked; no-op",
 					invitationId
 				);
@@ -218,8 +218,8 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		}
 
 		if (invitation.IsAccepted()) {
-			if (_Logger.IsEnabled(LogLevel.Warning)) {
-				_Logger.LogWarning(
+			if (this._Logger.IsEnabled(LogLevel.Warning)) {
+				this._Logger.LogWarning(
 					"Attempt to revoke accepted invitation {InvitationId} blocked",
 					invitationId
 				);
@@ -233,10 +233,10 @@ public sealed class InvitationRevokeService : IInvitationRevokeService {
 		// Synchronous outbox cancellation retired (design §5.4): the email job's send-time
 		// locked eligibility recheck is now the authoritative gate — a revoked
 		// invitation resolves to CancelledIneligible at send, visible in email_log.
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
 		}
 
 		return new RevokeInvitationForStaffResult.Success();

@@ -23,18 +23,18 @@ public sealed class WorkerHeartbeatService : BackgroundService {
 		IServiceScopeFactory scopeFactory,
 		ILogger<WorkerHeartbeatService> logger
 	) {
-		_ScopeFactory = scopeFactory;
-		_Logger = logger;
+		this._ScopeFactory = scopeFactory;
+		this._Logger = logger;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
 		while (!stoppingToken.IsCancellationRequested) {
 			try {
-				await WriteHeartbeatAsync(stoppingToken);
+				await this.WriteHeartbeatAsync(stoppingToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				// A failed DB probe (or write) is expected to leave the file stale so
 				// the health probe reports unhealthy; log and keep looping.
-				_Logger.LogWarning(ex, "Worker heartbeat write skipped (DB probe failed)");
+				this._Logger.LogWarning(ex, "Worker heartbeat write skipped (DB probe failed)");
 			}
 
 			try {
@@ -48,12 +48,12 @@ public sealed class WorkerHeartbeatService : BackgroundService {
 	// Public: lets a spec drive one heartbeat deterministically instead of waiting on
 	// the loop. Probes the database, then touches the heartbeat file only on success.
 	public async Task WriteHeartbeatAsync(CancellationToken cancellationToken) {
-		using var scope = _ScopeFactory.CreateScope();
+		using var scope = this._ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Reflects DB connectivity, not just liveness (design §3.5).
 		_ = await dbContext.Database.ExecuteSqlAsync($"SELECT 1", cancellationToken);
 
-		await WorkerHeartbeat.TouchAsync(_HeartbeatPath, DateTime.UtcNow, cancellationToken);
+		await WorkerHeartbeat.TouchAsync(this._HeartbeatPath, DateTime.UtcNow, cancellationToken);
 	}
 }

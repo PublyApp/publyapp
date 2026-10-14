@@ -19,14 +19,14 @@ public readonly struct TranslationKey : IEquatable<TranslationKey> {
 	/// <param name="value">The translation key value</param>
 	public TranslationKey(string value) {
 		ArgumentNullException.ThrowIfNull(value);
-		Value = value;
+		this.Value = value;
 	}
 
 	/// <summary>
 	/// Returns the translation key value
 	/// </summary>
 	public override string ToString() {
-		return Value;
+		return this.Value;
 	}
 
 	/// <summary>
@@ -40,21 +40,21 @@ public readonly struct TranslationKey : IEquatable<TranslationKey> {
 	/// Checks equality with another TranslationKey
 	/// </summary>
 	public bool Equals(TranslationKey other) {
-		return Value == other.Value;
+		return this.Value == other.Value;
 	}
 
 	/// <summary>
 	/// Checks equality with an object
 	/// </summary>
 	public override bool Equals(object? obj) {
-		return obj is TranslationKey other && Equals(other);
+		return obj is TranslationKey other && this.Equals(other);
 	}
 
 	/// <summary>
 	/// Gets the hash code for this TranslationKey
 	/// </summary>
 	public override int GetHashCode() {
-		return Value.GetHashCode();
+		return this.Value.GetHashCode();
 	}
 
 	/// <summary>

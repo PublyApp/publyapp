@@ -37,7 +37,7 @@ public static class SystemNoticeValidationRules {
 				}
 				return SystemNotice.ParseSeverity(value) is not null;
 			})
-			.WithMessage(_SeverityMessage);
+			.WithMessage(SystemNoticeValidationRules._SeverityMessage);
 	}
 
 	/// <summary>
@@ -72,6 +72,6 @@ public static class SystemNoticeValidationRules {
 				}
 				return SystemNotice.ParseSeverity(value) is not null;
 			})
-			.WithMessage(_SeverityMessage);
+			.WithMessage(SystemNoticeValidationRules._SeverityMessage);
 	}
 }

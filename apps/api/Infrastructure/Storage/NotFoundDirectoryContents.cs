@@ -20,6 +20,6 @@ internal sealed class NotFoundDirectoryContents : IDirectoryContents {
 	}
 
 	IEnumerator IEnumerable.GetEnumerator() {
-		return GetEnumerator();
+		return this.GetEnumerator();
 	}
 }

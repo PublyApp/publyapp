@@ -35,28 +35,28 @@ public sealed record SocialSession(
 		var builder = new StringBuilder();
 		builder.Append(nameof(SocialSession));
 		builder.Append(" { ");
-		_PrintMembers(builder);
+		this._PrintMembers(builder);
 		builder.Append(' ');
 		builder.Append('}');
 		return builder.ToString();
 	}
 
 	private bool _PrintMembers(StringBuilder builder) {
-		builder.Append(nameof(Did));
+		builder.Append(nameof(this.Did));
 		builder.Append(" = ");
-		builder.Append(Did);
+		builder.Append(this.Did);
 		builder.Append(", ");
-		builder.Append(nameof(Handle));
+		builder.Append(nameof(this.Handle));
 		builder.Append(" = ");
-		builder.Append(Handle);
+		builder.Append(this.Handle);
 		builder.Append(", ");
-		builder.Append(nameof(AccessJwt));
+		builder.Append(nameof(this.AccessJwt));
 		builder.Append(" = ");
 		builder.Append("[REDACTED]");
 		builder.Append(", ");
-		builder.Append(nameof(PdsHost));
+		builder.Append(nameof(this.PdsHost));
 		builder.Append(" = ");
-		builder.Append(PdsHost);
+		builder.Append(this.PdsHost);
 		return true;
 	}
 }

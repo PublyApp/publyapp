@@ -38,10 +38,10 @@ public sealed class TenantInvitationEmailJobHandler
 		TenantInvitationEmailPayload payload,
 		CancellationToken cancellationToken
 	) {
-		await LockRowAsync("invitations", payload.InvitationId, cancellationToken);
+		await this.LockRowAsync("invitations", payload.InvitationId, cancellationToken);
 
 		var invitationQuery =
-			from candidate in Db.Invitation.Include(i => i.Tenant)
+			from candidate in this.Db.Invitation.Include(i => i.Tenant)
 			where candidate.Id == payload.InvitationId
 			select candidate;
 		var invitation = await invitationQuery.FirstOrDefaultAsync(cancellationToken);
@@ -82,7 +82,7 @@ public sealed class TenantInvitationEmailJobHandler
 		CancellationToken cancellationToken
 	) {
 		var invitationQuery =
-			from candidate in Db.Invitation.AsNoTracking()
+			from candidate in this.Db.Invitation.AsNoTracking()
 			where candidate.Id == payload.InvitationId
 			select candidate;
 		var invitation = await invitationQuery.FirstOrDefaultAsync(cancellationToken);

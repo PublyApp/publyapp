@@ -38,7 +38,7 @@ public static class HostedServiceManifestCli {
 	/// </summary>
 	public static bool TryRun(string[] args, AppRole role) {
 		if (args.Length == 0
-			|| !args[0].Equals(PrintArg, StringComparison.Ordinal)) {
+			|| !args[0].Equals(HostedServiceManifestCli.PrintArg, StringComparison.Ordinal)) {
 			return false;
 		}
 
@@ -54,13 +54,13 @@ public static class HostedServiceManifestCli {
 		using (host) {
 			foreach (var hostedService in host.Services.GetServices<IHostedService>()) {
 				var type = hostedService.GetType();
-				Console.Out.WriteLine($"{LinePrefix}{type.FullName ?? type.Name}");
+				Console.Out.WriteLine($"{HostedServiceManifestCli.LinePrefix}{type.FullName ?? type.Name}");
 			}
 		}
 
-		Console.Out.WriteLine(EndMarker);
+		Console.Out.WriteLine(HostedServiceManifestCli.EndMarker);
 		Console.Out.Flush();
-		Environment.ExitCode = SuccessExitCode;
+		Environment.ExitCode = HostedServiceManifestCli.SuccessExitCode;
 
 		return true;
 	}

@@ -28,6 +28,6 @@ public static class SystemJobDisableProtection {
 
 	/// <summary>True iff flipping this definition's <c>IsEnabled</c> to false must be reverted.</summary>
 	public static bool IsDisableProtected(string jobKey) {
-		return _ProtectedJobKeys.Contains(jobKey, StringComparer.Ordinal);
+		return SystemJobDisableProtection._ProtectedJobKeys.Contains(jobKey, StringComparer.Ordinal);
 	}
 }

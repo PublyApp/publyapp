@@ -45,11 +45,11 @@ public sealed class SchedulerSyncState {
 
 	private static readonly Snapshot _Unelected = new(0, null, null);
 
-	private Snapshot _Snapshot = _Unelected;
+	private Snapshot _Snapshot = SchedulerSyncState._Unelected;
 
 	/// <summary>When this replica acquired leadership; null when it is not the leader.</summary>
 	public DateTimeOffset? LeaderSince {
-		get { return Volatile.Read(ref _Snapshot).LeaderSince; }
+		get { return Volatile.Read(ref this._Snapshot).LeaderSince; }
 	}
 
 	/// <summary>
@@ -57,7 +57,7 @@ public sealed class SchedulerSyncState {
 	/// one under its current leadership (including when it is not the leader).
 	/// </summary>
 	public DateTimeOffset? LastSyncAt {
-		get { return Volatile.Read(ref _Snapshot).LastSyncAt; }
+		get { return Volatile.Read(ref this._Snapshot).LastSyncAt; }
 	}
 
 	/// <summary>
@@ -67,7 +67,7 @@ public sealed class SchedulerSyncState {
 	/// </summary>
 	public DateTimeOffset? StalenessBaseline {
 		get {
-			var snapshot = Volatile.Read(ref _Snapshot);
+			var snapshot = Volatile.Read(ref this._Snapshot);
 			if (snapshot.LeaderSince is null) {
 				return null;
 			}
@@ -82,11 +82,11 @@ public sealed class SchedulerSyncState {
 	/// so a completion is stamped ONLY if leadership has not turned over meanwhile.
 	/// </summary>
 	public long CurrentEpoch {
-		get { return Volatile.Read(ref _Snapshot).Epoch; }
+		get { return Volatile.Read(ref this._Snapshot).Epoch; }
 	}
 
 	public void MarkLeadershipAcquired() {
-		MarkLeadershipAcquiredAt(DateTimeOffset.UtcNow);
+		this.MarkLeadershipAcquiredAt(DateTimeOffset.UtcNow);
 	}
 
 	/// <summary>Explicit-instant overload so specs drive staleness deterministically.</summary>
@@ -95,10 +95,10 @@ public sealed class SchedulerSyncState {
 		// new leadership era never inherits the prior era's last-sync timestamp, and its epoch
 		// is strictly greater than any era a still-in-flight reconcile could have captured.
 		while (true) {
-			var current = Volatile.Read(ref _Snapshot);
+			var current = Volatile.Read(ref this._Snapshot);
 			var elected = new Snapshot(current.Epoch + 1, acquiredAt, null);
-			if (ReferenceEquals(
-				Interlocked.CompareExchange(ref _Snapshot, elected, current), current
+			if (SchedulerSyncState.ReferenceEquals(
+				Interlocked.CompareExchange(ref this._Snapshot, elected, current), current
 			)) {
 				return;
 			}
@@ -110,10 +110,10 @@ public sealed class SchedulerSyncState {
 		// epoch = preserved + 1 is still strictly greater than this era's — an A→_Unelected→B
 		// cycle never reuses A's epoch, which is what makes the completion fence below sound.
 		while (true) {
-			var current = Volatile.Read(ref _Snapshot);
+			var current = Volatile.Read(ref this._Snapshot);
 			var demoted = new Snapshot(current.Epoch, null, null);
-			if (ReferenceEquals(
-				Interlocked.CompareExchange(ref _Snapshot, demoted, current), current
+			if (SchedulerSyncState.ReferenceEquals(
+				Interlocked.CompareExchange(ref this._Snapshot, demoted, current), current
 			)) {
 				return;
 			}
@@ -121,7 +121,7 @@ public sealed class SchedulerSyncState {
 	}
 
 	public void MarkSyncCompleted() {
-		MarkSyncCompletedAt(DateTimeOffset.UtcNow);
+		this.MarkSyncCompletedAt(DateTimeOffset.UtcNow);
 	}
 
 	/// <summary>
@@ -130,7 +130,7 @@ public sealed class SchedulerSyncState {
 	/// path uses <see cref="MarkSyncCompletedAt(DateTimeOffset, long)"/> with a captured epoch.
 	/// </summary>
 	public void MarkSyncCompletedAt(DateTimeOffset completedAt) {
-		MarkSyncCompletedAt(completedAt, Volatile.Read(ref _Snapshot).Epoch);
+		this.MarkSyncCompletedAt(completedAt, Volatile.Read(ref this._Snapshot).Epoch);
 	}
 
 	/// <summary>
@@ -142,14 +142,14 @@ public sealed class SchedulerSyncState {
 	/// </summary>
 	public void MarkSyncCompletedAt(DateTimeOffset completedAt, long epoch) {
 		while (true) {
-			var current = Volatile.Read(ref _Snapshot);
+			var current = Volatile.Read(ref this._Snapshot);
 			if (current.LeaderSince is null || current.Epoch != epoch) {
 				return;
 			}
 
 			var updated = current with { LastSyncAt = completedAt };
-			if (ReferenceEquals(
-				Interlocked.CompareExchange(ref _Snapshot, updated, current), current
+			if (SchedulerSyncState.ReferenceEquals(
+				Interlocked.CompareExchange(ref this._Snapshot, updated, current), current
 			)) {
 				return;
 			}

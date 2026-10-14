@@ -29,7 +29,7 @@ public sealed class JobQueueSignal : IJobQueueSignal {
 
 	public void Notify() {
 		try {
-			_Semaphore.Release();
+			this._Semaphore.Release();
 		} catch (SemaphoreFullException) {
 			// A wake is already pending; the processor's next drain covers this batch too.
 		}
@@ -37,7 +37,7 @@ public sealed class JobQueueSignal : IJobQueueSignal {
 
 	public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {
 		try {
-			await _Semaphore.WaitAsync(timeout, cancellationToken);
+			await this._Semaphore.WaitAsync(timeout, cancellationToken);
 		} catch (OperationCanceledException) {
 			// Host shutdown; the caller re-checks its own stopping token.
 		}

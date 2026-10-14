@@ -46,8 +46,8 @@ public static class AnonymousAuthRateLimitPolicies {
 		"password-reset-per-email";
 
 	public static bool IsKnown(string? policyName) {
-		return policyName is PerIp
-			or PerEmail
-			or PasswordResetPerEmail;
+		return policyName is AnonymousAuthRateLimitPolicies.PerIp
+			or AnonymousAuthRateLimitPolicies.PerEmail
+			or AnonymousAuthRateLimitPolicies.PasswordResetPerEmail;
 	}
 }

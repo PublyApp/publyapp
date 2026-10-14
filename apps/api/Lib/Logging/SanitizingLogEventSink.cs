@@ -42,9 +42,9 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// by (or collide with) the ones added here, so they are dropped from the replacement
 	// event first. This also stops a log call from spoofing the redacted fields.
 	private static readonly string[] _ReservedProperties = [
-		ExceptionTypeProperty,
-		ExceptionMessageProperty,
-		ExceptionStackProperty,
+		SanitizingLogEventSink.ExceptionTypeProperty,
+		SanitizingLogEventSink.ExceptionMessageProperty,
+		SanitizingLogEventSink.ExceptionStackProperty,
 	];
 
 	private readonly ILogEventSink _Wrapped;
@@ -54,7 +54,7 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 			throw new ArgumentNullException(nameof(wrapped));
 		}
 
-		_Wrapped = wrapped;
+		this._Wrapped = wrapped;
 	}
 
 	public void Emit(LogEvent logEvent) {
@@ -62,7 +62,7 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 			throw new ArgumentNullException(nameof(logEvent));
 		}
 
-		_Wrapped.Emit(_Sanitize(logEvent));
+		this._Wrapped.Emit(SanitizingLogEventSink._Sanitize(logEvent));
 	}
 
 	private static LogEvent _Sanitize(LogEvent logEvent) {
@@ -80,22 +80,22 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 		var properties = logEvent.Properties
 			.Where(property =>
 				!(hasException
-					&& _ReservedProperties.Contains(property.Key, StringComparer.Ordinal)))
+					&& SanitizingLogEventSink._ReservedProperties.Contains(property.Key, StringComparer.Ordinal)))
 			.Select(property =>
-				new LogEventProperty(property.Key, _SanitizeValue(property.Value)))
+				new LogEventProperty(property.Key, SanitizingLogEventSink._SanitizeValue(property.Value)))
 			.ToList();
 
 		if (exception is not null) {
 			properties.Add(new LogEventProperty(
-				ExceptionTypeProperty,
+				SanitizingLogEventSink.ExceptionTypeProperty,
 				new ScalarValue(exception.GetType().FullName)
 			));
 			properties.Add(new LogEventProperty(
-				ExceptionMessageProperty,
+				SanitizingLogEventSink.ExceptionMessageProperty,
 				new ScalarValue(JobErrorSanitizer.Sanitize(exception.Message))
 			));
 			properties.Add(new LogEventProperty(
-				ExceptionStackProperty,
+				SanitizingLogEventSink.ExceptionStackProperty,
 				new SequenceValue(
 					JobErrorSanitizer.DescribeStackFrames(exception)
 						.Select(frame => new ScalarValue(frame))
@@ -140,15 +140,15 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	//    keys are ScalarValues rendered by durable sinks, so a token/email placed in
 	//    exception.Data as a KEY would otherwise leak verbatim.
 	private static LogEventPropertyValue _SanitizeValue(LogEventPropertyValue value) {
-		return _SanitizeValue(value, depth: 0);
+		return SanitizingLogEventSink._SanitizeValue(value, depth: 0);
 	}
 
 	private static LogEventPropertyValue _SanitizeValue(LogEventPropertyValue value, int depth) {
 		// Depth-bound the walk BEFORE descending (finding F4): past the limit we stop
 		// recursing and emit a sentinel, so a pathologically deep graph can never overflow
 		// the stack. Scalars are leaves and never recurse, so they are always processed.
-		if (depth >= _MaxPropertyDepth && value is not ScalarValue) {
-			return _DepthExceededSentinel;
+		if (depth >= SanitizingLogEventSink._MaxPropertyDepth && value is not ScalarValue) {
+			return SanitizingLogEventSink._DepthExceededSentinel;
 		}
 
 		switch (value) {
@@ -174,7 +174,7 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 				// redaction changes nothing — numbers, bools, dates, Guids, enums have no
 				// email/token payload — the original typed scalar is kept so structured fidelity
 				// is preserved; the sanitized string is substituted only when redaction fires.
-				var rendered = _RenderScalar(scalar);
+				var rendered = SanitizingLogEventSink._RenderScalar(scalar);
 				var sanitized = JobErrorSanitizer.Sanitize(rendered) ?? string.Empty;
 
 				return string.Equals(rendered, sanitized, StringComparison.Ordinal)
@@ -185,16 +185,16 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 				return new StructureValue(
 					structure.Properties
 						.Select(property =>
-							new LogEventProperty(property.Name, _SanitizeValue(property.Value, depth + 1))),
+							new LogEventProperty(property.Name, SanitizingLogEventSink._SanitizeValue(property.Value, depth + 1))),
 					structure.TypeTag
 				);
 
 			case SequenceValue sequence:
 				return new SequenceValue(
-					sequence.Elements.Select(element => _SanitizeValue(element, depth + 1)));
+					sequence.Elements.Select(element => SanitizingLogEventSink._SanitizeValue(element, depth + 1)));
 
 			case DictionaryValue dictionary:
-				return new DictionaryValue(_SanitizeDictionaryElements(dictionary, depth + 1));
+				return new DictionaryValue(SanitizingLogEventSink._SanitizeDictionaryElements(dictionary, depth + 1));
 
 			default:
 				return value;
@@ -219,8 +219,8 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 
 		foreach (var element in dictionary.Elements) {
 			sanitized.Add(new KeyValuePair<ScalarValue, LogEventPropertyValue>(
-				_SanitizeDictionaryKey(element.Key, usedKeys, nextSuffixByBase),
-				_SanitizeValue(element.Value, depth)
+				SanitizingLogEventSink._SanitizeDictionaryKey(element.Key, usedKeys, nextSuffixByBase),
+				SanitizingLogEventSink._SanitizeValue(element.Value, depth)
 			));
 		}
 
@@ -231,7 +231,7 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 		ScalarValue key,
 		HashSet<string> usedKeys,
 		Dictionary<string, int> nextSuffixByBase) {
-		var redacted = JobErrorSanitizer.Sanitize(_RenderScalar(key)) ?? string.Empty;
+		var redacted = JobErrorSanitizer.Sanitize(SanitizingLogEventSink._RenderScalar(key)) ?? string.Empty;
 
 		if (usedKeys.Add(redacted)) {
 			return new ScalarValue(redacted);
@@ -273,6 +273,6 @@ public sealed class SanitizingLogEventSink : ILogEventSink, IDisposable {
 	// Serilog disposes the outermost sink only; the wrapped graph (async workers, file
 	// handles) is ours to release.
 	public void Dispose() {
-		(_Wrapped as IDisposable)?.Dispose();
+		(this._Wrapped as IDisposable)?.Dispose();
 	}
 }

@@ -32,10 +32,10 @@ public record InvitationCreated {
 public class CreateStaffInvitationBodyValidator
 	: AbstractValidator<CreateStaffInvitationBody> {
 	public CreateStaffInvitationBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		RuleFor(x => x.ProfileId).Custom((element, context) => {
+		this.RuleFor(x => x.ProfileId).Custom((element, context) => {
 			if (element.ValueKind
 				is JsonValueKind.Undefined
 				or JsonValueKind.Null) {

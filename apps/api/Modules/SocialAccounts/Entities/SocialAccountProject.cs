@@ -18,8 +18,8 @@ public class SocialAccountProject : INoTenantEntity {
 	private SocialAccount? _SocialAccount;
 	[JsonIgnore]
 	public SocialAccount SocialAccount {
-		get { return RequiredNavigation.Get(_SocialAccount, nameof(SocialAccountProject), nameof(SocialAccount)); }
-		set { _SocialAccount = value; }
+		get { return RequiredNavigation.Get(this._SocialAccount, nameof(SocialAccountProject), nameof(this.SocialAccount)); }
+		set { this._SocialAccount = value; }
 	}
 
 	[Column("project_id")]
@@ -28,8 +28,8 @@ public class SocialAccountProject : INoTenantEntity {
 	private PublyApp.Api.Modules.Projects.Entities.Project? _Project;
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Projects.Entities.Project Project {
-		get { return RequiredNavigation.Get(_Project, nameof(SocialAccountProject), nameof(Project)); }
-		set { _Project = value; }
+		get { return RequiredNavigation.Get(this._Project, nameof(SocialAccountProject), nameof(this.Project)); }
+		set { this._Project = value; }
 	}
 
 	[Column("created_at")]

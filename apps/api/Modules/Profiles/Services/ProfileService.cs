@@ -24,7 +24,7 @@ public interface IProfileService {
 public class ProfileService : IProfileService {
 	private readonly AppDbContext _DbContext;
 	public ProfileService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	/// <summary>
@@ -49,7 +49,7 @@ public class ProfileService : IProfileService {
 		// rule; auth data must still reflect the full effective assignment set if historical
 		// or inconsistent data already exists.
 		var query =
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Scope == ProfileScope.Tenant
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -89,7 +89,7 @@ public class ProfileService : IProfileService {
 		// The same read-side rule applies to staff auth data: row existence means assigned,
 		// and the write-time MAX_PROFILES_PER_USER cap must not hide existing permissions.
 		var query =
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
 				&& p.UserAccountProfiles.Any(uap =>

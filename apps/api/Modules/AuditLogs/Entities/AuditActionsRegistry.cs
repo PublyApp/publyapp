@@ -26,11 +26,11 @@ public static class AuditActionsRegistry {
 			.Order()];
 
 	private static readonly ImmutableHashSet<string> _CachedKnownSet =
-		[.. _CachedAll];
+		[.. AuditActionsRegistry._CachedAll];
 
 	public static IReadOnlyList<string> All {
 		get {
-			return _CachedAll;
+			return AuditActionsRegistry._CachedAll;
 		}
 	}
 
@@ -38,6 +38,6 @@ public static class AuditActionsRegistry {
 	// validation case-sensitive rather than accepting case
 	// variants.
 	public static bool IsKnown(string action) {
-		return _CachedKnownSet.Contains(action);
+		return AuditActionsRegistry._CachedKnownSet.Contains(action);
 	}
 }

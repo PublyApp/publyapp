@@ -22,7 +22,7 @@ public sealed class BulkReactivateStaffUsersBody {
 	public List<Guid> GetUserIds() {
 		var userIds = new List<Guid>();
 
-		foreach (var userIdElement in UserIds.EnumerateArray()) {
+		foreach (var userIdElement in this.UserIds.EnumerateArray()) {
 			userIds.Add(userIdElement.GetValueAsGuid());
 		}
 
@@ -33,7 +33,7 @@ public sealed class BulkReactivateStaffUsersBody {
 public sealed class BulkReactivateStaffUsersBodyValidator
 	: AbstractValidator<BulkReactivateStaffUsersBody> {
 	public BulkReactivateStaffUsersBodyValidator() {
-		RuleFor(x => x.UserIds)
+		this.RuleFor(x => x.UserIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "userIds",
 				itemName: "userId",

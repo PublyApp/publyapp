@@ -48,12 +48,12 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 		AppDbContext dbContext,
 		ILogger<DeadLetterRetentionHandler> logger
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public string JobType {
-		get { return JobKey; }
+		get { return DeadLetterRetentionHandler.JobKey; }
 	}
 
 	public async Task<JobOutcome> HandleAsync(
@@ -71,7 +71,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 			// reserved missing-anomaly job_type prefix is invisible to the age sweep, however
 			// old it is. Triaged missing rows (triaged_at IS NOT NULL) delete like any other;
 			// so does everything whose job_type is not a missing-anomaly marker at all.
-			deleted = await _DbContext.Database.ExecuteSqlAsync(
+			deleted = await this._DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM job_dead_letter
 				WHERE id IN (
@@ -84,7 +84,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 						{(int)ExternalStateStatus.Unclassified}
 					)
 					ORDER BY failed_at, id
-					LIMIT {_BatchSize}
+					LIMIT {DeadLetterRetentionHandler._BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
@@ -92,18 +92,18 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == _BatchSize);
+		} while (deleted == DeadLetterRetentionHandler._BatchSize);
 
 		// Always report the held-back classes: how many untriaged missing-anomaly rows
 		// (#864) and how many external-state exempt rows (K-1/#863) the sweep is
 		// deliberately keeping past the window. These counts are the durable answer to
 		// "retention skipped something" — alerting reads the same predicates every sample.
-		var heldUntriagedMissing = await CountUntriagedMissingRowsAsync(cancellationToken);
-		var skippedExempt = await _CountSkippedExemptAsync(retentionDays, cancellationToken);
+		var heldUntriagedMissing = await this.CountUntriagedMissingRowsAsync(cancellationToken);
+		var skippedExempt = await this._CountSkippedExemptAsync(retentionDays, cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
 			if (skippedExempt > 0) {
-				_Logger.LogInformation(
+				this._Logger.LogInformation(
 					"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
 					+ "held back {Held} untriaged missing-anomaly row(s); "
 					+ "skipped {SkippedCount} exempt row(s) "
@@ -114,7 +114,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 					skippedExempt
 				);
 			} else if (totalDeleted > 0 || heldUntriagedMissing > 0) {
-				_Logger.LogInformation(
+				this._Logger.LogInformation(
 					"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
 					+ "held back {Held} untriaged missing-anomaly row(s)",
 					totalDeleted,
@@ -133,7 +133,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 	/// assert the skip report directly and the monitor samples the identical predicate.
 	/// </summary>
 	public async Task<long> CountUntriagedMissingRowsAsync(CancellationToken cancellationToken) {
-		return await _DbContext.JobDeadLetter.LongCountAsync(
+		return await this._DbContext.JobDeadLetter.LongCountAsync(
 			d => d.TriagedAt == null && d.JobType.StartsWith(JobDeadLetter.MissingJobTypePrefix),
 			cancellationToken
 		);
@@ -147,7 +147,7 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 		int retentionDays,
 		CancellationToken cancellationToken
 	) {
-		return await _DbContext.Database.SqlQuery<int>(
+		return await this._DbContext.Database.SqlQuery<int>(
 			$"""
 			SELECT COUNT(*)::int AS "Value"
 			FROM job_dead_letter

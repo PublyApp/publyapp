@@ -45,10 +45,10 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 		ILogger<JobQueueDrainHealthCheck> logger,
 		HealthCheckLogGate logGate
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
-		_LogGate = logGate;
-		_StallThreshold = TimeSpan.FromSeconds(
+		this._DbContext = dbContext;
+		this._Logger = logger;
+		this._LogGate = logGate;
+		this._StallThreshold = TimeSpan.FromSeconds(
 			AppEnvironment.Instance.JOB_QUEUE_DRAIN_STALL_SECONDS
 		);
 	}
@@ -59,12 +59,12 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 	) {
 		try {
 			var now = DateTime.UtcNow;
-			var cutoff = now - _StallThreshold;
+			var cutoff = now - this._StallThreshold;
 
 			// The same due predicate the worker's claim uses (status = Pending AND
 			// next_attempt_at <= now()); the oldest-first ordering keeps the oldest
 			// stranded job visible in the log entry.
-			var staleJobs = await _DbContext.JobQueue
+			var staleJobs = await this._DbContext.JobQueue
 				.Where(job =>
 					job.Status == JobQueueStatus.Pending
 					&& job.NextAttemptAt <= now
@@ -75,15 +75,15 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 
 			if (staleJobs.Count == 0) {
 				if (
-					_LogGate.ShouldLog(
+					this._LogGate.ShouldLog(
 						HealthCheckMessages.JobQueueDrainRegistrationName,
 						HealthStatus.Healthy,
 						failureReason: null,
 						DateTimeOffset.UtcNow
 					)
 				) {
-					if (_Logger.IsEnabled(LogLevel.Information)) {
-						_Logger.LogInformation(
+					if (this._Logger.IsEnabled(LogLevel.Information)) {
+						this._Logger.LogInformation(
 							"Health check {HealthCheck} recovered with status {HealthStatus}.",
 							HealthCheckMessages.PublicationDeliveryName,
 							HealthStatus.Healthy
@@ -104,14 +104,14 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 			);
 
 			if (
-				_LogGate.ShouldLog(
+				this._LogGate.ShouldLog(
 					HealthCheckMessages.JobQueueDrainRegistrationName,
 					HealthStatus.Unhealthy,
 					"stalled_jobs",
 					DateTimeOffset.UtcNow
 				)
 			) {
-				_Logger.LogWarning(
+				this._Logger.LogWarning(
 					"Health check {HealthCheck} is unhealthy: {FailureReason}. "
 						+ "{StalledJobCount} due background job(s) waited past the "
 						+ "{StallThresholdSeconds}s threshold. Sample types: {SampleJobTypes}. "
@@ -120,7 +120,7 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 					HealthCheckMessages.PublicationDeliveryName,
 					"stalled_jobs",
 					staleJobs.Count,
-					(int)_StallThreshold.TotalSeconds,
+					(int)this._StallThreshold.TotalSeconds,
 					sampleTypes,
 					(int)oldestAge.TotalSeconds
 				);
@@ -136,7 +136,7 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 					["stalledJobCount"] = staleJobs.Count,
 					["oldestJobType"] = oldest.JobType,
 					["oldestJobAgeSeconds"] = (int)oldestAge.TotalSeconds,
-					["stallThresholdSeconds"] = (int)_StallThreshold.TotalSeconds,
+					["stallThresholdSeconds"] = (int)this._StallThreshold.TotalSeconds,
 				}
 			);
 		} catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
@@ -145,14 +145,14 @@ public sealed class JobQueueDrainHealthCheck : IHealthCheck {
 			// The queue cannot be judged, so the drain surface must not declare
 			// itself healthy: "I cannot tell" is a loud failure by itself.
 			if (
-				_LogGate.ShouldLog(
+				this._LogGate.ShouldLog(
 					HealthCheckMessages.JobQueueDrainRegistrationName,
 					HealthStatus.Unhealthy,
 					"database_unreachable",
 					DateTimeOffset.UtcNow
 				)
 			) {
-				_Logger.LogWarning(
+				this._Logger.LogWarning(
 					"Health check {HealthCheck} is unhealthy: {FailureReason}.",
 					HealthCheckMessages.PublicationDeliveryName,
 					"database_unreachable"

@@ -16,13 +16,13 @@ public class GetVerificationLinkQuery {
 	public string UserId { get; set; } = string.Empty;
 
 	public Guid GetUserId() {
-		return Guid.TryParse(UserId, out var userId) ? userId : Guid.Empty;
+		return Guid.TryParse(this.UserId, out var userId) ? userId : Guid.Empty;
 	}
 }
 
 public class GetVerificationLinkQueryValidator : AbstractValidator<GetVerificationLinkQuery> {
 	public GetVerificationLinkQueryValidator() {
-		RuleFor(x => x.UserId)
+		this.RuleFor(x => x.UserId)
 			.NotEmpty()
 			.WithMessage("user_id is required")
 			.Must(QueryPredicates.BeValidNullableGuid)

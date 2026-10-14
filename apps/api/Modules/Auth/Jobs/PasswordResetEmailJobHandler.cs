@@ -37,10 +37,10 @@ public sealed class PasswordResetEmailJobHandler
 		PasswordResetEmailPayload payload,
 		CancellationToken cancellationToken
 	) {
-		await LockRowAsync("users", payload.UserId, cancellationToken);
+		await this.LockRowAsync("users", payload.UserId, cancellationToken);
 
 		var userQuery =
-			from candidate in Db.User
+			from candidate in this.Db.User
 			where candidate.Id == payload.UserId && !candidate.IsDeleted
 			select candidate;
 		var user = await userQuery.FirstOrDefaultAsync(cancellationToken);
@@ -69,7 +69,7 @@ public sealed class PasswordResetEmailJobHandler
 		CancellationToken cancellationToken
 	) {
 		var userQuery =
-			from candidate in Db.User.AsNoTracking()
+			from candidate in this.Db.User.AsNoTracking()
 			where candidate.Id == payload.UserId
 			select candidate;
 		var user = await userQuery.FirstOrDefaultAsync(cancellationToken);

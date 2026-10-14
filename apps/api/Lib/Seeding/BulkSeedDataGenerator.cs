@@ -46,68 +46,68 @@ public class BulkSeedDataGenerator {
 		int? singleTenantUserCount = null,
 		int? projectsPerTenant = null
 	) {
-		_TenantCount = tenantCount ?? BulkSeedConstants.DefaultTenantCount;
-		_StaffUserCount = staffUserCount ?? BulkSeedConstants.DefaultStaffUserCount;
-		_PowerUserCount = powerUserCount ?? BulkSeedConstants.DefaultPowerUserCount;
-		_CrossTenantUserCount = crossTenantUserCount ?? BulkSeedConstants.DefaultCrossTenantUserCount;
-		_SingleTenantUserCount = singleTenantUserCount ?? BulkSeedConstants.DefaultSingleTenantUserCount;
-		_ProjectsPerTenant = projectsPerTenant ?? BulkSeedConstants.DefaultProjectsPerTenant;
+		this._TenantCount = tenantCount ?? BulkSeedConstants.DefaultTenantCount;
+		this._StaffUserCount = staffUserCount ?? BulkSeedConstants.DefaultStaffUserCount;
+		this._PowerUserCount = powerUserCount ?? BulkSeedConstants.DefaultPowerUserCount;
+		this._CrossTenantUserCount = crossTenantUserCount ?? BulkSeedConstants.DefaultCrossTenantUserCount;
+		this._SingleTenantUserCount = singleTenantUserCount ?? BulkSeedConstants.DefaultSingleTenantUserCount;
+		this._ProjectsPerTenant = projectsPerTenant ?? BulkSeedConstants.DefaultProjectsPerTenant;
 
-		_Random = new Random(12345); // Fixed seed for reproducibility
-		_Faker = new Faker { Random = new Randomizer(_Random.Next()) };
+		this._Random = new Random(12345); // Fixed seed for reproducibility
+		this._Faker = new Faker { Random = new Randomizer(this._Random.Next()) };
 	}
 
 	public IReadOnlyList<Tenant> Tenants {
 		get {
-			return _Tenants;
+			return this._Tenants;
 		}
 	}
 
 	public IReadOnlyList<User> Users {
 		get {
-			return _AllUsers;
+			return this._AllUsers;
 		}
 	}
 
 	public IReadOnlyList<UserAccount> UserAccounts {
 		get {
-			return _AllUserAccounts;
+			return this._AllUserAccounts;
 		}
 	}
 
 	public IReadOnlyList<Project> Projects {
 		get {
-			return _Projects;
+			return this._Projects;
 		}
 	}
 
 	public IReadOnlyList<Invitation> Invitations {
 		get {
-			return _Invitations;
+			return this._Invitations;
 		}
 	}
 
 	public IReadOnlyList<User> TenantUsers {
 		get {
-			return _TenantUsers;
+			return this._TenantUsers;
 		}
 	}
 
 	public IReadOnlyList<UserAccount> TenantUserAccounts {
 		get {
-			return _TenantUserAccounts;
+			return this._TenantUserAccounts;
 		}
 	}
 
 	public IReadOnlyList<User> StaffUsers {
 		get {
-			return _StaffUsers;
+			return this._StaffUsers;
 		}
 	}
 
 	public IReadOnlyList<UserAccount> StaffUserAccounts {
 		get {
-			return _StaffUserAccounts;
+			return this._StaffUserAccounts;
 		}
 	}
 
@@ -115,32 +115,32 @@ public class BulkSeedDataGenerator {
 	/// Generates all bulk seed data in the correct order (dependencies first).
 	/// </summary>
 	public void GenerateAll() {
-		_GenerateTenants();
-		_GenerateTenantUsers();
-		_GenerateStaffUsers();
-		_GenerateTenantUserAccounts();
-		_GenerateStaffUserAccounts();
-		_FinalizeCombinedLists();
-		_GenerateProjects();
-		_GenerateInvitations();
+		this._GenerateTenants();
+		this._GenerateTenantUsers();
+		this._GenerateStaffUsers();
+		this._GenerateTenantUserAccounts();
+		this._GenerateStaffUserAccounts();
+		this._FinalizeCombinedLists();
+		this._GenerateProjects();
+		this._GenerateInvitations();
 	}
 
 	private void _FinalizeCombinedLists() {
 		// BulkSeeder expects a single Users/UserAccounts list to insert. We keep tenant and staff
 		// generation separate to avoid accidental cross-scope accounts (staff users must never
 		// have tenant memberships).
-		_AllUsers = [.. _TenantUsers, .. _StaffUsers];
-		_AllUserAccounts = [.. _TenantUserAccounts, .. _StaffUserAccounts];
+		this._AllUsers = [.. this._TenantUsers, .. this._StaffUsers];
+		this._AllUserAccounts = [.. this._TenantUserAccounts, .. this._StaffUserAccounts];
 	}
 
 	/// <summary>
 	/// Generates bulk tenants.
 	/// </summary>
 	private void _GenerateTenants() {
-		_Tenants = new List<Tenant>(_TenantCount);
+		this._Tenants = new List<Tenant>(this._TenantCount);
 
-		for (int i = 1; i <= _TenantCount; i++) {
-			var roll = _Faker.Random.Double();
+		for (int i = 1; i <= this._TenantCount; i++) {
+			var roll = this._Faker.Random.Double();
 			var isDeleted = roll < BulkSeedConstants.DeletedTenantRatio;
 			var isActive = !isDeleted && roll < (BulkSeedConstants.DeletedTenantRatio + BulkSeedConstants.ActiveTenantRatio);
 
@@ -151,17 +151,17 @@ public class BulkSeedDataGenerator {
 				// Use UUIDv7 for time-ordered IDs (realistic cursor pagination behavior)
 				Id = Guid.CreateVersion7(),
 				Code = $"{BulkSeedConstants.TenantCodePrefix}{i:D3}",
-				Name = _Faker.Company.CompanyName(),
+				Name = this._Faker.Company.CompanyName(),
 				Status = !isSuspended ? TenantStatus.Active : TenantStatus.Suspended,
 				MaxUsers = 100
 			};
 
 			if (isDeleted) {
 				tenant.IsDeleted = true;
-				tenant.DeletedAt = _Faker.Date.Past();
+				tenant.DeletedAt = this._Faker.Date.Past();
 			}
 
-			_Tenants.Add(tenant);
+			this._Tenants.Add(tenant);
 		}
 	}
 
@@ -169,36 +169,36 @@ public class BulkSeedDataGenerator {
 	/// Generates bulk tenant users.
 	/// </summary>
 	private void _GenerateTenantUsers() {
-		var totalUsers = _PowerUserCount + _CrossTenantUserCount + _SingleTenantUserCount;
-		_TenantUsers = new List<User>(totalUsers);
+		var totalUsers = this._PowerUserCount + this._CrossTenantUserCount + this._SingleTenantUserCount;
+		this._TenantUsers = new List<User>(totalUsers);
 
 		// Generate power users (will have many tenant memberships)
-		for (int i = 1; i <= _PowerUserCount; i++) {
-			_TenantUsers.Add(_GenerateUser(emailPrefix: "bulk.user", index: i));
+		for (int i = 1; i <= this._PowerUserCount; i++) {
+			this._TenantUsers.Add(this._GenerateUser(emailPrefix: "bulk.user", index: i));
 		}
 
 		// Generate cross-tenant users
-		for (int i = 1; i <= _CrossTenantUserCount; i++) {
-			_TenantUsers.Add(_GenerateUser(emailPrefix: "bulk.user", index: i + _PowerUserCount));
+		for (int i = 1; i <= this._CrossTenantUserCount; i++) {
+			this._TenantUsers.Add(this._GenerateUser(emailPrefix: "bulk.user", index: i + this._PowerUserCount));
 		}
 
 		// Generate single-tenant users
-		for (int i = 1; i <= _SingleTenantUserCount; i++) {
-			_TenantUsers.Add(_GenerateUser(emailPrefix: "bulk.user", index: i + _PowerUserCount + _CrossTenantUserCount));
+		for (int i = 1; i <= this._SingleTenantUserCount; i++) {
+			this._TenantUsers.Add(this._GenerateUser(emailPrefix: "bulk.user", index: i + this._PowerUserCount + this._CrossTenantUserCount));
 		}
 	}
 
 	private void _GenerateStaffUsers() {
-		_StaffUsers = new List<User>(_StaffUserCount);
+		this._StaffUsers = new List<User>(this._StaffUserCount);
 
 		// For staff UI testing, it's useful to have a decent population for pagination and search.
-		for (int i = 1; i <= _StaffUserCount; i++) {
-			_StaffUsers.Add(_GenerateUser(emailPrefix: BulkSeedConstants.StaffUserEmailPrefix, index: i));
+		for (int i = 1; i <= this._StaffUserCount; i++) {
+			this._StaffUsers.Add(this._GenerateUser(emailPrefix: BulkSeedConstants.StaffUserEmailPrefix, index: i));
 		}
 	}
 
 	private User _GenerateUser(string emailPrefix, int index) {
-		var roll = _Faker.Random.Double();
+		var roll = this._Faker.Random.Double();
 		var isDeleted = roll < BulkSeedConstants.DeletedUserRatio;
 		var isActive = !isDeleted && roll < (BulkSeedConstants.DeletedUserRatio + BulkSeedConstants.ActiveUserRatio);
 
@@ -206,16 +206,16 @@ public class BulkSeedDataGenerator {
 			// Use UUIDv7 for time-ordered IDs (realistic cursor pagination behavior)
 			Id = Guid.CreateVersion7(),
 			Email = $"{emailPrefix}{index:D5}@{BulkSeedConstants.UserEmailDomain}",
-			Password = _CachedSeedPassword.Value,
+			Password = BulkSeedDataGenerator._CachedSeedPassword.Value,
 			Status = isActive ? UserStatus.Active : UserStatus.Suspended,
 			IsVerified = true,
-			FirstName = _Faker.Name.FirstName(),
-			LastName = _Faker.Name.LastName()
+			FirstName = this._Faker.Name.FirstName(),
+			LastName = this._Faker.Name.LastName()
 		};
 
 		if (isDeleted) {
 			user.IsDeleted = true;
-			user.DeletedAt = _Faker.Date.Past();
+			user.DeletedAt = this._Faker.Date.Past();
 		}
 
 		return user;
@@ -225,14 +225,14 @@ public class BulkSeedDataGenerator {
 	/// Generates user accounts linking users to tenants.
 	/// </summary>
 	private void _GenerateTenantUserAccounts() {
-		_TenantUserAccounts = [];
+		this._TenantUserAccounts = [];
 
-		var activeTenants = _Tenants.Where(t => !t.IsDeleted && t.Status == TenantStatus.Active).ToList();
+		var activeTenants = this._Tenants.Where(t => !t.IsDeleted && t.Status == TenantStatus.Active).ToList();
 		var tenantIds = activeTenants.Select(t => t.GetRequiredId()).ToList();
 
 		// Power users: 10-50 tenant memberships each
-		var powerUsers = _TenantUsers.Take(_PowerUserCount).ToList();
-		var powerUserTenantAssignments = _GenerateTenantMemberships(powerUsers.Count, tenantIds,
+		var powerUsers = this._TenantUsers.Take(this._PowerUserCount).ToList();
+		var powerUserTenantAssignments = this._GenerateTenantMemberships(powerUsers.Count, tenantIds,
 			BulkSeedConstants.MinTenantMembershipsForPowerUser,
 			BulkSeedConstants.MaxTenantMembershipsForPowerUser);
 
@@ -244,14 +244,14 @@ public class BulkSeedDataGenerator {
 				var tenantId = tenantIds[tenantIndex];
 				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
 				account.ValidateAccountType();
-				_TenantUserAccounts.Add(account);
+				this._TenantUserAccounts.Add(account);
 			}
 		}
 
 		// Cross-tenant users: 2-5 tenant memberships each
 		// Note: Cross-tenant users can share tenants with power users - that's realistic
-		var crossTenantUsers = _TenantUsers.Skip(_PowerUserCount).Take(_CrossTenantUserCount).ToList();
-		var crossTenantAssignments = _GenerateTenantMemberships(crossTenantUsers.Count, tenantIds,
+		var crossTenantUsers = this._TenantUsers.Skip(this._PowerUserCount).Take(this._CrossTenantUserCount).ToList();
+		var crossTenantAssignments = this._GenerateTenantMemberships(crossTenantUsers.Count, tenantIds,
 			BulkSeedConstants.MinTenantMembershipsForCrossTenant,
 			BulkSeedConstants.MaxTenantMembershipsForCrossTenant);
 
@@ -263,33 +263,33 @@ public class BulkSeedDataGenerator {
 				var tenantId = tenantIds[tenantIdx];
 				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
 				account.ValidateAccountType();
-				_TenantUserAccounts.Add(account);
+				this._TenantUserAccounts.Add(account);
 			}
 		}
 
 		// Single-tenant users: 1 tenant each
-		var singleTenantUsers = _TenantUsers.Skip(_PowerUserCount + _CrossTenantUserCount).ToList();
+		var singleTenantUsers = this._TenantUsers.Skip(this._PowerUserCount + this._CrossTenantUserCount).ToList();
 
 		// Just use all active tenants for single-tenant users (no need to avoid overlaps)
 		for (int i = 0; i < singleTenantUsers.Count; i++) {
 			var user = singleTenantUsers[i];
-			var tenantId = tenantIds[_Random.Next(tenantIds.Count)];
+			var tenantId = tenantIds[this._Random.Next(tenantIds.Count)];
 			var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
 			account.ValidateAccountType();
-			_TenantUserAccounts.Add(account);
+			this._TenantUserAccounts.Add(account);
 		}
 	}
 
 	private void _GenerateStaffUserAccounts() {
-		_StaffUserAccounts = new List<UserAccount>(_StaffUsers.Count);
+		this._StaffUserAccounts = new List<UserAccount>(this._StaffUsers.Count);
 
-		foreach (var user in _StaffUsers) {
-			var roll = _Faker.Random.Double();
+		foreach (var user in this._StaffUsers) {
+			var roll = this._Faker.Random.Double();
 			var level = roll < BulkSeedConstants.StaffAdminRatio ? AccountLevel.Admin : AccountLevel.User;
 
 			var account = UserAccount.CreateStaffAccount(userId: user.GetRequiredId(), accountLevel: level);
 			account.ValidateAccountType();
-			_StaffUserAccounts.Add(account);
+			this._StaffUserAccounts.Add(account);
 		}
 	}
 
@@ -300,11 +300,11 @@ public class BulkSeedDataGenerator {
 		var assignments = new List<List<int>>();
 
 		for (int i = 0; i < userCount; i++) {
-			var tenantCount = _Faker.Random.Int(minTenants, maxTenants);
+			var tenantCount = this._Faker.Random.Int(minTenants, maxTenants);
 			tenantCount = Math.Min(tenantCount, tenantIds.Count);
 
 			var indices = Enumerable.Range(0, tenantIds.Count)
-				.OrderBy(_ => _Random.Next())
+				.OrderBy(_ => this._Random.Next())
 				.Take(tenantCount)
 				.ToList();
 
@@ -318,28 +318,28 @@ public class BulkSeedDataGenerator {
 	/// Generates projects for each tenant.
 	/// </summary>
 	private void _GenerateProjects() {
-		_Projects = new List<Project>();
+		this._Projects = new List<Project>();
 
-		var activeTenants = _Tenants.Where(t => !t.IsDeleted && t.Status == TenantStatus.Active).ToList();
+		var activeTenants = this._Tenants.Where(t => !t.IsDeleted && t.Status == TenantStatus.Active).ToList();
 
 		foreach (var tenant in activeTenants) {
-			var projectCount = _Faker.Random.Int(3, _ProjectsPerTenant);
+			var projectCount = this._Faker.Random.Int(3, this._ProjectsPerTenant);
 
 			for (int i = 1; i <= projectCount; i++) {
-				var isDeleted = _Faker.Random.Double() < BulkSeedConstants.DeletedProjectRatio;
+				var isDeleted = this._Faker.Random.Double() < BulkSeedConstants.DeletedProjectRatio;
 
 				var project = new Project {
 					TenantId = tenant.GetRequiredId(),
 					Name = $"{BulkSeedConstants.ProjectNamePrefix}{tenant.Code}-{i}",
-					Description = _Faker.Lorem.Sentence()
+					Description = this._Faker.Lorem.Sentence()
 				};
 
 				if (isDeleted) {
 					project.IsDeleted = true;
-					project.DeletedAt = _Faker.Date.Past();
+					project.DeletedAt = this._Faker.Date.Past();
 				}
 
-				_Projects.Add(project);
+				this._Projects.Add(project);
 			}
 		}
 	}
@@ -353,6 +353,6 @@ public class BulkSeedDataGenerator {
 		// 1. A valid InvitedByUserId (must be an existing user)
 		// 2. A unique token
 		// These constraints make bulk generation complex. Manual seeding recommended.
-		_Invitations = [];
+		this._Invitations = [];
 	}
 }

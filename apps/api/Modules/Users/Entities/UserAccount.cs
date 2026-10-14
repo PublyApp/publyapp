@@ -16,10 +16,10 @@ namespace PublyApp.Api.Modules.Users.Entities;
 // ux_user_accounts_project_active) because PostgreSQL treats NULLs as distinct
 // under a plain composite unique index, which would let TenantId/ProjectId
 // NULLs bypass this attribute-based index entirely.
-[Index(nameof(UserId), nameof(Scope))]
-[Index(nameof(TenantId), nameof(Scope))]
-[Index(nameof(ProjectId), nameof(Scope))]
-[Index(nameof(UserId), nameof(TenantId))]
+[Index(nameof(UserAccount.UserId), nameof(UserAccount.Scope))]
+[Index(nameof(UserAccount.TenantId), nameof(UserAccount.Scope))]
+[Index(nameof(UserAccount.ProjectId), nameof(UserAccount.Scope))]
+[Index(nameof(UserAccount.UserId), nameof(UserAccount.TenantId))]
 public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
@@ -27,8 +27,8 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	private User? _User;
 	[JsonIgnore]
 	public User User {
-		get { return RequiredNavigation.Get(_User, nameof(UserAccount), nameof(User)); }
-		set { _User = value; }
+		get { return RequiredNavigation.Get(this._User, nameof(UserAccount), nameof(this.User)); }
+		set { this._User = value; }
 	}
 
 	[Column("tenant_id")]
@@ -54,19 +54,19 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	// Computed properties for easy identification
 	public bool IsStaffAccount {
 		get {
-			return Scope == AccountScope.Staff && TenantId is null && ProjectId is null;
+			return this.Scope == AccountScope.Staff && this.TenantId is null && this.ProjectId is null;
 		}
 	}
 
 	public bool IsTenantAccount {
 		get {
-			return Scope == AccountScope.Tenant && TenantId is not null && ProjectId is null;
+			return this.Scope == AccountScope.Tenant && this.TenantId is not null && this.ProjectId is null;
 		}
 	}
 
 	public bool IsProjectAccount {
 		get {
-			return Scope == AccountScope.Project && TenantId is not null && ProjectId is not null;
+			return this.Scope == AccountScope.Project && this.TenantId is not null && this.ProjectId is not null;
 		}
 	}
 
@@ -109,27 +109,27 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 
 	// Validation
 	public void ValidateAccountType() {
-		switch (Scope) {
+		switch (this.Scope) {
 			case AccountScope.Staff:
-				if (TenantId is not null || ProjectId is not null) {
+				if (this.TenantId is not null || this.ProjectId is not null) {
 					throw new InvalidOperationException("Staff accounts cannot have TenantId or ProjectId");
 				}
 				break;
 			case AccountScope.Tenant:
-				if (TenantId is null || ProjectId is not null) {
+				if (this.TenantId is null || this.ProjectId is not null) {
 					throw new InvalidOperationException("Tenant accounts must have TenantId but not ProjectId");
 				}
 				break;
 			case AccountScope.Project:
-				if (TenantId is null || ProjectId is null) {
+				if (this.TenantId is null || this.ProjectId is null) {
 					throw new InvalidOperationException("Project accounts must have both TenantId and ProjectId");
 				}
 				break;
 			default:
 				throw new ArgumentOutOfRangeException(
-					nameof(Scope),
-					Scope,
-					$"Unhandled AccountScope: {Scope}"
+					nameof(this.Scope),
+					this.Scope,
+					$"Unhandled AccountScope: {this.Scope}"
 				);
 		}
 	}
@@ -230,7 +230,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	) {
 		// Global identity suspension has precedence over the membership-local status in tenant UIs.
 		bool isUserGloballySuspended = User.IsSuspended(userStatus);
-		bool isMembershipSuspended = IsSuspended(accountStatus);
+		bool isMembershipSuspended = UserAccount.IsSuspended(accountStatus);
 
 		if (isUserGloballySuspended) {
 			return TenantUserStatus.GloballySuspended;
@@ -244,11 +244,11 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	}
 
 	public bool IsActive() {
-		return IsActive(Status);
+		return UserAccount.IsActive(this.Status);
 	}
 
 	public bool IsSuspended() {
-		return IsSuspended(Status);
+		return UserAccount.IsSuspended(this.Status);
 	}
 
 	public static bool IsActive(AccountStatus status) {

@@ -39,18 +39,18 @@ public class FindScheduledPublicationsQuery {
 	public string? Status { get; set; }
 
 	public string? GetCursor() {
-		return Cursor;
+		return this.Cursor;
 	}
 
 	public int? GetLimit() {
-		if (Limit is null) {
+		if (this.Limit is null) {
 			return null;
 		}
 
-		if (!int.TryParse(Limit, out var limit)) {
+		if (!int.TryParse(this.Limit, out var limit)) {
 			throw new ArgumentException(
 				"Limit must be a valid number",
-				nameof(Limit)
+				nameof(this.Limit)
 			);
 		}
 
@@ -64,22 +64,22 @@ public sealed class FindScheduledPublicationsQueryValidator
 		+ "2026-09-01T00:00:00Z)";
 
 	public FindScheduledPublicationsQueryValidator() : base() {
-		RuleFor(x => x.From)
-			.Must(_BeIsoInstant)
-			.WithMessage($"from {_IsoHint}");
+		this.RuleFor(x => x.From)
+			.Must(FindScheduledPublicationsQueryValidator._BeIsoInstant)
+			.WithMessage($"from {FindScheduledPublicationsQueryValidator._IsoHint}");
 
-		RuleFor(x => x.To)
-			.Must(_BeIsoInstant)
-			.WithMessage($"to {_IsoHint}");
+		this.RuleFor(x => x.To)
+			.Must(FindScheduledPublicationsQueryValidator._BeIsoInstant)
+			.WithMessage($"to {FindScheduledPublicationsQueryValidator._IsoHint}");
 
-		RuleFor(x => x.Status)
-			.Must(_BeParseableCsv)
+		this.RuleFor(x => x.Status)
+			.Must(FindScheduledPublicationsQueryValidator._BeParseableCsv)
 			.WithMessage(
 				"status must be a comma-separated list of: scheduled, "
 				+ "in_progress, published, failed, paused"
 			);
 
-		RuleFor(x => x.Limit)
+		this.RuleFor(x => x.Limit)
 			.Must(PaginationPredicates.BeValidNullableLimit)
 			.WithMessage(
 				"limit must be a valid number "

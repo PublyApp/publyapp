@@ -24,17 +24,17 @@ public record UpdatePostBody {
 	public JsonElement ImageAltText { get; init; }
 
 	public string? GetBody() {
-		return Body.GetValueAsStringOrNull();
+		return this.Body.GetValueAsStringOrNull();
 	}
 
 	public PatchField<Guid?> GetProjectId() {
-		return ProjectId.ValueKind switch {
+		return this.ProjectId.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<Guid?>.Absent(),
 			JsonValueKind.Null =>
 				PatchField<Guid?>.Set(null),
 			JsonValueKind.String => Guid.TryParse(
-				ProjectId.GetString(), out var guid
+				this.ProjectId.GetString(), out var guid
 			) && guid != Guid.Empty
 				? PatchField<Guid?>.Set(guid)
 				: throw new InvalidOperationException(
@@ -48,20 +48,20 @@ public record UpdatePostBody {
 					"ProjectId must be a GUID, null, or omitted"
 				),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(ProjectId),
-				ProjectId.ValueKind,
-				$"Unhandled JsonValueKind: {ProjectId.ValueKind}"
+				nameof(this.ProjectId),
+				this.ProjectId.ValueKind,
+				$"Unhandled JsonValueKind: {this.ProjectId.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetImageAltText() {
-		return ImageAltText.ValueKind switch {
+		return this.ImageAltText.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			// Explicit null clears the stored alt text.
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(
-				ImageAltText.GetValueAsString()
+				this.ImageAltText.GetValueAsString()
 			),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -71,9 +71,9 @@ public record UpdatePostBody {
 					"ImageAltText must be a string, null, or omitted"
 				),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(ImageAltText),
-				ImageAltText.ValueKind,
-				$"Unhandled JsonValueKind: {ImageAltText.ValueKind}"
+				nameof(this.ImageAltText),
+				this.ImageAltText.ValueKind,
+				$"Unhandled JsonValueKind: {this.ImageAltText.ValueKind}"
 			),
 		};
 	}
@@ -82,15 +82,15 @@ public record UpdatePostBody {
 public class UpdatePostBodyValidator
 	: AbstractValidator<UpdatePostBody> {
 	public UpdatePostBodyValidator() {
-		RuleFor(x => x.Body)
+		this.RuleFor(x => x.Body)
 			.MustBeNullableStringWithMaxLength(
 				"Body", PostValidationRules.BodyMaxLength
 			);
 
-		RuleFor(x => x.ProjectId)
+		this.RuleFor(x => x.ProjectId)
 			.MustBePatchFieldNonEmptyGuid("ProjectId");
 
-		RuleFor(x => x.ImageAltText)
+		this.RuleFor(x => x.ImageAltText)
 			.MustBePatchFieldString(
 				"ImageAltText",
 				PostValidationRules.ImageAltTextMaxLength

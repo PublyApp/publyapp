@@ -45,7 +45,7 @@ public record UserTenantsForPickerResult {
 	public required int ActiveCount { get; init; }
 	public bool HasSuspendedTenants {
 		get {
-			return TotalCount > ActiveCount;
+			return this.TotalCount > this.ActiveCount;
 		}
 	}
 
@@ -99,7 +99,7 @@ public class AccountService : IAccountService {
 	private readonly AppDbContext _DbContext;
 
 	public AccountService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<CreateStaffAccountResult> CreateStaffAccountAsync(
@@ -109,28 +109,28 @@ public class AccountService : IAccountService {
 	) {
 		// Check if user already has a staff account (existence-based, not active-only)
 		// This aligns with unique constraint and prevents 500s from duplicate insert attempts
-		var hasStaffAccount = await HasStaffAccountAsync(userId, cancellationToken);
+		var hasStaffAccount = await this.HasStaffAccountAsync(userId, cancellationToken);
 		if (hasStaffAccount) {
 			return new CreateStaffAccountResult.UserAlreadyStaffUser();
 		}
 
 		// Business rule: staff and tenant/project accounts are mutually exclusive
-		var hasTenantOrProjectAccounts = await HasTenantOrProjectAccountsAsync(userId, cancellationToken);
+		var hasTenantOrProjectAccounts = await this.HasTenantOrProjectAccountsAsync(userId, cancellationToken);
 		if (hasTenantOrProjectAccounts) {
 			return new CreateStaffAccountResult.UserHasTenantOrProjectAccounts();
 		}
 
 		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
 
-		var addedAccount = await _DbContext.UserAccount
+		var addedAccount = await this._DbContext.UserAccount
 			.AddAsync(account, cancellationToken);
 
 		try {
-			await _DbContext.SaveChangesAsync(cancellationToken);
-		} catch (DbUpdateException ex) when (_IsUniqueConstraintViolation(ex)) {
+			await this._DbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (AccountService._IsUniqueConstraintViolation(ex)) {
 			// Race condition: another request created the account between our check and insert
 			// Detach the failed entity and return appropriate result
-			_DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
+			this._DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
 			return new CreateStaffAccountResult.UserAlreadyStaffUser();
 		}
 
@@ -143,7 +143,7 @@ public class AccountService : IAccountService {
 	) {
 		// Active-account lookups must exclude globally suspended identities too.
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
@@ -159,7 +159,7 @@ public class AccountService : IAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
@@ -175,7 +175,7 @@ public class AccountService : IAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
@@ -191,7 +191,7 @@ public class AccountService : IAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
 			&& ua.Scope == AccountScope.Tenant
@@ -211,8 +211,8 @@ public class AccountService : IAccountService {
 		// Checks both account status (not deleted, not suspended)
 		// AND tenant status (Active, not suspended, not deleted)
 		var query =
-			from ua in _DbContext.UserAccount
-			join t in _DbContext.Tenant on ua.TenantId equals t.Id
+			from ua in this._DbContext.UserAccount
+			join t in this._DbContext.Tenant on ua.TenantId equals t.Id
 			where ua.UserId == userId
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
@@ -231,7 +231,7 @@ public class AccountService : IAccountService {
 		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		return await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -247,7 +247,7 @@ public class AccountService : IAccountService {
 		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// This is existence-based to align with unique constraint and prevent duplicate insert attempts.
 		return await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
@@ -273,20 +273,20 @@ public class AccountService : IAccountService {
 		// Keeping this in one query makes the handler branch on one explicit result
 		// instead of orchestrating several separate existence checks.
 		var result = await (
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.Email == normalizedEmail
 				&& !u.IsDeleted
 			select new {
 				User = u,
 				HasStaffAccount = (
-					from ua in _DbContext.UserAccount
+					from ua in this._DbContext.UserAccount
 					where ua.UserId == u.Id
 						&& ua.Scope == AccountScope.Staff
 						&& !ua.IsDeleted
 					select ua
 				).Any(),
 				IsAlreadyMemberOfTenant = (
-					from ua in _DbContext.UserAccount
+					from ua in this._DbContext.UserAccount
 					where ua.UserId == u.Id
 						&& ua.TenantId == tenantId
 						&& ua.Scope == AccountScope.Tenant
@@ -326,8 +326,8 @@ public class AccountService : IAccountService {
 		var normalizedEmail = email.ToLowerInvariant();
 
 		return await (
-			from u in _DbContext.User
-			join ua in _DbContext.UserAccount on u.Id equals ua.UserId
+			from u in this._DbContext.User
+			join ua in this._DbContext.UserAccount on u.Id equals ua.UserId
 			where u.Email == normalizedEmail
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
@@ -344,7 +344,7 @@ public class AccountService : IAccountService {
 		// Note: AccountStatus.Suspended is intentionally NOT checked here.
 		// Suspended accounts still count for mutual exclusivity (identity conflict).
 		return await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
 				&& !ua.IsDeleted
@@ -361,8 +361,8 @@ public class AccountService : IAccountService {
 		var normalizedEmail = email.ToLowerInvariant();
 
 		return await (
-			from u in _DbContext.User
-			join ua in _DbContext.UserAccount on u.Id equals ua.UserId
+			from u in this._DbContext.User
+			join ua in this._DbContext.UserAccount on u.Id equals ua.UserId
 			where u.Email == normalizedEmail
 				&& ua.Scope == AccountScope.Staff
 				&& !u.IsDeleted
@@ -380,8 +380,8 @@ public class AccountService : IAccountService {
 		var normalizedEmail = email.ToLowerInvariant();
 
 		return await (
-			from u in _DbContext.User
-			join ua in _DbContext.UserAccount on u.Id equals ua.UserId
+			from u in this._DbContext.User
+			join ua in this._DbContext.UserAccount on u.Id equals ua.UserId
 			where u.Email == normalizedEmail
 				&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
 				&& !u.IsDeleted
@@ -403,8 +403,8 @@ public class AccountService : IAccountService {
 		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
 
 		return await (
-			from u in _DbContext.User
-			join ua in _DbContext.UserAccount on u.Id equals ua.UserId
+			from u in this._DbContext.User
+			join ua in this._DbContext.UserAccount on u.Id equals ua.UserId
 			where normalizedEmails.Contains(u.Email)
 				&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
 				&& !u.IsDeleted
@@ -426,8 +426,8 @@ public class AccountService : IAccountService {
 		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
 
 		return await (
-			from u in _DbContext.User
-			join ua in _DbContext.UserAccount on u.Id equals ua.UserId
+			from u in this._DbContext.User
+			join ua in this._DbContext.UserAccount on u.Id equals ua.UserId
 			where normalizedEmails.Contains(u.Email)
 				&& ua.Scope == AccountScope.Staff
 				&& !u.IsDeleted
@@ -444,7 +444,7 @@ public class AccountService : IAccountService {
 		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.Scope == AccountScope.Tenant
 			&& ua.TenantId != null
@@ -463,13 +463,13 @@ public class AccountService : IAccountService {
 	) {
 		// Check if user already has a tenant account for this tenant (existence-based, not active-only)
 		// This aligns with unique constraint and prevents 500s from duplicate insert attempts
-		var hasTenantAccount = await HasTenantAccountAsync(userId, tenantId, cancellationToken);
+		var hasTenantAccount = await this.HasTenantAccountAsync(userId, tenantId, cancellationToken);
 		if (hasTenantAccount) {
 			return new CreateTenantAccountResult.UserAlreadyMemberOfTenant();
 		}
 
 		// Business rule: staff and tenant/project accounts are mutually exclusive
-		var hasStaffAccount = await HasStaffAccountAsync(userId, cancellationToken);
+		var hasStaffAccount = await this.HasStaffAccountAsync(userId, cancellationToken);
 		if (hasStaffAccount) {
 			return new CreateTenantAccountResult.UserHasStaffAccount();
 		}
@@ -477,15 +477,15 @@ public class AccountService : IAccountService {
 		var account = UserAccount.CreateTenantAccount(userId, tenantId, accountLevel);
 		account.ValidateAccountType();
 
-		var addedAccount = await _DbContext.UserAccount
+		var addedAccount = await this._DbContext.UserAccount
 			.AddAsync(account, cancellationToken);
 
 		try {
-			await _DbContext.SaveChangesAsync(cancellationToken);
-		} catch (DbUpdateException ex) when (_IsUniqueConstraintViolation(ex)) {
+			await this._DbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (AccountService._IsUniqueConstraintViolation(ex)) {
 			// Race condition: another request created the account between our check and insert
 			// Detach the failed entity and return appropriate result
-			_DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
+			this._DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
 			return new CreateTenantAccountResult.UserAlreadyMemberOfTenant();
 		}
 
@@ -499,7 +499,7 @@ public class AccountService : IAccountService {
 	) {
 		// Check if assignment already exists
 		var existingAssignment = await (
-			from uap in _DbContext.UserAccountProfile
+			from uap in this._DbContext.UserAccountProfile
 			where uap.UserAccountId == accountId
 			&& uap.ProfileId == profileId
 			select uap
@@ -515,8 +515,8 @@ public class AccountService : IAccountService {
 			ProfileId = profileId
 		};
 
-		await _DbContext.UserAccountProfile.AddAsync(userAccountProfile, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.UserAccountProfile.AddAsync(userAccountProfile, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 	}
 
 	public async Task<UserTenantsResult> GetUserTenantsAsync(
@@ -525,8 +525,8 @@ public class AccountService : IAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var baseQuery =
-			from ua in _DbContext.UserAccount
-			join t in _DbContext.Tenant on ua.TenantId equals t.Id
+			from ua in this._DbContext.UserAccount
+			join t in this._DbContext.Tenant on ua.TenantId equals t.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
@@ -561,8 +561,8 @@ public class AccountService : IAccountService {
 	) {
 		// Base query: all tenants the user is a member of (excluding deleted)
 		var baseQuery =
-			from ua in _DbContext.UserAccount
-			join t in _DbContext.Tenant on ua.TenantId equals t.Id
+			from ua in this._DbContext.UserAccount
+			join t in this._DbContext.Tenant on ua.TenantId equals t.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
@@ -582,8 +582,8 @@ public class AccountService : IAccountService {
 		// never invited anywhere". Explicit join: the UserAccount.Tenant
 		// navigation is nullable, so it cannot be dereferenced here (CS8602).
 		var deletedCount = await (
-			from ua in _DbContext.UserAccount
-			join t in _DbContext.Tenant on ua.TenantId equals t.Id
+			from ua in this._DbContext.UserAccount
+			join t in this._DbContext.Tenant on ua.TenantId equals t.Id
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null

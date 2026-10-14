@@ -18,26 +18,26 @@ internal sealed class RateLimitRejectionLogAggregator {
 	internal RateLimitRejectionLogAggregator(
 		TimeProvider timeProvider
 	) {
-		_TimeProvider = timeProvider;
+		this._TimeProvider = timeProvider;
 	}
 
 	public RateLimitRejectionLogEntry? Record(
 		RateLimitRejectionInfo info
 	) {
-		var state = _PolicyStates.GetOrAdd(
+		var state = this._PolicyStates.GetOrAdd(
 			info.PolicyName,
 			_ => new PolicyRejectionState()
 		);
 
 		lock (state) {
 			state.RejectionCount++;
-			var now = _TimeProvider.GetTimestamp();
+			var now = this._TimeProvider.GetTimestamp();
 			if (state.LastLogTimestamp is not null) {
-				var elapsed = _TimeProvider.GetElapsedTime(
+				var elapsed = this._TimeProvider.GetElapsedTime(
 					state.LastLogTimestamp.Value,
 					now
 				);
-				if (elapsed < _LogInterval) {
+				if (elapsed < RateLimitRejectionLogAggregator._LogInterval) {
 					return null;
 				}
 			}

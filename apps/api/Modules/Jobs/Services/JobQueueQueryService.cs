@@ -96,7 +96,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		if (!string.IsNullOrWhiteSpace(args.StatusCsv)) {
 			statuses = [];
 			foreach (var token in args.StatusCsv.Split(',')) {
-				if (!_StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
+				if (!JobQueueQueryService._StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
 					return new FindJobQueueItemsResult.InvalidStatusCsv(args.StatusCsv);
 				}
 
@@ -104,14 +104,14 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			}
 		}
 
-		var query = _BaseQuery();
+		var query = this._BaseQuery();
 
-		query = _ApplyFilters(query, args.TenantId, statuses, args.JobType);
+		query = JobQueueQueryService._ApplyFilters(query, args.TenantId, statuses, args.JobType);
 
 		IQueryable<JobQueueItem> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
-				from item in _BaseQuery()
+				from item in this._BaseQuery()
 				where item.Id == args.Cursor
 				select new { item.CreatedAt }
 			).FirstOrDefaultAsync(cancellationToken);
@@ -166,7 +166,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 		var items = rows.Select(row => new JobQueueListItem {
 			Id = row.Id ?? Guid.Empty,
 			JobType = row.JobType,
-			Status = _StatusToWire((JobQueueStatus)row.Status),
+			Status = JobQueueQueryService._StatusToWire((JobQueueStatus)row.Status),
 			Priority = row.Priority,
 			Attempts = row.Attempts,
 			MaxAttempts = row.MaxAttempts,
@@ -221,7 +221,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			Id = row.Id ?? Guid.Empty,
 			JobType = row.JobType,
 			Payload = row.Payload,
-			Status = _StatusToWire((JobQueueStatus)row.Status),
+			Status = JobQueueQueryService._StatusToWire((JobQueueStatus)row.Status),
 			Priority = row.Priority,
 			Attempts = row.Attempts,
 			MaxAttempts = row.MaxAttempts,

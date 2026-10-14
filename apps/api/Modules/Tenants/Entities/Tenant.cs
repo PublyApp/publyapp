@@ -9,14 +9,14 @@ using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Tenants.Entities;
 
 [Table("tenants")]
-[Index(nameof(Code), IsUnique = true)]
+[Index(nameof(Tenant.Code), IsUnique = true)]
 public class Tenant : BaseAttributes, INoTenantEntity {
 	private string _Code = string.Empty;
 
 	[Column("code")]
 	public required string Code {
-		get { return _Code; }
-		set { _Code = value.ToLowerInvariant(); }
+		get { return this._Code; }
+		set { this._Code = value.ToLowerInvariant(); }
 	}
 
 	[Column("name")]
@@ -93,15 +93,15 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	}
 
 	public bool IsPending() {
-		return IsPending(Status);
+		return Tenant.IsPending(this.Status);
 	}
 
 	public bool IsActive() {
-		return IsActive(Status);
+		return Tenant.IsActive(this.Status);
 	}
 
 	public bool IsSuspended() {
-		return IsSuspended(Status);
+		return Tenant.IsSuspended(this.Status);
 	}
 
 	public static bool IsPending(TenantStatus status) {
@@ -117,18 +117,18 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	}
 
 	public bool Suspend() {
-		if (IsSuspended() || !IsActive()) {
+		if (this.IsSuspended() || !this.IsActive()) {
 			return false;
 		}
-		Status = TenantStatus.Suspended;
+		this.Status = TenantStatus.Suspended;
 		return true;
 	}
 
 	public bool Reactivate() {
-		if (!IsSuspended()) {
+		if (!this.IsSuspended()) {
 			return false;
 		}
-		Status = TenantStatus.Active;
+		this.Status = TenantStatus.Active;
 		return true;
 	}
 }

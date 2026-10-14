@@ -17,7 +17,7 @@ public class EncryptedIdTokenQueryValidator<T>
 	: AbstractValidator<T>
 	where T : EncryptedIdTokenQuery {
 	public EncryptedIdTokenQueryValidator() {
-		RuleFor(x => x.Id)
+		this.RuleFor(x => x.Id)
 			.NotEmpty()
 			.WithMessage("id is required")
 			.Must(id =>
@@ -25,7 +25,7 @@ public class EncryptedIdTokenQueryValidator<T>
 			)
 			.WithMessage("id must be a valid encrypted string");
 
-		RuleFor(x => x.Token)
+		this.RuleFor(x => x.Token)
 			.NotEmpty()
 			.WithMessage("token is required");
 	}

@@ -46,8 +46,8 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 		AppDbContext dbContext,
 		IJobEnqueuer jobEnqueuer
 	) {
-		_DbContext = dbContext;
-		_JobEnqueuer = jobEnqueuer;
+		this._DbContext = dbContext;
+		this._JobEnqueuer = jobEnqueuer;
 	}
 
 	// NOTE: This service intentionally accepts the full user input and owns its own
@@ -76,11 +76,11 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 			);
 		}
 
-		await using var transaction = await _DbContext.Database.BeginTransactionAsync(cancellationToken);
+		await using var transaction = await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		var (isNewUser, userResultEntity) = await _GetOrCreateUserAsync(user, cancellationToken);
+		var (isNewUser, userResultEntity) = await this._GetOrCreateUserAsync(user, cancellationToken);
 
-		var accountResult = await _CreateStaffAccountAsync(
+		var accountResult = await this._CreateStaffAccountAsync(
 			userResultEntity.GetRequiredId(),
 			args.AccountLevel,
 			cancellationToken
@@ -101,7 +101,7 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 				throw new InvalidOperationException("Email verify token should not be null or empty.");
 			}
 
-			await _JobEnqueuer.EnqueueAsync(
+			await this._JobEnqueuer.EnqueueAsync(
 				AuthEmailJobs.VerifyEmailV1,
 				new VerifyEmailPayload {
 					UserId = userResultEntity.GetRequiredId(),
@@ -124,7 +124,7 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 		CancellationToken cancellationToken
 	) {
 		var existingUser = await (
-			from existing in _DbContext.User
+			from existing in this._DbContext.User
 			where existing.Email == user.Email
 			select existing
 		).FirstOrDefaultAsync(cancellationToken);
@@ -133,8 +133,8 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 			return (false, existingUser);
 		}
 
-		var addedUser = await _DbContext.User.AddAsync(user, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		var addedUser = await this._DbContext.User.AddAsync(user, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 		return (true, addedUser.Entity);
 	}
 
@@ -143,23 +143,23 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 		AccountLevel? accountLevel,
 		CancellationToken cancellationToken
 	) {
-		var hasStaffAccount = await _HasStaffAccountAsync(userId, cancellationToken);
+		var hasStaffAccount = await this._HasStaffAccountAsync(userId, cancellationToken);
 		if (hasStaffAccount) {
 			return new CreateStaffAccountResult.UserAlreadyStaffUser();
 		}
 
-		var hasTenantOrProjectAccounts = await _HasTenantOrProjectAccountsAsync(userId, cancellationToken);
+		var hasTenantOrProjectAccounts = await this._HasTenantOrProjectAccountsAsync(userId, cancellationToken);
 		if (hasTenantOrProjectAccounts) {
 			return new CreateStaffAccountResult.UserHasTenantOrProjectAccounts();
 		}
 
 		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
-		var addedAccount = await _DbContext.UserAccount.AddAsync(account, cancellationToken);
+		var addedAccount = await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 
 		try {
-			await _DbContext.SaveChangesAsync(cancellationToken);
-		} catch (DbUpdateException ex) when (_IsUniqueConstraintViolation(ex)) {
-			_DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
+			await this._DbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (CreateStaffUserService._IsUniqueConstraintViolation(ex)) {
+			this._DbContext.Entry(addedAccount.Entity).State = EntityState.Detached;
 			return new CreateStaffAccountResult.UserAlreadyStaffUser();
 		}
 
@@ -171,7 +171,7 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -184,7 +184,7 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
 				&& !ua.IsDeleted

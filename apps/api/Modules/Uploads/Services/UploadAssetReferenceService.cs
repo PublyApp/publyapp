@@ -69,12 +69,12 @@ public sealed class UploadAssetReferenceService(AppDbContext dbContext)
 			$"""
 			UPDATE upload_assets
 			SET reference_count = reference_count + 1,
-				state = {_StateToInt(UploadAssetState.Referenced)},
+				state = {UploadAssetReferenceService._StateToInt(UploadAssetState.Referenced)},
 				delete_not_before = NULL,
 				updated_at = NOW()
 			WHERE relative_path = {relativePath}
 				AND is_deleted = false
-				AND state IN ({_StateToInt(UploadAssetState.Stored)}, {_StateToInt(UploadAssetState.Referenced)})
+				AND state IN ({UploadAssetReferenceService._StateToInt(UploadAssetState.Stored)}, {UploadAssetReferenceService._StateToInt(UploadAssetState.Referenced)})
 			""",
 			cancellationToken
 		);
@@ -91,15 +91,15 @@ public sealed class UploadAssetReferenceService(AppDbContext dbContext)
 			UPDATE upload_assets
 			SET reference_count = reference_count - 1,
 				state = CASE WHEN reference_count - 1 <= 0
-					THEN {_StateToInt(UploadAssetState.Orphaned)}
-					ELSE {_StateToInt(UploadAssetState.Referenced)} END,
+					THEN {UploadAssetReferenceService._StateToInt(UploadAssetState.Orphaned)}
+					ELSE {UploadAssetReferenceService._StateToInt(UploadAssetState.Referenced)} END,
 				delete_not_before = CASE WHEN reference_count - 1 <= 0
 					THEN NOW() + make_interval(days => {gracePeriodDays})
 					ELSE delete_not_before END,
 				updated_at = NOW()
 			WHERE relative_path = {relativePath}
 				AND is_deleted = false
-				AND state = {_StateToInt(UploadAssetState.Referenced)}
+				AND state = {UploadAssetReferenceService._StateToInt(UploadAssetState.Referenced)}
 				AND reference_count > 0
 			""",
 			cancellationToken

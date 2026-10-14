@@ -6,12 +6,12 @@ internal sealed class GlobalRateLimitMiddleware {
 	public GlobalRateLimitMiddleware(
 		RequestDelegate next
 	) {
-		_Next = next;
+		this._Next = next;
 	}
 
 	public async Task InvokeAsync(HttpContext context) {
-		if (IsExcluded(context)) {
-			await _Next(context);
+		if (GlobalRateLimitMiddleware.IsExcluded(context)) {
+			await this._Next(context);
 			return;
 		}
 
@@ -38,7 +38,7 @@ internal sealed class GlobalRateLimitMiddleware {
 			return;
 		}
 
-		await _Next(context);
+		await this._Next(context);
 	}
 
 	internal static bool IsExcluded(

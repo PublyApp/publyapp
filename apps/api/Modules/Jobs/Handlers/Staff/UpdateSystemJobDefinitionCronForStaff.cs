@@ -20,14 +20,14 @@ public record UpdateSystemJobDefinitionCronForStaffBody {
 	public JsonElement CronExpression { get; init; }
 
 	public string GetCronExpression() {
-		return CronExpression.GetValueAsString();
+		return this.CronExpression.GetValueAsString();
 	}
 }
 
 public class UpdateSystemJobDefinitionCronForStaffBodyValidator
 	: AbstractValidator<UpdateSystemJobDefinitionCronForStaffBody> {
 	public UpdateSystemJobDefinitionCronForStaffBodyValidator() {
-		RuleFor(x => x.CronExpression)
+		this.RuleFor(x => x.CronExpression)
 			.MustBeRequiredStringWithLength("CronExpression", 1, 100);
 	}
 }

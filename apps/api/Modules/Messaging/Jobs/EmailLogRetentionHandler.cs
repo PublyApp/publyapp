@@ -29,12 +29,12 @@ public sealed class EmailLogRetentionHandler : IJobHandler {
 		AppDbContext dbContext,
 		ILogger<EmailLogRetentionHandler> logger
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public string JobType {
-		get { return JobKey; }
+		get { return EmailLogRetentionHandler.JobKey; }
 	}
 
 	public async Task<JobOutcome> HandleAsync(
@@ -48,14 +48,14 @@ public sealed class EmailLogRetentionHandler : IJobHandler {
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			deleted = await _DbContext.Database.ExecuteSqlAsync(
+			deleted = await this._DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM email_log
 				WHERE id IN (
 					SELECT id FROM email_log
 					WHERE occurred_at < now() - make_interval(days => {retentionDays})
 					ORDER BY occurred_at, id
-					LIMIT {_BatchSize}
+					LIMIT {EmailLogRetentionHandler._BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
@@ -63,10 +63,10 @@ public sealed class EmailLogRetentionHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == _BatchSize);
+		} while (deleted == EmailLogRetentionHandler._BatchSize);
 
-		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (totalDeleted > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"email-log-retention deleted {Count} row(s) older than {Days} day(s)",
 				totalDeleted,
 				retentionDays

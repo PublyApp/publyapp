@@ -24,47 +24,47 @@ public class ProfilePermissionsForStaff : ISlicePermissions {
 
 	public ProfilePermissionsForStaff() {
 		// ==== FOR STAFF ====
-		LIST_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list_for_staff" }))
+		this.LIST_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "list_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List staff profiles", Description = "List all staff profiles" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Liste les profils du staff", Description = "Liste tous les profils du staff" });
 
-		LIST_USERS_FOR_STAFF_PROFILE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list_users_for_staff_profile" }))
+		this.LIST_USERS_FOR_STAFF_PROFILE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "list_users_for_staff_profile" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List users assigned to a staff profile", Description = "List users assigned to a staff profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Lister les utilisateurs affectés à un profil du staff", Description = "Lister les utilisateurs affectés à un profil du staff" });
 
-		GET_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "get_for_staff" }))
+		this.GET_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "get_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "View a staff profile", Description = "View a staff profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Voir un profil du staff", Description = "Voir un profil du staff" });
 
-		CREATE_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "create_for_staff" }))
+		this.CREATE_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "create_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Create a staff profile", Description = "Create a new staff profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Créer un profil du staff", Description = "Créer un nouveau profil du staff" });
 
-		UPDATE_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "update_for_staff" }))
+		this.UPDATE_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "update_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update a staff profile", Description = "Update a staff profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mise à jour d'un profil du staff", Description = "Mettre à jour un profil de staff" });
 
-		DELETE_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "delete_for_staff" }))
+		this.DELETE_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "delete_for_staff" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Delete a staff profile", Description = "Delete a staff profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Supprimer un profil de staff", Description = "Supprimer un profil de staff" });
 
 		// ==== FOR TENANT ====
-		LIST_FOR_TENANT = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list_for_tenant" }))
+		this.LIST_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "list_for_tenant" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List tenant profiles", Description = "List all tenant profiles" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Liste les profils du tenant", Description = "Liste tous les profils du tenant" });
 
-		LIST_USERS_FOR_TENANT_PROFILE = Permission
+		this.LIST_USERS_FOR_TENANT_PROFILE = Permission
 			.CreateStaffPermission(
 				string.Join(
 					Permission.KeySeparator,
-					new[] { KeyPrefix, "list_users_for_tenant_profile" }
+					new[] { this.KeyPrefix, "list_users_for_tenant_profile" }
 				)
 			)
 			.SetTranslation(
@@ -82,23 +82,23 @@ public class ProfilePermissionsForStaff : ISlicePermissions {
 				}
 			);
 
-		GET_FOR_TENANT = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "get_for_tenant" }))
+		this.GET_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "get_for_tenant" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "View a tenant profile", Description = "View a single tenant profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Voir un profil d'un tenant", Description = "Voir un seul profil d'un tenant" });
 
-		CREATE_FOR_TENANT = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "create_for_tenant" }))
+		this.CREATE_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "create_for_tenant" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Create a tenant profile", Description = "Create a new tenant profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Créer un profil d'un tenant", Description = "Créer un nouveau profil d'un tenant" });
 
-		UPDATE_FOR_TENANT = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "update_for_tenant" }))
+		this.UPDATE_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "update_for_tenant" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update a tenant profile", Description = "Update a tenant profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mise à jour d'un profil d'un tenant", Description = "Mettre à jour un profil d'un tenant" });
 
-		DELETE_FOR_TENANT = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "delete_for_tenant" }))
+		this.DELETE_FOR_TENANT = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "delete_for_tenant" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Delete a tenant profile", Description = "Delete a tenant profile" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Supprimer un profil d'un tenant", Description = "Supprimer un profil d'un tenant" });
 	}

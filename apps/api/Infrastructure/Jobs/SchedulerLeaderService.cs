@@ -58,36 +58,36 @@ public sealed class SchedulerLeaderService : BackgroundService {
 		ILogger<SchedulerLeaderService> logger,
 		Func<CancellationToken, Task<IScheduler>>? schedulerFactory = null
 	) {
-		_SchedulerFactoryOverride = schedulerFactory;
+		this._SchedulerFactoryOverride = schedulerFactory;
 		// Pooling disabled on the dedicated lock connection so it is never reset and
 		// returned to the pool underneath us — which would drop the session advisory
 		// lock. It stays open for the life of leadership (design §5.2 pooling resolution).
 		var connectionBuilder = new NpgsqlConnectionStringBuilder(options.ConnectionString) {
 			Pooling = false,
 		};
-		_LockConnectionString = connectionBuilder.ConnectionString;
-		_JobFactory = new ScopedJobFactory(scopeFactory);
-		_Logger = logger;
+		this._LockConnectionString = connectionBuilder.ConnectionString;
+		this._JobFactory = new ScopedJobFactory(scopeFactory);
+		this._Logger = logger;
 	}
 
 	public bool IsLeader {
-		get { return _LockConnection is not null; }
+		get { return this._LockConnection is not null; }
 	}
 
 	// True only when this instance holds leadership AND its scheduler is actively
 	// running (started and not in standby). Followers never start a scheduler.
 	public bool IsSchedulerRunning {
-		get { return _Scheduler is { IsStarted: true, InStandbyMode: false }; }
+		get { return this._Scheduler is { IsStarted: true, InStandbyMode: false }; }
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
 		try {
 			while (!stoppingToken.IsCancellationRequested) {
-				await RunLeadershipTickAsync(stoppingToken);
+				await this.RunLeadershipTickAsync(stoppingToken);
 
 				try {
 					await Task.Delay(
-						IsLeader ? _RenewCheckInterval : _AcquireRetryInterval,
+						this.IsLeader ? SchedulerLeaderService._RenewCheckInterval : SchedulerLeaderService._AcquireRetryInterval,
 						stoppingToken
 					);
 				} catch (OperationCanceledException) {
@@ -98,12 +98,12 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			// Graceful shutdown (design §3.6): Quartz drains within the host's bounded
 			// ShutdownTimeout, then the advisory lock releases on connection close.
 			try {
-				await ReleaseLeadershipAsync(CancellationToken.None);
+				await this.ReleaseLeadershipAsync(CancellationToken.None);
 			} catch (Exception ex) {
 				// Unconfirmed scheduler stop during host teardown: log as loudly as
 				// possible. The process is exiting, so the dedicated connection dies
 				// with it and the advisory lock releases server-side regardless.
-				_Logger.LogCritical(
+				this._Logger.LogCritical(
 					ex,
 					"Unconfirmed Quartz stop during host shutdown; the advisory lock "
 					+ "releases when this process's dedicated connection dies"
@@ -119,35 +119,35 @@ public sealed class SchedulerLeaderService : BackgroundService {
 	// Quartz, releases the lock) when the connection is dead, so leadership migrates.
 	public async Task RunLeadershipTickAsync(CancellationToken cancellationToken) {
 		try {
-			if (!IsLeader) {
-				await TryBecomeLeaderAsync(cancellationToken);
-			} else if (!await _IsLockConnectionAliveAsync(cancellationToken)) {
-				_Logger.LogWarning(
+			if (!this.IsLeader) {
+				await this.TryBecomeLeaderAsync(cancellationToken);
+			} else if (!await this._IsLockConnectionAliveAsync(cancellationToken)) {
+				this._Logger.LogWarning(
 					"Lost scheduler-leader lock connection; standing down to re-contend"
 				);
-				await ReleaseLeadershipAsync(cancellationToken);
+				await this.ReleaseLeadershipAsync(cancellationToken);
 			}
 		} catch (Exception ex) when (ex is not OperationCanceledException) {
-			_Logger.LogError(ex, "Scheduler-leader loop iteration failed; standing down");
-			await ReleaseLeadershipAsync(cancellationToken);
+			this._Logger.LogError(ex, "Scheduler-leader loop iteration failed; standing down");
+			await this.ReleaseLeadershipAsync(cancellationToken);
 		}
 	}
 
 	// Public: attempts to acquire the advisory lock; on success starts Quartz and
 	// registers the fixed triggers. Returns whether this instance is now the leader.
 	public async Task<bool> TryBecomeLeaderAsync(CancellationToken cancellationToken) {
-		if (IsLeader) {
+		if (this.IsLeader) {
 			return true;
 		}
 
-		var connection = new NpgsqlConnection(_LockConnectionString);
+		var connection = new NpgsqlConnection(this._LockConnectionString);
 
 		bool acquired;
 		try {
 			await connection.OpenAsync(cancellationToken);
 
 			await using var command = new NpgsqlCommand(
-				$"SELECT pg_try_advisory_lock({SchedulerLeaderLockKey})",
+				$"SELECT pg_try_advisory_lock({SchedulerLeaderService.SchedulerLeaderLockKey})",
 				connection
 			);
 			var result = await command.ExecuteScalarAsync(cancellationToken);
@@ -164,10 +164,10 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			return false;
 		}
 
-		_LockConnection = connection;
+		this._LockConnection = connection;
 
 		try {
-			await _StartSchedulerAsync(cancellationToken);
+			await this._StartSchedulerAsync(cancellationToken);
 		} catch {
 			// Startup failure routes through the SAME standby-confirmed release path
 			// as a normal stand-down (_StartSchedulerAsync transferred ownership to
@@ -175,12 +175,12 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			// and the startup failure propagates — no phantom leader; if the stop
 			// CANNOT be confirmed, ReleaseLeadershipAsync itself throws with the lock
 			// still held — fail-closed, no second scheduler can start.
-			await ReleaseLeadershipAsync(cancellationToken);
+			await this.ReleaseLeadershipAsync(cancellationToken);
 			throw;
 		}
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation("Acquired scheduler leadership; Quartz scheduler started");
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation("Acquired scheduler leadership; Quartz scheduler started");
 		}
 
 		return true;
@@ -194,46 +194,46 @@ public sealed class SchedulerLeaderService : BackgroundService {
 	// propagates so the caller retries or crashes loudly; this service never continues
 	// as a follower while its scheduler might still be live. Idempotent on success.
 	public async Task ReleaseLeadershipAsync(CancellationToken cancellationToken) {
-		if (_Scheduler is not null) {
+		if (this._Scheduler is not null) {
 			// Throws => nothing below runs: still leader, lock held, reference intact.
-			await _Scheduler.Standby(cancellationToken);
+			await this._Scheduler.Standby(cancellationToken);
 
 			try {
-				await _Scheduler.Shutdown(waitForJobsToComplete: true, cancellationToken);
+				await this._Scheduler.Shutdown(waitForJobsToComplete: true, cancellationToken);
 			} catch (Exception ex) {
 				// Standby above already confirmed no further firing, so a failed full
 				// Shutdown is a resource-teardown problem (thread-pool leak), not a
 				// dual-scheduler risk — safe to log and continue the stand-down.
-				_Logger.LogError(
+				this._Logger.LogError(
 					ex,
 					"Quartz shutdown failed after a confirmed standby; continuing stand-down"
 				);
 			}
 
-			_Scheduler = null;
+			this._Scheduler = null;
 		}
 
-		if (_LockConnection is not null) {
+		if (this._LockConnection is not null) {
 			try {
 				await using var command = new NpgsqlCommand(
-					$"SELECT pg_advisory_unlock({SchedulerLeaderLockKey})",
-					_LockConnection
+					$"SELECT pg_advisory_unlock({SchedulerLeaderService.SchedulerLeaderLockKey})",
+					this._LockConnection
 				);
 				_ = await command.ExecuteScalarAsync(cancellationToken);
 			} catch (Exception ex) {
 				// Closing the connection releases the session lock anyway.
-				_Logger.LogWarning(ex, "Error releasing advisory lock; closing connection instead");
+				this._Logger.LogWarning(ex, "Error releasing advisory lock; closing connection instead");
 			}
 
-			await _LockConnection.DisposeAsync();
-			_LockConnection = null;
+			await this._LockConnection.DisposeAsync();
+			this._LockConnection = null;
 		}
 	}
 
 	private async Task _StartSchedulerAsync(CancellationToken cancellationToken) {
 		IScheduler scheduler;
-		if (_SchedulerFactoryOverride is not null) {
-			scheduler = await _SchedulerFactoryOverride(cancellationToken);
+		if (this._SchedulerFactoryOverride is not null) {
+			scheduler = await this._SchedulerFactoryOverride(cancellationToken);
 		} else {
 			// Manual lifecycle, RAM job store (no qrtz_* tables) — durability lives in
 			// job_queue and leadership in the advisory lock (design §5.3). A unique
@@ -256,10 +256,10 @@ public sealed class SchedulerLeaderService : BackgroundService {
 		// catch calls ReleaseLeadershipAsync, which sees this reference) — never a
 		// best-effort local teardown that swallows an unconfirmed stop and then lets
 		// the advisory lock be released while triggers may still be live.
-		_Scheduler = scheduler;
+		this._Scheduler = scheduler;
 
-		scheduler.JobFactory = _JobFactory;
-		await _RegisterFixedTriggersAsync(scheduler, cancellationToken);
+		scheduler.JobFactory = this._JobFactory;
+		await SchedulerLeaderService._RegisterFixedTriggersAsync(scheduler, cancellationToken);
 		await scheduler.Start(cancellationToken);
 	}
 
@@ -268,33 +268,33 @@ public sealed class SchedulerLeaderService : BackgroundService {
 		CancellationToken cancellationToken
 	) {
 		var syncJob = JobBuilder.Create<SyncSystemJobsJob>()
-			.WithIdentity("sync-system-jobs", _InfraGroup)
+			.WithIdentity("sync-system-jobs", SchedulerLeaderService._InfraGroup)
 			.Build();
 		var syncTrigger = TriggerBuilder.Create()
-			.WithIdentity("sync-system-jobs", _InfraGroup)
-			.StartAt(DateBuilder.FutureDate(SyncIntervalSeconds, IntervalUnit.Second))
-			.WithSimpleSchedule(x => x.WithIntervalInSeconds(SyncIntervalSeconds).RepeatForever())
+			.WithIdentity("sync-system-jobs", SchedulerLeaderService._InfraGroup)
+			.StartAt(DateBuilder.FutureDate(SchedulerLeaderService.SyncIntervalSeconds, IntervalUnit.Second))
+			.WithSimpleSchedule(x => x.WithIntervalInSeconds(SchedulerLeaderService.SyncIntervalSeconds).RepeatForever())
 			.Build();
 		await scheduler.ScheduleJob(syncJob, syncTrigger, cancellationToken);
 
 		var recoverJob = JobBuilder.Create<RecoverStaleJobsJob>()
-			.WithIdentity("recover-stale-jobs", _InfraGroup)
+			.WithIdentity("recover-stale-jobs", SchedulerLeaderService._InfraGroup)
 			.Build();
 		var recoverTrigger = TriggerBuilder.Create()
-			.WithIdentity("recover-stale-jobs", _InfraGroup)
-			.StartAt(DateBuilder.FutureDate(RecoverIntervalSeconds, IntervalUnit.Second))
-			.WithSimpleSchedule(x => x.WithIntervalInSeconds(RecoverIntervalSeconds).RepeatForever())
+			.WithIdentity("recover-stale-jobs", SchedulerLeaderService._InfraGroup)
+			.StartAt(DateBuilder.FutureDate(SchedulerLeaderService.RecoverIntervalSeconds, IntervalUnit.Second))
+			.WithSimpleSchedule(x => x.WithIntervalInSeconds(SchedulerLeaderService.RecoverIntervalSeconds).RepeatForever())
 			.Build();
 		await scheduler.ScheduleJob(recoverJob, recoverTrigger, cancellationToken);
 	}
 
 	private async Task<bool> _IsLockConnectionAliveAsync(CancellationToken cancellationToken) {
-		if (_LockConnection is null) {
+		if (this._LockConnection is null) {
 			return false;
 		}
 
 		try {
-			await using var command = new NpgsqlCommand("SELECT 1", _LockConnection);
+			await using var command = new NpgsqlCommand("SELECT 1", this._LockConnection);
 			_ = await command.ExecuteScalarAsync(cancellationToken);
 			return true;
 		} catch (Exception ex) when (ex is not OperationCanceledException) {

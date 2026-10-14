@@ -9,7 +9,7 @@ internal sealed class CorsResponseHeadersMiddleware {
 	public CorsResponseHeadersMiddleware(
 		RequestDelegate next
 	) {
-		_Next = next;
+		this._Next = next;
 	}
 
 	public async Task InvokeAsync(
@@ -36,7 +36,7 @@ internal sealed class CorsResponseHeadersMiddleware {
 			}
 		}
 
-		await _Next(context);
+		await this._Next(context);
 	}
 }
 

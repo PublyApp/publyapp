@@ -23,11 +23,11 @@ public class UpdateTenantUserIdentityForStaffBody {
 	public JsonElement AvatarUrl { get; init; }
 
 	public PatchField<string?> GetFirstName() {
-		return FirstName.ValueKind switch {
+		return this.FirstName.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(
-				FirstName.GetValueAsString()
+				this.FirstName.GetValueAsString()
 			),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -37,19 +37,19 @@ public class UpdateTenantUserIdentityForStaffBody {
 				"FirstName must be a string, null, or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(FirstName),
-				FirstName.ValueKind,
-				$"Unhandled JsonValueKind: {FirstName.ValueKind}"
+				nameof(this.FirstName),
+				this.FirstName.ValueKind,
+				$"Unhandled JsonValueKind: {this.FirstName.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetLastName() {
-		return LastName.ValueKind switch {
+		return this.LastName.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(
-				LastName.GetValueAsString()
+				this.LastName.GetValueAsString()
 			),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -59,19 +59,19 @@ public class UpdateTenantUserIdentityForStaffBody {
 				"LastName must be a string, null, or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(LastName),
-				LastName.ValueKind,
-				$"Unhandled JsonValueKind: {LastName.ValueKind}"
+				nameof(this.LastName),
+				this.LastName.ValueKind,
+				$"Unhandled JsonValueKind: {this.LastName.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetAvatarUrl() {
-		return AvatarUrl.ValueKind switch {
+		return this.AvatarUrl.ValueKind switch {
 			JsonValueKind.Undefined => PatchField<string?>.Absent(),
 			JsonValueKind.Null => PatchField<string?>.Set(null),
 			JsonValueKind.String => PatchField<string?>.Set(
-				AvatarUrl.GetValueAsString()
+				this.AvatarUrl.GetValueAsString()
 			),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -81,9 +81,9 @@ public class UpdateTenantUserIdentityForStaffBody {
 				"AvatarUrl must be a string, null, or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(AvatarUrl),
-				AvatarUrl.ValueKind,
-				$"Unhandled JsonValueKind: {AvatarUrl.ValueKind}"
+				nameof(this.AvatarUrl),
+				this.AvatarUrl.ValueKind,
+				$"Unhandled JsonValueKind: {this.AvatarUrl.ValueKind}"
 			),
 		};
 	}
@@ -92,19 +92,19 @@ public class UpdateTenantUserIdentityForStaffBody {
 public class UpdateTenantUserIdentityForStaffBodyValidator
 	: AbstractValidator<UpdateTenantUserIdentityForStaffBody> {
 	public UpdateTenantUserIdentityForStaffBodyValidator() {
-		RuleFor(x => x.FirstName)
+		this.RuleFor(x => x.FirstName)
 			.MustBePatchFieldString(
 				"FirstName",
 				UserValidationRules.FirstNameMaxLength
 			);
 
-		RuleFor(x => x.LastName)
+		this.RuleFor(x => x.LastName)
 			.MustBePatchFieldString(
 				"LastName",
 				UserValidationRules.LastNameMaxLength
 			);
 
-		RuleFor(x => x.AvatarUrl)
+		this.RuleFor(x => x.AvatarUrl)
 			.MustBePatchFieldUrl(
 				"AvatarUrl",
 				UserValidationRules.AvatarUrlMaxLength

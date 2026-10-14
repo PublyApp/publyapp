@@ -28,12 +28,12 @@ public record CreateInvitationForTenantAsStaffBody {
 	public JsonElement ProfileIds { get; init; }
 
 	public List<Guid> GetProfileIds() {
-		if (ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
+		if (this.ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
 			return [];
 		}
 
 		var profileIds = new List<Guid>();
-		foreach (var profileId in ProfileIds.EnumerateArray()) {
+		foreach (var profileId in this.ProfileIds.EnumerateArray()) {
 			profileIds.Add(profileId.GetGuid());
 		}
 
@@ -49,14 +49,14 @@ public record InvitationCreatedForTenant {
 public class CreateInvitationForTenantAsStaffBodyValidator
 	: AbstractValidator<CreateInvitationForTenantAsStaffBody> {
 	public CreateInvitationForTenantAsStaffBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		RuleFor(x => x.AccountLevel)
+		this.RuleFor(x => x.AccountLevel)
 			.MustBeRequiredString("AccountLevel")
 			.MustBeRequiredAccountLevel();
 
-		RuleFor(x => x.ProfileIds)
+		this.RuleFor(x => x.ProfileIds)
 			.SetValidator(new TenantInvitationProfileIdsValidator())
 			.When(x =>
 				x.ProfileIds.ValueKind
@@ -64,7 +64,7 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 					and not JsonValueKind.Null
 			);
 
-		RuleFor(x => x.ProfileIds)
+		this.RuleFor(x => x.ProfileIds)
 			.Custom((element, context) => {
 				if (element.ValueKind != JsonValueKind.Array) {
 					return;

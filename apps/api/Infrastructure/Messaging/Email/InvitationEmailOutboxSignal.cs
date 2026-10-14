@@ -18,7 +18,7 @@ public sealed class InvitationEmailOutboxSignal : IInvitationEmailOutboxSignal {
 
 	public void Notify() {
 		try {
-			_Semaphore.Release();
+			this._Semaphore.Release();
 		} catch (SemaphoreFullException) {
 			// A wakeup is already pending; the dispatcher will pick up this batch too.
 		}
@@ -26,7 +26,7 @@ public sealed class InvitationEmailOutboxSignal : IInvitationEmailOutboxSignal {
 
 	public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {
 		try {
-			await _Semaphore.WaitAsync(timeout, cancellationToken);
+			await this._Semaphore.WaitAsync(timeout, cancellationToken);
 		} catch (OperationCanceledException) {
 			// Host shutdown; the caller re-checks its own stopping token.
 		}

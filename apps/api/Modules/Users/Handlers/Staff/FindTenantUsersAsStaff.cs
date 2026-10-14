@@ -41,15 +41,15 @@ public class FindTenantUsersAsStaffQuery
 	public string? Level { get; set; }
 
 	public string? GetSearchNormalized() {
-		return TenantUserFilterQuery.NormalizeSearch(Search);
+		return TenantUserFilterQuery.NormalizeSearch(this.Search);
 	}
 
 	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
-		return TenantUserFilterQuery.ParseStatuses(Status);
+		return TenantUserFilterQuery.ParseStatuses(this.Status);
 	}
 
 	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
-		return TenantUserFilterQuery.ParseLevels(Level);
+		return TenantUserFilterQuery.ParseLevels(this.Level);
 	}
 }
 
@@ -58,10 +58,10 @@ public class FindTenantUsersAsStaffQueryValidator
 		FindTenantUsersAsStaffQuery
 	> {
 	public FindTenantUsersAsStaffQueryValidator() {
-		RuleFor(x => x.Search)
+		this.RuleFor(x => x.Search)
 			.MaximumLength(200)
 			.WithMessage("q must be at most 200 characters");
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
@@ -76,7 +76,7 @@ public class FindTenantUsersAsStaffQueryValidator
 				return parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedStatusSet.Contains(p));
 			})
 			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
-		RuleFor(x => x.Level)
+		this.RuleFor(x => x.Level)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;

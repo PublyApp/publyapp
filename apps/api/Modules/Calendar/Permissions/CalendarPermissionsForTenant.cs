@@ -10,9 +10,9 @@ public class CalendarPermissionsForTenant : ISlicePermissions {
 	public Permission MANAGE { get; }
 
 	public CalendarPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -29,9 +29,9 @@ public class CalendarPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		MANAGE = Permission
+		this.MANAGE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "manage" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "manage" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

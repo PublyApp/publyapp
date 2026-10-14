@@ -54,7 +54,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 	private readonly AppDbContext _DbContext;
 
 	public StaffUserQueryService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<StaffUserData?> GetStaffUserUserByIdAsync(
@@ -65,7 +65,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		// Staff must be able to view a suspended user to be able to reactivate them
 		// (and to audit "who is suspended and why"). Soft-deleted records remain hidden.
 		return await (
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -81,7 +81,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		// For staff admin screens, we count all staff users (including suspended) so staff can
 		// see who exists even if they are currently suspended. Soft-deleted records stay hidden.
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
@@ -104,7 +104,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 	StringComparer.OrdinalIgnoreCase
 ) {
 			["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -114,7 +114,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		cancellationToken
 	),
 			["updated_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -124,7 +124,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		cancellationToken
 	),
 			["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -134,7 +134,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		cancellationToken
 	),
 			["first_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -144,7 +144,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		cancellationToken
 	),
 			["last_name"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -154,7 +154,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		cancellationToken
 	),
 			["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, UserStatus, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -164,7 +164,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		cancellationToken
 	),
 			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -187,7 +187,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		}
 
 		var baseQuery =
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted

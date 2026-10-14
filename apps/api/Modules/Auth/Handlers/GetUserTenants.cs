@@ -40,7 +40,7 @@ public sealed class GetUserTenants {
 			throw new InvalidOperationException($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
-		var result = await accountService.GetUserTenantsAsync(userId, _MaxTenantsInList, cancellationToken);
+		var result = await accountService.GetUserTenantsAsync(userId, GetUserTenants._MaxTenantsInList, cancellationToken);
 
 		return TypedResults.Ok(new GetUserTenantsResult {
 			Tenants = result.Tenants.Select(t => new TenantListItem {

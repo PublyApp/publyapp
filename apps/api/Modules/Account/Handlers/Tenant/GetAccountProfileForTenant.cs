@@ -59,7 +59,7 @@ public sealed class GetAccountProfileForTenant {
 			);
 		}
 
-		return TypedResults.Ok(_ToResult(profile));
+		return TypedResults.Ok(GetAccountProfileForTenant._ToResult(profile));
 	}
 
 	private static AccountProfileResult _ToResult(AccountProfileData profile) {

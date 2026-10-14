@@ -67,7 +67,7 @@ public static partial class CustomExceptionHandler {
 				&& validationException.Message.Contains("was not provided from query string")
 			) {
 			// Required parameter "string userId" was not provided from query string.
-			var match = _MissingQueryParameterPattern().Match(validationException.Message);
+			var match = CustomExceptionHandler._MissingQueryParameterPattern().Match(validationException.Message);
 			var parameterName = match.Success ? match.Groups[1].Value : "unknown";
 
 			return new ExceptionMapping(
@@ -102,7 +102,7 @@ public static partial class CustomExceptionHandler {
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 				var exceptionType = exceptionHandlerFeature?.Error;
 
-				var mapped = MapException(exceptionType);
+				var mapped = CustomExceptionHandler.MapException(exceptionType);
 
 				if (exceptionType is not null) {
 					if (mapped.StatusCode == StatusCodes.Status500InternalServerError) {

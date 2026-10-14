@@ -49,13 +49,13 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 		ILogger<EmailPreparedSendsRetentionHandler> logger,
 		int? retentionDaysOverride = null
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
-		_RetentionDaysOverride = retentionDaysOverride;
+		this._DbContext = dbContext;
+		this._Logger = logger;
+		this._RetentionDaysOverride = retentionDaysOverride;
 	}
 
 	public string JobType {
-		get { return JobKey; }
+		get { return EmailPreparedSendsRetentionHandler.JobKey; }
 	}
 
 	public async Task<JobOutcome> HandleAsync(
@@ -66,7 +66,7 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 		// at least this old, a backstop against a race where the anti-join briefly sees a
 		// job gone. Read per run, so an operator's change takes effect on the next pass.
 		var safetyFloorDays =
-			_RetentionDaysOverride ?? AppEnvironment.Instance.EMAIL_PREPARED_SEND_RETENTION_DAYS;
+			this._RetentionDaysOverride ?? AppEnvironment.Instance.EMAIL_PREPARED_SEND_RETENTION_DAYS;
 		var totalDeleted = 0;
 		int deleted;
 
@@ -76,7 +76,7 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			deleted = await _DbContext.Database.ExecuteSqlAsync(
+			deleted = await this._DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM email_prepared_sends
 				WHERE job_id IN (
@@ -89,7 +89,7 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 							SELECT 1 FROM job_dead_letter d WHERE d.original_job_id = p.job_id
 						)
 						ORDER BY p.prepared_at, p.job_id
-					LIMIT {_BatchSize}
+					LIMIT {EmailPreparedSendsRetentionHandler._BatchSize}
 					FOR UPDATE OF p SKIP LOCKED
 				)
 				""",
@@ -97,10 +97,10 @@ public sealed class EmailPreparedSendsRetentionHandler : IJobHandler {
 			);
 
 			totalDeleted += deleted;
-		} while (deleted == _BatchSize);
+		} while (deleted == EmailPreparedSendsRetentionHandler._BatchSize);
 
-		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (totalDeleted > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"email-prepared-sends-retention deleted {Count} orphaned scratch row(s)",
 				totalDeleted
 			);

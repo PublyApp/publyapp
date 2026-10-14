@@ -25,24 +25,24 @@ public record EditPostScheduleBody {
 	public JsonElement TimeZone { get; init; }
 
 	public PatchField<string>? GetBody() {
-		if (Body is null
-			|| Body.Value.ValueKind is JsonValueKind.Undefined
+		if (this.Body is null
+			|| this.Body.Value.ValueKind is JsonValueKind.Undefined
 				or JsonValueKind.Null) {
 			return null;
 		}
 
-		return PatchField<string>.Set(Body.Value.GetString() ?? string.Empty);
+		return PatchField<string>.Set(this.Body.Value.GetString() ?? string.Empty);
 	}
 
 	public PatchField<DateTime> GetScheduledAtLocal() {
-		var kind = ScheduledAtLocal.ValueKind;
+		var kind = this.ScheduledAtLocal.ValueKind;
 		if (kind is JsonValueKind.Undefined or JsonValueKind.Null) {
 			return PatchField<DateTime>.Absent();
 		}
 
 		if (kind == JsonValueKind.String
 			&& DateUtils.TryParseIsoUtc(
-				ScheduledAtLocal.GetString(),
+				this.ScheduledAtLocal.GetString(),
 				out var utc
 			)) {
 			return PatchField<DateTime>.Set(utc);
@@ -54,14 +54,14 @@ public record EditPostScheduleBody {
 	}
 
 	public PatchField<string> GetTimeZone() {
-		var kind = TimeZone.ValueKind;
+		var kind = this.TimeZone.ValueKind;
 		if (kind is JsonValueKind.Undefined or JsonValueKind.Null) {
 			return PatchField<string>.Absent();
 		}
 
 		if (kind == JsonValueKind.String) {
 			return PatchField<string>.Set(
-				TimeZone.GetString() ?? string.Empty
+				this.TimeZone.GetString() ?? string.Empty
 			);
 		}
 
@@ -74,15 +74,15 @@ public record EditPostScheduleBody {
 public sealed class EditPostScheduleBodyValidator
 	: AbstractValidator<EditPostScheduleBody> {
 	public EditPostScheduleBodyValidator() {
-		RuleFor(x => x.Body)
+		this.RuleFor(x => x.Body)
 			.MustBeNullableStringWithMaxLength(
 				"Body", PostValidationRules.BodyMaxLength
 			);
 
-		RuleFor(x => x.ScheduledAtLocal)
+		this.RuleFor(x => x.ScheduledAtLocal)
 			.MustBePatchFieldIsoDateTime("ScheduledAtLocal");
 
-		RuleFor(x => x.TimeZone)
+		this.RuleFor(x => x.TimeZone)
 			.MustBePatchFieldTimezone();
 	}
 }
@@ -193,7 +193,7 @@ public sealed class EditPostScheduleForTenant {
 						[invalidSchedule.ErrorKey] = [invalidSchedule.Cause],
 					}
 				),
-			EditPostScheduleResult.Success success => await _ApplyReschedulesAsync(
+			EditPostScheduleResult.Success success => await EditPostScheduleForTenant._ApplyReschedulesAsync(
 				success.Reschedules,
 				postIdGuid,
 				tenantId,

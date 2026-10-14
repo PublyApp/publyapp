@@ -59,7 +59,7 @@ public sealed class GetTenantSettingsForTenant {
 			);
 		}
 
-		return TypedResults.Ok(ToResult(tenant));
+		return TypedResults.Ok(GetTenantSettingsForTenant.ToResult(tenant));
 	}
 
 	internal static TenantSettingsGeneralResult ToResult(

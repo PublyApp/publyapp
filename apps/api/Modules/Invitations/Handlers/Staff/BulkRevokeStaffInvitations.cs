@@ -22,7 +22,7 @@ public sealed class BulkRevokeStaffInvitationsBody {
 	public List<Guid> GetInvitationIds() {
 		var invitationIds = new List<Guid>();
 
-		foreach (var invitationIdElement in InvitationIds.EnumerateArray()) {
+		foreach (var invitationIdElement in this.InvitationIds.EnumerateArray()) {
 			invitationIds.Add(invitationIdElement.GetValueAsGuid());
 		}
 
@@ -33,7 +33,7 @@ public sealed class BulkRevokeStaffInvitationsBody {
 public sealed class BulkRevokeStaffInvitationsBodyValidator
 	: AbstractValidator<BulkRevokeStaffInvitationsBody> {
 	public BulkRevokeStaffInvitationsBodyValidator() {
-		RuleFor(x => x.InvitationIds)
+		this.RuleFor(x => x.InvitationIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "invitationIds",
 				itemName: "invitationId",

@@ -13,11 +13,11 @@ using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
 namespace PublyApp.Api.Modules.Invitations.Entities;
 
 [Table("invitations")]
-[Index(nameof(Email), nameof(Scope), nameof(Status))]
-[Index(nameof(InvitedByUserId))]
-[Index(nameof(ExpiresAt))]
-[Index(nameof(TenantId), nameof(Scope))]
-[Index(nameof(Token), IsUnique = true)]
+[Index(nameof(Invitation.Email), nameof(Invitation.Scope), nameof(Invitation.Status))]
+[Index(nameof(Invitation.InvitedByUserId))]
+[Index(nameof(Invitation.ExpiresAt))]
+[Index(nameof(Invitation.TenantId), nameof(Invitation.Scope))]
+[Index(nameof(Invitation.Token), IsUnique = true)]
 public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[Column("email")]
 	public required string Email { get; set; }
@@ -57,8 +57,8 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	private UserEntity? _InvitedByUser;
 	[JsonIgnore]
 	public UserEntity InvitedByUser {
-		get { return RequiredNavigation.Get(_InvitedByUser, nameof(Invitation), nameof(InvitedByUser)); }
-		set { _InvitedByUser = value; }
+		get { return RequiredNavigation.Get(this._InvitedByUser, nameof(Invitation), nameof(this.InvitedByUser)); }
+		set { this._InvitedByUser = value; }
 	}
 
 	[Column("account_level")]
@@ -72,25 +72,25 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[NotMapped]
 	public List<Guid> ProfileIds {
 		get {
-			return InvitationProfiles.Select(ip => ip.ProfileId).ToList();
+			return this.InvitationProfiles.Select(ip => ip.ProfileId).ToList();
 		}
 	}
 
 	public bool IsStaffInvitation {
 		get {
-			return Scope == InvitationScope.Staff && TenantId is null && ProjectId is null;
+			return this.Scope == InvitationScope.Staff && this.TenantId is null && this.ProjectId is null;
 		}
 	}
 
 	public bool IsTenantInvitation {
 		get {
-			return Scope == InvitationScope.Tenant && TenantId is not null && ProjectId is null;
+			return this.Scope == InvitationScope.Tenant && this.TenantId is not null && this.ProjectId is null;
 		}
 	}
 
 	public bool IsProjectInvitation {
 		get {
-			return Scope == InvitationScope.Project && TenantId is not null && ProjectId is not null;
+			return this.Scope == InvitationScope.Project && this.TenantId is not null && this.ProjectId is not null;
 		}
 	}
 
@@ -185,53 +185,53 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	}
 
 	public void ValidateInvitationType() {
-		switch (Scope) {
+		switch (this.Scope) {
 			case InvitationScope.Staff:
-				if (TenantId is not null || ProjectId is not null) {
+				if (this.TenantId is not null || this.ProjectId is not null) {
 					throw new InvalidOperationException("Staff invitations cannot have TenantId or ProjectId");
 				}
 				break;
 			case InvitationScope.Tenant:
-				if (TenantId is null || ProjectId is not null) {
+				if (this.TenantId is null || this.ProjectId is not null) {
 					throw new InvalidOperationException("Tenant invitations must have TenantId and no ProjectId");
 				}
 				break;
 			case InvitationScope.Project:
-				if (TenantId is null || ProjectId is null) {
+				if (this.TenantId is null || this.ProjectId is null) {
 					throw new InvalidOperationException("Project invitations must have TenantId and ProjectId");
 				}
 				break;
 			default:
 				throw new ArgumentOutOfRangeException(
-					nameof(Scope),
-					Scope,
-					$"Unhandled InvitationScope: {Scope}"
+					nameof(this.Scope),
+					this.Scope,
+					$"Unhandled InvitationScope: {this.Scope}"
 				);
 		}
 	}
 
 	public bool CanBeAccepted() {
-		return IsPending()
-			&& !IsDeleted
-			&& ExpiresAt > DateTime.UtcNow;
+		return this.IsPending()
+			&& !this.IsDeleted
+			&& this.ExpiresAt > DateTime.UtcNow;
 	}
 
 	public bool IsPending() {
-		return IsPending(Status);
+		return Invitation.IsPending(this.Status);
 	}
 
 	public bool IsAccepted() {
-		return IsAccepted(Status);
+		return Invitation.IsAccepted(this.Status);
 	}
 
 	public bool IsRevoked() {
-		return IsRevoked(Status);
+		return Invitation.IsRevoked(this.Status);
 	}
 
 	public bool IsExpired(DateTime utcNow) {
 		// Expiration is time-derived so rows do not need background writes when time passes.
-		return IsPending()
-			&& ExpiresAt <= utcNow;
+		return this.IsPending()
+			&& this.ExpiresAt <= utcNow;
 	}
 
 	public static bool IsPending(InvitationStatus status) {

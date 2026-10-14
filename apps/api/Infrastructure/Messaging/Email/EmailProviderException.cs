@@ -25,7 +25,7 @@ public abstract class EmailProviderException : Exception {
 
 	protected EmailProviderException(string code, Exception? innerException = null)
 		: base(code, innerException) {
-		Code = code;
+		this.Code = code;
 	}
 }
 
@@ -42,7 +42,7 @@ public sealed class EmailProviderTransientException : EmailProviderException {
 		TimeSpan? retryAfter = null,
 		Exception? innerException = null
 	) : base(code, innerException) {
-		RetryAfter = retryAfter;
+		this.RetryAfter = retryAfter;
 	}
 }
 
@@ -65,7 +65,7 @@ public sealed class EmailProviderPermanentException : EmailProviderException {
 public sealed record EmailSendReceipt {
 	public EmailSendReceipt(string? providerMessageId) {
 		ArgumentException.ThrowIfNullOrWhiteSpace(providerMessageId);
-		ProviderMessageId = providerMessageId;
+		this.ProviderMessageId = providerMessageId;
 	}
 
 	public string ProviderMessageId { get; }

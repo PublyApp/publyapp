@@ -34,16 +34,16 @@ public sealed class BlueskyClient : IBlueskyClient {
 		IHttpClientFactory httpClientFactory,
 		ILogger<BlueskyClient> logger
 	) {
-		_HttpClientFactory = httpClientFactory;
-		_Logger = logger;
+		this._HttpClientFactory = httpClientFactory;
+		this._Logger = logger;
 	}
 
 	public async Task<BlueskySessionResult> CreateSessionAsync(
 		BlueskyCredentials credentials,
 		CancellationToken cancellationToken = default
 	) {
-		var client = _HttpClientFactory.CreateClient(WellKnownClientName);
-		using var request = new HttpRequestMessage(HttpMethod.Post, _CreateSessionPath) {
+		var client = this._HttpClientFactory.CreateClient(BlueskyClient.WellKnownClientName);
+		using var request = new HttpRequestMessage(HttpMethod.Post, BlueskyClient._CreateSessionPath) {
 			Content = JsonContent.Create(new CreateSessionBody(
 				identifier: credentials.Identifier,
 				password: credentials.AppPassword
@@ -51,7 +51,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		};
 
 		using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		timeoutCts.CancelAfter(_RequestTimeout);
+		timeoutCts.CancelAfter(BlueskyClient._RequestTimeout);
 
 		HttpResponseMessage response;
 		try {
@@ -65,7 +65,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 		using (response) {
 			if (response.IsSuccessStatusCode) {
-				return await _ParseSuccessAsync(response, timeoutCts.Token);
+				return await this._ParseSuccessAsync(response, timeoutCts.Token);
 			}
 
 			if ((int)response.StatusCode >= 500) {
@@ -74,7 +74,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 			// 4xx from the PDS: 401 invalid credentials, 400 unknown identifier /
 			// malformed request — both are account-caused refusals.
-			return _ClassifyAccountFailure(response.StatusCode);
+			return BlueskyClient._ClassifyAccountFailure(response.StatusCode);
 		}
 	}
 
@@ -95,7 +95,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 			payload = await response.Content
 				.ReadFromJsonAsync<BlueskyCreateSessionResponse>(cancellationToken);
 		} catch (JsonException) {
-			_Logger.LogError(
+			this._Logger.LogError(
 				"Bluesky createSession returned unparseable JSON with status {Status}",
 				(int)response.StatusCode
 			);
@@ -104,7 +104,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 		if (payload is null || string.IsNullOrEmpty(payload.Did)
 			|| string.IsNullOrEmpty(payload.AccessJwt)) {
-			_Logger.LogError(
+			this._Logger.LogError(
 				"Bluesky createSession response missing did or accessJwt (status {Status})",
 				(int)response.StatusCode
 			);
@@ -118,7 +118,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		return new BlueskySessionResult.Success(
 			new BlueskyIdentity(payload.Did, handle),
 			AccessJwt: payload.AccessJwt,
-			PdsHost: _DefaultPdsBaseAddress.TrimEnd('/')
+			PdsHost: BlueskyClient._DefaultPdsBaseAddress.TrimEnd('/')
 		);
 	}
 
@@ -128,8 +128,8 @@ public sealed class BlueskyClient : IBlueskyClient {
 	public static void RegisterHttpClient(
 		Microsoft.Extensions.DependencyInjection.IServiceCollection services
 	) {
-		services.AddHttpClient(WellKnownClientName, client => {
-			client.BaseAddress = new Uri(_DefaultPdsBaseAddress);
+		services.AddHttpClient(BlueskyClient.WellKnownClientName, client => {
+			client.BaseAddress = new Uri(BlueskyClient._DefaultPdsBaseAddress);
 			client.Timeout = Timeout.InfiniteTimeSpan; // per-request timeout above
 		});
 	}
@@ -137,8 +137,8 @@ public sealed class BlueskyClient : IBlueskyClient {
 	// Wire types local to the adapter — never exposed beyond this class.
 	private sealed record CreateSessionBody {
 		public CreateSessionBody(string identifier, string password) {
-			Identifier = identifier;
-			Password = password;
+			this.Identifier = identifier;
+			this.Password = password;
 		}
 
 		[JsonPropertyName("identifier")]

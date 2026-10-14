@@ -7,7 +7,7 @@ public static class ProfileStyleValidationRules {
 		"PublyApp.ProfileIcons.json";
 
 	public static readonly IReadOnlySet<string> Icons =
-		_LoadIconCatalog();
+		ProfileStyleValidationRules._LoadIconCatalog();
 
 	public static readonly IReadOnlySet<string> Tones = new HashSet<string>(
 		["0", "1", "2", "3", "4", "5", "6", "7"],
@@ -17,10 +17,10 @@ public static class ProfileStyleValidationRules {
 	private static IReadOnlySet<string> _LoadIconCatalog() {
 		using var stream = typeof(ProfileStyleValidationRules)
 			.Assembly
-			.GetManifestResourceStream(_IconCatalogResourceName);
+			.GetManifestResourceStream(ProfileStyleValidationRules._IconCatalogResourceName);
 		if (stream is null) {
 			throw new InvalidOperationException(
-				$"Embedded profile icon catalog '{_IconCatalogResourceName}' was not found"
+				$"Embedded profile icon catalog '{ProfileStyleValidationRules._IconCatalogResourceName}' was not found"
 			);
 		}
 

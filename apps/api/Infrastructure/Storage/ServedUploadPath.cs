@@ -28,7 +28,7 @@ public static partial class ServedUploadPath {
 			return null;
 		}
 
-		var match = _ServedUrlPattern().Match(url);
+		var match = ServedUploadPath._ServedUrlPattern().Match(url);
 		return match.Success ? match.Groups[1].Value : null;
 	}
 }

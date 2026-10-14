@@ -67,29 +67,29 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		_EffectiveAccountLevelExpression =
 			invitation => invitation.AccountLevel ?? AccountLevel.User;
 	private static readonly Func<Invitation, AccountLevel> _GetEffectiveAccountLevel =
-		_EffectiveAccountLevelExpression.Compile();
+		InvitationQueryService._EffectiveAccountLevelExpression.Compile();
 
 	private readonly AppDbContext _DbContext;
 	private readonly ILogger<InvitationQueryService> _Logger;
 
 	public InvitationQueryService(AppDbContext dbContext, ILogger<InvitationQueryService> logger) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public async Task<Invitation?> GetInvitationByTokenAsync(
 		string token,
 		CancellationToken cancellationToken = default
 	) {
-		var invitation = await _FindInvitationByTokenAsync(token, cancellationToken);
+		var invitation = await this._FindInvitationByTokenAsync(token, cancellationToken);
 
 		if (invitation is null) {
 			return null;
 		}
 
 		if (!invitation.CanBeAccepted()) {
-			if (_Logger.IsEnabled(LogLevel.Warning)) {
-				_Logger.LogWarning(
+			if (this._Logger.IsEnabled(LogLevel.Warning)) {
+				this._Logger.LogWarning(
 					"Invitation {InvitationId} cannot be accepted (expired, revoked, or deleted)",
 					invitation.Id
 				);
@@ -104,7 +104,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		string token,
 		CancellationToken cancellationToken = default
 	) {
-		var invitation = await _FindInvitationByTokenAsync(token, cancellationToken);
+		var invitation = await this._FindInvitationByTokenAsync(token, cancellationToken);
 
 		if (invitation is null || invitation.IsDeleted) {
 			return new InvitationTokenLookupResult(InvitationTokenStatus.NotFound, null);
@@ -133,7 +133,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 	) {
 		// Intentionally tracked: anonymous acceptance mutates this invitation later in the same request scope.
 		var invitationQuery =
-			from inv in _DbContext.Invitation
+			from inv in this._DbContext.Invitation
 			where inv.Token == token
 			select inv;
 
@@ -148,7 +148,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		// Scope guard: only return staff invitations for staff-only actions.
-		return await _DbContext.Invitation
+		return await this._DbContext.Invitation
 			.AsNoTracking()
 			.Where(inv => inv.Id == invitationId && inv.Scope == InvitationScope.Staff)
 			.FirstOrDefaultAsync(cancellationToken);
@@ -160,9 +160,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 	) {
 		// Load invitation with invited-by user
 		var invitationWithInviter = await (
-			from inv in _DbContext.Invitation.AsNoTracking()
+			from inv in this._DbContext.Invitation.AsNoTracking()
 			where inv.Id == invitationId && inv.Scope == InvitationScope.Staff
-			join inviter in _DbContext.User.AsNoTracking() on inv.InvitedByUserId equals inviter.Id
+			join inviter in this._DbContext.User.AsNoTracking() on inv.InvitedByUserId equals inviter.Id
 			select new {
 				Invitation = inv,
 				InviterFirstName = inviter.FirstName,
@@ -178,9 +178,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		// Load profiles for the invitation
 		var profiles = await (
-			from ip in _DbContext.InvitationProfile.AsNoTracking()
+			from ip in this._DbContext.InvitationProfile.AsNoTracking()
 			where ip.InvitationId == invitationId
-			join p in _DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
+			join p in this._DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new StaffInvitationProfileInfo {
 				Id = p.Id ?? Guid.Empty,
 				Name = p.Name
@@ -223,7 +223,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			StringComparer.OrdinalIgnoreCase
 		) {
 			["created_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Staff),
 				keySelector: inv => inv.CreatedAt,
@@ -231,7 +231,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				cancellationToken
 			),
 			["expires_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Staff),
 				keySelector: inv => inv.ExpiresAt,
@@ -239,7 +239,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				cancellationToken
 			),
 			["email"] = CursorSortFieldHandlerFactory.Create<Invitation, string, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Staff),
 				keySelector: inv => inv.Email,
@@ -247,7 +247,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				cancellationToken
 			),
 			["accepted_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Staff),
 				// Treat null AcceptedAt as min value to keep ordering stable.
@@ -266,7 +266,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			return new FindStaffInvitationsResult.InvalidSortId(effectiveSortId);
 		}
 
-		var query = _DbContext.Invitation
+		var query = this._DbContext.Invitation
 			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Staff && inv.Id != null);
 
@@ -295,7 +295,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		// Fetch one extra row to compute the next cursor.
 		var results = await orderedQuery
 			.Join(
-				_DbContext.User.AsNoTracking(),
+				this._DbContext.User.AsNoTracking(),
 				inv => inv.InvitedByUserId,
 				inviter => inviter.Id,
 				(inv, inviter) => new {
@@ -315,9 +315,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		// Load profile names separately to avoid duplicating invitation rows.
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
 		var profileQuery =
-			from ip in _DbContext.InvitationProfile.AsNoTracking()
+			from ip in this._DbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in _DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
+			join p in this._DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
 				Profile = new StaffInvitationProfileInfo {
@@ -386,7 +386,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			StringComparer.OrdinalIgnoreCase
 		) {
 			["created_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
 				keySelector: inv => inv.CreatedAt,
@@ -394,7 +394,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				cancellationToken
 			),
 			["expires_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
 				keySelector: inv => inv.ExpiresAt,
@@ -402,7 +402,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				cancellationToken
 			),
 			["email"] = CursorSortFieldHandlerFactory.Create<Invitation, string, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
 				keySelector: inv => inv.Email,
@@ -410,7 +410,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				cancellationToken
 			),
 			["accepted_at"] = CursorSortFieldHandlerFactory.Create<Invitation, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Invitation
+				cursorLookupQuery: () => this._DbContext.Invitation
 					.AsNoTracking()
 					.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId),
 				// Treat null AcceptedAt as min value to keep ordering stable.
@@ -429,7 +429,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			return new FindTenantInvitationsResult.InvalidSortId(effectiveSortId);
 		}
 
-		var query = _DbContext.Invitation
+		var query = this._DbContext.Invitation
 			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Tenant && inv.TenantId == tenantId && inv.Id != null);
 
@@ -451,7 +451,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		}
 
 		if (filters.Level is { Count: > 0 } levels) {
-			query = query.Where(_BuildEffectiveAccountLevelPredicate(levels));
+			query = query.Where(InvitationQueryService._BuildEffectiveAccountLevelPredicate(levels));
 		}
 
 		if (cursor != Guid.Empty) {
@@ -467,7 +467,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		var results = await orderedQuery
 			.Join(
-				_DbContext.User.AsNoTracking(),
+				this._DbContext.User.AsNoTracking(),
 				inv => inv.InvitedByUserId,
 				inviter => inviter.Id,
 				(inv, inviter) => new {
@@ -486,9 +486,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
 		var profileRowsQuery =
-			from ip in _DbContext.InvitationProfile.AsNoTracking()
+			from ip in this._DbContext.InvitationProfile.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in _DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
+			join p in this._DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
 				Profile = new StaffInvitationProfileInfo {
@@ -520,7 +520,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
 				? name
 				: null;
-			var accountLevel = _GetEffectiveAccountLevel(r.Invitation);
+			var accountLevel = InvitationQueryService._GetEffectiveAccountLevel(r.Invitation);
 			return new StaffTenantInvitationListItem {
 				Id = invitationId,
 				Email = r.Invitation.Email,
@@ -557,12 +557,12 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			nameof(Enumerable.Contains),
 			[typeof(AccountLevel)],
 			Expression.Constant(levels, typeof(IEnumerable<AccountLevel>)),
-			_EffectiveAccountLevelExpression.Body
+			InvitationQueryService._EffectiveAccountLevelExpression.Body
 		);
 
 		return Expression.Lambda<Func<Invitation, bool>>(
 			containsLevel,
-			_EffectiveAccountLevelExpression.Parameters
+			InvitationQueryService._EffectiveAccountLevelExpression.Parameters
 		);
 	}
 
@@ -574,7 +574,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		var expiringSoonThreshold = now.AddHours(48);
 
 		var pendingQuery =
-			from inv in _DbContext.Invitation.AsNoTracking()
+			from inv in this._DbContext.Invitation.AsNoTracking()
 			where inv.TenantId == tenantId
 				&& inv.Scope == InvitationScope.Tenant
 				&& inv.Status == InvitationStatus.Pending

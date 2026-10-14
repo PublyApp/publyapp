@@ -10,7 +10,7 @@ public static class EndpointRateLimitStartupGuard {
 		var endpoints = app.Services
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints;
-		Validate(endpoints);
+		EndpointRateLimitStartupGuard.Validate(endpoints);
 		return app;
 	}
 
@@ -20,7 +20,7 @@ public static class EndpointRateLimitStartupGuard {
 		var offenders = endpoints
 			.OfType<RouteEndpoint>()
 			.Where(endpoint =>
-				!HasValidDisposition(endpoint)
+				!EndpointRateLimitStartupGuard.HasValidDisposition(endpoint)
 			)
 			.Select(endpoint =>
 				$"{endpoint.RoutePattern.RawText} "

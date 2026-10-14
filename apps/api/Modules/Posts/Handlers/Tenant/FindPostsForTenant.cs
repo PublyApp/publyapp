@@ -20,11 +20,11 @@ public class FindPostsForTenantQuery : CursorPaginatedQuery {
 	public string? Search { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
+		if (this.Search is null) {
 			return null;
 		}
 
-		var trimmed = Search.Trim();
+		var trimmed = this.Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 }
@@ -32,7 +32,7 @@ public class FindPostsForTenantQuery : CursorPaginatedQuery {
 public class FindPostsForTenantQueryValidator
 	: CursorPaginatedQueryValidator<FindPostsForTenantQuery> {
 	public FindPostsForTenantQueryValidator() {
-		RuleFor(x => x.Search)
+		this.RuleFor(x => x.Search)
 			.MaximumLength(PostValidationRules.SearchMaxLength)
 			.WithMessage(
 				$"q must be at most {PostValidationRules.SearchMaxLength} characters"

@@ -22,14 +22,14 @@ public sealed class UpdateStaffUserEmailBody {
 	public JsonElement Email { get; init; }
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return this.Email.GetValueAsString();
 	}
 }
 
 public sealed class UpdateStaffUserEmailBodyValidator
 	: AbstractValidator<UpdateStaffUserEmailBody> {
 	public UpdateStaffUserEmailBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 	}
 }

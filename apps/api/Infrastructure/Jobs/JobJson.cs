@@ -14,7 +14,7 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 /// caller can mutate the contract.
 /// </summary>
 public static class JobJson {
-	private static readonly JsonSerializerOptions _Options = _CreateOptions();
+	private static readonly JsonSerializerOptions _Options = JobJson._CreateOptions();
 
 	private static JsonSerializerOptions _CreateOptions() {
 		var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -25,7 +25,7 @@ public static class JobJson {
 	}
 
 	public static string Serialize<TPayload>(TPayload payload) {
-		return JsonSerializer.Serialize(payload, _Options);
+		return JsonSerializer.Serialize(payload, JobJson._Options);
 	}
 
 	/// <summary>
@@ -35,7 +35,7 @@ public static class JobJson {
 	/// that can never parse).
 	/// </summary>
 	public static TPayload Deserialize<TPayload>(string json) {
-		var payload = JsonSerializer.Deserialize<TPayload>(json, _Options);
+		var payload = JsonSerializer.Deserialize<TPayload>(json, JobJson._Options);
 
 		if (payload is null) {
 			throw new JsonException(

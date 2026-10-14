@@ -42,15 +42,15 @@ public static partial class Routes {
 				}
 
 				/// <summary>List permission keys assigned to a staff profile</summary>
-				public const string Find = Root;
+				public const string Find = Routes.Profiles.ForStaff.Permissions.Root;
 				public static string FindFn(string profileId) {
-					return RootFn(profileId);
+					return Routes.Profiles.ForStaff.Permissions.RootFn(profileId);
 				}
 
 				/// <summary>Assign or unassign a permission key on a staff profile</summary>
-				public const string Upsert = Root + "/{permissionKey}";
+				public const string Upsert = Routes.Profiles.ForStaff.Permissions.Root + "/{permissionKey}";
 				public static string UpsertFn(string profileId, string permissionKey) {
-					return $"{RootFn(profileId)}/{permissionKey}";
+					return $"{Routes.Profiles.ForStaff.Permissions.RootFn(profileId)}/{permissionKey}";
 				}
 			}
 
@@ -66,26 +66,26 @@ public static partial class Routes {
 				}
 
 				/// <summary>Find users assigned to a staff profile</summary>
-				public const string Find = Root;
+				public const string Find = Routes.Profiles.ForStaff.Users.Root;
 				public static string FindFn(string profileId) {
-					return RootFn(profileId);
+					return Routes.Profiles.ForStaff.Users.RootFn(profileId);
 				}
 
 				/// <summary>
 				/// Batch-resolve whether a set of staff users is assigned to a staff profile.
 				/// This exists to avoid N+1 per-row profile requests in list UIs (assignment drawers).
 				/// </summary>
-				public const string ResolveAssignment = Root + "/assignment-resolution";
+				public const string ResolveAssignment = Routes.Profiles.ForStaff.Users.Root + "/assignment-resolution";
 				public static string ResolveAssignmentFn(string profileId) {
-					return $"{RootFn(profileId)}/assignment-resolution";
+					return $"{Routes.Profiles.ForStaff.Users.RootFn(profileId)}/assignment-resolution";
 				}
 
 				/// <summary>
 				/// Bulk-unassign staff users from a staff profile.
 				/// </summary>
-				public const string Unassign = Root + "/unassign";
+				public const string Unassign = Routes.Profiles.ForStaff.Users.Root + "/unassign";
 				public static string UnassignFn(string profileId) {
-					return $"{RootFn(profileId)}/unassign";
+					return $"{Routes.Profiles.ForStaff.Users.RootFn(profileId)}/unassign";
 				}
 			}
 		}
@@ -99,7 +99,7 @@ public static partial class Routes {
 
 			public const string Find = "/";
 			public static string FindFn(string tenantId) {
-				return $"{RootFn(tenantId)}/";
+				return $"{Routes.Profiles.ForTenantAsStaff.RootFn(tenantId)}/";
 			}
 
 			/// <summary>
@@ -110,7 +110,7 @@ public static partial class Routes {
 			/// </summary>
 			public const string ResolveNames = "/resolve-names";
 			public static string ResolveNamesFn(string tenantId) {
-				return $"{RootFn(tenantId)}/resolve-names";
+				return $"{Routes.Profiles.ForTenantAsStaff.RootFn(tenantId)}/resolve-names";
 			}
 
 			// Bulk tenant profile deletion is scoped by tenantId route and uses one
@@ -139,14 +139,14 @@ public static partial class Routes {
 					return $"/{profileId}/permissions";
 				}
 
-				public const string Find = Root;
+				public const string Find = Routes.Profiles.ForTenantAsStaff.Permissions.Root;
 				public static string FindFn(string profileId) {
-					return RootFn(profileId);
+					return Routes.Profiles.ForTenantAsStaff.Permissions.RootFn(profileId);
 				}
 
-				public const string Upsert = Root + "/{permissionKey}";
+				public const string Upsert = Routes.Profiles.ForTenantAsStaff.Permissions.Root + "/{permissionKey}";
 				public static string UpsertFn(string profileId, string permissionKey) {
-					return $"{RootFn(profileId)}/{permissionKey}";
+					return $"{Routes.Profiles.ForTenantAsStaff.Permissions.RootFn(profileId)}/{permissionKey}";
 				}
 			}
 
@@ -163,9 +163,9 @@ public static partial class Routes {
 				}
 
 				/// <summary>Find tenant members assigned to a tenant profile</summary>
-				public const string Find = Root;
+				public const string Find = Routes.Profiles.ForTenantAsStaff.Users.Root;
 				public static string FindFn(string profileId) {
-					return RootFn(profileId);
+					return Routes.Profiles.ForTenantAsStaff.Users.RootFn(profileId);
 				}
 
 				/// <summary>
@@ -174,9 +174,9 @@ public static partial class Routes {
 				/// this exists to avoid N+1 per-row profile requests in list UIs (assignment
 				/// drawers).
 				/// </summary>
-				public const string ResolveAssignment = Root + "/assignment-resolution";
+				public const string ResolveAssignment = Routes.Profiles.ForTenantAsStaff.Users.Root + "/assignment-resolution";
 				public static string ResolveAssignmentFn(string profileId) {
-					return $"{RootFn(profileId)}/assignment-resolution";
+					return $"{Routes.Profiles.ForTenantAsStaff.Users.RootFn(profileId)}/assignment-resolution";
 				}
 
 				// Membership is exposed as an idempotent per-member "upsert" toggle keyed by
@@ -185,9 +185,9 @@ public static partial class Routes {
 				// single row without a batch confirm step.
 				// The placeholder is snake_case per the URL-parameter convention; handlers bind
 				// it explicitly to an idiomatic C# `userAccountId`.
-				public const string Upsert = Root + "/{user_account_id}";
+				public const string Upsert = Routes.Profiles.ForTenantAsStaff.Users.Root + "/{user_account_id}";
 				public static string UpsertFn(string profileId, string userAccountId) {
-					return $"{RootFn(profileId)}/{userAccountId}";
+					return $"{Routes.Profiles.ForTenantAsStaff.Users.RootFn(profileId)}/{userAccountId}";
 				}
 			}
 		}

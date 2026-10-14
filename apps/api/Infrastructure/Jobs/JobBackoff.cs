@@ -19,7 +19,7 @@ public static class JobBackoff {
 	/// </summary>
 	public static double DelaySeconds(int failedAttemptNumber) {
 		var attempt = Math.Max(1, failedAttemptNumber);
-		var full = Math.Min(BaseDelaySeconds * Math.Pow(2, attempt - 1), MaxDelaySeconds);
+		var full = Math.Min(JobBackoff.BaseDelaySeconds * Math.Pow(2, attempt - 1), JobBackoff.MaxDelaySeconds);
 
 		return (full / 2) + (Random.Shared.NextDouble() * (full / 2));
 	}

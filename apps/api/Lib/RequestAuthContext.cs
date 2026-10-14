@@ -24,7 +24,7 @@ public class RequestAuthContext : IRequestAuthContext {
 
 	public bool IsAuthenticated {
 		get {
-			return !string.IsNullOrEmpty(SessionToken) && UserId.HasValue;
+			return !string.IsNullOrEmpty(this.SessionToken) && this.UserId.HasValue;
 		}
 	}
 
@@ -37,9 +37,9 @@ public class RequestAuthContext : IRequestAuthContext {
 
 	public bool IsTenantAuthorized {
 		get {
-			return AccountTenant is not null &&
-		!AccountTenant.IsSuspended() &&
-		AccountTenant.Scope == AccountScope.Tenant;
+			return this.AccountTenant is not null &&
+		!this.AccountTenant.IsSuspended() &&
+		this.AccountTenant.Scope == AccountScope.Tenant;
 		}
 	}
 }

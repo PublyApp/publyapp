@@ -13,7 +13,7 @@ internal static class TenantInvitationValidationLimits {
 internal sealed class TenantInvitationProfileIdsValidator
 	: AbstractValidator<JsonElement> {
 	public TenantInvitationProfileIdsValidator() {
-		RuleFor(element => element)
+		this.RuleFor(element => element)
 			.MustBeRequiredGuidArrayAllowingEmpty(
 				fieldName: "ProfileIds",
 				itemName: "ProfileId",

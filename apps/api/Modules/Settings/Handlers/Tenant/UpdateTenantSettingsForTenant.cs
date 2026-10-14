@@ -27,11 +27,11 @@ public class UpdateTenantSettingsGeneralBody {
 	public JsonElement Timezone { get; init; }
 
 	public string? GetName() {
-		return Name.ValueKind switch {
+		return this.Name.ValueKind switch {
 			JsonValueKind.Undefined =>
 				null,
 			JsonValueKind.String =>
-				Name.GetValueAsString(),
+				this.Name.GetValueAsString(),
 			JsonValueKind.Null
 				or JsonValueKind.Object
 				or JsonValueKind.Array
@@ -41,43 +41,43 @@ public class UpdateTenantSettingsGeneralBody {
 				"Name must be a string or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(Name),
-				Name.ValueKind,
-				$"Unhandled JsonValueKind: {Name.ValueKind}"
+				nameof(this.Name),
+				this.Name.ValueKind,
+				$"Unhandled JsonValueKind: {this.Name.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetLogoUrl() {
-		return _GetPatchFieldString(LogoUrl);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.LogoUrl);
 	}
 
 	public PatchField<string?> GetLegalName() {
-		return _GetPatchFieldString(LegalName);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.LegalName);
 	}
 
 	public PatchField<string?> GetDescription() {
-		return _GetPatchFieldString(Description);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.Description);
 	}
 
 	public PatchField<string?> GetWebsiteUrl() {
-		return _GetPatchFieldString(WebsiteUrl);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.WebsiteUrl);
 	}
 
 	public PatchField<string?> GetBillingEmail() {
-		return _GetPatchFieldString(BillingEmail);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.BillingEmail);
 	}
 
 	public PatchField<string?> GetSupportEmail() {
-		return _GetPatchFieldString(SupportEmail);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.SupportEmail);
 	}
 
 	public PatchField<string?> GetDefaultLocale() {
-		return _GetPatchFieldString(DefaultLocale);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.DefaultLocale);
 	}
 
 	public PatchField<string?> GetTimezone() {
-		return _GetPatchFieldString(Timezone);
+		return UpdateTenantSettingsGeneralBody._GetPatchFieldString(this.Timezone);
 	}
 
 	private static PatchField<string?> _GetPatchFieldString(JsonElement element) {
@@ -90,7 +90,7 @@ public class UpdateTenantSettingsGeneralBody {
 			// representation — otherwise {"legalName": "  "} would persist a non-null
 			// value the UI has to separately treat as empty alongside actual null.
 			JsonValueKind.String =>
-				PatchField<string?>.Set(_NormalizeClearableString(element.GetValueAsString())),
+				PatchField<string?>.Set(UpdateTenantSettingsGeneralBody._NormalizeClearableString(element.GetValueAsString())),
 			JsonValueKind.Object
 				or JsonValueKind.Array
 				or JsonValueKind.Number
@@ -115,31 +115,31 @@ public class UpdateTenantSettingsGeneralBody {
 public class UpdateTenantSettingsGeneralBodyValidator
 	: AbstractValidator<UpdateTenantSettingsGeneralBody> {
 	public UpdateTenantSettingsGeneralBodyValidator() {
-		RuleFor(x => x.Name)
+		this.RuleFor(x => x.Name)
 			.MustBePatchFieldStringWithLength("Name", 5, TenantValidationRules.NameMaxLength);
 
-		RuleFor(x => x.LogoUrl)
+		this.RuleFor(x => x.LogoUrl)
 			.MustBePatchFieldLogoUrl();
 
-		RuleFor(x => x.LegalName)
+		this.RuleFor(x => x.LegalName)
 			.MustBePatchFieldStringWithMaxLength("LegalName", 256);
 
-		RuleFor(x => x.Description)
+		this.RuleFor(x => x.Description)
 			.MustBePatchFieldStringWithMaxLength("Description", 1024);
 
-		RuleFor(x => x.WebsiteUrl)
+		this.RuleFor(x => x.WebsiteUrl)
 			.MustBePatchFieldClearableUrl("WebsiteUrl", TenantValidationRules.WebsiteUrlMaxLength);
 
-		RuleFor(x => x.BillingEmail)
+		this.RuleFor(x => x.BillingEmail)
 			.MustBePatchFieldEmailWithMaxLength("BillingEmail", 320);
 
-		RuleFor(x => x.SupportEmail)
+		this.RuleFor(x => x.SupportEmail)
 			.MustBePatchFieldEmailWithMaxLength("SupportEmail", 320);
 
-		RuleFor(x => x.DefaultLocale)
+		this.RuleFor(x => x.DefaultLocale)
 			.MustBePatchFieldLocale();
 
-		RuleFor(x => x.Timezone)
+		this.RuleFor(x => x.Timezone)
 			.MustBePatchFieldTimezone();
 	}
 }

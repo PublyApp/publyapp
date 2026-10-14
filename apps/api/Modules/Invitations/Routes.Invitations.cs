@@ -10,17 +10,17 @@ public static partial class Routes {
 		/// <summary>Anonymous invitation routes (public)</summary>
 		public static class Anonymous {
 			public const string Root = "/invitations";
-			public const string DetailsByToken = $"{Root}/{{token}}/details";
+			public const string DetailsByToken = $"{Routes.Invitations.Anonymous.Root}/{{token}}/details";
 			public static string DetailsByTokenFn(string token) {
-				return $"{Root}/{token}/details";
+				return $"{Routes.Invitations.Anonymous.Root}/{token}/details";
 			}
 
-			public const string AcceptByToken = $"{Root}/{{token}}/accept";
+			public const string AcceptByToken = $"{Routes.Invitations.Anonymous.Root}/{{token}}/accept";
 			public static string AcceptByTokenFn(string token) {
-				return $"{Root}/{token}/accept";
+				return $"{Routes.Invitations.Anonymous.Root}/{token}/accept";
 			}
 
-			public const string Check = $"{Root}/check";
+			public const string Check = $"{Routes.Invitations.Anonymous.Root}/check";
 		}
 
 		/// <summary>Staff invitation routes (staff managing staff invitations)</summary>
@@ -62,22 +62,22 @@ public static partial class Routes {
 
 			public const string Create = "/";
 			public static string CreateFn(string tenantId) {
-				return $"{RootFn(tenantId)}/";
+				return $"{Routes.Invitations.ForTenantAsStaff.RootFn(tenantId)}/";
 			}
 
 			public const string BulkCreate = "/bulk";
 			public static string BulkCreateFn(string tenantId) {
-				return $"{RootFn(tenantId)}/bulk";
+				return $"{Routes.Invitations.ForTenantAsStaff.RootFn(tenantId)}/bulk";
 			}
 
 			public const string Find = "/";
 			public static string FindFn(string tenantId) {
-				return $"{RootFn(tenantId)}/";
+				return $"{Routes.Invitations.ForTenantAsStaff.RootFn(tenantId)}/";
 			}
 
 			public const string RevokeById = "/{invitationId}";
 			public static string RevokeByIdFn(string tenantId, string invitationId) {
-				return $"{RootFn(tenantId)}/{invitationId}";
+				return $"{Routes.Invitations.ForTenantAsStaff.RootFn(tenantId)}/{invitationId}";
 			}
 		}
 

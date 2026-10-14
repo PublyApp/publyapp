@@ -35,12 +35,12 @@ public static class AuthEmailJobs {
 	public static readonly JobDefinition<VerifyEmailPayload> VerifyEmailV1 =
 		new() {
 			JobType = "email.verify.v1",
-			Priority = _EmailPriority
+			Priority = AuthEmailJobs._EmailPriority
 		};
 
 	public static readonly JobDefinition<PasswordResetEmailPayload> PasswordResetV1 =
 		new() {
 			JobType = "email.password-reset.v1",
-			Priority = _EmailPriority
+			Priority = AuthEmailJobs._EmailPriority
 		};
 }

@@ -26,7 +26,7 @@ public sealed class AssignTenantUserCompaniesForStaffBody
 
 	public AccountLevel GetLevel() {
 		var accountLevel = UserAccount.ParseLevel(
-			Level.GetValueAsString()
+			this.Level.GetValueAsString()
 		);
 		if (accountLevel is null) {
 			throw new InvalidOperationException(
@@ -41,14 +41,14 @@ public sealed class AssignTenantUserCompaniesForStaffBody
 public sealed class AssignTenantUserCompaniesForStaffBodyValidator
 	: AbstractValidator<AssignTenantUserCompaniesForStaffBody> {
 	public AssignTenantUserCompaniesForStaffBodyValidator() {
-		RuleFor(x => x.TenantIds)
+		this.RuleFor(x => x.TenantIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "tenantIds",
 				itemName: "tenantId",
 				maxCount: 100
 			);
 
-		RuleFor(x => x.Level)
+		this.RuleFor(x => x.Level)
 			.MustBeRequiredString("level")
 			.MustBeRequiredAccountLevel();
 	}

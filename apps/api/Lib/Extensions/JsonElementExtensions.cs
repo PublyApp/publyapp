@@ -313,7 +313,7 @@ public static class JsonElementExtensions {
 			null => null,
 			JsonValueKind.Null => null,
 			JsonValueKind.Undefined => null,
-			JsonValueKind.String => _ParseDateTimeUtcOrThrow(
+			JsonValueKind.String => JsonElementExtensions._ParseDateTimeUtcOrThrow(
 				element?.GetString(), propertyName
 			),
 			JsonValueKind.Object
@@ -335,7 +335,7 @@ public static class JsonElementExtensions {
 		return element.ValueKind switch {
 			JsonValueKind.Null => null,
 			JsonValueKind.Undefined => null,
-			JsonValueKind.String => _ParseDateTimeUtcOrThrow(
+			JsonValueKind.String => JsonElementExtensions._ParseDateTimeUtcOrThrow(
 				element.GetString(), propertyName
 			),
 			JsonValueKind.Object

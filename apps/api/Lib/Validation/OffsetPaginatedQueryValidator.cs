@@ -5,7 +5,7 @@ namespace PublyApp.Api.Lib.Validation;
 public class OffsetPaginatedQueryValidator<T>
 	: AbstractValidator<T> where T : OffsetPaginatedQuery {
 	public OffsetPaginatedQueryValidator() {
-		RuleFor(x => x.Page)
+		this.RuleFor(x => x.Page)
 			.Must(PaginationPredicates
 				.BeValidNullableNumber)
 			.WithMessage(
@@ -13,7 +13,7 @@ public class OffsetPaginatedQueryValidator<T>
 				+ "greater than or equal to 1"
 			);
 
-		RuleFor(x => x.Limit)
+		this.RuleFor(x => x.Limit)
 			.Must(PaginationPredicates
 				.BeValidNullableLimit)
 			.WithMessage(
@@ -22,14 +22,14 @@ public class OffsetPaginatedQueryValidator<T>
 				+ AppEnvironment.Instance.PAGINATION_MAX_LIMIT
 			);
 
-		RuleFor(x => x.SortId)
+		this.RuleFor(x => x.SortId)
 			.Must(PaginationPredicates
 				.BeValidNullableString)
 			.WithMessage(
 				"sort_id must be a valid string"
 			);
 
-		RuleFor(x => x.SortOrder)
+		this.RuleFor(x => x.SortOrder)
 			.Must(PaginationPredicates
 				.BeValidNullableSort)
 			.WithMessage(

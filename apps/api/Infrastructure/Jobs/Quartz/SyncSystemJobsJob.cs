@@ -48,13 +48,13 @@ public sealed class SyncSystemJobsJob : IJob {
 		ILogger<SyncSystemJobsJob> logger,
 		Func<IReadOnlyList<SystemJobDefinition>>? codeDefinedDefaults
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
-		_CodeDefinedDefaults = codeDefinedDefaults ?? SystemJobDefinitionSeeder.GetCodeDefinedDefaults;
+		this._DbContext = dbContext;
+		this._Logger = logger;
+		this._CodeDefinedDefaults = codeDefinedDefaults ?? SystemJobDefinitionSeeder.GetCodeDefinedDefaults;
 	}
 
 	public async Task Execute(IJobExecutionContext context) {
-		await ReconcileAsync(context.Scheduler, context.CancellationToken);
+		await this.ReconcileAsync(context.Scheduler, context.CancellationToken);
 	}
 
 	// Public: lets specs drive one reconcile pass against a real scheduler directly
@@ -66,10 +66,10 @@ public sealed class SyncSystemJobsJob : IJob {
 		// persisted immediately with per-attempt transparency: cause, the key to inspect,
 		// and the operator's next action. A sync failure here would be worse than the
 		// condition it guards, so faults are isolated to the offending row.
-		await _RestoreProtectedDefinitionsAsync(cancellationToken);
+		await this._RestoreProtectedDefinitionsAsync(cancellationToken);
 
 		var definitions = await (
-			from definition in _DbContext.SystemJobDefinition
+			from definition in this._DbContext.SystemJobDefinition
 			where definition.IsEnabled && !definition.IsDeleted
 			select definition
 		).ToListAsync(cancellationToken);
@@ -82,7 +82,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			if (CronExpression.IsValidExpression(definition.CronExpression)) {
 				validDefinitions.Add(definition);
 			} else {
-				_Logger.LogWarning(
+				this._Logger.LogWarning(
 					"System job {JobKey} has an invalid cron expression '{Cron}'; removing "
 					+ "any scheduled trigger and skipping it until the definition is fixed",
 					definition.JobKey,
@@ -97,7 +97,7 @@ public sealed class SyncSystemJobsJob : IJob {
 
 		// Remove managed jobs whose definition is gone, disabled, or now invalid.
 		var existingKeys = await scheduler.GetJobKeys(
-			GroupMatcher<JobKey>.GroupEquals(SystemJobsGroup),
+			GroupMatcher<JobKey>.GroupEquals(SyncSystemJobsJob.SystemJobsGroup),
 			cancellationToken
 		);
 		foreach (var existing in existingKeys) {
@@ -111,9 +111,9 @@ public sealed class SyncSystemJobsJob : IJob {
 		// check) is logged and skipped so it cannot starve the remaining definitions.
 		foreach (var definition in validDefinitions) {
 			try {
-				await _SyncOneAsync(scheduler, definition, cancellationToken);
+				await this._SyncOneAsync(scheduler, definition, cancellationToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
-				_Logger.LogError(
+				this._Logger.LogError(
 					ex,
 					"Failed to reconcile system job {JobKey}; continuing with the rest",
 					definition.JobKey
@@ -137,7 +137,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// Candidate projection stays translatable SQL (no Quartz parse in the query);
 		// protection and cron-validity filtering happen in memory over the tiny table.
 		var candidates = await (
-			from definition in _DbContext.SystemJobDefinition
+			from definition in this._DbContext.SystemJobDefinition
 			where !definition.IsDeleted
 			select new {
 				definition.JobKey,
@@ -152,7 +152,7 @@ public sealed class SyncSystemJobsJob : IJob {
 					|| !CronExpression.IsValidExpression(candidate.CronExpression)))
 			.ToList();
 
-		var codeDefinedDefaults = _CodeDefinedDefaults();
+		var codeDefinedDefaults = this._CodeDefinedDefaults();
 		var unrepairedFaults = 0;
 		foreach (var drifted in driftedProtectedJobs) {
 			var jobKey = drifted.JobKey;
@@ -165,7 +165,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			var defaults = codeDefinedDefaults
 				.FirstOrDefault(definition => definition.JobKey == jobKey);
 			if (defaults is null) {
-				_Logger.LogError(
+				this._Logger.LogError(
 					"jobs.alert system_job_definition_unrepaired job_key={JobKey} — this "
 						+ "protected row is drifted (cron '{RejectedCron}', "
 						+ "enabled={DriftedEnabled}) but no code-defined default exists to "
@@ -197,7 +197,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			}
 
 			try {
-				var restored = await _DbContext.SystemJobDefinition
+				var restored = await this._DbContext.SystemJobDefinition
 					.Where(definition => definition.JobKey == jobKey)
 					.ExecuteUpdateAsync(
 						setters => setters
@@ -210,7 +210,7 @@ public sealed class SyncSystemJobsJob : IJob {
 					);
 
 				if (restored > 0) {
-					_Logger.LogWarning(
+					this._Logger.LogWarning(
 						"jobs.alert system_job_definition_restored job_key={JobKey} — this "
 							+ "sweep deletes token-bearing prepared bytes and its cadence IS "
 							+ "the privacy control (K-3); the code-defined definition was "
@@ -226,7 +226,7 @@ public sealed class SyncSystemJobsJob : IJob {
 					);
 				}
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
-				_Logger.LogError(
+				this._Logger.LogError(
 					ex,
 					"Failed to restore the code-defined definition of protected system "
 						+ "job {JobKey}; continuing with the rest of the sync",
@@ -240,7 +240,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// itself must carry the unrepaired count so an operator query never finds a
 		// silent false negative (every failure shows its cause).
 		if (unrepairedFaults > 0) {
-			_Logger.LogError(
+			this._Logger.LogError(
 				"jobs.sweep system_job_definition_restore finished with {FaultCount} "
 					+ "unrepaired drifted protected row(s) out of {DriftedCount}; the cause of "
 					+ "each is in its per-row jobs.alert above",
@@ -256,7 +256,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		CancellationToken cancellationToken
 	) {
 		var jobKeyName = definition.JobKey;
-		var jobKey = new JobKey(jobKeyName, SystemJobsGroup);
+		var jobKey = new JobKey(jobKeyName, SyncSystemJobsJob.SystemJobsGroup);
 
 		// A changed cron retires every trigger stamped with the previous epoch. Persist
 		// the new epoch before installing its replacement so delivery can exact-match it.
@@ -270,7 +270,7 @@ public sealed class SyncSystemJobsJob : IJob {
 					StringComparison.Ordinal
 				)) {
 				definition.ScheduleEpoch = Guid.NewGuid();
-				await _DbContext.SaveChangesAsync(cancellationToken);
+				await this._DbContext.SaveChangesAsync(cancellationToken);
 			}
 
 			await scheduler.DeleteJob(jobKey, cancellationToken);
@@ -286,7 +286,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			.Build();
 
 		var trigger = TriggerBuilder.Create()
-			.WithIdentity(jobKeyName, SystemJobsGroup)
+			.WithIdentity(jobKeyName, SyncSystemJobsJob.SystemJobsGroup)
 			.ForJob(jobKey)
 			.WithCronSchedule(definition.CronExpression)
 			.Build();

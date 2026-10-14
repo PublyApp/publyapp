@@ -14,9 +14,9 @@ public class ProfilePermissionsForTenant : ISlicePermissions {
 	public Permission MANAGE_PERMISSIONS { get; }
 
 	public ProfilePermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -33,9 +33,9 @@ public class ProfilePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		CREATE = Permission
+		this.CREATE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "create" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "create" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -52,9 +52,9 @@ public class ProfilePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		EDIT = Permission
+		this.EDIT = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "edit" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "edit" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -71,9 +71,9 @@ public class ProfilePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		DELETE = Permission
+		this.DELETE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "delete" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "delete" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -90,9 +90,9 @@ public class ProfilePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		ASSIGN_MEMBERS = Permission
+		this.ASSIGN_MEMBERS = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "assign_members" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "assign_members" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -109,9 +109,9 @@ public class ProfilePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		MANAGE_PERMISSIONS = Permission
+		this.MANAGE_PERMISSIONS = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "manage_permissions" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "manage_permissions" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

@@ -26,22 +26,22 @@ public static partial class ServiceValidator {
 		var errors = new List<string>();
 
 		// Rule 1: Concrete classes only (no abstract, no open generics)
-		_ValidateConcreteClasses(services, errors);
+		ServiceValidator._ValidateConcreteClasses(services, errors);
 
 		// Rule 2: Namespace allowlist enforcement
-		_ValidateNamespaces(services, errors);
+		ServiceValidator._ValidateNamespaces(services, errors);
 
 		// Rule 3: Primary interface existence check
-		_ValidatePrimaryInterfaces(services, errors);
+		ServiceValidator._ValidatePrimaryInterfaces(services, errors);
 
 		// Rule 4: Key validity (no empty/whitespace, must be lowercase)
-		_ValidateKeys(services, errors);
+		ServiceValidator._ValidateKeys(services, errors);
 
 		// Rule 5: Duplicate unkeyed implementation detection
-		_ValidateNoDuplicateUnkeyed(services, errors);
+		ServiceValidator._ValidateNoDuplicateUnkeyed(services, errors);
 
 		// Rule 6: Duplicate key detection per service type
-		_ValidateNoDuplicateKeys(services, errors);
+		ServiceValidator._ValidateNoDuplicateKeys(services, errors);
 
 		if (errors.Count > 0) {
 			var message = new StringBuilder();
@@ -97,7 +97,7 @@ public static partial class ServiceValidator {
 	/// </summary>
 	private static void _ValidateNamespaces(List<DiscoveredService> services, List<string> errors) {
 		foreach (var service in services) {
-			if (!_AllowedNamespacePattern().IsMatch(service.Namespace)) {
+			if (!ServiceValidator._AllowedNamespacePattern().IsMatch(service.Namespace)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' is invalid: " +
 					$"namespace '{service.Namespace}' is not allowed. " +
@@ -148,7 +148,7 @@ public static partial class ServiceValidator {
 				continue;
 			}
 
-			if (!_IsLowercaseKey(service.Key)) {
+			if (!ServiceValidator._IsLowercaseKey(service.Key)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' has invalid key: " +
 					$"'{service.Key}' must be lowercase. Keys must be lowercase identifiers."
@@ -163,7 +163,7 @@ public static partial class ServiceValidator {
 				continue;
 			}
 
-			if (!_KeyPattern().IsMatch(service.Key)) {
+			if (!ServiceValidator._KeyPattern().IsMatch(service.Key)) {
 				errors.Add(
 					$"[Service] attribute on '{service.ImplementationType.FullName}' has invalid key: " +
 					$"'{service.Key}' is not identifier-safe. Allowed chars: [a-z0-9._-] with no spaces."
@@ -179,7 +179,7 @@ public static partial class ServiceValidator {
 		// Filter to only services with valid interfaces (not void) and no key
 		var unkeyedByInterface = services
 			.Where(s => s.ServiceInterface is not null && s.Key is null)
-			.GroupBy(_GetRequiredServiceInterface)
+			.GroupBy(ServiceValidator._GetRequiredServiceInterface)
 			.Where(g => g.Count() > 1);
 
 		foreach (var group in unkeyedByInterface) {
@@ -230,8 +230,8 @@ public static partial class ServiceValidator {
 		var keyedByInterfaceAndKey = services
 			.Where(s => s.ServiceInterface is not null && s.Key is not null)
 			.GroupBy(s => (
-				ServiceInterface: _GetRequiredServiceInterface(s),
-				Key: _GetRequiredServiceKey(s)
+				ServiceInterface: ServiceValidator._GetRequiredServiceInterface(s),
+				Key: ServiceValidator._GetRequiredServiceKey(s)
 			))
 			.Where(g => g.Count() > 1);
 
@@ -283,7 +283,7 @@ public static partial class ServiceValidator {
 			return;
 		}
 
-		var manifest = FormatManifest(services);
+		var manifest = ServiceValidator.FormatManifest(services);
 		if (manifest is null) {
 			return;
 		}

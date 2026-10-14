@@ -35,7 +35,7 @@ public static class CryptoUtils {
 
 		// Use string.Create to avoid intermediate char array allocation
 		return string.Create(size, bytes, static (chars, randomBytes) => {
-			var charsSpan = _Chars;
+			var charsSpan = CryptoUtils._Chars;
 			for (int i = 0; i < chars.Length; i++) {
 				chars[i] = charsSpan[randomBytes[i] % charsSpan.Length];
 			}
@@ -60,7 +60,7 @@ public static class CryptoUtils {
 		}
 
 		try {
-			secret ??= _STRINGENCRYPTIONSECRETDEFAULT;
+			secret ??= CryptoUtils._STRINGENCRYPTIONSECRETDEFAULT;
 
 			// Generate a random IV (Initialization Vector) - 12 bytes for AES-GCM
 			var iv = new byte[12];
@@ -107,7 +107,7 @@ public static class CryptoUtils {
 		}
 
 		try {
-			secret ??= _STRINGENCRYPTIONSECRETDEFAULT;
+			secret ??= CryptoUtils._STRINGENCRYPTIONSECRETDEFAULT;
 
 			// Convert from URL-safe base64 back to regular base64
 			var base64 = encodedInput
@@ -153,7 +153,7 @@ public static class CryptoUtils {
 	/// <returns>True if it's a valid encoded string, false otherwise</returns>
 	public static bool IsValidEncryptedString(string encodedInput, string? secret = null) {
 		try {
-			DecryptString(encodedInput, secret);
+			CryptoUtils.DecryptString(encodedInput, secret);
 			return true;
 		} catch {
 			return false;

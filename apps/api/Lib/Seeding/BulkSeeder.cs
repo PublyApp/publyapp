@@ -41,8 +41,8 @@ public class BulkSeeder {
 	private readonly BulkSeedDataGenerator? _Generator;
 
 	public BulkSeeder(int? batchSize = null, BulkSeedDataGenerator? generator = null) {
-		_BatchSize = batchSize ?? BulkSeedConstants.DefaultBatchSize;
-		_Generator = generator;
+		this._BatchSize = batchSize ?? BulkSeedConstants.DefaultBatchSize;
+		this._Generator = generator;
 	}
 
 	/// <summary>
@@ -62,7 +62,7 @@ public class BulkSeeder {
 	/// exist (matched by natural key) are skipped, and only missing rows are inserted.
 	/// </summary>
 	public async Task SeedBulkAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
-		var generator = _Generator ?? new BulkSeedDataGenerator();
+		var generator = this._Generator ?? new BulkSeedDataGenerator();
 		generator.GenerateAll();
 
 		Console.WriteLine(
@@ -72,10 +72,10 @@ public class BulkSeeder {
 		// (existing rows matched, new rows inserted) before UserAccounts/Projects, because
 		// those carry FKs that must point at the REAL persisted id of a tenant/user that
 		// already existed, not the fresh id the generator assigned it this run.
-		var tenantIdRemap = await SeedTenantsInBatchesAsync(dbContext, generator.Tenants, cancellationToken);
-		var userIdRemap = await _SeedUsersInBatchesAsync(dbContext, generator.Users, cancellationToken);
-		await _SeedUserAccountsInBatchesAsync(dbContext, generator.UserAccounts, userIdRemap, tenantIdRemap, cancellationToken);
-		await _SeedProjectsInBatchesAsync(dbContext, generator.Projects, tenantIdRemap, cancellationToken);
+		var tenantIdRemap = await this.SeedTenantsInBatchesAsync(dbContext, generator.Tenants, cancellationToken);
+		var userIdRemap = await this._SeedUsersInBatchesAsync(dbContext, generator.Users, cancellationToken);
+		await this._SeedUserAccountsInBatchesAsync(dbContext, generator.UserAccounts, userIdRemap, tenantIdRemap, cancellationToken);
+		await this._SeedProjectsInBatchesAsync(dbContext, generator.Projects, tenantIdRemap, cancellationToken);
 
 		Console.WriteLine("Bulk seed completed!");
 	}
@@ -87,10 +87,10 @@ public class BulkSeeder {
 		Console.WriteLine("Clearing bulk seed data...");
 
 		// Delete in reverse order of dependencies
-		await _DeleteProjectsAsync(dbContext, cancellationToken);
-		await _DeleteUserAccountsAsync(dbContext, cancellationToken);
-		await _DeleteUsersAsync(dbContext, cancellationToken);
-		await _DeleteTenantsAsync(dbContext, cancellationToken);
+		await BulkSeeder._DeleteProjectsAsync(dbContext, cancellationToken);
+		await BulkSeeder._DeleteUserAccountsAsync(dbContext, cancellationToken);
+		await BulkSeeder._DeleteUsersAsync(dbContext, cancellationToken);
+		await BulkSeeder._DeleteTenantsAsync(dbContext, cancellationToken);
 
 		Console.WriteLine("Bulk data cleared!");
 	}
@@ -132,7 +132,7 @@ public class BulkSeeder {
 			return remap;
 		}
 
-		var batches = toInsert.Chunk(_BatchSize).ToList();
+		var batches = toInsert.Chunk(this._BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("Tenants: ");
@@ -144,7 +144,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rTenants: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, TenantNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (BulkSeeder._IsExpectedNaturalKeyViolation(ex, BulkSeeder.TenantNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// The violated index IS the tenant natural key, but that alone doesn't prove
@@ -207,7 +207,7 @@ public class BulkSeeder {
 			return remap;
 		}
 
-		var batches = toInsert.Chunk(_BatchSize).ToList();
+		var batches = toInsert.Chunk(this._BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("Users: ");
@@ -219,7 +219,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rUsers: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, UserNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (BulkSeeder._IsExpectedNaturalKeyViolation(ex, BulkSeeder.UserNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// Same reasoning as the tenant phase: the constraint name alone doesn't prove
@@ -284,7 +284,7 @@ public class BulkSeeder {
 			return;
 		}
 
-		var batches = toInsert.Chunk(_BatchSize).ToList();
+		var batches = toInsert.Chunk(this._BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("UserAccounts: ");
@@ -296,7 +296,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rUserAccounts: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, UserAccountNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (BulkSeeder._IsExpectedNaturalKeyViolation(ex, BulkSeeder.UserAccountNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// Same reasoning as the tenant/user phases: confirm at least one of the
@@ -361,7 +361,7 @@ public class BulkSeeder {
 			return;
 		}
 
-		var batches = toInsert.Chunk(_BatchSize).ToList();
+		var batches = toInsert.Chunk(this._BatchSize).ToList();
 		var count = 0;
 
 		Console.Write("Projects: ");
@@ -373,7 +373,7 @@ public class BulkSeeder {
 				await transaction.CommitAsync(cancellationToken);
 				count += batch.Length;
 				Console.Write($"\rProjects: {count}/{toInsert.Count} inserted, {skipped} already existed ");
-			} catch (DbUpdateException ex) when (_IsExpectedNaturalKeyViolation(ex, ProjectNaturalKeyConstraints)) {
+			} catch (DbUpdateException ex) when (BulkSeeder._IsExpectedNaturalKeyViolation(ex, BulkSeeder.ProjectNaturalKeyConstraints)) {
 				await transaction.RollbackAsync(cancellationToken);
 
 				// Same reasoning as the other phases — this is the exact blocker the

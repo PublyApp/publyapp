@@ -15,17 +15,17 @@ public class FindTenantPermissionsQuery {
 	public string? Language { get; set; }
 
 	public string GetLanguage() {
-		if (string.IsNullOrEmpty(Language)) {
+		if (string.IsNullOrEmpty(this.Language)) {
 			return SupportedLanguage.English;
 		}
 
 		var language = SupportedLanguage.All
 			.FirstOrDefault(l =>
-				string.Equals(l, Language, StringComparison.OrdinalIgnoreCase)
+				string.Equals(l, this.Language, StringComparison.OrdinalIgnoreCase)
 			);
 
 		if (language is null) {
-			throw new ArgumentException($"Invalid language: {Language}");
+			throw new ArgumentException($"Invalid language: {this.Language}");
 		}
 
 		return language;
@@ -34,7 +34,7 @@ public class FindTenantPermissionsQuery {
 
 public class FindTenantPermissionsQueryValidator : AbstractValidator<FindTenantPermissionsQuery> {
 	public FindTenantPermissionsQueryValidator() {
-		RuleFor(x => x.Language)
+		this.RuleFor(x => x.Language)
 			.Must(l =>
 				SupportedLanguage.All.Contains(l, StringComparer.OrdinalIgnoreCase)
 			)

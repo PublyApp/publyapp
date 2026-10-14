@@ -17,8 +17,8 @@ public class JobsPermissionsForStaff : ISlicePermissions {
 	public Permission SYSTEM_JOB_TRIGGER { get; }
 
 	public JobsPermissionsForStaff() {
-		RESOLVE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "resolve" }))
+		this.RESOLVE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "resolve" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation {
 				Name = "Resolve dead-letter triage",
 				Description = "Resolve the external-state triage of a dead-lettered job"
@@ -28,8 +28,8 @@ public class JobsPermissionsForStaff : ISlicePermissions {
 				Description = "Resoudre le triage d'etat externe d'un job arrive en dead-letter"
 			});
 
-		VIEW = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" }))
+		this.VIEW = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation {
 				Name = "View jobs dashboard",
 				Description = "List job queue runs, dead-letter rows, and system job definitions"
@@ -39,8 +39,8 @@ public class JobsPermissionsForStaff : ISlicePermissions {
 				Description = "Lister les executions de la file, les entrees dead-letter, et les jobs systeme"
 			});
 
-		REQUEUE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "requeue" }))
+		this.REQUEUE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "requeue" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation {
 				Name = "Requeue dead-lettered job",
 				Description = "Requeue a dead-lettered job back into job_queue with its original envelope"
@@ -50,8 +50,8 @@ public class JobsPermissionsForStaff : ISlicePermissions {
 				Description = "Remettre en file un job dead-letter avec son enveloppe d'origine"
 			});
 
-		SYSTEM_JOB_UPDATE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "system_job_update" }))
+		this.SYSTEM_JOB_UPDATE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "system_job_update" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation {
 				Name = "Update system job definition",
 				Description = "Enable, disable, or change the cron of a system_job_definition row"
@@ -61,8 +61,8 @@ public class JobsPermissionsForStaff : ISlicePermissions {
 				Description = "Activer, desactiver, ou modifier la cron d'une ligne system_job_definition"
 			});
 
-		SYSTEM_JOB_TRIGGER = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "system_job_trigger" }))
+		this.SYSTEM_JOB_TRIGGER = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "system_job_trigger" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation {
 				Name = "Trigger a system job now",
 				Description = "Enqueue a system_job_definition's handler into job_queue outside its cron"

@@ -28,7 +28,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 	private readonly ILogger<SocialAccountSeeder> _Logger;
 
 	public SocialAccountSeeder(ILogger<SocialAccountSeeder>? logger = null) {
-		_Logger = logger
+		this._Logger = logger
 			?? SeederLoggerUtils.CreateDefault<SocialAccountSeeder>();
 	}
 
@@ -54,7 +54,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		// MigrateAsync passes (which would otherwise insert into a schema point that
 		// predates the social_accounts columns and throw).
 		if (!FakePublishingProviderEnabled.IsEnabled()) {
-			_Logger.LogDebug(
+			this._Logger.LogDebug(
 				"PUBLISHING_FAKE_PROVIDER not enabled; skipping demo social account seeding (e2e-only)."
 			);
 			return;
@@ -76,7 +76,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		).ToListAsync(cancellationToken);
 
 		if (tenants.Count == 0) {
-			_Logger.LogWarning("No demo tenants found for social account seeding; skipping.");
+			this._Logger.LogWarning("No demo tenants found for social account seeding; skipping.");
 			return;
 		}
 
@@ -96,7 +96,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 				continue;
 			}
 
-			var did = _DeterministicDid(displayHandle);
+			var did = SocialAccountSeeder._DeterministicDid(displayHandle);
 			if (existingDidsSet.Contains(did)) {
 				continue;
 			}
@@ -107,13 +107,13 @@ public class SocialAccountSeeder : IEntitySeeder {
 				ExternalAccountId = did,
 				DisplayHandle = displayHandle,
 				CredentialType = SocialCredentialType.AppPassword,
-				ProtectedCredentials = PlaceholderCredentialBlob,
+				ProtectedCredentials = SocialAccountSeeder.PlaceholderCredentialBlob,
 				Status = SocialAccountStatus.Active,
 			});
 		}
 
 		if (newAccounts.Count == 0) {
-			_Logger.LogInformation(
+			this._Logger.LogInformation(
 				"Social account seeding skipped; all demo accounts already exist."
 			);
 			return;
@@ -122,8 +122,8 @@ public class SocialAccountSeeder : IEntitySeeder {
 		await dbContext.SocialAccount.AddRangeAsync(newAccounts, cancellationToken);
 		try {
 			await dbContext.SaveChangesAsync(cancellationToken);
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation(
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation(
 					"Seeded {Count} demo social accounts.", newAccounts.Count
 				);
 			}
@@ -132,7 +132,7 @@ public class SocialAccountSeeder : IEntitySeeder {
 		) {
 			// Lost a race against a concurrent seeder inserting the same rows; the
 			// winner's rows satisfy the contract, so this is a skip, not an error.
-			_Logger.LogWarning(
+			this._Logger.LogWarning(
 				ex,
 				"Duplicate demo social accounts detected during seeding; skipping insert."
 			);

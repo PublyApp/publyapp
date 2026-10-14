@@ -110,22 +110,22 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 	private readonly AppDbContext _DbContext;
 
 	public EmailLogWriter(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public void WriteSubmitted(WriteSubmittedEmailLogArgs args) {
-		var row = _Build(args.Entry, EmailLogOutcome.Submitted, lastError: null);
+		var row = EmailLogWriter._Build(args.Entry, EmailLogOutcome.Submitted, lastError: null);
 		row.ProviderMessageId = args.ProviderMessageId;
 		row.RequestSha256 = args.RequestSha256;
-		_DbContext.EmailLog.Add(row);
+		this._DbContext.EmailLog.Add(row);
 	}
 
 	public void WriteCancelledIneligible(EmailLogEntry entry, string reasonCode) {
-		_DbContext.EmailLog.Add(_Build(entry, EmailLogOutcome.CancelledIneligible, reasonCode));
+		this._DbContext.EmailLog.Add(EmailLogWriter._Build(entry, EmailLogOutcome.CancelledIneligible, reasonCode));
 	}
 
 	public void WritePermanentlyFailed(EmailLogEntry entry, string? lastError) {
-		_DbContext.EmailLog.Add(_Build(entry, EmailLogOutcome.PermanentlyFailed, lastError));
+		this._DbContext.EmailLog.Add(EmailLogWriter._Build(entry, EmailLogOutcome.PermanentlyFailed, lastError));
 	}
 
 	public async Task<ApplyProviderEvidenceResult> ApplyProviderEvidenceAsync(
@@ -133,22 +133,22 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 		CancellationToken cancellationToken = default
 	) {
 		await using var transaction =
-			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
+			await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		var priorOutcome = await _FindOutcomeAsync(args.JobId, cancellationToken);
+		var priorOutcome = await this._FindOutcomeAsync(args.JobId, cancellationToken);
 		if (priorOutcome is null) {
 			await transaction.RollbackAsync(cancellationToken);
 			return new ApplyProviderEvidenceResult.UnknownTarget();
 		}
 
-		if (!_IsAllowedEdge(priorOutcome.Value, args.NewOutcome)) {
+		if (!EmailLogWriter._IsAllowedEdge(priorOutcome.Value, args.NewOutcome)) {
 			await transaction.RollbackAsync(cancellationToken);
 			return new ApplyProviderEvidenceResult.Rejected($"edge {priorOutcome.Value} "
 				+ $"→ {args.NewOutcome} is outside the forward-only allowlist for "
 				+ $"job {args.JobId} — terminal outcomes never reverse");
 		}
 
-		var emailLogId = await _FindIdByJobAsync(args.JobId, cancellationToken);
+		var emailLogId = await this._FindIdByJobAsync(args.JobId, cancellationToken);
 		if (emailLogId is null) {
 			// Unreachable while the read above succeeded inside this transaction; kept as
 			// an explicit guard because the FK below needs a real id.
@@ -160,7 +160,7 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 		// by ux_email_log_evidence_events_provider_event_id on THIS table (#866 round-1
 		// finding 3 — the explicit index named in §4.4), not incidentally by the parent
 		// row's update. Everything commits or rolls back together below.
-		_DbContext.EmailLogEvidenceEvent.Add(new EmailLogEvidenceEvent {
+		this._DbContext.EmailLogEvidenceEvent.Add(new EmailLogEvidenceEvent {
 			EmailLogId = emailLogId.Value,
 			Event = args.Event,
 			ActorKind = args.Actor.Kind,
@@ -174,7 +174,7 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 		});
 
 		try {
-			await _DbContext.SaveChangesAsync(cancellationToken);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		} catch (DbUpdateException ex)
 				when (ex.InnerException is Npgsql.PostgresException pgEx
 					&& pgEx.SqlState == "23505") {
@@ -191,7 +191,7 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 		// outcome, so an edge racing a concurrent transition affects zero rows instead of
 		// clobbering it. The update stamps evidence_source / provider_event_id /
 		// updated_at = now() (Npgsql translates UtcNow inside the expression to now()).
-		var updatedRows = await _DbContext.EmailLog
+		var updatedRows = await this._DbContext.EmailLog
 			.Where(entry => entry.JobId == args.JobId
 				&& entry.Outcome == priorOutcome.Value)
 			.ExecuteUpdateAsync(
@@ -219,14 +219,14 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 		Guid jobId,
 		CancellationToken cancellationToken
 	) {
-		return await _DbContext.EmailLog
+		return await this._DbContext.EmailLog
 			.Where(entry => entry.JobId == jobId)
 			.Select(entry => (EmailLogOutcome?)entry.Outcome)
 			.SingleOrDefaultAsync(cancellationToken);
 	}
 
 	private async Task<Guid?> _FindIdByJobAsync(Guid jobId, CancellationToken cancellationToken) {
-		return await _DbContext.EmailLog
+		return await this._DbContext.EmailLog
 			.Where(entry => entry.JobId == jobId)
 			.Select(entry => entry.Id)
 			.SingleOrDefaultAsync(cancellationToken);

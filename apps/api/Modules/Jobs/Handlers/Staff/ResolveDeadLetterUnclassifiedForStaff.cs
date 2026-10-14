@@ -21,7 +21,7 @@ public record ResolveDeadLetterUnclassifiedForStaffBody {
 	public JsonElement? Note { get; init; }
 
 	public string? GetNote() {
-		return Note.GetValueAsStringOrNull();
+		return this.Note.GetValueAsStringOrNull();
 	}
 }
 
@@ -39,7 +39,7 @@ public record DeadLetterResolvedResponse {
 public class ResolveDeadLetterUnclassifiedForStaffBodyValidator
 	: AbstractValidator<ResolveDeadLetterUnclassifiedForStaffBody> {
 	public ResolveDeadLetterUnclassifiedForStaffBodyValidator() {
-		RuleFor(x => x.Note)
+		this.RuleFor(x => x.Note)
 			.MustBeNullableStringWithMaxLength("Note", 500, trim: true);
 	}
 }

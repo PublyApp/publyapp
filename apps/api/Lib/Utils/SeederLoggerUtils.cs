@@ -22,6 +22,6 @@ public static class SeederLoggerUtils {
 				.NullLogger<T>.Instance;
 		}
 
-		return _ConsoleLoggerFactory.Value.CreateLogger<T>();
+		return SeederLoggerUtils._ConsoleLoggerFactory.Value.CreateLogger<T>();
 	}
 }

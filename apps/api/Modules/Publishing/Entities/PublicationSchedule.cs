@@ -22,8 +22,8 @@ public sealed record PublicationSchedule {
 	);
 
 	private PublicationSchedule(DateTime scheduledAtUtc, string scheduledTimeZone) {
-		ScheduledAtUtc = scheduledAtUtc;
-		ScheduledTimeZone = scheduledTimeZone;
+		this.ScheduledAtUtc = scheduledAtUtc;
+		this.ScheduledTimeZone = scheduledTimeZone;
 	}
 
 	public static PublicationSchedule Create(DateTime scheduledAtUtc, string timeZoneId) {
@@ -42,7 +42,7 @@ public sealed record PublicationSchedule {
 		}
 
 		var trimmed = timeZoneId.Trim();
-		if (trimmed.Length > MaxTimeZoneLength || !_ZonePattern.IsMatch(trimmed)) {
+		if (trimmed.Length > PublicationSchedule.MaxTimeZoneLength || !PublicationSchedule._ZonePattern.IsMatch(trimmed)) {
 			throw new ArgumentException(
 				$"'{trimmed}' is not an IANA time zone identifier.",
 				nameof(timeZoneId)

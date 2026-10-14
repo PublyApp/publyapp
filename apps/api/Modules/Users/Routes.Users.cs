@@ -56,15 +56,15 @@ public static partial class Routes {
 					return $"/{userId}/profiles";
 				}
 
-				public const string Get = Root;
+				public const string Get = Routes.Users.ForStaff.Profiles.Root;
 				public static string GetFn(string userId) {
-					return RootFn(userId);
+					return Routes.Users.ForStaff.Profiles.RootFn(userId);
 				}
 
 				/// <summary>Replace the full assigned profile set for the staff user</summary>
-				public const string Update = Root;
+				public const string Update = Routes.Users.ForStaff.Profiles.Root;
 				public static string UpdateFn(string userId) {
-					return RootFn(userId);
+					return Routes.Users.ForStaff.Profiles.RootFn(userId);
 				}
 			}
 		}
@@ -78,57 +78,57 @@ public static partial class Routes {
 
 			public const string Create = "/";
 			public static string CreateFn(string tenantId) {
-				return $"{RootFn(tenantId)}/";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/";
 			}
 
 			public const string Find = "/";
 			public static string FindFn(string tenantId) {
-				return $"{RootFn(tenantId)}/";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/";
 			}
 
 			public const string GetById = "/{userId}";
 			public static string GetByIdFn(string tenantId, string userId) {
-				return $"{RootFn(tenantId)}/{userId}";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/{userId}";
 			}
 
 			public const string Update = "/{userId}";
 			public static string UpdateFn(string tenantId, string userId) {
-				return $"{RootFn(tenantId)}/{userId}";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/{userId}";
 			}
 
 			public const string Delete = "/{userId}";
 			public static string DeleteFn(string tenantId, string userId) {
-				return $"{RootFn(tenantId)}/{userId}";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/{userId}";
 			}
 
 			public const string Invite = "/invitations";
 			public static string InviteFn(string tenantId) {
-				return $"{RootFn(tenantId)}/invitations";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/invitations";
 			}
 
 			public const string BulkInvite = "/invitations/bulk";
 			public static string BulkInviteFn(string tenantId) {
-				return $"{RootFn(tenantId)}/invitations/bulk";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/invitations/bulk";
 			}
 
 			public const string Suspend = "/{userId}/suspend";
 			public static string SuspendFn(string tenantId, string userId) {
-				return $"{RootFn(tenantId)}/{userId}/suspend";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/{userId}/suspend";
 			}
 
 			public const string Reactivate = "/{userId}/reactivate";
 			public static string ReactivateFn(string tenantId, string userId) {
-				return $"{RootFn(tenantId)}/{userId}/reactivate";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/{userId}/reactivate";
 			}
 
 			public const string BulkRemove = "/bulk-remove";
 			public static string BulkRemoveFn(string tenantId) {
-				return $"{RootFn(tenantId)}/bulk-remove";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/bulk-remove";
 			}
 
 			public const string Export = "/export";
 			public static string ExportFn(string tenantId) {
-				return $"{RootFn(tenantId)}/export";
+				return $"{Routes.Users.ForTenantAsStaff.RootFn(tenantId)}/export";
 			}
 		}
 

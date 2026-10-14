@@ -24,7 +24,7 @@ public sealed class PublishNowBody {
 	public List<Guid> GetAccountIds() {
 		var accountIds = new List<Guid>();
 
-		foreach (var accountIdElement in AccountIds.EnumerateArray()) {
+		foreach (var accountIdElement in this.AccountIds.EnumerateArray()) {
 			accountIds.Add(accountIdElement.GetValueAsGuid());
 		}
 
@@ -35,7 +35,7 @@ public sealed class PublishNowBody {
 public sealed class PublishNowBodyValidator
 	: AbstractValidator<PublishNowBody> {
 	public PublishNowBodyValidator() {
-		RuleFor(x => x.AccountIds)
+		this.RuleFor(x => x.AccountIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "accountIds",
 				itemName: "accountId",

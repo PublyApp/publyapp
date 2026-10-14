@@ -215,8 +215,8 @@ public sealed class PublicationService : IPublicationService {
 		AppDbContext dbContext,
 		IHttpContextAccessor httpContextAccessor
 	) {
-		_DbContext = dbContext;
-		_HttpContextAccessor = httpContextAccessor;
+		this._DbContext = dbContext;
+		this._HttpContextAccessor = httpContextAccessor;
 	}
 
 	public async Task<ScheduleResult> ScheduleAsync(
@@ -236,14 +236,14 @@ public sealed class PublicationService : IPublicationService {
 		_ = zone; // kept for symmetry with later wall-clock conversion needs
 
 		if (args.ScheduledAtLocal
-			< DateTime.UtcNow.AddSeconds(-_PastDriftToleranceSeconds)) {
+			< DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds)) {
 			return new ScheduleResult.InvalidSchedule(
 				"The requested date is already in the past. Pick a future date and time.",
 				"scheduledAtLocal"
 			);
 		}
 
-		var post = await _LoadPostAsync(
+		var post = await this._LoadPostAsync(
 			args.PostId,
 			args.TenantId,
 			cancellationToken
@@ -255,7 +255,7 @@ public sealed class PublicationService : IPublicationService {
 		var accountIds = args.AccountIds.Distinct().ToList();
 
 		var accounts = await (
-			from account in _DbContext.SocialAccount
+			from account in this._DbContext.SocialAccount
 			where account.TenantId == args.TenantId
 				&& !account.IsDeleted
 				&& account.Id != null
@@ -263,10 +263,10 @@ public sealed class PublicationService : IPublicationService {
 			select account
 		).ToListAsync(cancellationToken);
 
-		await _PopulateProjectLinksAsync(accounts, accountIds, cancellationToken);
+		await this._PopulateProjectLinksAsync(accounts, accountIds, cancellationToken);
 
 		foreach (var accountId in accountIds) {
-			var failure = _ValidateAccount(accounts, accountId, post);
+			var failure = PublicationService._ValidateAccount(accounts, accountId, post);
 			if (failure is not null) {
 				return failure;
 			}
@@ -286,16 +286,16 @@ public sealed class PublicationService : IPublicationService {
 			})
 			.ToList();
 
-		_DbContext.Publication.AddRange(publications);
-		_AddAuditEntry(args, publications.Count, timeZoneId);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		this._DbContext.Publication.AddRange(publications);
+		this._AddAuditEntry(args, publications.Count, timeZoneId);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		// The key derives deterministically from the DB-generated row id (Epic A §4.1).
 		foreach (var publication in publications) {
 			publication.IdempotencyKey =
 				PublicationIdempotencyKey.For(publication.GetRequiredId());
 		}
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return new ScheduleResult.Scheduled(publications);
 	}
@@ -313,7 +313,7 @@ public sealed class PublicationService : IPublicationService {
 		EditPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var post = await _LoadPostAsync(
+		var post = await this._LoadPostAsync(
 			args.PostId,
 			args.TenantId,
 			cancellationToken
@@ -325,7 +325,7 @@ public sealed class PublicationService : IPublicationService {
 		// Refuse BEFORE touching anything: the text stays untouched too.
 		var postId = post.GetRequiredId();
 		var hasInProgress = await (
-			from p in _DbContext.Publication.AsNoTracking()
+			from p in this._DbContext.Publication.AsNoTracking()
 			where p.PostId == postId
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted
@@ -364,7 +364,7 @@ public sealed class PublicationService : IPublicationService {
 
 			// Past-drift rule on the raw pair, same tolerance as scheduling.
 			if (args.ScheduledAtLocal.Value
-				< DateTime.UtcNow.AddSeconds(-_PastDriftToleranceSeconds)) {
+				< DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds)) {
 				return new EditPostScheduleResult.InvalidSchedule(
 					"The requested date is already in the past. "
 						+ "Pick a future date and time.",
@@ -400,7 +400,7 @@ public sealed class PublicationService : IPublicationService {
 		var reschedules = new List<PendingReschedule>();
 		if (schedule is not null) {
 			var targets = await (
-				from p in _DbContext.Publication
+				from p in this._DbContext.Publication
 				where p.PostId == postId
 					&& !p.IsDeleted
 					&& (p.Status == PublicationStatus.Scheduled
@@ -418,7 +418,7 @@ public sealed class PublicationService : IPublicationService {
 			));
 		}
 
-		_AddAuditEntry(
+		this._AddAuditEntry(
 			args.ActorUserId,
 			AuditActions.PostUpdated,
 			postId,
@@ -431,7 +431,7 @@ public sealed class PublicationService : IPublicationService {
 		// Same-SaveChanges as the body write, so the text change and its audit
 		// commit atomically. The publication.rescheduled summary is written by the
 		// calling handler AFTER the transitions, so it counts APPLIED moves.
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return new EditPostScheduleResult.Success(post, reschedules);
 	}
@@ -446,7 +446,7 @@ public sealed class PublicationService : IPublicationService {
 		CancellationToken cancellationToken
 	) {
 		var links = await (
-			from link in _DbContext.Set<SocialAccountProject>()
+			from link in this._DbContext.Set<SocialAccountProject>()
 			where accountIds.Contains(link.SocialAccountId)
 			select new { link.SocialAccountId, link.ProjectId }
 		).ToListAsync(cancellationToken);
@@ -513,7 +513,7 @@ public sealed class PublicationService : IPublicationService {
 		int count,
 		string timeZoneId
 	) {
-		_AddAuditEntry(
+		this._AddAuditEntry(
 			args.ActorUserId,
 			AuditActions.PublicationScheduled,
 			args.PostId,
@@ -542,7 +542,7 @@ public sealed class PublicationService : IPublicationService {
 		var postId = args.PostId;
 		var actorUserId = args.ActorUserId;
 		var postExists = await (
-			from p in _DbContext.Post.AsNoTracking()
+			from p in this._DbContext.Post.AsNoTracking()
 			where p.Id == postId
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -555,7 +555,7 @@ public sealed class PublicationService : IPublicationService {
 		// SQL DELETE, not a status transition: cancelled publications leave no
 		// history row (the audit entry below carries the durable record).
 		var deletedCount = await (
-			from p in _DbContext.Publication
+			from p in this._DbContext.Publication
 			where p.PostId == postId
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -564,7 +564,7 @@ public sealed class PublicationService : IPublicationService {
 		).ExecuteDeleteAsync(cancellationToken);
 
 		var keptCount = await (
-			from p in _DbContext.Publication.AsNoTracking()
+			from p in this._DbContext.Publication.AsNoTracking()
 			where p.PostId == postId
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -572,7 +572,7 @@ public sealed class PublicationService : IPublicationService {
 		).CountAsync(cancellationToken);
 
 		if (deletedCount > 0) {
-			_AddAuditEntry(
+			this._AddAuditEntry(
 				actorUserId,
 				AuditActions.PublicationScheduleCancelled,
 				postId,
@@ -583,7 +583,7 @@ public sealed class PublicationService : IPublicationService {
 					KeptCount = keptCount,
 				}
 			);
-			await _DbContext.SaveChangesAsync(cancellationToken);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		return new CancelScheduleResult(deletedCount, keptCount);
@@ -617,7 +617,7 @@ public sealed class PublicationService : IPublicationService {
 				|| carryoverStatuses.Contains(PublicationStatus.Paused));
 
 		var baseQuery =
-			from publication in _DbContext.Publication.AsNoTracking()
+			from publication in this._DbContext.Publication.AsNoTracking()
 			where publication.TenantId == args.TenantId
 				&& !publication.IsDeleted
 				&& publication.ScheduledAtUtc <= args.ToUtc
@@ -630,14 +630,14 @@ public sealed class PublicationService : IPublicationService {
 					|| args.Statuses.Contains(publication.Status))
 			select new {
 				Publication = publication,
-				AccountHandle = _DbContext.SocialAccount
+				AccountHandle = this._DbContext.SocialAccount
 					.Where(a => a.Id == publication.SocialAccountId)
 					.Select(a => a.DisplayHandle)
 					.FirstOrDefault(),
 			};
 
 		if (!string.IsNullOrEmpty(args.Cursor)) {
-			if (!_TryDecodeCursor(args.Cursor, out var cursorInstant,
+			if (!PublicationService._TryDecodeCursor(args.Cursor, out var cursorInstant,
 					out var cursorId)) {
 				return new FindScheduledResult.CursorNotFound();
 			}
@@ -656,7 +656,7 @@ public sealed class PublicationService : IPublicationService {
 			// the window here would re-break the cursor as soon as the worker
 			// mutates the anchor's status out of InProgress/Paused.
 			var cursorExists = await (
-				from p in _DbContext.Publication.AsNoTracking()
+				from p in this._DbContext.Publication.AsNoTracking()
 				where p.Id == cursorId
 					&& p.TenantId == args.TenantId
 					&& !p.IsDeleted
@@ -694,7 +694,7 @@ public sealed class PublicationService : IPublicationService {
 			.ToList();
 
 		var postRows = await (
-			from p in _DbContext.Post.AsNoTracking()
+			from p in this._DbContext.Post.AsNoTracking()
 			where p.Id.HasValue && postIds.Contains(p.Id.Value)
 			select new { PostIdValue = p.Id, p.Body }
 		).ToListAsync(cancellationToken);
@@ -707,7 +707,7 @@ public sealed class PublicationService : IPublicationService {
 		}
 
 		var postStatuses = await (
-			from p in _DbContext.Publication.AsNoTracking()
+			from p in this._DbContext.Publication.AsNoTracking()
 			where postIds.Contains(p.PostId) && !p.IsDeleted
 			select p
 		).ToListAsync(cancellationToken);
@@ -728,9 +728,9 @@ public sealed class PublicationService : IPublicationService {
 			items.Add(new ScheduledPublicationItem {
 				PublicationId = publication.GetRequiredId(),
 				PostId = postId,
-				PostBodyPreview = body.Length <= _BodyPreviewMaxLength
+				PostBodyPreview = body.Length <= PublicationService._BodyPreviewMaxLength
 					? body
-					: body[.._BodyPreviewMaxLength],
+					: body[..PublicationService._BodyPreviewMaxLength],
 				PostStatus = PostStatusDerivation.FormatPostStatus(derived),
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = row.AccountHandle ?? string.Empty,
@@ -761,7 +761,7 @@ public sealed class PublicationService : IPublicationService {
 			// only safe to read when a next page actually exists (round-2 finding:
 			// an empty window used to 500 on an unconditional rows[^1]).
 			var last = rows[^1].Publication;
-			page.NextCursor = _EncodeCursor(
+			page.NextCursor = PublicationService._EncodeCursor(
 				last.ScheduledAtUtc,
 				last.GetRequiredId()
 			);
@@ -775,7 +775,7 @@ public sealed class PublicationService : IPublicationService {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from p in _DbContext.Post
+			from p in this._DbContext.Post
 			where p.Id == postId
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -835,7 +835,7 @@ public sealed class PublicationService : IPublicationService {
 		Guid? targetId,
 		object details
 	) {
-		var httpContext = _HttpContextAccessor.HttpContext;
+		var httpContext = this._HttpContextAccessor.HttpContext;
 
 		var auditLog = AuditLog.CreateEntry(
 			userId: userId,
@@ -846,6 +846,6 @@ public sealed class PublicationService : IPublicationService {
 			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
 		);
 
-		_ = _DbContext.AuditLog.Add(auditLog);
+		_ = this._DbContext.AuditLog.Add(auditLog);
 	}
 }

@@ -12,9 +12,9 @@ public class ChannelPermissionsForTenant : ISlicePermissions {
 	public Permission MANAGE { get; }
 
 	public ChannelPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -31,9 +31,9 @@ public class ChannelPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		CONNECT = Permission
+		this.CONNECT = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "connect" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "connect" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -50,9 +50,9 @@ public class ChannelPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		DISCONNECT = Permission
+		this.DISCONNECT = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "disconnect" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "disconnect" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -69,9 +69,9 @@ public class ChannelPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		MANAGE = Permission
+		this.MANAGE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "manage" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "manage" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

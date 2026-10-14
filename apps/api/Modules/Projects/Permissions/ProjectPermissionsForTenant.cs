@@ -9,9 +9,9 @@ public class ProjectPermissionsForTenant : ISlicePermissions {
 	public Permission VIEW { get; }
 
 	public ProjectPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

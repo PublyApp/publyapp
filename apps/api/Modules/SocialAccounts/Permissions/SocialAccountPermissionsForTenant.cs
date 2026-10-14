@@ -16,9 +16,9 @@ public class SocialAccountPermissionsForTenant : ISlicePermissions {
 	public Permission PUBLISH { get; }
 
 	public SocialAccountPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -35,9 +35,9 @@ public class SocialAccountPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		MANAGE = Permission
+		this.MANAGE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "manage" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "manage" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -54,9 +54,9 @@ public class SocialAccountPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		PUBLISH = Permission
+		this.PUBLISH = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "publish" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "publish" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

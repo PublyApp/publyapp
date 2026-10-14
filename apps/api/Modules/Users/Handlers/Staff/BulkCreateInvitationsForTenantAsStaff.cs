@@ -24,12 +24,12 @@ public record BulkCreateInvitationsForTenantAsStaffItem {
 	public JsonElement ProfileIds { get; init; }
 
 	public List<Guid> GetProfileIds() {
-		if (ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
+		if (this.ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
 			return [];
 		}
 
 		var profileIds = new List<Guid>();
-		foreach (var profileId in ProfileIds.EnumerateArray()) {
+		foreach (var profileId in this.ProfileIds.EnumerateArray()) {
 			profileIds.Add(profileId.GetGuid());
 		}
 
@@ -46,7 +46,7 @@ public record BulkCreateTenantInvitationsForTenantAsStaffBody {
 	private List<BulkCreateInvitationsForTenantAsStaffItem> _ParseInvitations() {
 		var invitations = new List<BulkCreateInvitationsForTenantAsStaffItem>();
 
-		foreach (var invitationItem in Invitations.EnumerateArray()) {
+		foreach (var invitationItem in this.Invitations.EnumerateArray()) {
 			var emailElement = invitationItem.GetProperty("email");
 			var accountLevelElement = invitationItem.GetProperty("accountLevel");
 			var profileIdsElement = invitationItem.TryGetProperty("profileIds", out var profileIdsProperty)
@@ -64,13 +64,13 @@ public record BulkCreateTenantInvitationsForTenantAsStaffBody {
 	}
 
 	public List<BulkCreateInvitationsForTenantAsStaffItem> GetInvitations() {
-		if (_InvitationsParsed) {
-			return _Invitations;
+		if (this._InvitationsParsed) {
+			return this._Invitations;
 		}
 
-		_Invitations = _ParseInvitations();
-		_InvitationsParsed = true;
-		return _Invitations;
+		this._Invitations = this._ParseInvitations();
+		this._InvitationsParsed = true;
+		return this._Invitations;
 	}
 }
 
@@ -85,7 +85,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 	private readonly TenantInvitationProfileIdsValidator _ProfileIdsValidator = new();
 
 	public BulkCreateInvitationsForTenantAsStaffBodyValidator() {
-		RuleFor(x => x.Invitations)
+		this.RuleFor(x => x.Invitations)
 			.Custom((element, context) => {
 				if (element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
 					context.AddFailure("Invitations is required");
@@ -134,7 +134,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 							$"invitations[{index}].email",
 							"Email must be a string"
 						);
-					} else if (!_BeValidEmail(emailElement.GetString() ?? string.Empty)) {
+					} else if (!BulkCreateInvitationsForTenantAsStaffBodyValidator._BeValidEmail(emailElement.GetString() ?? string.Empty)) {
 						context.AddFailure(
 							$"invitations[{index}].email",
 							"Invalid email format"
@@ -173,7 +173,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 					}
 
 					var profileIdsValidation =
-						_ProfileIdsValidator.Validate(profileIdsElement);
+						this._ProfileIdsValidator.Validate(profileIdsElement);
 					foreach (var failure in profileIdsValidation.Errors) {
 						context.AddFailure(
 							$"invitations[{index}].profileIds",

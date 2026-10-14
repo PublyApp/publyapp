@@ -19,12 +19,12 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffBody {
 	private List<Guid> _UserAccountIds = [];
 
 	private List<Guid> _ParseUserAccountIds() {
-		if (UserAccountIds.ValueKind != JsonValueKind.Array) {
+		if (this.UserAccountIds.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("UserAccountIds must be an array");
 		}
 
 		var ids = new List<Guid>();
-		foreach (var e in UserAccountIds.EnumerateArray()) {
+		foreach (var e in this.UserAccountIds.EnumerateArray()) {
 			var str = e.GetString();
 			if (str is null) {
 				// Post-validation invariant: the endpoint uses FluentValidation to ensure every
@@ -40,13 +40,13 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffBody {
 	}
 
 	public List<Guid> GetUserAccountIds() {
-		if (_Parsed) {
-			return _UserAccountIds;
+		if (this._Parsed) {
+			return this._UserAccountIds;
 		}
 
-		_UserAccountIds = _ParseUserAccountIds();
-		_Parsed = true;
-		return _UserAccountIds;
+		this._UserAccountIds = this._ParseUserAccountIds();
+		this._Parsed = true;
+		return this._UserAccountIds;
 	}
 }
 
@@ -55,11 +55,11 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffBodyValidator
 	private const int _MaxUserAccountIds = 200;
 
 	public ResolveTenantProfileUserAssignmentsAsStaffBodyValidator() {
-		RuleFor(x => x.UserAccountIds)
+		this.RuleFor(x => x.UserAccountIds)
 			.MustBeRequiredGuidArrayAllowingEmpty(
 				"UserAccountIds",
 				"userAccountId",
-				_MaxUserAccountIds
+				ResolveTenantProfileUserAssignmentsAsStaffBodyValidator._MaxUserAccountIds
 			);
 	}
 }

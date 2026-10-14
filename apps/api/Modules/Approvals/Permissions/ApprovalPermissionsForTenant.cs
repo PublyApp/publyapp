@@ -10,9 +10,9 @@ public class ApprovalPermissionsForTenant : ISlicePermissions {
 	public Permission REVIEW { get; }
 
 	public ApprovalPermissionsForTenant() {
-		REQUEST = Permission
+		this.REQUEST = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "request" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "request" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -29,9 +29,9 @@ public class ApprovalPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		REVIEW = Permission
+		this.REVIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "review" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "review" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

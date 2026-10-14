@@ -17,18 +17,18 @@ public sealed record BlueskyCredentials(string Identifier, string AppPassword) {
 		var builder = new StringBuilder();
 		builder.Append(nameof(BlueskyCredentials));
 		builder.Append(" { ");
-		_PrintMembers(builder);
+		this._PrintMembers(builder);
 		builder.Append(' ');
 		builder.Append('}');
 		return builder.ToString();
 	}
 
 	private bool _PrintMembers(StringBuilder builder) {
-		builder.Append(nameof(Identifier));
+		builder.Append(nameof(this.Identifier));
 		builder.Append(" = ");
-		builder.Append(Identifier);
+		builder.Append(this.Identifier);
 		builder.Append(", ");
-		builder.Append(nameof(AppPassword));
+		builder.Append(nameof(this.AppPassword));
 		builder.Append(" = ");
 		builder.Append("[REDACTED]");
 		return true;

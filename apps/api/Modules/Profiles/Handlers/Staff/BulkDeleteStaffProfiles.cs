@@ -23,7 +23,7 @@ public sealed class BulkDeleteStaffProfilesBody {
 
 	public List<Guid> GetProfileIds() {
 		var profileIds = new List<Guid>();
-		foreach (var profileIdElement in ProfileIds.EnumerateArray()) {
+		foreach (var profileIdElement in this.ProfileIds.EnumerateArray()) {
 			profileIds.Add(profileIdElement.GetValueAsGuid());
 		}
 		return profileIds;
@@ -33,7 +33,7 @@ public sealed class BulkDeleteStaffProfilesBody {
 public sealed class BulkDeleteStaffProfilesBodyValidator
 	: AbstractValidator<BulkDeleteStaffProfilesBody> {
 	public BulkDeleteStaffProfilesBodyValidator() {
-		RuleFor(x => x.ProfileIds)
+		this.RuleFor(x => x.ProfileIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "profileIds",
 				itemName: "profileId",

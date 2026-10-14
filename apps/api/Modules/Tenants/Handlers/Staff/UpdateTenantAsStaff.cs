@@ -31,11 +31,11 @@ public record UpdateTenantAsStaffBody {
 	public JsonElement Notes { get; init; }
 
 	public string? GetName() {
-		return Name.ValueKind switch {
+		return this.Name.ValueKind switch {
 			JsonValueKind.Undefined =>
 				null,
 			JsonValueKind.String =>
-				Name.GetValueAsString(),
+				this.Name.GetValueAsString(),
 			JsonValueKind.Null
 				or JsonValueKind.Object
 				or JsonValueKind.Array
@@ -45,22 +45,22 @@ public record UpdateTenantAsStaffBody {
 				"Name must be a string or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(Name),
-				Name.ValueKind,
-				$"Unhandled JsonValueKind: {Name.ValueKind}"
+				nameof(this.Name),
+				this.Name.ValueKind,
+				$"Unhandled JsonValueKind: {this.Name.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetLogoUrl() {
-		return LogoUrl.ValueKind switch {
+		return this.LogoUrl.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<string?>.Absent(),
 			JsonValueKind.Null =>
 				PatchField<string?>.Set(null),
 			JsonValueKind.String =>
 				PatchField<string?>.Set(
-					_NormalizeClearableString(LogoUrl.GetValueAsString())
+					UpdateTenantAsStaffBody._NormalizeClearableString(this.LogoUrl.GetValueAsString())
 				),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -70,47 +70,47 @@ public record UpdateTenantAsStaffBody {
 				"LogoUrl must be a string, null, or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(LogoUrl),
-				LogoUrl.ValueKind,
-				$"Unhandled JsonValueKind: {LogoUrl.ValueKind}"
+				nameof(this.LogoUrl),
+				this.LogoUrl.ValueKind,
+				$"Unhandled JsonValueKind: {this.LogoUrl.ValueKind}"
 			),
 		};
 	}
 
 	public int? GetMaxUsers() {
-		return MaxUsers?.GetValueAsInt32OrNull();
+		return this.MaxUsers?.GetValueAsInt32OrNull();
 	}
 
 	public PatchField<string?> GetLegalName() {
-		return _GetPatchFieldString(LegalName);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.LegalName);
 	}
 
 	public PatchField<string?> GetDescription() {
-		return _GetPatchFieldString(Description);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.Description);
 	}
 
 	public PatchField<string?> GetWebsiteUrl() {
-		return _GetPatchFieldString(WebsiteUrl);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.WebsiteUrl);
 	}
 
 	public PatchField<string?> GetBillingEmail() {
-		return _GetPatchFieldString(BillingEmail);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.BillingEmail);
 	}
 
 	public PatchField<string?> GetSupportEmail() {
-		return _GetPatchFieldString(SupportEmail);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.SupportEmail);
 	}
 
 	public PatchField<string?> GetDefaultLocale() {
-		return _GetPatchFieldString(DefaultLocale);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.DefaultLocale);
 	}
 
 	public PatchField<string?> GetTimezone() {
-		return _GetPatchFieldString(Timezone);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.Timezone);
 	}
 
 	public PatchField<string?> GetNotes() {
-		return _GetPatchFieldString(Notes);
+		return UpdateTenantAsStaffBody._GetPatchFieldString(this.Notes);
 	}
 
 	private static PatchField<string?> _GetPatchFieldString(JsonElement element) {
@@ -123,7 +123,7 @@ public record UpdateTenantAsStaffBody {
 			// representation — otherwise {"legalName": "  "} would persist a non-null
 			// value the UI has to separately treat as empty alongside actual null.
 			JsonValueKind.String =>
-				PatchField<string?>.Set(_NormalizeClearableString(element.GetValueAsString())),
+				PatchField<string?>.Set(UpdateTenantAsStaffBody._NormalizeClearableString(element.GetValueAsString())),
 			JsonValueKind.Object
 				or JsonValueKind.Array
 				or JsonValueKind.Number
@@ -148,13 +148,13 @@ public record UpdateTenantAsStaffBody {
 public class UpdateTenantAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantAsStaffBody> {
 	public UpdateTenantAsStaffBodyValidator() {
-		RuleFor(x => x.Name)
+		this.RuleFor(x => x.Name)
 			.MustBePatchFieldStringWithLength("Name", 5, TenantValidationRules.NameMaxLength);
 
-		RuleFor(x => x.LogoUrl)
+		this.RuleFor(x => x.LogoUrl)
 			.MustBePatchFieldLogoUrl();
 
-		RuleFor(x => x.MaxUsers).Custom((element, context) => {
+		this.RuleFor(x => x.MaxUsers).Custom((element, context) => {
 			if (element is null) {
 				return; // field absent / wrapper-null → omitted, OK
 			}
@@ -167,28 +167,28 @@ public class UpdateTenantAsStaffBodyValidator
 			}
 		});
 
-		RuleFor(x => x.LegalName)
+		this.RuleFor(x => x.LegalName)
 			.MustBePatchFieldStringWithMaxLength("LegalName", 256);
 
-		RuleFor(x => x.Description)
+		this.RuleFor(x => x.Description)
 			.MustBePatchFieldStringWithMaxLength("Description", 1024);
 
-		RuleFor(x => x.WebsiteUrl)
+		this.RuleFor(x => x.WebsiteUrl)
 			.MustBePatchFieldClearableUrl("WebsiteUrl", TenantValidationRules.WebsiteUrlMaxLength);
 
-		RuleFor(x => x.BillingEmail)
+		this.RuleFor(x => x.BillingEmail)
 			.MustBePatchFieldEmailWithMaxLength("BillingEmail", 320);
 
-		RuleFor(x => x.SupportEmail)
+		this.RuleFor(x => x.SupportEmail)
 			.MustBePatchFieldEmailWithMaxLength("SupportEmail", 320);
 
-		RuleFor(x => x.DefaultLocale)
+		this.RuleFor(x => x.DefaultLocale)
 			.MustBePatchFieldLocale();
 
-		RuleFor(x => x.Timezone)
+		this.RuleFor(x => x.Timezone)
 			.MustBePatchFieldTimezone();
 
-		RuleFor(x => x.Notes)
+		this.RuleFor(x => x.Notes)
 			.MustBePatchFieldStringWithMaxLength("Notes", 4000);
 	}
 }

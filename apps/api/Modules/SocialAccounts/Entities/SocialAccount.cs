@@ -13,8 +13,8 @@ public class SocialAccount : BaseAttributes, ITenantEntity {
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_Tenant, nameof(SocialAccount), nameof(Tenant)); }
-		set { _Tenant = value; }
+		get { return RequiredNavigation.Get(this._Tenant, nameof(SocialAccount), nameof(this.Tenant)); }
+		set { this._Tenant = value; }
 	}
 
 	[Column("provider")]
@@ -52,6 +52,6 @@ public class SocialAccount : BaseAttributes, ITenantEntity {
 	// Safe before the entity is saved (Id is null pre-insert). Used by the junction
 	// constructor in the VisibleIn test without a persisted row.
 	internal Guid SafeId() {
-		return Id ?? Guid.Empty;
+		return this.Id ?? Guid.Empty;
 	}
 }

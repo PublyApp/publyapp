@@ -23,23 +23,23 @@ public record CreatePostBody {
 	public JsonElement? ProjectId { get; init; }
 
 	public string GetBody() {
-		return Body.GetValueAsString();
+		return this.Body.GetValueAsString();
 	}
 
 	public Guid? GetProjectId() {
-		return ProjectId.GetValueAsGuidOrNull();
+		return this.ProjectId.GetValueAsGuidOrNull();
 	}
 }
 
 public class CreatePostBodyValidator
 	: AbstractValidator<CreatePostBody> {
 	public CreatePostBodyValidator() {
-		RuleFor(x => x.Body)
+		this.RuleFor(x => x.Body)
 			.MustBeRequiredStringWithLength(
 				"Body", 1, PostValidationRules.BodyMaxLength
 			);
 
-		RuleFor(x => x.ProjectId)
+		this.RuleFor(x => x.ProjectId)
 			.MustBeNullableNonEmptyGuid("ProjectId");
 	}
 }

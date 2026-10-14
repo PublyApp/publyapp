@@ -35,16 +35,16 @@ public sealed class JobQueueListener : BackgroundService {
 		SchedulerLeaderOptions options,
 		ILogger<JobQueueListener> logger
 	) {
-		_Signal = signal;
-		_Metrics = metrics;
-		_Logger = logger;
+		this._Signal = signal;
+		this._Metrics = metrics;
+		this._Logger = logger;
 
 		// A dedicated, non-pooled connection: a long-lived LISTEN must never borrow from
 		// (or break) the request/DbContext pool.
 		var builder = new NpgsqlConnectionStringBuilder(options.ConnectionString) {
 			Pooling = false
 		};
-		_ConnectionString = builder.ConnectionString;
+		this._ConnectionString = builder.ConnectionString;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -53,20 +53,20 @@ public sealed class JobQueueListener : BackgroundService {
 		while (!stoppingToken.IsCancellationRequested) {
 			// Every (re)connect after the first is counted as a reconnect (§7.1).
 			if (!firstAttempt) {
-				_Metrics.ListenerReconnect();
+				this._Metrics.ListenerReconnect();
 			}
 
 			firstAttempt = false;
 
 			try {
-				await _ListenLoopAsync(stoppingToken);
+				await this._ListenLoopAsync(stoppingToken);
 			} catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) {
 				break;
 			} catch (Exception ex) {
-				_Logger.LogWarning(ex, "job_queue listener connection failed; reconnecting");
+				this._Logger.LogWarning(ex, "job_queue listener connection failed; reconnecting");
 
 				try {
-					await Task.Delay(_ReconnectDelay, stoppingToken);
+					await Task.Delay(JobQueueListener._ReconnectDelay, stoppingToken);
 				} catch (OperationCanceledException) {
 					break;
 				}
@@ -77,19 +77,19 @@ public sealed class JobQueueListener : BackgroundService {
 	// One connected lifetime: open, LISTEN, fire a catch-up wake, then block on
 	// notifications until the connection drops or shutdown is requested.
 	private async Task _ListenLoopAsync(CancellationToken stoppingToken) {
-		await using var connection = new NpgsqlConnection(_ConnectionString);
+		await using var connection = new NpgsqlConnection(this._ConnectionString);
 		await connection.OpenAsync(stoppingToken);
 
-		connection.Notification += _OnNotification;
+		connection.Notification += this._OnNotification;
 
 		try {
-			await using (var command = new NpgsqlCommand($"LISTEN {_Channel}", connection)) {
+			await using (var command = new NpgsqlCommand($"LISTEN {JobQueueListener._Channel}", connection)) {
 				await command.ExecuteNonQueryAsync(stoppingToken);
 			}
 
 			// Catch-up (§5.5 (b)): anything committed while we were disconnected is
 			// covered by one immediate wake — the processor queries for due rows anyway.
-			_Signal.Notify();
+			this._Signal.Notify();
 
 			while (!stoppingToken.IsCancellationRequested) {
 				// Blocks until a NOTIFY arrives (raising the Notification event) or the
@@ -97,11 +97,11 @@ public sealed class JobQueueListener : BackgroundService {
 				await connection.WaitAsync(TimeSpan.FromSeconds(30), stoppingToken);
 			}
 		} finally {
-			connection.Notification -= _OnNotification;
+			connection.Notification -= this._OnNotification;
 		}
 	}
 
 	private void _OnNotification(object sender, NpgsqlNotificationEventArgs args) {
-		_Signal.Notify();
+		this._Signal.Notify();
 	}
 }

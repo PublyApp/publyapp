@@ -50,9 +50,9 @@ public class StaffUserCoreService : IStaffUserCoreService {
 		IUploadAssetReferenceService uploadReferences,
 		ILogger<StaffUserCoreService> logger
 	) {
-		_DbContext = dbContext;
-		_UploadReferences = uploadReferences;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._UploadReferences = uploadReferences;
+		this._Logger = logger;
 	}
 
 	public async Task<UpdateStaffUserEmailResult> UpdateStaffUserEmailAsync(
@@ -66,7 +66,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
 		var query =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -79,7 +79,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 		}
 
 		if (!string.Equals(userData.User.Email, normalizedEmail, StringComparison.Ordinal)) {
-			var existing = await _DbContext.User
+			var existing = await this._DbContext.User
 				.FirstOrDefaultAsync(u =>
 					u.Email == normalizedEmail
 					&& !u.IsDeleted,
@@ -89,7 +89,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 			}
 
 			userData.User.Email = normalizedEmail;
-			await _DbContext.SaveChangesAsync(cancellationToken);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		return new UpdateStaffUserEmailResult.Success(userData);
@@ -100,10 +100,10 @@ public class StaffUserCoreService : IStaffUserCoreService {
 		UpdateUserDocument document,
 		CancellationToken cancellationToken = default
 	) {
-		await using var transaction = await _DbContext.Database.BeginTransactionAsync(cancellationToken);
+		await using var transaction = await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
-			var staffAccountCount = await _DbContext.UserAccount
+			var staffAccountCount = await this._DbContext.UserAccount
 				.CountAsync(ua =>
 					ua.UserId == userId
 					&& ua.Scope == AccountScope.Staff
@@ -128,7 +128,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 			// reference is released before commit, atomically with the write (#807 F5).
 			string? previousAvatarUrl = null;
 			if (document.AvatarUrl.IsPresent) {
-				previousAvatarUrl = await _DbContext.User
+				previousAvatarUrl = await this._DbContext.User
 					.Where(u => u.Id == userId && !u.IsDeleted)
 					.Select(u => u.AvatarUrl)
 					.FirstOrDefaultAsync(cancellationToken);
@@ -136,11 +136,11 @@ public class StaffUserCoreService : IStaffUserCoreService {
 				// Acquire the new blob's reference BEFORE the blind write so the URL
 				// can never commit while its asset reads zero references.
 				if (ServedUploadPath.ExtractOrNull(document.AvatarUrl.Value) is { } acquiredPath) {
-					await _UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+					await this._UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
 				}
 			}
 
-			var updatedCount = await _DbContext.User
+			var updatedCount = await this._DbContext.User
 				.Where(u => u.Id == userId && !u.IsDeleted)
 				.ExecuteUpdateAsync(setters => setters
 					.SetProperty(u => u.LastName, u => document.LastName.IsPresent ? document.LastName.Value : u.LastName)
@@ -161,7 +161,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 					throw new ArgumentException($"Invalid account level: '{document.AccountLevel}'");
 				}
 
-				await _DbContext.UserAccount
+				await this._DbContext.UserAccount
 					.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff && !ua.IsDeleted)
 					.ExecuteUpdateAsync(setters => setters
 						.SetProperty(ua => ua.Level, accountLevel)
@@ -173,14 +173,14 @@ public class StaffUserCoreService : IStaffUserCoreService {
 			if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
 				&& ServedUploadPath.ExtractOrNull(previousAvatarUrl) is { } releasedPath
 				&& previousAvatarUrl != document.AvatarUrl.Value) {
-				await _UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+				await this._UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
 			}
 
 			await transaction.CommitAsync(cancellationToken);
 
 			// Re-fetch updated user data to return
 			var updatedUser = await (
-				from ua in _DbContext.UserAccount
+				from ua in this._DbContext.UserAccount
 					.AsNoTracking()
 				where ua.UserId == userId
 					&& ua.Scope == AccountScope.Staff
@@ -205,8 +205,8 @@ public class StaffUserCoreService : IStaffUserCoreService {
 			);
 		} catch (Exception exception) {
 			await transaction.RollbackAsync(cancellationToken);
-			if (_Logger.IsEnabled(LogLevel.Error)) {
-				_Logger.LogError(exception, "Failed to update staff member {UserId}", userId);
+			if (this._Logger.IsEnabled(LogLevel.Error)) {
+				this._Logger.LogError(exception, "Failed to update staff member {UserId}", userId);
 			}
 			// Never carry the raw exception message off this boundary (finding F3): the
 			// handler logs ErrorMessage as a template property with NO LogEvent.Exception,

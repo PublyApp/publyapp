@@ -14,9 +14,9 @@ public class PostPermissionsForTenant : ISlicePermissions {
 	public Permission DELETE { get; }
 
 	public PostPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -33,9 +33,9 @@ public class PostPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		CREATE = Permission
+		this.CREATE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "create" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "create" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -52,9 +52,9 @@ public class PostPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		EDIT = Permission
+		this.EDIT = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "edit" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "edit" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -71,9 +71,9 @@ public class PostPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		PUBLISH = Permission
+		this.PUBLISH = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "publish" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "publish" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -90,9 +90,9 @@ public class PostPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		SCHEDULE = Permission
+		this.SCHEDULE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "schedule" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "schedule" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -109,9 +109,9 @@ public class PostPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		DELETE = Permission
+		this.DELETE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "delete" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "delete" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

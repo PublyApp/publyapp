@@ -22,7 +22,7 @@ public sealed class HealthCheckLogGate {
 		string? failureReason,
 		DateTimeOffset now
 	) {
-		var state = _States.GetOrAdd(checkName, _ => new LogState());
+		var state = this._States.GetOrAdd(checkName, _ => new LogState());
 
 		lock (state) {
 			if (state.LastStatus is null) {
@@ -44,7 +44,7 @@ public sealed class HealthCheckLogGate {
 
 			if (
 				status != HealthStatus.Healthy
-				&& now - state.LastLoggedAt >= SampleInterval
+				&& now - state.LastLoggedAt >= HealthCheckLogGate.SampleInterval
 			) {
 				state.LastLoggedAt = now;
 				return true;

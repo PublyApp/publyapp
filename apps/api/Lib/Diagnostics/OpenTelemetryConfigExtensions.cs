@@ -46,7 +46,7 @@ public static class OpenTelemetryConfigExtensions {
 	public static IHostApplicationBuilder ConfigureOpenTelemetry(
 		this IHostApplicationBuilder builder
 	) {
-		var otlpEndpoint = Environment.GetEnvironmentVariable(_OtlpEndpointVariableName);
+		var otlpEndpoint = Environment.GetEnvironmentVariable(OpenTelemetryConfigExtensions._OtlpEndpointVariableName);
 		if (string.IsNullOrWhiteSpace(otlpEndpoint)) {
 			// No orchestrator asked for telemetry: attach nothing at all. This is what
 			// keeps Testing/doc-gen/production boots identical to pre-#255 behavior.
@@ -57,11 +57,11 @@ public static class OpenTelemetryConfigExtensions {
 		// traces + metrics builders ONLY. The logging builder must not appear here.
 		builder.Services.AddOpenTelemetry()
 			.ConfigureResource(resource => resource.AddService(
-				serviceName: _ResolveServiceName(),
+				serviceName: OpenTelemetryConfigExtensions._ResolveServiceName(),
 				serviceInstanceId: Environment.MachineName
 			))
 			.WithTracing(tracing => tracing
-				.AddSource(_CustomActivitySourcePattern)
+				.AddSource(OpenTelemetryConfigExtensions._CustomActivitySourcePattern)
 				.AddAspNetCoreInstrumentation()
 				.AddHttpClientInstrumentation()
 				.AddOtlpExporter()

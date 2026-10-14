@@ -29,16 +29,16 @@ public class PostMediaAsset : BaseAttributes, ITenantEntity {
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public Tenant Tenant {
-		get { return RequiredNavigation.Get(_Tenant, nameof(PostMediaAsset), nameof(Tenant)); }
-		set { _Tenant = value; }
+		get { return RequiredNavigation.Get(this._Tenant, nameof(PostMediaAsset), nameof(this.Tenant)); }
+		set { this._Tenant = value; }
 	}
 
 	[Column("post_id")]
 	public required Guid PostId { get; set; }
 	[JsonIgnore]
 	public Post Post {
-		get { return RequiredNavigation.Get(_Post, nameof(PostMediaAsset), nameof(Post)); }
-		set { _Post = value; }
+		get { return RequiredNavigation.Get(this._Post, nameof(PostMediaAsset), nameof(this.Post)); }
+		set { this._Post = value; }
 	}
 	private Post? _Post;
 

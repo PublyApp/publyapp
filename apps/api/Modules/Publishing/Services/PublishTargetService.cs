@@ -37,7 +37,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 	private readonly AppDbContext _Db;
 
 	public PublishTargetService(AppDbContext db) {
-		_Db = db;
+		this._Db = db;
 	}
 
 	public async Task<IReadOnlyList<PublishTargetItem>> FindForTenantAsync(
@@ -46,7 +46,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 		CancellationToken cancellationToken = default
 	) {
 		IQueryable<SocialAccount> query =
-			from a in _Db.SocialAccount.AsNoTracking()
+			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.TenantId == tenantId
 				&& !a.IsDeleted
 				&& a.Status == SocialAccountStatus.Active
@@ -56,7 +56,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 		var accounts = await query.ToListAsync(cancellationToken);
 
 		if (projectId.HasValue) {
-			await _LoadProjectLinksAsync(accounts, cancellationToken);
+			await this._LoadProjectLinksAsync(accounts, cancellationToken);
 			accounts = accounts
 				.Where(account => VisibleIn.Visible(account, projectId.Value))
 				.ToList();
@@ -87,7 +87,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 
 		var ids = accounts.Select(a => a.Id).ToList();
 		var links = await (
-			from l in _Db.SocialAccountProject.AsNoTracking()
+			from l in this._Db.SocialAccountProject.AsNoTracking()
 			where ids.Contains(l.SocialAccountId)
 			select l
 		).ToListAsync(cancellationToken);

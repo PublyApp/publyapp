@@ -22,7 +22,7 @@ public static class WorkerHeartbeat {
 	public static readonly TimeSpan FreshnessWindow = TimeSpan.FromSeconds(60);
 
 	public static string ResolvePath() {
-		return Path.Combine(Directory.GetCurrentDirectory(), RelativePath);
+		return Path.Combine(Directory.GetCurrentDirectory(), WorkerHeartbeat.RelativePath);
 	}
 
 	// Writes the current UTC instant to the heartbeat file (creating the directory on
@@ -53,7 +53,7 @@ public static class WorkerHeartbeat {
 			}
 
 			var lastWriteUtc = File.GetLastWriteTimeUtc(path);
-			return nowUtc - lastWriteUtc <= FreshnessWindow;
+			return nowUtc - lastWriteUtc <= WorkerHeartbeat.FreshnessWindow;
 		} catch (IOException) {
 			return false;
 		} catch (UnauthorizedAccessException) {

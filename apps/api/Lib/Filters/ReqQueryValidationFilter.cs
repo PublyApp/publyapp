@@ -16,10 +16,10 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 	private readonly IValidator<TRequest> _Validator;
 	private static readonly Lazy<IReadOnlyDictionary<string, string>>
 		_QueryParameterNames =
-			new(_BuildQueryParameterNames);
+			new(ReqQueryValidationFilter<TRequest>._BuildQueryParameterNames);
 
 	public ReqQueryValidationFilter(IValidator<TRequest> validator) {
-		_Validator = validator;
+		this._Validator = validator;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -34,7 +34,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 		// No matching query argument -> fail validation
 		if (found is null) {
 			var empty = (TRequest)RuntimeHelpers.GetUninitializedObject(typeof(TRequest));
-			var resultDefault = await _Validator.ValidateAsync(
+			var resultDefault = await this._Validator.ValidateAsync(
 				empty,
 				context.HttpContext.RequestAborted
 			);
@@ -43,7 +43,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 				return TypedProblems.ValidationProblem(
 					"Query parameters validation failed",
 					ResponseKeys.QueryParametersValidationFailed,
-					_ToQueryErrorDictionary(resultDefault)
+					ReqQueryValidationFilter<TRequest>._ToQueryErrorDictionary(resultDefault)
 				);
 			}
 
@@ -52,13 +52,13 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 
 		// Get the query parameters and bind them to the request model
 		var request = context.GetArgument<TRequest>(idx);
-		var result = await _Validator.ValidateAsync(request, context.HttpContext.RequestAborted);
+		var result = await this._Validator.ValidateAsync(request, context.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {
 			return TypedProblems.ValidationProblem(
 				"Query parameters validation failed",
 				ResponseKeys.QueryParametersValidationFailed,
-				_ToQueryErrorDictionary(result)
+				ReqQueryValidationFilter<TRequest>._ToQueryErrorDictionary(result)
 			);
 		}
 
@@ -75,7 +75,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 			// while Custom failures may already use wire keys.
 			// Map known FromQuery names to RFC 7807 error keys
 			// and leave explicit keys unchanged.
-			var key = _MapPropertyName(error.PropertyName);
+			var key = ReqQueryValidationFilter<TRequest>._MapPropertyName(error.PropertyName);
 			if (!grouped.TryGetValue(key, out var messages)) {
 				messages = [];
 				grouped[key] = messages;
@@ -90,7 +90,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter where TRequest
 	}
 
 	private static string _MapPropertyName(string propertyName) {
-		if (_QueryParameterNames.Value.TryGetValue(
+		if (ReqQueryValidationFilter<TRequest>._QueryParameterNames.Value.TryGetValue(
 			propertyName,
 			out var queryName
 		)) {

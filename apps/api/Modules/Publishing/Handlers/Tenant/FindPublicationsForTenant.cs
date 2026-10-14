@@ -17,14 +17,14 @@ public class FindPublicationsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "status")] public string? Status { get; set; }
 
 	public IReadOnlyList<PublicationStatus>? GetStatusList() {
-		return PublicationStatusCsv.Parse(Status);
+		return PublicationStatusCsv.Parse(this.Status);
 	}
 }
 
 public class FindPublicationsQueryValidator
 	: CursorPaginatedQueryValidator<FindPublicationsQuery> {
 	public FindPublicationsQueryValidator() {
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Custom((raw, context) => {
 				var error = PublicationStatusCsv.GetValidationError(raw);
 				if (error is not null) {
@@ -55,7 +55,7 @@ internal static class PublicationStatusCsv {
 		);
 		var statuses = new List<PublicationStatus>(tokens.Length);
 		foreach (var token in tokens) {
-			if (_TryParseToken(token, out var status)) {
+			if (PublicationStatusCsv._TryParseToken(token, out var status)) {
 				statuses.Add(status);
 			}
 		}
@@ -84,7 +84,7 @@ internal static class PublicationStatusCsv {
 		}
 
 		foreach (var token in tokens) {
-			if (!_TryParseToken(token, out _)) {
+			if (!PublicationStatusCsv._TryParseToken(token, out _)) {
 				return $"'{token}' is not a valid publication status.";
 			}
 		}

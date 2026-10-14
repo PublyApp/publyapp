@@ -98,8 +98,8 @@ public class SystemNoticeService : ISystemNoticeService {
 		AppDbContext dbContext,
 		ILogger<SystemNoticeService> logger
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public async Task<SystemNotice> CreateAsync(
@@ -115,13 +115,13 @@ public class SystemNoticeService : ISystemNoticeService {
 			CreatedByStaffId = args.CreatedByStaffId
 		};
 
-		await _DbContext.SystemNotice.AddAsync(
+		await this._DbContext.SystemNotice.AddAsync(
 			notice, cancellationToken
 		);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Created system notice {NoticeId} "
 				+ "with severity {Severity} "
 				+ "by staff {StaffId}",
@@ -149,7 +149,7 @@ public class SystemNoticeService : ISystemNoticeService {
 				StringComparer.OrdinalIgnoreCase
 			) {
 				["created_at"] = CursorSortFieldHandlerFactory.Create<SystemNotice, DateTime, Guid?>(
-					cursorLookupQuery: () => _DbContext.SystemNotice
+					cursorLookupQuery: () => this._DbContext.SystemNotice
 						.AsNoTracking()
 						.Where(n => !n.IsDeleted),
 					keySelector: n => n.CreatedAt,
@@ -157,7 +157,7 @@ public class SystemNoticeService : ISystemNoticeService {
 					cancellationToken
 				),
 				["starts_at"] = CursorSortFieldHandlerFactory.Create<SystemNotice, DateTime, Guid?>(
-					cursorLookupQuery: () => _DbContext.SystemNotice
+					cursorLookupQuery: () => this._DbContext.SystemNotice
 						.AsNoTracking()
 						.Where(n => !n.IsDeleted),
 					keySelector: n => n.StartsAt,
@@ -165,7 +165,7 @@ public class SystemNoticeService : ISystemNoticeService {
 					cancellationToken
 				),
 				["severity"] = CursorSortFieldHandlerFactory.Create<SystemNotice, NoticeSeverity, Guid?>(
-					cursorLookupQuery: () => _DbContext.SystemNotice
+					cursorLookupQuery: () => this._DbContext.SystemNotice
 						.AsNoTracking()
 						.Where(n => !n.IsDeleted),
 					keySelector: n => n.Severity,
@@ -182,7 +182,7 @@ public class SystemNoticeService : ISystemNoticeService {
 			);
 		}
 
-		var query = _DbContext.SystemNotice
+		var query = this._DbContext.SystemNotice
 			.AsNoTracking()
 			.Where(n => !n.IsDeleted && n.Id != null);
 
@@ -240,7 +240,7 @@ public class SystemNoticeService : ISystemNoticeService {
 		CancellationToken cancellationToken = default
 	) {
 		var noticeQuery =
-			from n in _DbContext.SystemNotice
+			from n in this._DbContext.SystemNotice
 			where n.Id == id && !n.IsDeleted
 			select n;
 
@@ -254,7 +254,7 @@ public class SystemNoticeService : ISystemNoticeService {
 		CancellationToken cancellationToken = default
 	) {
 		var notice = await (
-			from n in _DbContext.SystemNotice
+			from n in this._DbContext.SystemNotice
 			where n.Id == id && !n.IsDeleted
 			select n
 		).FirstOrDefaultAsync(cancellationToken);
@@ -279,10 +279,10 @@ public class SystemNoticeService : ISystemNoticeService {
 			notice.ExpiresAt = args.ExpiresAt.Value;
 		}
 
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Updated system notice {NoticeId}",
 				id
 			);
@@ -296,7 +296,7 @@ public class SystemNoticeService : ISystemNoticeService {
 		CancellationToken cancellationToken = default
 	) {
 		var notice = await (
-			from n in _DbContext.SystemNotice
+			from n in this._DbContext.SystemNotice
 			where n.Id == id && !n.IsDeleted
 			select n
 		).FirstOrDefaultAsync(cancellationToken);
@@ -305,11 +305,11 @@ public class SystemNoticeService : ISystemNoticeService {
 			return false;
 		}
 
-		_DbContext.SystemNotice.Remove(notice);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		this._DbContext.SystemNotice.Remove(notice);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Deleted system notice {NoticeId}",
 				id
 			);
@@ -324,7 +324,7 @@ public class SystemNoticeService : ISystemNoticeService {
 		var now = DateTime.UtcNow;
 
 		var activeNoticesQuery =
-			from n in _DbContext.SystemNotice
+			from n in this._DbContext.SystemNotice
 			where !n.IsDeleted
 				&& n.StartsAt <= now
 				&& (n.ExpiresAt == null || n.ExpiresAt > now)

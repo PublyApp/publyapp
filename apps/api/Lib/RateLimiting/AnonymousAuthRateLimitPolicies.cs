@@ -17,18 +17,18 @@ internal sealed class AnonymousAuthRateLimiterStore
 		AnonymousAuthRateLimitSettings settings,
 		IRateLimitCounterStore counterStore
 	) {
-		_Settings = settings;
-		_CounterStore = counterStore;
+		this._Settings = settings;
+		this._CounterStore = counterStore;
 	}
 
 	public RateLimiter CreatePerIp(string clientIp) {
 		return new CounterBackedFixedWindowRateLimiter(
-			_CounterStore,
+			this._CounterStore,
 			AnonymousAuthRateLimitPolicies.PerIp,
 			clientIp,
-			_Settings.PerIp.PermitLimit,
+			this._Settings.PerIp.PermitLimit,
 			TimeSpan.FromSeconds(
-				_Settings.PerIp.WindowSeconds
+				this._Settings.PerIp.WindowSeconds
 			)
 		);
 	}
@@ -42,13 +42,13 @@ internal sealed class AnonymousAuthRateLimiterStore
 			? AnonymousAuthRateLimitPolicies.PasswordResetPerEmail
 			: AnonymousAuthRateLimitPolicies.PerEmail;
 		var emailWindow = isPasswordReset
-			? _Settings.PasswordResetPerEmail
-			: _Settings.PerEmail;
+			? this._Settings.PasswordResetPerEmail
+			: this._Settings.PerEmail;
 
 		return RateLimiter.CreateChained(
-			CreatePerIp(clientIp),
+			this.CreatePerIp(clientIp),
 			new CounterBackedFixedWindowRateLimiter(
-				_CounterStore,
+				this._CounterStore,
 				emailPolicyName,
 				email,
 				emailWindow.PermitLimit,
@@ -60,7 +60,7 @@ internal sealed class AnonymousAuthRateLimiterStore
 	}
 
 	public async ValueTask DisposeAsync() {
-		await _CounterStore.DisposeAsync();
+		await this._CounterStore.DisposeAsync();
 	}
 }
 
@@ -71,7 +71,7 @@ internal sealed class AnonymousAuthPerIpRateLimitPolicy
 	public AnonymousAuthPerIpRateLimitPolicy(
 		AnonymousAuthRateLimiterStore store
 	) {
-		_Store = store;
+		this._Store = store;
 	}
 
 	public Func<
@@ -96,7 +96,7 @@ internal sealed class AnonymousAuthPerIpRateLimitPolicy
 
 		return RateLimitPartition.Get(
 			clientIp,
-			_ => _Store.CreatePerIp(clientIp)
+			_ => this._Store.CreatePerIp(clientIp)
 		);
 	}
 }
@@ -108,7 +108,7 @@ internal sealed class AnonymousAuthPerEmailRateLimitPolicy
 	public AnonymousAuthPerEmailRateLimitPolicy(
 		AnonymousAuthRateLimiterStore store
 	) {
-		_Store = store;
+		this._Store = store;
 	}
 
 	public Func<
@@ -124,7 +124,7 @@ internal sealed class AnonymousAuthPerEmailRateLimitPolicy
 	) {
 		return EmailRateLimitPartition.Create(
 			httpContext,
-			_Store,
+			this._Store,
 			AnonymousAuthRateLimitPolicies.PerEmail,
 			isPasswordReset: false
 		);
@@ -138,7 +138,7 @@ internal sealed class PasswordResetPerEmailRateLimitPolicy
 	public PasswordResetPerEmailRateLimitPolicy(
 		AnonymousAuthRateLimiterStore store
 	) {
-		_Store = store;
+		this._Store = store;
 	}
 
 	public Func<
@@ -154,7 +154,7 @@ internal sealed class PasswordResetPerEmailRateLimitPolicy
 	) {
 		return EmailRateLimitPartition.Create(
 			httpContext,
-			_Store,
+			this._Store,
 			AnonymousAuthRateLimitPolicies
 				.PasswordResetPerEmail,
 			isPasswordReset: true
@@ -258,7 +258,7 @@ public static class AnonymousAuthRateLimitExtensions {
 		services.AddRateLimiter(options => {
 			options.RejectionStatusCode =
 				StatusCodes.Status429TooManyRequests;
-			options.OnRejected = _WriteRejectedAsync;
+			options.OnRejected = AnonymousAuthRateLimitExtensions._WriteRejectedAsync;
 			options.AddPolicy<
 				string,
 				AnonymousAuthPerIpRateLimitPolicy

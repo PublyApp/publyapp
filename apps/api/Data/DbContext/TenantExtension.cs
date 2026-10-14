@@ -31,7 +31,7 @@ public class TenantExtension : IDbContextOptionsExtension {
 
 		public override string LogFragment {
 			get {
-				return $"TenantId={((TenantExtension)Extension).TenantId}";
+				return $"TenantId={((TenantExtension)this.Extension).TenantId}";
 			}
 		}
 
@@ -44,7 +44,7 @@ public class TenantExtension : IDbContextOptionsExtension {
 		}
 
 		public override void PopulateDebugInfo(IDictionary<string, string> debugInfo) {
-			debugInfo[$"Tenant:{nameof(TenantId)}"] = ((TenantExtension)Extension).TenantId?.ToString() ?? "(null)";
+			debugInfo[$"Tenant:{nameof(TenantId)}"] = ((TenantExtension)this.Extension).TenantId?.ToString() ?? "(null)";
 		}
 	}
 }
