@@ -33,9 +33,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public AttachPostImageForTenantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	// PNG header fixture with REAL width/height in IHDR (big-endian), parsed by
@@ -63,18 +63,18 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldAttachAnImageToADraftAndReturnDimensions() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(_PngBytes(width: 64, height: 32));
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 64, height: 32));
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var payload =
@@ -91,7 +91,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// reference was acquired (reference_count >= 1) per #807 F5 discipline.
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var asset = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -116,23 +116,23 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldHideForeignTenantPostFromAttach() {
-		var (acmeTenantId, acmeToken) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(acmeTenantId, acmeToken);
+		var (acmeTenantId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(acmeTenantId, acmeToken);
 
-		var techStartToken = await _AuthClient.LoginAsync(
+		var techStartToken = await this._AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(techStartToken)
-			.WithTenantId(await _GetTechStartTenantIdAsync());
-		request.Content = _BuildFileContent(_PngBytes(width: 16, height: 16));
+			.WithTenantId(await this._GetTechStartTenantIdAsync());
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 16, height: 16));
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		// Foreign-tenant resources are invisible, never forbidden: 404, not 403.
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -140,7 +140,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// And nothing leaked: Acme still owns zero image assets for that post.
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var leaked = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -152,22 +152,22 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRefuseAttachWithoutPermission() {
-		var (tenantId, adminToken) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, adminToken);
-		var userToken = await _AuthClient.LoginAsync(
+		var (tenantId, adminToken) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, adminToken);
+		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(userToken)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(_PngBytes(width: 8, height: 8));
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 8, height: 8));
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 		var problem =
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -178,12 +178,12 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNameMissingFileCause() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -194,7 +194,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		noFileContent.Add(new ByteArrayContent([]), "file");
 		request.Content = noFileContent;
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -205,8 +205,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNameOversizeFileCause() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		// One byte past the budget: under the multipart request limit (which
 		// adds header headroom), past the handler's own size gate.
@@ -216,13 +216,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(oversize);
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(oversize);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.RequestEntityTooLarge);
 		var problem =
@@ -233,21 +233,21 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNameUnsupportedTypeCause() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(
 			"definitely not an image"u8.ToArray(),
 			fileName: "disguised.png"
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -258,20 +258,20 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNameDegenerateDimensionsCause() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		// A structurally valid PNG whose canvas is zero-sized: the type is
 		// known, so the refusal must name the DIMENSIONS, not the type.
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(_PngBytes(width: 0, height: 0));
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 0, height: 0));
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -282,20 +282,20 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReplaceExistingImageWithoutOrphan() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		using var firstRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		firstRequest.Content =
-			_BuildFileContent(_PngBytes(width: 64, height: 32));
+			AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 64, height: 32));
 		string firstPath;
 		using (firstRequest) {
-			using var firstResponse = await _Http.SendAsync(firstRequest);
+			using var firstResponse = await this._Http.SendAsync(firstRequest);
 			firstResponse.EnsureSuccessStatusCode();
 			var first = await firstResponse.Content
 				.ReadFromJsonAsync<PostImageAttached>();
@@ -305,15 +305,15 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		using var secondRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		secondRequest.Content =
-			_BuildFileContent(_PngBytes(width: 128, height: 64));
+			AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 128, height: 64));
 		string secondPath;
 		using (secondRequest) {
-			using var secondResponse = await _Http.SendAsync(secondRequest);
+			using var secondResponse = await this._Http.SendAsync(secondRequest);
 			secondResponse.EnsureSuccessStatusCode();
 			var second = await secondResponse.Content
 				.ReadFromJsonAsync<PostImageAttached>();
@@ -325,7 +325,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// the new blob; the old blob's reference dropped back to zero.
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var livePaths = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -373,14 +373,14 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// winner's row existed), AttachAsync throws, and the blob whose reference
 		// the handler already acquired never becomes the live image. Without the
 		// compensating release that reference stays at 1 forever.
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var foreignTenantId = await _GetTechStartTenantIdAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var foreignTenantId = await this._GetTechStartTenantIdAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 		var postIdGuid = Guid.Parse(postId);
 
 		var blockingPath = $"uploads/blocking/{Guid.NewGuid():N}.png";
 		await using (var seedScope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var seedDb = seedScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			seedDb.PostMediaAsset.Add(new Entities.PostMediaAsset {
@@ -392,28 +392,28 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				WidthPx = 8,
 				HeightPx = 8,
 				SizeBytes = 64,
-				UploadedByUserId = await _ResolveAcmeAdminUserIdAsync(seedDb),
+				UploadedByUserId = await AttachPostImageForTenantSpec._ResolveAcmeAdminUserIdAsync(seedDb),
 			});
 			await seedDb.SaveChangesAsync();
 		}
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(_PngBytes(width: 32, height: 32));
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 32, height: 32));
 
 		// The attach must NOT succeed: the post's live slot is already taken by a
 		// row this tenant's purge cannot remove.
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.IsSuccessStatusCode.Should().BeFalse(
 			"the live-image slot is held by a row the purge cannot see, so this "
 			+ "insert must lose the unique index"
 		);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// The blocking row still owns the slot — the failed attach changed nothing.
@@ -465,9 +465,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		//      (#1616). Closed by the handler's compensating release. The loser
 		//      returns no path at all, which is why the leak query below is scoped
 		//      by a pre-race baseline rather than by the succeeded paths.
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
-		var attachUrl = _AttachImageUrl(postId);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		var attachUrl = AttachPostImageForTenantSpec._AttachImageUrl(postId);
 
 		// Pre-race baseline: every blob already referenced by an EARLIER test in
 		// this class. The class shares one database, so those references are
@@ -475,7 +475,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// the assertion reports another test's live image as this race's leak.
 		List<string> baselinePaths;
 		await using (var baselineScope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var baselineDb = baselineScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			baselinePaths = await (
@@ -511,10 +511,10 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 					.WithSessionToken(token)
 					.WithTenantId(tenantId);
 				request.Content =
-					_BuildFileContent(_PngBytes(width: 32, height: 32));
+					AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 32, height: 32));
 				ready[index].SetResult();
 				await gate.Task;
-				using var response = await _Http.SendAsync(request);
+				using var response = await this._Http.SendAsync(request);
 				if (!response.IsSuccessStatusCode) {
 					return (Succeeded: false, Path: null);
 				}
@@ -535,7 +535,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		var postIdGuid = Guid.Parse(postId);
 		await using (var scope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -596,8 +596,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// loser path: the partial unique index admits exactly one insert, so the
 		// N-1 losers must each release the reference they acquired (#1616) — if
 		// any does not, the leak shows here too.
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 		var postIdGuid = Guid.Parse(postId);
 
 		// Baseline the blobs already carrying a reference in this SHARED db, so
@@ -605,7 +605,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// from sibling tests in the same class).
 		List<string> baselineReferencedPaths;
 		await using (var baselineScope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db =
 				baselineScope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
@@ -622,14 +622,14 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		for (var i = 0; i < concurrency; i++) {
 			var request = new HttpRequestMessage(
 				HttpMethod.Post,
-				_AttachImageUrl(postId)
+				AttachPostImageForTenantSpec._AttachImageUrl(postId)
 			)
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 			request.Content =
-				_BuildFileContent(_PngBytes(width: 8 + i, height: 8));
+				AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 8 + i, height: 8));
 			requests.Add(request);
-			tasks.Add(_Http.SendAsync(request));
+			tasks.Add(this._Http.SendAsync(request));
 		}
 
 		var responses = await Task.WhenAll(tasks);
@@ -648,7 +648,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			);
 
 		await using (var scope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -703,14 +703,14 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// We therefore verify the key BEST-EFFORT: if any response is a 409, it
 		// must carry the post-image-conflict key. We never assert a 409 MUST
 		// occur, because that would make a proof test flake on correct code.
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 		var postIdGuid = Guid.Parse(postId);
 
 		// Baseline referenced blobs so the leak assertion scopes to THIS storm.
 		List<string> baselineReferencedPaths;
 		await using (var baselineScope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = baselineScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			baselineReferencedPaths = await (
@@ -726,14 +726,14 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		for (var i = 0; i < concurrency; i++) {
 			var request = new HttpRequestMessage(
 				HttpMethod.Post,
-				_AttachImageUrl(postId)
+				AttachPostImageForTenantSpec._AttachImageUrl(postId)
 			)
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 			request.Content =
-				_BuildFileContent(_PngBytes(width: 8 + i, height: 8));
+				AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 8 + i, height: 8));
 			requests.Add(request);
-			tasks.Add(_Http.SendAsync(request));
+			tasks.Add(this._Http.SendAsync(request));
 		}
 
 		var responses = await Task.WhenAll(tasks);
@@ -764,7 +764,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		}
 
 		await using (var scope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -819,8 +819,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldReturnPostImageConflictFromUniqueIndexWhenConcurrentReplaceRaces() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 		var postIdGuid = Guid.Parse(postId);
 
 		// Pre-attach a first image so a live asset row exists for the
@@ -829,13 +829,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		string seedPath;
 		using (var seedRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId)) {
 			seedRequest.Content =
-				_BuildFileContent(_PngBytes(width: 64, height: 32));
-			using var seedResponse = await _Http.SendAsync(seedRequest);
+				AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 64, height: 32));
+			using var seedResponse = await this._Http.SendAsync(seedRequest);
 			seedResponse.EnsureSuccessStatusCode();
 			var seed = await seedResponse.Content
 				.ReadFromJsonAsync<PostImageAttached>();
@@ -849,7 +849,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// them inside their SaveChanges DELETE step — the exact point where
 		// the unique-index INSERT race will fire once the lock releases.
 		await using var barrierScope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		await using var barrierTx = await barrierDb.Database
@@ -876,7 +876,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// live by sibling tests and non-deterministically pick a wrong row.
 		List<string> baselinePaths;
 		await using (var baselineScope =
-			_Fixture.Factory.Services.CreateAsyncScope()) {
+			this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var baselineDb = baselineScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			baselinePaths = await (
@@ -892,20 +892,20 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		for (var i = 0; i < contenderCount; i++) {
 			var request = new HttpRequestMessage(
 				HttpMethod.Post,
-				_AttachImageUrl(postId)
+				AttachPostImageForTenantSpec._AttachImageUrl(postId)
 			)
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
-			request.Content = _BuildFileContent(
-				_PngBytes(width: 96 + i, height: 48)
+			request.Content = AttachPostImageForTenantSpec._BuildFileContent(
+				AttachPostImageForTenantSpec._PngBytes(width: 96 + i, height: 48)
 			);
 			contenderRequests.Add(request);
-			contenderTasks.Add(_Http.SendAsync(request));
+			contenderTasks.Add(this._Http.SendAsync(request));
 		}
 
 		// --- Wait until BOTH contenders are parked on the barrier's row lock
 		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			_Fixture.Factory.Services,
+			this._Fixture.Factory.Services,
 			contenderCount,
 			barrierPid
 		);
@@ -943,7 +943,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// row was hard-deleted by the winner's AttachAsync, and the loser's
 		// insert was rejected by the unique index.
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var livePaths = await (
@@ -1012,23 +1012,23 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldPurgeAssetWhenPostDeleted() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		using var attachRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_AttachImageUrl(postId)
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		attachRequest.Content = _BuildFileContent(_PngBytes(width: 24, height: 24));
+		attachRequest.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 24, height: 24));
 		using (attachRequest) {
-			using var attachResponse = await _Http.SendAsync(attachRequest);
+			using var attachResponse = await this._Http.SendAsync(attachRequest);
 			attachResponse.EnsureSuccessStatusCode();
 			var attached = await attachResponse.Content
 				.ReadFromJsonAsync<PostImageAttached>();
 			Assert.NotNull(attached);
-			_AttachedPath = attached.Path;
+			this._AttachedPath = attached.Path;
 		}
 
 		// Deleting the post must purge the asset row (hard delete, no soft
@@ -1040,13 +1040,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		using (deleteRequest) {
-			using var deleteResponse = await _Http.SendAsync(deleteRequest);
+			using var deleteResponse = await this._Http.SendAsync(deleteRequest);
 			deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var remaining = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -1057,7 +1057,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		var referenceCount = await (
 			from u in db.UploadAsset.AsNoTracking()
-			where u.RelativePath == _AttachedPath && !u.IsDeleted
+			where u.RelativePath == this._AttachedPath && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleOrDefaultAsync();
 		referenceCount.Should().Be(0,
@@ -1082,8 +1082,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await _GetAcmeIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -1091,9 +1091,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -1114,9 +1114,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetTechStartTenantIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -1130,7 +1130,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			body = "Post image spec " + Guid.NewGuid().ToString("N")[..8],
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload = await response.Content.ReadFromJsonAsync<CreatePostDto>();
 		if (payload is null) {

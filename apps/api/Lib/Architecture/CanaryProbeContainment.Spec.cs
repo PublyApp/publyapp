@@ -53,7 +53,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldReferenceTheProbeExactlyThroughTheSanctionedWiringSet() {
-		var apiRoot = _FindApiRoot();
+		var apiRoot = CanaryProbeContainmentSpec._FindApiRoot();
 		var wired = new Dictionary<string, List<string>>();
 
 		foreach (
@@ -66,18 +66,18 @@ public sealed partial class CanaryProbeContainmentSpec {
 			var relative = Path.GetRelativePath(apiRoot, file)
 				.Replace('\\', '/');
 
-			if (_ShouldSkip(relative)) {
+			if (CanaryProbeContainmentSpec._ShouldSkip(relative)) {
 				continue;
 			}
 
-			var findings = _FindProbeWiring(File.ReadAllText(file));
+			var findings = CanaryProbeContainmentSpec._FindProbeWiring(File.ReadAllText(file));
 			if (findings.Count > 0) {
 				wired.Add(relative, findings);
 			}
 		}
 
 		wired.Keys.Should().BeEquivalentTo(
-			_SanctionedWiring.Keys,
+			CanaryProbeContainmentSpec._SanctionedWiring.Keys,
 			"the probe arg/flag must stay reachable ONLY through its definition file, "
 				+ "Program.Main's sanctioned activation/exit-ramp calls, and the logger "
 				+ "wrapper's sink attach — any additional site could arm or read the "
@@ -91,11 +91,11 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldKeepTheExpectedProbeCallsAtEverySanctionedSite() {
-		var apiRoot = _FindApiRoot();
+		var apiRoot = CanaryProbeContainmentSpec._FindApiRoot();
 		var missing = new List<string>();
 
 		foreach (
-			var (relative, expectedSnippets) in _SanctionedWiring
+			var (relative, expectedSnippets) in CanaryProbeContainmentSpec._SanctionedWiring
 		) {
 			var source = File.ReadAllText(
 				Path.Combine(apiRoot, relative)
@@ -118,11 +118,11 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldNeverPassTheProbeArgOrFlagThroughDeployManifests() {
-		var repoRoot = _FindRepoRoot();
+		var repoRoot = CanaryProbeContainmentSpec._FindRepoRoot();
 		var offenders = new List<string>();
 		var unreadable = new List<string>();
 
-		foreach (var relative in _DeployManifests()) {
+		foreach (var relative in CanaryProbeContainmentSpec._DeployManifests()) {
 			var path = Path.Combine(repoRoot, relative);
 			if (!File.Exists(path)) {
 				// Fail loud, never silently skip: a manifest that vanished or was renamed
@@ -141,8 +141,8 @@ public sealed partial class CanaryProbeContainmentSpec {
 				continue;
 			}
 
-			if (content.Contains(_ProbeEmitArgText)
-				|| content.Contains(_ProbeFlagNameText)
+			if (content.Contains(CanaryProbeContainmentSpec._ProbeEmitArgText)
+				|| content.Contains(CanaryProbeContainmentSpec._ProbeFlagNameText)
 			) {
 				offenders.Add(relative);
 			}
@@ -199,13 +199,13 @@ public sealed partial class CanaryProbeContainmentSpec {
 		];
 
 		foreach (var snippet in knownBad) {
-			_FindProbeWiring(snippet).Should().NotBeEmpty(
+			CanaryProbeContainmentSpec._FindProbeWiring(snippet).Should().NotBeEmpty(
 				$"detector must catch: {snippet}"
 			);
 		}
 
 		foreach (var snippet in knownGood) {
-			_FindProbeWiring(snippet).Should().BeEmpty(
+			CanaryProbeContainmentSpec._FindProbeWiring(snippet).Should().BeEmpty(
 				$"detector must not flag: {snippet}"
 			);
 		}
@@ -250,20 +250,20 @@ public sealed partial class CanaryProbeContainmentSpec {
 	// Code view: literal TEXT masked, hole expressions visible, comments gone.
 	// Strings view: literal text visible, comments gone. A hit in EITHER view flags.
 	private static List<string> _FindProbeWiring(string source) {
-		var (codeOnly, withStrings) = _RenderViews(source);
+		var (codeOnly, withStrings) = CanaryProbeContainmentSpec._RenderViews(source);
 		var findings = new List<string>();
 
-		foreach (var (name, pattern) in _WiringPatterns) {
+		foreach (var (name, pattern) in CanaryProbeContainmentSpec._WiringPatterns) {
 			if (pattern.IsMatch(codeOnly)) {
 				findings.Add(name);
 			}
 		}
 
-		if (withStrings.Contains(_ProbeEmitArgText, StringComparison.Ordinal)
-			|| withStrings.Contains(_ProbeFlagNameText, StringComparison.Ordinal)
+		if (withStrings.Contains(CanaryProbeContainmentSpec._ProbeEmitArgText, StringComparison.Ordinal)
+			|| withStrings.Contains(CanaryProbeContainmentSpec._ProbeFlagNameText, StringComparison.Ordinal)
 			// A string naming the probe TYPE covers reflection-style reach
 			// (Activator.CreateInstance(typeof(CanaryBootLogProbe)) ...).
-			|| _ProbeTypeName().IsMatch(withStrings)
+			|| CanaryProbeContainmentSpec._ProbeTypeName().IsMatch(withStrings)
 		) {
 			findings.Add("arg/flag assembled in string literals");
 		}
@@ -272,12 +272,12 @@ public sealed partial class CanaryProbeContainmentSpec {
 	}
 
 	private static readonly (string Name, Regex Pattern)[] _WiringPatterns = [
-		("activates the probe", _ActivateCall()),
-		("reads the probe exit ramp", _ExitRampCall()),
-		("names the probe type directly", _ProbeTypeName()),
-		("constructs the capture sink", _SinkConstruction()),
-		("carries the emit arg as code", _EmitArgCode()),
-		("carries the flag name as code", _FlagCode()),
+		("activates the probe", CanaryProbeContainmentSpec._ActivateCall()),
+		("reads the probe exit ramp", CanaryProbeContainmentSpec._ExitRampCall()),
+		("names the probe type directly", CanaryProbeContainmentSpec._ProbeTypeName()),
+		("constructs the capture sink", CanaryProbeContainmentSpec._SinkConstruction()),
+		("carries the emit arg as code", CanaryProbeContainmentSpec._EmitArgCode()),
+		("carries the flag name as code", CanaryProbeContainmentSpec._FlagCode()),
 	];
 
 	private static readonly string _ProbeEmitArgText = "--emit-canary-boot-log";
@@ -330,17 +330,17 @@ public sealed partial class CanaryProbeContainmentSpec {
 		foreach (
 			var token in root.DescendantTokens(descendIntoTrivia: false)
 		) {
-			_AppendTrivia(masked, unmasked, token.LeadingTrivia);
+			CanaryProbeContainmentSpec._AppendTrivia(masked, unmasked, token.LeadingTrivia);
 
 			var text = token.Text;
 			unmasked.Append(text);
 			masked.Append(
-				_LiteralTextTokenKinds.Contains(token.Kind())
+				CanaryProbeContainmentSpec._LiteralTextTokenKinds.Contains(token.Kind())
 					? new string(' ', text.Length)
 					: text
 			);
 
-			_AppendTrivia(masked, unmasked, token.TrailingTrivia);
+			CanaryProbeContainmentSpec._AppendTrivia(masked, unmasked, token.TrailingTrivia);
 		}
 
 		return (masked.ToString(), unmasked.ToString());

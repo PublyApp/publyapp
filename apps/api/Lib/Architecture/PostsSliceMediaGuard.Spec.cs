@@ -79,8 +79,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	public void ItShouldKeepMediaHandlersFreeOfDbContext() {
 		var offenders = new List<string>();
 
-		foreach (var handlerFullName in _MediaHandlerFullNames) {
-			var handler = _ResolveApiType(handlerFullName);
+		foreach (var handlerFullName in PostsSliceMediaGuardSpec._MediaHandlerFullNames) {
+			var handler = PostsSliceMediaGuardSpec._ResolveApiType(handlerFullName);
 			handler.Should().NotBeNull(
 				$"the pinned slice handler {handlerFullName} must exist; if it was "
 				+ "renamed or removed, update this slice pin deliberately"
@@ -88,7 +88,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 			Assert.NotNull(handler);
 
 			var dbContextTouchpoints =
-				_CollectMemberTypes(handler).Where(_IsDbContextType);
+				PostsSliceMediaGuardSpec._CollectMemberTypes(handler).Where(PostsSliceMediaGuardSpec._IsDbContextType);
 			foreach (var touchpoint in dbContextTouchpoints) {
 				offenders.Add($"{handler.FullName} -> {touchpoint.Name}");
 			}
@@ -105,8 +105,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	public void ItShouldConsumeTheAssetServiceThroughItsAbstraction() {
 		var offenders = new List<string>();
 
-		foreach (var handlerFullName in _MediaHandlerFullNames) {
-			var handler = _ResolveApiType(handlerFullName);
+		foreach (var handlerFullName in PostsSliceMediaGuardSpec._MediaHandlerFullNames) {
+			var handler = PostsSliceMediaGuardSpec._ResolveApiType(handlerFullName);
 			Assert.NotNull(handler);
 
 			var handle = handler.GetMethod(
@@ -144,7 +144,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 
 	[Fact]
 	public void ItShouldPinPostMediaAssetServiceDependencies() {
-		var service = _ResolveApiType(
+		var service = PostsSliceMediaGuardSpec._ResolveApiType(
 			"PublyApp.Api.Modules.Posts.Services.PostMediaAssetService"
 		);
 		service.Should().NotBeNull(
@@ -195,8 +195,8 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		var offenders = new List<string>();
 		var matched = 0;
 
-		foreach (var endpoint in _GetAllRouteEndpoints()) {
-			if (!_IsTenantMutatingMediaEndpoint(endpoint, out var isImageRoute)) {
+		foreach (var endpoint in this._GetAllRouteEndpoints()) {
+			if (!PostsSliceMediaGuardSpec._IsTenantMutatingMediaEndpoint(endpoint, out var isImageRoute)) {
 				continue;
 			}
 
@@ -207,7 +207,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 			if (!hasPermissionMetadata) {
 				offenders.Add(
 					(isImageRoute ? "image-route " : "delete-route ")
-					+ _BuildEndpointKey(endpoint));
+					+ PostsSliceMediaGuardSpec._BuildEndpointKey(endpoint));
 			}
 		}
 
@@ -231,13 +231,13 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	/// </summary>
 	[Fact]
 	public void ItShouldRequireUploadRateLimitPolicyOnAttachImage() {
-		var attachEndpoints = _GetAllRouteEndpoints()
+		var attachEndpoints = this._GetAllRouteEndpoints()
 			.Where(endpoint => {
 				var path = endpoint.RoutePattern.RawText ?? string.Empty;
 				return path.StartsWith(
-						_TenantPostsPrefix + "/",
+						PostsSliceMediaGuardSpec._TenantPostsPrefix + "/",
 						StringComparison.Ordinal)
-					&& path.EndsWith(_ImageSuffix, StringComparison.Ordinal)
+					&& path.EndsWith(PostsSliceMediaGuardSpec._ImageSuffix, StringComparison.Ordinal)
 					&& endpoint.Metadata
 						.OfType<HttpMethodMetadata>()
 						.Any(metadata =>
@@ -281,7 +281,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		isImageRoute = false;
 		var path = candidate.RoutePattern.RawText ?? string.Empty;
 		if (!path.StartsWith(
-				_TenantPostsPrefix + "/",
+				PostsSliceMediaGuardSpec._TenantPostsPrefix + "/",
 				StringComparison.Ordinal)) {
 			return false;
 		}
@@ -293,12 +293,12 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 
 		if (httpMethods.Contains("DELETE")
 			&& path.EndsWith("/{postId}", StringComparison.Ordinal)
-			&& !path.EndsWith(_ImageSuffix, StringComparison.Ordinal)) {
+			&& !path.EndsWith(PostsSliceMediaGuardSpec._ImageSuffix, StringComparison.Ordinal)) {
 			isImageRoute = false;
 			return true;
 		}
 
-		if (path.EndsWith(_ImageSuffix, StringComparison.Ordinal)
+		if (path.EndsWith(PostsSliceMediaGuardSpec._ImageSuffix, StringComparison.Ordinal)
 			&& (httpMethods.Contains("POST") || httpMethods.Contains("DELETE"))) {
 			isImageRoute = true;
 			return true;
@@ -317,7 +317,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	}
 
 	private IReadOnlyList<RouteEndpoint> _GetAllRouteEndpoints() {
-		using var scope = _Factory.Services.CreateScope();
+		using var scope = this._Factory.Services.CreateScope();
 		var dataSource = scope.ServiceProvider
 			.GetRequiredService<EndpointDataSource>();
 
@@ -327,7 +327,7 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 	}
 
 	public void Dispose() {
-		_Factory.Dispose();
+		this._Factory.Dispose();
 	}
 
 	/// <summary>

@@ -87,10 +87,10 @@ public sealed class HandlerParameterOrderGuardSpec {
 					?? method.DeclaringType?.Name
 					?? "<unknown>"
 			))
-			.Where(entry => !_Allowlist.Contains(entry.HandlerName))
+			.Where(entry => !HandlerParameterOrderGuardSpec._Allowlist.Contains(entry.HandlerName))
 			.Select(entry => (
 				entry.HandlerName,
-				Violation: _FindParameterOrderViolation(entry.Method)
+				Violation: HandlerParameterOrderGuardSpec._FindParameterOrderViolation(entry.Method)
 			))
 			.Where(entry => entry.Violation is not null)
 			.Select(entry => $"{entry.HandlerName}: {entry.Violation}")
@@ -112,7 +112,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 		// must be a tracked, justified baseline. This fact asserts the
 		// zero-entry invariant explicitly so a reviewer cannot miss a new
 		// entry that slipped in without discussion.
-		_ = _Allowlist.Should().BeEmpty(
+		_ = HandlerParameterOrderGuardSpec._Allowlist.Should().BeEmpty(
 			"the parameter-order allowlist must remain empty; all handlers "
 			+ "must conform to the canonical group order. If a pre-existing "
 			+ "violation is found, fix it rather than adding it here."
@@ -140,7 +140,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 		var classified = parameters
 			.Select(parameter => (
 				Parameter: parameter,
-				Group: _ClassifyGroup(parameter)
+				Group: HandlerParameterOrderGuardSpec._ClassifyGroup(parameter)
 			))
 			.ToList();
 
@@ -163,9 +163,9 @@ public sealed class HandlerParameterOrderGuardSpec {
 			if (group < maxGroupSeen) {
 				var (prevParam, prevGroup) = classified[index - 1];
 				return $"parameter '{parameter.Name}' (group {group} = "
-					+ $"{_GroupName(group)}) appears after "
+					+ $"{HandlerParameterOrderGuardSpec._GroupName(group)}) appears after "
 					+ $"'{prevParam.Name}' (group {prevGroup} = "
-					+ $"{_GroupName(prevGroup)}); expected order is "
+					+ $"{HandlerParameterOrderGuardSpec._GroupName(prevGroup)}); expected order is "
 					+ "[FromRoute] → [AsParameters] → [FromBody] → "
 					+ "[FromServices] → CancellationToken.";
 			}
@@ -185,7 +185,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 			return 5;
 		}
 
-		if (_HasAttribute<FromServicesAttribute>(parameter)) {
+		if (HandlerParameterOrderGuardSpec._HasAttribute<FromServicesAttribute>(parameter)) {
 			return 4;
 		}
 
@@ -194,19 +194,19 @@ public sealed class HandlerParameterOrderGuardSpec {
 		// without an explicit [FromServices] attribute. They behave like group-4
 		// parameters and must therefore not be classified as route-level (group 1)
 		// to avoid false positives when they follow [AsParameters] or [FromBody].
-		if (_IsSpecialMinimalApiParameter(parameter.ParameterType)) {
+		if (HandlerParameterOrderGuardSpec._IsSpecialMinimalApiParameter(parameter.ParameterType)) {
 			return 4;
 		}
 
-		if (_HasAttribute<FromBodyAttribute>(parameter)) {
+		if (HandlerParameterOrderGuardSpec._HasAttribute<FromBodyAttribute>(parameter)) {
 			return 3;
 		}
 
-		if (_HasAttribute<AsParametersAttribute>(parameter)) {
+		if (HandlerParameterOrderGuardSpec._HasAttribute<AsParametersAttribute>(parameter)) {
 			return 2;
 		}
 
-		if (_HasAttribute<FromRouteAttribute>(parameter)) {
+		if (HandlerParameterOrderGuardSpec._HasAttribute<FromRouteAttribute>(parameter)) {
 			return 1;
 		}
 
@@ -218,7 +218,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 		// service-like dependencies (group 4), which avoids false positives for
 		// DI-injected types like ILogger<T> that are intentionally omitted from
 		// [FromServices].
-		return _IsUnannotatedScalarBindableType(parameter.ParameterType)
+		return HandlerParameterOrderGuardSpec._IsUnannotatedScalarBindableType(parameter.ParameterType)
 			? 1
 			: 4;
 	}
@@ -226,7 +226,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 	private static bool _IsUnannotatedScalarBindableType(Type type) {
 		if (type.IsGenericType
 			&& type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
-			return _IsUnannotatedScalarBindableType(
+			return HandlerParameterOrderGuardSpec._IsUnannotatedScalarBindableType(
 				type.GetGenericArguments()[0]
 			);
 		}

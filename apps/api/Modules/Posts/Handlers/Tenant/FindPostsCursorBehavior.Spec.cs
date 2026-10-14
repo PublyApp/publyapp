@@ -31,15 +31,15 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public FindPostsCursorBehaviorSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var userId = await _GetAcmeAdminUserIdAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var userId = await this._GetAcmeAdminUserIdAsync();
 
 		// 3 posts with distinct, deliberately NOT insertion-ordered CreatedAt
 		// (anti-correlated with insertion). The walk must visit each once in
@@ -53,7 +53,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var id = await _SeedPostAtAsync(
+			var id = await this._SeedPostAtAsync(
 				tenantId,
 				userId,
 				$"post-walk-{i}-{Guid.NewGuid():N}",
@@ -68,7 +68,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the row inserted at i=2 has the smaller Id.
-		await _SwapPostIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapPostIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -76,7 +76,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = _PostsUrl
+			var url = FindPostsCursorBehaviorSpec._PostsUrl
 				+ "?limit=1&sort_id=created_at&sort_order=asc";
 			if (cursor is not null) {
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
@@ -88,7 +88,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -130,8 +130,8 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var userId = await _GetAcmeAdminUserIdAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var userId = await this._GetAcmeAdminUserIdAsync();
 
 		// The audit interceptor stamps UpdatedAt = now on every Modified save, so the
 		// only way to control it is a direct UPDATE that bypasses the interceptor.
@@ -146,12 +146,12 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
-			var id = await _SeedPostAtAsync(
+			var id = await this._SeedPostAtAsync(
 				tenantId,
 				userId, $"post-walk-up-{i}-{Guid.NewGuid():N}", baseDate);
 			seededIds.Add(id);
 			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			await _OverrideUpdatedAtAsync(id, updatedAt);
+			await this._OverrideUpdatedAtAsync(id, updatedAt);
 			seededOrder.Add(updatedAt);
 		}
 
@@ -160,7 +160,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the row inserted at i=2 has the smaller Id.
-		await _SwapPostIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapPostIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -168,7 +168,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = _PostsUrl
+			var url = FindPostsCursorBehaviorSpec._PostsUrl
 					+ "?limit=1&sort_id=updated_at&sort_order=asc";
 			if (cursor is not null) {
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
@@ -180,7 +180,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -222,16 +222,16 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsUrl + $"?cursor={Guid.NewGuid()}"
+			FindPostsCursorBehaviorSpec._PostsUrl + $"?cursor={Guid.NewGuid()}"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -244,16 +244,16 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenSortIdIsInvalid() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsUrl + "?sort_id=not_real"
+			FindPostsCursorBehaviorSpec._PostsUrl + "?sort_id=not_real"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -266,16 +266,16 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsUrl + "?limit=5&sort_id=CREATED_AT"
+			FindPostsCursorBehaviorSpec._PostsUrl + "?limit=5&sort_id=CREATED_AT"
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		// The handler dictionary resolves keys case-insensitively; an
 		// ordinal-sensitive lookup would turn this into a 400.
@@ -289,13 +289,13 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -303,14 +303,14 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetAcmeAdminUserIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -326,7 +326,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		string body,
 		DateTime createdAt
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -353,7 +353,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _OverrideUpdatedAtAsync(Guid postId, DateTime updatedAt) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -366,7 +366,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SwapPostIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();

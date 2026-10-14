@@ -23,7 +23,7 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public JobQueueListenerSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
@@ -31,24 +31,24 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 		var signal = new RecordingSignal();
 		var appName = $"jobs-listener-spec-{Guid.NewGuid():N}";
 		var options = new SchedulerLeaderOptions {
-			ConnectionString = _ConnectionStringWithAppName(appName)
+			ConnectionString = this._ConnectionStringWithAppName(appName)
 		};
 		var listener = new JobQueueListener(
-			signal, _Metrics(), options, NullLogger<JobQueueListener>.Instance
+			signal, JobQueueListenerSpec._Metrics(), options, NullLogger<JobQueueListener>.Instance
 		);
 
 		await listener.StartAsync(CancellationToken.None);
 		try {
 			// On connect the listener LISTENs and fires one immediate catch-up wake.
-			await _WaitUntilAsync(() => signal.Notifications >= 1, TimeSpan.FromSeconds(20));
+			await JobQueueListenerSpec._WaitUntilAsync(() => signal.Notifications >= 1, TimeSpan.FromSeconds(20));
 			var afterConnect = signal.Notifications;
 
 			// Kill the listener's dedicated backend connection from another session.
-			await _TerminateListenerBackendAsync(appName);
+			await this._TerminateListenerBackendAsync(appName);
 
 			// On reconnect it re-LISTENs and fires ANOTHER catch-up wake (§5.5 (b)): any
 			// job committed while the socket was down is covered by this one wake.
-			await _WaitUntilAsync(
+			await JobQueueListenerSpec._WaitUntilAsync(
 				() => signal.Notifications > afterConnect, TimeSpan.FromSeconds(30)
 			);
 		} finally {
@@ -68,11 +68,11 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 		var signal = new SilentTimeoutSignal();
 		var instance = new JobWorkerInstance();
 		var processor = new JobQueueProcessor(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			new JobHandlerRegistry([
 				new JobHandlerRegistration(jobType, _ => handler)
 			]),
-			_Metrics(),
+			JobQueueListenerSpec._Metrics(),
 			instance,
 			NullLogger<JobQueueProcessor>.Instance,
 			signal,
@@ -89,7 +89,7 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 		try {
 			await signal.WaitStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-			await using (var seed = _CreateDbContext()) {
+			await using (var seed = this._CreateDbContext()) {
 				var item = new JobQueueItem {
 					JobType = jobType,
 					Payload = "{}",
@@ -109,8 +109,8 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 			}
 
 			await handler.Processed.Task.WaitAsync(TimeSpan.FromSeconds(10));
-			await _WaitUntilAsync(async () => {
-				await using var check = _CreateDbContext();
+			await JobQueueListenerSpec._WaitUntilAsync(async () => {
+				await using var check = this._CreateDbContext();
 				return !await check.JobQueue.AsNoTracking().AnyAsync(j => j.Id == jobId);
 			}, TimeSpan.FromSeconds(10));
 		} finally {
@@ -118,13 +118,13 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 		}
 
 		signal.Notifications.Should().Be(0);
-		await using var assertDb = _CreateDbContext();
+		await using var assertDb = this._CreateDbContext();
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(j => j.Id == jobId))
 			.Should().BeFalse();
 	}
 
 	private async Task _TerminateListenerBackendAsync(string appName) {
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		await db.Database.ExecuteSqlAsync(
 			$"""
 			SELECT pg_terminate_backend(pid)
@@ -168,14 +168,14 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 	}
 
 	private string _ConnectionStringWithAppName(string appName) {
-		var builder = new NpgsqlConnectionStringBuilder(_BaseConnectionString()) {
+		var builder = new NpgsqlConnectionStringBuilder(this._BaseConnectionString()) {
 			ApplicationName = appName
 		};
 		return builder.ConnectionString;
 	}
 
 	private string _BaseConnectionString() {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -190,7 +190,7 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 	private AppDbContext _CreateDbContext() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(_BaseConnectionString())
+				.UseNpgsql(this._BaseConnectionString())
 				.Options
 		);
 	}
@@ -200,11 +200,11 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 		private int _Notifications;
 
 		public int Notifications {
-			get { return Volatile.Read(ref _Notifications); }
+			get { return Volatile.Read(ref this._Notifications); }
 		}
 
 		public void Notify() {
-			Interlocked.Increment(ref _Notifications);
+			Interlocked.Increment(ref this._Notifications);
 		}
 
 		public Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {
@@ -219,18 +219,18 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 		public int Notifications { get; private set; }
 
 		public void Notify() {
-			Notifications++;
+			this.Notifications++;
 		}
 
 		public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {
-			WaitStarted.TrySetResult();
+			this.WaitStarted.TrySetResult();
 			await Task.Delay(timeout, cancellationToken);
 		}
 	}
 
 	private sealed class RecordingHandler : IJobHandler {
 		public RecordingHandler(string jobType) {
-			JobType = jobType;
+			this.JobType = jobType;
 		}
 
 		public string JobType { get; }
@@ -241,7 +241,7 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 			JobContext context,
 			CancellationToken cancellationToken
 		) {
-			Processed.TrySetResult();
+			this.Processed.TrySetResult();
 			return Task.FromResult<JobOutcome>(JobOutcome.Succeeded);
 		}
 	}

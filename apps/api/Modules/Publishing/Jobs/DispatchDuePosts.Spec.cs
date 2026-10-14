@@ -28,11 +28,11 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public DispatchDuePostsSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -77,7 +77,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 			CancellationToken cancellationToken = default
 		) {
 			if (payload is PublishPublicationPayload publishPayload) {
-				Calls.Add(new EnqueuedCall(
+				this.Calls.Add(new EnqueuedCall(
 					publishPayload.PublicationId,
 					publishPayload.IdempotencyKey,
 					options?.IdempotencyKey
@@ -133,7 +133,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 			Status = status,
 			ScheduledAtUtc = scheduledAtUtc,
 			ScheduledTimeZone = "Etc/UTC",
-			IdempotencyKey = _PublicationIdempotencyKeyPlaceholder,
+			IdempotencyKey = DispatchDuePostsSpec._PublicationIdempotencyKeyPlaceholder,
 		};
 		db.Publication.Add(publication);
 		await db.SaveChangesAsync();
@@ -155,27 +155,27 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldClaimOnlyPastDueScheduledRowsAndTransitionThem() {
-		using var db = await _NewDbAsync();
-		var pastDue = await _SeedPublicationAsync(
+		using var db = await this._NewDbAsync();
+		var pastDue = await DispatchDuePostsSpec._SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
 			DateTime.UtcNow.AddMinutes(-5)
 		);
-		var future = await _SeedPublicationAsync(
+		var future = await DispatchDuePostsSpec._SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
 			DateTime.UtcNow.AddMinutes(30)
 		);
-		var inProgress = await _SeedPublicationAsync(
+		var inProgress = await DispatchDuePostsSpec._SeedPublicationAsync(
 			db,
 			PublicationStatus.InProgress,
 			DateTime.UtcNow.AddMinutes(-10)
 		);
 
 		var enqueuer = new RecordingEnqueuer();
-		var job = _NewJob(db, enqueuer);
+		var job = DispatchDuePostsSpec._NewJob(db, enqueuer);
 
-		var outcome = await job.HandleAsync(_NewContext(), CancellationToken.None);
+		var outcome = await job.HandleAsync(DispatchDuePostsSpec._NewContext(), CancellationToken.None);
 
 		outcome.Should().Be(JobOutcome.Succeeded);
 
@@ -193,7 +193,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 		);
 
 		await using var verifyScope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDb =
 			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await verifyDb.Entry(await verifyDb.Publication.SingleAsync(
@@ -227,17 +227,17 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSucceedWithoutWorkWhenNoRowIsPastDue() {
-		using var db = await _NewDbAsync();
-		_ = await _SeedPublicationAsync(
+		using var db = await this._NewDbAsync();
+		_ = await DispatchDuePostsSpec._SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
 			DateTime.UtcNow.AddHours(2)
 		);
 
 		var enqueuer = new RecordingEnqueuer();
-		var job = _NewJob(db, enqueuer);
+		var job = DispatchDuePostsSpec._NewJob(db, enqueuer);
 
-		var outcome = await job.HandleAsync(_NewContext(), CancellationToken.None);
+		var outcome = await job.HandleAsync(DispatchDuePostsSpec._NewContext(), CancellationToken.None);
 
 		outcome.Should().Be(JobOutcome.Succeeded);
 		enqueuer.Calls.Should().BeEmpty("nothing is due");

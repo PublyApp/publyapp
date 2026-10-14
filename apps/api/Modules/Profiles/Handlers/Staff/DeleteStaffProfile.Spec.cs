@@ -26,9 +26,9 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public DeleteStaffProfileSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetCreateProfileUrl() {
@@ -59,10 +59,10 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl(Guid.NewGuid().ToString())
+			DeleteStaffProfileSpec._GetDeleteProfileUrl(Guid.NewGuid().ToString())
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
@@ -70,52 +70,52 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnUnauthorizedWithInvalidSession() {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl(Guid.NewGuid().ToString())
+			DeleteStaffProfileSpec._GetDeleteProfileUrl(Guid.NewGuid().ToString())
 		).WithSessionToken("invalid-token");
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl(Guid.NewGuid().ToString())
+			DeleteStaffProfileSpec._GetDeleteProfileUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl(Guid.NewGuid().ToString())
+			DeleteStaffProfileSpec._GetDeleteProfileUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl("not-a-guid")
+			DeleteStaffProfileSpec._GetDeleteProfileUrl("not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -124,42 +124,42 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMissingProfile() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl(Guid.NewGuid().ToString())
+			DeleteStaffProfileSpec._GetDeleteProfileUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteStaffProfile() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var profileId = await _CreateStaffProfileAsync(token, "Delete Profile Spec");
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await this._CreateStaffProfileAsync(token, "Delete Profile Spec");
 
 		using var deleteRequest = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteProfileUrl(profileId)
+			DeleteStaffProfileSpec._GetDeleteProfileUrl(profileId)
 		).WithSessionToken(token);
 
-		using var deleteResponse = await _Http.SendAsync(deleteRequest);
+		using var deleteResponse = await this._Http.SendAsync(deleteRequest);
 		deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		// Profile should no longer be accessible.
 		using var getRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetGetProfileUrl(profileId)
+			DeleteStaffProfileSpec._GetGetProfileUrl(profileId)
 		).WithSessionToken(token);
 
-		using var getResponse = await _Http.SendAsync(getRequest);
+		using var getResponse = await this._Http.SendAsync(getRequest);
 		getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	private async Task<string> _CreateStaffProfileAsync(string token, string name) {
-		using var request = new HttpRequestMessage(HttpMethod.Post, _GetCreateProfileUrl())
+		using var request = new HttpRequestMessage(HttpMethod.Post, DeleteStaffProfileSpec._GetCreateProfileUrl())
 			.WithSessionToken(token);
 		request.Content = JsonContent.Create(
 			new {
@@ -170,7 +170,7 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 			}
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var body = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
@@ -184,7 +184,7 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -205,6 +205,6 @@ public sealed class DeleteStaffProfileSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		return await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
 }

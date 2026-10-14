@@ -28,9 +28,9 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	private readonly TestAuthClient _AuthClient;
 
 	public ResolveTenantProfileUserAssignmentsAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl(string tenantId, string profileId) {
@@ -59,10 +59,10 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
-		using var response = await _Http.PostAsJsonAsync(
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString()),
+		using var response = await this._Http.PostAsJsonAsync(
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString()),
 			new { userAccountIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
@@ -71,39 +71,39 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl("not-a-guid", Guid.NewGuid().ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl("not-a-guid", Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -113,19 +113,19 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), "not-a-guid")
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), "not-a-guid")
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -135,13 +135,13 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMalformedUserAccountId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), profileId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), profileId.ToString())
 		).WithSessionToken(token);
 
 		string[] malformedUserAccountIds = ["not-a-guid"];
@@ -149,25 +149,25 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 			new { userAccountIds = malformedUserAccountIds }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenProfileDoesNotExist() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -181,21 +181,21 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	/// </summary>
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenProfileBelongsToAForeignTenant() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var ownerTenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var foreignTenantId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
-		var profileId = await _CreateTenantProfileAsync(ownerTenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var ownerTenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var foreignTenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+		var profileId = await this._CreateTenantProfileAsync(ownerTenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(foreignTenantId.ToString(), profileId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(foreignTenantId.ToString(), profileId.ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -207,23 +207,23 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotResolveAForeignTenantAccountAsAssigned() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantAId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var tenantBId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantAId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantBId = await this._GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 
-		var profileAId = await _CreateTenantProfileAsync(tenantAId);
-		var foreignMemberId = await _CreateTenantMemberAsync(tenantBId);
+		var profileAId = await this._CreateTenantProfileAsync(tenantAId);
+		var foreignMemberId = await this._CreateTenantMemberAsync(tenantBId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantAId.ToString(), profileAId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantAId.ToString(), profileAId.ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { foreignMemberId.ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -247,24 +247,24 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotResolveAForeignTenantAccountAsAssignedEvenWithACorruptJunctionRow() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantAId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var tenantBId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantAId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantBId = await this._GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 
-		var profileAId = await _CreateTenantProfileAsync(tenantAId);
-		var foreignMemberId = await _CreateTenantMemberAsync(tenantBId);
-		await _CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, profileAId);
+		var profileAId = await this._CreateTenantProfileAsync(tenantAId);
+		var foreignMemberId = await this._CreateTenantMemberAsync(tenantBId);
+		await this._CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, profileAId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantAId.ToString(), profileAId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantAId.ToString(), profileAId.ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { foreignMemberId.ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -283,17 +283,17 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 	[Fact]
 	public async Task ItShouldResolveAssignmentsForRequestedUsers() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
 
-		var assignedMemberId = await _CreateTenantMemberAsync(tenantId);
-		var unassignedMemberId = await _CreateTenantMemberAsync(tenantId);
-		await _AssignAsync(token, tenantId, profileId, assignedMemberId);
+		var assignedMemberId = await this._CreateTenantMemberAsync(tenantId);
+		var unassignedMemberId = await this._CreateTenantMemberAsync(tenantId);
+		await this._AssignAsync(token, tenantId, profileId, assignedMemberId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), profileId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), profileId.ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
@@ -305,7 +305,7 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 			}
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -334,24 +334,24 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	/// </summary>
 	[Fact]
 	public async Task ItShouldResolveASuspendedAccountWithALiveJunctionRowAsAssigned() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
 
-		var suspendedMemberId = await _CreateTenantMemberAsync(tenantId);
-		await _AssignAsync(token, tenantId, profileId, suspendedMemberId);
-		await _SetMemberAccountStatusAsync(suspendedMemberId, AccountStatus.Suspended);
+		var suspendedMemberId = await this._CreateTenantMemberAsync(tenantId);
+		await this._AssignAsync(token, tenantId, profileId, suspendedMemberId);
+		await this._SetMemberAccountStatusAsync(suspendedMemberId, AccountStatus.Suspended);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), profileId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), profileId.ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userAccountIds = new[] { suspendedMemberId.ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -366,18 +366,18 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 
 	[Fact]
 	public async Task ItShouldReturnEmptyAssignmentsForEmptyRequest() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(tenantId.ToString(), profileId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetUrl(tenantId.ToString(), profileId.ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(new { userAccountIds = Array.Empty<string>() });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -392,12 +392,12 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	// ---------------------------------------------------------------------------------------
 
 	private async Task<Guid> _GetTenantIdAsync(string tenantName) {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(_Http, token, tenantName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		return await TenantTestHelper.GetTenantIdByNameAsync(this._Http, token, tenantName);
 	}
 
 	private async Task<Guid> _CreateTenantProfileAsync(Guid tenantId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(
@@ -414,7 +414,7 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	}
 
 	private async Task<Guid> _CreateTenantMemberAsync(Guid tenantId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
@@ -445,7 +445,7 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	}
 
 	private async Task _SetMemberAccountStatusAsync(Guid userAccountId, AccountStatus status) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var account = await dbContext.UserAccount.FindAsync(userAccountId);
@@ -465,10 +465,10 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			ResolveTenantProfileUserAssignmentsAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 	}
 
@@ -479,7 +479,7 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 	/// predicate rather than relying on an otherwise-empty join.
 	/// </summary>
 	private async Task _CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {

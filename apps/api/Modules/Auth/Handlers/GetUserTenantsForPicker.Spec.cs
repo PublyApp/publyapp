@@ -32,15 +32,15 @@ public sealed class GetUserTenantsForPickerSpec
 	public GetUserTenantsForPickerSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnCorrectTenantsWhenAllActive() {
-		var aliceToken = await _AuthClient.LoginAsync(
+		var aliceToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
@@ -51,7 +51,7 @@ public sealed class GetUserTenantsForPickerSpec
 		).WithSessionToken(aliceToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -73,10 +73,10 @@ public sealed class GetUserTenantsForPickerSpec
 	public async Task
 	ItShouldFlagSuspendedStateWhenOneSuspended() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -84,13 +84,13 @@ public sealed class GetUserTenantsForPickerSpec
 		// Suspend Acme
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, acmeId
+				this._Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			var aliceToken =
-				await _AuthClient.LoginAsync(
+				await this._AuthClient.LoginAsync(
 					TestConstants.AliceEmail,
 					TestConstants.SeedPassword
 				);
@@ -101,7 +101,7 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -133,7 +133,7 @@ public sealed class GetUserTenantsForPickerSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, acmeId
+						this._Http, staffToken, acmeId
 					);
 		}
 	}
@@ -142,10 +142,10 @@ public sealed class GetUserTenantsForPickerSpec
 	public async Task
 	ItShouldShowAllActiveAfterReactivation() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -153,7 +153,7 @@ public sealed class GetUserTenantsForPickerSpec
 		// Suspend
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, acmeId
+				this._Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -162,13 +162,13 @@ public sealed class GetUserTenantsForPickerSpec
 			using var reactivate =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, acmeId
+						this._Http, staffToken, acmeId
 					);
 			reactivate.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
 			var aliceToken =
-				await _AuthClient.LoginAsync(
+				await this._AuthClient.LoginAsync(
 					TestConstants.AliceEmail,
 					TestConstants.SeedPassword
 				);
@@ -179,7 +179,7 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -202,7 +202,7 @@ public sealed class GetUserTenantsForPickerSpec
 				using var cleanup =
 					await TenantTestHelper
 						.ReactivateTenantAsync(
-							_Http, staffToken, acmeId
+							this._Http, staffToken, acmeId
 						);
 			} catch {
 				// Ignore — tenant may already be active
@@ -214,7 +214,7 @@ public sealed class GetUserTenantsForPickerSpec
 	public async Task
 	ItShouldReturnOneActiveForSingleTenantUser() {
 		// Acme admin has only 1 tenant
-		var acmeAdminToken = await _AuthClient.LoginAsync(
+		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -225,7 +225,7 @@ public sealed class GetUserTenantsForPickerSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -245,17 +245,17 @@ public sealed class GetUserTenantsForPickerSpec
 	public async Task
 	ItShouldNotLeakStaffInternalNotesToTenantScope() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		using var setNotes =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				acmeId,
 				new { notes = "staff-internal-secret-note" }
@@ -263,7 +263,7 @@ public sealed class GetUserTenantsForPickerSpec
 		setNotes.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
-			var aliceToken = await _AuthClient.LoginAsync(
+			var aliceToken = await this._AuthClient.LoginAsync(
 				TestConstants.AliceEmail,
 				TestConstants.SeedPassword
 			);
@@ -274,7 +274,7 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -301,7 +301,7 @@ public sealed class GetUserTenantsForPickerSpec
 		} finally {
 			using var clearNotes =
 				await TenantTestHelper.UpdateTenantAsync(
-					_Http,
+					this._Http,
 					staffToken,
 					acmeId,
 					new { notes = (string?)null }
@@ -312,12 +312,12 @@ public sealed class GetUserTenantsForPickerSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedForGloballySuspendedUser() {
-		var aliceToken = await _AuthClient.LoginAsync(
+		var aliceToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
 
-		await _SetUserSuspendedByEmailAsync(
+		await this._SetUserSuspendedByEmailAsync(
 			TestConstants.AliceEmail,
 			isSuspended: true
 		);
@@ -329,12 +329,12 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
 		} finally {
-			await _SetUserSuspendedByEmailAsync(
+			await this._SetUserSuspendedByEmailAsync(
 				TestConstants.AliceEmail,
 				isSuspended: false
 			);
@@ -348,7 +348,7 @@ public sealed class GetUserTenantsForPickerSpec
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -374,9 +374,9 @@ public sealed class GetUserTenantsForPickerSpec
 	[Fact]
 	public async Task ItShouldReturnEmptyPickerWhenEveryTenantIsSoftDeleted() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var (email, tenantIds) =
-			await _SeedUserWithSuspendedTenantsAsync(
+			await this._SeedUserWithSuspendedTenantsAsync(
 				staffToken,
 				tenantCount: 2
 			);
@@ -385,12 +385,12 @@ public sealed class GetUserTenantsForPickerSpec
 			foreach (var tenantId in tenantIds) {
 				using var delete =
 					await TenantTestHelper.DeleteTenantAsync(
-						_Http, staffToken, tenantId
+						this._Http, staffToken, tenantId
 					);
 				delete.StatusCode.Should().Be(HttpStatusCode.OK);
 			}
 
-			var token = await _AuthClient.LoginAsync(
+			var token = await this._AuthClient.LoginAsync(
 				email,
 				TestConstants.SeedPassword
 			);
@@ -401,7 +401,7 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -418,7 +418,7 @@ public sealed class GetUserTenantsForPickerSpec
 			result.HasSuspendedTenants.Should().BeFalse();
 			result.Tenants.Should().BeEmpty();
 		} finally {
-			await _DeleteSeededPickerUserAsync(email);
+			await this._DeleteSeededPickerUserAsync(email);
 		}
 	}
 
@@ -428,7 +428,7 @@ public sealed class GetUserTenantsForPickerSpec
 		int tenantCount
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -474,7 +474,7 @@ public sealed class GetUserTenantsForPickerSpec
 		foreach (var tenantId in tenantIds) {
 			using var suspend =
 				await TenantTestHelper.SuspendTenantAsync(
-					_Http, staffToken, tenantId
+					this._Http, staffToken, tenantId
 				);
 			suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
@@ -489,10 +489,10 @@ public sealed class GetUserTenantsForPickerSpec
 	// signal the front empty state branches on.
 	[Fact]
 	public async Task ItShouldNotFlagDeletedTenantsForUserWithNoMemberships() {
-		var email = await _SeedUserWithoutMembershipsAsync();
+		var email = await this._SeedUserWithoutMembershipsAsync();
 
 		try {
-			var token = await _AuthClient.LoginAsync(
+			var token = await this._AuthClient.LoginAsync(
 				email,
 				TestConstants.SeedPassword
 			);
@@ -503,7 +503,7 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -517,13 +517,13 @@ public sealed class GetUserTenantsForPickerSpec
 			result.HasSuspendedTenants.Should().BeFalse();
 			result.Tenants.Should().BeEmpty();
 		} finally {
-			await _DeleteSeededPickerUserAsync(email);
+			await this._DeleteSeededPickerUserAsync(email);
 		}
 	}
 
 	private async Task<string> _SeedUserWithoutMembershipsAsync() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -552,9 +552,9 @@ public sealed class GetUserTenantsForPickerSpec
 	[Fact]
 	public async Task ItShouldFlagDeletedTenantsWhileStillListingLiveTenantsWhenOnlySomeWereDeleted() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var (email, tenantIds) =
-			await _SeedUserWithSuspendedTenantsAsync(staffToken, 1);
+			await this._SeedUserWithSuspendedTenantsAsync(staffToken, 1);
 
 		try {
 			// Delete the seeded tenant so the user has exactly one LIVE
@@ -565,14 +565,14 @@ public sealed class GetUserTenantsForPickerSpec
 			foreach (var tenantId in tenantIds) {
 				using var delete =
 					await TenantTestHelper.DeleteTenantAsync(
-						_Http, staffToken, tenantId
+						this._Http, staffToken, tenantId
 					);
 				delete.StatusCode.Should().Be(HttpStatusCode.OK);
 			}
 
 			// Second, LIVE membership on a seeded shared tenant.
 			await using var scope =
-				_Fixture.Factory.Services.CreateAsyncScope();
+				this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			var acme = await dbContext.Tenant.FirstAsync(t =>
@@ -587,7 +587,7 @@ public sealed class GetUserTenantsForPickerSpec
 			);
 			await dbContext.SaveChangesAsync();
 
-			var token = await _AuthClient.LoginAsync(
+			var token = await this._AuthClient.LoginAsync(
 				email,
 				TestConstants.SeedPassword
 			);
@@ -598,7 +598,7 @@ public sealed class GetUserTenantsForPickerSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -617,13 +617,13 @@ public sealed class GetUserTenantsForPickerSpec
 			result.Tenants.Should().NotContain(t =>
 				t.Id == tenantIds[0]);
 		} finally {
-			await _DeleteSeededPickerUserAsync(email);
+			await this._DeleteSeededPickerUserAsync(email);
 		}
 	}
 
 	private async Task _DeleteSeededPickerUserAsync(string email) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

@@ -25,8 +25,8 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 
 	[Fact]
 	public async Task ItShouldPinAllBeforeComposingTheApiFactoryWhenDotEnvSetsApi() {
-		if (_IsChildProbe()) {
-			_RunChildProbe();
+		if (TestEnvironmentAppRoleBehaviorSpec._IsChildProbe()) {
+			TestEnvironmentAppRoleBehaviorSpec._RunChildProbe();
 			return;
 		}
 
@@ -44,9 +44,9 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 			);
 		}
 
-		File.WriteAllText(envFilePath, _SyntheticDotEnv);
+		File.WriteAllText(envFilePath, TestEnvironmentAppRoleBehaviorSpec._SyntheticDotEnv);
 		try {
-			var result = await _RunChildTestAsync(testAssemblyDirectory);
+			var result = await TestEnvironmentAppRoleBehaviorSpec._RunChildTestAsync(testAssemblyDirectory);
 
 			result.ExitCode.Should().Be(
 				0,
@@ -62,14 +62,14 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 
 	private static bool _IsChildProbe() {
 		return string.Equals(
-			Environment.GetEnvironmentVariable(_ProbeEnvironmentVariable),
+			Environment.GetEnvironmentVariable(TestEnvironmentAppRoleBehaviorSpec._ProbeEnvironmentVariable),
 			"1",
 			StringComparison.Ordinal
 		);
 	}
 
 	private static void _RunChildProbe() {
-		TestEnvironment.InitializeOnce(_SafeConnectionString);
+		TestEnvironment.InitializeOnce(TestEnvironmentAppRoleBehaviorSpec._SafeConnectionString);
 		AppEnvironment.Initialize().Role.Should().Be(
 			AppRole.All,
 			"the real TestEnvironment bootstrap must re-pin APP_ROLE after dotenv loading"
@@ -84,7 +84,7 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 			"publyapp-test-environment-storage-"
 		);
 		try {
-			using var factory = new ApiFactory(_SafeConnectionString, storageRoot.FullName);
+			using var factory = new ApiFactory(TestEnvironmentAppRoleBehaviorSpec._SafeConnectionString, storageRoot.FullName);
 			factory.Services.GetRequiredService<JobHandlerRegistry>().Should().NotBeNull();
 		} finally {
 			storageRoot.Delete(recursive: true);
@@ -94,7 +94,7 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 	private static async Task<(int ExitCode, string Stdout, string Stderr)> _RunChildTestAsync(
 		string workingDirectory
 	) {
-		var projectPath = _FindRepositoryFile(
+		var projectPath = TestEnvironmentAppRoleBehaviorSpec._FindRepositoryFile(
 			"apps/api/Tests/PublyApp.Api.Tests.csproj"
 		);
 		var startInfo = new ProcessStartInfo {
@@ -113,11 +113,11 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 		startInfo.ArgumentList.Add("--filter");
 		startInfo.ArgumentList.Add(
 			$"FullyQualifiedName~{typeof(TestEnvironmentAppRoleBehaviorSpec).FullName}."
-			+ nameof(ItShouldPinAllBeforeComposingTheApiFactoryWhenDotEnvSetsApi)
+			+ nameof(TestEnvironmentAppRoleBehaviorSpec.ItShouldPinAllBeforeComposingTheApiFactoryWhenDotEnvSetsApi)
 		);
 		startInfo.ArgumentList.Add("--logger");
 		startInfo.ArgumentList.Add("console;verbosity=minimal");
-		startInfo.Environment[_ProbeEnvironmentVariable] = "1";
+		startInfo.Environment[TestEnvironmentAppRoleBehaviorSpec._ProbeEnvironmentVariable] = "1";
 
 		using var process = Process.Start(startInfo);
 		if (process is null) {
@@ -168,7 +168,7 @@ public sealed class TestEnvironmentAppRoleBehaviorSpec {
 
 	private static readonly string _SyntheticDotEnv = $"""
 		APP_ROLE="api"
-		POSTGRES_CONNECTION_STRING="{_SafeConnectionString}"
+		POSTGRES_CONNECTION_STRING="{TestEnvironmentAppRoleBehaviorSpec._SafeConnectionString}"
 		FRONT_URL="http://localhost:5050"
 		RESEND_API_KEY="not-a-real-key"
 		STAFF_OWNER_EMAIL="owner@example.com"

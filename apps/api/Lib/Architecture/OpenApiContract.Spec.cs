@@ -24,7 +24,7 @@ public sealed class OpenApiContractSpec {
 	[Fact]
 	public async Task ItShouldPublishParametersInCanonicalOrder() {
 		using var openApiDocument =
-			await _ReadOpenApiDocumentAsync();
+			await OpenApiContractSpec._ReadOpenApiDocumentAsync();
 		var offenders = new List<string>();
 		var paths =
 			openApiDocument.RootElement
@@ -49,15 +49,15 @@ public sealed class OpenApiContractSpec {
 					.ToList();
 
 				var expectedParameters = actualParameters
-					.OrderBy(item => _GetParameterLocationOrder(item.Location))
-					.ThenBy(item => _GetPathParameterIndex(path.Name, item))
+					.OrderBy(item => OpenApiContractSpec._GetParameterLocationOrder(item.Location))
+					.ThenBy(item => OpenApiContractSpec._GetPathParameterIndex(path.Name, item))
 					.ThenBy(item => item.Name, StringComparer.Ordinal)
 					.ThenBy(item => item.OriginalIndex)
-					.Select(_FormatParameter)
+					.Select(OpenApiContractSpec._FormatParameter)
 					.ToList();
 
 				var actualParameterNames = actualParameters
-					.Select(_FormatParameter)
+					.Select(OpenApiContractSpec._FormatParameter)
 					.ToList();
 				if (actualParameterNames.SequenceEqual(expectedParameters)) {
 					continue;
@@ -93,7 +93,7 @@ public sealed class OpenApiContractSpec {
 		// exposed through OpenAPI must stay snake_case so Kiota
 		// generates the expected URI templates.
 		using var openApiDocument =
-			await _ReadOpenApiDocumentAsync();
+			await OpenApiContractSpec._ReadOpenApiDocumentAsync();
 		var offenders = new List<string>();
 		var paths =
 			openApiDocument.RootElement
@@ -117,7 +117,7 @@ public sealed class OpenApiContractSpec {
 					var name = parameter.GetProperty("name")
 						.GetString();
 					if (name is null
-						|| _QueryParameterNamePattern.IsMatch(name)) {
+						|| OpenApiContractSpec._QueryParameterNamePattern.IsMatch(name)) {
 						continue;
 					}
 
@@ -140,7 +140,7 @@ public sealed class OpenApiContractSpec {
 		// stream, so its success and problem response metadata
 		// must be asserted at the OpenAPI layer.
 		using var openApiDocument =
-			await _ReadOpenApiDocumentAsync();
+			await OpenApiContractSpec._ReadOpenApiDocumentAsync();
 		var responses =
 			openApiDocument.RootElement
 				.GetProperty("paths")
@@ -176,7 +176,7 @@ public sealed class OpenApiContractSpec {
 		// uniformly into type:[T,"null"] + allOf; request builders consume the
 		// folded shape through untyped factories, so nothing regresses.
 		using var openApiDocument =
-			await _ReadOpenApiDocumentAsync();
+			await OpenApiContractSpec._ReadOpenApiDocumentAsync();
 		var offenders = new List<string>();
 		var schemas = openApiDocument.RootElement
 			.GetProperty("components")
@@ -375,12 +375,12 @@ public sealed class OpenApiContractSpec {
 
 	[Fact]
 	public async Task ItShouldPublishDomainStatusFieldsAsStringEnumSchemas() {
-		using var openApiDocument = await _ReadOpenApiDocumentAsync();
+		using var openApiDocument = await OpenApiContractSpec._ReadOpenApiDocumentAsync();
 		var schemas = openApiDocument.RootElement.GetProperty("components")
 			.GetProperty("schemas");
 
 		var offenders = new List<string>();
-		foreach (var (schemaName, properties) in _ExpectedEnumProperties) {
+		foreach (var (schemaName, properties) in OpenApiContractSpec._ExpectedEnumProperties) {
 			if (!schemas.TryGetProperty(schemaName, out var schema)) {
 				offenders.Add($"{schemaName}: schema missing from OpenAPI document");
 				continue;
@@ -398,7 +398,7 @@ public sealed class OpenApiContractSpec {
 					continue;
 				}
 
-				var failure = _AssertStringEnumSchema(
+				var failure = OpenApiContractSpec._AssertStringEnumSchema(
 					schemas,
 					schemaName,
 					propertyName,
@@ -419,12 +419,12 @@ public sealed class OpenApiContractSpec {
 
 	[Fact]
 	public async Task ItShouldNotPublishNumericStatusEnums() {
-		using var openApiDocument = await _ReadOpenApiDocumentAsync();
+		using var openApiDocument = await OpenApiContractSpec._ReadOpenApiDocumentAsync();
 		var schemas = openApiDocument.RootElement.GetProperty("components")
 			.GetProperty("schemas");
 
 		var offenders = new List<string>();
-		foreach (var (schemaName, properties) in _ExpectedEnumProperties) {
+		foreach (var (schemaName, properties) in OpenApiContractSpec._ExpectedEnumProperties) {
 			if (!schemas.TryGetProperty(schemaName, out var schema)
 				|| !schema.TryGetProperty("properties", out var schemaProperties)) {
 				continue;
@@ -435,7 +435,7 @@ public sealed class OpenApiContractSpec {
 					continue;
 				}
 
-				var resolved = _ResolveSchemaNode(schemas, propertyNode, []);
+				var resolved = OpenApiContractSpec._ResolveSchemaNode(schemas, propertyNode, []);
 				if (!resolved.HasValue) {
 					continue;
 				}
@@ -474,7 +474,7 @@ public sealed class OpenApiContractSpec {
 		JsonElement propertyNode,
 		string[] expectedValues
 	) {
-		var resolved = _ResolveSchemaNode(schemas, propertyNode, []);
+		var resolved = OpenApiContractSpec._ResolveSchemaNode(schemas, propertyNode, []);
 		if (!resolved.HasValue) {
 			return $"{schemaName}.{propertyName}: could not resolve an inline schema";
 		}
@@ -552,13 +552,13 @@ public sealed class OpenApiContractSpec {
 				return null;
 			}
 
-			return _ResolveSchemaNode(schemas, target, visitedRefs);
+			return OpenApiContractSpec._ResolveSchemaNode(schemas, target, visitedRefs);
 		}
 
 		if (node.TryGetProperty("allOf", out var allOfNode)
 			&& allOfNode.ValueKind == JsonValueKind.Array) {
 			foreach (var member in allOfNode.EnumerateArray()) {
-				var resolvedMember = _ResolveSchemaNode(schemas, member, visitedRefs);
+				var resolvedMember = OpenApiContractSpec._ResolveSchemaNode(schemas, member, visitedRefs);
 				if (resolvedMember.HasValue) {
 					return resolvedMember;
 				}

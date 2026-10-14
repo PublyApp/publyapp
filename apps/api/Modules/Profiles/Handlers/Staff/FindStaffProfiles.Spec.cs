@@ -23,9 +23,9 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public FindStaffProfilesSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl(string query = "") {
@@ -40,17 +40,17 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		var withPercentId = await _SeedStaffProfileAsync($"Has%Percent{marker}");
-		var withoutPercentId = await _SeedStaffProfileAsync($"NoPercentAtAll{marker}");
+		var withPercentId = await this._SeedStaffProfileAsync($"Has%Percent{marker}");
+		var withoutPercentId = await this._SeedStaffProfileAsync($"NoPercentAtAll{marker}");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl($"limit=100&q={Uri.EscapeDataString("%")}")
+			FindStaffProfilesSpec._GetUrl($"limit=100&q={Uri.EscapeDataString("%")}")
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -66,21 +66,21 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnPersistedIconAndToneOnEachItem() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		var profileId = await _SeedStaffProfileAsync(
+		var profileId = await this._SeedStaffProfileAsync(
 			$"Styled {marker}",
 			icon: "star",
 			tone: "3"
 		);
-		var bareId = await _SeedStaffProfileAsync($"Bare{marker}");
+		var bareId = await this._SeedStaffProfileAsync($"Bare{marker}");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl($"limit=100&q={Uri.EscapeDataString(marker)}")
+			FindStaffProfilesSpec._GetUrl($"limit=100&q={Uri.EscapeDataString(marker)}")
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
@@ -103,7 +103,7 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 		string? icon = null,
 		string? tone = null
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(name);

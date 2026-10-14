@@ -170,22 +170,22 @@ public sealed class WorkerMigrationStartupGateSpec {
 		public int CallCount { get; private set; }
 
 		public SequencedMigrationReadiness(IEnumerable<bool> results) {
-			_Results = new Queue<bool>(results);
-			_LastResult = _Results.Last();
+			this._Results = new Queue<bool>(results);
+			this._LastResult = this._Results.Last();
 		}
 
 		public Task<DatabaseMigrationReadinessResult> IsReadyAsync(
 			CancellationToken cancellationToken
 		) {
 			cancellationToken.ThrowIfCancellationRequested();
-			CallCount++;
+			this.CallCount++;
 
-			if (_Results.TryDequeue(out var result)) {
-				_LastResult = result;
+			if (this._Results.TryDequeue(out var result)) {
+				this._LastResult = result;
 			}
 
 			return Task.FromResult(
-				_LastResult
+				this._LastResult
 					? DatabaseMigrationReadinessResult.FromPendingMigrations([])
 					: DatabaseMigrationReadinessResult.FromPendingMigrations(["pending_migration"])
 			);
@@ -198,16 +198,16 @@ public sealed class WorkerMigrationStartupGateSpec {
 		public int CallCount { get; private set; }
 
 		public ThrowingThenReadyMigrationReadiness(int failureCount) {
-			_FailureCount = failureCount;
+			this._FailureCount = failureCount;
 		}
 
 		public Task<DatabaseMigrationReadinessResult> IsReadyAsync(
 			CancellationToken cancellationToken
 		) {
 			cancellationToken.ThrowIfCancellationRequested();
-			CallCount++;
+			this.CallCount++;
 
-			if (CallCount <= _FailureCount) {
+			if (this.CallCount <= this._FailureCount) {
 				throw new InvalidOperationException("Database is still starting.");
 			}
 
@@ -226,17 +226,17 @@ public sealed class WorkerMigrationStartupGateSpec {
 		public async Task<DatabaseMigrationReadinessResult> IsReadyAsync(
 			CancellationToken cancellationToken
 		) {
-			_Checked.TrySetResult();
-			await _Ready.Task.WaitAsync(cancellationToken);
+			this._Checked.TrySetResult();
+			await this._Ready.Task.WaitAsync(cancellationToken);
 			return DatabaseMigrationReadinessResult.FromPendingMigrations([]);
 		}
 
 		public Task WaitUntilCheckedAsync() {
-			return _Checked.Task;
+			return this._Checked.Task;
 		}
 
 		public void MarkReady() {
-			_Ready.TrySetResult();
+			this._Ready.TrySetResult();
 		}
 	}
 

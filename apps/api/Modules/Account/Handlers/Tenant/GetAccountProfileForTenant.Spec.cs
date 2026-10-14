@@ -30,9 +30,9 @@ public sealed class GetAccountProfileForTenantSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public GetAccountProfileForTenantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl() {
@@ -47,24 +47,24 @@ public sealed class GetAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnTheTenantScopedProfileForAMember() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 		var (acmeAdminToken, acmeAdminUserId) =
-			await _LoginAsAcmeAdminAsync();
+			await this._LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl()
+			GetAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -72,7 +72,7 @@ public sealed class GetAccountProfileForTenantSpec
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		var persistedUser = await _GetUserByIdAsync(acmeAdminUserId);
+		var persistedUser = await this._GetUserByIdAsync(acmeAdminUserId);
 		result.Id.Should().Be(acmeAdminUserId);
 		result.Email.Should().Be(persistedUser.Email);
 		result.FirstName.Should().Be(persistedUser.FirstName);
@@ -84,29 +84,29 @@ public sealed class GetAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnForbiddenForANonMember() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 		// TechStart admin is NOT a member of Acme — the TenantAuthFilter
 		// answers 403 before the handler runs (D9: no tenant-id probing).
 		var techStartAdminToken =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.TechStartAdminEmail,
 				TestConstants.SeedPassword
 			);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl()
+			GetAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(techStartAdminToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -120,7 +120,7 @@ public sealed class GetAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnNullWhenTheTenantAccountIsMissing() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<IAccountProfileService>();
 
@@ -134,7 +134,7 @@ public sealed class GetAccountProfileForTenantSpec
 
 	private async Task<(string Token, Guid UserId)>
 	_LoginAsAcmeAdminAsync() {
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -144,7 +144,7 @@ public sealed class GetAccountProfileForTenantSpec
 			Routes.Auth.GetUserAuthData
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		var result = await response.Content
@@ -160,7 +160,7 @@ public sealed class GetAccountProfileForTenantSpec
 
 	private async Task<UserRow> _GetUserByIdAsync(Guid userId) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

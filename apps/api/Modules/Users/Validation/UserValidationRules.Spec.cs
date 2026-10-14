@@ -20,7 +20,7 @@ public sealed class UserValidationRulesSpec {
 	private class AccountLevelValidator
 		: AbstractValidator<AccountLevelModel> {
 		public AccountLevelValidator() {
-			RuleFor(x => x.AccountLevel)
+			this.RuleFor(x => x.AccountLevel)
 				.MustBeNullableAccountLevel();
 		}
 	}
@@ -28,7 +28,7 @@ public sealed class UserValidationRulesSpec {
 	private class UserStatusValidator
 		: AbstractValidator<UserStatusModel> {
 		public UserStatusValidator() {
-			RuleFor(x => x.Status)
+			this.RuleFor(x => x.Status)
 				.MustBeNullableUserStatus();
 		}
 	}

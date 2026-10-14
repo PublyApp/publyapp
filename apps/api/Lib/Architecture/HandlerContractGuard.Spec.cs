@@ -127,7 +127,7 @@ public sealed class HandlerContractGuardSpec {
 		);
 
 		List<string> offenders = entrypoints
-			.SelectMany(_FindDbContextDependencies)
+			.SelectMany(HandlerContractGuardSpec._FindDbContextDependencies)
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
 
@@ -164,7 +164,7 @@ public sealed class HandlerContractGuardSpec {
 				// emits a state machine (<Handle>d__N) and lambdas emit display
 				// classes (<>c) as NonPublic nested types. They are not authored
 				// contract/validator types and must not be flagged.
-				.Where(nested => !_IsCompilerGenerated(nested))
+				.Where(nested => !HandlerContractGuardSpec._IsCompilerGenerated(nested))
 				.Select(nested => $"{type.FullName}+{nested.Name}"))
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -200,9 +200,9 @@ public sealed class HandlerContractGuardSpec {
 				Validator: validator,
 				Target: ArchitectureDiscovery.GetValidatorTarget(validator)
 			))
-			.Where(pair => !_IsValidValidatorTarget(pair.Validator, pair.Target))
+			.Where(pair => !HandlerContractGuardSpec._IsValidValidatorTarget(pair.Validator, pair.Target))
 			.Select(pair =>
-				$"{pair.Validator.Name} -> {_DescribeTarget(pair.Target)}")
+				$"{pair.Validator.Name} -> {HandlerContractGuardSpec._DescribeTarget(pair.Target)}")
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
 
@@ -225,7 +225,7 @@ public sealed class HandlerContractGuardSpec {
 	private static IEnumerable<string> _FindDbContextDependencies(Type type) {
 		foreach (var constructor in type.GetConstructors()) {
 			foreach (var parameter in constructor.GetParameters()) {
-				if (_IsDbContext(parameter.ParameterType)) {
+				if (HandlerContractGuardSpec._IsDbContext(parameter.ParameterType)) {
 					yield return $"{type.FullName}.ctor({parameter.Name})";
 				}
 			}
@@ -238,7 +238,7 @@ public sealed class HandlerContractGuardSpec {
 			| BindingFlags.Instance
 			| BindingFlags.Static;
 		foreach (var field in type.GetFields(fieldFlags)) {
-			if (_IsDbContext(field.FieldType)) {
+			if (HandlerContractGuardSpec._IsDbContext(field.FieldType)) {
 				yield return $"{type.FullName}.{field.Name} (field)";
 			}
 		}
@@ -249,7 +249,7 @@ public sealed class HandlerContractGuardSpec {
 			| BindingFlags.Instance
 			| BindingFlags.Static;
 		foreach (var property in type.GetProperties(propertyFlags)) {
-			if (_IsDbContext(property.PropertyType)) {
+			if (HandlerContractGuardSpec._IsDbContext(property.PropertyType)) {
 				yield return $"{type.FullName}.{property.Name} (property)";
 			}
 		}
@@ -262,7 +262,7 @@ public sealed class HandlerContractGuardSpec {
 		);
 		if (handle is not null) {
 			foreach (var parameter in handle.GetParameters()) {
-				if (_IsDbContext(parameter.ParameterType)) {
+				if (HandlerContractGuardSpec._IsDbContext(parameter.ParameterType)) {
 					yield return $"{type.FullName}.Handle({parameter.Name})";
 				}
 			}
@@ -277,7 +277,7 @@ public sealed class HandlerContractGuardSpec {
 	}
 
 	private static bool _IsDbContext(Type type) {
-		return _IsDbContext(type, new HashSet<Type>());
+		return HandlerContractGuardSpec._IsDbContext(type, new HashSet<Type>());
 	}
 
 	// Recursive DbContext-access detector. Catches a direct DbContext, any wrapper
@@ -301,7 +301,7 @@ public sealed class HandlerContractGuardSpec {
 		// Unwrap by-ref/out (ref/out params), pointers, and arrays.
 		if (type.IsByRef || type.IsPointer || type.IsArray) {
 			Type? elementType = type.GetElementType();
-			return elementType is not null && _IsDbContext(elementType, visited);
+			return elementType is not null && HandlerContractGuardSpec._IsDbContext(elementType, visited);
 		}
 
 		// Recurse through generic arguments so wrappers like
@@ -309,7 +309,7 @@ public sealed class HandlerContractGuardSpec {
 		// Lazy<AppDbContext> are all caught.
 		if (type.IsGenericType) {
 			foreach (var argument in type.GetGenericArguments()) {
-				if (visited.Add(argument) && _IsDbContext(argument, visited)) {
+				if (visited.Add(argument) && HandlerContractGuardSpec._IsDbContext(argument, visited)) {
 					return true;
 				}
 			}

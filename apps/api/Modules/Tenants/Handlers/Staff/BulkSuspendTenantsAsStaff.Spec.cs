@@ -23,33 +23,33 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public BulkSuspendTenantsAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldSuspendDistinctActiveTenantsAndWritePerTargetAuditLogs() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			TestConstants.StaffAdminEmail
 		);
-		var firstTenant = await _SeedTenantAsync(
+		var firstTenant = await this._SeedTenantAsync(
 			"Bulk Suspend Active A",
 			TenantStatus.Active
 		);
-		var secondTenant = await _SeedTenantAsync(
+		var secondTenant = await this._SeedTenantAsync(
 			"Bulk Suspend Active B",
 			TenantStatus.Active
 		);
 		var reason = "Bulk compliance review";
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkSuspendTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -77,17 +77,17 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await _AssertTenantStatusAsync(
+		await this._AssertTenantStatusAsync(
 			firstTenant.TenantId,
 			TenantStatus.Suspended
 		);
-		await _AssertTenantStatusAsync(
+		await this._AssertTenantStatusAsync(
 			secondTenant.TenantId,
 			TenantStatus.Suspended
 		);
 
 		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
-			_Fixture,
+			this._Fixture,
 			AuditActions.TenantBulkSuspended,
 			actorUserId,
 			startedAt
@@ -114,28 +114,28 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnPartialResultForNonSuspendableTenants() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var activeTenant = await _SeedTenantAsync(
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var activeTenant = await this._SeedTenantAsync(
 			"Bulk Suspend Partial Active",
 			TenantStatus.Active
 		);
-		var suspendedTenant = await _SeedTenantAsync(
+		var suspendedTenant = await this._SeedTenantAsync(
 			"Bulk Suspend Partial Suspended",
 			TenantStatus.Suspended
 		);
-		var pendingTenant = await _SeedTenantAsync(
+		var pendingTenant = await this._SeedTenantAsync(
 			"Bulk Suspend Partial Pending",
 			TenantStatus.Pending
 		);
 		var missingTenantId = Guid.NewGuid();
 		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			TestConstants.StaffAdminEmail
 		);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkSuspendTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -174,17 +174,17 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			&& item.Error == "Tenant not found"
 		);
 
-		await _AssertTenantStatusAsync(
+		await this._AssertTenantStatusAsync(
 			activeTenant.TenantId,
 			TenantStatus.Suspended
 		);
-		await _AssertTenantStatusAsync(
+		await this._AssertTenantStatusAsync(
 			pendingTenant.TenantId,
 			TenantStatus.Pending
 		);
 
 		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
-			_Fixture,
+			this._Fixture,
 			AuditActions.TenantBulkSuspended,
 			actorUserId,
 			startedAt
@@ -198,18 +198,18 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	ItShouldAllowPermissionedNonAdminStaffUserToBulkSuspend() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-suspend",
 				AppPermissions.Staff.Tenants.SUSPEND.Key
 			);
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Suspend Permissioned",
 			TenantStatus.Active
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkSuspendTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -222,13 +222,13 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Suspend Unauthorized",
 			TenantStatus.Active
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkSuspendTenantsAsStaffSpec._CreateRequest(
 				sessionToken: null,
 				body: new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -241,17 +241,17 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _AuthClient.LoginAsync(
+		var tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Suspend Tenant User",
 			TenantStatus.Active
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkSuspendTenantsAsStaffSpec._CreateRequest(
 				tenantToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -266,17 +266,17 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithoutPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-suspend-no-permission"
 			);
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Suspend No Permission",
 			TenantStatus.Active
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkSuspendTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -287,16 +287,16 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	}
 
 	[Theory]
-	[MemberData(nameof(InvalidBodies))]
+	[MemberData(nameof(BulkSuspendTenantsAsStaffSpec.InvalidBodies))]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenBodyIsInvalid(
 		string body,
 		string expectedField
 	) {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _Http.SendAsync(
+		using var response = await this._Http.SendAsync(
 			TenantBulkActionSpecSupport.CreateRawJsonRequest(
 				TenantBulkActionSpecSupport.GetBulkSuspendUrl(),
 				staffToken,
@@ -304,7 +304,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 			)
 		);
 
-		await _AssertValidationProblemAsync(
+		await BulkSuspendTenantsAsStaffSpec._AssertValidationProblemAsync(
 			response,
 			expectedField
 		);
@@ -364,7 +364,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		TenantStatus status
 	) {
 		return TenantBulkActionSpecSupport.SeedTenantAsync(
-			_Fixture,
+			this._Fixture,
 			namePrefix,
 			status
 		);
@@ -375,7 +375,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 		TenantStatus expectedStatus
 	) {
 		var tenant = await TenantBulkActionSpecSupport
-			.GetTenantIgnoringFiltersAsync(_Fixture, tenantId);
+			.GetTenantIgnoringFiltersAsync(this._Fixture, tenantId);
 		tenant.Should().NotBeNull();
 		if (tenant is null) {
 			throw new InvalidOperationException(

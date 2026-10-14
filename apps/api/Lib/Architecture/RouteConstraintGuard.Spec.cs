@@ -36,7 +36,7 @@ public sealed class RouteConstraintGuardSpec {
 		var offenders = ArchitectureDiscovery
 			.EnumerateRouteConstants()
 			.Where(constant =>
-				_RouteConstraintPattern.IsMatch(constant.Value))
+				RouteConstraintGuardSpec._RouteConstraintPattern.IsMatch(constant.Value))
 			.Select(constant =>
 				$"{constant.Name} = \"{constant.Value}\"")
 			.OrderBy(name => name, StringComparer.Ordinal)

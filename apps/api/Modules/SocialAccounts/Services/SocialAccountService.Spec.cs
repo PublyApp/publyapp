@@ -24,15 +24,15 @@ public sealed class SocialAccountServiceConnectSpec : IClassFixture<ApiFixture> 
 	private readonly ApiFixture _Fixture;
 
 	public SocialAccountServiceConnectSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldStoreActiveAccountWithProtectedSecretOnFirstConnect() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceConnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var fake = sp.GetRequiredService<FakeBlueskyClient>();
 
@@ -49,7 +49,7 @@ public sealed class SocialAccountServiceConnectSpec : IClassFixture<ApiFixture> 
 		fake.Attempts.Should().ContainSingle(a => a.Identifier == "alice@example.com");
 
 		// Independent context: the secret at rest is protected, never the plaintext.
-		await using var verify = _CreateFreshDbContext(db);
+		await using var verify = SocialAccountServiceConnectSpec._CreateFreshDbContext(db);
 		var row = await verify.SocialAccount.SingleAsync(
 			a => a.Id == connected.Account.GetRequiredId()
 		);
@@ -59,10 +59,10 @@ public sealed class SocialAccountServiceConnectSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldStoreNothingWhenBlueskyRefusedTheCredentials() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceConnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var fake = sp.GetRequiredService<FakeBlueskyClient>();
 		fake.NextResult = new BlueskySessionResult.AccountFailure(
@@ -74,17 +74,17 @@ public sealed class SocialAccountServiceConnectSpec : IClassFixture<ApiFixture> 
 		);
 
 		result.Should().BeOfType<ConnectSocialAccountResult.Refused>();
-		await using var verify = _CreateFreshDbContext(db);
+		await using var verify = SocialAccountServiceConnectSpec._CreateFreshDbContext(db);
 		(await verify.SocialAccount.CountAsync(a => a.TenantId == tenantId))
 			.Should().Be(0);
 	}
 
 	[Fact]
 	public async Task ItShouldStoreNothingWhenBlueskyIsUnreachable() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceConnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		sp.GetRequiredService<FakeBlueskyClient>().NextResult =
 			new BlueskySessionResult.Transient();
@@ -94,17 +94,17 @@ public sealed class SocialAccountServiceConnectSpec : IClassFixture<ApiFixture> 
 		);
 
 		result.Should().BeOfType<ConnectSocialAccountResult.Unreachable>();
-		await using var verify = _CreateFreshDbContext(db);
+		await using var verify = SocialAccountServiceConnectSpec._CreateFreshDbContext(db);
 		(await verify.SocialAccount.CountAsync(a => a.TenantId == tenantId))
 			.Should().Be(0);
 	}
 
 	[Fact]
 	public async Task ItShouldReuseTheSameRowWhenTheSameDidConnectsAgain() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceConnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 
 		var first = (ConnectSocialAccountResult.Connected)await service
@@ -144,15 +144,15 @@ public sealed class SocialAccountServiceDisconnectSpec : IClassFixture<ApiFixtur
 	private readonly ApiFixture _Fixture;
 
 	public SocialAccountServiceDisconnectSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldRevokeAndEraseTheStoredSecretOnDisconnect() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceDisconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "bye@example.com", "app-password");
@@ -164,7 +164,7 @@ public sealed class SocialAccountServiceDisconnectSpec : IClassFixture<ApiFixtur
 			.BeOfType<DisconnectSocialAccountResult.Disconnected>().Subject;
 		disconnected.Account.Status.Should().Be(SocialAccountStatus.Revoked);
 
-		await using var verify = _CreateFreshDbContext(db);
+		await using var verify = SocialAccountServiceDisconnectSpec._CreateFreshDbContext(db);
 		var row = await verify.SocialAccount.SingleAsync(a => a.Id == accountId);
 		row.Status.Should().Be(SocialAccountStatus.Revoked);
 		row.ProtectedCredentials.Should().BeEmpty();
@@ -173,11 +173,11 @@ public sealed class SocialAccountServiceDisconnectSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenAnotherTenantDisconnects() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantA = await _SeedTenantAsync(db);
-		var tenantB = await _SeedTenantAsync(db);
+		var tenantA = await SocialAccountServiceDisconnectSpec._SeedTenantAsync(db);
+		var tenantB = await SocialAccountServiceDisconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantA, "mine@example.com", "app-password");
@@ -217,15 +217,15 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 	private readonly ApiFixture _Fixture;
 
 	public SocialAccountServiceReconnectSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReplaceSecretAndReactivateOnReconnect() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceReconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "flaky@example.com", "old-password");
@@ -246,7 +246,7 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 			.BeOfType<ReconnectSocialAccountResult.Reconnected>().Subject;
 		reconnected.Account.Status.Should().Be(SocialAccountStatus.Active);
 
-		await using var verify = _CreateFreshDbContext(db);
+		await using var verify = SocialAccountServiceReconnectSpec._CreateFreshDbContext(db);
 		var rowAfter = await verify.SocialAccount.SingleAsync(a => a.Id == accountId);
 		rowAfter.Status.Should().Be(SocialAccountStatus.Active);
 		rowAfter.LastError.Should().BeNull();
@@ -258,10 +258,10 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldLeaveTheStoredRowUntouchedWhenReconnectRefused() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceReconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "locked@example.com", "good-password");
@@ -277,7 +277,7 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 		);
 
 		result.Should().BeOfType<ReconnectSocialAccountResult.Refused>();
-		await using var verify = _CreateFreshDbContext(db);
+		await using var verify = SocialAccountServiceReconnectSpec._CreateFreshDbContext(db);
 		var rowAfter = await verify.SocialAccount.SingleAsync(a => a.Id == accountId);
 		rowAfter.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
 		rowAfter.ProtectedCredentials.Should().Be(rowBefore.ProtectedCredentials);
@@ -285,10 +285,10 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldTreatRevokedAccountAsNotFoundOnReconnect() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceReconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "gone@example.com", "password");
@@ -328,15 +328,15 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public SocialAccountServiceFindSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldPageNewestFirstAcrossCursorPages() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var ids = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
@@ -366,10 +366,10 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldFilterByProjectVisibility() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var projectA = new Project {
 			TenantId = tenantId,
@@ -425,11 +425,11 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNeverLeakAnotherTenantsAccounts() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantA = await _SeedTenantAsync(db);
-		var tenantB = await _SeedTenantAsync(db);
+		var tenantA = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
+		var tenantB = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		await service.ConnectForTenantAsync(tenantA, "a@example.com", "pw");
 		await service.ConnectForTenantAsync(tenantB, "b@example.com", "pw");
@@ -444,10 +444,10 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectAnUnknownSortId() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 
 		var result = await service.FindForTenantAsync(
@@ -475,15 +475,15 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 	private readonly ApiFixture _Fixture;
 
 	public SocialAccountServiceSetProjectsSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReplaceAttachmentsOnSetProjects() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var p1 = new Project { TenantId = tenantId, Name = "One" };
 		var p2 = new Project { TenantId = tenantId, Name = "Two" };
@@ -510,11 +510,11 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldRejectAProjectFromAnotherTenant() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantA = await _SeedTenantAsync(db);
-		var tenantB = await _SeedTenantAsync(db);
+		var tenantA = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
+		var tenantB = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var foreignProject = new Project { TenantId = tenantB, Name = "Foreign" };
 		db.Project.Add(foreignProject);
@@ -536,10 +536,10 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldMakeTheAccountVisibleEverywhereWithAnEmptySet() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var sp = scope.ServiceProvider;
 		var db = sp.GetRequiredService<AppDbContext>();
-		var tenantId = await _SeedTenantAsync(db);
+		var tenantId = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
 		var project = new Project { TenantId = tenantId, Name = "Solo" };
 		db.Project.Add(project);

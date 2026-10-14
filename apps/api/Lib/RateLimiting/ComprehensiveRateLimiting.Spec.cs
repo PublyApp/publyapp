@@ -35,7 +35,7 @@ public sealed class ComprehensiveRateLimitingSpec
 	public ComprehensiveRateLimitingSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Theory]
@@ -52,23 +52,23 @@ public sealed class ComprehensiveRateLimitingSpec
 	ItShouldLimitEveryAnonymousAuthFlowAtItsConfiguredCap(
 		string flow
 	) {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			anonymousPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 
-		using var firstRequest = _CreateAnonymousRequest(flow);
+		using var firstRequest = ComprehensiveRateLimitingSpec._CreateAnonymousRequest(flow);
 		using var firstResponse = await client.SendAsync(
 			firstRequest
 		);
-		using var rejectedRequest = _CreateAnonymousRequest(flow);
+		using var rejectedRequest = ComprehensiveRateLimitingSpec._CreateAnonymousRequest(flow);
 		using var rejectedResponse = await client.SendAsync(
 			rejectedRequest
 		);
 
 		firstResponse.StatusCode.Should()
 			.NotBe(HttpStatusCode.TooManyRequests);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -76,36 +76,36 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldLimitAuthenticatedSessionsIndependently() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			authenticatedPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var authClient = new TestAuthClient(client);
 		var firstToken =
 			await authClient.LoginAsStaffAdminAsync();
 		var secondToken =
 			await authClient.LoginAsStaffAdminAsync();
 
-		using var firstResponse = await _SendAuthenticatedAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 			client,
 			AppRoutes.Auth.GetUserAuthData,
 			firstToken
 		);
 		using var rejectedResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				AppRoutes.Auth.GetUserAuthData,
 				firstToken
 			);
 		using var independentResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				AppRoutes.Auth.GetUserAuthData,
 				secondToken
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 		independentResponse.StatusCode.Should()
@@ -117,20 +117,20 @@ public sealed class ComprehensiveRateLimitingSpec
 	ItShouldNotMultiplyAllowanceByRotatingForgedSessionTokens() {
 		var sessionService =
 			new RejectingSessionService();
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 100,
 			authenticatedPermitLimit: 1,
 			sessionService: sessionService
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 
-		using var firstResponse = await _SendAuthenticatedAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 			client,
 			AppRoutes.Auth.GetUserAuthData,
 			"first-forged-session-token"
 		);
 		using var rotatedResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				AppRoutes.Auth.GetUserAuthData,
 				"second-forged-session-token"
@@ -138,7 +138,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rotatedResponse
 		);
 		sessionService.LookupCount.Should().Be(
@@ -152,37 +152,37 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldEnforceTheTighterExportPolicyBeforeTheAuthenticatedDefault() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			authenticatedPermitLimit: 100,
 			exportPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 		var exportUrl = AuditLogTestHelper.GetExportUrl(
 			"csv"
 		);
 
-		using var firstResponse = await _SendAuthenticatedAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 			client,
 			exportUrl,
 			token
 		);
 		using var rejectedResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				exportUrl,
 				token
 			);
 		using var defaultPolicyResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				AppRoutes.Auth.GetUserAuthData,
 				token
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 		defaultPolicyResponse.StatusCode.Should()
@@ -192,15 +192,15 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldCountEveryStaffProfileInvitationRecipient() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			emailPermitLimit: 2
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 
 		using var weightedResponse =
-			await _SendStaffProfileCreateAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffProfileCreateAsync(
 				client,
 				token,
 				[
@@ -209,7 +209,7 @@ public sealed class ComprehensiveRateLimitingSpec
 				]
 			);
 		using var rejectedResponse =
-			await _SendStaffProfileCreateAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffProfileCreateAsync(
 				client,
 				token,
 				[]
@@ -217,7 +217,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		weightedResponse.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -225,11 +225,11 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldCountEveryTenantBulkInvitationRecipient() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			emailPermitLimit: 100,
 			tenantEmailPermitLimit: 2
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -240,14 +240,14 @@ public sealed class ComprehensiveRateLimitingSpec
 			);
 
 		using var weightedResponse =
-			await _SendTenantBulkInvitationsAsync(
+			await ComprehensiveRateLimitingSpec._SendTenantBulkInvitationsAsync(
 				client,
 				token,
 				tenantId,
 				2
 			);
 		using var rejectedResponse =
-			await _SendTenantBulkInvitationsAsync(
+			await ComprehensiveRateLimitingSpec._SendTenantBulkInvitationsAsync(
 				client,
 				token,
 				tenantId,
@@ -256,7 +256,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		weightedResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -264,18 +264,18 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldCountEveryStaffBulkInvitationRecipient() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			emailPermitLimit: 2
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
-		var profileId = await _GetStaffProfileIdAsync(
+		var profileId = await ComprehensiveRateLimitingSpec._GetStaffProfileIdAsync(
 			factory
 		);
 
 		using var weightedResponse =
-			await _SendStaffBulkInvitationsAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffBulkInvitationsAsync(
 				client,
 				token,
 				profileId,
@@ -287,7 +287,7 @@ public sealed class ComprehensiveRateLimitingSpec
 				]
 			);
 		using var rejectedResponse =
-			await _SendStaffBulkInvitationsAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffBulkInvitationsAsync(
 				client,
 				token,
 				profileId,
@@ -299,7 +299,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		weightedResponse.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -307,21 +307,21 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldCountEveryTenantCreationRecipient() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			emailPermitLimit: 2
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 
 		using var weightedResponse =
-			await _SendTenantCreateAsync(
+			await ComprehensiveRateLimitingSpec._SendTenantCreateAsync(
 				client,
 				token,
 				2
 			);
 		using var rejectedResponse =
-			await _SendTenantCreateAsync(
+			await ComprehensiveRateLimitingSpec._SendTenantCreateAsync(
 				client,
 				token,
 				1
@@ -329,7 +329,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		weightedResponse.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -337,13 +337,13 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldNotCreateOrEnqueueAboveTheRecipientCeiling() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			emailPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
-		var profileId = await _GetStaffProfileIdAsync(
+		var profileId = await ComprehensiveRateLimitingSpec._GetStaffProfileIdAsync(
 			factory
 		);
 		var emails = new[] {
@@ -352,14 +352,14 @@ public sealed class ComprehensiveRateLimitingSpec
 		};
 
 		using var response =
-			await _SendStaffBulkInvitationsAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffBulkInvitationsAsync(
 				client,
 				token,
 				profileId,
 				emails
 			);
 
-		await _AssertRateLimitedResponseAsync(response);
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(response);
 		await using var scope =
 			factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
@@ -376,17 +376,17 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldApplyTheGlobalFloorToAnUnmappedHealthPrefix() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		const string path = "/health/not-real";
 
 		using var firstResponse = await client.GetAsync(path);
 		using var rejectedResponse = await client.GetAsync(path);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -394,46 +394,46 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldApplyTheGlobalFloorToCorsPreflightRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 
-		using var firstRequest = _CreateCorsPreflightRequest();
+		using var firstRequest = ComprehensiveRateLimitingSpec._CreateCorsPreflightRequest();
 		using var firstResponse = await client.SendAsync(
 			firstRequest
 		);
-		using var rejectedRequest = _CreateCorsPreflightRequest();
+		using var rejectedRequest = ComprehensiveRateLimitingSpec._CreateCorsPreflightRequest();
 		using var rejectedResponse = await client.SendAsync(
 			rejectedRequest
 		);
 
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NoContent);
-		_AssertCorsPreflightHeaders(firstResponse);
-		await _AssertRateLimitedResponseAsync(
+		ComprehensiveRateLimitingSpec._AssertCorsPreflightHeaders(firstResponse);
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
-		_AssertCorsPreflightHeaders(rejectedResponse);
+		ComprehensiveRateLimitingSpec._AssertCorsPreflightHeaders(rejectedResponse);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldExposeCorsHeadersOnRateLimitedResponses() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		const string path = "/health/not-real";
 
-		using var firstRequest = _CreateCorsRequest(
+		using var firstRequest = ComprehensiveRateLimitingSpec._CreateCorsRequest(
 			HttpMethod.Get,
 			path
 		);
 		using var firstResponse = await client.SendAsync(
 			firstRequest
 		);
-		using var rejectedRequest = _CreateCorsRequest(
+		using var rejectedRequest = ComprehensiveRateLimitingSpec._CreateCorsRequest(
 			HttpMethod.Get,
 			path
 		);
@@ -443,25 +443,25 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
-		_AssertCorsOrigin(rejectedResponse);
-		_AssertRetryAfterIsCorsExposed(rejectedResponse);
+		ComprehensiveRateLimitingSpec._AssertCorsOrigin(rejectedResponse);
+		ComprehensiveRateLimitingSpec._AssertRetryAfterIsCorsExposed(rejectedResponse);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldNotExposeCorsOriginOnRateLimitedResponsesForDisallowedOrigins() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		const string path = "/health/not-real";
 		const string disallowedOrigin =
 			"https://disallowed.example.com";
 
-		using var firstRequest = _CreateCorsRequest(
+		using var firstRequest = ComprehensiveRateLimitingSpec._CreateCorsRequest(
 			HttpMethod.Get,
 			path,
 			disallowedOrigin
@@ -469,7 +469,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		using var firstResponse = await client.SendAsync(
 			firstRequest
 		);
-		using var rejectedRequest = _CreateCorsRequest(
+		using var rejectedRequest = ComprehensiveRateLimitingSpec._CreateCorsRequest(
 			HttpMethod.Get,
 			path,
 			disallowedOrigin
@@ -480,7 +480,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 		rejectedResponse.Headers.Contains(
@@ -491,10 +491,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExposeCorsHeadersOnOversizedEmailBodies() {
-		await using var factory = _CreateFactory();
-		using var client = _CreateClient(factory);
+		await using var factory = this._CreateFactory();
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var padding = new string('x', 20_000);
-		using var request = _CreateCorsRequest(
+		using var request = ComprehensiveRateLimitingSpec._CreateCorsRequest(
 			HttpMethod.Post,
 			AppRoutes.Auth.Login
 		);
@@ -507,7 +507,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.RequestEntityTooLarge);
-		_AssertCorsOrigin(response);
+		ComprehensiveRateLimitingSpec._AssertCorsOrigin(response);
 		var problem = await response.Content
 			.ReadFromJsonAsync<AppProblemDetails>();
 		problem.Should().NotBeNull();
@@ -520,10 +520,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExhaustAnonymousOtherThroughConfiguredOnRejected() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			anonymousOtherPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 
 		using var firstResponse = await client.GetAsync(
 			AppRoutes.SystemNotices.Anonymous.GetActive
@@ -533,7 +533,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -541,10 +541,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExhaustTheHeavySearchPolicyThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			heavySearchPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 		var path = PathUtils.Join(
@@ -554,20 +554,20 @@ public sealed class ComprehensiveRateLimitingSpec
 			AppRoutes.Permissions.ForStaff.Scopes.Staff
 		);
 
-		using var firstResponse = await _SendAuthenticatedAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 			client,
 			path,
 			token
 		);
 		using var rejectedResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				path,
 				token
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -575,25 +575,25 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExhaustTheBulkPolicyThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			bulkPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 
-		using var firstResponse = await _SendBulkSuspendAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendBulkSuspendAsync(
 			client,
 			token
 		);
 		using var rejectedResponse =
-			await _SendBulkSuspendAsync(
+			await ComprehensiveRateLimitingSpec._SendBulkSuspendAsync(
 				client,
 				token
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -601,10 +601,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExhaustTheTenantBulkPolicyThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			tenantBulkPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -615,20 +615,20 @@ public sealed class ComprehensiveRateLimitingSpec
 			);
 
 		using var firstResponse =
-			await _SendTenantBulkRemoveAsync(
+			await ComprehensiveRateLimitingSpec._SendTenantBulkRemoveAsync(
 				client,
 				token,
 				tenantId
 			);
 		using var rejectedResponse =
-			await _SendTenantBulkRemoveAsync(
+			await ComprehensiveRateLimitingSpec._SendTenantBulkRemoveAsync(
 				client,
 				token,
 				tenantId
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -636,10 +636,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExhaustTheTenantExportPolicyThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			tenantExportPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -655,20 +655,20 @@ public sealed class ComprehensiveRateLimitingSpec
 			)
 		);
 
-		using var firstResponse = await _SendAuthenticatedAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 			client,
 			path,
 			token
 		);
 		using var rejectedResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				path,
 				token
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -676,25 +676,25 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExhaustTheUploadPolicyThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			uploadPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
 
-		using var firstResponse = await _SendUploadAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendUploadAsync(
 			client,
 			token
 		);
-		using var rejectedResponse = await _SendUploadAsync(
+		using var rejectedResponse = await ComprehensiveRateLimitingSpec._SendUploadAsync(
 			client,
 			token
 		);
 
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -703,13 +703,13 @@ public sealed class ComprehensiveRateLimitingSpec
 	public async Task
 	ItShouldKeepTheGlobalFloorAdditiveOnNamedPolicies() {
 		var token = await new TestAuthClient(
-			_Fixture.HttpClient
+			this._Fixture.HttpClient
 		).LoginAsStaffAdminAsync();
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1,
 			heavySearchPermitLimit: 100
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var path = PathUtils.Join(
 			AppRoutes.Staff.Root,
 			AppRoutes.Permissions.ForStaff.Root,
@@ -717,20 +717,20 @@ public sealed class ComprehensiveRateLimitingSpec
 			AppRoutes.Permissions.ForStaff.Scopes.Staff
 		);
 
-		using var firstResponse = await _SendAuthenticatedAsync(
+		using var firstResponse = await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 			client,
 			path,
 			token
 		);
 		using var rejectedResponse =
-			await _SendAuthenticatedAsync(
+			await ComprehensiveRateLimitingSpec._SendAuthenticatedAsync(
 				client,
 				path,
 				token
 			);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		await _AssertRateLimitedResponseAsync(
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(
 			rejectedResponse
 		);
 	}
@@ -738,10 +738,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 	ItShouldExcludeFilesFromTheGlobalFloorThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var path = $"/files/not-found-{Guid.NewGuid():N}.png";
 
 		for (var requestNumber = 0; requestNumber < 10; requestNumber++) {
@@ -762,10 +762,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	ItShouldNeverLimitHealthEndpointBursts(
 		string path
 	) {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			globalPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 
 		for (var requestNumber = 0; requestNumber < 10; requestNumber++) {
 			using var response = await client.GetAsync(path);
@@ -799,76 +799,76 @@ public sealed class ComprehensiveRateLimitingSpec
 			new AnonymousAuthRateLimitSettings(
 				PerIp: new RateLimitWindowSettings(
 					anonymousPermitLimit,
-					_LongWindowSeconds
+					ComprehensiveRateLimitingSpec._LongWindowSeconds
 				),
 				PerEmail: new RateLimitWindowSettings(
 					anonymousPermitLimit,
-					_LongWindowSeconds
+					ComprehensiveRateLimitingSpec._LongWindowSeconds
 				),
 				PasswordResetPerEmail:
 					new RateLimitWindowSettings(
 						anonymousPermitLimit,
-						_LongWindowSeconds
+						ComprehensiveRateLimitingSpec._LongWindowSeconds
 					)
 			);
 		var apiSettings = new ApiRateLimitSettings(
 			Global: new RateLimitWindowSettings(
 				globalPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			AnonymousOther: new RateLimitWindowSettings(
 				anonymousOtherPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			Authenticated: new RateLimitWindowSettings(
 				authenticatedPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			HeavySearch: new RateLimitWindowSettings(
 				heavySearchPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			Bulk: new RateLimitWindowSettings(
 				bulkPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			TenantBulk: new RateLimitWindowSettings(
 				tenantBulkPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			Email: new RateLimitWindowSettings(
 				emailPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			TenantEmail: new RateLimitWindowSettings(
 				tenantEmailPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			Export: new RateLimitWindowSettings(
 				exportPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			TenantExport: new RateLimitWindowSettings(
 				tenantExportPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			Upload: new RateLimitWindowSettings(
 				uploadPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			SocialConnect: new RateLimitWindowSettings(
 				socialConnectPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			),
 			// A5 (#636): the trigger policy's own window; generous here so only
 			// tests that target SystemJobTrigger explicitly exercise its limits.
 			SystemJobTrigger: new RateLimitWindowSettings(
 				systemJobTriggerPermitLimit,
-				_LongWindowSeconds
+				ComprehensiveRateLimitingSpec._LongWindowSeconds
 			)
 		);
 
-		return _Fixture.Factory.WithWebHostBuilder(
+		return this._Fixture.Factory.WithWebHostBuilder(
 			builder => {
 				builder.ConfigureServices(services => {
 					services.RemoveAll<
@@ -904,7 +904,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	private static HttpRequestMessage
 		_CreateCorsPreflightRequest() {
-		var request = _CreateCorsRequest(
+		var request = ComprehensiveRateLimitingSpec._CreateCorsRequest(
 			HttpMethod.Options,
 			AppRoutes.Auth.Login
 		);
@@ -918,10 +918,10 @@ public sealed class ComprehensiveRateLimitingSpec
 	[Fact]
 	public async Task
 		ItShouldExhaustTheSocialConnectPolicyThroughHttpRequests() {
-		await using var factory = _CreateFactory(
+		await using var factory = this._CreateFactory(
 			socialConnectPermitLimit: 1
 		);
-		using var client = _CreateClient(factory);
+		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		// Connect is a TENANT route: staff sessions are refused there outright
 		// (staff/tenant mutual exclusivity), so authenticate as the seeded Acme
 		// admin like the social-account specs do.
@@ -967,7 +967,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			await client.SendAsync(rejectedRequest);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-		await _AssertRateLimitedResponseAsync(rejectedResponse);
+		await ComprehensiveRateLimitingSpec._AssertRateLimitedResponseAsync(rejectedResponse);
 	}
 
 	private static HttpRequestMessage _CreateCorsRequest(
@@ -989,26 +989,26 @@ public sealed class ComprehensiveRateLimitingSpec
 		const string email = "comprehensive-limit@example.com";
 
 		return flow switch {
-			"login" => _CreateJsonRequest(
+			"login" => ComprehensiveRateLimitingSpec._CreateJsonRequest(
 				AppRoutes.Auth.Login,
 				new {
 					email,
 					password = "InvalidPassword1!",
 				}
 			),
-			"register" => _CreateJsonRequest(
+			"register" => ComprehensiveRateLimitingSpec._CreateJsonRequest(
 				AppRoutes.Auth.Register,
 				new { email }
 			),
-			"verify-email-request" => _CreateJsonRequest(
+			"verify-email-request" => ComprehensiveRateLimitingSpec._CreateJsonRequest(
 				AppRoutes.Auth.VerifyEmailRequest,
 				new { email }
 			),
-			"request-password-reset" => _CreateJsonRequest(
+			"request-password-reset" => ComprehensiveRateLimitingSpec._CreateJsonRequest(
 				AppRoutes.Auth.RequestPasswordReset,
 				new { email }
 			),
-			"reset-password" => _CreateJsonRequest(
+			"reset-password" => ComprehensiveRateLimitingSpec._CreateJsonRequest(
 				AppRoutes.Auth.ResetPassword,
 				new { }
 			),
@@ -1027,7 +1027,7 @@ public sealed class ComprehensiveRateLimitingSpec
 					HttpMethod.Get,
 					AppRoutes.Auth.CheckResetPasswordToken
 				),
-			"accept-invitation" => _CreateJsonRequest(
+			"accept-invitation" => ComprehensiveRateLimitingSpec._CreateJsonRequest(
 				AppRoutes.Invitations.Anonymous
 					.AcceptByTokenFn("invalid-token"),
 				new { }
@@ -1344,7 +1344,7 @@ public sealed class ComprehensiveRateLimitingSpec
 	private static void _AssertCorsPreflightHeaders(
 		HttpResponseMessage response
 	) {
-		_AssertCorsOrigin(response);
+		ComprehensiveRateLimitingSpec._AssertCorsOrigin(response);
 		response.Headers.TryGetValues(
 			"Access-Control-Allow-Methods",
 			out var values
@@ -1371,7 +1371,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			string token,
 			CancellationToken cancellationToken = default
 		) {
-			LookupCount++;
+			this.LookupCount++;
 			return Task.FromResult<SessionData?>(null);
 		}
 

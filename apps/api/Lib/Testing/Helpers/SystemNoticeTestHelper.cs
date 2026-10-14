@@ -45,7 +45,7 @@ internal static class SystemNoticeTestHelper {
 			};
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, _CreateUrl
+			HttpMethod.Post, SystemNoticeTestHelper._CreateUrl
 		).WithSessionToken(staffToken);
 		request.Content = JsonContent.Create(body);
 

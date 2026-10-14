@@ -19,7 +19,7 @@ public sealed class WitnessTestDatabase : IAsyncDisposable {
 	private readonly string _AdminConnectionString;
 
 	private WitnessTestDatabase(string adminConnectionString) {
-		_AdminConnectionString = adminConnectionString;
+		this._AdminConnectionString = adminConnectionString;
 	}
 
 	public string ConnectionString { get; private set; } = "";
@@ -33,17 +33,17 @@ public sealed class WitnessTestDatabase : IAsyncDisposable {
 
 		// A previous failed run can leave the clone behind; start from a clean slate so
 		// each test exercises a FIRST boot (the witness mints the canary row itself).
-		await manager.DropDatabaseAsync(_DbName);
+		await manager.DropDatabaseAsync(WitnessTestDatabase._DbName);
 
 		return new WitnessTestDatabase(container.AdminConnectionString) {
-			ConnectionString = await manager.CreateDatabaseFromTemplateAsync(_DbName),
+			ConnectionString = await manager.CreateDatabaseFromTemplateAsync(WitnessTestDatabase._DbName),
 		};
 	}
 
 	public async ValueTask DisposeAsync() {
 		try {
-			var manager = new DatabaseTemplateManager(_AdminConnectionString, "postgres");
-			await manager.DropDatabaseAsync(_DbName);
+			var manager = new DatabaseTemplateManager(this._AdminConnectionString, "postgres");
+			await manager.DropDatabaseAsync(WitnessTestDatabase._DbName);
 		} catch (PostgresException) {
 			// Best-effort cleanup; the shared container outlives the run either way.
 		}

@@ -28,11 +28,11 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 	private readonly ApiFixture _Fixture;
 
 	public DispatchDuePostsConcurrencySpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -47,14 +47,14 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans() {
-		var connectionString = await _GetConnectionStringAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		await using var seedDb = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
 				.Options
 		);
 
-		var seededIds = await _SeedFiftyPastDueRowsAsync(seedDb);
+		var seededIds = await DispatchDuePostsConcurrencySpec._SeedFiftyPastDueRowsAsync(seedDb);
 
 		async Task NewScopeWithJobAsync(
 			TaskCompletionSource<bool> gate,
@@ -62,7 +62,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 		) {
 			// Each scan runs from its OWN DI scope: its own DbContext and the
 			// REAL scoped IJobEnqueuer, exactly like two competing workers.
-			var scope = _Fixture.Factory.Services.CreateAsyncScope();
+			var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var db =
 				scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var enqueuer =
@@ -128,7 +128,7 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 			"the union of both scans must cover every past-due row exactly once"
 		);
 		(keysWorkerOne.Count + keysWorkerTwo.Count).Should().Be(
-			_RowCount,
+			DispatchDuePostsConcurrencySpec._RowCount,
 			"job_queue holds exactly one keyed row per publication "
 				+ "(duplicates are impossible via ux_job_queue_type_idempotency)"
 		);
@@ -178,8 +178,8 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 		await db.SaveChangesAsync();
 
 		var scheduledAtUtc = DateTime.UtcNow.AddMinutes(-5);
-		var ids = new List<Guid>(_RowCount);
-		for (var index = 0; index < _RowCount; index++) {
+		var ids = new List<Guid>(DispatchDuePostsConcurrencySpec._RowCount);
+		for (var index = 0; index < DispatchDuePostsConcurrencySpec._RowCount; index++) {
 			// One post per publication keeps the (post, account) pair unique.
 			var post = new Post {
 				TenantId = tenantId,

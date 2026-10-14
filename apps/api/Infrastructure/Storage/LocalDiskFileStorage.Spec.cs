@@ -10,13 +10,13 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	private readonly LocalDiskFileStorage _Storage;
 
 	public LocalDiskFileStorageSpec() {
-		_Root = Path.Combine(Path.GetTempPath(), $"publyapp-storage-test-{Guid.NewGuid():N}");
-		_Storage = new LocalDiskFileStorage(_Root);
+		this._Root = Path.Combine(Path.GetTempPath(), $"publyapp-storage-test-{Guid.NewGuid():N}");
+		this._Storage = new LocalDiskFileStorage(this._Root);
 	}
 
 	public void Dispose() {
-		if (Directory.Exists(_Root)) {
-			Directory.Delete(_Root, recursive: true);
+		if (Directory.Exists(this._Root)) {
+			Directory.Delete(this._Root, recursive: true);
 		}
 	}
 
@@ -24,7 +24,7 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	public async Task ItShouldReturnAServerGeneratedPathContainingNoClientInput() {
 		using var content = new MemoryStream("hello"u8.ToArray());
 
-		var relativePath = await _Storage.SaveAsync(content, ".png");
+		var relativePath = await this._Storage.SaveAsync(content, ".png");
 
 		var now = DateTime.UtcNow;
 		relativePath.Should().StartWith(
@@ -43,8 +43,8 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 		using var contentA = new MemoryStream("a"u8.ToArray());
 		using var contentB = new MemoryStream("b"u8.ToArray());
 
-		var pathA = await _Storage.SaveAsync(contentA, ".png");
-		var pathB = await _Storage.SaveAsync(contentB, ".png");
+		var pathA = await this._Storage.SaveAsync(contentA, ".png");
+		var pathB = await this._Storage.SaveAsync(contentB, ".png");
 
 		pathA.Should().NotBe(pathB);
 	}
@@ -52,18 +52,18 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	[Fact]
 	public async Task ItShouldDeleteASavedFile() {
 		using var content = new MemoryStream("delete-me"u8.ToArray());
-		var relativePath = await _Storage.SaveAsync(content, ".png");
-		var fullPath = Path.Combine(_Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+		var relativePath = await this._Storage.SaveAsync(content, ".png");
+		var fullPath = Path.Combine(this._Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
 		File.Exists(fullPath).Should().BeTrue();
 
-		await _Storage.DeleteAsync(relativePath);
+		await this._Storage.DeleteAsync(relativePath);
 
 		File.Exists(fullPath).Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task ItShouldNoOpWhenDeletingAPathThatDoesNotExist() {
-		var act = async () => await _Storage.DeleteAsync("uploads/2026/01/does-not-exist.png");
+		var act = async () => await this._Storage.DeleteAsync("uploads/2026/01/does-not-exist.png");
 
 		await act.Should().NotThrowAsync();
 	}
@@ -72,7 +72,7 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	[InlineData("../../etc/passwd")]
 	[InlineData("uploads/../../../etc/passwd")]
 	public async Task ItShouldRejectTraversalAttemptsForDelete(string maliciousRelativePath) {
-		var act = async () => await _Storage.DeleteAsync(maliciousRelativePath);
+		var act = async () => await this._Storage.DeleteAsync(maliciousRelativePath);
 
 		await act.Should().ThrowAsync<InvalidOperationException>();
 	}
@@ -81,7 +81,7 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	public async Task ItShouldRejectAnExtensionThatDoesNotStartWithADot() {
 		using var content = new MemoryStream("bytes"u8.ToArray());
 
-		var act = async () => await _Storage.SaveAsync(content, "png");
+		var act = async () => await this._Storage.SaveAsync(content, "png");
 
 		await act.Should().ThrowAsync<ArgumentException>();
 	}
@@ -95,7 +95,7 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	public async Task ItShouldRejectAnExtensionContainingPathSeparators(string extension) {
 		using var content = new MemoryStream("bytes"u8.ToArray());
 
-		var act = async () => await _Storage.SaveAsync(content, extension);
+		var act = async () => await this._Storage.SaveAsync(content, extension);
 
 		await act.Should().ThrowAsync<ArgumentException>();
 	}
@@ -105,11 +105,11 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 		using var content = new ThrowingStream();
 
 		var exception = await Assert.ThrowsAsync<StorageWriteException>(
-			() => _Storage.SaveAsync(content, ".png")
+			() => this._Storage.SaveAsync(content, ".png")
 		);
 		exception.CleanupConfirmed.Should().BeTrue();
 
-		_GetSavedFilePaths().Should().BeEmpty(
+		this._GetSavedFilePaths().Should().BeEmpty(
 			"a failed save must not leave a partial blob on disk"
 		);
 	}
@@ -119,7 +119,7 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 		using var content = new ThrowingStream();
 
 		var exception = await Assert.ThrowsAsync<StorageWriteException>(
-			() => _Storage.SaveAsync(content, ".png")
+			() => this._Storage.SaveAsync(content, ".png")
 		);
 
 		exception.CleanupConfirmed.Should().BeTrue();
@@ -133,18 +133,18 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 		cts.Cancel();
 
 		var exception = await Assert.ThrowsAsync<StorageWriteException>(
-			() => _Storage.SaveAsync(content, ".png", cts.Token)
+			() => this._Storage.SaveAsync(content, ".png", cts.Token)
 		);
 		exception.CleanupConfirmed.Should().BeTrue();
 		exception.InnerException.Should().BeOfType<TaskCanceledException>();
 
-		_GetSavedFilePaths().Should().BeEmpty(
+		this._GetSavedFilePaths().Should().BeEmpty(
 			"a cancelled save must not leave a partial blob on disk"
 		);
 	}
 
 	private IEnumerable<string> _GetSavedFilePaths() {
-		var uploadsRoot = Path.Combine(_Root, "uploads");
+		var uploadsRoot = Path.Combine(this._Root, "uploads");
 		return Directory.Exists(uploadsRoot)
 			? Directory.EnumerateFiles(uploadsRoot, "*", SearchOption.AllDirectories)
 			: [];

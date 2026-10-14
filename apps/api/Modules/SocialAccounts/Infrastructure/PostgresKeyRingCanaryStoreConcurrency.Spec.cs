@@ -52,11 +52,11 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		// Production reality: api, worker, and migrate all receive the SAME
 		// SOCIAL_ACCOUNTS_MASTER_KEY value (runbook requirement), so every racer here
 		// shares one honestly generated test-only key.
-		var sharedKey = _NewTestKey();
-		var startingGate = new Barrier(_RacerCount);
+		var sharedKey = PostgresKeyRingCanaryStoreConcurrencySpec._NewTestKey();
+		var startingGate = new Barrier(PostgresKeyRingCanaryStoreConcurrencySpec._RacerCount);
 		var outcomes = new ConcurrentBag<BootOutcome>();
 
-		var racers = Enumerable.Range(0, _RacerCount).Select(_ => Task.Run(() => {
+		var racers = Enumerable.Range(0, PostgresKeyRingCanaryStoreConcurrencySpec._RacerCount).Select(_ => Task.Run(() => {
 			// Hold every boot at the gate until all six are parked past their Read()
 			// decision point, then release them together: under the pre-fix code every
 			// Read() returns null, every Write() inserts, and the duplicate is certain —
@@ -107,11 +107,11 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(db.ConnectionString));
 		await using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-		var sharedKey = _NewTestKey();
+		var sharedKey = PostgresKeyRingCanaryStoreConcurrencySpec._NewTestKey();
 
 		// Boot 1 wins cleanly: mints the canary.
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(sharedKey, new PostgresKeyRingCanaryStore(scopeFactory));
-		var winnerBlob = await _CanaryBlobOf(scopeFactory);
+		var winnerBlob = await PostgresKeyRingCanaryStoreConcurrencySpec._CanaryBlobOf(scopeFactory);
 		winnerBlob.Should().NotBeNull("boot 1 must have minted exactly one canary row");
 
 		// Boot 2 starts from a deliberately STALE read (empty) even though the row now
@@ -214,20 +214,20 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		private bool _EmptinessReported;
 
 		public FrozenEmptyCanaryStore(IKeyRingCanaryStore inner) {
-			_Inner = inner;
+			this._Inner = inner;
 		}
 
 		public string? Read() {
-			if (_EmptinessReported) {
-				return _Inner.Read();
+			if (this._EmptinessReported) {
+				return this._Inner.Read();
 			}
 
-			_EmptinessReported = true;
+			this._EmptinessReported = true;
 			return null;
 		}
 
 		public void Write(string blob) {
-			_Inner.Write(blob);
+			this._Inner.Write(blob);
 		}
 	}
 

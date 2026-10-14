@@ -5,14 +5,14 @@ namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class OpenApiDocumentHelper {
 	public static async Task<JsonDocument> ReadAsync() {
-		var openApiPath = _FindOpenApiPath();
+		var openApiPath = OpenApiDocumentHelper._FindOpenApiPath();
 
 		await using var stream = File.OpenRead(openApiPath);
 		return await JsonDocument.ParseAsync(stream);
 	}
 
 	public static async Task<string> ReadTextAsync() {
-		var openApiPath = _FindOpenApiPath();
+		var openApiPath = OpenApiDocumentHelper._FindOpenApiPath();
 
 		return await File.ReadAllTextAsync(openApiPath);
 	}

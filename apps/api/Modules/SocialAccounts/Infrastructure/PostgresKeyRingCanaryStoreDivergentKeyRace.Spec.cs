@@ -37,8 +37,8 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 		// Two honestly generated test-only keys: the divergent api/worker configuration.
-		var keyA = _NewTestKey();
-		var keyB = _NewTestKey();
+		var keyA = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
+		var keyB = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
 
 		// Both boots observe the empty canary before either mints, so the race is
 		// deterministic: both arrive at Write() together and the index decides the winner.
@@ -67,7 +67,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 			1,
 			"with DIFFERENT keys the loser cannot verify the winner's canary and must "
 				+ "refuse to start; outcomes were: "
-				+ string.Join(" | ", outcomes.Select(_Describe)));
+				+ string.Join(" | ", outcomes.Select(PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._Describe)));
 
 		var loserError = outcomes.Single(outcome => !outcome.Passed).Error;
 		loserError.Should().Contain(
@@ -99,8 +99,8 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		await using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
-		var keyA = _NewTestKey();
-		var keyB = _NewTestKey();
+		var keyA = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
+		var keyB = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
 
 		// Deterministic sequencing of the same race: boot A wins the mint cleanly; boot B
 		// holds the stale empty view (FrozenEmptyCanaryStore), collides on insert (23505
@@ -162,20 +162,20 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		private bool _EmptinessReported;
 
 		public FrozenEmptyCanaryStore(IKeyRingCanaryStore inner) {
-			_Inner = inner;
+			this._Inner = inner;
 		}
 
 		public string? Read() {
-			if (_EmptinessReported) {
-				return _Inner.Read();
+			if (this._EmptinessReported) {
+				return this._Inner.Read();
 			}
 
-			_EmptinessReported = true;
+			this._EmptinessReported = true;
 			return null;
 		}
 
 		public void Write(string blob) {
-			_Inner.Write(blob);
+			this._Inner.Write(blob);
 		}
 	}
 

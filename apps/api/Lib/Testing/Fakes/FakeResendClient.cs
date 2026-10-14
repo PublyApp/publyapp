@@ -61,18 +61,18 @@ public sealed class FakeResendClient : IResendEmailClient {
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
-		LastEmailMessage = email;
+		this.LastEmailMessage = email;
 
-		if (Delay > TimeSpan.Zero) {
-			await Task.Delay(Delay, cancellationToken);
+		if (this.Delay > TimeSpan.Zero) {
+			await Task.Delay(this.Delay, cancellationToken);
 		}
 
-		if (ExceptionToThrow is not null) {
-			throw ExceptionToThrow;
+		if (this.ExceptionToThrow is not null) {
+			throw this.ExceptionToThrow;
 		}
 
-		ProviderCallCount++;
-		return EmailSendResponse;
+		this.ProviderCallCount++;
+		return this.EmailSendResponse;
 	}
 
 	public Task<ResendResponse<Guid>> EmailSendAsync(
@@ -81,8 +81,8 @@ public sealed class FakeResendClient : IResendEmailClient {
 		CancellationToken cancellationToken = default
 	) {
 		if (!string.IsNullOrEmpty(idempotencyKey)) {
-			var signature = _PayloadSignature(email);
-			if (_SeenPayloadSignatures.TryGetValue(idempotencyKey, out var previous)) {
+			var signature = FakeResendClient._PayloadSignature(email);
+			if (this._SeenPayloadSignatures.TryGetValue(idempotencyKey, out var previous)) {
 				if (!JsonNode.DeepEquals(previous, signature)) {
 					// Same key, different payload: the provider rejects the request
 					// (409 invalid_idempotent_request); it never serves the cached
@@ -98,14 +98,14 @@ public sealed class FakeResendClient : IResendEmailClient {
 
 				// Same key, same payload: return the cached response without calling
 				// the provider (simulating idempotent deduplication).
-				return Task.FromResult(EmailSendResponse);
+				return Task.FromResult(this.EmailSendResponse);
 			}
 
-			_SeenPayloadSignatures[idempotencyKey] = signature;
+			this._SeenPayloadSignatures[idempotencyKey] = signature;
 		}
 
 		// New key (or no key): make the actual provider call.
-		return EmailSendAsync(email, cancellationToken);
+		return this.EmailSendAsync(email, cancellationToken);
 	}
 
 	// Canonical JSON signature of the whole payload, so the fake distinguishes payloads

@@ -101,12 +101,12 @@ public sealed class PostArchitectureSpec {
 		// guard itself cannot drift with analyzer suppressions. Paired proof:
 		// remove && project.TenantId == tenantId from
 		// ProjectExistsForTenantAsync and this guard must fail.
-		var path = _FindPostServicePath();
+		var path = PostArchitectureSpec._FindPostServicePath();
 		var source = File.ReadAllText(path);
 
 		// Split by method declarations that contain Guid tenantId
 		var methodPattern = "public async Task";
-		var methods = _SplitMethods(source, methodPattern);
+		var methods = PostArchitectureSpec._SplitMethods(source, methodPattern);
 
 		var offenders = new List<string>();
 		foreach (var method in methods) {

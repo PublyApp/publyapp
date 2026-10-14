@@ -34,9 +34,9 @@ public sealed class UpdateAccountProfileForTenantSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public UpdateAccountProfileForTenantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl() {
@@ -51,12 +51,12 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldUpdateTheProfileAndReturnTheUpdatedValues() {
 		var (token, userId, acmeId, original) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				_GetUrl()
+				UpdateAccountProfileForTenantSpec._GetUrl()
 			)
 				.WithSessionToken(token)
 				.WithTenantId(acmeId);
@@ -67,7 +67,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 				avatarUrl = "https://cdn.example.test/avatar.png",
 			});
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -80,13 +80,13 @@ public sealed class UpdateAccountProfileForTenantSpec
 			result.AvatarUrl.Should()
 				.Be("https://cdn.example.test/avatar.png");
 
-			var persisted = await _GetUserRowAsync(userId);
+			var persisted = await this._GetUserRowAsync(userId);
 			persisted.FirstName.Should().Be("Updated");
 			persisted.LastName.Should().Be("Profile");
 			persisted.AvatarUrl.Should()
 				.Be("https://cdn.example.test/avatar.png");
 		} finally {
-			await _RestoreProfileAsync(userId, original);
+			await this._RestoreProfileAsync(userId, original);
 		}
 	}
 
@@ -94,12 +94,12 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldClearTheAvatarAndLeaveAbsentFieldsUntouched() {
 		var (token, userId, acmeId, original) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				_GetUrl()
+				UpdateAccountProfileForTenantSpec._GetUrl()
 			)
 				.WithSessionToken(token)
 				.WithTenantId(acmeId);
@@ -108,7 +108,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 				avatarUrl = (string?)null,
 			});
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -121,12 +121,12 @@ public sealed class UpdateAccountProfileForTenantSpec
 			result.FirstName.Should().Be(original.FirstName);
 			result.LastName.Should().Be(original.LastName);
 
-			var persisted = await _GetUserRowAsync(userId);
+			var persisted = await this._GetUserRowAsync(userId);
 			persisted.AvatarUrl.Should().BeNull();
 			persisted.FirstName.Should().Be(original.FirstName);
 			persisted.LastName.Should().Be(original.LastName);
 		} finally {
-			await _RestoreProfileAsync(userId, original);
+			await this._RestoreProfileAsync(userId, original);
 		}
 	}
 
@@ -134,14 +134,14 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldAcceptARootRelativeServedUploadAvatarUrl() {
 		var (token, userId, acmeId, original) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 		const string servedUploadUrl =
 			"/files/uploads/2026/08/11111111-2222-3333-4444-555555555555.png";
 
 		try {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Patch,
-				_GetUrl()
+				UpdateAccountProfileForTenantSpec._GetUrl()
 			)
 				.WithSessionToken(token)
 				.WithTenantId(acmeId);
@@ -150,7 +150,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 				avatarUrl = servedUploadUrl,
 			});
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content
@@ -161,10 +161,10 @@ public sealed class UpdateAccountProfileForTenantSpec
 			// stored value never bakes in today's API origin.
 			result.AvatarUrl.Should().Be(servedUploadUrl);
 
-			var persisted = await _GetUserRowAsync(userId);
+			var persisted = await this._GetUserRowAsync(userId);
 			persisted.AvatarUrl.Should().Be(servedUploadUrl);
 		} finally {
-			await _RestoreProfileAsync(userId, original);
+			await this._RestoreProfileAsync(userId, original);
 		}
 	}
 
@@ -172,18 +172,18 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnBadRequestForAnEmptyBody() {
 		var (token, _, acmeId, _) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl()
+			UpdateAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(token)
 			.WithTenantId(acmeId);
 
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -198,11 +198,11 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldRejectAnInvalidAvatarUrl() {
 		var (token, _, acmeId, _) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl()
+			UpdateAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(token)
 			.WithTenantId(acmeId);
@@ -211,7 +211,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 			avatarUrl = "not-a-url",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -225,11 +225,11 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
 		var (token, _, acmeId, _) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl()
+			UpdateAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(token)
 			.WithTenantId(acmeId);
@@ -238,7 +238,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 			firstName = new string('a', 129),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -255,11 +255,11 @@ public sealed class UpdateAccountProfileForTenantSpec
 		// rejection even with the max-length bound — a whitespace-only name
 		// must not persist verbatim.
 		var (token, _, acmeId, _) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl()
+			UpdateAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(token)
 			.WithTenantId(acmeId);
@@ -268,7 +268,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 			firstName = "   ",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -285,11 +285,11 @@ public sealed class UpdateAccountProfileForTenantSpec
 		// untrimmed value, so 1000 spaces + "a" (trimmed length 1) must still
 		// 422 rather than landing unbounded in the DB.
 		var (token, _, acmeId, _) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl()
+			UpdateAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(token)
 			.WithTenantId(acmeId);
@@ -298,7 +298,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 			firstName = new string(' ', 1000) + "a",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -312,11 +312,11 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
 		var (token, _, acmeId, _) =
-			await _PrepareAcmeAdminAsync();
+			await this._PrepareAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl()
+			UpdateAccountProfileForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(token)
 			.WithTenantId(acmeId);
@@ -325,7 +325,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 			avatarUrl = $"https://example.com/{new string('a', 1025)}",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await response.Content
@@ -343,7 +343,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 	public async Task
 	ItShouldReturnNullWhenTheTenantAccountIsMissing() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<IAccountProfileService>();
 
@@ -363,14 +363,14 @@ public sealed class UpdateAccountProfileForTenantSpec
 	private async Task<(string Token, Guid UserId, Guid TenantId,
 		UserRow Original)> _PrepareAcmeAdminAsync() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -381,7 +381,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		).WithSessionToken(token);
 
 		using var authDataResponse =
-			await _Http.SendAsync(authDataRequest);
+			await this._Http.SendAsync(authDataRequest);
 		authDataResponse.EnsureSuccessStatusCode();
 
 		var authData = await authDataResponse.Content
@@ -392,14 +392,14 @@ public sealed class UpdateAccountProfileForTenantSpec
 			);
 		}
 
-		var original = await _GetUserRowAsync(authData.Id);
+		var original = await this._GetUserRowAsync(authData.Id);
 
 		return (token, authData.Id, acmeId, original);
 	}
 
 	private async Task<UserRow> _GetUserRowAsync(Guid userId) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -419,7 +419,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		UserRow original
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

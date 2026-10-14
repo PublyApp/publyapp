@@ -24,9 +24,9 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 	private readonly TestAuthClient _AuthClient;
 
 	public StaffUserDangerZonePermissionsSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetSuspendUrl(string userId) {
@@ -87,135 +87,135 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutSuspendPermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
-		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var existingUserId = await _GetStaffUserIdByEmailAsync(
-			_Http,
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
 			adminToken,
 			TestConstants.StaffAdminEmail
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetSuspendUrl(existingUserId)
+			StaffUserDangerZonePermissionsSpec._GetSuspendUrl(existingUserId)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutReactivatePermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
-		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var existingUserId = await _GetStaffUserIdByEmailAsync(
-			_Http,
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
 			adminToken,
 			TestConstants.StaffAdminEmail
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetReactivateUrl(existingUserId)
+			StaffUserDangerZonePermissionsSpec._GetReactivateUrl(existingUserId)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutBulkSuspendPermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkSuspendUrl()
+			StaffUserDangerZonePermissionsSpec._GetBulkSuspendUrl()
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(new {
 			userIds = new[] { Guid.NewGuid() }
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutBulkReactivatePermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkReactivateUrl()
+			StaffUserDangerZonePermissionsSpec._GetBulkReactivateUrl()
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(new {
 			userIds = new[] { Guid.NewGuid() }
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutBulkDeletePermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkDeleteUrl()
+			StaffUserDangerZonePermissionsSpec._GetBulkDeleteUrl()
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(new {
 			userIds = new[] { Guid.NewGuid() }
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutUpdateEmailPermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
-		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var existingUserId = await _GetStaffUserIdByEmailAsync(
-			_Http,
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
 			adminToken,
 			TestConstants.StaffAdminEmail
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUpdateEmailUrl(existingUserId)
+			StaffUserDangerZonePermissionsSpec._GetUpdateEmailUrl(existingUserId)
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { email = $"new-email-{Guid.NewGuid():N}@example.com" }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutDeletePermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
-		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var existingUserId = await _GetStaffUserIdByEmailAsync(
-			_Http,
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
 			adminToken,
 			TestConstants.StaffAdminEmail
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetDeleteUrl(existingUserId)
+			StaffUserDangerZonePermissionsSpec._GetDeleteUrl(existingUserId)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -268,7 +268,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -290,7 +290,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		return await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
 
 	// -- Response DTOs --

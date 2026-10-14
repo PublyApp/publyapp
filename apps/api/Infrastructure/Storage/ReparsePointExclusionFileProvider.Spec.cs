@@ -35,7 +35,7 @@ public sealed class CapturingLogger : ILogger<ReparsePointExclusionFileProvider>
 		var structured = state is IEnumerable<KeyValuePair<string, object?>> pairs
 			? new Dictionary<string, object?>(pairs)
 			: new Dictionary<string, object?>();
-		Records.Add(new LogRecord(logLevel, formatter(state, exception), structured));
+		this.Records.Add(new LogRecord(logLevel, formatter(state, exception), structured));
 	}
 }
 

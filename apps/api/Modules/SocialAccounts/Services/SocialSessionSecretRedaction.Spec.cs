@@ -25,11 +25,11 @@ public sealed class SocialSessionSecretRedactionSpec {
 	public void ItShouldRedactTheAppPasswordFromEveryRenderingOfBlueskyCredentials() {
 		var credentials = new BlueskyCredentials(
 			Identifier: "redact.example.com",
-			AppPassword: _AppPassword
+			AppPassword: SocialSessionSecretRedactionSpec._AppPassword
 		);
 
-		credentials.ToString().Should().NotContain(_AppPassword);
-		$"{credentials}".Should().NotContain(_AppPassword);
+		credentials.ToString().Should().NotContain(SocialSessionSecretRedactionSpec._AppPassword);
+		$"{credentials}".Should().NotContain(SocialSessionSecretRedactionSpec._AppPassword);
 
 		// The compiler-generated record format is preserved minus the secret, so
 		// log lines stay readable and greppable.
@@ -38,7 +38,7 @@ public sealed class SocialSessionSecretRedactionSpec {
 
 		// Legitimate consumers still read the property directly.
 		credentials.Identifier.Should().Be("redact.example.com");
-		credentials.AppPassword.Should().Be(_AppPassword);
+		credentials.AppPassword.Should().Be(SocialSessionSecretRedactionSpec._AppPassword);
 	}
 
 	[Fact]
@@ -46,33 +46,33 @@ public sealed class SocialSessionSecretRedactionSpec {
 		var session = new SocialSession(
 			Did: "did:plc:redact",
 			Handle: "redact.test",
-			AccessJwt: _AccessJwt,
+			AccessJwt: SocialSessionSecretRedactionSpec._AccessJwt,
 			PdsHost: "https://bsky.social"
 		);
 
-		session.ToString().Should().NotContain(_AccessJwt);
-		$"{session}".Should().NotContain(_AccessJwt);
+		session.ToString().Should().NotContain(SocialSessionSecretRedactionSpec._AccessJwt);
+		$"{session}".Should().NotContain(SocialSessionSecretRedactionSpec._AccessJwt);
 		// Structured log sinks serialize whole objects; the short-lived JWT must not
 		// survive that either. (BlueskyCredentials is exempt: its request-body
 		// serialization legitimately carries the app password to the PDS.)
-		JsonSerializer.Serialize(session).Should().NotContain(_AccessJwt);
+		JsonSerializer.Serialize(session).Should().NotContain(SocialSessionSecretRedactionSpec._AccessJwt);
 
 		session.ToString().Should().Contain("did:plc:redact");
 		session.ToString().Should().Contain("[REDACTED]");
 
 		// Non-secret fields render normally; the JWT property stays readable.
 		session.Did.Should().Be("did:plc:redact");
-		session.AccessJwt.Should().Be(_AccessJwt);
+		session.AccessJwt.Should().Be(SocialSessionSecretRedactionSpec._AccessJwt);
 	}
 
 	[Fact]
 	public void ItShouldRedactSecretsInPrintMembersForBothRecords() {
 		// _PrintMembers feeds derived-record ToString composition; exercise it
 		// directly (it is protected) so the redaction cannot regress silently.
-		_PrintViaPrintMembers(typeof(BlueskyCredentials), _AppPassword)
-			.Should().NotContain(_AppPassword);
-		_PrintViaPrintMembers(typeof(SocialSession), _AccessJwt)
-			.Should().NotContain(_AccessJwt);
+		SocialSessionSecretRedactionSpec._PrintViaPrintMembers(typeof(BlueskyCredentials), SocialSessionSecretRedactionSpec._AppPassword)
+			.Should().NotContain(SocialSessionSecretRedactionSpec._AppPassword);
+		SocialSessionSecretRedactionSpec._PrintViaPrintMembers(typeof(SocialSession), SocialSessionSecretRedactionSpec._AccessJwt)
+			.Should().NotContain(SocialSessionSecretRedactionSpec._AccessJwt);
 	}
 
 	private static string _PrintViaPrintMembers(Type recordType, string secretValue) {

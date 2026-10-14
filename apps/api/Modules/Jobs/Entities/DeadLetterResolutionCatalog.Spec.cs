@@ -44,13 +44,13 @@ public sealed class DeadLetterResolutionCatalogSpec {
 		);
 		enumNames.Should().OnlyHaveUniqueItems();
 
-		var uncovered = enumNames.Where(n => !_CatalogCoverage.Contains(n)).ToList();
+		var uncovered = enumNames.Where(n => !DeadLetterResolutionCatalogSpec._CatalogCoverage.Contains(n)).ToList();
 		uncovered.Should().BeEmpty(
 			"every ExternalStateStatus member needs a DeadLetterResolutionCatalog "
 			+ "entry naming its resolution path"
 		);
 
-		var unknown = _CatalogCoverage.Where(c => !enumNames.Contains(c)).ToList();
+		var unknown = DeadLetterResolutionCatalogSpec._CatalogCoverage.Where(c => !enumNames.Contains(c)).ToList();
 		unknown.Should().BeEmpty(
 			"catalog entries must name real enum members — remove stale rows"
 		);
@@ -59,7 +59,7 @@ public sealed class DeadLetterResolutionCatalogSpec {
 	[Fact]
 	public void ItShouldExemptFromRetentionExactlyThePresentAndUnclassifiedStates() {
 		Enum.GetValues<ExternalStateStatus>()
-			.Where(s => _RetentionExemptions.Contains(s))
+			.Where(s => DeadLetterResolutionCatalogSpec._RetentionExemptions.Contains(s))
 			.Should().BeEquivalentTo([
 				ExternalStateStatus.Present,
 				ExternalStateStatus.Unclassified,

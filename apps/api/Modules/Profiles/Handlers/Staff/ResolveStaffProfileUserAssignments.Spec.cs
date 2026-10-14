@@ -20,8 +20,8 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public ResolveStaffProfileUserAssignmentsSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl(string profileId) {
@@ -64,8 +64,8 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		using var response = await _Http.PostAsJsonAsync(
-			_GetUrl(Guid.NewGuid().ToString()),
+		using var response = await this._Http.PostAsJsonAsync(
+			ResolveStaffProfileUserAssignmentsSpec._GetUrl(Guid.NewGuid().ToString()),
 			new { userIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
@@ -74,27 +74,27 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenProfileDoesNotExist() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(Guid.NewGuid().ToString())
+			ResolveStaffProfileUserAssignmentsSpec._GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userIds = new[] { Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldResolveAssignmentsForRequestedUsers() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var profileId = await _CreateStaffProfileAsync(token);
-		var staffUserId = await _GetStaffUserIdByEmailAsync(
+		var profileId = await this._CreateStaffProfileAsync(token);
+		var staffUserId = await this._GetStaffUserIdByEmailAsync(
 			TestConstants.StaffAdminEmail,
 			token
 		);
@@ -102,26 +102,26 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 		// Assign the profile to the staff user so the resolver has something to find.
 		using (var updateRequest = new HttpRequestMessage(
 			HttpMethod.Put,
-			_GetUpdateUserProfilesUrl(staffUserId)
+			ResolveStaffProfileUserAssignmentsSpec._GetUpdateUserProfilesUrl(staffUserId)
 		).WithSessionToken(token)) {
 			updateRequest.Content = JsonContent.Create(
 				new { profileIds = new[] { profileId } }
 			);
 
-			using var updateResponse = await _Http.SendAsync(updateRequest);
+			using var updateResponse = await this._Http.SendAsync(updateRequest);
 			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetUrl(profileId)
+			ResolveStaffProfileUserAssignmentsSpec._GetUrl(profileId)
 		).WithSessionToken(token);
 
 		request.Content = JsonContent.Create(
 			new { userIds = new[] { staffUserId, Guid.NewGuid().ToString() } }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content
@@ -140,7 +140,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetCreateProfileUrl()
+			ResolveStaffProfileUserAssignmentsSpec._GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
@@ -154,7 +154,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 			}
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content
@@ -170,10 +170,10 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetFindStaffUsersUrl(email)
+			ResolveStaffProfileUserAssignmentsSpec._GetFindStaffUsersUrl(email)
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();

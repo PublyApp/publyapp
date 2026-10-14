@@ -22,23 +22,23 @@ public sealed class UpdateSystemNoticeSpec
 	public UpdateSystemNoticeSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithValidData() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Original Title"
 			);
 
 		try {
-			var url = _GetUpdateUrl(noticeId);
+			var url = UpdateSystemNoticeSpec._GetUpdateUrl(noticeId);
 			var request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -48,7 +48,7 @@ public sealed class UpdateSystemNoticeSpec
 			});
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -67,7 +67,7 @@ public sealed class UpdateSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -79,14 +79,14 @@ public sealed class UpdateSystemNoticeSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutAuth() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token
+				this._Http, token
 			);
 
 		try {
-			var url = _GetUpdateUrl(noticeId);
+			var url = UpdateSystemNoticeSpec._GetUpdateUrl(noticeId);
 			var request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			);
@@ -95,7 +95,7 @@ public sealed class UpdateSystemNoticeSpec
 			});
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
@@ -103,7 +103,7 @@ public sealed class UpdateSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -115,8 +115,8 @@ public sealed class UpdateSystemNoticeSpec
 	public async Task
 	ItShouldReturnNotFoundForNonexistent() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var url = _GetUpdateUrl(Guid.NewGuid());
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var url = UpdateSystemNoticeSpec._GetUpdateUrl(Guid.NewGuid());
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
@@ -126,7 +126,7 @@ public sealed class UpdateSystemNoticeSpec
 		});
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -143,12 +143,12 @@ public sealed class UpdateSystemNoticeSpec
 	public async Task
 	ItShouldSetExpiresAtToNullWhenCleared() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var expiresAt = DateTime.UtcNow
 			.AddDays(30).ToString("o");
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Has Expiry",
 				expiresAt: expiresAt
 			);
@@ -162,7 +162,7 @@ public sealed class UpdateSystemNoticeSpec
 			).WithSessionToken(token);
 
 			using var getResponse =
-				await _Http.SendAsync(getRequest);
+				await this._Http.SendAsync(getRequest);
 			var detail = await getResponse.Content
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
@@ -171,7 +171,7 @@ public sealed class UpdateSystemNoticeSpec
 			detail.ExpiresAt.Should().NotBeNull();
 
 			// Clear ExpiresAt by sending explicit null
-			var url = _GetUpdateUrl(noticeId);
+			var url = UpdateSystemNoticeSpec._GetUpdateUrl(noticeId);
 			var patchJson = "{\"expiresAt\": null}";
 			var request = new HttpRequestMessage(
 				HttpMethod.Patch, url
@@ -183,7 +183,7 @@ public sealed class UpdateSystemNoticeSpec
 			);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -199,7 +199,7 @@ public sealed class UpdateSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -211,10 +211,10 @@ public sealed class UpdateSystemNoticeSpec
 	public async Task
 	ItShouldKeepOtherFieldsOnPartialUpdate() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				severity: "warning",
 				title: "Keep Me",
 				message: "Keep this message"
@@ -222,7 +222,7 @@ public sealed class UpdateSystemNoticeSpec
 
 		try {
 			// Update only severity
-			var url = _GetUpdateUrl(noticeId);
+			var url = UpdateSystemNoticeSpec._GetUpdateUrl(noticeId);
 			var request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -231,7 +231,7 @@ public sealed class UpdateSystemNoticeSpec
 			});
 
 			using var patchResponse =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			patchResponse.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -243,7 +243,7 @@ public sealed class UpdateSystemNoticeSpec
 			).WithSessionToken(token);
 
 			using var getResponse =
-				await _Http.SendAsync(getRequest);
+				await this._Http.SendAsync(getRequest);
 			var detail = await getResponse.Content
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
@@ -258,7 +258,7 @@ public sealed class UpdateSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -270,12 +270,12 @@ public sealed class UpdateSystemNoticeSpec
 	public async Task
 	ItShouldPreserveExpiresAtWhenOmitted() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var expiresAt = DateTime.UtcNow
 			.AddDays(30).ToString("o");
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Has Expiry",
 				expiresAt: expiresAt
 			);
@@ -289,7 +289,7 @@ public sealed class UpdateSystemNoticeSpec
 			).WithSessionToken(token);
 
 			using var getResponse =
-				await _Http.SendAsync(getRequest);
+				await this._Http.SendAsync(getRequest);
 			var detail = await getResponse.Content
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
@@ -299,7 +299,7 @@ public sealed class UpdateSystemNoticeSpec
 			var originalExpiresAt = detail.ExpiresAt;
 
 			// PATCH without expiresAt — should preserve
-			var url = _GetUpdateUrl(noticeId);
+			var url = UpdateSystemNoticeSpec._GetUpdateUrl(noticeId);
 			var request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -308,7 +308,7 @@ public sealed class UpdateSystemNoticeSpec
 			});
 
 			using var patchResponse =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			patchResponse.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -317,7 +317,7 @@ public sealed class UpdateSystemNoticeSpec
 				HttpMethod.Get, getUrl
 			).WithSessionToken(token);
 			using var getResponse2 =
-				await _Http.SendAsync(getRequest2);
+				await this._Http.SendAsync(getRequest2);
 			var detail2 = await getResponse2.Content
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
@@ -329,7 +329,7 @@ public sealed class UpdateSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -341,10 +341,10 @@ public sealed class UpdateSystemNoticeSpec
 	public async Task
 	ItShouldUpdateExpiresAtWhenSet() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "No Expiry"
 			);
 
@@ -357,7 +357,7 @@ public sealed class UpdateSystemNoticeSpec
 			).WithSessionToken(token);
 
 			using var getResponse =
-				await _Http.SendAsync(getRequest);
+				await this._Http.SendAsync(getRequest);
 			var detail = await getResponse.Content
 				.ReadFromJsonAsync<
 					NoticeDetailResponse
@@ -368,7 +368,7 @@ public sealed class UpdateSystemNoticeSpec
 			// PATCH with expiresAt string
 			var newExpiresAt = DateTime.UtcNow
 				.AddDays(14);
-			var url = _GetUpdateUrl(noticeId);
+			var url = UpdateSystemNoticeSpec._GetUpdateUrl(noticeId);
 			var request = new HttpRequestMessage(
 				HttpMethod.Patch, url
 			).WithSessionToken(token);
@@ -377,7 +377,7 @@ public sealed class UpdateSystemNoticeSpec
 			});
 
 			using var patchResponse =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			patchResponse.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -398,7 +398,7 @@ public sealed class UpdateSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore

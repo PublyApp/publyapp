@@ -47,7 +47,7 @@ public sealed class ThrowOnStandbySchedulerFake : IScheduler {
 	}
 
 	public bool IsStarted {
-		get { return _Started; }
+		get { return this._Started; }
 	}
 
 	public IJobFactory JobFactory {
@@ -60,9 +60,9 @@ public sealed class ThrowOnStandbySchedulerFake : IScheduler {
 
 	public Task Start(CancellationToken cancellationToken = default) {
 		// Deliberately ordered: active FIRST, throw second (see ShouldThrowOnStart).
-		_Started = true;
+		this._Started = true;
 
-		if (ShouldThrowOnStart) {
+		if (this.ShouldThrowOnStart) {
 			throw new SchedulerException(
 				"ThrowOnStandbySchedulerFake: Start failed after the scheduler became active"
 			);
@@ -76,7 +76,7 @@ public sealed class ThrowOnStandbySchedulerFake : IScheduler {
 	}
 
 	public Task Standby(CancellationToken cancellationToken = default) {
-		if (ShouldThrowOnStop) {
+		if (this.ShouldThrowOnStop) {
 			throw new SchedulerException(
 				"ThrowOnStandbySchedulerFake: standby could not be confirmed"
 			);
@@ -86,11 +86,11 @@ public sealed class ThrowOnStandbySchedulerFake : IScheduler {
 	}
 
 	public Task Shutdown(CancellationToken cancellationToken = default) {
-		return Shutdown(waitForJobsToComplete: false, cancellationToken);
+		return this.Shutdown(waitForJobsToComplete: false, cancellationToken);
 	}
 
 	public Task Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default) {
-		if (ShouldThrowOnStop) {
+		if (this.ShouldThrowOnStop) {
 			throw new SchedulerException(
 				"ThrowOnStandbySchedulerFake: shutdown could not be confirmed"
 			);

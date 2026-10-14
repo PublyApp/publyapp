@@ -29,17 +29,17 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantUserCompaniesForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -52,7 +52,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
 		var (userId, seededTenantIds, seededOrder) =
-			await _SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+			await this._SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
 
 		var visitedTenantIds = new List<Guid>();
 		string? cursor = null;
@@ -60,7 +60,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		do {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
 					userId,
 					cursor: cursor,
 					limit: 1,
@@ -69,7 +69,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 				)
 			).WithSessionToken(staffToken);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -107,7 +107,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		List<DateTime> observedOrder;
 		{
 			await using var scope =
-				_Fixture.Factory.Services.CreateAsyncScope();
+				this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			var userIdGuid = Guid.Parse(userId);
@@ -126,9 +126,9 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryTenantNamePageWithoutOverlapOrGap() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -141,7 +141,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
 		var (userId, seededTenantIds, seededOrder) =
-			await _SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+			await this._SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
 
 		var visitedTenantIds = new List<Guid>();
 		string? cursor = null;
@@ -149,7 +149,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		do {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
 					userId,
 					cursor: cursor,
 					limit: 1,
@@ -158,7 +158,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 				)
 			).WithSessionToken(staffToken);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -182,7 +182,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			.ToList();
 		// Production orders by TenantName ascending, then by Id ascending (tiebreaker).
 		// Query the actual tenant names to build the expected order.
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenantNames = await dbContext.Tenant
 			.Where(t => t.Id.HasValue && seededTenantIds.Contains(t.Id.Value))
@@ -200,9 +200,9 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -217,7 +217,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
 		var (userId, seededTenantIds, seededOrder) =
-			await _SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+			await this._SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
 
 		var visitedTenantIds = new List<Guid>();
 		string? cursor = null;
@@ -225,7 +225,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		do {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
 					userId,
 					cursor: cursor,
 					limit: 1,
@@ -234,7 +234,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 				)
 			).WithSessionToken(staffToken);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -269,9 +269,9 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -286,7 +286,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
 		);
 		var (userId, seededTenantIds, seededOrder) =
-			await _SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
+			await this._SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
 
 		var visitedTenantIds = new List<Guid>();
 		string? cursor = null;
@@ -294,7 +294,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		do {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
 					userId,
 					cursor: cursor,
 					limit: 1,
@@ -303,7 +303,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 				)
 			).WithSessionToken(staffToken);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -338,13 +338,13 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnCursorPaginatedCompaniesWhenTenantUserExists() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
@@ -352,7 +352,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var firstRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
 				userId,
 				limit: 1,
 				sortId: "tenant_name",
@@ -360,7 +360,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			)
 		).WithSessionToken(staffToken);
 
-		using var firstResponse = await _Http.SendAsync(firstRequest);
+		using var firstResponse = await this._Http.SendAsync(firstRequest);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var firstResult = await firstResponse.Content
@@ -372,7 +372,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var secondRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
 				userId,
 				cursor: firstResult.NextCursor,
 				limit: 1,
@@ -381,7 +381,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			)
 		).WithSessionToken(staffToken);
 
-		using var secondResponse = await _Http.SendAsync(secondRequest);
+		using var secondResponse = await this._Http.SendAsync(secondRequest);
 
 		secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var secondResult = await secondResponse.Content
@@ -407,13 +407,13 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldFilterCompaniesBySearchTextWhenTenantUserExists() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
@@ -421,7 +421,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
 				userId,
 				limit: 10,
 				sortId: "tenant_name",
@@ -430,7 +430,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			)
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -446,13 +446,13 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
@@ -460,7 +460,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
 				userId,
 				limit: 10,
 				sortId: "tenant_name",
@@ -469,7 +469,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			)
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -486,20 +486,20 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnEmptyCompanyPageWhenTenantUserHasNoLiveCompanies() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var techStartTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
 		var globalTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.GlobalName
 			);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			techStartTenantId,
 			SeedConstants.CrossTenant.BobEmail
@@ -507,12 +507,12 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		// The companies collection can be empty while the first-class
 		// tenant-user identity remains addressable.
-		await _RemoveTenantMembershipAsync(
+		await this._RemoveTenantMembershipAsync(
 			staffToken,
 			techStartTenantId,
 			userId
 		);
-		await _RemoveTenantMembershipAsync(
+		await this._RemoveTenantMembershipAsync(
 			staffToken,
 			globalTenantId,
 			userId
@@ -520,10 +520,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(userId)
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -537,14 +537,14 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenUserIdIsMalformed() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl("not-a-guid")
+			FindTenantUserCompaniesForStaffSpec._GetUrl("not-a-guid")
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content
@@ -557,13 +557,13 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenCursorIsMalformed() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
@@ -571,10 +571,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(userId, cursor: "not-a-guid")
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: "not-a-guid")
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
@@ -582,14 +582,14 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnNotFoundWhenTenantUserDoesNotExistEvenWithCursor() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(Guid.NewGuid().ToString(), cursor: Guid.NewGuid().ToString())
+			FindTenantUserCompaniesForStaffSpec._GetUrl(Guid.NewGuid().ToString(), cursor: Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		var problem = await response.Content
@@ -602,13 +602,13 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenSortIdIsNotAllowed() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
@@ -616,10 +616,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(userId, sortId: "not_allowed")
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, sortId: "not_allowed")
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
@@ -631,13 +631,13 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[InlineData("created_at")]
 	public async Task
 	ItShouldReturnCompaniesWhenSortingByAllowedColumn(string sortId) {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
@@ -645,10 +645,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(userId, limit: 10, sortId: sortId, sortOrder: "asc")
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: sortId, sortOrder: "asc")
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -661,14 +661,14 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnNotFoundWhenTenantUserDoesNotExist() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(Guid.NewGuid().ToString())
+			FindTenantUserCompaniesForStaffSpec._GetUrl(Guid.NewGuid().ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		var problem = await response.Content
@@ -681,28 +681,28 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var userId = await _GetUserIdByEmailAsync(
+		var userId = await this._GetUserIdByEmailAsync(
 			staffToken,
 			acmeTenantId,
 			SeedConstants.CrossTenant.AliceEmail
 		);
-		var tenantToken = await _AuthClient.LoginAsync(
+		var tenantToken = await this._AuthClient.LoginAsync(
 			SeedConstants.CrossTenant.AliceEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(userId)
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId)
 		).WithSessionToken(tenantToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -776,7 +776,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			url
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		var result = await response.Content
@@ -811,10 +811,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetRemoveUrl(tenantId, userId)
+			FindTenantUserCompaniesForStaffSpec._GetRemoveUrl(tenantId, userId)
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
@@ -838,7 +838,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		DateTime baseDate
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -903,12 +903,12 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			.Where(a => a.TenantId == t && a.UserId == userId)
 			.Select(a => a.Id.HasValue ? a.Id.Value : Guid.Empty)
 			.First()).ToList();
-		await _SwapUserAccountIdsAsync(accountIds[0], accountIds[2]);
+		await this._SwapUserAccountIdsAsync(accountIds[0], accountIds[2]);
 		return (userId.ToString(), tenantIds, order);
 	}
 
 	private async Task _SwapUserAccountIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlRawAsync(

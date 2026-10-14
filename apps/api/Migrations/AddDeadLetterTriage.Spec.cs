@@ -19,12 +19,12 @@ public sealed class AddDeadLetterTriageSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public AddDeadLetterTriageSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldAddNullableTriageColumnsAndTheUntriagedMissingIndex() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var columnStates = await dbContext.Database.SqlQuery<string>(

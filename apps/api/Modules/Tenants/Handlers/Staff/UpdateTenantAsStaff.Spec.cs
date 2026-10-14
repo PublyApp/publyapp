@@ -39,9 +39,9 @@ public sealed class UpdateTenantAsStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public UpdateTenantAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl(string tenantId) {
@@ -56,10 +56,10 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldUpdateTenantNameSuccessfully() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -69,7 +69,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantId,
 				new { name = newName }
@@ -95,7 +95,7 @@ public sealed class UpdateTenantAsStaffSpec
 				using var cleanup =
 					await TenantTestHelper
 						.UpdateTenantAsync(
-							_Http,
+							this._Http,
 							staffToken,
 							tenantId,
 							new { name = originalName }
@@ -110,10 +110,10 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldClearLogoUrlWhenSetToNull() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -121,7 +121,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// First set a logo URL
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantId,
 				new { logoUrl = "https://example.com/logo.png" }
@@ -130,7 +130,7 @@ public sealed class UpdateTenantAsStaffSpec
 			.Be(HttpStatusCode.OK);
 
 		// Now clear it by sending null
-		var url = _GetUrl(tenantId.ToString());
+		var url = UpdateTenantAsStaffSpec._GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
 		).WithSessionToken(staffToken);
@@ -143,7 +143,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var clearResponse =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		try {
 			clearResponse.StatusCode.Should()
@@ -165,13 +165,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldClearLogoUrlWhenSetToEmptyString() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Logo Empty String Clear");
+			await this._SeedTenantAsync("Tenant Logo Empty String Clear");
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = "https://example.com/logo.png" }
@@ -183,7 +183,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// billingEmail/legalName — not 422, and not persisted as a literal "".
 		using var clearResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = "" }
@@ -202,15 +202,15 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldSetLogoUrlWhenStringProvided() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Logo Update");
+			await this._SeedTenantAsync("Tenant Logo Update");
 		var logoUrl =
 			"https://cdn.example.com/tenant-logo.png";
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl }
@@ -238,31 +238,31 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldRetainThePreviousUploadedLogoBlobWhenLogoUrlIsReplaced() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Logo Blob Replace");
-		var uploaded = await _UploadPngLogoAsync(staffToken);
+			await this._SeedTenantAsync("Tenant Logo Blob Replace");
+		var uploaded = await this._UploadPngLogoAsync(staffToken);
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = uploaded.Url }
 			);
 		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-		File.Exists(_GetStorageFilePath(uploaded.Path)).Should().BeTrue();
+		File.Exists(this._GetStorageFilePath(uploaded.Path)).Should().BeTrue();
 
 		using var replaceResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = "https://cdn.example.com/replacement-logo.png" }
 			);
 		replaceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		File.Exists(_GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+		File.Exists(this._GetStorageFilePath(uploaded.Path)).Should().BeTrue(
 			"phase 1 must retain replaced blobs until durable asset lifecycle cleanup exists"
 		);
 	}
@@ -271,14 +271,14 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldRetainThePreviousUploadedLogoBlobWhenLogoUrlIsCleared() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Logo Blob Clear");
-		var uploaded = await _UploadPngLogoAsync(staffToken);
+			await this._SeedTenantAsync("Tenant Logo Blob Clear");
+		var uploaded = await this._UploadPngLogoAsync(staffToken);
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = uploaded.Url }
@@ -286,17 +286,17 @@ public sealed class UpdateTenantAsStaffSpec
 		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		using var clearRequest = new HttpRequestMessage(
-			HttpMethod.Patch, _GetUrl(seededTenant.TenantId.ToString())
+			HttpMethod.Patch, UpdateTenantAsStaffSpec._GetUrl(seededTenant.TenantId.ToString())
 		).WithSessionToken(staffToken);
 		clearRequest.Content = new StringContent(
 			"""{"logoUrl": null}""",
 			Encoding.UTF8,
 			"application/json"
 		);
-		using var clearResponse = await _Http.SendAsync(clearRequest);
+		using var clearResponse = await this._Http.SendAsync(clearRequest);
 		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		File.Exists(_GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+		File.Exists(this._GetStorageFilePath(uploaded.Path)).Should().BeTrue(
 			"phase 1 must retain cleared blobs until durable asset lifecycle cleanup exists"
 		);
 	}
@@ -305,13 +305,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldNotDeleteAnythingWhenThePreviousLogoUrlIsNotAServedUpload() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Logo External No Delete");
+			await this._SeedTenantAsync("Tenant Logo External No Delete");
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = "https://cdn.example.com/external-logo.png" }
@@ -322,7 +322,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// throw or attempt to touch the filesystem for an external URL.
 		using var replaceResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { logoUrl = "https://cdn.example.com/another-external-logo.png" }
@@ -334,16 +334,16 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldNotDeleteTheLogoBlobWhenAnotherTenantStillReferencesIt() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantA =
-			await _SeedTenantAsync("Tenant Logo Shared A");
+			await this._SeedTenantAsync("Tenant Logo Shared A");
 		var tenantB =
-			await _SeedTenantAsync("Tenant Logo Shared B");
-		var uploaded = await _UploadPngLogoAsync(staffToken);
+			await this._SeedTenantAsync("Tenant Logo Shared B");
+		var uploaded = await this._UploadPngLogoAsync(staffToken);
 
 		using var setAResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantA.TenantId,
 				new { logoUrl = uploaded.Url }
@@ -352,7 +352,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 		using var setBResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantB.TenantId,
 				new { logoUrl = uploaded.Url }
@@ -361,18 +361,18 @@ public sealed class UpdateTenantAsStaffSpec
 
 		using var replaceAResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantA.TenantId,
 				new { logoUrl = "https://cdn.example.com/replacement-logo.png" }
 			);
 		replaceAResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		File.Exists(_GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+		File.Exists(this._GetStorageFilePath(uploaded.Path)).Should().BeTrue(
 			"the blob must survive while tenant B's logoUrl still points at it"
 		);
 
-		using var fileResponse = await _Http.GetAsync(uploaded.Url);
+		using var fileResponse = await this._Http.GetAsync(uploaded.Url);
 		fileResponse.StatusCode.Should().Be(
 			HttpStatusCode.OK,
 			"tenant B must still be able to serve the shared logo after tenant A's replace"
@@ -383,16 +383,16 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldUpdateMaxUsersSuccessfully() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync(
+			await this._SeedTenantAsync(
 				"Tenant Max Users Update",
 				maxUsers: 5
 			);
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { maxUsers = 12 }
@@ -420,9 +420,9 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldUpdateMultipleFieldsAndWriteAuditLog() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync(
+			await this._SeedTenantAsync(
 				"Tenant Multi Update",
 				maxUsers: 4
 			);
@@ -434,7 +434,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new {
@@ -463,7 +463,7 @@ public sealed class UpdateTenantAsStaffSpec
 		result.MaxUsers.Should()
 			.Be(newMaxUsers);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantUpdated,
 			seededTenant.TenantId
 		);
@@ -474,7 +474,7 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 		}
 
-		_AssertUpdateAuditDetails(
+		UpdateTenantAsStaffSpec._AssertUpdateAuditDetails(
 			auditLog,
 			expectedName: newName,
 			expectedLogoUrl: newLogoUrl,
@@ -486,13 +486,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldStoreWhitespaceOnlyLegalNameAsNullNotAsAnEmptyishString() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Whitespace");
+			await this._SeedTenantAsync("Tenant Org Fields Whitespace");
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { legalName = "  " }
@@ -518,13 +518,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldClearWebsiteUrlAndBillingEmailWhenSetToEmptyString() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Empty String Clear");
+			await this._SeedTenantAsync("Tenant Org Fields Empty String Clear");
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new {
@@ -538,7 +538,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// legalName — not 422, and not persisted as a literal empty string.
 		using var clearResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new {
@@ -566,13 +566,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldSetOrganizationProfileFieldsWhenProvided() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Set");
+			await this._SeedTenantAsync("Tenant Org Fields Set");
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new {
@@ -611,7 +611,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// would look updated even if the service never called SaveChanges (or
 		// wrote to the wrong column). Re-read from a fresh scope to prove it
 		// actually persisted.
-		var persisted = await _GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		var persisted = await this._GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
 		persisted.LegalName.Should().Be("Acme Legal Name LLC");
 		persisted.Description.Should().Be("A short org description");
 		persisted.WebsiteUrl.Should().Be("https://example.com");
@@ -626,13 +626,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldClearOrganizationProfileFieldsWhenSetToNull() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Clear");
+			await this._SeedTenantAsync("Tenant Org Fields Clear");
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new {
@@ -648,7 +648,7 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 		setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		var url = _GetUrl(seededTenant.TenantId.ToString());
+		var url = UpdateTenantAsStaffSpec._GetUrl(seededTenant.TenantId.ToString());
 		var clearRequest = new HttpRequestMessage(
 			HttpMethod.Patch, url
 		).WithSessionToken(staffToken);
@@ -670,7 +670,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var clearResponse =
-			await _Http.SendAsync(clearRequest);
+			await this._Http.SendAsync(clearRequest);
 
 		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -694,7 +694,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 		// Prove the PatchField<T> clear-to-null semantics actually persisted,
 		// not just that the response echoed the in-memory tracked entity.
-		var persisted = await _GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		var persisted = await this._GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
 		persisted.LegalName.Should().BeNull();
 		persisted.Description.Should().BeNull();
 		persisted.WebsiteUrl.Should().BeNull();
@@ -709,13 +709,13 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldLeaveOrganizationProfileFieldsUntouchedWhenAbsent() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Absent");
+			await this._SeedTenantAsync("Tenant Org Fields Absent");
 
 		using var setResponse =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new {
@@ -728,7 +728,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// Only touch Name; org fields are absent and must be left alone.
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { name = $"Renamed {Guid.NewGuid():N}" }
@@ -751,7 +751,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// Confirm the leave-untouched fields are genuinely unchanged in the
 		// database, not merely absent from a response the handler could have
 		// built from stale in-memory state either way.
-		var persisted = await _GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
+		var persisted = await this._GetTenantIgnoringFiltersAsync(seededTenant.TenantId);
 		persisted.LegalName.Should().Be("Acme Legal Name LLC");
 		persisted.Notes.Should().Be("staff-only note");
 	}
@@ -770,14 +770,14 @@ public sealed class UpdateTenantAsStaffSpec
 		string invalidValue
 ) {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Invalid");
+			await this._SeedTenantAsync("Tenant Org Fields Invalid");
 
 		var body = $$"""{ "{{field}}": "{{invalidValue}}" }""";
 
-		using var response = await _Http.SendAsync(
-			_CreateRawUpdateRequest(
+		using var response = await this._Http.SendAsync(
+			UpdateTenantAsStaffSpec._CreateRawUpdateRequest(
 				staffToken,
 				seededTenant.TenantId,
 				body
@@ -799,15 +799,15 @@ public sealed class UpdateTenantAsStaffSpec
 		int length
 	) {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Org Fields Too Long");
+			await this._SeedTenantAsync("Tenant Org Fields Too Long");
 
 		var value = new string('a', length);
 		var body = $$"""{ "{{field}}": "{{value}}" }""";
 
-		using var response = await _Http.SendAsync(
-			_CreateRawUpdateRequest(
+		using var response = await this._Http.SendAsync(
+			UpdateTenantAsStaffSpec._CreateRawUpdateRequest(
 				staffToken,
 				seededTenant.TenantId,
 				body
@@ -822,9 +822,9 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldUpdateTenantWhenNameIsExactlyAtMaxLength() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Name Exact Length");
+			await this._SeedTenantAsync("Tenant Name Exact Length");
 
 		// Prefixed with a unique marker (well under the limit) so the name stays
 		// unique across test runs while the total length still lands exactly at
@@ -836,7 +836,7 @@ public sealed class UpdateTenantAsStaffSpec
 		name.Length.Should().Be(TenantValidationRules.NameMaxLength);
 
 		using var response = await TenantTestHelper.UpdateTenantAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			seededTenant.TenantId,
 			new { name }
@@ -845,7 +845,7 @@ public sealed class UpdateTenantAsStaffSpec
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var persisted = await dbContext.Tenant
@@ -858,15 +858,15 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenWebsiteUrlExceedsMaxLength() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant WebsiteUrl Too Long");
+			await this._SeedTenantAsync("Tenant WebsiteUrl Too Long");
 
 		var oversizedWebsiteUrl =
 			"https://example.com/" + new string('a', TenantValidationRules.WebsiteUrlMaxLength);
 
 		using var response = await TenantTestHelper.UpdateTenantAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			seededTenant.TenantId,
 			new { websiteUrl = oversizedWebsiteUrl }
@@ -880,9 +880,9 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenMaxUsersBelowCurrentUserCount() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantWithUsersAsync(
+			await this._SeedTenantWithUsersAsync(
 				"Tenant Max Below Count",
 				usersCount: 2,
 				maxUsers: 5
@@ -890,7 +890,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				seededTenant.TenantId,
 				new { maxUsers = 1 }
@@ -911,17 +911,17 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturn400ForEmptyPatchBody() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantId,
 				new { }
@@ -935,8 +935,8 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnNotFoundForNonExistentId() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var url = _GetUrl(Guid.NewGuid().ToString());
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var url = UpdateTenantAsStaffSpec._GetUrl(Guid.NewGuid().ToString());
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
@@ -947,7 +947,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -961,8 +961,8 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var url = _GetUrl("not-a-guid");
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var url = UpdateTenantAsStaffSpec._GetUrl("not-a-guid");
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
@@ -973,7 +973,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -990,10 +990,10 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenMaxUsersBelowCurrentCount() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -1002,7 +1002,7 @@ public sealed class UpdateTenantAsStaffSpec
 		// should fail
 		using var response =
 			await TenantTestHelper.UpdateTenantAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				tenantId,
 				new { maxUsers = 0 }
@@ -1014,27 +1014,27 @@ public sealed class UpdateTenantAsStaffSpec
 	}
 
 	[Theory]
-	[MemberData(nameof(InvalidUpdateTenantBodies))]
+	[MemberData(nameof(UpdateTenantAsStaffSpec.InvalidUpdateTenantBodies))]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenPatchBodyIsInvalid(
 		string body,
 		string expectedField
 	) {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var seededTenant =
-			await _SeedTenantAsync("Tenant Invalid Patch");
+			await this._SeedTenantAsync("Tenant Invalid Patch");
 
 		using var response =
-			await _Http.SendAsync(
-				_CreateRawUpdateRequest(
+			await this._Http.SendAsync(
+				UpdateTenantAsStaffSpec._CreateRawUpdateRequest(
 					staffToken,
 					seededTenant.TenantId,
 					body
 				)
 			);
 
-		await _AssertValidationProblemAsync(
+		await UpdateTenantAsStaffSpec._AssertValidationProblemAsync(
 			response,
 			expectedField
 		);
@@ -1044,15 +1044,15 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var url = _GetUrl(tenantId.ToString());
+		var url = UpdateTenantAsStaffSpec._GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
 		);
@@ -1061,7 +1061,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -1071,21 +1071,21 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		// Login as tenant admin (not staff)
-		var tenantToken = await _AuthClient.LoginAsync(
+		var tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		var url = _GetUrl(tenantId.ToString());
+		var url = UpdateTenantAsStaffSpec._GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
 		).WithSessionToken(tenantToken);
@@ -1095,7 +1095,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -1105,12 +1105,12 @@ public sealed class UpdateTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
 
-		var url = _GetUrl(Guid.NewGuid().ToString());
+		var url = UpdateTenantAsStaffSpec._GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch, url
 		).WithSessionToken(token);
@@ -1120,7 +1120,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -1216,7 +1216,7 @@ public sealed class UpdateTenantAsStaffSpec
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString())
+			UpdateTenantAsStaffSpec._GetUrl(tenantId.ToString())
 		).WithSessionToken(staffToken);
 
 		request.Content = new StringContent(
@@ -1235,7 +1235,7 @@ public sealed class UpdateTenantAsStaffSpec
 		int maxUsers = 10
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1263,13 +1263,13 @@ public sealed class UpdateTenantAsStaffSpec
 		int usersCount,
 		int maxUsers
 	) {
-		var seededTenant = await _SeedTenantAsync(
+		var seededTenant = await this._SeedTenantAsync(
 			namePrefix,
 			maxUsers: maxUsers
 		);
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1314,7 +1314,7 @@ public sealed class UpdateTenantAsStaffSpec
 		);
 
 		using var content = new MultipartFormDataContent();
-		var fileContent = new ByteArrayContent(_PngBytes);
+		var fileContent = new ByteArrayContent(UpdateTenantAsStaffSpec._PngBytes);
 		fileContent.Headers.ContentType =
 			new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
 		content.Add(fileContent, "file", "logo.png");
@@ -1323,7 +1323,7 @@ public sealed class UpdateTenantAsStaffSpec
 			Content = content
 		}.WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var result = await response.Content.ReadFromJsonAsync<StaffUploadCreated>();
@@ -1335,7 +1335,7 @@ public sealed class UpdateTenantAsStaffSpec
 	}
 
 	private string _GetStorageFilePath(string relativePath) {
-		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var fileStorage = this._Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		return Path.Combine(
 			fileStorage.RootPath,
 			relativePath.Replace('/', Path.DirectorySeparatorChar)
@@ -1347,7 +1347,7 @@ public sealed class UpdateTenantAsStaffSpec
 		Guid targetId
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1367,7 +1367,7 @@ public sealed class UpdateTenantAsStaffSpec
 	// tracked entity the handler returned in its response body.
 	private async Task<Tenant> _GetTenantIgnoringFiltersAsync(Guid tenantId) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

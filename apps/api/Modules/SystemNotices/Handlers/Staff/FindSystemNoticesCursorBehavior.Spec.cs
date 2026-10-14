@@ -40,15 +40,15 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public FindSystemNoticesCursorBehaviorSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var staffUserId = await _GetStaffAdminIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var staffUserId = await this._GetStaffAdminIdAsync();
 
 		// 3 notices with distinct, deliberately NOT insertion-ordered
 		// CreatedAt (anti-correlated with insertion). The walk must visit each
@@ -64,7 +64,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var startsAt = baseDate.AddDays(i);
-			var id = await _SeedNoticeAtAsync(
+			var id = await this._SeedNoticeAtAsync(
 				staffUserId,
 				$"notice-walk-{i}-{Guid.NewGuid():N}",
 				createdAt,
@@ -79,7 +79,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -87,7 +87,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = _FindUrl
+			var url = FindSystemNoticesCursorBehaviorSpec._FindUrl
 				+ "?limit=1&sort_id=created_at&sort_order=asc";
 			if (cursor is not null) {
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
@@ -97,7 +97,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -139,8 +139,8 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryStartsAtPageWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var staffUserId = await _GetStaffAdminIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var staffUserId = await this._GetStaffAdminIdAsync();
 
 		// 3 notices with distinct, deliberately NOT insertion-ordered
 		// StartsAt (anti-correlated with insertion). The walk must visit each
@@ -155,7 +155,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 			// determine the order of the two equal-key rows.
 			var startsAt = i == 1 ? baseDate.AddDays(1) : baseDate;
 			var createdAt = baseDate.AddDays(30);
-			var id = await _SeedNoticeAtAsync(
+			var id = await this._SeedNoticeAtAsync(
 				staffUserId,
 				$"starts-walk-{i}-{Guid.NewGuid():N}",
 				createdAt,
@@ -171,14 +171,14 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(StartsAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapSystemNoticeIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		var visitedStartsAtOrder = new List<DateTime>();
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = _FindUrl
+			var url = FindSystemNoticesCursorBehaviorSpec._FindUrl
 				+ "?limit=1&sort_id=starts_at&sort_order=asc";
 			if (cursor is not null) {
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
@@ -188,7 +188,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -225,8 +225,8 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEverySeverityPageWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var staffUserId = await _GetStaffAdminIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var staffUserId = await this._GetStaffAdminIdAsync();
 
 		// 3 notices with distinct severities, deliberately NOT insertion-ordered.
 		// The walk must visit each once in ascending severity order, so a
@@ -240,13 +240,13 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		for (var i = 0; i < 3; i++) {
 			var severity = severities[i];
 			var createdAt = baseDate.AddDays(30);
-			var id = await _SeedNoticeAtAsync(
+			var id = await this._SeedNoticeAtAsync(
 				staffUserId,
 				$"severity-walk-{i}-{Guid.NewGuid():N}",
 				createdAt,
 				baseDate.AddDays(i)
 			);
-			await _SetNoticeSeverityAsync(id, severity);
+			await this._SetNoticeSeverityAsync(id, severity);
 			seededIds.Add(id);
 			seededOrder.Add(severity);
 		}
@@ -255,7 +255,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var url = _FindUrl
+			var url = FindSystemNoticesCursorBehaviorSpec._FindUrl
 				+ "?limit=1&sort_id=severity&sort_order=asc";
 			if (cursor is not null) {
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
@@ -265,7 +265,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -287,7 +287,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		var visitedOrder = visitedIds
 			.Where(seededIds.Contains)
 			.ToList();
-		var severityById = await _FetchSeveritiesByIdAsync(seededIds);
+		var severityById = await this._FetchSeveritiesByIdAsync(seededIds);
 		var visitedSeverities = visitedOrder.Select(id => severityById[id]).ToList();
 		visitedSeverities.Should().Equal(visitedSeverities.OrderBy(s => (int)s).ToList());
 		// At least one distinct severity: the walk is genuinely ordered by severity.
@@ -296,14 +296,14 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var url = _FindUrl + $"?cursor={Guid.NewGuid()}";
+		var url = FindSystemNoticesCursorBehaviorSpec._FindUrl + $"?cursor={Guid.NewGuid()}";
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -316,14 +316,14 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var url = _FindUrl + "?limit=5&sort_id=CREATED_AT";
+		var url = FindSystemNoticesCursorBehaviorSpec._FindUrl + "?limit=5&sort_id=CREATED_AT";
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		// The handler dictionary resolves keys case-insensitively; an
 		// ordinal-sensitive lookup would turn this into a 400.
@@ -331,7 +331,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _GetStaffAdminIdAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -347,7 +347,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		DateTime createdAt,
 		DateTime startsAt
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -376,7 +376,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	}
 
 	private async Task _SetNoticeSeverityAsync(Guid id, NoticeSeverity severity) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -390,7 +390,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	private async Task<Dictionary<Guid, NoticeSeverity>> _FetchSeveritiesByIdAsync(
 		List<Guid> ids
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -415,7 +415,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	}
 
 	private async Task _SwapSystemNoticeIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlRawAsync(

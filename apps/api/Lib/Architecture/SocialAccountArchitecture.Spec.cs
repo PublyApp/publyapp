@@ -42,14 +42,14 @@ public sealed class SocialAccountArchitectureSpec {
 
 	[Fact]
 	public void ItShouldRequireEveryServiceMethodWithTenantIdToUseIt() {
-		var path = _FindSocialAccountServicePath();
+		var path = SocialAccountArchitectureSpec._FindSocialAccountServicePath();
 		path.Should().NotBeNull(
 			"SocialAccountService.cs must exist; if C2 removed it, "
 			+ "this guard re-discovers the missing target."
 		);
 		var source = File.ReadAllText(path.Required());
 		var offenders = new List<string>();
-		foreach (var slice in _SplitMethods(source, "public")) {
+		foreach (var slice in SocialAccountArchitectureSpec._SplitMethods(source, "public")) {
 			if (!slice.Signature.Contains("Guid tenantId", StringComparison.Ordinal)) {
 				continue;
 			}

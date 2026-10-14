@@ -20,19 +20,19 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 	private readonly ApiFixture _Fixture;
 
 	public BulkStaffUserLifecycleConcurrencySpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReturnFailureItemWhenBulkSuspendTargetWasDeletedConcurrently() {
-		var raceUserId = await _CreateStaffUserAsync(UserStatus.Active);
-		var stableUserId = await _CreateStaffUserAsync(UserStatus.Active);
+		var raceUserId = await this._CreateStaffUserAsync(UserStatus.Active);
+		var stableUserId = await this._CreateStaffUserAsync(UserStatus.Active);
 
-		var result = await _RunWithConcurrentUsersUpdateAsync(
+		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.BulkSuspendStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => _SoftDeleteStaffUserAsync(
+			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SoftDeleteStaffUserAsync(
 				dbContext,
 				raceUserId,
 				cancellationToken
@@ -46,12 +46,12 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			&& item.Error == "User not found"
 		);
 
-		var raceState = await _GetStaffUserStateAsync(raceUserId);
+		var raceState = await this._GetStaffUserStateAsync(raceUserId);
 		raceState.IsDeleted.Should().BeTrue();
 		raceState.Status.Should().Be(UserStatus.Active);
 		raceState.HasLiveStaffAccount.Should().BeFalse();
 
-		var stableState = await _GetStaffUserStateAsync(stableUserId);
+		var stableState = await this._GetStaffUserStateAsync(stableUserId);
 		stableState.IsDeleted.Should().BeFalse();
 		stableState.Status.Should().Be(UserStatus.Suspended);
 		stableState.HasLiveStaffAccount.Should().BeTrue();
@@ -59,14 +59,14 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 
 	[Fact]
 	public async Task ItShouldReturnFailureItemWhenBulkSuspendTargetWasSuspendedConcurrently() {
-		var raceUserId = await _CreateStaffUserAsync(UserStatus.Active);
-		var stableUserId = await _CreateStaffUserAsync(UserStatus.Active);
+		var raceUserId = await this._CreateStaffUserAsync(UserStatus.Active);
+		var stableUserId = await this._CreateStaffUserAsync(UserStatus.Active);
 
-		var result = await _RunWithConcurrentUsersUpdateAsync(
+		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.BulkSuspendStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => _SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
 				dbContext,
 				raceUserId,
 				UserStatus.Suspended,
@@ -81,12 +81,12 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			&& item.Error == "User is already suspended"
 		);
 
-		var raceState = await _GetStaffUserStateAsync(raceUserId);
+		var raceState = await this._GetStaffUserStateAsync(raceUserId);
 		raceState.IsDeleted.Should().BeFalse();
 		raceState.Status.Should().Be(UserStatus.Suspended);
 		raceState.HasLiveStaffAccount.Should().BeTrue();
 
-		var stableState = await _GetStaffUserStateAsync(stableUserId);
+		var stableState = await this._GetStaffUserStateAsync(stableUserId);
 		stableState.IsDeleted.Should().BeFalse();
 		stableState.Status.Should().Be(UserStatus.Suspended);
 		stableState.HasLiveStaffAccount.Should().BeTrue();
@@ -94,14 +94,14 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 
 	[Fact]
 	public async Task ItShouldReturnFailureItemWhenBulkReactivateTargetWasDeletedConcurrently() {
-		var raceUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
-		var stableUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
+		var raceUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
+		var stableUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
 
-		var result = await _RunWithConcurrentUsersUpdateAsync(
+		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.BulkReactivateStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => _SoftDeleteStaffUserAsync(
+			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SoftDeleteStaffUserAsync(
 				dbContext,
 				raceUserId,
 				cancellationToken
@@ -115,12 +115,12 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			&& item.Error == "User not found"
 		);
 
-		var raceState = await _GetStaffUserStateAsync(raceUserId);
+		var raceState = await this._GetStaffUserStateAsync(raceUserId);
 		raceState.IsDeleted.Should().BeTrue();
 		raceState.Status.Should().Be(UserStatus.Suspended);
 		raceState.HasLiveStaffAccount.Should().BeFalse();
 
-		var stableState = await _GetStaffUserStateAsync(stableUserId);
+		var stableState = await this._GetStaffUserStateAsync(stableUserId);
 		stableState.IsDeleted.Should().BeFalse();
 		stableState.Status.Should().Be(UserStatus.Active);
 		stableState.HasLiveStaffAccount.Should().BeTrue();
@@ -128,14 +128,14 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 
 	[Fact]
 	public async Task ItShouldReturnFailureItemWhenBulkReactivateTargetWasReactivatedConcurrently() {
-		var raceUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
-		var stableUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
+		var raceUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
+		var stableUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
 
-		var result = await _RunWithConcurrentUsersUpdateAsync(
+		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.BulkReactivateStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => _SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
 				dbContext,
 				raceUserId,
 				UserStatus.Active,
@@ -150,12 +150,12 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			&& item.Error == "User is not currently suspended"
 		);
 
-		var raceState = await _GetStaffUserStateAsync(raceUserId);
+		var raceState = await this._GetStaffUserStateAsync(raceUserId);
 		raceState.IsDeleted.Should().BeFalse();
 		raceState.Status.Should().Be(UserStatus.Active);
 		raceState.HasLiveStaffAccount.Should().BeTrue();
 
-		var stableState = await _GetStaffUserStateAsync(stableUserId);
+		var stableState = await this._GetStaffUserStateAsync(stableUserId);
 		stableState.IsDeleted.Should().BeFalse();
 		stableState.Status.Should().Be(UserStatus.Active);
 		stableState.HasLiveStaffAccount.Should().BeTrue();
@@ -163,14 +163,14 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 
 	[Fact]
 	public async Task ItShouldReturnFailureItemWhenBulkDeleteTargetWasDeletedConcurrently() {
-		var raceUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
-		var stableUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
+		var raceUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
+		var stableUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
 
-		var result = await _RunWithConcurrentUsersUpdateAsync(
+		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.BulkDeleteStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => _SoftDeleteStaffUserAsync(
+			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SoftDeleteStaffUserAsync(
 				dbContext,
 				raceUserId,
 				cancellationToken
@@ -184,12 +184,12 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			&& item.Error == "User not found"
 		);
 
-		var raceState = await _GetStaffUserStateAsync(raceUserId);
+		var raceState = await this._GetStaffUserStateAsync(raceUserId);
 		raceState.IsDeleted.Should().BeTrue();
 		raceState.Status.Should().Be(UserStatus.Suspended);
 		raceState.HasLiveStaffAccount.Should().BeFalse();
 
-		var stableState = await _GetStaffUserStateAsync(stableUserId);
+		var stableState = await this._GetStaffUserStateAsync(stableUserId);
 		stableState.IsDeleted.Should().BeTrue();
 		stableState.Status.Should().Be(UserStatus.Suspended);
 		stableState.HasLiveStaffAccount.Should().BeFalse();
@@ -197,14 +197,14 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 
 	[Fact]
 	public async Task ItShouldReturnFailureItemWhenBulkDeleteTargetWasReactivatedConcurrently() {
-		var raceUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
-		var stableUserId = await _CreateStaffUserAsync(UserStatus.Suspended);
+		var raceUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
+		var stableUserId = await this._CreateStaffUserAsync(UserStatus.Suspended);
 
-		var result = await _RunWithConcurrentUsersUpdateAsync(
+		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.BulkDeleteStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => _SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
 				dbContext,
 				raceUserId,
 				UserStatus.Active,
@@ -219,19 +219,19 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			&& item.Error == "User must be suspended before deletion"
 		);
 
-		var raceState = await _GetStaffUserStateAsync(raceUserId);
+		var raceState = await this._GetStaffUserStateAsync(raceUserId);
 		raceState.IsDeleted.Should().BeFalse();
 		raceState.Status.Should().Be(UserStatus.Active);
 		raceState.HasLiveStaffAccount.Should().BeTrue();
 
-		var stableState = await _GetStaffUserStateAsync(stableUserId);
+		var stableState = await this._GetStaffUserStateAsync(stableUserId);
 		stableState.IsDeleted.Should().BeTrue();
 		stableState.Status.Should().Be(UserStatus.Suspended);
 		stableState.HasLiveStaffAccount.Should().BeFalse();
 	}
 
 	private async Task<Guid> _CreateStaffUserAsync(UserStatus status) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -262,9 +262,9 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 		Func<StaffUserLifecycleService, Task<TResult>> operationAsync,
 		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
-		var connectionString = await _GetConnectionStringAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		var interceptor = new BeforeUsersUpdateInterceptor(async cancellationToken => {
-			await using var mutateScope = _Fixture.Factory.Services.CreateAsyncScope();
+			await using var mutateScope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var mutateDbContext = mutateScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -285,7 +285,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var connectionString = dbContext.Database.GetConnectionString();
@@ -347,7 +347,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 	}
 
 	private async Task<StaffUserState> _GetStaffUserStateAsync(Guid userId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = await dbContext.User
@@ -382,7 +382,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 		public BeforeUsersUpdateInterceptor(
 			Func<CancellationToken, Task> beforeUsersUpdateAsync
 		) {
-			_BeforeUsersUpdateAsync = beforeUsersUpdateAsync;
+			this._BeforeUsersUpdateAsync = beforeUsersUpdateAsync;
 		}
 
 		public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
@@ -392,7 +392,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			CancellationToken cancellationToken = default
 		) {
 			if (
-				!_HasRun
+				!this._HasRun
 				&& (
 					command.CommandText.Contains(
 						"UPDATE users",
@@ -404,8 +404,8 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 					)
 				)
 			) {
-				_HasRun = true;
-				await _BeforeUsersUpdateAsync(cancellationToken);
+				this._HasRun = true;
+				await this._BeforeUsersUpdateAsync(cancellationToken);
 			}
 
 			return await base.NonQueryExecutingAsync(

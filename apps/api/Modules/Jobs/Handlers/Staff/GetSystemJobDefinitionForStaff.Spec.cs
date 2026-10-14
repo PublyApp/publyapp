@@ -29,9 +29,9 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 	private readonly TestAuthClient _AuthClient;
 
 	public GetSystemJobDefinitionForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _Url(string systemJobId) {
@@ -45,14 +45,14 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnTheSeededDefinitionDetail() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId) = await _SeedDefinitionAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId) = await this._SeedDefinitionAsync();
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Get, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Get, GetSystemJobDefinitionForStaffSpec._Url(definitionId))
 				.WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -72,53 +72,53 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 			document.RootElement.TryGetProperty("data", out _)
 				.Should().BeFalse("the detail is the row object itself");
 		} finally {
-			await _CleanupAsync(jobKey);
+			await this._CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_Url(Guid.NewGuid().ToString())
+			GetSystemJobDefinitionForStaffSpec._Url(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Get, _Url("not-a-guid"))
+		var request = new HttpRequestMessage(HttpMethod.Get, GetSystemJobDefinitionForStaffSpec._Url("not-a-guid"))
 			.WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldRequireASession() {
-		using var response = await _Http.GetAsync(_Url(Guid.NewGuid().ToString()));
+		using var response = await this._Http.GetAsync(GetSystemJobDefinitionForStaffSpec._Url(Guid.NewGuid().ToString()));
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
+		var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_Url(Guid.NewGuid().ToString())
+			GetSystemJobDefinitionForStaffSpec._Url(Guid.NewGuid().ToString())
 		).WithSessionToken(unprivileged.Token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -129,7 +129,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		var jobKey = $"spec.a5.sys-detail.{Guid.NewGuid():N}";
 		var epoch = Guid.NewGuid();
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var definition = new SystemJobDefinition {
@@ -160,7 +160,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
@@ -174,7 +174,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-detail-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -195,7 +195,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

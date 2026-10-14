@@ -34,22 +34,22 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	private TestAuthClient? _AuthClient;
 
 	public async Task InitializeAsync() {
-		await _Fixture.InitializeAsync();
-		_Http = _Fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http.Required());
+		await this._Fixture.InitializeAsync();
+		this._Http = this._Fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http.Required());
 	}
 
 	public Task DisposeAsync() {
-		return _Fixture.DisposeAsync();
+		return this._Fixture.DisposeAsync();
 	}
 
 	[Fact]
 	public async Task
 	ItShouldCreatePendingTenantDefaultProfileInvitationsAndEmails() {
-		var fakeEmailSender = _Fixture.GetFakeEmailSender();
+		var fakeEmailSender = this._Fixture.GetFakeEmailSender();
 
 		var token =
-			await _AuthClient.Required().LoginAsStaffAdminAsync();
+			await this._AuthClient.Required().LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Contract {Guid.NewGuid():N}";
 		var adminEmail =
@@ -57,8 +57,8 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		var userEmail =
 			$"tenant-create-user-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.Required().SendAsync(
-			_CreateTenantRequest(
+		using var response = await this._Http.Required().SendAsync(
+			CreateTenantAsStaffEmailSpec._CreateTenantRequest(
 				token,
 				new {
 					name = tenantName,
@@ -88,7 +88,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		created.Name.Should().Be(tenantName);
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -174,20 +174,20 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	[Fact]
 	public async Task
 	ItShouldObserveOnlyItsOwnEmailWithNoResetRegardlessOfExecutionOrder() {
-		var fakeEmailSender = _Fixture.GetFakeEmailSender();
+		var fakeEmailSender = this._Fixture.GetFakeEmailSender();
 		fakeEmailSender.SentEmails.Should().BeEmpty(
 			"this method owns a fresh FakeEmailSender — nothing else can have written to it"
 		);
 
 		var token =
-			await _AuthClient.Required().LoginAsStaffAdminAsync();
+			await this._AuthClient.Required().LoginAsStaffAdminAsync();
 		var tenantName =
 			$"Tenant Create Probe {Guid.NewGuid():N}";
 		var adminEmail =
 			$"tenant-create-probe-admin-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.Required().SendAsync(
-			_CreateTenantRequest(
+		using var response = await this._Http.Required().SendAsync(
+			CreateTenantAsStaffEmailSpec._CreateTenantRequest(
 				token,
 				new {
 					name = tenantName,
@@ -211,7 +211,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		Assert.NotNull(created);
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -253,7 +253,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetCreateTenantUrl()
+			CreateTenantAsStaffEmailSpec._GetCreateTenantUrl()
 		).WithSessionToken(sessionToken);
 		request.Content = JsonContent.Create(body);
 

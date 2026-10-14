@@ -80,7 +80,7 @@ namespace PublyApp.Api.Lib.Architecture {
 					t.GetProperties()
 						.Select(p => (Type: t, Prop: p)))
 				.Where(x =>
-					_ContainsPatchField(x.Prop.PropertyType))
+					ArchitectureGuardSpec._ContainsPatchField(x.Prop.PropertyType))
 				.Select(x =>
 					$"{x.Type.Name}.{x.Prop.Name}")
 				.OrderBy(name => name, StringComparer.Ordinal)
@@ -102,11 +102,11 @@ namespace PublyApp.Api.Lib.Architecture {
 				.Options;
 			using var dbContext = new AppDbContext(options);
 
-			_AssertCompositeJunctionKey<UserAccountProfile>(
+			ArchitectureGuardSpec._AssertCompositeJunctionKey<UserAccountProfile>(
 				dbContext,
 				[nameof(UserAccountProfile.UserAccountId), nameof(UserAccountProfile.ProfileId)]
 			);
-			_AssertCompositeJunctionKey<ProfilePermission>(
+			ArchitectureGuardSpec._AssertCompositeJunctionKey<ProfilePermission>(
 				dbContext,
 				[nameof(ProfilePermission.ProfileId), nameof(ProfilePermission.PermissionKey)]
 			);
@@ -136,7 +136,7 @@ namespace PublyApp.Api.Lib.Architecture {
 		}
 
 		private static bool _ContainsPatchField(Type type) {
-			return _ContainsPatchField(
+			return ArchitectureGuardSpec._ContainsPatchField(
 				type,
 				new HashSet<Type>()
 			);
@@ -154,14 +154,14 @@ namespace PublyApp.Api.Lib.Architecture {
 
 			if (type.IsByRef || type.IsPointer) {
 				Type? elementType = type.GetElementType();
-				return elementType is not null && _ContainsPatchField(
+				return elementType is not null && ArchitectureGuardSpec._ContainsPatchField(
 					elementType, visited
 				);
 			}
 
 			if (type.IsArray) {
 				Type? elementType = type.GetElementType();
-				return elementType is not null && _ContainsPatchField(
+				return elementType is not null && ArchitectureGuardSpec._ContainsPatchField(
 					elementType, visited
 				);
 			}
@@ -169,13 +169,13 @@ namespace PublyApp.Api.Lib.Architecture {
 			return (type.IsGenericType
 				&& type.GetGenericArguments()
 					.Any(arg =>
-						_ContainsPatchField(
+						ArchitectureGuardSpec._ContainsPatchField(
 							arg, visited
-						))) || (!_IsTerminalType(type) && visited.Add(type) && type.GetProperties(
+						))) || (!ArchitectureGuardSpec._IsTerminalType(type) && visited.Add(type) && type.GetProperties(
 				BindingFlags.Public
 				| BindingFlags.Instance
 			).Any(prop =>
-				_ContainsPatchField(
+				ArchitectureGuardSpec._ContainsPatchField(
 					prop.PropertyType, visited
 				)));
 		}

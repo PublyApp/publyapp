@@ -25,20 +25,20 @@ public sealed class GetAuditLogByIdSpec
 	private readonly ApiFixture _Fixture;
 
 	public GetAuditLogByIdSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
-		_Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithValidId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
@@ -46,7 +46,7 @@ public sealed class GetAuditLogByIdSpec
 		var logId =
 			await AuditLogTestHelper
 				.SeedAuditLogAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					userId,
 					AuditActions.InvitationCreated,
 					targetId: targetId,
@@ -61,7 +61,7 @@ public sealed class GetAuditLogByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -90,27 +90,27 @@ public sealed class GetAuditLogByIdSpec
 	public async Task
 	ItShouldReturnRealUserFieldsWhenUserIsSoftDeleted() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// Use the staff user (not admin) so we can
 		// soft-delete without breaking other tests
 		var staffUserId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffUserEmail
 				);
 
 		var logId =
 			await AuditLogTestHelper
 				.SeedAuditLogAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					staffUserId,
 					AuditActions.LoginSucceeded
 				);
 
 		// Soft-delete the user
-		await _SoftDeleteUserAsync(staffUserId);
+		await this._SoftDeleteUserAsync(staffUserId);
 
 		try {
 			var url = AuditLogTestHelper
@@ -120,7 +120,7 @@ public sealed class GetAuditLogByIdSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -138,7 +138,7 @@ public sealed class GetAuditLogByIdSpec
 				.NotBe("(unknown)");
 			result.UserEmail.Should().Contain("@");
 		} finally {
-			await _RestoreUserAsync(staffUserId);
+			await this._RestoreUserAsync(staffUserId);
 		}
 	}
 
@@ -153,7 +153,7 @@ public sealed class GetAuditLogByIdSpec
 	public async Task
 	ItShouldReturnNotFoundForNonExistentId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var url = AuditLogTestHelper.GetDetailUrl(
 			Guid.NewGuid()
 		);
@@ -163,7 +163,7 @@ public sealed class GetAuditLogByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -177,7 +177,7 @@ public sealed class GetAuditLogByIdSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var url = PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.AuditLogs.ForStaff.Root,
@@ -189,7 +189,7 @@ public sealed class GetAuditLogByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -210,7 +210,7 @@ public sealed class GetAuditLogByIdSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -220,7 +220,7 @@ public sealed class GetAuditLogByIdSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -233,7 +233,7 @@ public sealed class GetAuditLogByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -243,7 +243,7 @@ public sealed class GetAuditLogByIdSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
@@ -256,7 +256,7 @@ public sealed class GetAuditLogByIdSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -266,7 +266,7 @@ public sealed class GetAuditLogByIdSpec
 		Guid userId
 	) {
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<
 				PublyApp.Api.Data.DbContext
@@ -286,7 +286,7 @@ public sealed class GetAuditLogByIdSpec
 		Guid userId
 	) {
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<
 				PublyApp.Api.Data.DbContext

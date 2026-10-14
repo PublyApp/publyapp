@@ -33,9 +33,9 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public UpdateSystemJobDefinitionCronForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _Url(string systemJobId) {
@@ -50,18 +50,18 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 
 	[Fact]
 	public async Task ItShouldUpdateTheCronAndAuditWithoutRotatingTheEpoch() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId, originalEpoch) = await _SeedDefinitionAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId, originalEpoch) = await this._SeedDefinitionAsync();
 
 		try {
 			const string newCron = "0 30 4 * * ?";
-			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, UpdateSystemJobDefinitionCronForStaffSpec._Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(
 				new { cronExpression = newCron }
 			);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -73,7 +73,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 			document.RootElement.GetProperty("scheduleEpoch").GetString()
 				.Should().Be(originalEpoch.ToString());
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var row = await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey);
 			row.CronExpression.Should().Be(newCron);
@@ -87,23 +87,23 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 				);
 			audit.Should().NotBeNull("the cron update is audit-logged");
 		} finally {
-			await _CleanupAsync(jobKey);
+			await this._CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForAnInvalidCron() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId, originalEpoch) = await _SeedDefinitionAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId, originalEpoch) = await this._SeedDefinitionAsync();
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, UpdateSystemJobDefinitionCronForStaffSpec._Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(
 				new { cronExpression = "not a quartz cron at all" }
 			);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
@@ -114,44 +114,44 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 				.Should().NotBeEmpty();
 
 			// Nothing written: cron AND epoch stay exactly as seeded.
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var row = await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey);
 			row.CronExpression.Should().Be("0 0 3 * * ?");
 			row.ScheduleEpoch.Should().Be(originalEpoch);
 		} finally {
-			await _CleanupAsync(jobKey);
+			await this._CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_Url(Guid.NewGuid().ToString())
+			UpdateSystemJobDefinitionCronForStaffSpec._Url(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(
 			new { cronExpression = "0 0 3 * * ?" }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Patch, _Url("not-a-guid"))
+		var request = new HttpRequestMessage(HttpMethod.Patch, UpdateSystemJobDefinitionCronForStaffSpec._Url("not-a-guid"))
 			.WithSessionToken(token);
 		request.Content = JsonContent.Create(
 			new { cronExpression = "0 0 3 * * ?" }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
@@ -160,40 +160,40 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 	public async Task ItShouldRequireASession() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_Url(Guid.NewGuid().ToString())
+			UpdateSystemJobDefinitionCronForStaffSpec._Url(Guid.NewGuid().ToString())
 		);
 		request.Content = JsonContent.Create(
 			new { cronExpression = "0 0 3 * * ?" }
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenAndChangeNothingWithoutPermission() {
-		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
-		var (jobKey, definitionId, _) = await _SeedDefinitionAsync();
+		var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
+		var (jobKey, definitionId, _) = await this._SeedDefinitionAsync();
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Patch, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Patch, UpdateSystemJobDefinitionCronForStaffSpec._Url(definitionId))
 				.WithSessionToken(unprivileged.Token);
 			request.Content = JsonContent.Create(
 				new { cronExpression = "0 15 5 * * ?" }
 			);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			(await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey))
 				.CronExpression.Should()
 				.Be("0 0 3 * * ?", "nothing changes without permission");
 		} finally {
-			await _CleanupAsync(jobKey);
+			await this._CleanupAsync(jobKey);
 		}
 	}
 
@@ -204,7 +204,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 		var jobKey = $"spec.a5.sys-cron.{Guid.NewGuid():N}";
 		var epoch = Guid.NewGuid();
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var definition = new SystemJobDefinition {
@@ -227,7 +227,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
@@ -246,7 +246,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -267,7 +267,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-cron-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -288,7 +288,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

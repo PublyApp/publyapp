@@ -36,9 +36,9 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public RequeueDeadLetterForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	// K-1 root: the requeue path NEVER moved off /staff/dead-letter.
@@ -52,14 +52,14 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRequeueIntoJobQueueStampingLineageAuditAndEvent() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var deadLetterId = await _InsertDeadLetterAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var deadLetterId = await this._InsertDeadLetterAsync();
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, RequeueDeadLetterForStaffSpec._Url(deadLetterId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { note = "spec requeue" });
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -74,7 +74,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 			// Lineage stamped both ways: DLQ row points at the copy, copy carries
 			// requeued_from_dead_letter_id back.
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var dlRow = await verify.JobDeadLetter
 				.SingleAsync(d => d.Id == Guid.Parse(deadLetterId));
 			dlRow.RequeuedAsJobId.Should().Be(newJobId);
@@ -103,48 +103,48 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			Assert.NotNull(audit);
 
 			// Cleanup of the produced queue row happens in Finally below.
-			_ProducedJobIds.Add(newJobId);
+			this._ProducedJobIds.Add(newJobId);
 		} finally {
-			await _CleanupAsync(deadLetterId);
+			await this._CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_Url(Guid.NewGuid().ToString())
+			RequeueDeadLetterForStaffSpec._Url(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Post, _Url("not-a-guid"))
+		var request = new HttpRequestMessage(HttpMethod.Post, RequeueDeadLetterForStaffSpec._Url("not-a-guid"))
 			.WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnConflictWhenRowWasAlreadyRequeued() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var deadLetterId = await _InsertDeadLetterAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var deadLetterId = await this._InsertDeadLetterAsync();
 
 		try {
 			// Stamp the OUT pair first: the row has already been requeued once.
-			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			await dbContext.Database.ExecuteSqlAsync(
 				$"""
@@ -154,11 +154,11 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 				"""
 			);
 
-			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, RequeueDeadLetterForStaffSpec._Url(deadLetterId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 			var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -166,26 +166,26 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			problem.TranslationKey.Should()
 				.Be(ResponseKeys.DeadLetterRequeueConflict.Value);
 		} finally {
-			await _CleanupAsync(deadLetterId);
+			await this._CleanupAsync(deadLetterId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenAndChangeNothingWithoutPermission() {
-		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
-		var deadLetterId = await _InsertDeadLetterAsync();
+		var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
+		var deadLetterId = await this._InsertDeadLetterAsync();
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, _Url(deadLetterId))
+			var request = new HttpRequestMessage(HttpMethod.Post, RequeueDeadLetterForStaffSpec._Url(deadLetterId))
 				.WithSessionToken(unprivileged.Token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
 			// Nothing changed: no OUT lineage, no queue copy, no event, no audit.
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var row = await verify.JobDeadLetter
 				.SingleAsync(d => d.Id == Guid.Parse(deadLetterId));
 			row.RequeuedAsJobId.Should().BeNull();
@@ -202,7 +202,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 					&& a.TargetId == Guid.Parse(deadLetterId)
 			)).Should().BeFalse();
 		} finally {
-			await _CleanupAsync(deadLetterId);
+			await this._CleanupAsync(deadLetterId);
 		}
 	}
 
@@ -213,7 +213,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _InsertDeadLetterAsync() {
 		var jobType = $"spec.a5.requeue.{Guid.NewGuid():N}";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await dbContext.Database.ExecuteSqlAsync(
@@ -223,14 +223,14 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 				 enqueued_at, failed_at, external_state_status,
 				 external_state_prepared_at, external_state_expires_at)
 			VALUES (
-				{Guid.NewGuid()}, {jobType}, {_EmptyJson}::jsonb, 0, 10, 10,
+				{Guid.NewGuid()}, {jobType}, {RequeueDeadLetterForStaffSpec._EmptyJson}::jsonb, 0, 10, 10,
 				now(), now(), {(int)ExternalStateStatus.Unclassified}, now(),
 				now() + make_interval(days => 7)
 			)
 			"""
 		);
 
-		await using var verify = await _CreateDbContextAsync();
+		await using var verify = await this._CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
 		var id = row.Id;
 		if (id is null) {
@@ -243,7 +243,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string deadLetterId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
@@ -256,16 +256,16 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter WHERE id = {Guid.Parse(deadLetterId)}"
 		);
-		foreach (var jobId in _ProducedJobIds) {
+		foreach (var jobId in this._ProducedJobIds) {
 			await dbContext.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE id = {jobId}"
 			);
 		}
-		_ProducedJobIds.Clear();
+		this._ProducedJobIds.Clear();
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -286,7 +286,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-requeue-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -307,7 +307,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

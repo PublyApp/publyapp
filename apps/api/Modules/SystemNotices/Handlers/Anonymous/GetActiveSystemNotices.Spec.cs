@@ -23,22 +23,22 @@ public sealed class GetActiveSystemNoticesSpec
 	public GetActiveSystemNoticesSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnActiveNotices() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// Create an active notice (starts in past)
 		var startsAt = DateTime.UtcNow
 			.AddMinutes(-10).ToString("o");
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				severity: "warning",
 				title: "Active Test Notice",
 				message: "Currently active",
@@ -48,7 +48,7 @@ public sealed class GetActiveSystemNoticesSpec
 		try {
 			// Anonymous request (no auth needed)
 			using var response =
-				await _Http.GetAsync(_ActiveUrl);
+				await this._Http.GetAsync(GetActiveSystemNoticesSpec._ActiveUrl);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -74,7 +74,7 @@ public sealed class GetActiveSystemNoticesSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -86,7 +86,7 @@ public sealed class GetActiveSystemNoticesSpec
 	public async Task
 	ItShouldNotReturnExpiredNotices() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// Create an expired notice
 		var startsAt = DateTime.UtcNow
@@ -95,7 +95,7 @@ public sealed class GetActiveSystemNoticesSpec
 			.AddDays(-1).ToString("o");
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Expired Notice",
 				startsAt: startsAt,
 				expiresAt: expiresAt
@@ -103,7 +103,7 @@ public sealed class GetActiveSystemNoticesSpec
 
 		try {
 			using var response =
-				await _Http.GetAsync(_ActiveUrl);
+				await this._Http.GetAsync(GetActiveSystemNoticesSpec._ActiveUrl);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -120,7 +120,7 @@ public sealed class GetActiveSystemNoticesSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -132,21 +132,21 @@ public sealed class GetActiveSystemNoticesSpec
 	public async Task
 	ItShouldNotReturnFutureNotices() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// Create a future notice
 		var startsAt = DateTime.UtcNow
 			.AddDays(10).ToString("o");
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Future Notice",
 				startsAt: startsAt
 			);
 
 		try {
 			using var response =
-				await _Http.GetAsync(_ActiveUrl);
+				await this._Http.GetAsync(GetActiveSystemNoticesSpec._ActiveUrl);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -163,7 +163,7 @@ public sealed class GetActiveSystemNoticesSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore

@@ -26,7 +26,7 @@ public sealed class OpenApiDriftGateGuardSpec {
 
 	[Fact]
 	public void ItShouldKeepOpenApiGenerationOnForTheDriftGate() {
-		var csproj = _ReadApiCsproj();
+		var csproj = OpenApiDriftGateGuardSpec._ReadApiCsproj();
 
 		csproj.Should().Contain(
 			"<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>",
@@ -46,8 +46,8 @@ public sealed class OpenApiDriftGateGuardSpec {
 	}
 
 	private static string _ReadApiCsproj() {
-		var repoRoot = _FindRepoRoot();
-		var path = Path.Combine(repoRoot, _ApiCsprojRelativePath);
+		var repoRoot = OpenApiDriftGateGuardSpec._FindRepoRoot();
+		var path = Path.Combine(repoRoot, OpenApiDriftGateGuardSpec._ApiCsprojRelativePath);
 
 		File.Exists(path).Should().BeTrue(
 			"the API project file moved — reconcile the guard path, do not let the "

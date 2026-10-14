@@ -19,7 +19,7 @@ public sealed class VerifyEmailRequestSpec
 	public VerifyEmailRequestSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
+		this._Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -35,7 +35,7 @@ public sealed class VerifyEmailRequestSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -58,7 +58,7 @@ public sealed class VerifyEmailRequestSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

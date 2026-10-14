@@ -21,7 +21,7 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 public sealed class PostMediaAssetConfigurationSpec {
 	[Fact]
 	public void ItShouldMapTableWithCascadeFkWhenEntityIsConfigured() {
-		using var dbContext = _CreateDesignTimeDbContext();
+		using var dbContext = PostMediaAssetConfigurationSpec._CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull(
@@ -42,7 +42,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 
 	[Fact]
 	public void ItShouldEnforceOneLiveImagePerPostWithPartialUniqueIndex() {
-		using var dbContext = _CreateDesignTimeDbContext();
+		using var dbContext = PostMediaAssetConfigurationSpec._CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull();
@@ -66,7 +66,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 
 	[Fact]
 	public void ItShouldIndexTenantAndPostForScopedLookups() {
-		using var dbContext = _CreateDesignTimeDbContext();
+		using var dbContext = PostMediaAssetConfigurationSpec._CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
 		entity.Should().NotBeNull();

@@ -37,9 +37,9 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public GetUserAuthDataSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
@@ -47,24 +47,24 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		// Seeded Acme admin holds no profiles by default (the #861 scenario proven
 		// in TenantPermissionFilter.Spec.cs): the effective set comes from the
 		// AccountLevel.Admin short-circuit, which this endpoint materialises as "*".
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 
-		var acmeAdminToken = await _AuthClient.LoginAsync(
+		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{_UserAuthDataEndpoint}?tenant_id={acmeId}"
+			$"{GetUserAuthDataSpec._UserAuthDataEndpoint}?tenant_id={acmeId}"
 		)
 			.WithSessionToken(acmeAdminToken);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -79,9 +79,9 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExposeProfileDerivedKeysWithoutWildcardForNonAdminHolder() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -89,29 +89,29 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		var createdProfileIds = new List<Guid>();
 
 		try {
-			var profileId = await _CreateTenantProfileWithPermissionsAsync(
+			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Posts.VIEW.Key]
 			);
 			createdProfileIds.Add(profileId);
 
-			await _AssignProfileToTenantUserAsync(
+			await this._AssignProfileToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeUserToken = await _AuthClient.LoginAsync(
+			var acmeUserToken = await this._AuthClient.LoginAsync(
 				TestConstants.AcmeUserEmail,
 				TestConstants.SeedPassword
 			);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				$"{_UserAuthDataEndpoint}?tenant_id={acmeId}"
+				$"{GetUserAuthDataSpec._UserAuthDataEndpoint}?tenant_id={acmeId}"
 			)
 				.WithSessionToken(acmeUserToken);
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -123,7 +123,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 			keys.Should().BeEquivalentTo(["tenant.posts.view"]);
 		} finally {
-			await _CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -132,14 +132,14 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		// The endpoint sits behind session auth only: without ?tenant_id= there
 		// is no scope to resolve permissions in, so the payload gates everything
 		// closed with an empty array (never null).
-		var acmeAdminToken = await _AuthClient.LoginAsync(
+		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(HttpMethod.Get, _UserAuthDataEndpoint)
+		using var request = new HttpRequestMessage(HttpMethod.Get, GetUserAuthDataSpec._UserAuthDataEndpoint)
 			.WithSessionToken(acmeAdminToken);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -154,7 +154,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		IEnumerable<string> permissionKeys
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -192,7 +192,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -242,7 +242,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		}
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

@@ -17,7 +17,7 @@ public sealed class EndpointRateLimitAssignmentsSpec
 	public EndpointRateLimitAssignmentsSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Theory]
@@ -85,7 +85,7 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		string endpointName,
 		string expectedPolicy
 	) {
-		var endpoint = _GetRouteEndpoint(endpointName);
+		var endpoint = this._GetRouteEndpoint(endpointName);
 		var metadata = endpoint.Metadata
 			.GetMetadata<EnableRateLimitingAttribute>();
 
@@ -97,7 +97,7 @@ public sealed class EndpointRateLimitAssignmentsSpec
 	private RouteEndpoint _GetRouteEndpoint(
 		string endpointName
 	) {
-		return _Fixture.Factory.Services
+		return this._Fixture.Factory.Services
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints
 			.OfType<RouteEndpoint>()

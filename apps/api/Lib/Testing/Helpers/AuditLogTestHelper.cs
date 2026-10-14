@@ -148,10 +148,10 @@ internal static class AuditLogTestHelper {
 		}
 
 		if (queryParams.Count == 0) {
-			return _FindUrl;
+			return AuditLogTestHelper._FindUrl;
 		}
 
-		return _FindUrl
+		return AuditLogTestHelper._FindUrl
 			+ "?"
 			+ string.Join("&", queryParams);
 	}
@@ -167,7 +167,7 @@ internal static class AuditLogTestHelper {
 	}
 
 	public static string GetActionsUrl() {
-		return _ActionsUrl;
+		return AuditLogTestHelper._ActionsUrl;
 	}
 
 	public static string GetExportUrl(
@@ -204,7 +204,7 @@ internal static class AuditLogTestHelper {
 			queryParams.Add($"end_date={endDate}");
 		}
 
-		return _ExportUrl
+		return AuditLogTestHelper._ExportUrl
 			+ "?"
 			+ string.Join("&", queryParams);
 	}

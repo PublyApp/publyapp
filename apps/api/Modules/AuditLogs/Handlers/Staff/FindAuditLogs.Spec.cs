@@ -45,13 +45,13 @@ public sealed class FindAuditLogsSpec
 	}
 
 	public FindAuditLogsSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
-		_Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
+		this._Fixture = fixture;
 	}
 
 	[Theory]
-	[MemberData(nameof(QueryParameterNames))]
+	[MemberData(nameof(FindAuditLogsSpec.QueryParameterNames))]
 	public void
 	ItShouldDeclareSnakeCaseQueryParameterNames(
 		string propertyName,
@@ -73,18 +73,18 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturnOkWithDefaultPagination() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		var logId =
 			await AuditLogTestHelper
 				.SeedAuditLogAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					userId,
 					AuditActions.InvitationCreated
 				);
@@ -95,7 +95,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -114,17 +114,17 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturnNextCursorWhenMoreResultsExist() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		for (var i = 0; i < 3; i++) {
 			await AuditLogTestHelper.SeedAuditLogAsync(
-				_Fixture.Factory,
+				this._Fixture.Factory,
 				userId,
 				AuditActions.LoginSucceeded
 			);
@@ -138,7 +138,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -156,21 +156,21 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldFilterByAction() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.TenantSuspended
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.TenantReactivated
 		);
@@ -183,7 +183,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -202,29 +202,29 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldFilterByMultipleActionsWhenActionsProvided() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		var firstLogId =
 			await AuditLogTestHelper.SeedAuditLogAsync(
-				_Fixture.Factory,
+				this._Fixture.Factory,
 				userId,
 				AuditActions.LoginSucceeded
 			);
 		var secondLogId =
 			await AuditLogTestHelper.SeedAuditLogAsync(
-				_Fixture.Factory,
+				this._Fixture.Factory,
 				userId,
 				AuditActions.InvitationCreated
 			);
 		var thirdLogId =
 			await AuditLogTestHelper.SeedAuditLogAsync(
-				_Fixture.Factory,
+				this._Fixture.Factory,
 				userId,
 				AuditActions.TenantSuspended
 			);
@@ -240,7 +240,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -264,7 +264,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenAnyActionIsUnknown() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			actions: [
@@ -277,7 +277,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -293,13 +293,13 @@ public sealed class FindAuditLogsSpec
 	}
 
 	[Theory]
-	[MemberData(nameof(MalformedActionsCsv))]
+	[MemberData(nameof(FindAuditLogsSpec.MalformedActionsCsv))]
 	public async Task
 	ItShouldReturn422WithActionsErrorWhenActionsCsvContainsEmptyToken(
 		string actions
 	) {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl()
 			+ "?actions="
@@ -309,7 +309,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -328,7 +328,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenMoreThanFiftyActionsProvided() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var actions = new List<string>();
 		for (var i = 0; i < 51; i++) {
 			actions.Add(AuditActions.LoginSucceeded);
@@ -342,7 +342,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -361,7 +361,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturnWireNamedMessagesForQueryValidationErrors() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl()
 			+ "?user_id=abc&start_date=not-a-date";
@@ -370,7 +370,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -391,16 +391,16 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldFilterByUserId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.SystemNoticeCreated
 		);
@@ -413,7 +413,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -431,16 +431,16 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldFilterByDateRange() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.ImpersonationStarted
 		);
@@ -460,7 +460,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -476,7 +476,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturnBadRequestForInvalidCursor() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			cursor: "not-a-guid"
@@ -486,7 +486,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -496,7 +496,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenStartDateAfterEndDate() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			startDate: "2025-12-31T00:00:00Z",
@@ -507,7 +507,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -526,7 +526,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenStartDateIsMalformed() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			startDate: "not-a-date"
@@ -536,7 +536,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -546,7 +546,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenUserIdIsNotValidGuid() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			userId: "abc"
@@ -556,7 +556,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -571,7 +571,7 @@ public sealed class FindAuditLogsSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -581,7 +581,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -592,7 +592,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -602,7 +602,7 @@ public sealed class FindAuditLogsSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
@@ -613,7 +613,7 @@ public sealed class FindAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);

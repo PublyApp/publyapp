@@ -47,13 +47,13 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 	public void ItShouldRefuseTheBootWithPlainWordsWhenTheCanaryReadCannotReachTheDatabase() {
 		var services = new ServiceCollection();
 		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(
-			$"Host=127.0.0.1;Port={_FreeClosedPort()};Database=canary_unreachable_test;"
-				+ $"Username={_PlantedUsername};Password={_PlantedPassword}"));
+			$"Host=127.0.0.1;Port={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._FreeClosedPort()};Database=canary_unreachable_test;"
+				+ $"Username={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedUsername};Password={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedPassword}"));
 		using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 		var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-			_TestKey(),
+			PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._TestKey(),
 			new PostgresKeyRingCanaryStore(scopeFactory));
 
 		var refusal = boot.Should().Throw<InvalidOperationException>(
@@ -82,13 +82,13 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 		// failure must land in the same plain-words refusal.
 		var services = new ServiceCollection();
 		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(
-			$"Host=127.0.0.1;Port={_FreeClosedPort()};Database=canary_unreachable_test;"
-				+ $"Username={_PlantedUsername};Password={_PlantedPassword}"));
+			$"Host=127.0.0.1;Port={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._FreeClosedPort()};Database=canary_unreachable_test;"
+				+ $"Username={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedUsername};Password={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedPassword}"));
 		using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 		var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-			_TestKey(),
+			PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._TestKey(),
 			new FrozenEmptyCanaryStore(new PostgresKeyRingCanaryStore(scopeFactory)));
 
 		var refusal = boot.Should().Throw<InvalidOperationException>(
@@ -112,16 +112,16 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 		//      quotes the username VERBATIM unless the refusal redacts it.
 		var containerFixture = await PostgresContainerFixture.GetSharedAsync();
 		var dbName = $"canaryleak_{Guid.NewGuid():N}";
-		await _CreateDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+		await PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._CreateDatabaseAsync(containerFixture.AdminConnectionString, dbName);
 
 		try {
-			var transportShape = $"Host=127.0.0.1;Port={_FreeClosedPort()};Database={dbName};"
-				+ $"Username={_PlantedUsername};Password={_PlantedPassword};Pooling=false";
+			var transportShape = $"Host=127.0.0.1;Port={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._FreeClosedPort()};Database={dbName};"
+				+ $"Username={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedUsername};Password={PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedPassword};Pooling=false";
 			var serverAnsweredShape = new NpgsqlConnectionStringBuilder(
 				containerFixture.AdminConnectionString) {
 				Database = dbName,
-				Username = _PlantedUsername,
-				Password = _PlantedPassword,
+				Username = PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedUsername,
+				Password = PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedPassword,
 				Pooling = false
 			}.ConnectionString;
 
@@ -144,7 +144,7 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 				var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 				var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-					_TestKey(),
+					PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._TestKey(),
 					new PostgresKeyRingCanaryStore(scopeFactory));
 
 				var refusal = boot.Should().Throw<InvalidOperationException>(
@@ -152,23 +152,23 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 						+ "driver exception").Which;
 
 				refusal.Message.Should().NotContain(
-					_PlantedPassword,
+					PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedPassword,
 					"the refusal travels to crash-loop logs; the planted password marker "
 						+ "must never surface in any shape (" + shape.Kind + ")");
 				refusal.Message.Should().NotContain(
-					_PlantedUsername,
+					PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedUsername,
 					"a server that answers quotes the connection-string username in its "
 						+ "error text; the refusal must redact it (" + shape.Kind + ")");
 				refusal.Message.Should().NotContain("Password=")
 					.And.NotContain("Username=");
-				_WholeChainText(refusal).Should().NotContain(
-					_PlantedPassword,
+				PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._WholeChainText(refusal).Should().NotContain(
+					PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._PlantedPassword,
 					"crash-loop logs print the whole exception chain, so the password "
 						+ "marker must be absent from EVERY link (" + shape.Kind + ")");
 			}
 		} finally {
 			NpgsqlConnection.ClearAllPools();
-			await _DropDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+			await PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._DropDatabaseAsync(containerFixture.AdminConnectionString, dbName);
 		}
 	}
 
@@ -181,7 +181,7 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 		// verify reachability of a database that demonstrably answers.
 		var containerFixture = await PostgresContainerFixture.GetSharedAsync();
 		var dbName = $"canary42p01_{Guid.NewGuid():N}";
-		await _CreateDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+		await PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._CreateDatabaseAsync(containerFixture.AdminConnectionString, dbName);
 
 		try {
 			var connectionString = new NpgsqlConnectionStringBuilder(
@@ -196,7 +196,7 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 			var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 			var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-				_TestKey(),
+				PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._TestKey(),
 				new PostgresKeyRingCanaryStore(scopeFactory));
 
 			var refusal = boot.Should().Throw<InvalidOperationException>(
@@ -217,7 +217,7 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 			refusal.Message.Should().Contain("the API will not start");
 		} finally {
 			NpgsqlConnection.ClearAllPools();
-			await _DropDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+			await PostgresKeyRingCanaryStoreUnreachableDatabaseSpec._DropDatabaseAsync(containerFixture.AdminConnectionString, dbName);
 		}
 	}
 
@@ -285,20 +285,20 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 		private bool _EmptinessReported;
 
 		public FrozenEmptyCanaryStore(IKeyRingCanaryStore inner) {
-			_Inner = inner;
+			this._Inner = inner;
 		}
 
 		public string? Read() {
-			if (_EmptinessReported) {
-				return _Inner.Read();
+			if (this._EmptinessReported) {
+				return this._Inner.Read();
 			}
 
-			_EmptinessReported = true;
+			this._EmptinessReported = true;
 			return null;
 		}
 
 		public void Write(string blob) {
-			_Inner.Write(blob);
+			this._Inner.Write(blob);
 		}
 	}
 }

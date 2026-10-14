@@ -27,22 +27,22 @@ public sealed class CreateSystemNoticeSpec
 	public CreateSystemNoticeSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnCreatedWithValidData() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var startsAt = DateTime.UtcNow
 			.AddHours(1).ToString("o");
 		var expiresAt = DateTime.UtcNow
 			.AddDays(7).ToString("o");
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, _CreateUrl
+			HttpMethod.Post, CreateSystemNoticeSpec._CreateUrl
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			severity = "warning",
@@ -53,7 +53,7 @@ public sealed class CreateSystemNoticeSpec
 		});
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 		Guid? createdId = null;
 
 		try {
@@ -75,7 +75,7 @@ public sealed class CreateSystemNoticeSpec
 				try {
 					await SystemNoticeTestHelper
 						.DeleteNoticeAsync(
-							_Http, token, createdId.Value
+							this._Http, token, createdId.Value
 						);
 				} catch {
 					// Ignore cleanup errors
@@ -88,12 +88,12 @@ public sealed class CreateSystemNoticeSpec
 	public async Task
 	ItShouldReturnCreatedWithoutExpiresAt() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var startsAt = DateTime.UtcNow
 			.AddHours(1).ToString("o");
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, _CreateUrl
+			HttpMethod.Post, CreateSystemNoticeSpec._CreateUrl
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			severity = "info",
@@ -103,7 +103,7 @@ public sealed class CreateSystemNoticeSpec
 		});
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 		Guid? createdId = null;
 
 		try {
@@ -121,7 +121,7 @@ public sealed class CreateSystemNoticeSpec
 				try {
 					await SystemNoticeTestHelper
 						.DeleteNoticeAsync(
-							_Http, token, createdId.Value
+							this._Http, token, createdId.Value
 						);
 				} catch {
 					// Ignore
@@ -134,7 +134,7 @@ public sealed class CreateSystemNoticeSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutAuth() {
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, _CreateUrl
+			HttpMethod.Post, CreateSystemNoticeSpec._CreateUrl
 		);
 		request.Content = JsonContent.Create(new {
 			severity = "info",
@@ -144,7 +144,7 @@ public sealed class CreateSystemNoticeSpec
 		});
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -154,10 +154,10 @@ public sealed class CreateSystemNoticeSpec
 	public async Task
 	ItShouldReturnValidationErrorForInvalidSeverity() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, _CreateUrl
+			HttpMethod.Post, CreateSystemNoticeSpec._CreateUrl
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			severity = "extreme",
@@ -167,7 +167,7 @@ public sealed class CreateSystemNoticeSpec
 		});
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -177,10 +177,10 @@ public sealed class CreateSystemNoticeSpec
 	public async Task
 	ItShouldReturnValidationErrorForEmptyTitle() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
-			HttpMethod.Post, _CreateUrl
+			HttpMethod.Post, CreateSystemNoticeSpec._CreateUrl
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			severity = "info",
@@ -190,7 +190,7 @@ public sealed class CreateSystemNoticeSpec
 		});
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

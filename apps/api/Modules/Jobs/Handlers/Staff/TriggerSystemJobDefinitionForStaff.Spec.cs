@@ -33,9 +33,9 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 	private readonly TestAuthClient _AuthClient;
 
 	public TriggerSystemJobDefinitionForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _Url(string systemJobId) {
@@ -50,15 +50,15 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldEnqueueOneOccurrenceLedgerRowAndAudit() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId) = await _SeedDefinitionAsync(isEnabled: true);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId) = await this._SeedDefinitionAsync(isEnabled: true);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Post, TriggerSystemJobDefinitionForStaffSpec._Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -72,7 +72,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				.Should().Be(ResponseKeys.SystemJobTriggerSuccess.Value);
 
 			// Exactly ONE queue copy for THIS occurrence.
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			(await verify.JobQueue.SingleAsync(
 				j => j.Id == Guid.Parse(newJobId.Required())
 			)).Status.Should().Be(JobQueueStatus.Pending);
@@ -89,21 +89,21 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				);
 			audit.Should().NotBeNull("the trigger is audit-logged");
 		} finally {
-			await _CleanupAsync(jobKey, definitionId);
+			await this._CleanupAsync(jobKey, definitionId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldNoOpWithOkForADisabledKeyWritingNothing() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var (jobKey, definitionId) = await _SeedDefinitionAsync(isEnabled: false);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (jobKey, definitionId) = await this._SeedDefinitionAsync(isEnabled: false);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Post, TriggerSystemJobDefinitionForStaffSpec._Url(definitionId))
 				.WithSessionToken(token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			// Deliberate 200: the row exists, it just refused — that is not a 404.
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -115,7 +115,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				.Should().Be(ResponseKeys.SystemJobTriggerNoop.Value);
 
 			// NOTHING was written: no queue copy, no ledger row, no audit row.
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			(await verify.JobQueue.AnyAsync(j => j.JobType.StartsWith(jobKey)))
 				.Should().BeFalse();
 			(await verify.SystemJobOccurrence.AnyAsync(o => o.JobKey == jobKey))
@@ -125,34 +125,34 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				&& a.TargetId == Guid.Parse(definitionId)
 			)).Should().BeFalse();
 		} finally {
-			await _CleanupAsync(jobKey, definitionId);
+			await this._CleanupAsync(jobKey, definitionId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_Url(Guid.NewGuid().ToString())
+			TriggerSystemJobDefinitionForStaffSpec._Url(Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMalformedIdWithoutRouteConstraint() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Post, _Url("not-a-guid"))
+		var request = new HttpRequestMessage(HttpMethod.Post, TriggerSystemJobDefinitionForStaffSpec._Url("not-a-guid"))
 			.WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
@@ -161,30 +161,30 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 	public async Task ItShouldRequireASession() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_Url(Guid.NewGuid().ToString())
+			TriggerSystemJobDefinitionForStaffSpec._Url(Guid.NewGuid().ToString())
 		);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldWriteNothingWithoutPermission() {
-		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
-		var (jobKey, definitionId) = await _SeedDefinitionAsync(isEnabled: true);
+		var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
+		var (jobKey, definitionId) = await this._SeedDefinitionAsync(isEnabled: true);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Post, _Url(definitionId))
+			var request = new HttpRequestMessage(HttpMethod.Post, TriggerSystemJobDefinitionForStaffSpec._Url(definitionId))
 				.WithSessionToken(unprivileged.Token);
 			request.Content = JsonContent.Create(new { });
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			(await verify.SystemJobOccurrence.AnyAsync(o => o.JobKey == jobKey))
 				.Should().BeFalse();
 			(await verify.AuditLog.AnyAsync(a =>
@@ -192,7 +192,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				&& a.TargetId == Guid.Parse(definitionId)
 			)).Should().BeFalse();
 		} finally {
-			await _CleanupAsync(jobKey, definitionId);
+			await this._CleanupAsync(jobKey, definitionId);
 		}
 	}
 
@@ -203,7 +203,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 	) {
 		var jobKey = $"spec.a5.trigger.{Guid.NewGuid():N}";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var definition = new SystemJobDefinition {
@@ -226,7 +226,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 	}
 
 	private async Task _CleanupAsync(string jobKey, string definitionId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type LIKE {jobKey + "%"}"
@@ -246,7 +246,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -267,7 +267,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-trigger-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -288,7 +288,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

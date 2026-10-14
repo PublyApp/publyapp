@@ -27,8 +27,8 @@ public sealed class FindStaffPermissionsSpec
 	public FindStaffPermissionsSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
@@ -36,10 +36,10 @@ public sealed class FindStaffPermissionsSpec
 	ItShouldReturnUnauthorizedWithoutToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_FindUrl
+			FindStaffPermissionsSpec._FindUrl
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -49,14 +49,14 @@ public sealed class FindStaffPermissionsSpec
 	public async Task
 	ItShouldReturnOkWithValidToken() {
 		var sessionToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_FindUrl
+			FindStaffPermissionsSpec._FindUrl
 		).WithSessionToken(sessionToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -67,10 +67,10 @@ public sealed class FindStaffPermissionsSpec
 	ItShouldReturnUnauthorizedWithInvalidToken() {
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_FindUrl
+			FindStaffPermissionsSpec._FindUrl
 		).WithSessionToken("invalid-token");
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);

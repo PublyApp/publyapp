@@ -24,7 +24,7 @@ internal sealed partial class DatabaseTemplateManager {
 	// Only allow safe DB names:
 	// lowercase alphanumeric + underscores
 	private static string _ValidateDbName(string name) {
-		if (!_SafeDbNameRegex.IsMatch(name)) {
+		if (!DatabaseTemplateManager._SafeDbNameRegex.IsMatch(name)) {
 			throw new ArgumentException(
 				$"Invalid database name: '{name}'. "
 				+ "Only lowercase alphanumeric and "
@@ -38,8 +38,8 @@ internal sealed partial class DatabaseTemplateManager {
 		string adminConnectionString,
 		string templateDbName
 	) {
-		_AdminConnectionString = adminConnectionString;
-		_TemplateDbName = _ValidateDbName(templateDbName);
+		this._AdminConnectionString = adminConnectionString;
+		this._TemplateDbName = DatabaseTemplateManager._ValidateDbName(templateDbName);
 	}
 
 	/// <summary>
@@ -52,7 +52,7 @@ internal sealed partial class DatabaseTemplateManager {
 	) {
 		try {
 			await using var conn =
-				new NpgsqlConnection(_AdminConnectionString);
+				new NpgsqlConnection(this._AdminConnectionString);
 			await conn.OpenAsync(ct);
 
 			// Parameterized query for existence check
@@ -62,7 +62,7 @@ internal sealed partial class DatabaseTemplateManager {
 				conn
 			);
 			checkCmd.Parameters.AddWithValue(
-				"name", _TemplateDbName
+				"name", this._TemplateDbName
 			);
 			var exists =
 				await checkCmd.ExecuteScalarAsync(ct) is not null;
@@ -71,7 +71,7 @@ internal sealed partial class DatabaseTemplateManager {
 				// CREATE DATABASE does not support parameters
 				// for identifiers — validated via regex above
 				var createCmd = new NpgsqlCommand(
-					$"CREATE DATABASE {_TemplateDbName}",
+					$"CREATE DATABASE {this._TemplateDbName}",
 					conn
 				);
 				await createCmd.ExecuteNonQueryAsync(ct);
@@ -79,9 +79,9 @@ internal sealed partial class DatabaseTemplateManager {
 
 			var templateConnString =
 				new NpgsqlConnectionStringBuilder(
-					_AdminConnectionString
+					this._AdminConnectionString
 				) {
-					Database = _TemplateDbName
+					Database = this._TemplateDbName
 				}.ConnectionString;
 
 			var options =
@@ -130,7 +130,7 @@ internal sealed partial class DatabaseTemplateManager {
 		) {
 			throw new InvalidOperationException(
 				"Failed to create/migrate template database "
-				+ $"'{_TemplateDbName}'. Check that Docker is "
+				+ $"'{this._TemplateDbName}'. Check that Docker is "
 				+ "running and migrations are up to date.",
 				ex
 			);
@@ -146,24 +146,24 @@ internal sealed partial class DatabaseTemplateManager {
 		string dbName,
 		CancellationToken ct = default
 	) {
-		_ValidateDbName(dbName);
+		DatabaseTemplateManager._ValidateDbName(dbName);
 
 		try {
 			await using var conn =
-				new NpgsqlConnection(_AdminConnectionString);
+				new NpgsqlConnection(this._AdminConnectionString);
 			await conn.OpenAsync(ct);
 
 			// CREATE DATABASE does not support parameters for
 			// identifiers — validated via regex above
 			var createCmd = new NpgsqlCommand(
 				$"CREATE DATABASE {dbName} "
-				+ $"TEMPLATE {_TemplateDbName}",
+				+ $"TEMPLATE {this._TemplateDbName}",
 				conn
 			);
 			await createCmd.ExecuteNonQueryAsync(ct);
 		} catch (Exception ex) {
 			throw new InvalidOperationException(
-				$"Failed to clone template '{_TemplateDbName}' "
+				$"Failed to clone template '{this._TemplateDbName}' "
 				+ $"to '{dbName}'.",
 				ex
 			);
@@ -171,7 +171,7 @@ internal sealed partial class DatabaseTemplateManager {
 
 		// Pooling=false to avoid pool issues when dropping
 		var builder = new NpgsqlConnectionStringBuilder(
-			_AdminConnectionString
+			this._AdminConnectionString
 		) {
 			Database = dbName,
 			Pooling = false
@@ -189,7 +189,7 @@ internal sealed partial class DatabaseTemplateManager {
 		string dbName,
 		CancellationToken ct = default
 	) {
-		_ValidateDbName(dbName);
+		DatabaseTemplateManager._ValidateDbName(dbName);
 
 		// Clear all connection pools to release connections.
 		// Process-wide but acceptable in test context since
@@ -198,7 +198,7 @@ internal sealed partial class DatabaseTemplateManager {
 
 		try {
 			await using var conn =
-				new NpgsqlConnection(_AdminConnectionString);
+				new NpgsqlConnection(this._AdminConnectionString);
 			await conn.OpenAsync(ct);
 
 			// Terminate connections — parameterized where

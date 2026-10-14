@@ -23,32 +23,32 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public BulkDeleteTenantsAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldDeleteDistinctTenantsAndWritePerTargetAuditLogs() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			TestConstants.StaffAdminEmail
 		);
-		var firstTenant = await _SeedTenantAsync(
+		var firstTenant = await this._SeedTenantAsync(
 			"Bulk Delete Suspended A",
 			TenantStatus.Suspended
 		);
-		var secondTenant = await _SeedTenantAsync(
+		var secondTenant = await this._SeedTenantAsync(
 			"Bulk Delete Suspended B",
 			TenantStatus.Suspended
 		);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkDeleteTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -75,11 +75,11 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await _AssertTenantDeletedAsync(firstTenant.TenantId);
-		await _AssertTenantDeletedAsync(secondTenant.TenantId);
+		await this._AssertTenantDeletedAsync(firstTenant.TenantId);
+		await this._AssertTenantDeletedAsync(secondTenant.TenantId);
 
 		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
-			_Fixture,
+			this._Fixture,
 			AuditActions.TenantBulkDeleted,
 			actorUserId,
 			startedAt
@@ -105,24 +105,24 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnPartialResultForNonDeletableTenants() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var suspendedTenant = await _SeedTenantAsync(
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var suspendedTenant = await this._SeedTenantAsync(
 			"Bulk Delete Partial Suspended",
 			TenantStatus.Suspended
 		);
-		var activeTenant = await _SeedTenantAsync(
+		var activeTenant = await this._SeedTenantAsync(
 			"Bulk Delete Partial Active",
 			TenantStatus.Active
 		);
 		var missingTenantId = Guid.NewGuid();
 		var actorUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			TestConstants.StaffAdminEmail
 		);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkDeleteTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new {
 					tenantIds = new[] {
@@ -156,11 +156,11 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 			&& item.Error == "Tenant not found"
 		);
 
-		await _AssertTenantDeletedAsync(suspendedTenant.TenantId);
-		await _AssertTenantNotDeletedAsync(activeTenant.TenantId);
+		await this._AssertTenantDeletedAsync(suspendedTenant.TenantId);
+		await this._AssertTenantNotDeletedAsync(activeTenant.TenantId);
 
 		var auditLogs = await TenantBulkActionSpecSupport.GetAuditLogsAsync(
-			_Fixture,
+			this._Fixture,
 			AuditActions.TenantBulkDeleted,
 			actorUserId,
 			startedAt
@@ -174,18 +174,18 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	ItShouldAllowPermissionedNonAdminStaffUserToBulkDelete() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-delete",
 				AppPermissions.Staff.Tenants.DELETE.Key
 			);
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Delete Permissioned",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkDeleteTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -198,13 +198,13 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Delete Unauthorized",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkDeleteTenantsAsStaffSpec._CreateRequest(
 				sessionToken: null,
 				body: new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -217,17 +217,17 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _AuthClient.LoginAsync(
+		var tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Delete Tenant User",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkDeleteTenantsAsStaffSpec._CreateRequest(
 				tenantToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -242,17 +242,17 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithoutPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-delete-no-permission"
 			);
-		var tenant = await _SeedTenantAsync(
+		var tenant = await this._SeedTenantAsync(
 			"Bulk Delete No Permission",
 			TenantStatus.Suspended
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateRequest(
+		using var response = await this._Http.SendAsync(
+			BulkDeleteTenantsAsStaffSpec._CreateRequest(
 				staffToken,
 				new { tenantIds = new[] { tenant.TenantId } }
 			)
@@ -263,15 +263,15 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 	}
 
 	[Theory]
-	[MemberData(nameof(InvalidBodies))]
+	[MemberData(nameof(BulkDeleteTenantsAsStaffSpec.InvalidBodies))]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenBodyIsInvalid(
 		string body
 	) {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _Http.SendAsync(
+		using var response = await this._Http.SendAsync(
 			TenantBulkActionSpecSupport.CreateRawJsonRequest(
 				TenantBulkActionSpecSupport.GetBulkDeleteUrl(),
 				staffToken,
@@ -279,7 +279,7 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 			)
 		);
 
-		await _AssertValidationProblemAsync(response);
+		await BulkDeleteTenantsAsStaffSpec._AssertValidationProblemAsync(response);
 	}
 
 	public static TheoryData<string> InvalidBodies() {
@@ -315,7 +315,7 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		TenantStatus status
 	) {
 		return TenantBulkActionSpecSupport.SeedTenantAsync(
-			_Fixture,
+			this._Fixture,
 			namePrefix,
 			status
 		);
@@ -325,7 +325,7 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		Guid tenantId
 	) {
 		var tenant = await TenantBulkActionSpecSupport
-			.GetTenantIgnoringFiltersAsync(_Fixture, tenantId);
+			.GetTenantIgnoringFiltersAsync(this._Fixture, tenantId);
 		tenant.Should().NotBeNull();
 		if (tenant is null) {
 			throw new InvalidOperationException(
@@ -342,7 +342,7 @@ public sealed class BulkDeleteTenantsAsStaffSpec
 		Guid tenantId
 	) {
 		var tenant = await TenantBulkActionSpecSupport
-			.GetTenantIgnoringFiltersAsync(_Fixture, tenantId);
+			.GetTenantIgnoringFiltersAsync(this._Fixture, tenantId);
 		tenant.Should().NotBeNull();
 		if (tenant is null) {
 			throw new InvalidOperationException(

@@ -31,9 +31,9 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public UpdateTenantProfileAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl(string tenantId, string profileId) {
@@ -46,64 +46,64 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await _GetTenantIdAsync();
+		var tenantId = await this._GetTenantIdAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		);
 		request.Content = JsonContent.Create(new { name = "Updated" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var tenantId = await _GetTenantIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Updated" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await _GetTenantIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Updated" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl("not-a-guid", Guid.NewGuid().ToString())
+			UpdateTenantProfileAsStaffSpec._GetUrl("not-a-guid", Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Updated" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -114,16 +114,16 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), "not-a-guid")
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), "not-a-guid")
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Updated" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -134,51 +134,51 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForEmptyPatchBody() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMissingProfile() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = "Updated" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldRejectDuplicateNamesWithinTenant() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId, "Update A");
-		var existingProfileId = await _CreateProfileAsync(token, tenantId, "Update B");
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId, "Update A");
+		var existingProfileId = await this._CreateProfileAsync(token, tenantId, "Update B");
 
-		var existingName = await _GetProfileNameAsync(token, tenantId, existingProfileId);
+		var existingName = await this._GetProfileNameAsync(token, tenantId, existingProfileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { name = existingName });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -189,29 +189,29 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldUpdateNameAndDescription() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 		var profileGuid = Guid.Parse(profileId);
-		await _AddProfilePermissionAsync(
+		await this._AddProfilePermissionAsync(
 			profileGuid,
 			AppPermissions.Tenant.Modules.ACCESS_USERS.Key
 		);
-		var originalName = await _GetProfileNameAsync(token, tenantId, profileId);
+		var originalName = await this._GetProfileNameAsync(token, tenantId, profileId);
 		var originalDescription = "Profile created for update tests";
 		var updatedName = "Renamed " + Guid.NewGuid().ToString("N")[..8];
 		var updatedDescription = "Updated description";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			name = updatedName,
 			description = updatedDescription,
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -222,20 +222,20 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Profile.CreatedAt.Should().NotBe(default);
 		payload.Profile.UpdatedAt.Should().NotBe(default);
 
-		var persistedProfile = await _GetProfileAsync(profileGuid);
+		var persistedProfile = await this._GetProfileAsync(profileGuid);
 		payload.Profile.CreatedAt.Should()
 			.BeCloseTo(persistedProfile.CreatedAt, TimeSpan.FromMicroseconds(1));
 		payload.Profile.UpdatedAt.Should()
 			.BeCloseTo(persistedProfile.UpdatedAt, TimeSpan.FromMicroseconds(1));
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			Guid.Parse(profileId)
 		);
 		auditLog.Should().NotBeNull();
 		Assert.NotNull(auditLog);
 		auditLog.Action.Should().Be(AuditActions.TenantProfileUpdated);
-		_AssertAuditDetails(
+		UpdateTenantProfileAsStaffSpec._AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
 			expectedProfileId: Guid.Parse(profileId),
@@ -250,14 +250,14 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldClearDescriptionWhenNullIsProvided() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 		var profileGuid = Guid.Parse(profileId);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = new StringContent(
 			"{\"description\":null}",
@@ -265,7 +265,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			"application/json"
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -273,14 +273,14 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(payload);
 		payload.Profile.Description.Should().BeNull();
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			profileGuid
 		);
 		auditLog.Should().NotBeNull();
 		Assert.NotNull(auditLog);
 		auditLog.Action.Should().Be(AuditActions.TenantProfileUpdated);
-		_AssertAuditDetails(
+		UpdateTenantProfileAsStaffSpec._AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
 			expectedProfileId: profileGuid,
@@ -295,20 +295,20 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSetIconAndTone() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			icon = "users-group",
 			tone = "6",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -317,25 +317,25 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Profile.Icon.Should().Be("users-group");
 		payload.Profile.Tone.Should().Be("6");
 
-		var persistedProfile = await _GetProfileAsync(Guid.Parse(profileId));
+		var persistedProfile = await this._GetProfileAsync(Guid.Parse(profileId));
 		persistedProfile.Icon.Should().Be("users-group");
 		persistedProfile.Tone.Should().Be("6");
 	}
 
 	[Fact]
 	public async Task ItShouldWriteAuditLogWhenOnlyIconChanges() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 		var profileGuid = Guid.Parse(profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { icon = "users-group" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content
@@ -343,11 +343,11 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Should().NotBeNull();
 		Assert.NotNull(payload);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			profileGuid
 		);
-		_AssertStyleAuditDetails(
+		UpdateTenantProfileAsStaffSpec._AssertStyleAuditDetails(
 			auditLog,
 			tenantId,
 			profileGuid,
@@ -360,18 +360,18 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldWriteAuditLogWhenOnlyToneChanges() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 		var profileGuid = Guid.Parse(profileId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { tone = "6" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content
@@ -379,11 +379,11 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Should().NotBeNull();
 		Assert.NotNull(payload);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			profileGuid
 		);
-		_AssertStyleAuditDetails(
+		UpdateTenantProfileAsStaffSpec._AssertStyleAuditDetails(
 			auditLog,
 			tenantId,
 			profileGuid,
@@ -396,14 +396,14 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
-		await _SetProfileStyleAsync(Guid.Parse(profileId), "shield", "2");
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
+		await this._SetProfileStyleAsync(Guid.Parse(profileId), "shield", "2");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = new StringContent(
 			"{\"icon\":null,\"tone\":null}",
@@ -411,7 +411,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			"application/json"
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -420,15 +420,15 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Profile.Icon.Should().BeNull();
 		payload.Profile.Tone.Should().BeNull();
 
-		var persistedProfile = await _GetProfileAsync(Guid.Parse(profileId));
+		var persistedProfile = await this._GetProfileAsync(Guid.Parse(profileId));
 		persistedProfile.Icon.Should().BeNull();
 		persistedProfile.Tone.Should().BeNull();
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			Guid.Parse(profileId)
 		);
-		_AssertStyleAuditDetails(
+		UpdateTenantProfileAsStaffSpec._AssertStyleAuditDetails(
 			auditLog,
 			tenantId,
 			Guid.Parse(profileId),
@@ -442,20 +442,20 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldLeaveIconAndToneUnchangedWhenOmitted() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
-		await _SetProfileStyleAsync(Guid.Parse(profileId), "briefcase", "3");
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
+		await this._SetProfileStyleAsync(Guid.Parse(profileId), "briefcase", "3");
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			description = "Style fields omitted",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -464,24 +464,24 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		payload.Profile.Icon.Should().Be("briefcase");
 		payload.Profile.Tone.Should().Be("3");
 
-		var persistedProfile = await _GetProfileAsync(Guid.Parse(profileId));
+		var persistedProfile = await this._GetProfileAsync(Guid.Parse(profileId));
 		persistedProfile.Icon.Should().Be("briefcase");
 		persistedProfile.Tone.Should().Be("3");
 	}
 
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new { tone = "8" });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -492,21 +492,21 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNotWriteAuditLogWhenPatchNormalizesToNoChange() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var profileId = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var profileId = await this._CreateProfileAsync(token, tenantId);
 		var profileGuid = Guid.Parse(profileId);
 		var noOpDescription = "Profile created for update tests";
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_GetUrl(tenantId.ToString(), profileId)
+			UpdateTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 		request.Content = JsonContent.Create(new {
 			description = noOpDescription,
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -514,7 +514,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(payload);
 		payload.Profile.Description.Should().Be(noOpDescription);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUpdated,
 			profileGuid
 		);
@@ -522,9 +522,9 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -548,7 +548,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			description = "Profile created for update tests",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -571,7 +571,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			)
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -586,7 +586,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		string action,
 		Guid targetId
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.AuditLog
@@ -600,7 +600,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		string icon,
 		string tone
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profile = await dbContext.Profile.SingleAsync(item => item.Id == profileId);
 		profile.Icon = icon;
@@ -613,7 +613,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		string permissionKey
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
@@ -624,7 +624,7 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Profile> _GetProfileAsync(Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await dbContext.Profile
 			.AsNoTracking()
@@ -697,9 +697,9 @@ public sealed class UpdateTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		foreach (var expectedChange in expectedChanges) {
 			var changedField = changedFields.GetProperty(expectedChange.Key);
-			_GetNullableString(changedField.GetProperty("Old"))
+			UpdateTenantProfileAsStaffSpec._GetNullableString(changedField.GetProperty("Old"))
 				.Should().Be(expectedChange.Value.Old);
-			_GetNullableString(changedField.GetProperty("New"))
+			UpdateTenantProfileAsStaffSpec._GetNullableString(changedField.GetProperty("New"))
 				.Should().Be(expectedChange.Value.New);
 		}
 	}

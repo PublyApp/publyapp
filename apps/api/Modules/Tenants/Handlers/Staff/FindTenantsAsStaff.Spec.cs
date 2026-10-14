@@ -30,16 +30,16 @@ public sealed class FindTenantsAsStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantsAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithDefaultPagination() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl();
 		var request = new HttpRequestMessage(
@@ -47,7 +47,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -61,7 +61,7 @@ public sealed class FindTenantsAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
 		var url = TenantTestHelper.GetFindUrl();
 		var request = new HttpRequestMessage(
@@ -69,21 +69,21 @@ public sealed class FindTenantsAsStaffSpec
 			url
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldNotGrantPermissionsFromSoftDeletedProfileAssignments() {
-		var (staffToken, staffUserId) = await _CreateUnprivilegedStaffUserAsync();
-		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var (staffToken, staffUserId) = await this._CreateUnprivilegedStaffUserAsync();
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var profileId = await _CreateStaffProfileAsync(
+		var profileId = await this._CreateStaffProfileAsync(
 			adminToken,
 			permissions: [AppPermissions.Staff.Tenants.LIST.Key]
 		);
 
-		await _UpdateStaffUserProfilesAsync(
+		await this._UpdateStaffUserProfilesAsync(
 			adminToken,
 			staffUserId,
 			profileIds: [profileId]
@@ -93,12 +93,12 @@ public sealed class FindTenantsAsStaffSpec
 
 		// With the profile assigned, access should be granted.
 		using (var okRequest = new HttpRequestMessage(HttpMethod.Get, url).WithSessionToken(staffToken)) {
-			using var okResponse = await _Http.SendAsync(okRequest);
+			using var okResponse = await this._Http.SendAsync(okRequest);
 			okResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		// Unassign: Update endpoint soft-deletes the join rows.
-		await _UpdateStaffUserProfilesAsync(
+		await this._UpdateStaffUserProfilesAsync(
 			adminToken,
 			staffUserId,
 			profileIds: []
@@ -107,7 +107,7 @@ public sealed class FindTenantsAsStaffSpec
 		// Access must be revoked immediately (no stale permission from soft-deleted links).
 		using var forbiddenRequest = new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(staffToken);
-		using var forbiddenResponse = await _Http.SendAsync(forbiddenRequest);
+		using var forbiddenResponse = await this._Http.SendAsync(forbiddenRequest);
 		forbiddenResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -115,7 +115,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnNextCursorWhenMoreResultsExist() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			limit: 2,
@@ -127,7 +127,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -145,7 +145,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnSecondPageWhenCursorProvided() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url1 = TenantTestHelper.GetFindUrl(
 			limit: 2,
@@ -157,7 +157,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response1 =
-			await _Http.SendAsync(request1);
+			await this._Http.SendAsync(request1);
 		response1.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
@@ -180,7 +180,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response2 =
-			await _Http.SendAsync(request2);
+			await this._Http.SendAsync(request2);
 		response2.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
@@ -200,7 +200,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedCursor() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			cursor: "not-a-guid"
@@ -210,7 +210,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -224,7 +224,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestForCursorNotFound() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			cursor: Guid.NewGuid().ToString()
@@ -234,7 +234,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -244,7 +244,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestForInvalidSortId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			sortId: "not-a-sort-field"
@@ -254,7 +254,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -264,7 +264,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldReturn422ForInvalidStatusToken() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			status: "active,wat"
@@ -274,7 +274,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -284,7 +284,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldFilterBySearchQuery() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			q: "acme"
@@ -294,7 +294,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -312,7 +312,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldMatchByCodePrefix() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// Acme tenant code is "acme-corp" while its name does not contain "acme-",
 		// so this exercises prefix search on code (not substring).
@@ -324,7 +324,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -342,11 +342,11 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldTreatABarePercentSearchAsALiteralCharacterNotAWildcard() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -374,7 +374,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -395,15 +395,15 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldExcludeSoftDeletedUsersFromUsersCountInTenantsListAggregate() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 		var tenantName = $"Tenant List Soft Deleted User {marker}";
-		var tenantId = await _SeedTenantWithSoftDeletedUserForFindAsync(tenantName);
+		var tenantId = await this._SeedTenantWithSoftDeletedUserForFindAsync(tenantName);
 
 		var url = TenantTestHelper.GetFindUrl(q: tenantName);
 		var request = new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(staffToken);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
@@ -420,11 +420,11 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldTreatABareUnderscoreSearchAsALiteralCharacterNotAWildcard() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -451,7 +451,7 @@ public sealed class FindTenantsAsStaffSpec
 			.WithSessionToken(staffToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
@@ -466,11 +466,11 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldTreatABareBackslashSearchAsALiteralCharacterNotAWildcard() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -497,7 +497,7 @@ public sealed class FindTenantsAsStaffSpec
 			.WithSessionToken(staffToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
 			.ReadFromJsonAsync<FindResponse>();
@@ -512,18 +512,18 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldFilterByMultipleStatuses() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				token,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		using var suspendResponse =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http,
+				this._Http,
 				token,
 				tenantId
 			);
@@ -538,7 +538,7 @@ public sealed class FindTenantsAsStaffSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -558,7 +558,7 @@ public sealed class FindTenantsAsStaffSpec
 				using var cleanup =
 					await TenantTestHelper
 						.ReactivateTenantAsync(
-							_Http, token, tenantId
+							this._Http, token, tenantId
 						);
 			} catch {
 				// Ignore — cleanup best-effort
@@ -570,7 +570,7 @@ public sealed class FindTenantsAsStaffSpec
 		var email = $"no-perms-tenants-{Guid.NewGuid():N}@example.com";
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -592,12 +592,12 @@ public sealed class FindTenantsAsStaffSpec
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId.ToString());
 	}
 
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
-		var (token, _) = await _CreateUnprivilegedStaffUserAsync();
+		var (token, _) = await this._CreateUnprivilegedStaffUserAsync();
 		return token;
 	}
 
@@ -605,7 +605,7 @@ public sealed class FindTenantsAsStaffSpec
 		string tenantName
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -619,19 +619,19 @@ public sealed class FindTenantsAsStaffSpec
 		await dbContext.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
-		await _AddFindTenantUserAsync(
+		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
 			dbContext,
 			tenantId,
 			isUserDeleted: false,
 			AccountLevel.Admin
 		);
-		await _AddFindTenantUserAsync(
+		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
 			dbContext,
 			tenantId,
 			isUserDeleted: false,
 			AccountLevel.User
 		);
-		await _AddFindTenantUserAsync(
+		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
 			dbContext,
 			tenantId,
 			isUserDeleted: true,
@@ -692,7 +692,7 @@ public sealed class FindTenantsAsStaffSpec
 		string staffToken,
 		string[] permissions
 	) {
-		var url = _GetCreateProfileUrl();
+		var url = FindTenantsAsStaffSpec._GetCreateProfileUrl();
 		var name = "TenantsPerms " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(HttpMethod.Post, url)
@@ -705,7 +705,7 @@ public sealed class FindTenantsAsStaffSpec
 			emails = Array.Empty<string>(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created =
@@ -722,19 +722,19 @@ public sealed class FindTenantsAsStaffSpec
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
-			_GetUpdateUserProfilesUrl(userId)
+			FindTenantsAsStaffSpec._GetUpdateUserProfilesUrl(userId)
 		).WithSessionToken(adminToken);
 
 		request.Content = JsonContent.Create(new { profileIds });
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			limit: 5,
@@ -746,7 +746,7 @@ public sealed class FindTenantsAsStaffSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		// The handler dictionary resolves keys case-insensitively; an
 		// ordinal-sensitive lookup would turn this into a 400.
@@ -758,7 +758,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 tenants with distinct, deliberately NOT insertion-ordered CreatedAt
 		// (anti-correlated). The walk must visit each once in ascending
@@ -774,7 +774,7 @@ public sealed class FindTenantsAsStaffSpec
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			seededIds.Add(await _SeedTenantAtAsync(createdAt));
+			seededIds.Add(await this._SeedTenantAtAsync(createdAt));
 			seededOrder.Add(createdAt);
 		}
 
@@ -783,7 +783,7 @@ public sealed class FindTenantsAsStaffSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapTenantIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapTenantIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -801,7 +801,7 @@ public sealed class FindTenantsAsStaffSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -839,7 +839,7 @@ public sealed class FindTenantsAsStaffSpec
 		List<DateTime> observedOrder;
 		{
 			await using var scope =
-				_Fixture.Factory.Services.CreateAsyncScope();
+				this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.Tenant
@@ -856,7 +856,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// The audit interceptor stamps UpdatedAt = now on every Modified save, so the
 		// only way to control it is a direct UPDATE that bypasses the interceptor.
@@ -873,8 +873,8 @@ public sealed class FindTenantsAsStaffSpec
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var id = await _SeedTenantAtAsync(baseDate); // CreatedAt irrelevant for this test
-			await _SetTenantUpdatedAtAsync(id, updatedAt);
+			var id = await this._SeedTenantAtAsync(baseDate); // CreatedAt irrelevant for this test
+			await this._SetTenantUpdatedAtAsync(id, updatedAt);
 			seededIds.Add(id);
 			seededOrder.Add(updatedAt);
 		}
@@ -885,7 +885,7 @@ public sealed class FindTenantsAsStaffSpec
 		// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapTenantIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapTenantIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
@@ -902,7 +902,7 @@ public sealed class FindTenantsAsStaffSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -940,7 +940,7 @@ public sealed class FindTenantsAsStaffSpec
 		List<DateTime> observedOrder;
 		{
 			await using var scope =
-				_Fixture.Factory.Services.CreateAsyncScope();
+				this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.Tenant
@@ -957,7 +957,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldWalkEveryNamePageWithoutOverlapOrGap() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 tenants with distinct, deliberately NOT insertion-ordered Names
 		// (anti-correlated with insertion). The walk must visit each once in
@@ -977,7 +977,7 @@ public sealed class FindTenantsAsStaffSpec
 			var code = $"{codePrefixes[i]}-{Guid.NewGuid():N}"[..10];
 			seededNames.Add(name);
 			seededCodes.Add(code);
-			var id = await _SeedTenantWithCodeAsync(name, code);
+			var id = await this._SeedTenantWithCodeAsync(name, code);
 			seededIds.Add(id);
 		}
 		var expectedOrder = seededIds
@@ -1002,7 +1002,7 @@ public sealed class FindTenantsAsStaffSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -1034,7 +1034,7 @@ public sealed class FindTenantsAsStaffSpec
 	public async Task
 	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// 3 tenants with distinct, deliberately NOT insertion-ordered Status
 		// (anti-correlated with insertion). The walk must visit each once in
@@ -1051,7 +1051,7 @@ public sealed class FindTenantsAsStaffSpec
 		};
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
-			var id = await _SeedTenantWithStatusAsync(statuses[i]);
+			var id = await this._SeedTenantWithStatusAsync(statuses[i]);
 			seededIds.Add(id);
 		}
 
@@ -1070,7 +1070,7 @@ public sealed class FindTenantsAsStaffSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -1106,7 +1106,7 @@ public sealed class FindTenantsAsStaffSpec
 
 	private async Task _SetTenantUpdatedAtAsync(Guid tenantId, DateTime updatedAt) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1122,7 +1122,7 @@ public sealed class FindTenantsAsStaffSpec
 		DateTime createdAt
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1152,7 +1152,7 @@ public sealed class FindTenantsAsStaffSpec
 		string code
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1171,7 +1171,7 @@ public sealed class FindTenantsAsStaffSpec
 		TenantStatus status
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -1203,7 +1203,7 @@ public sealed class FindTenantsAsStaffSpec
 	}
 
 	private async Task _SwapTenantIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlRawAsync(

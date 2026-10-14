@@ -50,7 +50,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 
 	[Fact]
 	public void ItShouldExposeTheProviderEvidenceTransitionContract() {
-		var writerInterface = _Resolve(
+		var writerInterface = EmailEvidenceAuditActorGuardSpec._Resolve(
 			"PublyApp.Api.Modules.Messaging.Services.IEmailLogWriter"
 		);
 
@@ -66,7 +66,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 
 	[Fact]
 	public void ItShouldHaveAtLeastOneTransitionMarkerImplementor() {
-		_Transitions.Should().NotBeEmpty(
+		EmailEvidenceAuditActorGuardSpec._Transitions.Should().NotBeEmpty(
 			"IEmailLogTransition is the explicit convention marking every email-log "
 			+ "transition contract; with zero implementors the enumeration below "
 			+ "would pass vacuously. If the marker was renamed or repurposed, update "
@@ -82,7 +82,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	public void ItShouldRequireAnEmailLogActorOnEveryTransitionContract() {
 		var failures = new List<string>();
 
-		foreach (var transition in _Transitions) {
+		foreach (var transition in EmailEvidenceAuditActorGuardSpec._Transitions) {
 			var property = transition.GetProperty("Actor");
 			if (property is null) {
 				failures.Add(
@@ -93,7 +93,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 				continue;
 			}
 
-			if (property.PropertyType != _ActorType) {
+			if (property.PropertyType != EmailEvidenceAuditActorGuardSpec._ActorType) {
 				failures.Add(
 					$"{transition.FullName}: Actor must be the EmailLogActor value "
 					+ $"type, not {property.PropertyType} — free-string authors are "
@@ -138,7 +138,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	// error, not a silent default (#866).
 	[Fact]
 	public void ItShouldMakeTheAuthorUnomittableOnEveryTransitionContract() {
-		foreach (var transition in _Transitions) {
+		foreach (var transition in EmailEvidenceAuditActorGuardSpec._Transitions) {
 			transition
 				.GetCustomAttributes()
 				.Any(attribute => attribute.GetType().Name == "RequiredMemberAttribute")
@@ -158,7 +158,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	// rows directly fails HERE, naming the class (#866 round 2).
 	[Fact]
 	public void ItShouldRefuseAnyTypeWritingEmailLogEvidenceWithoutTheTransitionMarker() {
-		var scan = _EvidenceWriteSurfaceScan();
+		var scan = EmailEvidenceAuditActorGuardSpec._EvidenceWriteSurfaceScan();
 
 		var failures = scan.ViolatorNames
 			.Select(violator => $"{violator}: touches the email_log evidence write "
@@ -182,9 +182,9 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	// deliberated into this assertion's expectation — never silently tolerated.
 	[Fact]
 	public void ItShouldPinTheEvidenceSeamAllowlistToExactlyThreeJustifiedMembers() {
-		var scan = _EvidenceWriteSurfaceScan();
+		var scan = EmailEvidenceAuditActorGuardSpec._EvidenceWriteSurfaceScan();
 
-		scan.AllowedNames.Should().Equal(_SeamAllowlistFullNames,
+		scan.AllowedNames.Should().Equal(EmailEvidenceAuditActorGuardSpec._SeamAllowlistFullNames,
 			"the allowlist must stay minimal: EmailLogWriter is §4.4's single "
 			+ "writer, EmailLogEvidenceEventConfiguration is the EF "
 			+ "column/constraint mapping, and EmailLogEvidenceEvent is the "
@@ -198,16 +198,16 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	// referencing type at all must fail loud — never pass vacuously (#866 round 2).
 	[Fact]
 	public void ItShouldFailLoudInsteadOfPassingVacuouslyOnAnUnusableSurfaceScan() {
-		var scan = _EvidenceWriteSurfaceScan();
+		var scan = EmailEvidenceAuditActorGuardSpec._EvidenceWriteSurfaceScan();
 
 		scan.ScannedTypeCount.Should().BeGreaterThan(
-			_MinimumPlausibleApiTypeCount,
+			EmailEvidenceAuditActorGuardSpec._MinimumPlausibleApiTypeCount,
 			"a scan that sees almost no types means discovery broke — the guard "
 			+ "must never pass vacuously"
 		);
 
 		scan.SurfaceKindsFound.Should().Contain(
-			_SurfaceAnchorKinds,
+			EmailEvidenceAuditActorGuardSpec._SurfaceAnchorKinds,
 			"each anchor (entity type token, entity member, table-name "
 			+ "literal) proves the scanner truly sees the write surface; a "
 			+ "missing anchor means the surface moved — update this guard "
@@ -222,7 +222,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 
 	[Fact]
 	public void ItShouldKeepEvidenceRowsUserAttributionFreeAndTenantFree() {
-		var eventType = _Resolve(
+		var eventType = EmailEvidenceAuditActorGuardSpec._Resolve(
 			"PublyApp.Api.Modules.Messaging.Entities.EmailLogEvidenceEvent"
 		);
 
@@ -246,7 +246,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 
 	[Fact]
 	public void ItShouldKeepTheActorValueTypeInvariantEnforcing() {
-		var actorType = _Resolve(
+		var actorType = EmailEvidenceAuditActorGuardSpec._Resolve(
 			"PublyApp.Api.Modules.Messaging.Entities.EmailLogActor"
 		);
 
@@ -260,10 +260,10 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 			);
 
 		actorType.GetMethods(BindingFlags.Public | BindingFlags.Static)
-			.Where(m => m.ReturnType == _ActorType)
+			.Where(m => m.ReturnType == EmailEvidenceAuditActorGuardSpec._ActorType)
 			.Select(m => m.Name)
 			.Should()
-			.Contain(_VocabularyFactoryNames,
+			.Contain(EmailEvidenceAuditActorGuardSpec._VocabularyFactoryNames,
 				"each vocabulary kind has exactly one factory");
 	}
 
@@ -312,8 +312,8 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	private static EvidenceSurfaceScan? _ScanCache;
 
 	private static EvidenceSurfaceScan _EvidenceWriteSurfaceScan() {
-		if (_ScanCache is not null) {
-			return _ScanCache;
+		if (EmailEvidenceAuditActorGuardSpec._ScanCache is not null) {
+			return EmailEvidenceAuditActorGuardSpec._ScanCache;
 		}
 
 		var apiTypes = ArchitectureDiscovery.EnumerateApiTypes();
@@ -325,19 +325,19 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 				continue;
 			}
 
-			var touched = _TouchesEvidenceSurfaceRecursive(candidate, seen, scan.SurfaceKindsFound);
+			var touched = EmailEvidenceAuditActorGuardSpec._TouchesEvidenceSurfaceRecursive(candidate, seen, scan.SurfaceKindsFound);
 			if (!touched) {
 				continue;
 			}
 
-			if (_IsWithinMarkedChain(candidate) || _IsWithinAllowlist(candidate)) {
-				scan.AllowedNames.Add(_OutermostDeclaringTypeName(candidate));
+			if (EmailEvidenceAuditActorGuardSpec._IsWithinMarkedChain(candidate) || EmailEvidenceAuditActorGuardSpec._IsWithinAllowlist(candidate)) {
+				scan.AllowedNames.Add(EmailEvidenceAuditActorGuardSpec._OutermostDeclaringTypeName(candidate));
 			} else {
-				scan.ViolatorNames.Add(_OutermostDeclaringTypeName(candidate));
+				scan.ViolatorNames.Add(EmailEvidenceAuditActorGuardSpec._OutermostDeclaringTypeName(candidate));
 			}
 		}
 
-		_ScanCache = scan;
+		EmailEvidenceAuditActorGuardSpec._ScanCache = scan;
 		return scan;
 	}
 
@@ -350,13 +350,13 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 		ISet<Type> seen,
 		ISet<string> surfaceKindsFound
 	) {
-		var touched = _TouchesEvidenceSurface(type, surfaceKindsFound);
+		var touched = EmailEvidenceAuditActorGuardSpec._TouchesEvidenceSurface(type, surfaceKindsFound);
 
 		const BindingFlags AllVisibilities = BindingFlags.Public | BindingFlags.NonPublic;
 
 		foreach (var nested in type.GetNestedTypes(AllVisibilities)) {
 			if (seen.Add(nested)) {
-				touched |= _TouchesEvidenceSurfaceRecursive(nested, seen, surfaceKindsFound);
+				touched |= EmailEvidenceAuditActorGuardSpec._TouchesEvidenceSurfaceRecursive(nested, seen, surfaceKindsFound);
 			}
 		}
 
@@ -375,7 +375,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 				return;
 			}
 
-			if (_WalkInstructions(body, method.Module, surfaceKindsFound)) {
+			if (EmailEvidenceAuditActorGuardSpec._WalkInstructions(body, method.Module, surfaceKindsFound)) {
 				touched = true;
 			}
 		}
@@ -411,7 +411,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 		var touched = false;
 
 		while (position < instructions.Length) {
-			if (!_TryReadOpcode(instructions, ref position, out var opcode)) {
+			if (!EmailEvidenceAuditActorGuardSpec._TryReadOpcode(instructions, ref position, out var opcode)) {
 				return touched;
 			}
 
@@ -431,7 +431,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 			} else if (opcode.OperandType == OperandType.InlineString) {
 				var literal = module.ResolveString(
 					BitConverter.ToInt32(instructions, position));
-				if (literal?.Contains(_TableNameLiteral, StringComparison.Ordinal)
+				if (literal?.Contains(EmailEvidenceAuditActorGuardSpec._TableNameLiteral, StringComparison.Ordinal)
 					is true) {
 					surfaceKindsFound.Add("table_name_literal");
 					touched = true;
@@ -447,14 +447,14 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 					// instantiation; they name neither the entity nor the set.
 				}
 
-				if (member?.DeclaringType?.FullName == _EntityFullName) {
+				if (member?.DeclaringType?.FullName == EmailEvidenceAuditActorGuardSpec._EntityFullName) {
 					surfaceKindsFound.Add("evidence_entity_member");
 					touched = true;
 				}
 
 				if (member is not null
-					&& member.DeclaringType?.FullName == _DbContextFullName
-					&& member.Name == _DbSetAccessorName) {
+					&& member.DeclaringType?.FullName == EmailEvidenceAuditActorGuardSpec._DbContextFullName
+					&& member.Name == EmailEvidenceAuditActorGuardSpec._DbSetAccessorName) {
 					surfaceKindsFound.Add("dbset_accessor");
 					touched = true;
 				}
@@ -469,13 +469,13 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 					// instantiation; they name neither the entity nor the set.
 				}
 
-				if (resolved?.FullName == _EntityFullName) {
+				if (resolved?.FullName == EmailEvidenceAuditActorGuardSpec._EntityFullName) {
 					surfaceKindsFound.Add("evidence_entity_type_token");
 					touched = true;
 				}
 			}
 
-			position += _OperandAdvance(opcode.OperandType);
+			position += EmailEvidenceAuditActorGuardSpec._OperandAdvance(opcode.OperandType);
 		}
 
 		return touched;
@@ -488,8 +488,8 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 		}
 
 		var first = instructions[position];
-		if (first != _TwoByteOpcodePrefix) {
-			if (!_SingleByteOpcodes.TryGetValue(first, out var single)) {
+		if (first != EmailEvidenceAuditActorGuardSpec._TwoByteOpcodePrefix) {
+			if (!EmailEvidenceAuditActorGuardSpec._SingleByteOpcodes.TryGetValue(first, out var single)) {
 				return false;
 			}
 
@@ -502,8 +502,8 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 			return false;
 		}
 
-		var key = (ushort)((_TwoByteOpcodePrefix << 8) | instructions[position + 1]);
-		if (!_TwoByteOpcodes.TryGetValue(key, out var paired)) {
+		var key = (ushort)((EmailEvidenceAuditActorGuardSpec._TwoByteOpcodePrefix << 8) | instructions[position + 1]);
+		if (!EmailEvidenceAuditActorGuardSpec._TwoByteOpcodes.TryGetValue(key, out var paired)) {
 			return false;
 		}
 
@@ -536,7 +536,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 		};
 
 	private static int _OperandAdvance(OperandType operandType) {
-		if (!_OperandAdvances.TryGetValue(operandType, out var byteCount)) {
+		if (!EmailEvidenceAuditActorGuardSpec._OperandAdvances.TryGetValue(operandType, out var byteCount)) {
 			throw new InvalidOperationException(
 				$"unhandled IL operand type {operandType}");
 		}
@@ -545,10 +545,10 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	}
 
 	private static readonly IReadOnlyDictionary<byte, OpCode> _SingleByteOpcodes =
-		_BuildOpcodeMaps().SingleByte;
+		EmailEvidenceAuditActorGuardSpec._BuildOpcodeMaps().SingleByte;
 
 	private static readonly IReadOnlyDictionary<ushort, OpCode> _TwoByteOpcodes =
-		_BuildOpcodeMaps().TwoByte;
+		EmailEvidenceAuditActorGuardSpec._BuildOpcodeMaps().TwoByte;
 
 	private static (IReadOnlyDictionary<byte, OpCode> SingleByte,
 		IReadOnlyDictionary<ushort, OpCode> TwoByte) _BuildOpcodeMaps() {
@@ -573,7 +573,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	private static bool _IsWithinMarkedChain(Type type) {
 		for (var current = type; current is not null; current = current.DeclaringType) {
 			if (current.GetInterfaces()
-				.Any(i => i.FullName == _TransitionMarkerFullName)) {
+				.Any(i => i.FullName == EmailEvidenceAuditActorGuardSpec._TransitionMarkerFullName)) {
 				return true;
 			}
 		}
@@ -584,7 +584,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	private static bool _IsWithinAllowlist(Type type) {
 		for (var current = type; current is not null; current = current.DeclaringType) {
 			if (current.FullName is { } fullName
-				&& _SeamAllowlistFullNames.Contains(fullName, StringComparer.Ordinal)) {
+				&& EmailEvidenceAuditActorGuardSpec._SeamAllowlistFullNames.Contains(fullName, StringComparer.Ordinal)) {
 				return true;
 			}
 		}
@@ -604,7 +604,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	private static Type? _ActorType {
 		get {
 			return ArchitectureDiscovery.EnumerateApiTypes()
-				.FirstOrDefault(t => t.FullName == _ActorTypeFullName);
+				.FirstOrDefault(t => t.FullName == EmailEvidenceAuditActorGuardSpec._ActorTypeFullName);
 		}
 	}
 
@@ -615,7 +615,7 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 		get {
 			return ArchitectureDiscovery.EnumerateApiTypes()
 				.Where(t => t.GetInterfaces()
-					.Any(i => i.FullName == _TransitionMarkerFullName))
+					.Any(i => i.FullName == EmailEvidenceAuditActorGuardSpec._TransitionMarkerFullName))
 				.ToList();
 		}
 	}

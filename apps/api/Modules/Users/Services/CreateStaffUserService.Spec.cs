@@ -21,16 +21,16 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public CreateStaffUserServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldRejectWhenUserHasTenantOrProjectAccounts() {
 		var email = $"create-staff-f1-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await _SeedUserWithTenantAccountAsync(dbContext, email);
+		await CreateStaffUserServiceSpec._SeedUserWithTenantAccountAsync(dbContext, email);
 
 		var enqueuer = new RejectingEnqueuer();
 		var service = new CreateStaffUserService(
@@ -53,7 +53,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 		result.Should().BeOfType<CreateStaffUserServiceResult.UserHasTenantOrProjectAccounts>();
 		enqueuer.Calls.Should().Be(0);
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		(await verify.User.AnyAsync(u => u.Email == email)).Should().BeTrue(
 			"account conflicts must not create an additional user row"
 		);
@@ -64,7 +64,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRollbackUserAndAccountWhenEnqueueFails() {
 		var email = $"create-staff-rollback-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var service = new CreateStaffUserService(
 			dbContext,
@@ -85,7 +85,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 
 		await act.Should().ThrowAsync<InvalidOperationException>();
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		(await verify.User.CountAsync(u => u.Email == email)).Should().Be(0);
 		(await verify.UserAccount.CountAsync(a => a.User.Email == email)).Should().Be(0);
 	}
@@ -94,7 +94,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldCreateUserAccountAndEnqueueVerifyEmailWhenSuccessful() {
 		var email = $"create-staff-success-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var enqueuer = new RecordingEnqueuer();
@@ -124,7 +124,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 			IsWelcomeEmail = true
 		});
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		var persistedUser = await verify.User
 			.AsNoTracking()
 			.FirstAsync(u => u.Email == email);
@@ -183,11 +183,11 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private AppDbContext _CreateDbContext() {
-		return _CreateDbContext(applicationName: null);
+		return this._CreateDbContext(applicationName: null);
 	}
 
 	private AppDbContext _CreateDbContext(string? applicationName) {
-		var connectionString = _BaseConnectionString(_Fixture);
+		var connectionString = CreateStaffUserServiceSpec._BaseConnectionString(this._Fixture);
 		if (applicationName is not null) {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString) {
 				ApplicationName = applicationName
@@ -212,9 +212,9 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 			EnqueueOptions? options = null,
 			CancellationToken cancellationToken = default
 		) {
-			Calls += 1;
+			this.Calls += 1;
 			if (payload is VerifyEmailPayload verifyEmailPayload) {
-				Payload = verifyEmailPayload;
+				this.Payload = verifyEmailPayload;
 			}
 
 			return Task.FromResult(Guid.NewGuid());
@@ -230,7 +230,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 			EnqueueOptions? options = null,
 			CancellationToken cancellationToken = default
 		) {
-			Calls += 1;
+			this.Calls += 1;
 			throw new InvalidOperationException("not used in this test");
 		}
 	}

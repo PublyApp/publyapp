@@ -19,19 +19,19 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public JobQueueQueryServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldListQueueItemsInCreatedAtDescOrder() {
-		var jobType = _NewJobType("order");
+		var jobType = JobQueueQueryServiceSpec._NewJobType("order");
 
 		try {
-			await _SeedRowAsync(jobType, minutesAgo: 30, status: JobQueueStatus.Pending);
-			await _SeedRowAsync(jobType, minutesAgo: 20, status: JobQueueStatus.Pending);
-			await _SeedRowAsync(jobType, minutesAgo: 10, status: JobQueueStatus.Pending);
+			await this._SeedRowAsync(jobType, minutesAgo: 30, status: JobQueueStatus.Pending);
+			await this._SeedRowAsync(jobType, minutesAgo: 20, status: JobQueueStatus.Pending);
+			await this._SeedRowAsync(jobType, minutesAgo: 10, status: JobQueueStatus.Pending);
 
-			var service = await _CreateServiceAsync();
+			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindJobQueueItemsArgs(
 				Cursor: Guid.Empty,
 				Limit: 10,
@@ -48,24 +48,24 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 				.Should().BeInDescendingOrder();
 			page.Data.Last().JobType.Should().Be(jobType);
 		} finally {
-			await _CleanupAsync(jobType);
+			await this._CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByStatusCsv() {
-		var jobType = _NewJobType("status");
+		var jobType = JobQueueQueryServiceSpec._NewJobType("status");
 
 		try {
-			var pendingA = await _SeedRowAsync(
+			var pendingA = await this._SeedRowAsync(
 				jobType, minutesAgo: 30, status: JobQueueStatus.Pending
 			);
-			var pendingB = await _SeedRowAsync(
+			var pendingB = await this._SeedRowAsync(
 				jobType, minutesAgo: 20, status: JobQueueStatus.Pending
 			);
-			await _SeedRowAsync(jobType, minutesAgo: 10, status: JobQueueStatus.Processing);
+			await this._SeedRowAsync(jobType, minutesAgo: 10, status: JobQueueStatus.Processing);
 
-			var service = await _CreateServiceAsync();
+			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindJobQueueItemsArgs(
 				Cursor: Guid.Empty,
 				Limit: 10,
@@ -90,25 +90,25 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			rejected.Should()
 				.BeOfType<FindJobQueueItemsResult.InvalidStatusCsv>();
 		} finally {
-			await _CleanupAsync(jobType);
+			await this._CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByJobTypeAndTenantId() {
-		var jobType = _NewJobType("filters");
-		var otherJobType = _NewJobType("other");
+		var jobType = JobQueueQueryServiceSpec._NewJobType("filters");
+		var otherJobType = JobQueueQueryServiceSpec._NewJobType("other");
 		var tenantId = Guid.NewGuid();
 
 		try {
-			await _SeedRowAsync(
+			await this._SeedRowAsync(
 				jobType, minutesAgo: 30, status: JobQueueStatus.Pending,
 				tenantId: tenantId
 			);
-			await _SeedRowAsync(jobType, minutesAgo: 20, status: JobQueueStatus.Pending);
-			await _SeedRowAsync(otherJobType, minutesAgo: 10, status: JobQueueStatus.Pending);
+			await this._SeedRowAsync(jobType, minutesAgo: 20, status: JobQueueStatus.Pending);
+			await this._SeedRowAsync(otherJobType, minutesAgo: 10, status: JobQueueStatus.Pending);
 
-			var service = await _CreateServiceAsync();
+			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindJobQueueItemsArgs(
 				Cursor: Guid.Empty,
 				Limit: 10,
@@ -123,19 +123,19 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			page.Data.Single().TenantId.Should().Be(tenantId);
 			page.Data.Single().JobType.Should().Be(jobType);
 		} finally {
-			await _CleanupAsync(jobType);
-			await _CleanupAsync(otherJobType);
+			await this._CleanupAsync(jobType);
+			await this._CleanupAsync(otherJobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldKeysetPaginateOnCreatedAt() {
-		var jobType = _NewJobType("keyset");
+		var jobType = JobQueueQueryServiceSpec._NewJobType("keyset");
 
 		try {
 			var seeded = new List<(Guid Id, int MinutesAgo)>();
 			for (var index = 0; index < 5; index++) {
-				var id = await _SeedRowAsync(
+				var id = await this._SeedRowAsync(
 					jobType, minutesAgo: 50 - (index * 10),
 					status: JobQueueStatus.Pending
 				);
@@ -150,7 +150,7 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			var visited = new List<Guid>();
 			Guid cursor = Guid.Empty;
 			while (true) {
-				var service = await _CreateServiceAsync();
+				var service = await this._CreateServiceAsync();
 				var result = await service.FindAsync(new FindJobQueueItemsArgs(
 					Cursor: cursor,
 					Limit: 2,
@@ -172,22 +172,22 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			visited.Should().BeEquivalentTo(expectedNewestFirst);
 			visited.Should().OnlyHaveUniqueItems();
 		} finally {
-			await _CleanupAsync(jobType);
+			await this._CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldGetOneById() {
-		var jobType = _NewJobType("get-one");
+		var jobType = JobQueueQueryServiceSpec._NewJobType("get-one");
 		var tenantId = Guid.NewGuid();
 
 		try {
-			var id = await _SeedRowAsync(
+			var id = await this._SeedRowAsync(
 				jobType, minutesAgo: 15, status: JobQueueStatus.Pending,
 				tenantId: tenantId
 			);
 
-			var service = await _CreateServiceAsync();
+			var service = await this._CreateServiceAsync();
 			var detail = await service.GetByIdAsync(id);
 
 			detail.Should().NotBeNull();
@@ -196,13 +196,13 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			detailValue.JobType.Should().Be(jobType);
 			detailValue.TenantId.Should().Be(tenantId);
 		} finally {
-			await _CleanupAsync(jobType);
+			await this._CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownId() {
-		var service = await _CreateServiceAsync();
+		var service = await this._CreateServiceAsync();
 
 		var detail = await service.GetByIdAsync(Guid.NewGuid());
 
@@ -210,7 +210,7 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<JobQueueQueryService> _CreateServiceAsync() {
-		var dbContext = await _CreateDbContextAsync();
+		var dbContext = await this._CreateDbContextAsync();
 		return new JobQueueQueryService(dbContext);
 	}
 
@@ -222,7 +222,7 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 	) {
 		var id = Guid.NewGuid();
 		var payload = "{}";
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO job_queue (
@@ -241,7 +241,7 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string jobType) {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type = {jobType}"
 		);
@@ -252,7 +252,7 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

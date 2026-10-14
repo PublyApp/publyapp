@@ -34,8 +34,8 @@ public sealed class PermissionBasedNavFilterServerProof
 	public PermissionBasedNavFilterServerProof(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
@@ -45,19 +45,19 @@ public sealed class PermissionBasedNavFilterServerProof
 		// discover their Acme tenant, fetch their scope auth data, and
 		// confirm the posts.view key is missing (so the front rail would
 		// hide Posts for them).
-		var userToken = await _AuthClient.LoginAsync(
+		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 
-		var scopeAuthData = await _FetchScopeAuthDataAsync(
+		var scopeAuthData = await this._FetchScopeAuthDataAsync(
 			userToken, acmeId.ToString()
 		);
 
@@ -77,7 +77,7 @@ public sealed class PermissionBasedNavFilterServerProof
 			.WithSessionToken(userToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		// Assert: the server rejects with 403 + the standard
 		// permission-missing translation key. The rejection does not
@@ -102,7 +102,7 @@ public sealed class PermissionBasedNavFilterServerProof
 			)
 			.WithSessionToken(sessionToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content

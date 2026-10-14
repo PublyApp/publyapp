@@ -42,10 +42,10 @@ public sealed class ApiFactory
 		IUploadAdmissionService? uploadAdmissionService = null,
 		ILoggerProvider? loggerProvider = null
 	) {
-		_DbConnectionString = dbConnectionString;
-		_StorageRoot = storageRoot;
-		_UploadAdmissionService = uploadAdmissionService;
-		_LoggerProvider = loggerProvider;
+		this._DbConnectionString = dbConnectionString;
+		this._StorageRoot = storageRoot;
+		this._UploadAdmissionService = uploadAdmissionService;
+		this._LoggerProvider = loggerProvider;
 	}
 
 	protected override void ConfigureWebHost(
@@ -69,11 +69,11 @@ public sealed class ApiFactory
 					var httpContextAccessor = serviceProvider
 						.GetRequiredService<IHttpContextAccessor>();
 					var tenantId =
-						_GetCurrentTenantId(httpContextAccessor);
+						ApiFactory._GetCurrentTenantId(httpContextAccessor);
 
 					// Use TEST connection string
 					// instead of AppEnvironment
-					options.UseNpgsql(_DbConnectionString);
+					options.UseNpgsql(this._DbConnectionString);
 
 					if (tenantId.HasValue) {
 						options.UseTenantId(tenantId.Value);
@@ -84,11 +84,11 @@ public sealed class ApiFactory
 
 			services.RemoveAll<IFileStorage>();
 			services.AddSingleton<IFileStorage>(
-				_ => new LocalDiskFileStorage(_StorageRoot)
+				_ => new LocalDiskFileStorage(this._StorageRoot)
 			);
-			if (_UploadAdmissionService is not null) {
+			if (this._UploadAdmissionService is not null) {
 				services.RemoveAll<IUploadAdmissionService>();
-				services.AddSingleton(_UploadAdmissionService);
+				services.AddSingleton(this._UploadAdmissionService);
 			}
 
 			// 2) Replace email sender with fake
@@ -113,8 +113,8 @@ public sealed class ApiFactory
 			//    (needed because Serilog doesn't register ILogger by default)
 			services.AddSingleton<ILoggerFactory>(_ => {
 				var loggerFactory = new LoggerFactory();
-				if (_LoggerProvider is not null) {
-					loggerFactory.AddProvider(_LoggerProvider);
+				if (this._LoggerProvider is not null) {
+					loggerFactory.AddProvider(this._LoggerProvider);
 				}
 
 				return loggerFactory;
@@ -131,7 +131,7 @@ public sealed class ApiFactory
 			//    the leader binding
 			//    AppEnvironment's (non-test) connection — would make specs flaky. Specs
 			//    that need these construct them directly against the test connection.
-			RemoveWorkerHostedServices(services);
+			ApiFactory.RemoveWorkerHostedServices(services);
 		});
 	}
 
@@ -153,7 +153,7 @@ public sealed class ApiFactory
 		var descriptorsToRemove = services
 			.Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
 			.Where(descriptor => {
-				var implementationType = _ResolveHostedServiceImplementationType(descriptor);
+				var implementationType = ApiFactory._ResolveHostedServiceImplementationType(descriptor);
 
 				return implementationType is not null
 					&& workerHostedServiceTypes.Contains(implementationType);

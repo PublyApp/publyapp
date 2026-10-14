@@ -29,17 +29,17 @@ public sealed class BlueskyClientSpec {
 			HttpRequestMessage request,
 			CancellationToken cancellationToken
 		) {
-			CapturedRequestPath = request.RequestUri?.PathAndQuery;
+			this.CapturedRequestPath = request.RequestUri?.PathAndQuery;
 			if (request.Content is not null) {
-				CapturedRequestBody = await request.Content
+				this.CapturedRequestBody = await request.Content
 					.ReadAsStringAsync(cancellationToken);
 			}
 
-			if (Throw is not null) {
-				throw Throw;
+			if (this.Throw is not null) {
+				throw this.Throw;
 			}
 
-			return Response
+			return this.Response
 				?? new HttpResponseMessage(HttpStatusCode.InternalServerError);
 		}
 	}
@@ -67,66 +67,66 @@ public sealed class BlueskyClientSpec {
 	}
 
 	private static BlueskyCredentials _Credentials() {
-		return new BlueskyCredentials(_TestIdentifier, _TestAppPassword);
+		return new BlueskyCredentials(BlueskyClientSpec._TestIdentifier, BlueskyClientSpec._TestAppPassword);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnAccountFailureWithPlainWordsReasonOn401() {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Response = new HttpResponseMessage(HttpStatusCode.Unauthorized) {
 			Content = new StringContent("{\"error\":\"InvalidRequest\"}"),
 		};
 
-		var result = await client.CreateSessionAsync(_Credentials());
+		var result = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		var refused = result.Should().BeOfType<BlueskySessionResult.AccountFailure>()
 			.Subject;
 		refused.Reason.Should().Be("credentials refused");
-		refused.Reason.Should().NotContain(_TestAppPassword);
+		refused.Reason.Should().NotContain(BlueskyClientSpec._TestAppPassword);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnAccountFailureForOther400ClassRefusals() {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Response = new HttpResponseMessage(HttpStatusCode.BadRequest) {
 			Content = new StringContent(
 				"{\"error\":\"InvalidRequest\",\"error_description\":\"Unknown actor\"}"
 			),
 		};
 
-		var result = await client.CreateSessionAsync(_Credentials());
+		var result = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		var refused = result.Should().BeOfType<BlueskySessionResult.AccountFailure>()
 			.Subject;
 		refused.Reason.Should().Be("account not found");
-		refused.Reason.Should().NotContain(_TestAppPassword);
+		refused.Reason.Should().NotContain(BlueskyClientSpec._TestAppPassword);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnTransientOn5xx() {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Response = new HttpResponseMessage(
-			_HttpStatusCodesBadGateway()
+			BlueskyClientSpec._HttpStatusCodesBadGateway()
 		);
 
-		var result = await client.CreateSessionAsync(_Credentials());
+		var result = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		result.Should().BeOfType<BlueskySessionResult.Transient>();
 	}
 
 	[Fact]
 	public async Task ItShouldReturnTransientOnNetworkFailureInsteadOfThrowing() {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Throw = new HttpRequestException("connection refused");
 
-		var result = await client.CreateSessionAsync(_Credentials());
+		var result = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		result.Should().BeOfType<BlueskySessionResult.Transient>();
 	}
 
 	[Fact]
 	public async Task ItShouldResolveDidHandleAndSessionValuesOnSuccess() {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
 			Content = new StringContent(
 				"{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\","
@@ -134,7 +134,7 @@ public sealed class BlueskyClientSpec {
 			),
 		};
 
-		var result = await client.CreateSessionAsync(_Credentials());
+		var result = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		var success = result.Should().BeOfType<BlueskySessionResult.Success>()
 			.Subject;
@@ -142,12 +142,12 @@ public sealed class BlueskyClientSpec {
 		success.Identity.Handle.Should().Be("alice.test");
 		success.AccessJwt.Should().Be("jwt-value");
 		success.PdsHost.Should().NotBeNullOrEmpty();
-		success.PdsHost.Should().NotContain(_TestAppPassword);
+		success.PdsHost.Should().NotContain(BlueskyClientSpec._TestAppPassword);
 	}
 
 	[Fact]
 	public async Task ItShouldSendIdentifierAndPasswordOnlyInTheRequestBody() {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
 			Content = new StringContent(
 				"{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\","
@@ -155,15 +155,15 @@ public sealed class BlueskyClientSpec {
 			),
 		};
 
-		_ = await client.CreateSessionAsync(_Credentials());
+		_ = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		handler.CapturedRequestPath.Should().Contain(
 			"com.atproto.server.createSession"
 		);
 		handler.CapturedRequestBody.Should().NotBeNull();
 		Assert.NotNull(handler.CapturedRequestBody);
-		handler.CapturedRequestBody.Should().Contain(_TestIdentifier);
-		handler.CapturedRequestBody.Should().Contain(_TestAppPassword);
+		handler.CapturedRequestBody.Should().Contain(BlueskyClientSpec._TestIdentifier);
+		handler.CapturedRequestBody.Should().Contain(BlueskyClientSpec._TestAppPassword);
 		// The atproto createSession contract requires the lowercase wire field
 		// names; pin them so a property rename cannot silently break login.
 		handler.CapturedRequestBody.Should().Contain("\"identifier\"");
@@ -177,15 +177,15 @@ public sealed class BlueskyClientSpec {
 		HttpStatusCode status,
 		string expectedReason
 	) {
-		var (client, handler) = _BuildClient();
+		var (client, handler) = BlueskyClientSpec._BuildClient();
 		handler.Response = new HttpResponseMessage(status);
 
-		var result = await client.CreateSessionAsync(_Credentials());
+		var result = await client.CreateSessionAsync(BlueskyClientSpec._Credentials());
 
 		var refused = result.Should().BeOfType<BlueskySessionResult.AccountFailure>()
 			.Subject;
 		refused.Reason.Should().Be(expectedReason);
-		refused.Reason.Should().NotContain(_TestAppPassword);
+		refused.Reason.Should().NotContain(BlueskyClientSpec._TestAppPassword);
 	}
 
 	private static HttpStatusCode _HttpStatusCodesBadGateway() {

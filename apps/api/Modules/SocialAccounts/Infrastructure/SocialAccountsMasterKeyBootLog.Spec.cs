@@ -33,7 +33,7 @@ public sealed class CapturingTestLogger : ILogger {
 		Exception? exception,
 		Func<TState, Exception?, string> formatter
 	) {
-		Entries.Add(new Entry(logLevel, formatter(state, exception)));
+		this.Entries.Add(new Entry(logLevel, formatter(state, exception)));
 	}
 }
 
@@ -66,7 +66,7 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 		var logger = new CapturingTestLogger();
 		var store = new ScriptedCanaryStore(); // empty → first boot mints the canary
 
-		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(_NewKey(), store, logger);
+		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(SocialAccountsMasterKeyBootLogSpec._NewKey(), store, logger);
 
 		logger.Entries.Should().ContainSingle(
 			e => e.Level == LogLevel.Information
@@ -79,7 +79,7 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 	public void ItShouldLogTheCanaryPassLineWhenAStoredCanaryDecrypts() {
 		var logger = new CapturingTestLogger();
 		var store = new ScriptedCanaryStore();
-		var key = _NewKey();
+		var key = SocialAccountsMasterKeyBootLogSpec._NewKey();
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(key, store); // mint (no logger)
 
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(key, store, logger); // verify path
@@ -97,7 +97,7 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 
 		// canaryStore: null — the db-less build-time OpenAPI generation path. Only the
 		// parse/size contract ran; claiming a pass would be a lie operators would trust.
-		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(_NewKey(), null, logger);
+		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(SocialAccountsMasterKeyBootLogSpec._NewKey(), null, logger);
 
 		// #1309 (adversarial review round 1, MINOR): the previous NotContain(
 		// CanaryPassedLogLine) was too weak — a DIFFERENTLY-worded log on the db-less path
@@ -115,11 +115,11 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 	public void ItShouldNotLogACanaryPassLineWhenAWrongKeyRefusesToBoot() {
 		var logger = new CapturingTestLogger();
 		var store = new ScriptedCanaryStore();
-		var keyA = _NewKey();
+		var keyA = SocialAccountsMasterKeyBootLogSpec._NewKey();
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(keyA, store); // A mints
 
 		var act = () => SocialAccountsMasterKeyWitness
-			.EnsureMasterKeyUsable(_NewKey(), store, logger); // B: refused
+			.EnsureMasterKeyUsable(SocialAccountsMasterKeyBootLogSpec._NewKey(), store, logger); // B: refused
 
 		act.Should().Throw<InvalidOperationException>();
 		logger.Entries.Should().BeEmpty(
@@ -131,14 +131,14 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 	public void ItShouldWireThePassLineIntoBothRealBootCallSitesInProgramCs() {
 		// Whitespace-normalised (same approach as MasterKeyWitnessCallSiteSpec) so the
 		// multi-line call sites still match.
-		var source = _Normalize(_FindProgramCsSource());
+		var source = SocialAccountsMasterKeyBootLogSpec._Normalize(SocialAccountsMasterKeyBootLogSpec._FindProgramCsSource());
 
 		// Both role branches (web host AND worker Generic Host) must hand the witness a
 		// real ILoggerFactory-built logger named after the witness — removing either
 		// wiring leaves a boot path whose success is invisible to operators. Red if the
 		// line is unwired. (The LogInformation(CanaryPassedLogLine) calls themselves are
 		// pinned by the four behavioural specs above.)
-		var wiredCallSites = _CountOccurrences(
+		var wiredCallSites = SocialAccountsMasterKeyBootLogSpec._CountOccurrences(
 			source,
 			"GetRequiredService<ILoggerFactory>().CreateLogger("
 				+ "nameof(Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness))"

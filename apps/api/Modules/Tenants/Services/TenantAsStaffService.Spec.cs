@@ -24,7 +24,7 @@ public sealed class TenantAsStaffServiceSpec
 	private readonly ApiFixture _Fixture;
 
 	public TenantAsStaffServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
@@ -32,8 +32,8 @@ public sealed class TenantAsStaffServiceSpec
 		var initialLogoUrl = "/files/uploads/2026/07/11111111-2222-3333-4444-555555555555.png";
 		var replacementLogoUrl = "https://cdn.example.com/replaced-logo.png";
 
-		var tenantId = await _SeedTenantAsync(initialLogoUrl);
-		var connectionString = await _GetConnectionStringAsync();
+		var tenantId = await this._SeedTenantAsync(initialLogoUrl);
+		var connectionString = await this._GetConnectionStringAsync();
 		var interceptor = new FailingLogoReferenceCheckAfterUpdateInterceptor();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -72,7 +72,7 @@ public sealed class TenantAsStaffServiceSpec
 		interceptor.HasFailed.Should().BeFalse();
 
 		await using var verifyScope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var verifyContext = verifyScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -83,7 +83,7 @@ public sealed class TenantAsStaffServiceSpec
 	}
 
 	private async Task<Guid> _SeedTenantAsync(string initialLogoUrl) {
-		await using var seedScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var seedScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var seedContext = seedScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -102,7 +102,7 @@ public sealed class TenantAsStaffServiceSpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -123,11 +123,11 @@ public sealed class TenantAsStaffServiceSpec
 		private int _CommandCount;
 
 		public bool HasFailed {
-			get { return _HasFailed; }
+			get { return this._HasFailed; }
 		}
 
 		public int CommandCount {
-			get { return _CommandCount; }
+			get { return this._CommandCount; }
 		}
 
 		public override async ValueTask<int> NonQueryExecutedAsync(
@@ -136,8 +136,8 @@ public sealed class TenantAsStaffServiceSpec
 			int result,
 			CancellationToken cancellationToken = default
 		) {
-			_CommandCount += 1;
-			_MaybeFail(command.CommandText);
+			this._CommandCount += 1;
+			this._MaybeFail(command.CommandText);
 			return await base.NonQueryExecutedAsync(
 				command,
 				eventData,
@@ -151,8 +151,8 @@ public sealed class TenantAsStaffServiceSpec
 			CommandEventData eventData,
 			InterceptionResult<int> result
 		) {
-			_CommandCount += 1;
-			_MaybeFail(command.CommandText);
+			this._CommandCount += 1;
+			this._MaybeFail(command.CommandText);
 			return base.NonQueryExecuting(command, eventData, result);
 		}
 
@@ -161,8 +161,8 @@ public sealed class TenantAsStaffServiceSpec
 			CommandEventData eventData,
 			InterceptionResult<DbDataReader> result
 		) {
-			_CommandCount += 1;
-			_MaybeFail(command.CommandText);
+			this._CommandCount += 1;
+			this._MaybeFail(command.CommandText);
 			return base.ReaderExecuting(command, eventData, result);
 		}
 
@@ -172,8 +172,8 @@ public sealed class TenantAsStaffServiceSpec
 			InterceptionResult<DbDataReader> result,
 			CancellationToken cancellationToken = default
 		) {
-			_CommandCount += 1;
-			_MaybeFail(command.CommandText);
+			this._CommandCount += 1;
+			this._MaybeFail(command.CommandText);
 			return new ValueTask<InterceptionResult<DbDataReader>>(result);
 		}
 
@@ -182,8 +182,8 @@ public sealed class TenantAsStaffServiceSpec
 			CommandEventData eventData,
 			InterceptionResult<object> result
 		) {
-			_CommandCount += 1;
-			_MaybeFail(command.CommandText);
+			this._CommandCount += 1;
+			this._MaybeFail(command.CommandText);
 			return base.ScalarExecuting(command, eventData, result);
 		}
 
@@ -193,8 +193,8 @@ public sealed class TenantAsStaffServiceSpec
 			InterceptionResult<object> result,
 			CancellationToken cancellationToken = default
 		) {
-			_CommandCount += 1;
-			_MaybeFail(command.CommandText);
+			this._CommandCount += 1;
+			this._MaybeFail(command.CommandText);
 			return new ValueTask<InterceptionResult<object>>(result);
 		}
 
@@ -205,15 +205,15 @@ public sealed class TenantAsStaffServiceSpec
 			// write, inside the same transaction. The rule under test — no INLINE
 			// blob cleanup (file deletes / existence probes) after the update —
 			// still holds; a second non-reference SQL command remains a failure.
-			if (!_HasSeenUpdate && _IsTenantUpdateCommand(commandText)) {
-				_HasSeenUpdate = true;
+			if (!this._HasSeenUpdate && TenantAsStaffServiceSpec.FailingLogoReferenceCheckAfterUpdateInterceptor._IsTenantUpdateCommand(commandText)) {
+				this._HasSeenUpdate = true;
 				return;
 			}
 
-			if (_HasSeenUpdate
-				&& !_HasFailed
-				&& !_IsLogoReferenceReleaseCommand(commandText)) {
-				_HasFailed = true;
+			if (this._HasSeenUpdate
+				&& !this._HasFailed
+				&& !TenantAsStaffServiceSpec.FailingLogoReferenceCheckAfterUpdateInterceptor._IsLogoReferenceReleaseCommand(commandText)) {
+				this._HasFailed = true;
 				throw new InvalidOperationException(
 					"Injected logo reference-check failure after tenant update."
 				);
@@ -241,7 +241,7 @@ public sealed class TenantAsStaffServiceSpec
 	[Fact]
 	public async Task
 	ItShouldNotifyTheOutboxSignalAfterCreatingTenantWithInitialUsers() {
-		var connectionString = await _GetConnectionStringAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		var fakeOutboxSignal = new FakeInvitationEmailOutboxSignal();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -262,7 +262,7 @@ public sealed class TenantAsStaffServiceSpec
 				Name: $"Outbox Notify Tenant {Guid.NewGuid():N}",
 				MaxUsers: 10,
 				InitialUsers: [(Email: $"invitee-{Guid.NewGuid():N}@example.com", AccountLevel: AccountLevel.Admin)],
-				InvitedByUserId: (await _SeedStaffUserAsync()),
+				InvitedByUserId: (await this._SeedStaffUserAsync()),
 				Code: null,
 				SeedDefaultProfile: false,
 				LogoUrl: null,
@@ -282,7 +282,7 @@ public sealed class TenantAsStaffServiceSpec
 	}
 
 	private async Task<Guid> _SeedStaffUserAsync() {
-		await using var seedScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var seedScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var seedContext = seedScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -304,11 +304,11 @@ public sealed class TenantAsStaffServiceSpec
 		private int _NotifyCallCount;
 
 		public int NotifyCallCount {
-			get { return _NotifyCallCount; }
+			get { return this._NotifyCallCount; }
 		}
 
 		public void Notify() {
-			_NotifyCallCount += 1;
+			this._NotifyCallCount += 1;
 		}
 
 		public Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) {

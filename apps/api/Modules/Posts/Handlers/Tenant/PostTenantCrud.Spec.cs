@@ -26,9 +26,9 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public PostTenantCrudSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _PostsUrl {
@@ -46,17 +46,17 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldCreateAPostAndReturn201WithDtoWhenBodyValid() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var body = "Hello posts " + Guid.NewGuid().ToString("N")[..8];
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body,
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var payload =
@@ -70,7 +70,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 
 		// persisted
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var persisted = await (
 			from p in db.Post.AsNoTracking()
@@ -86,16 +86,16 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenBodyEmptyOnCreate() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body = "",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 		var problem =
@@ -107,18 +107,18 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenBodyOverMaxLengthOnCreate() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var longBody =
 			new string('a', PostValidationRules.BodyMaxLength + 1);
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body = longBody,
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -126,9 +126,9 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenProjectIdInvalidOnCreate() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
@@ -136,7 +136,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = "not-a-guid",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -144,12 +144,12 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenProjectFromAnotherTenantOnCreate() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
-		var otherProjectId = await _CreateProjectForTenantAsync(
-			await _GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName)
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var otherProjectId = await this._CreateProjectForTenantAsync(
+			await this._GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName)
 		);
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(acmeToken)
 			.WithTenantId(acmeId);
 		request.Content = JsonContent.Create(new {
@@ -157,7 +157,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = otherProjectId.ToString(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 		_ = await response.Content
@@ -167,11 +167,11 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenProjectDeletedOnCreate() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var deletedProjectId =
-			await _CreateDeletedProjectForTenantAsync(tenantId);
+			await this._CreateDeletedProjectForTenantAsync(tenantId);
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
@@ -179,7 +179,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = deletedProjectId.ToString(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 		_ = await response.Content
@@ -189,20 +189,20 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn403WithoutCreatePermission() {
-		var tenantId = await _GetAcmeIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body = "no permission",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 		var problem =
 			await response.Content
@@ -218,17 +218,17 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldGetAPostByIdForOwnerTenant() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostViaApiAsync(
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostViaApiAsync(
 			tenantId, token, "get-me " + Guid.NewGuid().ToString("N")[..8]
 		);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Get, _PostByIdUrl(postId))
+			new HttpRequestMessage(HttpMethod.Get, PostTenantCrudSpec._PostByIdUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var detail =
 			await response.Content.ReadFromJsonAsync<PostDetail>();
@@ -240,61 +240,61 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn404WhenGettingOtherTenantsPost() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
 		var globalId =
-			await _GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
-		var globalToken = await _AuthClient.LoginAsync(
+			await this._GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
+		var globalToken = await this._AuthClient.LoginAsync(
 			TestConstants.GlobalAdminEmail,
 			TestConstants.SeedPassword
 		);
 		var postId =
-			await _CreatePostViaApiAsync(acmeId, acmeToken, "acme only");
+			await this._CreatePostViaApiAsync(acmeId, acmeToken, "acme only");
 
 		// Global admin tries to fetch Acme's post — tenant isolation must 404
 		using var request =
-			new HttpRequestMessage(HttpMethod.Get, _PostByIdUrl(postId))
+			new HttpRequestMessage(HttpMethod.Get, PostTenantCrudSpec._PostByIdUrl(postId))
 				.WithSessionToken(globalToken)
 				.WithTenantId(globalId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn400ForMalformedIdOnGet() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostByIdUrl("not-a-guid")
+			PostTenantCrudSpec._PostByIdUrl("not-a-guid")
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn403WithoutViewPermissionOnGet() {
-		var postId = await _CreatePostAsAcmeAdminAsync(
+		var postId = await this._CreatePostAsAcmeAdminAsync(
 			"view-permission " + Guid.NewGuid().ToString("N")[..8]
 		);
 		// Round 2: the seeded Acme member now holds publishing permissions via the
 		// demo profile; this view-denial pin uses a dedicated profile-less member.
-		var (acmeId, bareEmail) = await _CreateBareAcmeMemberAsync();
-		var userToken = await _AuthClient.LoginAsync(
+		var (acmeId, bareEmail) = await this._CreateBareAcmeMemberAsync();
+		var userToken = await this._AuthClient.LoginAsync(
 			bareEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Get, _PostByIdUrl(postId))
+			new HttpRequestMessage(HttpMethod.Get, PostTenantCrudSpec._PostByIdUrl(postId))
 				.WithSessionToken(userToken)
 				.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -303,32 +303,32 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldFindPostsPaginatedAndIsolatedPerTenant() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
 		var globalId =
-			await _GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
-		var globalToken = await _AuthClient.LoginAsync(
+			await this._GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
+		var globalToken = await this._AuthClient.LoginAsync(
 			TestConstants.GlobalAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		var sentinel =
 			"isolation-" + Guid.NewGuid().ToString("N")[..8];
-		_ = await _CreatePostViaApiAsync(
+		_ = await this._CreatePostViaApiAsync(
 			acmeId, acmeToken, sentinel + " acme"
 		);
-		_ = await _CreatePostViaApiAsync(
+		_ = await this._CreatePostViaApiAsync(
 			globalId, globalToken, sentinel + " global"
 		);
 
 		// List as Acme: must see acme-sentinel, never global's
 		using var acmeFind = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsUrl + "?q=" + Uri.EscapeDataString(sentinel) + "&limit=20"
+			PostTenantCrudSpec._PostsUrl + "?q=" + Uri.EscapeDataString(sentinel) + "&limit=20"
 		)
 			.WithSessionToken(acmeToken)
 			.WithTenantId(acmeId);
 
-		using var acmeResponse = await _Http.SendAsync(acmeFind);
+		using var acmeResponse = await this._Http.SendAsync(acmeFind);
 		acmeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var acmePayload =
 			await acmeResponse.Content
@@ -351,12 +351,12 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		// Pagination: at least one more page when limit=1 across distinct q
 		using var paged = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsUrl + "?limit=1"
+			PostTenantCrudSpec._PostsUrl + "?limit=1"
 		)
 			.WithSessionToken(acmeToken)
 			.WithTenantId(acmeId);
 
-		using var pagedResponse = await _Http.SendAsync(paged);
+		using var pagedResponse = await this._Http.SendAsync(paged);
 		pagedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		var pagedPayload =
 			await pagedResponse.Content
@@ -370,18 +370,18 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	public async Task
 	ItShouldReturn403WithoutViewPermissionOnFind() {
 		// Round 2: same adaptation as the get pin above — a dedicated bare member.
-		var (acmeId, bareEmail) = await _CreateBareAcmeMemberAsync();
-		var userToken = await _AuthClient.LoginAsync(
+		var (acmeId, bareEmail) = await this._CreateBareAcmeMemberAsync();
+		var userToken = await this._AuthClient.LoginAsync(
 			bareEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request =
-			new HttpRequestMessage(HttpMethod.Get, _PostsUrl)
+			new HttpRequestMessage(HttpMethod.Get, PostTenantCrudSpec._PostsUrl)
 				.WithSessionToken(userToken)
 				.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -390,16 +390,16 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldUpdateAPostBodyAndProject() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var projectId = await _CreateProjectForTenantAsync(tenantId);
-		var postId = await _CreatePostViaApiAsync(
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var projectId = await this._CreateProjectForTenantAsync(tenantId);
+		var postId = await this._CreatePostViaApiAsync(
 			tenantId, token, "before update"
 		);
 		var newBody = "after update " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -408,7 +408,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = projectId.ToString(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var updated =
 			await response.Content.ReadFromJsonAsync<PostUpdated>();
@@ -421,15 +421,15 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldClearProjectOnUpdateWhenNull() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var projectId = await _CreateProjectForTenantAsync(tenantId);
-		var postId = await _CreatePostViaApiAsyncWithProjectAsync(
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var projectId = await this._CreateProjectForTenantAsync(tenantId);
+		var postId = await this._CreatePostViaApiAsyncWithProjectAsync(
 			tenantId, token, "clear-project", projectId
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -439,7 +439,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			"application/json"
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var updated =
 			await response.Content.ReadFromJsonAsync<PostUpdated>();
@@ -451,16 +451,16 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenProjectFromAnotherTenantOnUpdate() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
 		var postId =
-			await _CreatePostViaApiAsync(acmeId, acmeToken, "update cross");
-		var otherProjectId = await _CreateProjectForTenantAsync(
-			await _GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName)
+			await this._CreatePostViaApiAsync(acmeId, acmeToken, "update cross");
+		var otherProjectId = await this._CreateProjectForTenantAsync(
+			await this._GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName)
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(acmeToken)
 			.WithTenantId(acmeId);
@@ -468,7 +468,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = otherProjectId.ToString(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -476,15 +476,15 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn422WhenProjectDeletedOnUpdate() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId =
-			await _CreatePostViaApiAsync(tenantId, token, "update deleted");
+			await this._CreatePostViaApiAsync(tenantId, token, "update deleted");
 		var deletedProjectId =
-			await _CreateDeletedProjectForTenantAsync(tenantId);
+			await this._CreateDeletedProjectForTenantAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -492,7 +492,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = deletedProjectId.ToString(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -500,19 +500,19 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn404WhenUpdatingOtherTenantsPost() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
 		var postId =
-			await _CreatePostViaApiAsync(acmeId, acmeToken, "acme only 2");
+			await this._CreatePostViaApiAsync(acmeId, acmeToken, "acme only 2");
 		var globalId =
-			await _GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
-		var globalToken = await _AuthClient.LoginAsync(
+			await this._GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
+		var globalToken = await this._AuthClient.LoginAsync(
 			TestConstants.GlobalAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(globalToken)
 			.WithTenantId(globalId);
@@ -520,23 +520,23 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			body = "hijack",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn403WithoutEditPermissionOnUpdate() {
-		var postId = await _CreatePostAsAcmeAdminAsync("edit perm");
-		var acmeId = await _GetAcmeIdAsync();
-		var userToken = await _AuthClient.LoginAsync(
+		var postId = await this._CreatePostAsAcmeAdminAsync("edit perm");
+		var acmeId = await this._GetAcmeIdAsync();
+		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(userToken)
 			.WithTenantId(acmeId);
@@ -544,17 +544,17 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			body = "try edit",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn400ForMalformedIdOnUpdate() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
-			_PostByIdUrl("not-a-guid")
+			PostTenantCrudSpec._PostByIdUrl("not-a-guid")
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
@@ -562,7 +562,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			body = "x",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
@@ -571,87 +571,87 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldDeleteAPostAndHideItOnGet() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId =
-			await _CreatePostViaApiAsync(tenantId, token, "to delete");
+			await this._CreatePostViaApiAsync(tenantId, token, "to delete");
 
 		using var deleteReq = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var deleteResp = await _Http.SendAsync(deleteReq);
+		using var deleteResp = await this._Http.SendAsync(deleteReq);
 		deleteResp.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		using var getReq =
-			new HttpRequestMessage(HttpMethod.Get, _PostByIdUrl(postId))
+			new HttpRequestMessage(HttpMethod.Get, PostTenantCrudSpec._PostByIdUrl(postId))
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-		using var getResp = await _Http.SendAsync(getReq);
+		using var getResp = await this._Http.SendAsync(getReq);
 		getResp.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn404WhenDeletingOtherTenantsPost() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostViaApiAsync(
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostViaApiAsync(
 			acmeId, acmeToken, "acme delete"
 		);
 		var globalId =
-			await _GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
-		var globalToken = await _AuthClient.LoginAsync(
+			await this._GetTenantIdByNameAsync(SeedConstants.Tenants.GlobalName);
+		var globalToken = await this._AuthClient.LoginAsync(
 			TestConstants.GlobalAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(globalToken)
 			.WithTenantId(globalId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn403WithoutDeletePermissionOnDelete() {
-		var postId = await _CreatePostAsAcmeAdminAsync("delete perm");
-		var acmeId = await _GetAcmeIdAsync();
-		var userToken = await _AuthClient.LoginAsync(
+		var postId = await this._CreatePostAsAcmeAdminAsync("delete perm");
+		var acmeId = await this._GetAcmeIdAsync();
+		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_PostByIdUrl(postId)
+			PostTenantCrudSpec._PostByIdUrl(postId)
 		)
 			.WithSessionToken(userToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn400ForMalformedIdOnDelete() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_PostByIdUrl("not-a-guid")
+			PostTenantCrudSpec._PostByIdUrl("not-a-guid")
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
@@ -659,8 +659,8 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await _GetAcmeIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -668,9 +668,9 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -681,10 +681,10 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	// demo-publishing-acme profile, so permission-denial pins must not lean on
 	// that member's (now non-empty) derived permission set.
 	private async Task<(Guid TenantId, string Email)> _CreateBareAcmeMemberAsync() {
-		var acmeId = await _GetAcmeIdAsync();
+		var acmeId = await this._GetAcmeIdAsync();
 		var email = $"posts-crud-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -707,9 +707,9 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetTenantIdByNameAsync(string name) {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			name
 		);
@@ -720,14 +720,14 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		string token,
 		string body
 	) {
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
 			body,
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload =
 			await response.Content.ReadFromJsonAsync<PostCreated>();
@@ -744,7 +744,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		string body,
 		Guid projectId
 	) {
-		using var request = new HttpRequestMessage(HttpMethod.Post, _PostsUrl)
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostTenantCrudSpec._PostsUrl)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new {
@@ -752,7 +752,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			projectId = projectId.ToString(),
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload =
 			await response.Content.ReadFromJsonAsync<PostCreated>();
@@ -764,16 +764,16 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<string> _CreatePostAsAcmeAdminAsync(string body) {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		return await _CreatePostViaApiAsync(tenantId, token, body);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		return await this._CreatePostViaApiAsync(tenantId, token, body);
 	}
 
 	private async Task<Guid> _CreateDeletedProjectForTenantAsync(
 		Guid tenantId
 	) {
-		var projectId = await _CreateProjectForTenantAsync(tenantId);
+		var projectId = await this._CreateProjectForTenantAsync(tenantId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var project = await db.Project.FirstAsync(p => p.Id == projectId);
 		project.IsDeleted = true;
@@ -784,7 +784,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> _CreateProjectForTenantAsync(Guid tenantId) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var project = new PublyApp.Api.Modules.Projects.Entities.Project {
 			TenantId = tenantId,

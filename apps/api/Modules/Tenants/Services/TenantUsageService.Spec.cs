@@ -38,14 +38,14 @@ public sealed class TenantUsageServiceSpec
 	private readonly ApiFixture _Fixture;
 
 	public TenantUsageServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldCountActiveAndTotalUsersProjectsAndScheduledPublications() {
-		var tenantId = await _SeedRichTenantAsync();
+		var tenantId = await this._SeedRichTenantAsync();
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -61,9 +61,9 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldExcludeSoftDeletedAndForeignTenantRowsFromCounts() {
-		var (tenantId, _) = await _SeedTwoTenantsWithNoiseAsync();
+		var (tenantId, _) = await this._SeedTwoTenantsWithNoiseAsync();
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -82,9 +82,9 @@ public sealed class TenantUsageServiceSpec
 	[Fact]
 	public async Task ItShouldReturnLastActivityAtFromTheTenantRow() {
 		var lastActivity = new DateTime(2026, 8, 1, 9, 30, 0, DateTimeKind.Utc);
-		var tenantId = await _SeedTenantWithLastActivityAsync(lastActivity);
+		var tenantId = await this._SeedTenantWithLastActivityAsync(lastActivity);
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -97,9 +97,9 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldReturnZeroesForATenantWithoutAnyActivity() {
-		var tenantId = await _SeedBareTenantAsync("usage empty");
+		var tenantId = await this._SeedBareTenantAsync("usage empty");
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -116,7 +116,7 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldReturnNullForAnUnknownTenant() {
-		var result = await _NewService()
+		var result = await this._NewService()
 			.GetTenantUsageAsync(Guid.NewGuid());
 
 		result.Should().BeNull();
@@ -127,9 +127,9 @@ public sealed class TenantUsageServiceSpec
 		// The existence guard at TenantUsageService.cs:73 excludes soft-deleted
 		// tenants. Without that clause, a deleted space would surface as an
 		// empty-but-existing one instead of returning null.
-		var tenantId = await _SeedSoftDeletedTenantAsync();
+		var tenantId = await this._SeedSoftDeletedTenantAsync();
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 
 		result.Should().BeNull(
 			"a soft-deleted tenant must be treated as non-existent — otherwise "
@@ -147,9 +147,9 @@ public sealed class TenantUsageServiceSpec
 		// false for the fixture's specific status and the test stays green.
 		// Pending is the default Tenant.Status value, so it's the cheapest
 		// status to keep un-derivable from the previous fixture.
-		var tenantId = await _SeedLiveTenantWithStatusAsync(TenantStatus.Pending);
+		var tenantId = await this._SeedLiveTenantWithStatusAsync(TenantStatus.Pending);
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 
 		result.Should().NotBeNull(
 			"a non-deleted Pending tenant exists and must surface — the existence "
@@ -166,9 +166,9 @@ public sealed class TenantUsageServiceSpec
 		// Suspended. This case in particular kills the reviewer mutation
 		// `tenant.Status == TenantStatus.Pending`: a Suspended tenant would
 		// wrongly return null under that guard, so the assertion catches it.
-		var tenantId = await _SeedLiveTenantWithStatusAsync(TenantStatus.Suspended);
+		var tenantId = await this._SeedLiveTenantWithStatusAsync(TenantStatus.Suspended);
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 
 		result.Should().NotBeNull(
 			"a non-deleted Suspended tenant exists and must surface — soft "
@@ -189,9 +189,9 @@ public sealed class TenantUsageServiceSpec
 		// `!IsDeleted || Status != Active` evaluates to `false || true` =
 		// true, the existence guard passes, and a snapshot is returned. The
 		// spec asserts the opposite, so the mutation fails this test.
-		var tenantId = await _SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Suspended);
+		var tenantId = await this._SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Suspended);
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 
 		result.Should().BeNull(
 			"a soft-deleted tenant must be treated as non-existent regardless "
@@ -210,9 +210,9 @@ public sealed class TenantUsageServiceSpec
 		// this case is the cheapest to seed (no explicit Status assignment is
 		// required) and would be the first to silently regress if a future
 		// refactor defaulted a soft-deleted tenant to Pending.
-		var tenantId = await _SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Pending);
+		var tenantId = await this._SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Pending);
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 
 		result.Should().BeNull(
 			"a soft-deleted tenant must be treated as non-existent regardless "
@@ -235,14 +235,14 @@ public sealed class TenantUsageServiceSpec
 		// that IsDeleted is negated in the WHERE predicate. This is robust to
 		// SQL dialect (NOT (is_deleted), is_deleted = FALSE, NOT EXISTS …) and
 		// to semantically equivalent rewrites — a regex on emitted SQL is not.
-		var tenantId = await _SeedTenantWithLastActivityAsync(
+		var tenantId = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
-		var service = _NewServiceWithContext();
+		var service = this._NewServiceWithContext();
 
 		var query = service.LastActivityAtQuery(tenantId);
 
-		_AssertIsDeletedNegated(
+		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
 			"Tenant (LastActivityAt)"
 		);
@@ -253,14 +253,14 @@ public sealed class TenantUsageServiceSpec
 		// #1839 r4 — UsersTotalQuery must negate IsDeleted on the membership
 		// row AND on the owning User row. Without either, a soft-deleted
 		// membership or user would leak into the total.
-		var tenantId = await _SeedTenantWithLastActivityAsync(
+		var tenantId = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
-		var service = _NewServiceWithContext();
+		var service = this._NewServiceWithContext();
 
 		var query = service.UsersTotalQuery(tenantId);
 
-		_AssertIsDeletedNegated(
+		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
 			"UserAccount (UsersTotal)"
 		);
@@ -271,14 +271,14 @@ public sealed class TenantUsageServiceSpec
 		// #1839 r4 — UsersActiveQuery must negate IsDeleted on the membership
 		// row AND on the owning User row. Same guard as UsersTotal, plus the
 		// Active status filter.
-		var tenantId = await _SeedTenantWithLastActivityAsync(
+		var tenantId = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
-		var service = _NewServiceWithContext();
+		var service = this._NewServiceWithContext();
 
 		var query = service.UsersActiveQuery(tenantId);
 
-		_AssertIsDeletedNegated(
+		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
 			"UserAccount (UsersActive)"
 		);
@@ -288,14 +288,14 @@ public sealed class TenantUsageServiceSpec
 	public async Task ItShouldGuardProjectsCountQueryWithIsDeletedFilter() {
 		// #1839 r4 — ProjectsCountQuery must negate IsDeleted on the project
 		// row. Without it, a soft-deleted project would leak into the count.
-		var tenantId = await _SeedTenantWithLastActivityAsync(
+		var tenantId = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
-		var service = _NewServiceWithContext();
+		var service = this._NewServiceWithContext();
 
 		var query = service.ProjectsCountQuery(tenantId);
 
-		_AssertIsDeletedNegated(
+		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
 			"Project (ProjectsCount)"
 		);
@@ -306,14 +306,14 @@ public sealed class TenantUsageServiceSpec
 		// #1839 r4 — ScheduledPublicationsCountQuery must negate IsDeleted on
 		// the publication row. Without it, a soft-deleted publication would
 		// leak into the count.
-		var tenantId = await _SeedTenantWithLastActivityAsync(
+		var tenantId = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
-		var service = _NewServiceWithContext();
+		var service = this._NewServiceWithContext();
 
 		var query = service.ScheduledPublicationsCountQuery(tenantId);
 
-		_AssertIsDeletedNegated(
+		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
 			"Publication (ScheduledPublicationsCount)"
 		);
@@ -335,7 +335,7 @@ public sealed class TenantUsageServiceSpec
 		string entityName
 	) {
 		// Unwrap to find the lambda whose parameter is the root entity.
-		var lambda = _ExtractWhereLambda(expression);
+		var lambda = TenantUsageServiceSpec._ExtractWhereLambda(expression);
 		var entityParam = lambda.Parameters[0];
 
 		var visitor = new IsDeletedNegationVisitor(entityParam);
@@ -397,7 +397,7 @@ public sealed class TenantUsageServiceSpec
 		public LambdaExpression? Found { get; private set; }
 
 		protected override Expression VisitLambda<T>(Expression<T> node) {
-			Found ??= node;
+			this.Found ??= node;
 			return base.VisitLambda(node);
 		}
 	}
@@ -417,15 +417,15 @@ public sealed class TenantUsageServiceSpec
 		private readonly ParameterExpression _EntityParam;
 
 		public IsDeletedNegationVisitor(ParameterExpression entityParam) {
-			_EntityParam = entityParam;
+			this._EntityParam = entityParam;
 		}
 
 		public bool Found { get; private set; }
 
 		protected override Expression VisitUnary(UnaryExpression node) {
 			if (node.NodeType == ExpressionType.Not
-				&& _IsEntityIsDeletedAccess(node.Operand)) {
-				Found = true;
+				&& this._IsEntityIsDeletedAccess(node.Operand)) {
+				this.Found = true;
 			}
 			return base.VisitUnary(node);
 		}
@@ -433,9 +433,9 @@ public sealed class TenantUsageServiceSpec
 		protected override Expression VisitBinary(BinaryExpression node) {
 			// Also catch `is_deleted == false` / `is_deleted = FALSE`.
 			if (node.NodeType == ExpressionType.Equal
-				&& _IsEntityIsDeletedAccess(node.Left)
+				&& this._IsEntityIsDeletedAccess(node.Left)
 				&& node.Right is ConstantExpression { Value: false }) {
-				Found = true;
+				this.Found = true;
 			}
 			return base.VisitBinary(node);
 		}
@@ -452,7 +452,7 @@ public sealed class TenantUsageServiceSpec
 			return expression is MemberExpression {
 				Member.Name: "IsDeleted",
 				Expression: ParameterExpression param
-			} && param == _EntityParam;
+			} && param == this._EntityParam;
 		}
 	}
 
@@ -460,8 +460,8 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldFilterEveryQueryOnTheRequestedTenantId() {
-		var tenantId = await _SeedRichTenantAsync();
-		var connectionString = await _GetConnectionStringAsync();
+		var tenantId = await this._SeedRichTenantAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		var interceptor = new TenantParameterCaptureInterceptor();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -503,8 +503,8 @@ public sealed class TenantUsageServiceSpec
 		// proves the service emits NO write command at all today, so a future
 		// write is a regression someone must think about, not a silent cost
 		// leak. The interceptor now captures NonQueryExecuting as well.
-		var tenantId = await _SeedRichTenantAsync();
-		var connectionString = await _GetConnectionStringAsync();
+		var tenantId = await this._SeedRichTenantAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		var interceptor = new TenantParameterCaptureInterceptor();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -534,20 +534,20 @@ public sealed class TenantUsageServiceSpec
 
 	private TenantUsageService _NewService() {
 		return new TenantUsageService(
-			_CreateServiceDbContext().GetAwaiter().GetResult(),
+			this._CreateServiceDbContext().GetAwaiter().GetResult(),
 			NullLogger<TenantUsageService>.Instance
 		);
 	}
 
 	private TenantUsageService _NewServiceWithContext() {
 		return new TenantUsageService(
-			_CreateServiceDbContext().GetAwaiter().GetResult(),
+			this._CreateServiceDbContext().GetAwaiter().GetResult(),
 			NullLogger<TenantUsageService>.Instance
 		);
 	}
 
 	private async Task<AppDbContext> _CreateServiceDbContext() {
-		var connectionString = await _GetConnectionStringAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
@@ -556,7 +556,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -575,9 +575,9 @@ public sealed class TenantUsageServiceSpec
 		// A Project account has a non-null TenantId on the same tenant, so it
 		// would be counted as a tenant member if the Scope filter were absent.
 		// This spec proves the filter distinguishes scope, not just tenant id.
-		var tenantId = await _SeedTenantWithAProjectAccountAsync();
+		var tenantId = await this._SeedTenantWithAProjectAccountAsync();
 
-		var result = await _NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService().GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -590,7 +590,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<Guid> _SeedTenantWithAProjectAccountAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -644,7 +644,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<Guid> _SeedBareTenantAsync(string namePrefix) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -660,7 +660,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<Guid> _SeedSoftDeletedTenantAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -688,7 +688,7 @@ public sealed class TenantUsageServiceSpec
 		// quadrant. The r1 seed used Status=Active, which made the reviewer
 		// mutation `!IsDeleted || Status != Active` indistinguishable from
 		// the real `!IsDeleted` guard on that single fixture.
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -715,7 +715,7 @@ public sealed class TenantUsageServiceSpec
 		// (Tenant.Status defaults to Pending — Pending and Suspended are
 		// covered by the two callers, and a future Active caller is one
 		// parameter away).
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -733,7 +733,7 @@ public sealed class TenantUsageServiceSpec
 	private async Task<Guid> _SeedTenantWithLastActivityAsync(
 		DateTime lastActivityAt
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -750,7 +750,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<Guid> _SeedRichTenantAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -865,7 +865,7 @@ public sealed class TenantUsageServiceSpec
 
 	private async Task<(Guid TenantId, Guid OtherTenantId)>
 	_SeedTwoTenantsWithNoiseAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenant = new Tenant {
@@ -979,8 +979,8 @@ public sealed class TenantUsageServiceSpec
 
 	private sealed record CapturedCommand(string Text, string Parameters) {
 		public bool Contains(string value) {
-			return Text.Contains(value, StringComparison.OrdinalIgnoreCase)
-				|| Parameters.Contains(value, StringComparison.Ordinal);
+			return this.Text.Contains(value, StringComparison.OrdinalIgnoreCase)
+				|| this.Parameters.Contains(value, StringComparison.Ordinal);
 		}
 	}
 
@@ -992,7 +992,7 @@ public sealed class TenantUsageServiceSpec
 			CommandEventData eventData,
 			InterceptionResult<DbDataReader> result
 		) {
-			_Record(command);
+			this._Record(command);
 			return base.ReaderExecuting(command, eventData, result);
 		}
 
@@ -1002,7 +1002,7 @@ public sealed class TenantUsageServiceSpec
 			InterceptionResult<DbDataReader> result,
 			CancellationToken cancellationToken = default
 		) {
-			_Record(command);
+			this._Record(command);
 			return new ValueTask<InterceptionResult<DbDataReader>>(result);
 		}
 
@@ -1011,7 +1011,7 @@ public sealed class TenantUsageServiceSpec
 			CommandEventData eventData,
 			InterceptionResult<object> result
 		) {
-			_Record(command);
+			this._Record(command);
 			return base.ScalarExecuting(command, eventData, result);
 		}
 
@@ -1021,7 +1021,7 @@ public sealed class TenantUsageServiceSpec
 			InterceptionResult<object> result,
 			CancellationToken cancellationToken = default
 		) {
-			_Record(command);
+			this._Record(command);
 			return new ValueTask<InterceptionResult<object>>(result);
 		}
 
@@ -1030,7 +1030,7 @@ public sealed class TenantUsageServiceSpec
 			CommandEventData eventData,
 			InterceptionResult<int> result
 		) {
-			_Record(command);
+			this._Record(command);
 			return base.NonQueryExecuting(command, eventData, result);
 		}
 
@@ -1040,7 +1040,7 @@ public sealed class TenantUsageServiceSpec
 			InterceptionResult<int> result,
 			CancellationToken cancellationToken = default
 		) {
-			_Record(command);
+			this._Record(command);
 			return new ValueTask<InterceptionResult<int>>(result);
 		}
 
@@ -1051,7 +1051,7 @@ public sealed class TenantUsageServiceSpec
 					.Cast<DbParameter>()
 					.Select(p => $"{p.ParameterName}={p.Value}")
 			);
-			Commands.Add(new CapturedCommand(command.CommandText, parameters));
+			this.Commands.Add(new CapturedCommand(command.CommandText, parameters));
 		}
 	}
 }

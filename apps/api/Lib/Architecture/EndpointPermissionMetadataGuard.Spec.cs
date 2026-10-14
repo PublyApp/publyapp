@@ -150,7 +150,7 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	private readonly RouteMapFactory _Factory = new();
 
 	public void Dispose() {
-		_Factory.Dispose();
+		this._Factory.Dispose();
 	}
 
 	// ── Vacuity check ───────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	public void ItShouldDiscoverEndpointsToGuard() {
 		// A silent zero-count (e.g. a broken route enumeration) would make
 		// the permission guard pass for the wrong reason.
-		var endpoints = _GetAllRouteEndpoints();
+		var endpoints = this._GetAllRouteEndpoints();
 
 		_ = endpoints
 			.Should()
@@ -175,34 +175,34 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	public void ItShouldRequirePermissionMetadataOnProtectedEndpoints() {
 		// Collect all route endpoints from the live WebApplication route map.
 		// This is the same metadata the ASP.NET Core routing pipeline uses.
-		var endpoints = _GetAllRouteEndpoints();
+		var endpoints = this._GetAllRouteEndpoints();
 
 		var offenders = new List<string>();
 
 		foreach (var endpoint in endpoints) {
-			var key = _BuildEndpointKey(endpoint);
+			var key = EndpointPermissionMetadataGuardSpec._BuildEndpointKey(endpoint);
 			var path = endpoint.RoutePattern.RawText ?? string.Empty;
 
 			// 1. Skip system infrastructure routes.
-			if (_IsSystemRoute(path)) {
+			if (EndpointPermissionMetadataGuardSpec._IsSystemRoute(path)) {
 				continue;
 			}
 
 			// 2. Skip explicitly anonymous routes.
-			if (_IsAnonymousRoute(path)) {
+			if (EndpointPermissionMetadataGuardSpec._IsAnonymousRoute(path)) {
 				continue;
 			}
 
 			// 3. Only staff and tenant scoped routes remain.
 			// Staff: /staff/* | Tenant: / (all non-staff, non-anonymous).
 			// Both MUST carry PermissionFilter metadata.
-			var hasPermissionFilter = _EndpointHasPermissionFilter(endpoint);
+			var hasPermissionFilter = EndpointPermissionMetadataGuardSpec._EndpointHasPermissionFilter(endpoint);
 			if (hasPermissionFilter) {
 				continue;
 			}
 
 			// 4. Check baseline before reporting as an offender.
-			if (_BaselinedDriftRoutes.Contains(key)) {
+			if (EndpointPermissionMetadataGuardSpec._BaselinedDriftRoutes.Contains(key)) {
 				continue;
 			}
 
@@ -228,18 +228,18 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 		// Guards against stale baseline drift: every baselined route must still
 		// exist as an actual endpoint that still lacks PermissionFilter.
 		// If a route is fixed or removed, its baseline entry must be pruned.
-		var endpoints = _GetAllRouteEndpoints();
+		var endpoints = this._GetAllRouteEndpoints();
 
 		var actualUnprotectedKeys = endpoints
 			.Where(ep => {
 				var path = ep.RoutePattern.RawText ?? string.Empty;
-				return !_IsSystemRoute(path) && !_IsAnonymousRoute(path)
-					&& !_EndpointHasPermissionFilter(ep);
+				return !EndpointPermissionMetadataGuardSpec._IsSystemRoute(path) && !EndpointPermissionMetadataGuardSpec._IsAnonymousRoute(path)
+					&& !EndpointPermissionMetadataGuardSpec._EndpointHasPermissionFilter(ep);
 			})
-			.Select(_BuildEndpointKey)
+			.Select(EndpointPermissionMetadataGuardSpec._BuildEndpointKey)
 			.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-		var staleEntries = _BaselinedDriftRoutes
+		var staleEntries = EndpointPermissionMetadataGuardSpec._BaselinedDriftRoutes
 			.Where(entry => !actualUnprotectedKeys.Contains(entry))
 			.OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
 			.ToList();
@@ -256,7 +256,7 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	// ── Helpers ─────────────────────────────────────────────────────────────
 
 	private IReadOnlyList<RouteEndpoint> _GetAllRouteEndpoints() {
-		using var scope = _Factory.Services.CreateScope();
+		using var scope = this._Factory.Services.CreateScope();
 		var dataSource = scope.ServiceProvider
 			.GetRequiredService<EndpointDataSource>();
 
@@ -272,11 +272,11 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	}
 
 	private static bool _IsSystemRoute(string path) {
-		return _SystemAllowlist.Any(entry => entry.PathMatch.Matches(path));
+		return EndpointPermissionMetadataGuardSpec._SystemAllowlist.Any(entry => entry.PathMatch.Matches(path));
 	}
 
 	private static bool _IsAnonymousRoute(string path) {
-		return _AnonymousAllowlist.Any(entry => entry.PathMatch.Matches(path));
+		return EndpointPermissionMetadataGuardSpec._AnonymousAllowlist.Any(entry => entry.PathMatch.Matches(path));
 	}
 
 	/// <summary>
@@ -342,8 +342,8 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 		private readonly bool _IsPrefix;
 
 		private RoutePathMatch(string value, bool isPrefix) {
-			_Value = value;
-			_IsPrefix = isPrefix;
+			this._Value = value;
+			this._IsPrefix = isPrefix;
 		}
 
 		public static RoutePathMatch Prefix(string prefix) {
@@ -355,9 +355,9 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 		}
 
 		public bool Matches(string path) {
-			return _IsPrefix
-				? path.StartsWith(_Value, StringComparison.OrdinalIgnoreCase)
-				: string.Equals(path, _Value, StringComparison.OrdinalIgnoreCase);
+			return this._IsPrefix
+				? path.StartsWith(this._Value, StringComparison.OrdinalIgnoreCase)
+				: string.Equals(path, this._Value, StringComparison.OrdinalIgnoreCase);
 		}
 	}
 

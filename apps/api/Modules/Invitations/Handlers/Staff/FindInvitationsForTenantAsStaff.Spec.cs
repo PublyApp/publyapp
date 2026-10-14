@@ -29,9 +29,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		private readonly TestAuthClient _AuthClient;
 
 		public FindInvitationsForTenantAsStaffSpec(ApiFixture fixture) {
-			_Fixture = fixture;
-			_Http = fixture.HttpClient;
-			_AuthClient = new TestAuthClient(_Http);
+			this._Fixture = fixture;
+			this._Http = fixture.HttpClient;
+			this._AuthClient = new TestAuthClient(this._Http);
 		}
 
 		#region Happy Path Tests
@@ -40,22 +40,22 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnOkWithTenantInvitationsList() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(tenantId);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -71,11 +71,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnInvitationWithCorrectShape() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -83,19 +83,19 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// Create a fresh invitation to ensure we have data
 			string inviteeEmail =
 				$"find-shape-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				inviteeEmail
 			);
 
-			string url = _GetFindUrl(tenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -128,18 +128,18 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnProfilesInInvitationListRows() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
 			string inviteeEmail =
 				$"tenant-list-profiles-{Guid.NewGuid():N}@example.com";
-			using (IServiceScope setupScope = _Fixture.Factory.Services.CreateScope()) {
+			using (IServiceScope setupScope = this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = setupScope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
@@ -157,7 +157,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				await dbContext.Profile.AddRangeAsync(profileA, profileB);
 				await dbContext.SaveChangesAsync();
 
-				var createRequest = _CreateTenantInviteRequest(
+				var createRequest = FindInvitationsForTenantAsStaffSpec._CreateTenantInviteRequest(
 					staffToken,
 					tenantId.ToString(),
 					new {
@@ -171,17 +171,17 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				);
 
 				using HttpResponseMessage createResponse =
-					await _Http.SendAsync(createRequest);
+					await this._Http.SendAsync(createRequest);
 				createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 			}
 
-			string url = _GetFindUrl(tenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -201,31 +201,31 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnAccountLevelForTenantAdminInviteWithoutProfiles() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
 			string inviteeEmail =
 				$"admin-no-profile-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				inviteeEmail,
 				"Admin"
 			);
 
-			string url = _GetFindUrl(tenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -251,18 +251,18 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldNotLeakInvitationsFromOtherTenants() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid acmeTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 			Guid techStartTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.TechStartName
 					);
@@ -273,25 +273,25 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string techStartEmail =
 				$"techstart-isolated-{Guid.NewGuid():N}@example.com";
 
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				acmeTenantId,
 				acmeEmail
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				techStartTenantId,
 				techStartEmail
 			);
 
 			// Query Acme invitations
-			string url = _GetFindUrl(acmeTenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(acmeTenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -316,11 +316,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnNextCursorWhenMoreResultsExist() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -329,20 +329,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			for (int i = 0; i < 3; i++) {
 				string email =
 					$"cursor-pag-{i}-{Guid.NewGuid():N}@example.com";
-				_ = await _CreateTenantInvitationAsync(
+				_ = await this._CreateTenantInvitationAsync(
 					staffToken,
 					tenantId,
 					email
 				);
 			}
 
-			string url = _GetFindUrl(tenantId, limit: 1);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 1);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -360,11 +360,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnSecondPageWhenCursorProvided() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -373,7 +373,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			for (int i = 0; i < 3; i++) {
 				string email =
 					$"cursor-page-{i}-{Guid.NewGuid():N}@example.com";
-				_ = await _CreateTenantInvitationAsync(
+				_ = await this._CreateTenantInvitationAsync(
 					staffToken,
 					tenantId,
 					email
@@ -382,7 +382,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			// Get page 1
-			string url1 = _GetFindUrl(
+			string url1 = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				limit: 1,
 				sortId: "created_at",
@@ -393,7 +393,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response1 =
-				await _Http.SendAsync(request1);
+				await this._Http.SendAsync(request1);
 			_ = response1.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -405,7 +405,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 							.NotBeNullOrEmpty();
 
 			// Get page 2
-			string url2 = _GetFindUrl(
+			string url2 = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				cursor: page1.NextCursor,
 				limit: 1,
@@ -417,7 +417,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response2 =
-				await _Http.SendAsync(request2);
+				await this._Http.SendAsync(request2);
 			_ = response2.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
 
@@ -441,15 +441,15 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnBadRequestWhenTenantIdIsMalformed() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 
-			string url = _GetFindUrl("not-a-guid");
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl("not-a-guid");
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.BadRequest);
@@ -459,16 +459,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnBadRequestWhenCursorIsMalformed() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				cursor: "not-a-guid"
 			);
@@ -477,7 +477,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.BadRequest);
@@ -487,17 +487,17 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnBadRequestWhenCursorRecordNotFound() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
 			Guid nonExistentCursor = Guid.NewGuid();
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				cursor: nonExistentCursor.ToString()
 			);
@@ -506,7 +506,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.BadRequest);
@@ -516,16 +516,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnBadRequestWhenSortIdIsInvalid() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				sortId: "nonexistent"
 			);
@@ -534,7 +534,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.BadRequest);
@@ -544,16 +544,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnUnprocessableEntityWhenStatusIsInvalid() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				status: "pending,wat"
 			);
@@ -562,7 +562,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
@@ -572,16 +572,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnUnprocessableEntityWhenStatusCsvHasNoTokens() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				status: ","
 			);
@@ -590,7 +590,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
@@ -604,16 +604,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldSortByEmailSuccessfully() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				sortId: "email",
 				sortOrder: "asc",
@@ -624,7 +624,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -640,16 +640,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldSortByExpiresAtSuccessfully() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				sortId: "expires_at",
 				sortOrder: "desc",
@@ -660,7 +660,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -676,11 +676,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldSortByAcceptedAtWithNullValues() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -688,13 +688,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// Create invitations with mixed acceptance status
 			string pendingEmail =
 				$"pending-sort-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				pendingEmail
 			);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				sortId: "accepted_at",
 				sortOrder: "desc",
@@ -705,7 +705,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -725,11 +725,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByAdminAccountLevelCaseInsensitively() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -737,20 +737,20 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string prefix = $"level-admin-{Guid.NewGuid():N}";
 			string adminEmail = $"{prefix}-admin@example.com";
 			string userEmail = $"{prefix}-user@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				adminEmail,
 				"Admin"
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				userEmail,
 				"User"
 			);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				level: "aDmIn",
 				q: prefix,
@@ -761,7 +761,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? result = await response.Content
@@ -789,23 +789,23 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldTreatLegacyNullAccountLevelAsUserWhenFiltering() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
 			string legacyEmail =
 				$"legacy-null-level-{Guid.NewGuid():N}@example.com";
-			await _CreateLegacyTenantInvitationWithNullLevelAsync(
+			await this._CreateLegacyTenantInvitationWithNullLevelAsync(
 				tenantId,
 				legacyEmail
 			);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				level: "User",
 				q: legacyEmail,
@@ -816,7 +816,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? result = await response.Content
@@ -832,7 +832,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					&& invitation.AccountLevel == "User"
 			);
 
-			string adminUrl = _GetFindUrl(
+			string adminUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				level: "Admin",
 				q: legacyEmail,
@@ -843,7 +843,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage adminResponse =
-				await _Http.SendAsync(adminRequest);
+				await this._Http.SendAsync(adminRequest);
 
 			_ = adminResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? adminResult = await adminResponse.Content
@@ -857,11 +857,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldCombineAccountLevelWithSearchStatusAndSorting() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -870,26 +870,26 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string firstAdminEmail = $"{prefix}-a-admin@example.com";
 			string excludedUserEmail = $"{prefix}-b-user@example.com";
 			string secondAdminEmail = $"{prefix}-c-admin@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				firstAdminEmail,
 				"Admin"
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				excludedUserEmail,
 				"User"
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				secondAdminEmail,
 				"Admin"
 			);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				level: "AdMiN",
 				status: "pending",
@@ -903,7 +903,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? result = await response.Content
@@ -923,11 +923,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string level
 		) {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -936,24 +936,24 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string adminEmail = $"{prefix}-admin@example.com";
 			string userEmail = $"{prefix}-user@example.com";
 			string legacyEmail = $"{prefix}-legacy@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				adminEmail,
 				"Admin"
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				userEmail,
 				"User"
 			);
-			await _CreateLegacyTenantInvitationWithNullLevelAsync(
+			await this._CreateLegacyTenantInvitationWithNullLevelAsync(
 				tenantId,
 				legacyEmail
 			);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				level: level,
 				q: prefix,
@@ -966,7 +966,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? result = await response.Content
@@ -992,22 +992,22 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string level
 		) {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(tenantId, level: level);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, level: level);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);
@@ -1035,11 +1035,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldKeepAccountLevelFilterAcrossCursorPagination() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1058,7 +1058,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				(adminEmails[2], "Admin"),
 			];
 			foreach (var invitation in invitations) {
-				_ = await _CreateTenantInvitationAsync(
+				_ = await this._CreateTenantInvitationAsync(
 					staffToken,
 					tenantId,
 					invitation.Email,
@@ -1066,7 +1066,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				);
 			}
 
-			string firstUrl = _GetFindUrl(
+			string firstUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				level: "Admin",
 				q: prefix,
@@ -1079,7 +1079,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage firstResponse =
-				await _Http.SendAsync(firstRequest);
+				await this._Http.SendAsync(firstRequest);
 
 			_ = firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? firstPage = await firstResponse.Content
@@ -1093,7 +1093,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = firstPage.Data[0].Email.Should().Be(adminEmails[0]);
 			_ = firstPage.NextCursor.Should().NotBeNullOrEmpty();
 
-			string secondUrl = _GetFindUrl(
+			string secondUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				cursor: firstPage.NextCursor,
 				level: "Admin",
@@ -1107,7 +1107,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage secondResponse =
-				await _Http.SendAsync(secondRequest);
+				await this._Http.SendAsync(secondRequest);
 
 			_ = secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? secondPage = await secondResponse.Content
@@ -1121,7 +1121,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = secondPage.Data[0].Email.Should().Be(adminEmails[1]);
 			_ = secondPage.NextCursor.Should().NotBeNullOrEmpty();
 
-			string thirdUrl = _GetFindUrl(
+			string thirdUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				cursor: secondPage.NextCursor,
 				level: "Admin",
@@ -1135,7 +1135,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage thirdResponse =
-				await _Http.SendAsync(thirdRequest);
+				await this._Http.SendAsync(thirdRequest);
 
 			_ = thirdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			FindResponse? thirdPage = await thirdResponse.Content
@@ -1158,11 +1158,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByPendingStatus() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1170,19 +1170,19 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// Create a pending invitation
 			string pendingEmail =
 				$"pending-filter-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				pendingEmail
 			);
 
-			string url = _GetFindUrl(tenantId, status: "pending");
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "pending");
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1202,11 +1202,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByAcceptedStatus() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1214,7 +1214,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// Create and accept an invitation
 			string acceptedEmail =
 				$"accepted-filter-{Guid.NewGuid():N}@example.com";
-			Guid invitationId = await _CreateTenantInvitationAsync(
+			Guid invitationId = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				acceptedEmail
@@ -1222,7 +1222,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			// Accept the invitation directly via DbContext
 			using (IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope()) {
+				this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = scope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 				Invitation? invitation = await dbContext.Invitation
@@ -1233,13 +1233,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				_ = await dbContext.SaveChangesAsync();
 			}
 
-			string url = _GetFindUrl(tenantId, status: "accepted");
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "accepted");
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1259,11 +1259,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByRevokedStatus() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1271,25 +1271,25 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// Create and revoke an invitation
 			string revokedEmail =
 				$"revoked-filter-{Guid.NewGuid():N}@example.com";
-			Guid invitationId = await _CreateTenantInvitationAsync(
+			Guid invitationId = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				revokedEmail
 			);
 
-			await _RevokeTenantInvitationAsync(
+			await this._RevokeTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				invitationId
 			);
 
-			string url = _GetFindUrl(tenantId, status: "revoked");
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "revoked");
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1310,11 +1310,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByExpiredStatus() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1324,12 +1324,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				$"expired-filter-{Guid.NewGuid():N}@example.com";
 
 			using (IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope()) {
+				this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = scope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
 				Profile defaultProfile =
-					await _GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
+					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
 
 				Users.Entities.User staffUser = await dbContext.User
 					.FirstAsync(u =>
@@ -1349,13 +1349,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				_ = await dbContext.SaveChangesAsync();
 			}
 
-			string url = _GetFindUrl(tenantId, status: "expired");
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "expired");
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1375,11 +1375,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByMultipleStatuses() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1390,26 +1390,26 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string revokedEmail =
 				$"multi-revoked-{Guid.NewGuid():N}@example.com";
 
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				pendingEmail
 			);
 
-			Guid revokedId = await _CreateTenantInvitationAsync(
+			Guid revokedId = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				revokedEmail
 			);
 
-			await _RevokeTenantInvitationAsync(
+			await this._RevokeTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				revokedId
 			);
 
 			// Query with multiple statuses
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				status: "pending,revoked"
 			);
@@ -1418,7 +1418,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1446,16 +1446,16 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldAcceptCommaSeparatedStatusesWithSpaces() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
 				status: "accepted, expired"
 			);
@@ -1464,7 +1464,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1474,22 +1474,22 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldTreatEmptyStatusAsNoFilter() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(tenantId, status: "");
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "");
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1507,11 +1507,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldFilterByEmailSearch() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1522,25 +1522,25 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string otherEmail =
 				$"other-pattern-{Guid.NewGuid():N}@example.com";
 
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				targetEmail
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				otherEmail
 			);
 
 			string searchTerm = targetEmail.Split('@')[0];
-			string url = _GetFindUrl(tenantId, q: searchTerm);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: searchTerm);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1561,31 +1561,31 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldTrimSearchTerm() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
 			string targetEmail =
 				$"trim-test-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				targetEmail
 			);
 
 			string searchTerm = "  " + targetEmail.Split('@')[0] + "  ";
-			string url = _GetFindUrl(tenantId, q: searchTerm);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: searchTerm);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1603,11 +1603,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldMatchEmailSearchCaseInsensitively() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1615,7 +1615,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// Invitation emails are always persisted lowercase.
 			string targetEmail =
 				$"acme-search-case-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				targetEmail
@@ -1623,13 +1623,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			string uppercaseSearchTerm =
 				targetEmail.Split('@')[0].ToUpperInvariant();
-			string url = _GetFindUrl(tenantId, q: uppercaseSearchTerm);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: uppercaseSearchTerm);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1647,11 +1647,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldTreatPercentSearchTermAsLiteralNotWildcard() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1660,12 +1660,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				$"percent-escape-a-{Guid.NewGuid():N}@example.com";
 			string secondEmail =
 				$"percent-escape-b-{Guid.NewGuid():N}@example.com";
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				firstEmail
 			);
-			_ = await _CreateTenantInvitationAsync(
+			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
 				secondEmail
@@ -1673,13 +1673,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			// No seeded/created email literally contains "%". If the wildcard were
 			// left unescaped, "%" would match every email in the tenant.
-			string url = _GetFindUrl(tenantId, q: "%", limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: "%", limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1704,22 +1704,22 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnUnauthorizedWithoutSession() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string url = _GetFindUrl(tenantId);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
@@ -1729,27 +1729,27 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnForbiddenForTenantUser() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string tenantToken = await _AuthClient.LoginAsync(
+			string tenantToken = await this._AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
 
-			string url = _GetFindUrl(tenantId);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(tenantToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -1759,28 +1759,28 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnForbiddenForStaffWithoutPermission() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 
 			string staffUserToken =
-				await _AuthClient.LoginAsync(
+				await this._AuthClient.LoginAsync(
 					TestConstants.StaffUserEmail,
 					TestConstants.SeedPassword
 				);
 
-			string url = _GetFindUrl(tenantId);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffUserToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
@@ -1794,11 +1794,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldListInvitationCreatedViaCreateEndpoint() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1824,18 +1824,18 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			);
 
 			using HttpResponseMessage createResponse =
-				await _Http.SendAsync(createRequest);
+				await this._Http.SendAsync(createRequest);
 			_ = createResponse.StatusCode.Should()
 				.Be(HttpStatusCode.Created);
 
 			// Now find it via the list endpoint
-			string url = _GetFindUrl(tenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1857,11 +1857,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldReturnEmptyProfileNameWhenNoProfilesAssigned() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1871,7 +1871,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				$"no-profile-{Guid.NewGuid():N}@example.com";
 
 			using (IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope()) {
+				this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = scope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
@@ -1894,13 +1894,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				_ = await dbContext.SaveChangesAsync();
 			}
 
-			string url = _GetFindUrl(tenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -1925,11 +1925,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldKeepProfileNameForProfileBasedInvitations() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -1938,7 +1938,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				$"profile-based-{Guid.NewGuid():N}@example.com";
 
 			using (IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope()) {
+				this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = scope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
@@ -1946,7 +1946,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					.FirstAsync(u => u.Email == SeedConstants.Staff.AdminEmail);
 
 				Profile defaultProfile =
-					await _GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
+					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
 				Invitation invitation = Invitation.CreateTenantInvitationWithProfiles(
 					profileBasedEmail,
 					tenantId,
@@ -1961,13 +1961,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				_ = await dbContext.SaveChangesAsync();
 			}
 
-			string url = _GetFindUrl(tenantId, limit: 50);
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
 			HttpRequestMessage request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -1991,18 +1991,18 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldTreatCursorFromOtherTenantAsNotFound() {
 			string staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid acmeTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
 			Guid techStartTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.TechStartName
 					);
@@ -2012,7 +2012,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				$"techstart-cursor-{Guid.NewGuid():N}@example.com";
 			Guid techStartInvitationId;
 			using (IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope()) {
+				this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = scope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
@@ -2021,7 +2021,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						u.Email == SeedConstants.Staff.AdminEmail
 					);
 				Profile defaultProfile =
-					await _GetOrCreateDefaultTenantProfileAsync(dbContext, techStartTenantId);
+					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantProfileAsync(dbContext, techStartTenantId);
 
 				Invitation invitation = Invitation.CreateTenantInvitationWithProfiles(
 					techStartEmail,
@@ -2038,7 +2038,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			// Try to use TechStart invitation ID as cursor in Acme query
-			string url = _GetFindUrl(
+			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				acmeTenantId,
 				cursor: techStartInvitationId.ToString()
 			);
@@ -2047,7 +2047,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			// Should be treated as not found, not cross-tenant leakage
 			_ = response.StatusCode.Should()
@@ -2062,11 +2062,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldWalkEveryAcceptedAtPageWithoutOverlapOrGap() {
 			var staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			var acmeTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -2083,12 +2083,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			var seededAcceptedAt = new List<DateTime>();
 			for (var i = 0; i < 3; i++) {
 				var acceptedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-				var id = await _CreateTenantInvitationAsync(
+				var id = await this._CreateTenantInvitationAsync(
 					staffToken,
 					acmeTenantId,
 					$"tenant-inv-walk-{i}-{Guid.NewGuid():N}@example.com"
 				);
-				await _SetAcceptedAtAsync(id, acceptedAt);
+				await this._SetAcceptedAtAsync(id, acceptedAt);
 				seededIds.Add(id);
 				seededAcceptedAt.Add(acceptedAt);
 			}
@@ -2098,14 +2098,14 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// insertion-ordered, so stable OrderBy(AcceptedAt) already matches
 			// ThenBy(Id) and removing the production tiebreaker leaves the test
 			// green. After the swap, the tiebreaker is actually exercised.
-			await _SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+			await this._SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
 			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 			var visitedIds = new List<Guid>();
 			string? cursor = null;
 			var pages = 0;
 			do {
-				var url = _GetFindUrl(
+				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 					acmeTenantId,
 					cursor: cursor,
 					limit: 1,
@@ -2118,7 +2118,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					).WithSessionToken(staffToken);
 
 				using HttpResponseMessage response =
-					await _Http.SendAsync(request);
+					await this._Http.SendAsync(request);
 				_ = response.StatusCode.Should()
 					.Be(HttpStatusCode.OK);
 
@@ -2155,11 +2155,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
 			var staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			var acmeTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -2176,12 +2176,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			var seededCreatedAt = new List<DateTime>();
 			for (var i = 0; i < 3; i++) {
 				var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-				var id = await _CreateTenantInvitationAsync(
+				var id = await this._CreateTenantInvitationAsync(
 					staffToken,
 					acmeTenantId,
 					$"tenant-inv-created-{i}-{Guid.NewGuid():N}@example.com"
 				);
-				await _SetCreatedAtAsync(id, createdAt);
+				await this._SetCreatedAtAsync(id, createdAt);
 				seededIds.Add(id);
 				seededCreatedAt.Add(createdAt);
 			}
@@ -2192,13 +2192,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 			// ThenBy(Id) and removing the production tiebreaker leaves the test
 			// green. After the swap, the tiebreaker is actually exercised.
-			await _SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+			await this._SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
 			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 			var visitedIds = new List<Guid>();
 			string? cursor = null;
 			var pages = 0;
 			do {
-				var url = _GetFindUrl(
+				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 					acmeTenantId,
 					cursor: cursor,
 					limit: 1,
@@ -2211,7 +2211,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					).WithSessionToken(staffToken);
 
 				using HttpResponseMessage response =
-					await _Http.SendAsync(request);
+					await this._Http.SendAsync(request);
 				_ = response.StatusCode.Should()
 					.Be(HttpStatusCode.OK);
 
@@ -2246,11 +2246,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldWalkEveryExpiresAtPageWithoutOverlapOrGap() {
 			var staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			var acmeTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -2267,12 +2267,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			var seededExpiresAt = new List<DateTime>();
 			for (var i = 0; i < 3; i++) {
 				var expiresAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-				var id = await _CreateTenantInvitationAsync(
+				var id = await this._CreateTenantInvitationAsync(
 					staffToken,
 					acmeTenantId,
 					$"tenant-inv-expires-{i}-{Guid.NewGuid():N}@example.com"
 				);
-				await _SetExpiresAtAsync(id, expiresAt);
+				await this._SetExpiresAtAsync(id, expiresAt);
 				seededIds.Add(id);
 				seededExpiresAt.Add(expiresAt);
 			}
@@ -2284,12 +2284,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// insertion-ordered, so stable OrderBy(ExpiresAt) already matches
 			// ThenBy(Id) and removing the production tiebreaker leaves the test
 			// green. After the swap, the tiebreaker is actually exercised.
-			await _SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
+			await this._SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
 			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 			string? cursor = null;
 			var pages = 0;
 			do {
-				var url = _GetFindUrl(
+				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 					acmeTenantId,
 					cursor: cursor,
 					limit: 1,
@@ -2302,7 +2302,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					).WithSessionToken(staffToken);
 
 				using HttpResponseMessage response =
-					await _Http.SendAsync(request);
+					await this._Http.SendAsync(request);
 				_ = response.StatusCode.Should()
 					.Be(HttpStatusCode.OK);
 
@@ -2337,11 +2337,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		public async Task
 		ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
 			var staffToken =
-				await _AuthClient.LoginAsStaffAdminAsync();
+				await this._AuthClient.LoginAsStaffAdminAsync();
 			var acmeTenantId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.AcmeName
 					);
@@ -2358,7 +2358,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					$"tenant-inv-email-b-{Guid.NewGuid():N}@example.com",
 				};
 			foreach (var email in emails) {
-				var id = await _CreateTenantInvitationAsync(
+				var id = await this._CreateTenantInvitationAsync(
 					staffToken,
 					acmeTenantId,
 					email
@@ -2372,7 +2372,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string? cursor = null;
 			var pages = 0;
 			do {
-				var url = _GetFindUrl(
+				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 					acmeTenantId,
 					cursor: cursor,
 					limit: 1,
@@ -2385,7 +2385,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					).WithSessionToken(staffToken);
 
 				using HttpResponseMessage response =
-					await _Http.SendAsync(request);
+					await this._Http.SendAsync(request);
 				_ = response.StatusCode.Should()
 					.Be(HttpStatusCode.OK);
 
@@ -2422,7 +2422,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			DateTime createdAt
 		) {
 			using IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope();
+				this._Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -2438,7 +2438,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			DateTime expiresAt
 		) {
 			using IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope();
+				this._Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -2458,7 +2458,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			DateTime acceptedAt
 		) {
 			using IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope();
+				this._Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -2488,7 +2488,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string? q = null,
 			string? level = null
 		) {
-			return _GetFindUrl(
+			return FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId.ToString(),
 			cursor,
 			limit,
@@ -2551,7 +2551,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		string email,
 		string accountLevel = "User"
 	) {
-			return await _CreateTenantInvitationWithProfilesAsync(
+			return await this._CreateTenantInvitationWithProfilesAsync(
 				staffToken,
 				tenantId,
 				email,
@@ -2587,7 +2587,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			request.Content = JsonContent.Create(body);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 			_ = response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 			InvitationCreatedResponse? responseBody = await response.Content
@@ -2635,7 +2635,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			).WithSessionToken(staffToken);
 
 			using HttpResponseMessage response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
@@ -2645,7 +2645,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string email
 		) {
 			using IServiceScope scope =
-				_Fixture.Factory.Services.CreateScope();
+				this._Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			Users.Entities.User staffUser = await dbContext.User
@@ -2729,7 +2729,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		#endregion
 
 		private async Task _SwapInvitationIdsAsync(Guid idA, Guid idB) {
-			using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+			using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			var temp = Guid.NewGuid();

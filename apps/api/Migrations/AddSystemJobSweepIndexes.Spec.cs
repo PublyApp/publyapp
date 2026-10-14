@@ -16,12 +16,12 @@ public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public AddSystemJobSweepIndexesSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldApplyEverySweepAndMonitorIndex() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var indexNames = await dbContext.Database.SqlQuery<string>(

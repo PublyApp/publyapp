@@ -30,16 +30,16 @@ public sealed class GetRedirectCodeSpec
 	public GetRedirectCodeSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnTenantPickerWhenNoSuspended() {
 		// Alice has 2 active tenants -> tenant-picker
-		var aliceToken = await _AuthClient.LoginAsync(
+		var aliceToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
@@ -50,7 +50,7 @@ public sealed class GetRedirectCodeSpec
 		).WithSessionToken(aliceToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -66,15 +66,15 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldRedirectToTenantWithActiveHint() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var aliceToken = await _AuthClient.LoginAsync(
+		var aliceToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
@@ -87,7 +87,7 @@ public sealed class GetRedirectCodeSpec
 		).WithSessionToken(aliceToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -103,7 +103,7 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldReturnValidationErrorForMalformedTenantId() {
-		var aliceToken = await _AuthClient.LoginAsync(
+		var aliceToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
@@ -116,7 +116,7 @@ public sealed class GetRedirectCodeSpec
 		).WithSessionToken(aliceToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -135,10 +135,10 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldSetHasSuspendedTrueWhenOneSuspended() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -146,12 +146,12 @@ public sealed class GetRedirectCodeSpec
 		// Suspend Acme
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, acmeId
+				this._Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
-			var aliceToken = await _AuthClient.LoginAsync(
+			var aliceToken = await this._AuthClient.LoginAsync(
 				TestConstants.AliceEmail,
 				TestConstants.SeedPassword
 			);
@@ -162,7 +162,7 @@ public sealed class GetRedirectCodeSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -176,7 +176,7 @@ public sealed class GetRedirectCodeSpec
 			var techStartId =
 				await TenantTestHelper
 					.GetTenantIdByNameAsync(
-						_Http,
+						this._Http,
 						staffToken,
 						SeedConstants.Tenants.TechStartName
 					);
@@ -186,7 +186,7 @@ public sealed class GetRedirectCodeSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, acmeId
+						this._Http, staffToken, acmeId
 					);
 		}
 	}
@@ -195,16 +195,16 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldFallThroughWhenHintPointsToSuspended() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
@@ -212,13 +212,13 @@ public sealed class GetRedirectCodeSpec
 		// Suspend Acme
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, acmeId
+				this._Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			var aliceToken =
-				await _AuthClient.LoginAsync(
+				await this._AuthClient.LoginAsync(
 					TestConstants.AliceEmail,
 					TestConstants.SeedPassword
 				);
@@ -232,7 +232,7 @@ public sealed class GetRedirectCodeSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -249,7 +249,7 @@ public sealed class GetRedirectCodeSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, acmeId
+						this._Http, staffToken, acmeId
 					);
 		}
 	}
@@ -258,16 +258,16 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldRedirectWhenHintIsActiveWithOtherSuspended() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
@@ -275,13 +275,13 @@ public sealed class GetRedirectCodeSpec
 		// Suspend Acme
 		using var suspend =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, acmeId
+				this._Http, staffToken, acmeId
 			);
 		suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			var aliceToken =
-				await _AuthClient.LoginAsync(
+				await this._AuthClient.LoginAsync(
 					TestConstants.AliceEmail,
 					TestConstants.SeedPassword
 				);
@@ -295,7 +295,7 @@ public sealed class GetRedirectCodeSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -311,7 +311,7 @@ public sealed class GetRedirectCodeSpec
 			using var cleanup =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, acmeId
+						this._Http, staffToken, acmeId
 					);
 		}
 	}
@@ -320,16 +320,16 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldReturnTenantPickerWhenAllSuspended() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
@@ -337,18 +337,18 @@ public sealed class GetRedirectCodeSpec
 		// Suspend both tenants
 		using var s1 =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, acmeId
+				this._Http, staffToken, acmeId
 			);
 		s1.StatusCode.Should().Be(HttpStatusCode.OK);
 		using var s2 =
 			await TenantTestHelper.SuspendTenantAsync(
-				_Http, staffToken, techStartId
+				this._Http, staffToken, techStartId
 			);
 		s2.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		try {
 			var aliceToken =
-				await _AuthClient.LoginAsync(
+				await this._AuthClient.LoginAsync(
 					TestConstants.AliceEmail,
 					TestConstants.SeedPassword
 				);
@@ -359,7 +359,7 @@ public sealed class GetRedirectCodeSpec
 			).WithSessionToken(aliceToken);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -375,12 +375,12 @@ public sealed class GetRedirectCodeSpec
 			using var r1 =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, acmeId
+						this._Http, staffToken, acmeId
 					);
 			using var r2 =
 				await TenantTestHelper
 					.ReactivateTenantAsync(
-						_Http, staffToken, techStartId
+						this._Http, staffToken, techStartId
 					);
 		}
 	}
@@ -388,9 +388,9 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedForActiveUserWithoutTenantMemberships() {
-		var seeded = await _SeedUserWithoutMembershipsAsync();
+		var seeded = await this._SeedUserWithoutMembershipsAsync();
 		try {
-			var token = await _AuthClient.LoginAsync(
+			var token = await this._AuthClient.LoginAsync(
 				seeded.Email,
 				TestConstants.SeedPassword
 			);
@@ -399,7 +399,7 @@ public sealed class GetRedirectCodeSpec
 				HttpMethod.Get,
 				Routes.Auth.GetRedirectCode
 			).WithSessionToken(token);
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -409,7 +409,7 @@ public sealed class GetRedirectCodeSpec
 			Assert.NotNull(result);
 			result.RedirectCode.Should().Be("unauthorized");
 		} finally {
-			await _DeleteSeededRedirectCodeUserAsync(seeded);
+			await this._DeleteSeededRedirectCodeUserAsync(seeded);
 		}
 	}
 
@@ -417,21 +417,21 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldReturnTenantPickerWhenAllTenantsAreDeleted() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var seeded = await _SeedUserWithTenantAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var seeded = await this._SeedUserWithTenantAsync();
 		try {
 			using var suspend =
 				await TenantTestHelper.SuspendTenantAsync(
-					_Http, staffToken, seeded.TenantId
+					this._Http, staffToken, seeded.TenantId
 				);
 			suspend.StatusCode.Should().Be(HttpStatusCode.OK);
 			using var delete =
 				await TenantTestHelper.DeleteTenantAsync(
-					_Http, staffToken, seeded.TenantId
+					this._Http, staffToken, seeded.TenantId
 				);
 			delete.StatusCode.Should().Be(HttpStatusCode.OK);
 
-			var token = await _AuthClient.LoginAsync(
+			var token = await this._AuthClient.LoginAsync(
 				seeded.Email,
 				TestConstants.SeedPassword
 			);
@@ -441,7 +441,7 @@ public sealed class GetRedirectCodeSpec
 				Routes.Auth.GetUserTenantsForPicker
 			).WithSessionToken(token);
 			using var pickerResponse =
-				await _Http.SendAsync(pickerRequest);
+				await this._Http.SendAsync(pickerRequest);
 
 			pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			var pickerResult = await pickerResponse.Content
@@ -456,7 +456,7 @@ public sealed class GetRedirectCodeSpec
 				Routes.Auth.GetRedirectCode
 			).WithSessionToken(token);
 			using var redirectResponse =
-				await _Http.SendAsync(redirectRequest);
+				await this._Http.SendAsync(redirectRequest);
 
 			redirectResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			var redirectResult = await redirectResponse.Content
@@ -465,7 +465,7 @@ public sealed class GetRedirectCodeSpec
 			Assert.NotNull(redirectResult);
 			redirectResult.RedirectCode.Should().Be("tenant-picker");
 		} finally {
-			await _DeleteSeededRedirectCodeUserAsync(seeded);
+			await this._DeleteSeededRedirectCodeUserAsync(seeded);
 		}
 	}
 
@@ -473,7 +473,7 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldReturnStaffForStaffUser() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -481,7 +481,7 @@ public sealed class GetRedirectCodeSpec
 		).WithSessionToken(staffToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -497,15 +497,15 @@ public sealed class GetRedirectCodeSpec
 	ItShouldDirectRedirectForSingleActiveTenant() {
 		// Acme admin has 1 tenant -> direct redirect
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var acmeAdminToken = await _AuthClient.LoginAsync(
+		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -516,7 +516,7 @@ public sealed class GetRedirectCodeSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -532,7 +532,7 @@ public sealed class GetRedirectCodeSpec
 	private async Task<SeededRedirectCodeUser>
 	_SeedUserWithTenantAsync() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -578,7 +578,7 @@ public sealed class GetRedirectCodeSpec
 	private async Task<SeededRedirectCodeUserWithoutMemberships>
 	_SeedUserWithoutMembershipsAsync() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -605,7 +605,7 @@ public sealed class GetRedirectCodeSpec
 	private async Task _DeleteSeededRedirectCodeUserAsync(
 		SeededRedirectCodeUser seeded
 	) {
-		await _DeleteSeededRedirectCodeUserAsync(
+		await this._DeleteSeededRedirectCodeUserAsync(
 			seeded.UserId,
 			seeded.TenantId
 		);
@@ -614,7 +614,7 @@ public sealed class GetRedirectCodeSpec
 	private async Task _DeleteSeededRedirectCodeUserAsync(
 		SeededRedirectCodeUserWithoutMemberships seeded
 	) {
-		await _DeleteSeededRedirectCodeUserAsync(seeded.UserId, null);
+		await this._DeleteSeededRedirectCodeUserAsync(seeded.UserId, null);
 	}
 
 	private async Task _DeleteSeededRedirectCodeUserAsync(
@@ -622,7 +622,7 @@ public sealed class GetRedirectCodeSpec
 		Guid? tenantId
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

@@ -30,15 +30,15 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountPublicationLifecycleSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldResumeFuturePausedRowsAndRePausePastDueRowsOnReconnect() {
-		var (tenantId, token, accountId) = await _ConnectNewAccountAsync();
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		var (tenantId, token, accountId) = await this._ConnectNewAccountAsync();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var fake = scope.ServiceProvider.GetRequiredService<FakeBlueskyClient>();
 
@@ -49,13 +49,13 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 				s => s.SetProperty(a => a.Status, SocialAccountStatus.NeedsReconnect)
 			);
 
-		var userId = await _SeedUserAsync(db);
+		var userId = await SocialAccountPublicationLifecycleSpec._SeedUserAsync(db);
 		var futureInstant = DateTime.UtcNow.AddHours(2);
-		var futureId = await _SeedPublicationAsync(
+		var futureId = await SocialAccountPublicationLifecycleSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Paused, futureInstant
 		);
-		var pastDueId = await _SeedPublicationAsync(
+		var pastDueId = await SocialAccountPublicationLifecycleSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-1)
 		);
@@ -65,18 +65,18 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 			HttpMethod.Post, $"/social-accounts/{accountId}/reconnect"
 		).WithSessionToken(token).WithTenantId(tenantId);
 		request.Content = JsonContent.Create(new { appPassword = "app-password-444" });
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		var future = await _ReloadAsync(db, futureId);
+		var future = await SocialAccountPublicationLifecycleSpec._ReloadAsync(db, futureId);
 		future.Status.Should().Be(
 			PublicationStatus.Scheduled, "a future-instant row resumes on reconnect"
 		);
 		future.LastError.Should().BeNull();
 		future.ScheduledAtUtc.Should().BeCloseTo(futureInstant, TimeSpan.FromSeconds(5));
 
-		var pastDue = await _ReloadAsync(db, pastDueId);
+		var pastDue = await SocialAccountPublicationLifecycleSpec._ReloadAsync(db, pastDueId);
 		pastDue.Status.Should().Be(
 			PublicationStatus.Paused, "a past-due row must never fire late"
 		);
@@ -85,16 +85,16 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 
 	[Fact]
 	public async Task ItShouldPauseEveryNonTerminalRowOfTheAccountOnDisconnect() {
-		var (tenantId, token, accountId) = await _ConnectNewAccountAsync();
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		var (tenantId, token, accountId) = await this._ConnectNewAccountAsync();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var userId = await _SeedUserAsync(db);
-		var scheduledId = await _SeedPublicationAsync(
+		var userId = await SocialAccountPublicationLifecycleSpec._SeedUserAsync(db);
+		var scheduledId = await SocialAccountPublicationLifecycleSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
-		var pausedId = await _SeedPublicationAsync(
+		var pausedId = await SocialAccountPublicationLifecycleSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
 			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-1)
 		);
@@ -102,12 +102,12 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post, $"/social-accounts/{accountId}/disconnect"
 		).WithSessionToken(token).WithTenantId(tenantId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		foreach (var publicationId in new[] { scheduledId, pausedId }) {
-			var publication = await _ReloadAsync(db, publicationId);
+			var publication = await SocialAccountPublicationLifecycleSpec._ReloadAsync(db, publicationId);
 			publication.Status.Should().Be(
 				PublicationStatus.Paused, "disconnect stops everything non-terminal"
 			);
@@ -116,11 +116,11 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 	}
 
 	private async Task<(Guid TenantId, string Token, Guid AccountId)> _ConnectNewAccountAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, staffToken, SeedConstants.Tenants.AcmeName
+			this._Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
 		);
 		using var request = new HttpRequestMessage(
@@ -130,7 +130,7 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 			identifier = $"lifecycle-{Guid.NewGuid():N}@example.com",
 			appPassword = "app-password-555",
 		});
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var body = await response.Content.ReadFromJsonAsync<JsonElement>();
 		var accountIdValue = body.GetProperty("id").GetString();

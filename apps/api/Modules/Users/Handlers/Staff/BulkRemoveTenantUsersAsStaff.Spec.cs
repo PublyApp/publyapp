@@ -32,9 +32,9 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	private readonly TestAuthClient _AuthClient;
 
 	public BulkRemoveTenantUsersAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetBulkRemoveUrl(string tenantId) {
@@ -46,9 +46,9 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await _GetTenantIdAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			sessionToken: null,
 			tenantId.ToString(),
 			new { userIds = new[] { Guid.NewGuid() } }
@@ -59,13 +59,13 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _AuthClient.LoginAsync(
+		var tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var tenantId = await _GetTenantIdAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			tenantToken,
 			tenantId.ToString(),
 			new { userIds = new[] { Guid.NewGuid() } }
@@ -78,13 +78,13 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithoutPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-remove-tenant-user-no-permission"
 			);
-		var tenantId = await _GetTenantIdAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new { userIds = new[] { Guid.NewGuid() } }
@@ -95,9 +95,9 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			"not-a-guid",
 			new { userIds = new[] { Guid.NewGuid() } }
@@ -112,12 +112,12 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	[Theory]
-	[MemberData(nameof(InvalidBodies))]
+	[MemberData(nameof(BulkRemoveTenantUsersAsStaffSpec.InvalidBodies))]
 	public async Task ItShouldReturnValidationProblemWhenBodyIsInvalid(string body) {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
-		using var response = await _BulkRemoveRawJsonAsync(
+		using var response = await this._BulkRemoveRawJsonAsync(
 			staffToken,
 			tenantId.ToString(),
 			body
@@ -134,12 +134,12 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemWhenUserIdsExceedTheMaximumCount() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		var tooManyUserIds = Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()).ToArray();
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new { userIds = tooManyUserIds }
@@ -156,13 +156,13 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldRemoveMultipleTenantUsersInOneBulkRequest() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var (tenantId, adminUserId) = await _SeedTenantWithAdminAsync();
-		var firstUserId = await _SeedTenantUserAsync(tenantId, AccountLevel.User);
-		var secondUserId = await _SeedTenantUserAsync(tenantId, AccountLevel.User);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, adminUserId) = await this._SeedTenantWithAdminAsync();
+		var firstUserId = await this._SeedTenantUserAsync(tenantId, AccountLevel.User);
+		var secondUserId = await this._SeedTenantUserAsync(tenantId, AccountLevel.User);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new { userIds = new[] { firstUserId, secondUserId } }
@@ -177,9 +177,9 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await _AssertUserAccountRemovedAsync(tenantId, firstUserId);
-		await _AssertUserAccountRemovedAsync(tenantId, secondUserId);
-		await _AssertBulkRemoveAuditLogsAsync(
+		await this._AssertUserAccountRemovedAsync(tenantId, firstUserId);
+		await this._AssertUserAccountRemovedAsync(tenantId, secondUserId);
+		await this._AssertBulkRemoveAuditLogsAsync(
 			tenantId,
 			startedAt,
 			expectedTargetIds: [firstUserId, secondUserId]
@@ -189,11 +189,11 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldDeduplicateRepeatedUserIdsBeforeRemoving() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var (tenantId, _) = await _SeedTenantWithAdminAsync();
-		var userId = await _SeedTenantUserAsync(tenantId, AccountLevel.User);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await this._SeedTenantWithAdminAsync();
+		var userId = await this._SeedTenantUserAsync(tenantId, AccountLevel.User);
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new { userIds = new[] { userId, userId } }
@@ -207,19 +207,19 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(0);
 
-		await _AssertUserAccountRemovedAsync(tenantId, userId);
+		await this._AssertUserAccountRemovedAsync(tenantId, userId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnPartialResultForMissingAndCrossTenantUsers() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var (tenantId, _) = await _SeedTenantWithAdminAsync();
-		var deletableUserId = await _SeedTenantUserAsync(tenantId, AccountLevel.User);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await this._SeedTenantWithAdminAsync();
+		var deletableUserId = await this._SeedTenantUserAsync(tenantId, AccountLevel.User);
 		var missingUserId = Guid.NewGuid();
-		var (otherTenantId, otherAdminUserId) = await _SeedTenantWithAdminAsync();
+		var (otherTenantId, otherAdminUserId) = await this._SeedTenantWithAdminAsync();
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -247,9 +247,9 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 			&& item.Error == "not-found"
 		);
 
-		await _AssertUserAccountRemovedAsync(tenantId, deletableUserId);
-		await _AssertUserAccountNotRemovedAsync(otherTenantId, otherAdminUserId);
-		await _AssertBulkRemoveAuditLogsAsync(
+		await this._AssertUserAccountRemovedAsync(tenantId, deletableUserId);
+		await this._AssertUserAccountNotRemovedAsync(otherTenantId, otherAdminUserId);
+		await this._AssertBulkRemoveAuditLogsAsync(
 			tenantId,
 			startedAt,
 			expectedTargetIds: [deletableUserId]
@@ -258,12 +258,12 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldNotWriteAnAuditLogWhenNothingSucceeds() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var (tenantId, _) = await _SeedTenantWithAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, _) = await this._SeedTenantWithAdminAsync();
 		var missingUserId = Guid.NewGuid();
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new { userIds = new[] { missingUserId } }
@@ -277,7 +277,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		result.SucceededCount.Should().Be(0);
 		result.FailedCount.Should().Be(1);
 
-		await _AssertBulkRemoveAuditLogsAsync(
+		await this._AssertBulkRemoveAuditLogsAsync(
 			tenantId,
 			startedAt,
 			expectedTargetIds: []
@@ -286,11 +286,11 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailWhenRemovingTheLastActiveAdminInTheBatch() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var (tenantId, adminUserId) = await _SeedTenantWithAdminAsync();
-		var regularUserId = await _SeedTenantUserAsync(tenantId, AccountLevel.User);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var (tenantId, adminUserId) = await this._SeedTenantWithAdminAsync();
+		var regularUserId = await this._SeedTenantUserAsync(tenantId, AccountLevel.User);
 
-		using var response = await _BulkRemoveAsync(
+		using var response = await this._BulkRemoveAsync(
 			staffToken,
 			tenantId.ToString(),
 			new { userIds = new[] { regularUserId, adminUserId } }
@@ -308,8 +308,8 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 			&& item.Error == "last-admin"
 		);
 
-		await _AssertUserAccountRemovedAsync(tenantId, regularUserId);
-		await _AssertUserAccountNotRemovedAsync(tenantId, adminUserId);
+		await this._AssertUserAccountRemovedAsync(tenantId, regularUserId);
+		await this._AssertUserAccountNotRemovedAsync(tenantId, adminUserId);
 	}
 
 	public static TheoryData<string> InvalidBodies() {
@@ -324,16 +324,16 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	private async Task<(Guid TenantId, Guid AdminUserId)> _SeedTenantWithAdminAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
@@ -369,7 +369,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<Guid> _SeedTenantUserAsync(Guid tenantId, AccountLevel level) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var unique = Guid.NewGuid().ToString("N");
@@ -398,14 +398,14 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		string tenantId,
 		object body
 	) {
-		var request = new HttpRequestMessage(HttpMethod.Post, _GetBulkRemoveUrl(tenantId));
+		var request = new HttpRequestMessage(HttpMethod.Post, BulkRemoveTenantUsersAsStaffSpec._GetBulkRemoveUrl(tenantId));
 
 		if (sessionToken is not null) {
 			request.WithSessionToken(sessionToken);
 		}
 
 		request.Content = JsonContent.Create(body);
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private async Task<HttpResponseMessage> _BulkRemoveRawJsonAsync(
@@ -415,15 +415,15 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkRemoveUrl(tenantId)
+			BulkRemoveTenantUsersAsStaffSpec._GetBulkRemoveUrl(tenantId)
 		).WithSessionToken(sessionToken);
 
 		request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private async Task _AssertUserAccountRemovedAsync(Guid tenantId, Guid userId) {
-		var account = await _GetUserAccountIgnoringFiltersAsync(tenantId, userId);
+		var account = await this._GetUserAccountIgnoringFiltersAsync(tenantId, userId);
 		account.Should().NotBeNull();
 		if (account is null) {
 			throw new InvalidOperationException("Seeded user account could not be loaded.");
@@ -434,7 +434,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task _AssertUserAccountNotRemovedAsync(Guid tenantId, Guid userId) {
-		var account = await _GetUserAccountIgnoringFiltersAsync(tenantId, userId);
+		var account = await this._GetUserAccountIgnoringFiltersAsync(tenantId, userId);
 		account.Should().NotBeNull();
 		if (account is null) {
 			throw new InvalidOperationException("Seeded user account could not be loaded.");
@@ -445,7 +445,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<UserAccount?> _GetUserAccountIgnoringFiltersAsync(Guid tenantId, Guid userId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await (
@@ -465,7 +465,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		DateTime startedAt,
 		IReadOnlyCollection<Guid> expectedTargetIds
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var auditLogs = await (

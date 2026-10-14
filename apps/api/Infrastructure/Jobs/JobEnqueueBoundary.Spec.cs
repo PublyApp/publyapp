@@ -70,15 +70,15 @@ public sealed partial class JobEnqueueBoundarySpec {
 
 	// Matched against the literal-masked view (API shapes are code, not text).
 	private static readonly (string Name, Regex Pattern)[] _ApiPatterns = [
-		("DbSet Add/Remove", _DbSetMutation()),
-		("ExecuteUpdate/ExecuteDelete", _BulkMutation()),
-		("Set<JobQueueItem>", _SetOfJobQueueItem()),
-		("new JobQueueItem", _EntityConstruction())
+		("DbSet Add/Remove", JobEnqueueBoundarySpec._DbSetMutation()),
+		("ExecuteUpdate/ExecuteDelete", JobEnqueueBoundarySpec._BulkMutation()),
+		("Set<JobQueueItem>", JobEnqueueBoundarySpec._SetOfJobQueueItem()),
+		("new JobQueueItem", JobEnqueueBoundarySpec._EntityConstruction())
 	];
 
 	[Fact]
 	public void ItShouldOnlyWriteJobQueueRowsFromInsideTheEngine() {
-		var apiRoot = _FindApiRoot();
+		var apiRoot = JobEnqueueBoundarySpec._FindApiRoot();
 		var offenders = new List<string>();
 
 		foreach (var file in Directory.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)) {
@@ -87,11 +87,11 @@ public sealed partial class JobEnqueueBoundarySpec {
 			if (relative.Contains("/obj/") || relative.Contains("/bin/")
 				|| relative.Contains(".artifacts/")
 				|| relative.EndsWith(".Spec.cs", StringComparison.Ordinal)
-				|| _AllowedPathPrefixes.Any(p => relative.StartsWith(p, StringComparison.Ordinal))) {
+				|| JobEnqueueBoundarySpec._AllowedPathPrefixes.Any(p => relative.StartsWith(p, StringComparison.Ordinal))) {
 				continue;
 			}
 
-			foreach (var finding in _FindForbiddenPatterns(File.ReadAllText(file))) {
+			foreach (var finding in JobEnqueueBoundarySpec._FindForbiddenPatterns(File.ReadAllText(file))) {
 				offenders.Add($"{relative}: {finding}");
 			}
 		}
@@ -185,13 +185,13 @@ public sealed partial class JobEnqueueBoundarySpec {
 		];
 
 		foreach (var snippet in knownBad) {
-			_FindForbiddenPatterns(snippet).Should().NotBeEmpty(
+			JobEnqueueBoundarySpec._FindForbiddenPatterns(snippet).Should().NotBeEmpty(
 				$"detector must catch: {snippet}"
 			);
 		}
 
 		foreach (var snippet in knownGood) {
-			_FindForbiddenPatterns(snippet).Should().BeEmpty(
+			JobEnqueueBoundarySpec._FindForbiddenPatterns(snippet).Should().BeEmpty(
 				$"detector must not flag: {snippet}"
 			);
 		}
@@ -200,16 +200,16 @@ public sealed partial class JobEnqueueBoundarySpec {
 	// Shared detector: API-shape patterns see code only (literal text masked, hole
 	// expressions preserved); the raw-SQL pass sees string contents, comments gone.
 	private static List<string> _FindForbiddenPatterns(string source) {
-		var (codeOnly, withStrings) = _RenderViews(source);
+		var (codeOnly, withStrings) = JobEnqueueBoundarySpec._RenderViews(source);
 		var findings = new List<string>();
 
-		foreach (var (name, pattern) in _ApiPatterns) {
+		foreach (var (name, pattern) in JobEnqueueBoundarySpec._ApiPatterns) {
 			if (pattern.IsMatch(codeOnly)) {
 				findings.Add(name);
 			}
 		}
 
-		if (_RawSqlMutation().IsMatch(withStrings)) {
+		if (JobEnqueueBoundarySpec._RawSqlMutation().IsMatch(withStrings)) {
 			findings.Add("raw job_queue DML");
 		}
 
@@ -242,17 +242,17 @@ public sealed partial class JobEnqueueBoundarySpec {
 		var unmasked = new StringBuilder(source.Length);
 
 		foreach (var token in root.DescendantTokens(descendIntoTrivia: false)) {
-			_AppendTrivia(masked, unmasked, token.LeadingTrivia);
+			JobEnqueueBoundarySpec._AppendTrivia(masked, unmasked, token.LeadingTrivia);
 
 			var text = token.Text;
 			unmasked.Append(text);
 			masked.Append(
-				_LiteralTextTokenKinds.Contains(token.Kind())
+				JobEnqueueBoundarySpec._LiteralTextTokenKinds.Contains(token.Kind())
 					? new string(' ', text.Length)
 					: text
 			);
 
-			_AppendTrivia(masked, unmasked, token.TrailingTrivia);
+			JobEnqueueBoundarySpec._AppendTrivia(masked, unmasked, token.TrailingTrivia);
 		}
 
 		return (masked.ToString(), unmasked.ToString());
@@ -269,9 +269,9 @@ public sealed partial class JobEnqueueBoundarySpec {
 			// #if false) is covered by the same literal/comment masking rules.
 			if (trivia.IsKind(SyntaxKind.DisabledTextTrivia)) {
 				var disabledText = trivia.ToFullString();
-				var (disabledCodeOnly, disabledWithStrings) = _RenderViews(disabledText);
-				_AppendRenderedSegment(masked, disabledCodeOnly, trivia.FullSpan.Length);
-				_AppendRenderedSegment(unmasked, disabledWithStrings, trivia.FullSpan.Length);
+				var (disabledCodeOnly, disabledWithStrings) = JobEnqueueBoundarySpec._RenderViews(disabledText);
+				JobEnqueueBoundarySpec._AppendRenderedSegment(masked, disabledCodeOnly, trivia.FullSpan.Length);
+				JobEnqueueBoundarySpec._AppendRenderedSegment(unmasked, disabledWithStrings, trivia.FullSpan.Length);
 				continue;
 			}
 

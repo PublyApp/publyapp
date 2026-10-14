@@ -22,30 +22,30 @@ public sealed class CleanupExpiredSessionsHandlerSpec : IClassFixture<ApiFixture
 	private readonly ApiFixture _Fixture;
 
 	public CleanupExpiredSessionsHandlerSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteExpiredSessionsWhilePreservingLiveOnes() {
 		var marker = $"cleanup-{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		var userId = await _GetSeedUserIdAsync(dbContext);
+		await using var dbContext = await this._CreateDbContextAsync();
+		var userId = await CleanupExpiredSessionsHandlerSpec._GetSeedUserIdAsync(dbContext);
 
 		try {
 			var expired = new Guid?[] {
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -60),
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -5),
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -1),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -60),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -5),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -1),
 			};
 			var live = new Guid?[] {
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 5),
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 120),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 5),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 120),
 			};
 
-			var result = await _RunAsync(dbContext);
+			var result = await CleanupExpiredSessionsHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var survivingExpired = await verify.Session
 				.CountAsync(s => expired.Contains(s.Id));
 			survivingExpired.Should().Be(0, "every expired session must be swept");
@@ -56,68 +56,68 @@ public sealed class CleanupExpiredSessionsHandlerSpec : IClassFixture<ApiFixture
 				.ToListAsync();
 			survivingLive.Should().BeEquivalentTo(live, "live sessions must be untouched");
 		} finally {
-			await _CleanupAsync(marker);
+			await this._CleanupAsync(marker);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
 		var marker = $"cleanup-idem-{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		var userId = await _GetSeedUserIdAsync(dbContext);
+		await using var dbContext = await this._CreateDbContextAsync();
+		var userId = await CleanupExpiredSessionsHandlerSpec._GetSeedUserIdAsync(dbContext);
 
 		try {
-			await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -30);
-			var liveId = await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 60);
+			await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: -30);
+			var liveId = await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 60);
 
-			await _RunAsync(dbContext);
+			await CleanupExpiredSessionsHandlerSpec._RunAsync(dbContext);
 			// A second run must be a provably harmless no-op (the DELETE predicate matches
 			// nothing new): the domain outcome marker is the deletion itself (F13).
-			var secondOutcome = await _RunAsync(dbContext);
+			var secondOutcome = await CleanupExpiredSessionsHandlerSpec._RunAsync(dbContext);
 			secondOutcome.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var withMarker = await verify.Session.CountAsync(s => s.Token.StartsWith(marker));
 			withMarker.Should().Be(1, "only the live session remains after either run");
 
 			var liveStillThere = await verify.Session.AnyAsync(s => s.Id == liveId);
 			liveStillThere.Should().BeTrue();
 		} finally {
-			await _CleanupAsync(marker);
+			await this._CleanupAsync(marker);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldNoOpWhenNothingIsExpired() {
 		var marker = $"cleanup-noop-{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		var userId = await _GetSeedUserIdAsync(dbContext);
+		await using var dbContext = await this._CreateDbContextAsync();
+		var userId = await CleanupExpiredSessionsHandlerSpec._GetSeedUserIdAsync(dbContext);
 
 		try {
 			var ids = new Guid?[] {
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 10),
-				await _InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 240),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 10),
+				await CleanupExpiredSessionsHandlerSpec._InsertSessionAsync(dbContext, userId, marker, minutesToExpiry: 240),
 			};
 
-			var result = await _RunAsync(dbContext);
+			var result = await CleanupExpiredSessionsHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var surviving = await verify.Session
 				.Where(s => ids.Contains(s.Id))
 				.Select(s => s.Id)
 				.ToListAsync();
 			surviving.Should().BeEquivalentTo(ids);
 		} finally {
-			await _CleanupAsync(marker);
+			await this._CleanupAsync(marker);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldContinuePastTheFiveHundredRowBatchBoundary() {
 		var marker = $"cleanup-batch-{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		var userId = await _GetSeedUserIdAsync(dbContext);
+		await using var dbContext = await this._CreateDbContextAsync();
+		var userId = await CleanupExpiredSessionsHandlerSpec._GetSeedUserIdAsync(dbContext);
 
 		try {
 			await dbContext.Database.ExecuteSqlAsync(
@@ -136,22 +136,22 @@ public sealed class CleanupExpiredSessionsHandlerSpec : IClassFixture<ApiFixture
 				"""
 			);
 
-			var result = await _RunAsync(dbContext);
+			var result = await CleanupExpiredSessionsHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			(await verify.Session.CountAsync(s => s.Token.StartsWith(marker)))
 				.Should().Be(0, "the handler must run a second delete batch");
 		} finally {
-			await _CleanupAsync(marker);
+			await this._CleanupAsync(marker);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteASessionExpiringAtExactlyDatabaseNow() {
 		var marker = $"cleanup-exact-{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		var userId = await _GetSeedUserIdAsync(dbContext);
+		await using var dbContext = await this._CreateDbContextAsync();
+		var userId = await CleanupExpiredSessionsHandlerSpec._GetSeedUserIdAsync(dbContext);
 
 		// PostgreSQL now() is frozen at transaction start. Seeding and sweeping in this
 		// transaction proves the inclusive expires_at <= now() boundary exactly.
@@ -166,7 +166,7 @@ public sealed class CleanupExpiredSessionsHandlerSpec : IClassFixture<ApiFixture
 				"""
 			);
 
-			var result = await _RunAsync(dbContext);
+			var result = await CleanupExpiredSessionsHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 			(await dbContext.Session.AnyAsync(s => s.Token == marker))
 				.Should().BeFalse("the cleanup boundary is inclusive");
@@ -181,7 +181,7 @@ public sealed class CleanupExpiredSessionsHandlerSpec : IClassFixture<ApiFixture
 		var handler = new CleanupExpiredSessionsHandler(
 			dbContext, NullLogger<CleanupExpiredSessionsHandler>.Instance
 		);
-		return await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
+		return await handler.HandleAsync(CleanupExpiredSessionsHandlerSpec._FakeContext(handler.JobType), CancellationToken.None);
 	}
 
 	private static JobContext _FakeContext(string jobType) {
@@ -218,14 +218,14 @@ public sealed class CleanupExpiredSessionsHandlerSpec : IClassFixture<ApiFixture
 	}
 
 	private async Task _CleanupAsync(string marker) {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM sessions WHERE token LIKE {marker + "%"}"
 		);
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

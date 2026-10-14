@@ -36,7 +36,7 @@ internal static class HealthTestHelper {
 	};
 
 	public static void AssertPublicHealthBody(string body) {
-		foreach (var forbidden in _ForbiddenPublicBodySubstrings) {
+		foreach (var forbidden in HealthTestHelper._ForbiddenPublicBodySubstrings) {
 			body.Contains(forbidden, StringComparison.OrdinalIgnoreCase).Should().BeFalse(
 				$"the complete public health body must not leak '{forbidden}'"
 			);

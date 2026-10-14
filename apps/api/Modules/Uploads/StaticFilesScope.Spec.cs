@@ -35,8 +35,8 @@ public sealed class StaticFilesScopeSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public StaticFilesScopeSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._Fixture = fixture;
 	}
 
 	// (a) Non-regression: a URL already minted by CreateStaffUpload
@@ -46,7 +46,7 @@ public sealed class StaticFilesScopeSpec : IClassFixture<ApiFixture> {
 	// make this go RED — that is the named trap, caught here by the test.
 	[Fact]
 	public async Task ItShouldStillServeExistingUploadsUrlsAfterScopeRestriction() {
-		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var fileStorage = this._Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var uploadsDir = Path.Combine(fileStorage.RootPath, "uploads");
 		Directory.CreateDirectory(uploadsDir);
 
@@ -58,7 +58,7 @@ public sealed class StaticFilesScopeSpec : IClassFixture<ApiFixture> {
 
 		// Mirror of the contract CreateStaffUpload returns: `/files/{path}` with
 		// `{path}` starting at `uploads/`.
-		using var response = await _Http.GetAsync($"/files/uploads/{existingFileName}");
+		using var response = await this._Http.GetAsync($"/files/uploads/{existingFileName}");
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		(await response.Content.ReadAsStringAsync()).Should().Be(existingContent);
@@ -71,14 +71,14 @@ public sealed class StaticFilesScopeSpec : IClassFixture<ApiFixture> {
 	// and falls through to the not-found route (404, GREEN).
 	[Fact]
 	public async Task ItShouldNotServeFilesPlacedOutsideUploadsViaFilesPath() {
-		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var fileStorage = this._Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var outsideFileName = $"outside-uploads-{Guid.NewGuid():N}.txt";
 		var outsideContent = $"outside-{Guid.NewGuid():N}";
 		await File.WriteAllTextAsync(
 			Path.Combine(fileStorage.RootPath, outsideFileName), outsideContent
 		);
 
-		using var response = await _Http.GetAsync($"/files/{outsideFileName}");
+		using var response = await this._Http.GetAsync($"/files/{outsideFileName}");
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}

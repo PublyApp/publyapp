@@ -22,17 +22,17 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	private readonly ApiFixture _Fixture;
 
 	public TenantAsStaffBulkLifecycleServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldProcessDistinctSuspendTargetsWithSingleBatch() {
-		var firstActiveTenantId = await _SeedTenantAsync(TenantStatus.Active);
-		var secondActiveTenantId = await _SeedTenantAsync(TenantStatus.Active);
-		var suspendedTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
+		var firstActiveTenantId = await this._SeedTenantAsync(TenantStatus.Active);
+		var secondActiveTenantId = await this._SeedTenantAsync(TenantStatus.Active);
+		var suspendedTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
 		var missingTenantId = Guid.NewGuid();
-		var setup = await _CreateServiceAsync();
+		var setup = await this._CreateServiceAsync();
 
 		await using var serviceDbContext = setup.DbContext;
 		var result = await setup.Service.BulkSuspendAsync([
@@ -56,20 +56,20 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		setup.Interceptor.TenantSelectCount.Should().Be(1);
 		setup.Interceptor.TenantUpdateCount.Should().Be(1);
 
-		(await _GetTenantAsync(firstActiveTenantId)).Status
+		(await this._GetTenantAsync(firstActiveTenantId)).Status
 			.Should().Be(TenantStatus.Suspended);
-		(await _GetTenantAsync(secondActiveTenantId)).Status
+		(await this._GetTenantAsync(secondActiveTenantId)).Status
 			.Should().Be(TenantStatus.Suspended);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldProcessDistinctReactivateTargetsWithSingleBatch() {
-		var firstSuspendedTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var secondSuspendedTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var activeTenantId = await _SeedTenantAsync(TenantStatus.Active);
+		var firstSuspendedTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var secondSuspendedTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var activeTenantId = await this._SeedTenantAsync(TenantStatus.Active);
 		var missingTenantId = Guid.NewGuid();
-		var setup = await _CreateServiceAsync();
+		var setup = await this._CreateServiceAsync();
 
 		await using var serviceDbContext = setup.DbContext;
 		var result = await setup.Service.BulkReactivateAsync([
@@ -93,20 +93,20 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		setup.Interceptor.TenantSelectCount.Should().Be(1);
 		setup.Interceptor.TenantUpdateCount.Should().Be(1);
 
-		(await _GetTenantAsync(firstSuspendedTenantId)).Status
+		(await this._GetTenantAsync(firstSuspendedTenantId)).Status
 			.Should().Be(TenantStatus.Active);
-		(await _GetTenantAsync(secondSuspendedTenantId)).Status
+		(await this._GetTenantAsync(secondSuspendedTenantId)).Status
 			.Should().Be(TenantStatus.Active);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldProcessDistinctDeleteTargetsWithSingleBatch() {
-		var firstSuspendedTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var secondSuspendedTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var activeTenantId = await _SeedTenantAsync(TenantStatus.Active);
+		var firstSuspendedTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var secondSuspendedTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var activeTenantId = await this._SeedTenantAsync(TenantStatus.Active);
 		var missingTenantId = Guid.NewGuid();
-		var setup = await _CreateServiceAsync();
+		var setup = await this._CreateServiceAsync();
 
 		await using var serviceDbContext = setup.DbContext;
 		var result = await setup.Service.BulkDeleteAsync([
@@ -130,19 +130,19 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		setup.Interceptor.TenantSelectCount.Should().Be(1);
 		setup.Interceptor.TenantUpdateCount.Should().Be(1);
 
-		(await _GetTenantAsync(firstSuspendedTenantId)).IsDeleted
+		(await this._GetTenantAsync(firstSuspendedTenantId)).IsDeleted
 			.Should().BeTrue();
-		(await _GetTenantAsync(secondSuspendedTenantId)).IsDeleted
+		(await this._GetTenantAsync(secondSuspendedTenantId)).IsDeleted
 			.Should().BeTrue();
 	}
 
 	[Fact]
 	public async Task
 	ItShouldExcludeConcurrentlySuspendedTenantFromBulkSuspendSuccesses() {
-		var raceTenantId = await _SeedTenantAsync(TenantStatus.Active);
-		var stableTenantId = await _SeedTenantAsync(TenantStatus.Active);
-		var setup = await _CreateServiceAsync(cancellationToken =>
-			_SetTenantStatusAsync(
+		var raceTenantId = await this._SeedTenantAsync(TenantStatus.Active);
+		var stableTenantId = await this._SeedTenantAsync(TenantStatus.Active);
+		var setup = await this._CreateServiceAsync(cancellationToken =>
+			this._SetTenantStatusAsync(
 				raceTenantId,
 				TenantStatus.Suspended,
 				cancellationToken
@@ -167,10 +167,10 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	[Fact]
 	public async Task
 	ItShouldExcludeConcurrentlyReactivatedTenantFromBulkReactivateSuccesses() {
-		var raceTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var stableTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var setup = await _CreateServiceAsync(cancellationToken =>
-			_SetTenantStatusAsync(
+		var raceTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var stableTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var setup = await this._CreateServiceAsync(cancellationToken =>
+			this._SetTenantStatusAsync(
 				raceTenantId,
 				TenantStatus.Active,
 				cancellationToken
@@ -195,10 +195,10 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	[Fact]
 	public async Task
 	ItShouldExcludeConcurrentlyReactivatedTenantFromBulkDeleteSuccesses() {
-		var raceTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var stableTenantId = await _SeedTenantAsync(TenantStatus.Suspended);
-		var setup = await _CreateServiceAsync(cancellationToken =>
-			_SetTenantStatusAsync(
+		var raceTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var stableTenantId = await this._SeedTenantAsync(TenantStatus.Suspended);
+		var setup = await this._CreateServiceAsync(cancellationToken =>
+			this._SetTenantStatusAsync(
 				raceTenantId,
 				TenantStatus.Active,
 				cancellationToken
@@ -218,11 +218,11 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			item.TenantId == raceTenantId
 			&& item.Error == "Tenant is not suspended"
 		);
-		(await _GetTenantAsync(raceTenantId)).IsDeleted.Should().BeFalse();
+		(await this._GetTenantAsync(raceTenantId)).IsDeleted.Should().BeFalse();
 	}
 
 	private async Task<Guid> _SeedTenantAsync(TenantStatus status) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = new Tenant {
 			Name = $"Bulk Lifecycle Service {Guid.NewGuid():N}",
@@ -238,7 +238,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	}
 
 	private async Task<Tenant> _GetTenantAsync(Guid tenantId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.Tenant
@@ -251,7 +251,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		TenantStatus status,
 		CancellationToken cancellationToken
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		_ = await dbContext.Tenant
@@ -267,7 +267,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	private async Task<ServiceSetup> _CreateServiceAsync(
 		Func<CancellationToken, Task>? beforeTenantUpdateAsync = null
 	) {
-		var connectionString = await _GetConnectionStringAsync();
+		var connectionString = await this._GetConnectionStringAsync();
 		var interceptor = new TenantCommandInterceptor(beforeTenantUpdateAsync);
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
@@ -285,7 +285,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var connectionString = dbContext.Database.GetConnectionString();
 
@@ -312,21 +312,21 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		public TenantCommandInterceptor(
 			Func<CancellationToken, Task>? beforeTenantUpdateAsync
 		) {
-			_BeforeTenantUpdateAsync = beforeTenantUpdateAsync;
+			this._BeforeTenantUpdateAsync = beforeTenantUpdateAsync;
 		}
 
 		public int TenantSelectCount {
 			get {
-				return _CommandTexts.Count(commandText =>
-					_IsTenantCommand(commandText, "SELECT")
+				return this._CommandTexts.Count(commandText =>
+					TenantAsStaffBulkLifecycleServiceSpec.TenantCommandInterceptor._IsTenantCommand(commandText, "SELECT")
 				);
 			}
 		}
 
 		public int TenantUpdateCount {
 			get {
-				return _CommandTexts.Count(commandText =>
-					_IsTenantCommand(commandText, "UPDATE")
+				return this._CommandTexts.Count(commandText =>
+					TenantAsStaffBulkLifecycleServiceSpec.TenantCommandInterceptor._IsTenantCommand(commandText, "UPDATE")
 				);
 			}
 		}
@@ -338,8 +338,8 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			InterceptionResult<DbDataReader> result,
 			CancellationToken cancellationToken = default
 		) {
-			_CommandTexts.Add(command.CommandText);
-			await _RunBeforeTenantUpdateAsync(command, cancellationToken);
+			this._CommandTexts.Add(command.CommandText);
+			await this._RunBeforeTenantUpdateAsync(command, cancellationToken);
 			return result;
 		}
 
@@ -350,8 +350,8 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			InterceptionResult<int> result,
 			CancellationToken cancellationToken = default
 		) {
-			_CommandTexts.Add(command.CommandText);
-			await _RunBeforeTenantUpdateAsync(command, cancellationToken);
+			this._CommandTexts.Add(command.CommandText);
+			await this._RunBeforeTenantUpdateAsync(command, cancellationToken);
 			return result;
 		}
 
@@ -360,15 +360,15 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			CancellationToken cancellationToken
 		) {
 			if (
-				_HasRunBeforeUpdate
-				|| _BeforeTenantUpdateAsync is null
-				|| !_IsTenantCommand(command.CommandText, "UPDATE")
+				this._HasRunBeforeUpdate
+				|| this._BeforeTenantUpdateAsync is null
+				|| !TenantAsStaffBulkLifecycleServiceSpec.TenantCommandInterceptor._IsTenantCommand(command.CommandText, "UPDATE")
 			) {
 				return;
 			}
 
-			_HasRunBeforeUpdate = true;
-			await _BeforeTenantUpdateAsync(cancellationToken);
+			this._HasRunBeforeUpdate = true;
+			await this._BeforeTenantUpdateAsync(cancellationToken);
 		}
 
 		private static bool _IsTenantCommand(

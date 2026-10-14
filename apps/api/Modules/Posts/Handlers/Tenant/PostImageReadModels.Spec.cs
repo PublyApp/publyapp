@@ -28,9 +28,9 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public PostImageReadModelsSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static byte[] _PngBytes(int width, int height) {
@@ -51,12 +51,12 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldExposeAttachedImageInGetAndList() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
-		await _AttachPngAsync(tenantId, token, postId, width: 64, height: 32);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		await this._AttachPngAsync(tenantId, token, postId, width: 64, height: 32);
 
 		// Detail read model carries the full image projection.
-		using var detail = await _Http.SendAsync(
+		using var detail = await this._Http.SendAsync(
 			new HttpRequestMessage(HttpMethod.Get, $"/posts/{postId}")
 				.WithSessionToken(token)
 				.WithTenantId(tenantId)
@@ -74,7 +74,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 		detailPayload.Image.HeightPx.Should().Be(32);
 
 		// List rows carry the same projection for posts that own an image.
-		using var list = await _Http.SendAsync(
+		using var list = await this._Http.SendAsync(
 			new HttpRequestMessage(HttpMethod.Get, "/posts")
 				.WithSessionToken(token)
 				.WithTenantId(tenantId)
@@ -90,8 +90,8 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 		row.Image.WidthPx.Should().Be(64);
 
 		// A post without an image exposes a null image, not a missing field.
-		var barePostId = await _CreatePostAsync(tenantId, token);
-		using var bare = await _Http.SendAsync(
+		var barePostId = await this._CreatePostAsync(tenantId, token);
+		using var bare = await this._Http.SendAsync(
 			new HttpRequestMessage(HttpMethod.Get, $"/posts/{barePostId}")
 				.WithSessionToken(token)
 				.WithTenantId(tenantId)
@@ -105,9 +105,9 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldUpdateAltTextViaPatchAndReflectItInGet() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
-		await _AttachPngAsync(tenantId, token, postId, width: 16, height: 16);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		await this._AttachPngAsync(tenantId, token, postId, width: 16, height: 16);
 
 		using var patch = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -119,10 +119,10 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 			imageAltText = "A red logo on white background",
 		});
 
-		using var patchResponse = await _Http.SendAsync(patch);
+		using var patchResponse = await this._Http.SendAsync(patch);
 		patchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		using var get = await _Http.SendAsync(
+		using var get = await this._Http.SendAsync(
 			new HttpRequestMessage(HttpMethod.Get, $"/posts/{postId}")
 				.WithSessionToken(token)
 				.WithTenantId(tenantId)
@@ -136,7 +136,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 
 		// The alt text lives on the asset row, not the post row.
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var asset = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -148,9 +148,9 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectAltTextBeyondMaxLength() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
-		await _AttachPngAsync(tenantId, token, postId, width: 8, height: 8);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		await this._AttachPngAsync(tenantId, token, postId, width: 8, height: 8);
 
 		using var patch = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -162,7 +162,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 			imageAltText = new string('a', 1001),
 		});
 
-		using var response = await _Http.SendAsync(patch);
+		using var response = await this._Http.SendAsync(patch);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -171,8 +171,8 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await _GetAcmeIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -180,9 +180,9 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -196,7 +196,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 			body = "Read model spec " + Guid.NewGuid().ToString("N")[..8],
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload = await response.Content.ReadFromJsonAsync<CreatePostDto>();
 		if (payload is null) {
@@ -213,7 +213,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 		int height
 	) {
 		var content = new MultipartFormDataContent();
-		var fileContent = new ByteArrayContent(_PngBytes(width, height));
+		var fileContent = new ByteArrayContent(PostImageReadModelsSpec._PngBytes(width, height));
 		fileContent.Headers.ContentType =
 			new MediaTypeHeaderValue("image/png");
 		content.Add(fileContent, "file", "logo.png");
@@ -226,7 +226,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 		using (request
 			.WithSessionToken(token)
 			.WithTenantId(tenantId)) {
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.EnsureSuccessStatusCode();
 		}
 	}
