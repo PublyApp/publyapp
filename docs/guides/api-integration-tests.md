@@ -210,8 +210,8 @@ construction. Prefer ownership:
   counts, exact recipient sets), give it a fixture instance nothing else can write to.
   Don't take `ApiFixture` through `IClassFixture<ApiFixture>` in that spec class — instead
   implement `IAsyncLifetime` directly on the spec class and construct
-  `private readonly ApiFixture _fixture = new();`, calling `_fixture.InitializeAsync()` /
-  `_fixture.DisposeAsync()` from the class's own `InitializeAsync`/`DisposeAsync`. xUnit
+  `private readonly ApiFixture _Fixture = new();`, calling `this._Fixture.InitializeAsync()` /
+  `this._Fixture.DisposeAsync()` from the class's own `InitializeAsync`/`DisposeAsync`. xUnit
   instantiates a test class fresh per test method, so this gives every method — present or
   future — its own database and its own singleton fakes, with nothing to reset. See
   `CreateTenantAsStaffEmailSpec` and `EmailJobHandlersDispatchSpec` for the pattern.
@@ -271,12 +271,12 @@ using Xunit;
 
 public sealed class MyHandlerSpec
   : IClassFixture<ApiFixture> {
-  private readonly HttpClient _http;
-  private readonly TestAuthClient _authClient;
+  private readonly HttpClient _Http;
+  private readonly TestAuthClient _AuthClient;
 
   public MyHandlerSpec(ApiFixture fixture) {
-    _http = fixture.HttpClient;
-    _authClient = new TestAuthClient(_http);
+    this._Http = fixture.HttpClient;
+    this._AuthClient = new TestAuthClient(this._Http);
   }
 
   [Fact]
@@ -284,7 +284,7 @@ public sealed class MyHandlerSpec
   ItShouldReturnExpectedResultWhenValid() {
     // 1. Login (if endpoint requires auth)
     var token =
-      await _authClient.LoginAsStaffAdminAsync();
+      await this._AuthClient.LoginAsStaffAdminAsync();
 
     // 2. Build request with per-request headers
     var request = new HttpRequestMessage(
@@ -294,7 +294,7 @@ public sealed class MyHandlerSpec
 
     // 3. Send and assert
     using var response =
-      await _http.SendAsync(request);
+      await this._Http.SendAsync(request);
     response.StatusCode.Should().Be(HttpStatusCode.OK);
   }
 }
@@ -343,19 +343,19 @@ this method's fake:
 
 ```csharp
 public sealed class InviteEmailSpec : IAsyncLifetime {
-  private readonly ApiFixture _fixture = new();
+  private readonly ApiFixture _Fixture = new();
 
   public Task InitializeAsync() {
-    return _fixture.InitializeAsync();
+    return this._Fixture.InitializeAsync();
   }
 
   public Task DisposeAsync() {
-    return _fixture.DisposeAsync();
+    return this._Fixture.DisposeAsync();
   }
 
   [Fact]
   public async Task ItShouldSendEmailOnInvite() {
-    var emailSender = _fixture.GetFakeEmailSender();
+    var emailSender = this._Fixture.GetFakeEmailSender();
 
     // ... trigger endpoint that sends email ...
     // ... explicitly dispatch and await this test's durable email row ...
@@ -405,7 +405,7 @@ For Find endpoints with filter + cursor pagination, cover:
 [Fact]
 public async Task ItShouldReturnDataForTenantEndpoint() {
   // Login as a tenant user
-  var token = await _authClient.LoginAsync(
+  var token = await this._AuthClient.LoginAsync(
     TestConstants.AcmeAdminEmail,
     TestConstants.SeedPassword
   );
@@ -417,7 +417,7 @@ public async Task ItShouldReturnDataForTenantEndpoint() {
     .WithSessionToken(token)
     .WithTenantId(acmeTenantId);
 
-  var response = await _http.SendAsync(request);
+  var response = await this._Http.SendAsync(request);
   response.StatusCode.Should().Be(HttpStatusCode.OK);
 }
 ```

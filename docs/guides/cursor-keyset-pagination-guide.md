@@ -238,7 +238,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     SortOrder? sortOrder = null,
     CancellationToken cancellationToken = default
 ) {
-    var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+    var effectiveLimit = limit ?? this._AppSettings.Value.PAGINATION_DEFAULT_LIMIT;
     var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
     var effectiveSortId = sortId ?? "id";
 
@@ -251,7 +251,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         // Handler for Id sorting (simple case)
         ["id"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
-                var entity = await _dbContext.YourEntity
+                var entity = await this._DbContext.YourEntity
                     .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.Id })
@@ -273,7 +273,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         // Handler for Name sorting (with tie-breaker)
         ["name"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
-                var entity = await _dbContext.YourEntity
+                var entity = await this._DbContext.YourEntity
                     .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.Name, e.Id })
@@ -295,7 +295,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         // Handler for CreatedAt sorting (with tie-breaker)
         ["created_at"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
-                var entity = await _dbContext.YourEntity
+                var entity = await this._DbContext.YourEntity
                     .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { e.CreatedAt, e.Id })
@@ -317,7 +317,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
         // Handler for computed fields (with tie-breaker)
         ["related_count"] = new CursorSortFieldHandler<YourEntity>(
             getCursorValue: async (guid) => {
-                var entity = await _dbContext.YourEntity
+                var entity = await this._DbContext.YourEntity
                     .AsNoTracking()
                     .Where(e => e.Id == guid)
                     .Select(e => new { Count = e.RelatedEntities.Count, e.Id })
@@ -349,7 +349,7 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 3.3: Build Base Query
     // ═══════════════════════════════════════════════════════════════════════
-    var query = _dbContext.YourEntity
+    var query = this._DbContext.YourEntity
         .AsNoTracking()
         .Where(e => e.Id != null);  // Add your filters here
 

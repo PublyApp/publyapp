@@ -52,7 +52,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier> {
 			TestCode = source,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
 			Verifier.Diagnostic(DiagnosticIds.PUBLY0012)
@@ -99,7 +99,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
 			Verifier.Diagnostic(DiagnosticIds.PUBLY0012)
@@ -154,7 +154,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
 			Verifier.Diagnostic(DiagnosticIds.PUBLY0012)
@@ -199,8 +199,8 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
-		test.ExpectedDiagnostics.Add(_ExpectedAt(0, "Default"));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
+		test.ExpectedDiagnostics.Add(ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default"));
 
 		await test.RunAsync();
 	}
@@ -237,11 +237,11 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
-			_ExpectedAt(0, "Value"),
-			_ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Value"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
 		]
 		);
 
@@ -280,8 +280,8 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
-		test.ExpectedDiagnostics.Add(_ExpectedAt(0, "Default"));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
+		test.ExpectedDiagnostics.Add(ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default"));
 
 		await test.RunAsync();
 	}
@@ -321,16 +321,16 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Field"),
-			_ExpectedAt(1, "Property"),
-			_ExpectedAt(2, "StaticField"),
-			_ExpectedAt(3, "StaticProperty"),
-			_ExpectedAt(4, "Changed"),
-			_ExpectedAt(5, "StaticChanged"),
-			_ExpectedAt(6, "OnChanged"),
-			_ExpectedAt(7, "OnChanged")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Field"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Property"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "StaticField"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "StaticProperty"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(4, "Changed"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(5, "StaticChanged"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(6, "OnChanged"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(7, "OnChanged")
 		);
 	}
 
@@ -358,12 +358,12 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Run"),
-			_ExpectedAt(1, "Run"),
-			_ExpectedAt(2, "Build"),
-			_ExpectedAt(3, "Build")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Build"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "Build")
 		);
 	}
 
@@ -391,10 +391,10 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Run"),
-			_ExpectedAt(1, "Build")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Build")
 		);
 	}
 
@@ -448,11 +448,11 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
-			_ExpectedAt(0, "Run"),
-			_ExpectedAt(1, "Build"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Build"),
 		]
 		);
 
@@ -508,14 +508,14 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Run"),
-			_ExpectedAt(1, "Run"),
-			_ExpectedAt(2, "Build"),
-			_ExpectedAt(3, "Run"),
-			_ExpectedAt(4, "Run"),
-			_ExpectedAt(5, "Run")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Build"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(4, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(5, "Run")
 		);
 	}
 
@@ -599,15 +599,15 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
-			_ExpectedAt(0, "Run"),
-			_ExpectedAt(1, "Run"),
-			_ExpectedAt(2, "Build"),
-			_ExpectedAt(3, "Run"),
-			_ExpectedAt(4, "Run"),
-			_ExpectedAt(5, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Build"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(4, "Run"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(5, "Run"),
 		]
 		);
 
@@ -635,12 +635,12 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Member"),
-			_ExpectedAt(1, "Default"),
-			_ExpectedAt(2, "Member"),
-			_ExpectedAt(3, "Member")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Member"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Member"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "Member")
 		);
 	}
 
@@ -681,7 +681,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -707,11 +707,11 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Default"),
-			_ExpectedAt(1, "Default"),
-			_ExpectedAt(2, "Default")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Default")
 		);
 	}
 
@@ -732,9 +732,9 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier> {
 			TestCode = source,
 		};
-		test.TestState.Sources.Add(("IsExternalInit.cs", _IsExternalInitPolyfill));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
-		test.ExpectedDiagnostics.Add(_ExpectedAt(0, "Default"));
+		test.TestState.Sources.Add(("IsExternalInit.cs", ExplicitMemberAccessAnalyzerSpec._IsExternalInitPolyfill));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
+		test.ExpectedDiagnostics.Add(ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default"));
 
 		await test.RunAsync();
 	}
@@ -762,10 +762,10 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Current"),
-			_ExpectedAt(1, "Default")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Current"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default")
 		);
 	}
 
@@ -817,11 +817,11 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
-			_ExpectedAt(0, "Current"),
-			_ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Current"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
 		]
 		);
 
@@ -845,7 +845,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0, "Default"));
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(source, ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default"));
 	}
 
 	[Fact]
@@ -874,12 +874,12 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Value"),
-			_ExpectedAt(1, "BaseValue"),
-			_ExpectedAt(2, "Default"),
-			_ExpectedAt(3, "BaseDefault")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Value"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "BaseValue"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "BaseDefault")
 		);
 	}
 
@@ -907,12 +907,12 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Value"),
-			_ExpectedAt(1, "Default"),
-			_ExpectedAt(2, "Value"),
-			_ExpectedAt(3, "Default")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Value"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Value"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "Default")
 		);
 	}
 
@@ -944,13 +944,13 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "Default"),
-			_ExpectedAt(1, "Default"),
-			_ExpectedAt(2, "Default"),
-			_ExpectedAt(3, "Default"),
-			_ExpectedAt(4, "Value")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(2, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(3, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(4, "Value")
 		);
 	}
 
@@ -974,7 +974,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			DiagnosticResult.CompilerError("CS0103")
 				.WithLocation(0)
@@ -997,7 +997,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			DiagnosticResult.CompilerError("CS0121").WithLocation(0)
 		);
@@ -1058,7 +1058,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -1076,15 +1076,15 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
-		await _VerifyEnabledWithFileNameAsync("Generated.g.cs", source);
-		await _VerifyEnabledWithFileNameAsync("Designer.designer.cs", source);
-		await _VerifyEnabledWithFileNameAsync("Generated.generated.cs", source);
-		await _VerifyEnabledWithFileNameAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledAsync(source);
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledWithFileNameAsync("Generated.g.cs", source);
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledWithFileNameAsync("Designer.designer.cs", source);
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledWithFileNameAsync("Generated.generated.cs", source);
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledWithFileNameAsync(
 			"AutoGenerated.cs",
 			"// <auto-generated />\n" + source
 		);
-		await _VerifyEnabledWithFileNameAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledWithFileNameAsync(
 			"apps/api/Migrations/Example.cs",
 			source
 		);
@@ -1102,10 +1102,10 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyEnabledWithFileNameAsync(
+		await ExplicitMemberAccessAnalyzerSpec._VerifyEnabledWithFileNameAsync(
 			"apps/api/Migrations/Example.Spec.cs",
 			source,
-			_ExpectedAt(0, "Default")
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Default")
 		);
 	}
 
@@ -1143,11 +1143,11 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		};
 
 		foreach (var (fileName, caseSource) in noActionCases) {
-			var actions = await _GetCodeActionsAsync(fileName, caseSource);
+			var actions = await ExplicitMemberAccessAnalyzerSpec._GetCodeActionsAsync(fileName, caseSource);
 			Assert.Empty(actions);
 		}
 
-		var migrationSpecActions = await _GetCodeActionsAsync(
+		var migrationSpecActions = await ExplicitMemberAccessAnalyzerSpec._GetCodeActionsAsync(
 			"apps/api/Migrations/Generated.Spec.cs",
 			source
 		);
@@ -1163,7 +1163,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public int Read() => Run(null);
 			}
 			""";
-		var ambiguousActions = await _GetCodeActionsAsync(
+		var ambiguousActions = await ExplicitMemberAccessAnalyzerSpec._GetCodeActionsAsync(
 			"Ambiguous.cs",
 			ambiguousSource,
 			"Run"
@@ -1183,7 +1183,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public string Read() => nameof(Mixed);
 			}
 			""";
-		var mixedStaticnessActions = await _GetCodeActionsAsync(
+		var mixedStaticnessActions = await ExplicitMemberAccessAnalyzerSpec._GetCodeActionsAsync(
 			"MixedStaticness.cs",
 			mixedStaticnessSource,
 			"Mixed"
@@ -1274,31 +1274,31 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			("/OtherProject/Test/Other.cs", otherSource)
 		);
 		test.TestState.AdditionalProjects["OtherProject"].AnalyzerConfigFiles.Add(
-			("/OtherProject/.editorconfig", _EnableConfig)
+			("/OtherProject/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig)
 		);
 		test.TestState.AdditionalProjectReferences.Add("OtherProject");
 		test.FixedState.AdditionalProjects["OtherProject"].Sources.Add(
 			("/OtherProject/Test/Other.cs", otherFixedSource)
 		);
 		test.FixedState.AdditionalProjects["OtherProject"].AnalyzerConfigFiles.Add(
-			("/OtherProject/.editorconfig", _EnableConfig)
+			("/OtherProject/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig)
 		);
 		test.BatchFixedState.AdditionalProjects["OtherProject"].Sources.Add(
 			("/OtherProject/Test/Other.cs", otherFixedSource)
 		);
 		test.BatchFixedState.AdditionalProjects["OtherProject"].AnalyzerConfigFiles.Add(
-			("/OtherProject/.editorconfig", _EnableConfig)
+			("/OtherProject/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig)
 		);
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(
 		[
-			_ExpectedAt(0, "Value"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(0, "Value"),
 			Verifier.Diagnostic(DiagnosticIds.PUBLY0012)
 				.WithSpan("/OtherProject/Test/Other.cs", 6, 23, 6, 28)
 				.WithSeverity(DiagnosticSeverity.Warning)
 				.WithArguments("Value"),
-			_ExpectedAt(1, "Default"),
+			ExplicitMemberAccessAnalyzerSpec._ExpectedAt(1, "Default"),
 			DiagnosticResult.CompilerError("CS0121").WithLocation(2),
 		]
 		);
@@ -1369,7 +1369,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier> {
 			TestCode = source,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
@@ -1382,7 +1382,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 	) {
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
@@ -1469,9 +1469,9 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 			FixedCode = fixedSource,
 			BatchFixedCode = fixedSource,
 		};
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", ExplicitMemberAccessAnalyzerSpec._EnableConfig));
 		for (var index = 0; index < names.Length; index++) {
-			test.ExpectedDiagnostics.Add(_ExpectedAt(index, names[index]));
+			test.ExpectedDiagnostics.Add(ExplicitMemberAccessAnalyzerSpec._ExpectedAt(index, names[index]));
 		}
 
 		await test.RunAsync();
@@ -1490,7 +1490,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				}
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"
@@ -1514,7 +1514,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				}
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value")
 				.Replace("{|#1:Value|}", "Example.Value")
@@ -1530,7 +1530,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		const string source = """
 			namespace Sample;
 
-			""" + _NameofAttributeDecl + """
+			""" + ExplicitMemberAccessAnalyzerSpec._NameofAttributeDecl + """
 
 
 			[Mark(nameof({|#0:Value|}))]
@@ -1544,7 +1544,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public void Run() { }
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value")
 				.Replace("{|#1:Value|}", "Example.Value")
@@ -1560,7 +1560,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		const string source = """
 			namespace Sample;
 
-			""" + _NameofAttributeDecl + """
+			""" + ExplicitMemberAccessAnalyzerSpec._NameofAttributeDecl + """
 
 
 			public sealed class Example<T> {
@@ -1570,7 +1570,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public int Other { get; set; }
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Other|}", "Example<T>.Other"),
 			"Other"
@@ -1588,7 +1588,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public string F = nameof({|#0:Value|});
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"
@@ -1606,7 +1606,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public string P { get; } = nameof({|#0:Value|});
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"
@@ -1624,7 +1624,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public System.Func<string> F = () => nameof({|#0:Value|});
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"
@@ -1649,7 +1649,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public Example(string s) : base(s) { }
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"
@@ -1669,7 +1669,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public Example(string s) { }
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"
@@ -1687,7 +1687,7 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 				public void M(string s = nameof({|#0:Value|})) { }
 			}
 			""";
-		await _RunNameofFixAsync(
+		await ExplicitMemberAccessAnalyzerSpec._RunNameofFixAsync(
 			source,
 			source.Replace("{|#0:Value|}", "Example.Value"),
 			"Value"

@@ -115,13 +115,13 @@ public async Task<User?> GetUserAsync(
     Guid userId,
     CancellationToken cancellationToken = default)
 {
-    return await _dbContext.Users
+    return await this._DbContext.Users
         .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 }
 
 // ✅ CORRECT - Parallel independent operations
-var userTask = GetUserAsync(id, cancellationToken);
-var permissionsTask = GetPermissionsAsync(id, cancellationToken);
+var userTask = this.GetUserAsync(id, cancellationToken);
+var permissionsTask = this.GetPermissionsAsync(id, cancellationToken);
 await Task.WhenAll(userTask, permissionsTask);
 
 // ✅ CORRECT - Controlled concurrency for bulk operations
@@ -130,7 +130,7 @@ using var semaphore = new SemaphoreSlim(maxConcurrency);
 var tasks = ids.Select(async id =>
 {
     await semaphore.WaitAsync(cancellationToken);
-    try { return await ProcessAsync(id, cancellationToken); }
+    try { return await this.ProcessAsync(id, cancellationToken); }
     finally { semaphore.Release(); }
 });
 var results = await Task.WhenAll(tasks);
@@ -154,11 +154,11 @@ writes — at `N = 100` (the bulk action cap) it is catastrophic.
 ```csharp
 // ❌ WRONG - N SELECTs + N SaveChangesAsync round-trips
 foreach (var id in requestedIds) {
-    await _invitationService.RevokeStaffInvitationAsync(id, ct);
+    await this._InvitationService.RevokeStaffInvitationAsync(id, ct);
 }
 
 // ✅ CORRECT - Single SELECT + EF tracker mutation + single SaveChangesAsync
-var rows = await _dbContext.Invitation
+var rows = await this._DbContext.Invitation
     .Where(inv => requestedIds.Contains(inv.Id)
         && inv.Scope == InvitationScope.Staff)
     .ToListAsync(cancellationToken);
@@ -173,7 +173,7 @@ foreach (var id in requestedIds) {
     succeededIds.Add(id);
 }
 
-await _dbContext.SaveChangesAsync(cancellationToken);
+await this._DbContext.SaveChangesAsync(cancellationToken);
 ```
 
 **Same rule for audit logs:** use `IAuditLogService.LogManyAsync` (one INSERT for
@@ -218,8 +218,8 @@ public record InvitationCreated {
 // Validator (in same file)
 public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffInvitationBody> {
     public CreateStaffInvitationBodyValidator() {
-        RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.ProfileId).NotEmpty();
+        this.RuleFor(x => x.Email).NotEmpty().EmailAddress();
+        this.RuleFor(x => x.ProfileId).NotEmpty();
     }
 }
 
@@ -299,7 +299,7 @@ public record InvitationCreated {
 public class CreateStaffInvitationBodyValidator
     : AbstractValidator<CreateStaffInvitationBody> {
     public CreateStaffInvitationBodyValidator() {
-        RuleFor(x => x.Email)
+        this.RuleFor(x => x.Email)
             .MustBeRequiredEmail();
     }
 }
@@ -457,14 +457,14 @@ public record UpdateNoticeBody {
 
     // Returns PatchField via ValueKind switch
     public PatchField<DateTime?> GetExpiresAt() =>
-        ExpiresAt.ValueKind switch {
+        this.ExpiresAt.ValueKind switch {
             JsonValueKind.Undefined =>
                 PatchField<DateTime?>.Absent(),
             JsonValueKind.Null =>
                 PatchField<DateTime?>.Set(null),
             JsonValueKind.String =>
                 PatchField<DateTime?>.Set(
-                    ExpiresAt.GetValueAsDateTime()
+                    this.ExpiresAt.GetValueAsDateTime()
                 ),
             _ => throw new InvalidOperationException(
                 "ExpiresAt must be string, null, or omitted"
@@ -738,8 +738,8 @@ var headerKey = AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY;
 ```csharp
 // ❌ WRONG - Service depending on other services
 public class InvitationService : IInvitationService {
-    private readonly ISessionService _sessionService;      // BAD!
-    private readonly IPasswordService _passwordService;    // BAD!
+    private readonly ISessionService _SessionService;      // BAD!
+    private readonly IPasswordService _PasswordService;    // BAD!
 
     public InvitationService(
         AppDbContext dbContext,
@@ -750,8 +750,8 @@ public class InvitationService : IInvitationService {
 
 // ✅ CORRECT - Services only depend on DbContext and infrastructure
 public class InvitationService : IInvitationService {
-    private readonly AppDbContext _dbContext;
-    private readonly ILogger<InvitationService> _logger;
+    private readonly AppDbContext _DbContext;
+    private readonly ILogger<InvitationService> _Logger;
 
     public InvitationService(
         AppDbContext dbContext,
@@ -770,8 +770,8 @@ public class InvitationService : IInvitationService {
             Password = passwordHash,  // No service dependency needed
             // ...
         };
-        await _dbContext.User.AddAsync(user);
-        await _dbContext.SaveChangesAsync();
+        await this._DbContext.User.AddAsync(user);
+        await this._DbContext.SaveChangesAsync();
         return user;
     }
 }
@@ -796,6 +796,15 @@ public sealed class AcceptInvitation {
 **Architecture principle:** Handlers orchestrate, Services implement.
 
 **Exception:** Infrastructure services (ILogger, IConfiguration) are OK since they don't create circular dependencies.
+
+## Member access and private naming
+
+Both rules are build errors (`TreatWarningsAsErrors`), so every C# example must follow them:
+
+- **Private members are `_PascalCase`** (fields, constants, properties, methods, events): `private readonly AppDbContext _DbContext;`. Native `IDE1006`; parameters and locals stay `camelCase`.
+- **Every member reference is explicitly qualified:** instance members with `this.` (`this._DbContext.User`, `this.RuleFor(...)`), static members with the containing type (`CryptoUtils._StringEncryptionSecretDefault`). Enforced by `PUBLY0012`; EF `Migrations/*.cs` and generated code are excluded.
+
+Rule details: [`PUBLY0012`](lint-rules.md#publy0012--explicit-member-access) in `docs/guides/lint-rules.md`. Design and the `CallerArgumentExpression` exception: `docs/records/2026-09-09-spec-explicit-csharp-member-access.md`.
 
 ## Naming Conventions
 
@@ -1023,8 +1032,8 @@ if (!allowedStatuses.Contains(status)) {
 // ✅ CORRECT - Normalize once for storage
 var normalizedEmail = email.ToLowerInvariant();
 var user = await (
-    from u in _dbContext.User
-where u.Email == normalizedEmail  // Direct comparison
+    from u in this._DbContext.User
+    where u.Email == normalizedEmail  // Direct comparison
     select u
 ).FirstOrDefaultAsync(cancellationToken);
 ```
@@ -1224,13 +1233,13 @@ public record CreateSystemNoticeBody {
     public JsonElement? ExpiresAt { get; init; }
 
     public string GetSeverity() =>
-        Severity.GetValueAsString();
+        this.Severity.GetValueAsString();
 
     public string GetTitle() =>
-        Title.GetValueAsString();
+        this.Title.GetValueAsString();
 
     public DateTime? GetExpiresAt() =>
-        ExpiresAt.GetValueAsDateTimeOrNull();
+        this.ExpiresAt.GetValueAsDateTimeOrNull();
 }
 
 // In handler - clean extraction:
@@ -1557,10 +1566,10 @@ Handler file:
 public JsonElement ExpiresAt { get; init; }
 
 public PatchField<DateTime?> GetExpiresAt() =>
-    ExpiresAt.ValueKind switch {
+    this.ExpiresAt.ValueKind switch {
         JsonValueKind.Undefined => PatchField<DateTime?>.Absent(),
         JsonValueKind.Null => PatchField<DateTime?>.Set(null),
-        JsonValueKind.String => PatchField<DateTime?>.Set(ExpiresAt.GetValueAsDateTime()),
+        JsonValueKind.String => PatchField<DateTime?>.Set(this.ExpiresAt.GetValueAsDateTime()),
         _ => throw new InvalidOperationException("ExpiresAt must be string, null, or omitted"),
     };
 ```

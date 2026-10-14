@@ -11,7 +11,7 @@
 ; `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in Directory.Build.props, this turns
 ; each opted-in rule into a hard build error. Currently enforced as warnings:
 ;   PUBLY0001, PUBLY0002, PUBLY0003, PUBLY0004, PUBLY0005, PUBLY0006, PUBLY0007, PUBLY0008,
-;   PUBLY0009, PUBLY0010, PUBLY0011.
+;   PUBLY0009, PUBLY0010, PUBLY0011, PUBLY0012.
 
 ### New Rules
 

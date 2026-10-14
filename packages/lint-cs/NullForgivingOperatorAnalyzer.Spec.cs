@@ -53,7 +53,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -74,9 +74,9 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(NullForgivingOperatorAnalyzerSpec._ExpectedMessage);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -106,7 +106,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			Verifier.Diagnostic(DiagnosticIds.PUBLY0001).WithLocation(1),
 		};
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -128,7 +128,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -154,7 +154,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -182,7 +182,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			DiagnosticResult.CompilerError("CS8715").WithLocation(2),
 		};
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -204,7 +204,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -228,7 +228,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -250,7 +250,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -271,7 +271,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -300,7 +300,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -321,7 +321,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -342,7 +342,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			.Diagnostic(DiagnosticIds.PUBLY0001)
 			.WithLocation(0);
 
-		await _VerifyEnabledAsync(source, expected);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -361,7 +361,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -380,7 +380,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -401,7 +401,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -421,7 +421,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
 	}
 
 	[Fact]
@@ -440,7 +440,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
+		await NullForgivingOperatorAnalyzerSpec._VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -502,7 +502,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", NullForgivingOperatorAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
@@ -515,7 +515,7 @@ public sealed class NullForgivingOperatorAnalyzerSpec
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", NullForgivingOperatorAnalyzerSpec._EnableConfig));
 
 		await test.RunAsync();
 	}

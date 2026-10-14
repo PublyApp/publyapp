@@ -395,6 +395,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`) (enforced by `PUBLY0008`; expression-tree/`IQueryable` contexts are exempt — `is null` is a CS8122 error there)
 - **Never** use `?? throw` — use traditional `if` guard clauses for null-then-throw patterns (enforced by `PUBLY0002`)
 - **Never** use the null-forgiving operator (`!`) in production code — always handle null explicitly with guard clauses or safe accessors like `GetRequiredId()` (enforced by `PUBLY0001`)
+- Private members are `_PascalCase` (`IDE1006`) and every member reference is qualified: `this.` for instance, `ContainingType.` for static (enforced by `PUBLY0012`; see [`csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md#member-access-and-private-naming))
 - Guard clauses (flat `if`/early return) over `switch` expressions when handling discriminated union error results from services
 - Query syntax for database LINQ queries; method syntax only for terminal ops
 - Handlers orchestrate, services implement (no DbContext in handlers)

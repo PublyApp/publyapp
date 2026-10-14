@@ -50,9 +50,9 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0004)
 			.WithLocation(0)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(DtoSuffixHandlerContractAnalyzerSpec._ExpectedMessage);
 
-		await _VerifyEnabledAsync(
+		await DtoSuffixHandlerContractAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUserHandler.cs",
 			expected
@@ -71,9 +71,9 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0004)
 			.WithLocation(0)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(DtoSuffixHandlerContractAnalyzerSpec._ExpectedMessage);
 
-		await _VerifyEnabledAsync(
+		await DtoSuffixHandlerContractAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUserHandler.cs",
 			expected
@@ -92,9 +92,9 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var expected = Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0004)
 			.WithLocation(0)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(DtoSuffixHandlerContractAnalyzerSpec._ExpectedMessage);
 
-		await _VerifyEnabledAsync(
+		await DtoSuffixHandlerContractAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUserHandler.cs",
 			expected
@@ -110,7 +110,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 			public sealed record CreateUserDto(int UserId, string Name);
 			""";
 
-		await _VerifyEnabledAsync(
+		await DtoSuffixHandlerContractAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Dtos/CreateUserDto.cs"
 		);
@@ -125,7 +125,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 			public sealed record CreateUserDto(int UserId, string Name);
 			""";
 
-		await _VerifyEnabledAsync(
+		await DtoSuffixHandlerContractAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			"apps/api/Modules/Users/Handlers/CreateUser/CreateUser.Spec.cs"
 		);
@@ -147,7 +147,7 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await DtoSuffixHandlerContractAnalyzerSpec._VerifyEnabledAsync(
 			source,
 			"apps/api/modules/users/handlers/CreateUser/request.cs"
 		);
@@ -177,8 +177,8 @@ public sealed class DtoSuffixHandlerContractAnalyzerSpec
 		var test = new CSharpAnalyzerTest<DtoSuffixHandlerContractAnalyzer, DefaultVerifier>();
 
 		test.TestState.Sources.Add((filePath, source));
-		test.TestState.Sources.Add(("IsExternalInitPolyfill.cs", _IsExternalInitPolyfill));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.Sources.Add(("IsExternalInitPolyfill.cs", DtoSuffixHandlerContractAnalyzerSpec._IsExternalInitPolyfill));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", DtoSuffixHandlerContractAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

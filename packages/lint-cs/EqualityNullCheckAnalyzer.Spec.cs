@@ -42,7 +42,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source, EqualityNullCheckAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -62,7 +62,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source, EqualityNullCheckAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -80,7 +80,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -98,7 +98,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -116,7 +116,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -147,7 +147,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -177,7 +177,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source, EqualityNullCheckAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -228,7 +228,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-			await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+			await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source, EqualityNullCheckAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -279,7 +279,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source, EqualityNullCheckAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -297,7 +297,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledWithFileNameAsync("GeneratedExample.designer.cs", source);
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledWithFileNameAsync("GeneratedExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -362,7 +362,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -395,7 +395,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await EqualityNullCheckAnalyzerSpec._VerifyEnabledAsync(source, EqualityNullCheckAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -420,7 +420,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0008)
 			.WithLocation(location)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(EqualityNullCheckAnalyzerSpec._ExpectedMessage);
 	}
 
 	private static async Task _VerifyEnabledAsync(
@@ -432,7 +432,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EqualityNullCheckAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
@@ -443,7 +443,7 @@ public sealed class EqualityNullCheckAnalyzerSpec
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", EqualityNullCheckAnalyzerSpec._EnableConfig));
 		await test.RunAsync();
 	}
 }
