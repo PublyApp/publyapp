@@ -62,7 +62,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0, "sessionToken"));
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source, SessionTokenLoggingAnalyzerSpec._ExpectedAt(0, "sessionToken"));
 	}
 
 	[Fact]
@@ -87,7 +87,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0, "$\"X-Session-Token: {session.SessionToken}\""));
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source, SessionTokenLoggingAnalyzerSpec._ExpectedAt(0, "$\"X-Session-Token: {session.SessionToken}\""));
 	}
 
 	[Fact]
@@ -119,7 +119,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0, "$\"failed for {context.SessionToken}\""));
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source, SessionTokenLoggingAnalyzerSpec._ExpectedAt(0, "$\"failed for {context.SessionToken}\""));
 	}
 
 	[Fact]
@@ -139,7 +139,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0, "\"X-Session-Token\""));
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source, SessionTokenLoggingAnalyzerSpec._ExpectedAt(0, "\"X-Session-Token\""));
 	}
 
 	[Fact]
@@ -159,7 +159,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -184,7 +184,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -206,7 +206,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -233,7 +233,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -255,7 +255,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -283,7 +283,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			"DefaultOffAssembly",
 			[
 				CSharpSyntaxTree.ParseText(source),
-				CSharpSyntaxTree.ParseText(_LoggerStub),
+				CSharpSyntaxTree.ParseText(SessionTokenLoggingAnalyzerSpec._LoggerStub),
 			],
 			[
 				MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
@@ -344,7 +344,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -374,7 +374,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -396,9 +396,9 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(
 			source,
-			_ExpectedAt(0, "sessionToken is not null ? sessionToken : \"none\""));
+			SessionTokenLoggingAnalyzerSpec._ExpectedAt(0, "sessionToken is not null ? sessionToken : \"none\""));
 	}
 
 	[Fact]
@@ -424,7 +424,7 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0, "session.SessionToken"));
+		await SessionTokenLoggingAnalyzerSpec._VerifyEnabledAsync(source, SessionTokenLoggingAnalyzerSpec._ExpectedAt(0, "session.SessionToken"));
 	}
 
 	private static DiagnosticResult _ExpectedAt(int marker, string matchedText)
@@ -443,11 +443,11 @@ public sealed class SessionTokenLoggingAnalyzerSpec
 		{
 			TestState =
 			{
-				Sources = { source, _LoggerStub },
+				Sources = { source, SessionTokenLoggingAnalyzerSpec._LoggerStub },
 			},
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", SessionTokenLoggingAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

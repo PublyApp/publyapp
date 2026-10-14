@@ -57,7 +57,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -77,7 +77,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source, CoalesceThrowAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -99,7 +99,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source, CoalesceThrowAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -118,7 +118,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source, CoalesceThrowAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -139,7 +139,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source, CoalesceThrowAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -164,7 +164,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source, CoalesceThrowAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -184,7 +184,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -211,7 +211,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -228,7 +228,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -250,7 +250,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -272,7 +272,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledWithFileNameAsync("GeneratedExample.g.cs", source);
 	}
 
 	[Fact]
@@ -293,7 +293,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
+		await CoalesceThrowAnalyzerSpec._VerifyEnabledWithFileNameAsync("DesignerExample.designer.cs", source);
 	}
 
 	[Fact]
@@ -356,7 +356,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0002)
 			.WithLocation(marker)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(CoalesceThrowAnalyzerSpec._ExpectedMessage);
 	}
 
 	private static async Task _VerifyEnabledAsync(
@@ -368,7 +368,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", CoalesceThrowAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();
@@ -381,7 +381,7 @@ public sealed class CoalesceThrowAnalyzerSpec
 		var test = new CSharpAnalyzerTest<AnalyzerUnderTest, DefaultVerifier>();
 
 		test.TestState.Sources.Add((fileName, source));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", CoalesceThrowAnalyzerSpec._EnableConfig));
 
 		await test.RunAsync();
 	}

@@ -151,7 +151,7 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
     public string? Actions { get; set; }
 
     public IReadOnlyList<string>? GetActionsList() {
-        return AuditLogActionsCsv.Parse(Actions);
+        return AuditLogActionsCsv.Parse(this.Actions);
     }
 }
 ```

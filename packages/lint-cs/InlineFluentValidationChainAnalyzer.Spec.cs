@@ -108,9 +108,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + _ValidatorStub;
+			""" + InlineFluentValidationChainAnalyzerSpec._ValidatorStub;
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source, InlineFluentValidationChainAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -132,9 +132,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + _ValidatorStub;
+			""" + InlineFluentValidationChainAnalyzerSpec._ValidatorStub;
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source, InlineFluentValidationChainAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -155,9 +155,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + _ValidatorStub;
+			""" + InlineFluentValidationChainAnalyzerSpec._ValidatorStub;
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source, InlineFluentValidationChainAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -179,9 +179,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + _ValidatorStub;
+			""" + InlineFluentValidationChainAnalyzerSpec._ValidatorStub;
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0));
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source, InlineFluentValidationChainAnalyzerSpec._ExpectedDiagnostic(0));
 	}
 
 	[Fact]
@@ -202,9 +202,9 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 				}
 			}
 
-			""" + _ValidatorStub;
+			""" + InlineFluentValidationChainAnalyzerSpec._ValidatorStub;
 
-		await _VerifyEnabledAsync(source);
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -257,7 +257,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 			}
 		""";
 
-		await _VerifyEnabledAsync(source);
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -298,7 +298,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 			}
 		""";
 
-		await _VerifyEnabledAsync(source);
+		await InlineFluentValidationChainAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -387,7 +387,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0005)
 			.WithLocation(location)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(InlineFluentValidationChainAnalyzerSpec._ExpectedMessage);
 	}
 
 	private static async Task _VerifyEnabledAsync(
@@ -399,7 +399,7 @@ public sealed class InlineFluentValidationChainAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", InlineFluentValidationChainAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

@@ -204,8 +204,8 @@ public static class DiagnosticCatalog {
 
 	/// <summary>
 	/// PUBLY0012 — requires eligible references to members of the nearest containing type to use
-	/// an explicit instance or containing-type receiver. The rule remains disabled by default so
-	/// existing source can be migrated before repository-wide enforcement is enabled.
+	/// an explicit instance or containing-type receiver. The descriptor is disabled by default; the root
+	/// .editorconfig enables it as a warning (a build error under TreatWarningsAsErrors).
 	/// </summary>
 	public static readonly DiagnosticDescriptor ExplicitMemberAccess = new(
 		DiagnosticIds.PUBLY0012,

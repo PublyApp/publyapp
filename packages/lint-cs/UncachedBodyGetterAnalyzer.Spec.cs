@@ -47,7 +47,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -75,11 +75,11 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 
 		var expected = new[]
 		{
-			_ExpectedDiagnostic(0, "body.GetFirstName()"),
-			_ExpectedDiagnostic(1, "body.GetFirstName()"),
+			UncachedBodyGetterAnalyzerSpec._ExpectedDiagnostic(0, "body.GetFirstName()"),
+			UncachedBodyGetterAnalyzerSpec._ExpectedDiagnostic(1, "body.GetFirstName()"),
 		};
 
-		await _VerifyEnabledAsync(source, expected);
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source, expected);
 	}
 
 	[Fact]
@@ -115,7 +115,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0, "body.GetTitle()"));
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source, UncachedBodyGetterAnalyzerSpec._ExpectedDiagnostic(0, "body.GetTitle()"));
 	}
 
 	[Fact]
@@ -154,7 +154,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -188,7 +188,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -234,7 +234,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -261,7 +261,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedDiagnostic(0, "body.GetFirstName()"));
+		await UncachedBodyGetterAnalyzerSpec._VerifyEnabledAsync(source, UncachedBodyGetterAnalyzerSpec._ExpectedDiagnostic(0, "body.GetFirstName()"));
 	}
 
 	[Fact]
@@ -283,7 +283,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0006)
 			.WithLocation(location)
-			.WithMessage(string.Format(CultureInfo.InvariantCulture, _ExpectedMessage, getter));
+			.WithMessage(string.Format(CultureInfo.InvariantCulture, UncachedBodyGetterAnalyzerSpec._ExpectedMessage, getter));
 	}
 
 	private static async Task _VerifyEnabledAsync(
@@ -295,7 +295,7 @@ public sealed class UncachedBodyGetterAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", UncachedBodyGetterAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

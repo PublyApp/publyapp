@@ -176,7 +176,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			app.{|#0:MapGet|}("/unprotected", () => { });
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -195,7 +195,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.RequireRateLimiting("authenticated-default");
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -208,7 +208,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.RequireRateLimiting("authenitcated-default");
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -228,7 +228,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			group.MapGet("/users", () => { });
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -243,7 +243,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			nested.MapGet("/scopes", () => { });
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -256,7 +256,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithGlobalRateLimitOnly();
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -269,7 +269,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithRateLimitOptOut("load-balancer health probe");
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -282,7 +282,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.RequireAnonymousAuthIpRateLimit();
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -295,7 +295,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.DisableRateLimiting();
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -317,7 +317,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.DisableRateLimiting();
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -339,7 +339,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			endpoint.DisableRateLimiting();
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -361,7 +361,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			endpoint.AddEndpointFilter().DisableRateLimiting();
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -387,7 +387,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithRateLimitOptOut("unrelated metadata");
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -412,7 +412,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			endpoint.GetUnrelated().DisableRateLimiting();
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -430,7 +430,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			endpoint.WithRateLimitOptOut("unrelated metadata");
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -450,7 +450,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			endpoint.WithRateLimitOptOut("load-balancer health probe");
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -465,7 +465,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithRateLimitOptOut("load-balancer health probe");
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -477,7 +477,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			app.{|#0:MapWidget|}("/widget", () => { });
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -508,7 +508,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -554,7 +554,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -615,7 +615,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				}
 				""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -640,7 +640,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			}
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	// Overcorrection guard: the prior return-type heuristic also excluded
@@ -655,7 +655,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			app.MapArea();
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -668,7 +668,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 			endpoint.AddEndpointFilter();
 			""";
 
-		await _VerifyAsync(source);
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(source);
 	}
 
 	[Fact]
@@ -681,7 +681,7 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 				.WithRateLimitOptOut("   ");
 			""";
 
-		await _VerifyAsync(
+		await EndpointRateLimitAnalyzerSpec._VerifyAsync(
 			source,
 			Verifier
 				.Diagnostic(DiagnosticIds.PUBLY0011)
@@ -703,13 +703,13 @@ public sealed class EndpointRateLimitAnalyzerSpec {
 		test.TestState.OutputKind =
 			OutputKind.ConsoleApplication;
 		test.TestState.Sources.Add(
-			("EndpointStubs.cs", _EndpointStubs)
+			("EndpointStubs.cs", EndpointRateLimitAnalyzerSpec._EndpointStubs)
 		);
 		test.TestState.Sources.Add(
-			("UnrelatedStubs.cs", _UnrelatedStubs)
+			("UnrelatedStubs.cs", EndpointRateLimitAnalyzerSpec._UnrelatedStubs)
 		);
 		test.TestState.AnalyzerConfigFiles.Add(
-			("/.editorconfig", _EnableConfig)
+			("/.editorconfig", EndpointRateLimitAnalyzerSpec._EnableConfig)
 		);
 		test.ExpectedDiagnostics.AddRange(expected);
 

@@ -72,7 +72,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await TypedResultsForbidAnalyzerSpec._VerifyEnabledAsync(source, TypedResultsForbidAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -90,7 +90,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source, _ExpectedAt(0));
+		await TypedResultsForbidAnalyzerSpec._VerifyEnabledAsync(source, TypedResultsForbidAnalyzerSpec._ExpectedAt(0));
 	}
 
 	[Fact]
@@ -110,7 +110,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await TypedResultsForbidAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -130,7 +130,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await TypedResultsForbidAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -150,7 +150,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await TypedResultsForbidAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -172,7 +172,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			}
 			""";
 
-		await _VerifyEnabledAsync(source);
+		await TypedResultsForbidAnalyzerSpec._VerifyEnabledAsync(source);
 	}
 
 	[Fact]
@@ -200,7 +200,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			"DefaultOffAssembly",
 			[
 				CSharpSyntaxTree.ParseText(source),
-				CSharpSyntaxTree.ParseText(_ResultStubs),
+				CSharpSyntaxTree.ParseText(TypedResultsForbidAnalyzerSpec._ResultStubs),
 			],
 			[
 				MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
@@ -237,7 +237,7 @@ public sealed class TypedResultsForbidAnalyzerSpec
 		return Verifier
 			.Diagnostic(DiagnosticIds.PUBLY0009)
 			.WithLocation(marker)
-			.WithMessage(_ExpectedMessage);
+			.WithMessage(TypedResultsForbidAnalyzerSpec._ExpectedMessage);
 	}
 
 	private static async Task _VerifyEnabledAsync(
@@ -249,8 +249,8 @@ public sealed class TypedResultsForbidAnalyzerSpec
 			TestCode = source,
 		};
 
-		test.TestState.Sources.Add(("ResultStubs.cs", _ResultStubs));
-		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		test.TestState.Sources.Add(("ResultStubs.cs", TypedResultsForbidAnalyzerSpec._ResultStubs));
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", TypedResultsForbidAnalyzerSpec._EnableConfig));
 		test.ExpectedDiagnostics.AddRange(expected);
 
 		await test.RunAsync();

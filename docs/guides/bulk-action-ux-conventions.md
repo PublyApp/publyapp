@@ -115,7 +115,7 @@ A naive `foreach (id) { service.RevokeAsync(id); }` issues `N` SELECTs and `N` `
 round-trips — at `N = 100` that's catastrophic. The canonical shape:
 
 ```csharp
-var rows = await _dbContext.Invitation
+var rows = await this._DbContext.Invitation
     .Where(inv => requestedIds.Contains(inv.Id) && inv.Scope == InvitationScope.Staff)
     .ToListAsync(cancellationToken);
 var foundById = rows.ToDictionary(inv => inv.Id);
@@ -135,7 +135,7 @@ foreach (var id in requestedIds) {
     succeededIds.Add(id);
 }
 
-await _dbContext.SaveChangesAsync(cancellationToken);
+await this._DbContext.SaveChangesAsync(cancellationToken);
 ```
 
 ### Side-effects belong in a private helper
@@ -164,7 +164,7 @@ try {
         cancellationToken
     );
 } catch (Exception ex) {
-    _logger.LogError(ex, "Failed to write audit logs for bulk revoke");
+    this._Logger.LogError(ex, "Failed to write audit logs for bulk revoke");
 }
 ```
 

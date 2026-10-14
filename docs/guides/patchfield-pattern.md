@@ -113,14 +113,14 @@ public record UpdateSystemNoticeBody {
     public JsonElement ExpiresAt { get; init; }
 
     public PatchField<DateTime?> GetExpiresAt() =>
-        ExpiresAt.ValueKind switch {
+        this.ExpiresAt.ValueKind switch {
             JsonValueKind.Undefined =>
                 PatchField<DateTime?>.Absent(),
             JsonValueKind.Null =>
                 PatchField<DateTime?>.Set(null),
             JsonValueKind.String =>
                 PatchField<DateTime?>.Set(
-                    ExpiresAt.GetValueAsDateTime()
+                    this.ExpiresAt.GetValueAsDateTime()
                 ),
             _ => throw new InvalidOperationException(
                 "ExpiresAt must be an ISO 8601 string, "
@@ -208,14 +208,14 @@ The same pattern works for any clearable nullable field. Always use non-nullable
 // Clearable nullable string (e.g., description can be cleared)
 // DTO property: public JsonElement Description { get; init; }
 public PatchField<string?> GetDescription() =>
-    Description.ValueKind switch {
+    this.Description.ValueKind switch {
         JsonValueKind.Undefined =>
             PatchField<string?>.Absent(),
         JsonValueKind.Null =>
             PatchField<string?>.Set(null),
         JsonValueKind.String =>
             PatchField<string?>.Set(
-                Description.GetString()
+                this.Description.GetString()
             ),
         _ => throw new InvalidOperationException(
             "Description must be a string, null, or omitted"
@@ -225,14 +225,14 @@ public PatchField<string?> GetDescription() =>
 // Clearable nullable Guid (e.g., assignee can be unassigned)
 // DTO property: public JsonElement AssigneeId { get; init; }
 public PatchField<Guid?> GetAssigneeId() =>
-    AssigneeId.ValueKind switch {
+    this.AssigneeId.ValueKind switch {
         JsonValueKind.Undefined =>
             PatchField<Guid?>.Absent(),
         JsonValueKind.Null =>
             PatchField<Guid?>.Set(null),
         JsonValueKind.String =>
             PatchField<Guid?>.Set(
-                AssigneeId.GetValueAsGuid()
+                this.AssigneeId.GetValueAsGuid()
             ),
         _ => throw new InvalidOperationException(
             "AssigneeId must be a GUID, null, or omitted"
@@ -245,7 +245,7 @@ public PatchField<Guid?> GetAssigneeId() =>
 Clearable fields use non-nullable `JsonElement`, so validators need to handle `Undefined`/`Null`/`String`:
 
 ```csharp
-RuleFor(x => x.ExpiresAt)
+this.RuleFor(x => x.ExpiresAt)
     .Must(e =>
         e.ValueKind == JsonValueKind.Undefined
         || e.ValueKind == JsonValueKind.Null
@@ -253,12 +253,12 @@ RuleFor(x => x.ExpiresAt)
     .WithMessage(
         "ExpiresAt must be a string, null, or omitted"
     )
-    .Must(BeValidDateTimeOrUndefined)
+    .Must(this._BeValidDateTimeOrUndefined)
     .WithMessage(
         "ExpiresAt must be a valid ISO 8601 date"
     );
 
-private bool BeValidDateTimeOrUndefined(JsonElement element) {
+private bool _BeValidDateTimeOrUndefined(JsonElement element) {
     if (element.ValueKind == JsonValueKind.Undefined
         || element.ValueKind == JsonValueKind.Null) {
         return true;

@@ -45,13 +45,13 @@ All reusable validation code lives in `apps/api/Lib/Validation/`. This directory
 public class CreateUserBodyValidator
     : AbstractValidator<CreateUserBody> {
     public CreateUserBodyValidator() {
-        RuleFor(x => x.Email)
+        this.RuleFor(x => x.Email)
             .MustBeRequiredEmail();
 
-        RuleFor(x => x.Password)
+        this.RuleFor(x => x.Password)
             .MustBeRequiredPassword();
 
-        RuleFor(x => x.FirstName)
+        this.RuleFor(x => x.FirstName)
             .MustBeRequiredString("FirstName");
     }
 }
@@ -60,7 +60,7 @@ public class CreateUserBodyValidator
 public class CreateUserBodyValidator
     : AbstractValidator<CreateUserBody> {
     public CreateUserBodyValidator() {
-        RuleFor(x => x.Email)
+        this.RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required")
             .Must(e => e.ValueKind == JsonValueKind.String)
             .WithMessage("Email must be a string")
@@ -112,7 +112,7 @@ public class FindAuditLogsQueryValidator
     public FindAuditLogsQueryValidator() {
         // Base class validates cursor, limit, sort_id, sort_order
         // Only add domain-specific rules here
-        RuleFor(x => x.UserId)
+        this.RuleFor(x => x.UserId)
             .Must(QueryPredicates.BeValidNullableGuid)
             .WithMessage("user_id must be a valid GUID");
     }
@@ -122,8 +122,8 @@ public class FindAuditLogsQueryValidator
 public class FindUsersQueryValidator
     : AbstractValidator<FindUsersQuery> {
     public FindUsersQueryValidator() {
-        RuleFor(x => x.Page).Must(...);
-        RuleFor(x => x.Limit).Must(...);
+        this.RuleFor(x => x.Page).Must(...);
+        this.RuleFor(x => x.Limit).Must(...);
         // Duplicates OffsetPaginatedQueryValidator logic
     }
 }
@@ -165,10 +165,10 @@ public class CheckResetPasswordTokenQuery {
 public class CheckResetPasswordTokenQueryValidator
     : AbstractValidator<CheckResetPasswordTokenQuery> {
     public CheckResetPasswordTokenQueryValidator() {
-        RuleFor(x => x.Id)
+        this.RuleFor(x => x.Id)
             .NotEmpty()
             .Must(CryptoUtils.IsValidEncryptedString);
-        RuleFor(x => x.Token).NotEmpty();
+        this.RuleFor(x => x.Token).NotEmpty();
     }
 }
 ```
@@ -189,13 +189,13 @@ public class ResetPasswordBodyValidator
     : AbstractValidator<ResetPasswordBody> {
     public ResetPasswordBodyValidator() {
         // Use shared extensions for individual fields
-        RuleFor(x => x.NewPassword)
+        this.RuleFor(x => x.NewPassword)
             .MustBeRequiredPassword();
-        RuleFor(x => x.ConfirmPassword)
+        this.RuleFor(x => x.ConfirmPassword)
             .MustBeRequiredString("Confirm password");
 
         // Cross-field rule stays local
-        RuleFor(x => x)
+        this.RuleFor(x => x)
             .Must(body => {
                 if (
                     body.NewPassword.ValueKind
@@ -253,7 +253,7 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
     public string? UserId { get; set; }
 
     public Guid? GetUserId() {
-        return QueryPredicates.ParseNullableGuid(UserId);
+        return QueryPredicates.ParseNullableGuid(this.UserId);
     }
 }
 
@@ -280,12 +280,12 @@ Common validation predicates for query parameters live in `Lib/Validation/QueryP
 
 ```csharp
 // ✅ CORRECT - use shared predicates
-RuleFor(x => x.UserId)
+this.RuleFor(x => x.UserId)
     .Must(QueryPredicates.BeValidNullableGuid)
     .WithMessage("UserId must be a valid GUID");
 
 // ❌ WRONG - duplicate private method
-private static bool BeValidNullableGuid(string? value) {
+private static bool _BeValidNullableGuid(string? value) {
     if (value is null) { return true; }
     return Guid.TryParse(value, out _);
 }
@@ -308,20 +308,20 @@ Conventions:
 >
 > AGENTS.md forbids `ToLower()` / `ToLowerInvariant()` as a *comparison or dispatch* strategy. The single `ToLowerInvariant()` call here runs once at type initialization for display only — not on the comparison path — so it is consistent with that rule.
 
-> **Multi-word enum members:** the example above lowercases the `nameof()` output, which is correct only for single-word members (`Pending`, `Active`, `Revoked`). For multi-word PascalCase members like `GloballySuspended`, lowercasing collapses to `globallysuspended` and breaks the snake_case wire contract. In that case, derive both the comparison set and the display string with a small `ToSnakeCase` helper:
+> **Multi-word enum members:** the example above lowercases the `nameof()` output, which is correct only for single-word members (`Pending`, `Active`, `Revoked`). For multi-word PascalCase members like `GloballySuspended`, lowercasing collapses to `globallysuspended` and breaks the snake_case wire contract. In that case, derive both the comparison set and the display string with a small `_ToSnakeCase` helper:
 >
 > ```csharp
-> private static string ToSnakeCase(string value) =>
+> private static string _ToSnakeCase(string value) =>
 >     Regex.Replace(value, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
 >
-> private static readonly HashSet<string> AllowedStatusSet =
->     new(AllowedStatuses.Select(ToSnakeCase), StringComparer.OrdinalIgnoreCase);
+> private static readonly HashSet<string> _AllowedStatusSet =
+>     new(FindTenantsQueryValidator._AllowedStatuses.Select(FindTenantsQueryValidator._ToSnakeCase), StringComparer.OrdinalIgnoreCase);
 >
-> private static readonly string AllowedStatusesDisplay =
->     string.Join(", ", AllowedStatuses.Select(ToSnakeCase).Order());
+> private static readonly string _AllowedStatusesDisplay =
+>     string.Join(", ", FindTenantsQueryValidator._AllowedStatuses.Select(FindTenantsQueryValidator._ToSnakeCase).Order());
 > ```
 >
-> See `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `ToSnakeCase` into a shared helper under `PublyApp.Api.Lib.Validation`.
+> See `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs` for the canonical multi-word example. If a future validator has multiple multi-word enums in different modules, lift `_ToSnakeCase` into a shared helper under `PublyApp.Api.Lib.Validation`.
 
 Example shape (handler-local):
 
@@ -330,11 +330,11 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "status")] public string? Status { get; set; }
 
 	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
-		if (string.IsNullOrWhiteSpace(Status)) {
+		if (string.IsNullOrWhiteSpace(this.Status)) {
 			return null;
 		}
 
-		var parts = Status.Split(',', StringSplitOptions.TrimEntries);
+		var parts = this.Status.Split(',', StringSplitOptions.TrimEntries);
 		if (parts.Length == 0) {
 			return null;
 		}
@@ -354,23 +354,23 @@ public class FindTenantsQuery : CursorPaginatedQuery {
 
 public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenantsQuery> {
 	// Source of truth: nameof() — rename-safe, no hardcoded strings to maintain.
-	private static readonly string[] AllowedStatuses = [
+	private static readonly string[] _AllowedStatuses = [
 		nameof(TenantStatus.Active),
 		nameof(TenantStatus.Pending),
 		nameof(TenantStatus.Suspended),
 	];
 
-	private static readonly HashSet<string> AllowedStatusSet =
-		new(AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+	private static readonly HashSet<string> _AllowedStatusSet =
+		new(FindTenantsQueryValidator._AllowedStatuses, StringComparer.OrdinalIgnoreCase);
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
 	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
-	private static readonly string AllowedStatusesDisplay =
-		string.Join(", ", AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+	private static readonly string _AllowedStatusesDisplay =
+		string.Join(", ", FindTenantsQueryValidator._AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantsQueryValidator() {
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) return true;
 				// Split WITHOUT RemoveEmptyEntries so empty tokens are caught
@@ -379,9 +379,9 @@ public class FindTenantsQueryValidator : CursorPaginatedQueryValidator<FindTenan
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && FindTenantsQueryValidator._AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"Status must be one of: {AllowedStatusesDisplay}");
+			.WithMessage($"Status must be one of: {FindTenantsQueryValidator._AllowedStatusesDisplay}");
 	}
 }
 ```
