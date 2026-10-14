@@ -22,25 +22,25 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public ProjectTenantListSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldListOnlyActiveNonDeletedProjectsOfTheCurrentTenantOrderedByName() {
-		var (acmeId, token) = await _LoginAsAcmeAdminAsync();
+		var (acmeId, token) = await this._LoginAsAcmeAdminAsync();
 		var globalId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, await _AuthClient.LoginAsStaffAdminAsync(), SeedConstants.Tenants.GlobalName);
-		var zebra = await _CreateProjectAsync(acmeId, "Zebra " + _Suffix());
-		var apple = await _CreateProjectAsync(acmeId, "Apple " + _Suffix());
-		var deleted = await _CreateProjectAsync(acmeId, "Deleted " + _Suffix(), isDeleted: true);
-		var inactive = await _CreateProjectAsync(acmeId, "Inactive " + _Suffix(), status: ProjectStatus.Inactive);
-		var foreign = await _CreateProjectAsync(globalId, "Foreign " + _Suffix());
+			this._Http, await this._AuthClient.LoginAsStaffAdminAsync(), SeedConstants.Tenants.GlobalName);
+		var zebra = await this._CreateProjectAsync(acmeId, "Zebra " + ProjectTenantListSpec._Suffix());
+		var apple = await this._CreateProjectAsync(acmeId, "Apple " + ProjectTenantListSpec._Suffix());
+		var deleted = await this._CreateProjectAsync(acmeId, "Deleted " + ProjectTenantListSpec._Suffix(), isDeleted: true);
+		var inactive = await this._CreateProjectAsync(acmeId, "Inactive " + ProjectTenantListSpec._Suffix(), status: ProjectStatus.Inactive);
+		var foreign = await this._CreateProjectAsync(globalId, "Foreign " + ProjectTenantListSpec._Suffix());
 
 		using var request = new HttpRequestMessage(HttpMethod.Get, "/projects")
 			.WithSessionToken(token).WithTenantId(acmeId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<FindProjectsForTenantResponse>();
@@ -56,15 +56,15 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403WhenTheAccountLacksProjectsViewPermission() {
-		var (acmeId, _) = await _LoginAsAcmeAdminAsync();
-		var memberToken = await _AuthClient.LoginAsync(
+		var (acmeId, _) = await this._LoginAsAcmeAdminAsync();
+		var memberToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(HttpMethod.Get, "/projects")
 			.WithSessionToken(memberToken).WithTenantId(acmeId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -76,7 +76,7 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 		Guid tenantId, string name,
 		bool isDeleted = false, ProjectStatus status = ProjectStatus.Active
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var project = new Project { TenantId = tenantId, Name = name, Status = status, IsDeleted = isDeleted };
 		db.Project.Add(project);
@@ -85,10 +85,10 @@ public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, staffToken, SeedConstants.Tenants.AcmeName);
-		var token = await _AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+			this._Http, staffToken, SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
 		return (tenantId, token);
 	}
 }

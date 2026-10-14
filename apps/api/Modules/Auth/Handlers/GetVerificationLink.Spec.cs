@@ -19,7 +19,7 @@ public sealed class GetVerificationLinkSpec
 	public GetVerificationLinkSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
+		this._Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -33,7 +33,7 @@ public sealed class GetVerificationLinkSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -54,7 +54,7 @@ public sealed class GetVerificationLinkSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -79,7 +79,7 @@ public sealed class GetVerificationLinkSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

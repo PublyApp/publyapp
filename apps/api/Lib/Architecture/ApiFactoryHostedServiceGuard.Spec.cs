@@ -21,7 +21,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 	private readonly ApiFixture _Fixture;
 
 	public ApiFactoryHostedServiceGuardSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	// THE guard. Resolves the REAL IEnumerable<IHostedService> from the initialized ApiFactory
@@ -36,7 +36,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 	// to the api/worker role split.
 	[Fact]
 	public void ItShouldNeverResolveALiveInvitationEmailOutboxDispatcherInTheIntegrationHost() {
-		var resolvedHostedServices = _Fixture.Factory.Services
+		var resolvedHostedServices = this._Fixture.Factory.Services
 			.GetServices<IHostedService>()
 			.ToList();
 

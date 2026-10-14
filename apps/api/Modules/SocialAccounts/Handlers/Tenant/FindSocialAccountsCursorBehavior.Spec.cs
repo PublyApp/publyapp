@@ -29,14 +29,14 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public FindSocialAccountsCursorBehaviorSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
 		// 3 accounts with distinct, deliberately NOT insertion-ordered
 		// CreatedAt (anti-correlated with insertion). The walk must visit each
@@ -49,13 +49,13 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			// Two rows share the same CreatedAt (i=0 and i=2), one has a
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
-			var id = await _ConnectAsync(
+			var id = await this._ConnectAsync(
 				tenantId,
 				token,
 				$"sa-walk-{i}-{Guid.NewGuid():N}"
 			);
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			await _SetCreatedAtAsync(id, createdAt);
+			await this._SetCreatedAtAsync(id, createdAt);
 			seededIds.Add(id);
 			seededOrder.Add(createdAt);
 		}
@@ -65,7 +65,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapSocialAccountIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapSocialAccountIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -83,7 +83,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -118,7 +118,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		List<DateTime> observedOrder;
 		{
 			await using var scope =
-				_Fixture.Factory.Services.CreateAsyncScope();
+				this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.SocialAccount
@@ -133,7 +133,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryUpdatedAtPageWithoutOverlapOrGap() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
 		// The audit interceptor stamps UpdatedAt = now on every Modified save, so the
 		// only way to control it is a direct UPDATE that bypasses the interceptor.
@@ -146,13 +146,13 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			// Two rows share the same UpdatedAt (i=0 and i=2), one has a
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
-			var id = await _ConnectAsync(
+			var id = await this._ConnectAsync(
 				tenantId,
 				token,
 				$"sa-walk-up-{i}-{Guid.NewGuid():N}"
 			);
 			var updatedAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			await _SetUpdatedAtAsync(id, updatedAt);
+			await this._SetUpdatedAtAsync(id, updatedAt);
 			seededIds.Add(id);
 			seededOrder.Add(updatedAt);
 		}
@@ -163,7 +163,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(UpdatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapSocialAccountIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapSocialAccountIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 		var visitedIds = new List<Guid>();
 		string? cursor = null;
@@ -180,7 +180,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -214,7 +214,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		List<DateTime> observedOrder;
 		{
 			await using var scope =
-				_Fixture.Factory.Services.CreateAsyncScope();
+				this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			observedOrder = await dbContext.SocialAccount
@@ -229,7 +229,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -238,19 +238,19 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -269,7 +269,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 			identifier = $"{prefix}@example.com",
 			appPassword = "app-password-789",
 		});
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var created = await response.Content
 			.ReadFromJsonAsync<SocialAccountCreated>();
@@ -278,7 +278,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	}
 
 	private async Task _SetCreatedAtAsync(Guid accountId, DateTime createdAt) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -290,7 +290,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	}
 
 	private async Task _SetUpdatedAtAsync(Guid accountId, DateTime updatedAt) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -316,7 +316,7 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	}
 
 	private async Task _SwapSocialAccountIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlRawAsync(

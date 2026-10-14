@@ -185,7 +185,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		// regresses, and a permanent regression test is explicitly designed to activate that
 		// graph on a regression. Round-4 review: a closed local port is not enough of a
 		// safety boundary either — see _UnreachablePostgresConnectionString's own comment.
-		["POSTGRES_CONNECTION_STRING"] = _UnreachablePostgresConnectionString,
+		["POSTGRES_CONNECTION_STRING"] = AppEnvironmentDotEnvPrecedenceSpec._UnreachablePostgresConnectionString,
 		["RESEND_API_KEY"] = "not-a-real-key",
 		["DEFAULT_EMAIL_SENDER_NAME"] = "PublyApp Support",
 		["DEFAULT_EMAIL_SENDER_EMAIL"] = "no-reply@example.com",
@@ -204,19 +204,19 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	};
 
 	public AppEnvironmentDotEnvPrecedenceSpec() {
-		_TempDirectory = Directory.CreateTempSubdirectory("publyapp-dotenv-precedence-").FullName;
-		_EnvFilePath = Path.Combine(_TempDirectory, ".env.development");
+		this._TempDirectory = Directory.CreateTempSubdirectory("publyapp-dotenv-precedence-").FullName;
+		this._EnvFilePath = Path.Combine(this._TempDirectory, ".env.development");
 	}
 
 	public void Dispose() {
-		Directory.Delete(_TempDirectory, recursive: true);
+		Directory.Delete(this._TempDirectory, recursive: true);
 	}
 
 	// Writes the synthetic .env.development for one test case: _BaseRequiredValues with the
 	// given overrides applied. Called explicitly per test (never in the constructor) so each
 	// test's file contents are visible at its own call site, not shared/implicit.
 	private void _WriteEnvFile(IReadOnlyDictionary<string, string>? overrides = null) {
-		var values = new Dictionary<string, string>(_BaseRequiredValues);
+		var values = new Dictionary<string, string>(AppEnvironmentDotEnvPrecedenceSpec._BaseRequiredValues);
 		if (overrides is not null) {
 			foreach (var (key, value) in overrides) {
 				values[key] = value;
@@ -224,21 +224,21 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		}
 
 		var lines = values.Select(pair => $"{pair.Key}=\"{pair.Value}\"");
-		File.WriteAllText(_EnvFilePath, string.Join('\n', lines));
+		File.WriteAllText(this._EnvFilePath, string.Join('\n', lines));
 	}
 
 	[Fact]
 	public async Task ItShouldResolveApiRoleWhenTheProcessExplicitlySetsAppRoleOverTheFilesAll() {
-		_WriteEnvFile(); // APP_ROLE="all" (the base/default value).
+		this._WriteEnvFile(); // APP_ROLE="all" (the base/default value).
 
-		var resolved = _ParseHostedServices(await _RunProbeAsync(
+		var resolved = AppEnvironmentDotEnvPrecedenceSpec._ParseHostedServices(await this._RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> { ["APP_ROLE"] = "api" }));
 
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 		resolved.Should().NotContain(
-			_WorkerOnlyHostedServiceTypeName,
+			AppEnvironmentDotEnvPrecedenceSpec._WorkerOnlyHostedServiceTypeName,
 			"an explicit process APP_ROLE=api must win over .env.development's APP_ROLE=\"all\" " +
 				"(#1019) — if the file clobbered it, the worker gate would be registered");
 	}
@@ -258,16 +258,16 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// observably different, so this assertion has a real mutation that fails it.
 	[Fact]
 	public async Task ItShouldFallBackToTheFilesAppRoleWhenTheProcessNeverSetsIt() {
-		_WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "api" });
+		this._WriteEnvFile(new Dictionary<string, string> { ["APP_ROLE"] = "api" });
 
-		var resolved = _ParseHostedServices(await _RunProbeAsync(
+		var resolved = AppEnvironmentDotEnvPrecedenceSpec._ParseHostedServices(await this._RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> { ["APP_ROLE"] = null }));
 
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 		resolved.Should().NotContain(
-			_WorkerOnlyHostedServiceTypeName,
+			AppEnvironmentDotEnvPrecedenceSpec._WorkerOnlyHostedServiceTypeName,
 			"omitting the process value entirely must fall back to the FILE's APP_ROLE=\"api\" " +
 				"(#1019's other direction) — deliberately NOT \"all\", which is also " +
 				"Development's own default for a missing APP_ROLE and would pass even if the " +
@@ -291,9 +291,9 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// the CLI probe dispatch, and the process exits non-zero with no EndMarker.
 	[Fact]
 	public async Task ItShouldResolveTheProcessFrontUrlOverTheFilesInvalidOne() {
-		_WriteEnvFile(new Dictionary<string, string> { ["FRONT_URL"] = "not-a-valid-url" });
+		this._WriteEnvFile(new Dictionary<string, string> { ["FRONT_URL"] = "not-a-valid-url" });
 
-		var result = await _RunProbeAsync(
+		var result = await this._RunProbeAsync(
 			hostEnvironment: "Development",
 			processOverrides: new Dictionary<string, string?> {
 				["APP_ROLE"] = "api",
@@ -333,9 +333,9 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// #1019's specific doc-generation acceptance requirement.
 	[Fact]
 	public async Task ItShouldResolveApiRoleUnderTheUnsetHostEnvironmentDocGenerationUses() {
-		_WriteEnvFile();
+		this._WriteEnvFile();
 
-		var resolved = _ParseHostedServices(await _RunProbeAsync(
+		var resolved = AppEnvironmentDotEnvPrecedenceSpec._ParseHostedServices(await this._RunProbeAsync(
 			hostEnvironment: null,
 			processOverrides: new Dictionary<string, string?> {
 				["APP_ROLE"] = "api",
@@ -348,7 +348,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 		resolved.Should().NotBeEmpty(
 			"the api role starts at least the web host service, so a clean probe is non-empty");
 		resolved.Should().NotContain(
-			_WorkerOnlyHostedServiceTypeName,
+			AppEnvironmentDotEnvPrecedenceSpec._WorkerOnlyHostedServiceTypeName,
 			"the process's APP_ROLE=api export — exactly what `just build-api` and the EF " +
 				"tooling recipes rely on — must win over the file's APP_ROLE=\"all\" under the " +
 				"SAME unset-host-environment classification build-time OpenAPI generation " +
@@ -429,7 +429,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	// that deterministically here instead of hanging the whole suite.
 	[Fact]
 	public async Task ItShouldResolveApiRoleDuringARealOpenApiDocumentGenerationRun() {
-		var repoRootDirectory = _FindRepoRootDirectory();
+		var repoRootDirectory = AppEnvironmentDotEnvPrecedenceSpec._FindRepoRootDirectory();
 		var apiProjectDirectory = Path.Combine(repoRootDirectory, "apps", "api");
 		var rspPath = Path.Combine(apiProjectDirectory, "MSBuild.rsp");
 		var openApiFilesCachePath = Path.Combine(
@@ -457,7 +457,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 					"the likely cause; it is safe to delete this file once you've confirmed that).");
 		}
 
-		var outputDirectory = Path.Combine(_TempDirectory, "docgen-out");
+		var outputDirectory = Path.Combine(this._TempDirectory, "docgen-out");
 		Directory.CreateDirectory(outputDirectory);
 		var redirectedCachePath = Path.Combine(
 			outputDirectory, "PublyApp.Api.OpenApiFiles.cache");
@@ -494,7 +494,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			// See point 3 above: APP_ROLE="all" is the discriminator #1019 protects; every
 			// other value (including POSTGRES_CONNECTION_STRING) is the same
 			// _UnreachablePostgresConnectionString every other case in this file uses.
-			var syntheticValues = new Dictionary<string, string>(_BaseRequiredValues) {
+			var syntheticValues = new Dictionary<string, string>(AppEnvironmentDotEnvPrecedenceSpec._BaseRequiredValues) {
 				["APP_ROLE"] = "all",
 			};
 			var syntheticDotEnvContent = string.Join(
@@ -536,9 +536,9 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			// it explicitly here to the SAME _UnreachablePostgresConnectionString the synthetic
 			// file also carries makes both sides of NoClobber() identically safe: whichever
 			// value wins, it is this one — never the test host's own inherited placeholder.
-			startInfo.Environment["POSTGRES_CONNECTION_STRING"] = _UnreachablePostgresConnectionString;
+			startInfo.Environment["POSTGRES_CONNECTION_STRING"] = AppEnvironmentDotEnvPrecedenceSpec._UnreachablePostgresConnectionString;
 
-			var result = await _RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(120));
+			var result = await AppEnvironmentDotEnvPrecedenceSpec._RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(120));
 
 			result.ExitCode.Should().Be(
 				0,
@@ -606,11 +606,11 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 	public async Task ItShouldNeverConsultTheFileForNonDevelopmentHostEnvironments(
 		string hostEnvironment
 	) {
-		_WriteEnvFile();
+		this._WriteEnvFile();
 
-		var processOverrides = _RequiredVariableNames
+		var processOverrides = AppEnvironmentDotEnvPrecedenceSpec._RequiredVariableNames
 			.ToDictionary(name => name, string? (name) => null);
-		var result = await _RunProbeAsync(hostEnvironment, processOverrides);
+		var result = await this._RunProbeAsync(hostEnvironment, processOverrides);
 
 		result.ExitCode.Should().NotBe(
 			HostedServiceManifestCli.SuccessExitCode,
@@ -689,7 +689,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			RedirectStandardOutput = true,
 			RedirectStandardError = true,
 			UseShellExecute = false,
-			WorkingDirectory = _TempDirectory,
+			WorkingDirectory = this._TempDirectory,
 		};
 		startInfo.ArgumentList.Add("exec");
 		startInfo.ArgumentList.Add(assemblyPath);
@@ -711,7 +711,7 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 			}
 		}
 
-		return _RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(30));
+		return AppEnvironmentDotEnvPrecedenceSpec._RunProcessWithTimeoutAsync(startInfo, TimeSpan.FromSeconds(30));
 	}
 
 	// Round-2 fix: the ORIGINAL version of this method called the SYNCHRONOUS
@@ -745,10 +745,10 @@ public sealed class AppEnvironmentDotEnvPrecedenceSpec : IDisposable {
 
 		var finished = await Task.WhenAny(exitTask, Task.Delay(timeout));
 		if (finished != exitTask) {
-			_TryKillEntireProcessTree(process);
+			AppEnvironmentDotEnvPrecedenceSpec._TryKillEntireProcessTree(process);
 
-			var partialStdout = await _ReadWithGraceAsync(stdoutTask);
-			var partialStderr = await _ReadWithGraceAsync(stderrTask);
+			var partialStdout = await AppEnvironmentDotEnvPrecedenceSpec._ReadWithGraceAsync(stdoutTask);
+			var partialStderr = await AppEnvironmentDotEnvPrecedenceSpec._ReadWithGraceAsync(stderrTask);
 			throw new TimeoutException(
 				$"Child process did not exit within {timeout.TotalSeconds}s; killed the whole " +
 					$"process tree. Partial stdout: {partialStdout} Partial stderr: {partialStderr}");

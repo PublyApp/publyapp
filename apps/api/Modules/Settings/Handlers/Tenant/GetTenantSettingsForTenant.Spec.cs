@@ -34,9 +34,9 @@ public sealed class GetTenantSettingsForTenantSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public GetTenantSettingsForTenantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl() {
@@ -51,16 +51,16 @@ public sealed class GetTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnTheGeneralSettingsForAnAdmin() {
 		var (acmeId, acmeAdminToken) =
-			await _LoginAsAcmeAdminAsync();
+			await this._LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl()
+			GetTenantSettingsForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content
@@ -68,7 +68,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		var persisted = await _GetTenantRowAsync(acmeId);
+		var persisted = await this._GetTenantRowAsync(acmeId);
 		result.Id.Should().Be(acmeId);
 		result.Code.Should().Be(persisted.Code);
 		result.Name.Should().Be(persisted.Name);
@@ -85,22 +85,22 @@ public sealed class GetTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForANonAdminTenantUserWithoutSettingsView() {
-		var acmeId = await _GetAcmeIdAsync();
+		var acmeId = await this._GetAcmeIdAsync();
 		// Round 2: the seeded Acme member holds publishing permissions via the demo
 		// profile, but nothing grants settings.* here, so the check must still deny.
-		var acmeUserToken = await _AuthClient.LoginAsync(
+		var acmeUserToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl()
+			GetTenantSettingsForTenantSpec._GetUrl()
 		)
 			.WithSessionToken(acmeUserToken)
 			.WithTenantId(acmeId);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -108,39 +108,39 @@ public sealed class GetTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldAllowANonAdminTenantUserWithSettingsView() {
-		var acmeId = await _GetAcmeIdAsync();
+		var acmeId = await this._GetAcmeIdAsync();
 		var createdProfileIds = new List<Guid>();
 
 		try {
-			var profileId = await _CreateTenantProfileWithPermissionsAsync(
+			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Settings.VIEW.Key]
 			);
 			createdProfileIds.Add(profileId);
 
-			await _AssignProfileToTenantUserAsync(
+			await this._AssignProfileToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeUserToken = await _AuthClient.LoginAsync(
+			var acmeUserToken = await this._AuthClient.LoginAsync(
 				TestConstants.AcmeUserEmail,
 				TestConstants.SeedPassword
 			);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl()
+				GetTenantSettingsForTenantSpec._GetUrl()
 			)
 				.WithSessionToken(acmeUserToken)
 				.WithTenantId(acmeId);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		} finally {
-			await _CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -154,7 +154,7 @@ public sealed class GetTenantSettingsForTenantSpec
 	public async Task
 	ItShouldReturnNullWhenTheTenantIsMissingOrSuspended() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<ITenantService>();
 
@@ -167,8 +167,8 @@ public sealed class GetTenantSettingsForTenantSpec
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await _GetAcmeIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -178,9 +178,9 @@ public sealed class GetTenantSettingsForTenantSpec
 
 	private async Task<Guid> _GetAcmeIdAsync() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -188,7 +188,7 @@ public sealed class GetTenantSettingsForTenantSpec
 
 	private async Task<TenantRow> _GetTenantRowAsync(Guid tenantId) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -215,7 +215,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		IEnumerable<string> permissionKeys
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -253,7 +253,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -303,7 +303,7 @@ public sealed class GetTenantSettingsForTenantSpec
 		}
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

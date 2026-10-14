@@ -18,14 +18,14 @@ public sealed class SessionSpec
 	public SessionSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldPhysicallyDeleteWhenRemovedFromDbContext() {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

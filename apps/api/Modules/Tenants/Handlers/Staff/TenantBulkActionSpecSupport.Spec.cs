@@ -50,7 +50,7 @@ internal static class TenantBulkActionSpecSupport {
 		string? sessionToken,
 		object body
 	) {
-		var request = _CreateRequest(url, sessionToken);
+		var request = TenantBulkActionSpecSupport._CreateRequest(url, sessionToken);
 		request.Content = JsonContent.Create(body);
 
 		return request;
@@ -61,7 +61,7 @@ internal static class TenantBulkActionSpecSupport {
 		string? sessionToken,
 		string body
 	) {
-		var request = _CreateRequest(url, sessionToken);
+		var request = TenantBulkActionSpecSupport._CreateRequest(url, sessionToken);
 		request.Content = new StringContent(
 			body,
 			Encoding.UTF8,

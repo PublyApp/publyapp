@@ -19,14 +19,14 @@ public sealed class VisibleInSpec {
 
 	[Fact]
 	public void ItShouldBeVisibleEverywhereWhenUnattached() {
-		var account = _Active();
+		var account = VisibleInSpec._Active();
 		// No SocialAccountProject rows -> VisibleIn true for any project.
 		VisibleIn.Visible(account, Guid.NewGuid()).Should().BeTrue();
 	}
 
 	[Fact]
 	public void ItShouldBeInvisibleForAProjectItIsNotAttachedTo() {
-		var account = _Active();
+		var account = VisibleInSpec._Active();
 		var attached = Guid.NewGuid();
 		var other = Guid.NewGuid();
 		// Simulate attachment by giving the account one project link.
@@ -39,7 +39,7 @@ public sealed class VisibleInSpec {
 
 	[Fact]
 	public void ItShouldBeInvisibleWhenNotActive() {
-		var account = _Active();
+		var account = VisibleInSpec._Active();
 		account.Status = SocialAccountStatus.NeedsReconnect;
 		VisibleIn.Visible(account, Guid.NewGuid()).Should().BeFalse();
 	}

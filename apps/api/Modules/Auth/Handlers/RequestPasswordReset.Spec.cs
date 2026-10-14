@@ -26,14 +26,14 @@ public sealed class RequestPasswordResetSpec
 	public RequestPasswordResetSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
 	}
 
 	private async Task<string> _CreateUnverifiedUserAsync() {
 		var email = $"unverified-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -54,7 +54,7 @@ public sealed class RequestPasswordResetSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGenericSuccessAndIssueATokenForAVerifiedUser() {
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = TestConstants.StaffAdminEmail }
 		);
@@ -67,7 +67,7 @@ public sealed class RequestPasswordResetSpec
 		Assert.NotNull(result);
 		result.Status.Should().Be("success");
 
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var user = await dbContext.User
@@ -112,18 +112,18 @@ public sealed class RequestPasswordResetSpec
 	[Fact]
 	public async Task
 	ItShouldReturnIndistinguishableResponsesForVerifiedUnverifiedAndNonExistentEmails() {
-		var unverifiedEmail = await _CreateUnverifiedUserAsync();
+		var unverifiedEmail = await this._CreateUnverifiedUserAsync();
 		var nonExistentEmail = $"nonexistent-{Guid.NewGuid():N}@example.com";
 
-		using var verifiedResponse = await _Http.PostAsJsonAsync(
+		using var verifiedResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = TestConstants.StaffAdminEmail }
 		);
-		using var unverifiedResponse = await _Http.PostAsJsonAsync(
+		using var unverifiedResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = unverifiedEmail }
 		);
-		using var nonExistentResponse = await _Http.PostAsJsonAsync(
+		using var nonExistentResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = nonExistentEmail }
 		);
@@ -139,9 +139,9 @@ public sealed class RequestPasswordResetSpec
 		nonExistentResponse.Content.Headers.ContentType.Should()
 			.Be(verifiedResponse.Content.Headers.ContentType);
 
-		var verifiedHeaders = _FlattenObservableHeaders(verifiedResponse);
-		var unverifiedHeaders = _FlattenObservableHeaders(unverifiedResponse);
-		var nonExistentHeaders = _FlattenObservableHeaders(nonExistentResponse);
+		var verifiedHeaders = RequestPasswordResetSpec._FlattenObservableHeaders(verifiedResponse);
+		var unverifiedHeaders = RequestPasswordResetSpec._FlattenObservableHeaders(unverifiedResponse);
+		var nonExistentHeaders = RequestPasswordResetSpec._FlattenObservableHeaders(nonExistentResponse);
 
 		unverifiedHeaders.Should().BeEquivalentTo(verifiedHeaders);
 		nonExistentHeaders.Should().BeEquivalentTo(verifiedHeaders);
@@ -160,7 +160,7 @@ public sealed class RequestPasswordResetSpec
 		var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
 		foreach (var header in response.Headers) {
-			if (_VolatileHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)) {
+			if (RequestPasswordResetSpec._VolatileHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)) {
 				continue;
 			}
 
@@ -168,7 +168,7 @@ public sealed class RequestPasswordResetSpec
 		}
 
 		foreach (var header in response.Content.Headers) {
-			if (_VolatileHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)) {
+			if (RequestPasswordResetSpec._VolatileHeaderNames.Contains(header.Key, StringComparer.OrdinalIgnoreCase)) {
 				continue;
 			}
 
@@ -185,10 +185,10 @@ public sealed class RequestPasswordResetSpec
 	[Fact]
 	public async Task
 	ItShouldSendTheResetEmailWithThePersistedTokenForAVerifiedUserOnly() {
-		var unverifiedEmail = await _CreateUnverifiedUserAsync();
+		var unverifiedEmail = await this._CreateUnverifiedUserAsync();
 		var nonExistentEmail = $"nonexistent-{Guid.NewGuid():N}@example.com";
 
-		using var baselineScope = _Fixture.Factory.Services.CreateScope();
+		using var baselineScope = this._Fixture.Factory.Services.CreateScope();
 		var baselineDbContext = baselineScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var baselineVerifiedUser = await baselineDbContext.User
@@ -203,38 +203,38 @@ public sealed class RequestPasswordResetSpec
 			.ToListAsync();
 
 		var baselineUnverifiedJobs = baselinePasswordResetJobs
-			.Count(j => _JobPayloadContainsId(
+			.Count(j => RequestPasswordResetSpec._JobPayloadContainsId(
 				j.Payload,
 				"userId",
 				baselineUnverifiedUser.GetRequiredId()
 			));
 
 		var baselineVerifiedJobs = baselinePasswordResetJobs
-			.Count(j => _JobPayloadContainsId(
+			.Count(j => RequestPasswordResetSpec._JobPayloadContainsId(
 				j.Payload,
 				"userId",
 				baselineVerifiedUser.GetRequiredId()
 			));
 
-		using var verifiedResponse = await _Http.PostAsJsonAsync(
+		using var verifiedResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = TestConstants.StaffAdminEmail }
 		);
 		verifiedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		using var unverifiedResponse = await _Http.PostAsJsonAsync(
+		using var unverifiedResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = unverifiedEmail }
 		);
 		unverifiedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		using var nonExistentResponse = await _Http.PostAsJsonAsync(
+		using var nonExistentResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = nonExistentEmail }
 		);
 		nonExistentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var user = await dbContext.User
@@ -257,18 +257,18 @@ public sealed class RequestPasswordResetSpec
 
 		var unverifiedJobs = passwordResetQueueItems
 				.Where(j =>
-					_JobPayloadContainsId(j.Payload, "userId", unverifiedUser.Required().GetRequiredId())
+					RequestPasswordResetSpec._JobPayloadContainsId(j.Payload, "userId", unverifiedUser.Required().GetRequiredId())
 				)
 			.ToList();
 		unverifiedJobs.Should().BeEmpty();
 		passwordResetQueueItems
 				.Count(j =>
-					_JobPayloadContainsId(j.Payload, "userId", unverifiedUser.Required().GetRequiredId())
+					RequestPasswordResetSpec._JobPayloadContainsId(j.Payload, "userId", unverifiedUser.Required().GetRequiredId())
 				)
 			.Should().Be(baselineUnverifiedJobs);
 
 		var pendingResetJobs = passwordResetQueueItems.Count(
-			j => _JobPayloadContainsId(j.Payload, "userId", user.GetRequiredId())
+			j => RequestPasswordResetSpec._JobPayloadContainsId(j.Payload, "userId", user.GetRequiredId())
 		);
 		pendingResetJobs.Should().Be(baselineVerifiedJobs + 1);
 	}
@@ -301,7 +301,7 @@ public sealed class RequestPasswordResetSpec
 	public async Task
 	ItShouldNotRotateAStillValidTokenOnRepeatedRequests() {
 		var email = $"reset-repeat-{Guid.NewGuid():N}@example.com";
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var user = new User {
 				Email = email,
@@ -315,7 +315,7 @@ public sealed class RequestPasswordResetSpec
 			_ = await dbContext.SaveChangesAsync();
 		}
 
-		using var firstResponse = await _Http.PostAsJsonAsync(
+		using var firstResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email }
 		);
@@ -323,7 +323,7 @@ public sealed class RequestPasswordResetSpec
 
 		string? firstToken;
 		DateTime? firstExpiresAt;
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var user = await dbContext.User
 				.IgnoreQueryFilters()
@@ -334,13 +334,13 @@ public sealed class RequestPasswordResetSpec
 
 		firstToken.Should().NotBeNullOrEmpty();
 
-		using var secondResponse = await _Http.PostAsJsonAsync(
+		using var secondResponse = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email }
 		);
 		secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var user = await dbContext.User
 				.IgnoreQueryFilters()
@@ -356,7 +356,7 @@ public sealed class RequestPasswordResetSpec
 	ItShouldIssueAFreshTokenWhenThePreviousOneHasExpired() {
 		var email = $"reset-expired-{Guid.NewGuid():N}@example.com";
 		const string expiredToken = "expired-token-value";
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var user = new User {
 				Email = email,
@@ -372,13 +372,13 @@ public sealed class RequestPasswordResetSpec
 			_ = await dbContext.SaveChangesAsync();
 		}
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email }
 		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var user = await dbContext.User
 				.IgnoreQueryFilters()
@@ -394,7 +394,7 @@ public sealed class RequestPasswordResetSpec
 	[Fact]
 	public async Task
 	ItShouldReturnValidationErrorForInvalidEmail() {
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.RequestPasswordReset,
 			new { email = "not-an-email" }
 		);

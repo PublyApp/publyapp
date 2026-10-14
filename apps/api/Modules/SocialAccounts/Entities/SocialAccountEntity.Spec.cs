@@ -27,7 +27,7 @@ public sealed class SocialAccountEntitySpec {
 
 	[Fact]
 	public void ItShouldDeclareCheckConstraintAndUniqueIndexForSocialAccount() {
-		var entity = _Model().Single(e => e.ClrType == typeof(SocialAccount));
+		var entity = SocialAccountEntitySpec._Model().Single(e => e.ClrType == typeof(SocialAccount));
 		entity.GetCheckConstraints().Single(c => c.Name == "CK_SocialAccount_Status")
 			.Sql.Should().Be("status IN (10, 20, 30)");
 		entity.GetIndexes().Single(i => i.GetDatabaseName() == "ix_social_accounts_tenant_provider_external")
@@ -36,7 +36,7 @@ public sealed class SocialAccountEntitySpec {
 
 	[Fact]
 	public void ItShouldDeclareACompositeKeyForSocialAccountProject() {
-		var entity = _Model().Single(e => e.ClrType == typeof(SocialAccountProject));
+		var entity = SocialAccountEntitySpec._Model().Single(e => e.ClrType == typeof(SocialAccountProject));
 		entity.FindPrimaryKey().Required().Properties.Select(p => p.Name)
 			.Should().Equal("SocialAccountId", "ProjectId");
 	}

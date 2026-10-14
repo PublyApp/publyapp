@@ -26,14 +26,14 @@ public sealed class AuditLogServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public AuditLogServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldRollBackTheAuditRowWithTheCallerTransaction() {
-		var userId = await _SeedUserAsync();
+		var userId = await this._SeedUserAsync();
 
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var auditLog = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
 
@@ -56,7 +56,7 @@ public sealed class AuditLogServiceSpec : IClassFixture<ApiFixture> {
 			await transaction.RollbackAsync();
 		}
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		(await verify.AuditLog.AsNoTracking()
 			.CountAsync(entry => entry.UserId == userId
 				&& entry.Action == "feature_flag.override.reverted"))
@@ -69,10 +69,10 @@ public sealed class AuditLogServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldKeepTheAuditRowWhenTheCallerCommits() {
-		var userId = await _SeedUserAsync();
+		var userId = await this._SeedUserAsync();
 		const string action = "feature_flag.override.applied";
 
-		await using (var scope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var auditLog = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
 
@@ -91,7 +91,7 @@ public sealed class AuditLogServiceSpec : IClassFixture<ApiFixture> {
 			await transaction.CommitAsync();
 		}
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		var row = await verify.AuditLog.AsNoTracking()
 			.SingleAsync(entry => entry.UserId == userId && entry.Action == action);
 		row.UserId.Should().Be(userId);
@@ -101,7 +101,7 @@ public sealed class AuditLogServiceSpec : IClassFixture<ApiFixture> {
 	// --- construction helpers -----------------------------------------------------
 
 	private async Task<Guid> _SeedUserAsync() {
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		var user = new User {
 			Email = $"audit-tx-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -113,7 +113,7 @@ public sealed class AuditLogServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private AppDbContext _CreateDbContext() {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

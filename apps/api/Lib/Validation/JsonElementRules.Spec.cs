@@ -83,7 +83,7 @@ public sealed class JsonElementRulesSpec {
 	private class EmailValidator
 		: AbstractValidator<EmailModel> {
 		public EmailValidator() {
-			RuleFor(x => x.RequiredEmail)
+			this.RuleFor(x => x.RequiredEmail)
 				.MustBeRequiredEmail();
 		}
 	}
@@ -91,7 +91,7 @@ public sealed class JsonElementRulesSpec {
 	private class PasswordValidator
 		: AbstractValidator<PasswordModel> {
 		public PasswordValidator() {
-			RuleFor(x => x.RequiredPassword)
+			this.RuleFor(x => x.RequiredPassword)
 				.MustBeRequiredPassword();
 		}
 	}
@@ -99,7 +99,7 @@ public sealed class JsonElementRulesSpec {
 	private class RequiredStringValidator
 		: AbstractValidator<RequiredStringModel> {
 		public RequiredStringValidator() {
-			RuleFor(x => x.RequiredString)
+			this.RuleFor(x => x.RequiredString)
 				.MustBeRequiredString("TestField");
 		}
 	}
@@ -107,7 +107,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableStringValidator
 		: AbstractValidator<NullableStringModel> {
 		public NullableStringValidator() {
-			RuleFor(x => x.NullableString)
+			this.RuleFor(x => x.NullableString)
 				.MustBeNullableString("TestField");
 		}
 	}
@@ -115,7 +115,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableNonEmptyStringValidator
 		: AbstractValidator<NullableNonEmptyStringModel> {
 		public NullableNonEmptyStringValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeNullableNonEmptyString(
 					"TestField"
 				);
@@ -125,7 +125,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableUrlValidator
 		: AbstractValidator<NullableUrlModel> {
 		public NullableUrlValidator() {
-			RuleFor(x => x.NullableUrl)
+			this.RuleFor(x => x.NullableUrl)
 				.MustBeNullableUrl("TestField");
 		}
 	}
@@ -133,7 +133,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchFieldUrlValidator
 		: AbstractValidator<PatchFieldUrlModel> {
 		public PatchFieldUrlValidator() {
-			RuleFor(x => x.PatchFieldUrl)
+			this.RuleFor(x => x.PatchFieldUrl)
 				.MustBePatchFieldUrl("TestField");
 		}
 	}
@@ -141,7 +141,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchFieldUrlMaxLengthValidator
 		: AbstractValidator<PatchFieldUrlModel> {
 		public PatchFieldUrlMaxLengthValidator() {
-			RuleFor(x => x.PatchFieldUrl)
+			this.RuleFor(x => x.PatchFieldUrl)
 				.MustBePatchFieldUrl("TestField", 1024);
 		}
 	}
@@ -149,7 +149,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableClearableUrlValidator
 		: AbstractValidator<NullableClearableUrlModel> {
 		public NullableClearableUrlValidator() {
-			RuleFor(x => x.NullableClearableUrl)
+			this.RuleFor(x => x.NullableClearableUrl)
 				.MustBeNullableClearableUrl("TestField");
 		}
 	}
@@ -157,7 +157,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchFieldClearableUrlValidator
 		: AbstractValidator<PatchFieldClearableUrlModel> {
 		public PatchFieldClearableUrlValidator() {
-			RuleFor(x => x.PatchFieldClearableUrl)
+			this.RuleFor(x => x.PatchFieldClearableUrl)
 				.MustBePatchFieldClearableUrl("TestField");
 		}
 	}
@@ -165,7 +165,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableBooleanValidator
 		: AbstractValidator<NullableBooleanModel> {
 		public NullableBooleanValidator() {
-			RuleFor(x => x.NullableBoolean)
+			this.RuleFor(x => x.NullableBoolean)
 				.MustBeNullableBoolean("TestField");
 		}
 	}
@@ -173,7 +173,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableEmailValidator
 		: AbstractValidator<NullableEmailModel> {
 		public NullableEmailValidator() {
-			RuleFor(x => x.NullableEmail)
+			this.RuleFor(x => x.NullableEmail)
 				.MustBeNullableEmail();
 		}
 	}
@@ -181,7 +181,7 @@ public sealed class JsonElementRulesSpec {
 	private class EncryptedIdValidator
 		: AbstractValidator<EncryptedIdModel> {
 		public EncryptedIdValidator() {
-			RuleFor(x => x.RequiredEncryptedId)
+			this.RuleFor(x => x.RequiredEncryptedId)
 				.MustBeRequiredEncryptedId();
 		}
 	}
@@ -189,7 +189,7 @@ public sealed class JsonElementRulesSpec {
 	private class GuidArrayValidator
 		: AbstractValidator<GuidArrayModel> {
 		public GuidArrayValidator() {
-			RuleFor(x => x.RequiredGuidArray)
+			this.RuleFor(x => x.RequiredGuidArray)
 				.MustBeRequiredGuidArray(
 					"userIds",
 					"userId",
@@ -201,7 +201,7 @@ public sealed class JsonElementRulesSpec {
 	private class GuidArrayAllowingEmptyValidator
 		: AbstractValidator<GuidArrayAllowingEmptyModel> {
 		public GuidArrayAllowingEmptyValidator() {
-			RuleFor(x => x.GuidArrayAllowingEmpty)
+			this.RuleFor(x => x.GuidArrayAllowingEmpty)
 				.MustBeRequiredGuidArrayAllowingEmpty(
 					"userIds",
 					"userId",
@@ -213,7 +213,7 @@ public sealed class JsonElementRulesSpec {
 	private class GuidArrayNamingInvalidItemsValidator
 		: AbstractValidator<GuidArrayModel> {
 		public GuidArrayNamingInvalidItemsValidator() {
-			RuleFor(x => x.RequiredGuidArray)
+			this.RuleFor(x => x.RequiredGuidArray)
 				.MustBeRequiredGuidArray(
 					"userIds",
 					"userId",
@@ -960,7 +960,7 @@ public sealed class JsonElementRulesSpec {
 	private class RequiredStringLengthValidator
 		: AbstractValidator<RequiredStringLengthModel> {
 		public RequiredStringLengthValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeRequiredStringWithLength("Value", 2, 10);
 		}
 	}
@@ -1010,7 +1010,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchStringLengthValidator
 		: AbstractValidator<PatchStringLengthModel> {
 		public PatchStringLengthValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBePatchFieldStringWithLength("Value", 2, 10);
 		}
 	}
@@ -1060,7 +1060,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableStringMaxLengthValidator
 		: AbstractValidator<NullableStringMaxLengthModel> {
 		public NullableStringMaxLengthValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeNullableStringWithMaxLength("Value", 10);
 		}
 	}
@@ -1108,7 +1108,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchStringMaxLengthValidator
 		: AbstractValidator<PatchStringMaxLengthModel> {
 		public PatchStringMaxLengthValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBePatchFieldStringWithMaxLength("Value", 10);
 		}
 	}
@@ -1150,7 +1150,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchStringMaxLengthNoTrimValidator
 		: AbstractValidator<PatchStringMaxLengthModel> {
 		public PatchStringMaxLengthNoTrimValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBePatchFieldStringWithMaxLength(
 					"Value", 128, trim: false);
 		}
@@ -1159,7 +1159,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchStringMaxLengthTrimValidator
 		: AbstractValidator<PatchStringMaxLengthModel> {
 		public PatchStringMaxLengthTrimValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBePatchFieldStringWithMaxLength(
 					"Value", 128, trim: true);
 		}
@@ -1240,7 +1240,7 @@ public sealed class JsonElementRulesSpec {
 	private class RequiredIsoDateTimeValidator
 		: AbstractValidator<RequiredIsoDateTimeModel> {
 		public RequiredIsoDateTimeValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeRequiredIsoDateTime("Value");
 		}
 	}
@@ -1281,7 +1281,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableIsoDateTimeValidator
 		: AbstractValidator<NullableIsoDateTimeModel> {
 		public NullableIsoDateTimeValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeNullableIsoDateTime("Value");
 		}
 	}
@@ -1331,7 +1331,7 @@ public sealed class JsonElementRulesSpec {
 	private class RequiredTimezoneValidator
 		: AbstractValidator<RequiredTimezoneModel> {
 		public RequiredTimezoneValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeRequiredTimezone("Value");
 		}
 	}
@@ -1440,7 +1440,7 @@ public sealed class JsonElementRulesSpec {
 		public RequiredStringLengthTrimValidator() {
 			// minLength=3, trim=true → "  ab  ".Trim().Length=2 → fail
 			// minLength=3, trim=true → "  abc  ".Trim().Length=3 → pass
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeRequiredStringWithLength("Value", 3, 20, trim: true);
 		}
 	}
@@ -1449,7 +1449,7 @@ public sealed class JsonElementRulesSpec {
 		: AbstractValidator<RequiredStringLengthTrimModel> {
 		public RequiredStringLengthRawValidator() {
 			// minLength=3, trim=false (default) → "  a  ".Length=5 → pass raw (but Trim=1 fail trim)
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeRequiredStringWithLength("Value", 3, 20);
 		}
 	}
@@ -1493,7 +1493,7 @@ public sealed class JsonElementRulesSpec {
 		: AbstractValidator<NullableStringMaxLengthTrimModel> {
 		public NullableStringMaxLengthTrimValidator() {
 			// maxLength=5, trim=true → "hello  ".Trim().Length=5 → pass; "hello!  ".Trim().Length=6 → fail
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeNullableStringWithMaxLength("Value", 5, trim: true);
 		}
 	}
@@ -1546,7 +1546,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchIsoDateTimeValidator
 		: AbstractValidator<PatchIsoDateTimeModel> {
 		public PatchIsoDateTimeValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBePatchFieldIsoDateTime("Value");
 		}
 	}
@@ -1596,7 +1596,7 @@ public sealed class JsonElementRulesSpec {
 	private class NullableNonEmptyGuidValidator
 		: AbstractValidator<NullableNonEmptyGuidModel> {
 		public NullableNonEmptyGuidValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBeNullableNonEmptyGuid("ProjectId");
 		}
 	}
@@ -1689,7 +1689,7 @@ public sealed class JsonElementRulesSpec {
 	private class PatchFieldNonEmptyGuidValidator
 		: AbstractValidator<PatchFieldNonEmptyGuidModel> {
 		public PatchFieldNonEmptyGuidValidator() {
-			RuleFor(x => x.Value)
+			this.RuleFor(x => x.Value)
 				.MustBePatchFieldNonEmptyGuid("ProjectId");
 		}
 	}

@@ -30,11 +30,11 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 	private readonly ApiFixture _Fixture;
 
 	public BulkUnassignStaffProfileUsersArchitectureSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	private IReadOnlyList<RouteEndpoint> _GetRouteEndpoints() {
-		return _Fixture.Factory.Services
+		return this._Fixture.Factory.Services
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints
 			.OfType<RouteEndpoint>()
@@ -58,7 +58,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var matches = _GetRouteEndpoints()
+		var matches = this._GetRouteEndpoints()
 			.Where(endpoint =>
 				endpoint.RoutePattern.RawText?.EndsWith(
 					"/{profileId}/users/unassign",
@@ -82,7 +82,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var methods = _GetRouteEndpoints()
+		var methods = this._GetRouteEndpoints()
 			.Where(endpoint => endpoint.RoutePattern.RawText == expectedPath)
 			.SelectMany(endpoint =>
 				endpoint.Metadata
@@ -104,7 +104,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var endpoint = _GetRouteEndpoints()
+		var endpoint = this._GetRouteEndpoints()
 			.Single(candidate =>
 				candidate.RoutePattern.RawText == expectedPath
 				&& candidate.Metadata.OfType<HttpMethodMetadata>()
@@ -120,7 +120,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			.NotBeEmpty(
 				"{0} must declare .WithPermission(…) — an unprotected staff "
 				+ "bulk mutation would fail the EndpointPermissionMetadataGuard",
-				_BuildEndpointKey(endpoint)
+				BulkUnassignStaffProfileUsersArchitectureSpec._BuildEndpointKey(endpoint)
 			);
 	}
 
@@ -132,7 +132,7 @@ public sealed class BulkUnassignStaffProfileUsersArchitectureSpec
 			Routes.Profiles.ForStaff.Users.Unassign
 		);
 
-		var endpoint = _GetRouteEndpoints()
+		var endpoint = this._GetRouteEndpoints()
 			.Single(candidate =>
 				candidate.RoutePattern.RawText == expectedPath
 				&& candidate.Metadata.OfType<HttpMethodMetadata>()

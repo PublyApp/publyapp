@@ -14,12 +14,12 @@ public sealed class AddSystemJobOccurrencesSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public AddSystemJobOccurrencesSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldCreateTheOccurrenceLedgerAndScheduleEpochShape() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tableExists = await dbContext.Database.SqlQuery<bool>(

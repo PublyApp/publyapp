@@ -26,19 +26,19 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public CreateStaffInvitationSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldAllowPermissionedNonAdminStaffUserToCreateStaffInvitation() {
-		string staffUserToken = await _LoginAsStaffUserWithInvitationPermissionAsync(
+		string staffUserToken = await this._LoginAsStaffUserWithInvitationPermissionAsync(
 			AppPermissions.Staff.Invitations.CREATE_FOR_STAFF.Key
 		);
 		string email = $"staff-create-permissioned-{Guid.NewGuid():N}@example.com";
-		Guid profileId = await _GetAnyStaffProfileIdAsync();
+		Guid profileId = await this._GetAnyStaffProfileIdAsync();
 
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -50,7 +50,7 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 			profileId = profileId.ToString()
 		});
 
-		using HttpResponseMessage response = await _Http.SendAsync(request);
+		using HttpResponseMessage response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 	}
@@ -58,7 +58,7 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _LoginAsStaffUserWithInvitationPermissionAsync(
 		string permissionKey
 	) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -91,14 +91,14 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 		});
 		await dbContext.SaveChangesAsync();
 
-		return await _AuthClient.LoginAsync(
+		return await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 	}
 
 	private async Task<Guid> _GetAnyStaffProfileIdAsync() {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

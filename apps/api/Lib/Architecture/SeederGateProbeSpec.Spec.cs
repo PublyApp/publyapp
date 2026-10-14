@@ -38,7 +38,7 @@ public sealed class SeederGateProbeSpec {
 			);
 			await createCommand.ExecuteNonQueryAsync();
 
-			var results = await _RunSeederGateProbeAsync(dbBuilder.ConnectionString);
+			var results = await SeederGateProbeSpec._RunSeederGateProbeAsync(dbBuilder.ConnectionString);
 
 			results.ExitCode.Should().Be(0, "the seed gate should pass in Production");
 			results.Payload.Should().NotBeNull("the probe should emit a JSON result payload");
@@ -51,7 +51,7 @@ public sealed class SeederGateProbeSpec {
 			payload.HasOwnerAccount.Should().BeTrue();
 			payload.OwnerPasswordIsNotSeedPassword.Should().BeTrue();
 		} finally {
-			await _DropDatabaseIfExistsAsync(adminConnection, dbName);
+			await SeederGateProbeSpec._DropDatabaseIfExistsAsync(adminConnection, dbName);
 		}
 	}
 

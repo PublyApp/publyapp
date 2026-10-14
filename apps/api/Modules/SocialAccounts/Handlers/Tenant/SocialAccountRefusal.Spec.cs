@@ -27,21 +27,21 @@ public sealed class SocialAccountRefusalSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountRefusalSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldStoreNothingWhenBlueskyRefusesOrIsUnreachable() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var fake = scope.ServiceProvider.GetRequiredService<FakeBlueskyClient>();
 		fake.NextResult =
 			new BlueskySessionResult.AccountFailure("Credentials were refused.");
 
-		using var refused = await _ConnectAsync(tenantId, token);
+		using var refused = await this._ConnectAsync(tenantId, token);
 		refused.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var problem = await refused.Content
 			.ReadFromJsonAsync<ValidationProblemDetails>();
@@ -52,7 +52,7 @@ public sealed class SocialAccountRefusalSpec : IClassFixture<ApiFixture> {
 			.CountAsync(a => a.TenantId == tenantId)).Should().Be(0);
 
 		fake.NextResult = new BlueskySessionResult.Transient();
-		using var unavailable = await _ConnectAsync(tenantId, token);
+		using var unavailable = await this._ConnectAsync(tenantId, token);
 		unavailable.StatusCode.Should()
 			.Be(HttpStatusCode.ServiceUnavailable);
 
@@ -61,7 +61,7 @@ public sealed class SocialAccountRefusalSpec : IClassFixture<ApiFixture> {
 
 		// Restore default success: exactly one row appears.
 		fake.NextResult = null;
-		using var success = await _ConnectAsync(tenantId, token);
+		using var success = await this._ConnectAsync(tenantId, token);
 		success.StatusCode.Should().Be(HttpStatusCode.Created);
 		(await db.SocialAccount.AsNoTracking()
 			.CountAsync(a => a.TenantId == tenantId)).Should().Be(1);
@@ -77,15 +77,15 @@ public sealed class SocialAccountRefusalSpec : IClassFixture<ApiFixture> {
 			identifier = $"refusal-{Guid.NewGuid():N}@example.com",
 			appPassword = "app-password-111",
 		});
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, staffToken, SeedConstants.Tenants.AcmeName
+			this._Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
 		);
 		return (tenantId, token);

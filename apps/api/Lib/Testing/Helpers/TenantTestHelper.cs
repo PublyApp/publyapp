@@ -50,10 +50,10 @@ internal static class TenantTestHelper {
 		}
 
 		if (queryParams.Count == 0) {
-			return _FindUrl;
+			return TenantTestHelper._FindUrl;
 		}
 
-		return _FindUrl
+		return TenantTestHelper._FindUrl
 			+ "?"
 			+ string.Join("&", queryParams);
 	}
@@ -69,7 +69,7 @@ internal static class TenantTestHelper {
 		string tenantName,
 		CancellationToken ct = default
 	) {
-		var url = GetFindUrl(
+		var url = TenantTestHelper.GetFindUrl(
 			limit: 50,
 			sortId: "name",
 			sortOrder: "asc"

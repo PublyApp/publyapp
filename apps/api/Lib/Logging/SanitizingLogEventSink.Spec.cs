@@ -23,7 +23,7 @@ public sealed class SanitizingLogEventSinkSpec {
 
 	[Fact]
 	public void ItShouldStripTheRawExceptionFromTheForwardedEvent() {
-		var captured = _EmitThrough(new InvalidOperationException("boom"));
+		var captured = SanitizingLogEventSinkSpec._EmitThrough(new InvalidOperationException("boom"));
 
 		captured.Exception.Should().BeNull(
 			"Serilog renders LogEvent.Exception — message included — straight into console "
@@ -33,18 +33,18 @@ public sealed class SanitizingLogEventSinkSpec {
 
 	[Fact]
 	public void ItShouldReplaceTheExceptionWithRedactedTypeMessageAndStackMetadata() {
-		var exception = _Thrown(
-			new InvalidOperationException($"send to {_RecipientAddress} failed, token={_ResetToken}")
+		var exception = SanitizingLogEventSinkSpec._Thrown(
+			new InvalidOperationException($"send to {SanitizingLogEventSinkSpec._RecipientAddress} failed, token={SanitizingLogEventSinkSpec._ResetToken}")
 		);
 
-		var captured = _EmitThrough(exception);
+		var captured = SanitizingLogEventSinkSpec._EmitThrough(exception);
 
-		_PropertyText(captured, SanitizingLogEventSink.ExceptionTypeProperty)
+		SanitizingLogEventSinkSpec._PropertyText(captured, SanitizingLogEventSink.ExceptionTypeProperty)
 			.Should().Contain(nameof(InvalidOperationException), "the type is the safe error code");
 
-		var message = _PropertyText(captured, SanitizingLogEventSink.ExceptionMessageProperty);
-		message.Should().NotContain(_RecipientAddress, "recipient addresses must be redacted");
-		message.Should().NotContain(_ResetToken, "token-shaped runs must be redacted");
+		var message = SanitizingLogEventSinkSpec._PropertyText(captured, SanitizingLogEventSink.ExceptionMessageProperty);
+		message.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress, "recipient addresses must be redacted");
+		message.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken, "token-shaped runs must be redacted");
 		message.Should().Contain("[redacted-email]");
 		message.Should().Contain("[redacted-token]");
 
@@ -52,18 +52,18 @@ public sealed class SanitizingLogEventSinkSpec {
 			SanitizingLogEventSink.ExceptionStackProperty,
 			"stack frames are code locations and carry no payload, so they survive"
 		);
-		_PropertyText(captured, SanitizingLogEventSink.ExceptionStackProperty)
+		SanitizingLogEventSinkSpec._PropertyText(captured, SanitizingLogEventSink.ExceptionStackProperty)
 			.Should().Contain(nameof(SanitizingLogEventSinkSpec), "the throwing frame is preserved");
 	}
 
 	[Fact]
 	public void ItShouldPreserveSafePropertiesAndCorrelationWhenRedacting() {
-		var captured = _EmitThrough(
+		var captured = SanitizingLogEventSinkSpec._EmitThrough(
 			new InvalidOperationException("boom"),
 			new LogEventProperty("job_id", new ScalarValue("job-42"))
 		);
 
-		_PropertyText(captured, "job_id").Should().Contain("job-42",
+		SanitizingLogEventSinkSpec._PropertyText(captured, "job_id").Should().Contain("job-42",
 			"structured properties went through Serilog's normal destructuring path and are safe");
 		captured.Level.Should().Be(LogEventLevel.Error);
 		captured.MessageTemplate.Text.Should().Be("failure");
@@ -72,7 +72,7 @@ public sealed class SanitizingLogEventSinkSpec {
 	[Fact]
 	public void ItShouldPreserveSafePropertiesOnEventsWithoutAnException() {
 		var sink = new CapturingSink();
-		var original = _BuildEvent(
+		var original = SanitizingLogEventSinkSpec._BuildEvent(
 			exception: null,
 			new LogEventProperty("job_id", new ScalarValue("job-42"))
 		);
@@ -81,7 +81,7 @@ public sealed class SanitizingLogEventSinkSpec {
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
 		captured.Exception.Should().BeNull();
-		_PropertyText(captured, "job_id").Should().Contain("job-42",
+		SanitizingLogEventSinkSpec._PropertyText(captured, "job_id").Should().Contain("job-42",
 			"a benign scalar property survives the no-exception path untouched");
 		captured.MessageTemplate.Text.Should().Be("failure");
 	}
@@ -91,19 +91,19 @@ public sealed class SanitizingLogEventSinkSpec {
 	[Fact]
 	public void ItShouldRedactAScalarStringPropertyOnTheNoExceptionPath() {
 		var sink = new CapturingSink();
-		var original = _BuildEvent(
+		var original = SanitizingLogEventSinkSpec._BuildEvent(
 			exception: null,
 			new LogEventProperty(
 				"ErrorMessage",
-				new ScalarValue($"send to {_RecipientAddress} failed, token={_ResetToken}")
+				new ScalarValue($"send to {SanitizingLogEventSinkSpec._RecipientAddress} failed, token={SanitizingLogEventSinkSpec._ResetToken}")
 			)
 		);
 
 		new SanitizingLogEventSink(sink).Emit(original);
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
-		var message = _PropertyText(captured, "ErrorMessage");
-		message.Should().NotContain(_RecipientAddress).And.NotContain(_ResetToken);
+		var message = SanitizingLogEventSinkSpec._PropertyText(captured, "ErrorMessage");
+		message.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress).And.NotContain(SanitizingLogEventSinkSpec._ResetToken);
 		message.Should().Contain("[redacted-email]").And.Contain("[redacted-token]");
 	}
 
@@ -111,11 +111,11 @@ public sealed class SanitizingLogEventSinkSpec {
 	// replaced with safe metadata, never its raw message (finding F3).
 	[Fact]
 	public void ItShouldReplaceAnExceptionValuedScalarPropertyWithSafeMetadata() {
-		var exception = _Thrown(
-			new InvalidOperationException($"send to {_RecipientAddress} failed, token={_ResetToken}")
+		var exception = SanitizingLogEventSinkSpec._Thrown(
+			new InvalidOperationException($"send to {SanitizingLogEventSinkSpec._RecipientAddress} failed, token={SanitizingLogEventSinkSpec._ResetToken}")
 		);
 		var sink = new CapturingSink();
-		var original = _BuildEvent(
+		var original = SanitizingLogEventSinkSpec._BuildEvent(
 			exception: null,
 			new LogEventProperty("Error", new ScalarValue(exception))
 		);
@@ -123,8 +123,8 @@ public sealed class SanitizingLogEventSinkSpec {
 		new SanitizingLogEventSink(sink).Emit(original);
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
-		var message = _PropertyText(captured, "Error");
-		message.Should().NotContain(_RecipientAddress).And.NotContain(_ResetToken);
+		var message = SanitizingLogEventSinkSpec._PropertyText(captured, "Error");
+		message.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress).And.NotContain(SanitizingLogEventSinkSpec._ResetToken);
 		message.Should().Contain(nameof(InvalidOperationException), "the safe type is preserved");
 	}
 
@@ -135,21 +135,21 @@ public sealed class SanitizingLogEventSinkSpec {
 	// when it flows through the SAME wrapper the app composes (via WriteTo.Sanitized).
 	[Fact]
 	public void ItShouldRedactAnExceptionMessageScalarPropertyThroughTheConfiguredPipeline() {
-		var (logger, capture) = _BuildConfiguredPipeline();
+		var (logger, capture) = SanitizingLogEventSinkSpec._BuildConfiguredPipeline();
 
 		using (logger) {
 			logger.Error(
 				"update failed {ErrorMessage}",
-				$"send to {_RecipientAddress} failed, token={_ResetToken}"
+				$"send to {SanitizingLogEventSinkSpec._RecipientAddress} failed, token={SanitizingLogEventSinkSpec._ResetToken}"
 			);
 		}
 
 		var captured = capture.Captured.Should().ContainSingle().Subject;
 		captured.Exception.Should().BeNull("this leak never sets LogEvent.Exception");
 
-		var message = _PropertyText(captured, "ErrorMessage");
-		message.Should().NotContain(_RecipientAddress, "recipient addresses must be redacted");
-		message.Should().NotContain(_ResetToken, "token-shaped runs must be redacted");
+		var message = SanitizingLogEventSinkSpec._PropertyText(captured, "ErrorMessage");
+		message.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress, "recipient addresses must be redacted");
+		message.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken, "token-shaped runs must be redacted");
 		message.Should().Contain("[redacted-email]").And.Contain("[redacted-token]");
 	}
 
@@ -158,9 +158,9 @@ public sealed class SanitizingLogEventSinkSpec {
 	// durable sink. The hardened sink must strip its payload end to end.
 	[Fact]
 	public void ItShouldRedactADestructuredExceptionPropertyThroughTheConfiguredPipeline() {
-		var (logger, capture) = _BuildConfiguredPipeline();
-		var exception = _Thrown(
-			new InvalidOperationException($"send to {_RecipientAddress} failed, token={_ResetToken}")
+		var (logger, capture) = SanitizingLogEventSinkSpec._BuildConfiguredPipeline();
+		var exception = SanitizingLogEventSinkSpec._Thrown(
+			new InvalidOperationException($"send to {SanitizingLogEventSinkSpec._RecipientAddress} failed, token={SanitizingLogEventSinkSpec._ResetToken}")
 		);
 
 		using (logger) {
@@ -171,27 +171,27 @@ public sealed class SanitizingLogEventSinkSpec {
 		captured.Exception.Should()
 			.BeNull("passing an exception as a property sets no LogEvent.Exception");
 
-		var rendered = _RenderProperties(captured);
-		rendered.Should().NotContain(_RecipientAddress, "the destructured message must be redacted");
-		rendered.Should().NotContain(_ResetToken, "token-shaped runs must be redacted");
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress, "the destructured message must be redacted");
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken, "token-shaped runs must be redacted");
 	}
 
 	// A log call must not be able to pass off its own values as the redacted fields.
 	[Fact]
 	public void ItShouldDropCallerSuppliedPropertiesThatSpoofTheRedactedFields() {
-		var captured = _EmitThrough(
-			new InvalidOperationException($"real cause, token={_ResetToken}"),
+		var captured = SanitizingLogEventSinkSpec._EmitThrough(
+			new InvalidOperationException($"real cause, token={SanitizingLogEventSinkSpec._ResetToken}"),
 			new LogEventProperty(
 				SanitizingLogEventSink.ExceptionMessageProperty,
-				new ScalarValue($"spoofed, token={_ResetToken}")
+				new ScalarValue($"spoofed, token={SanitizingLogEventSinkSpec._ResetToken}")
 			)
 		);
 
 		captured.Properties[SanitizingLogEventSink.ExceptionMessageProperty]
 			.Should().NotBeNull();
-		_PropertyText(captured, SanitizingLogEventSink.ExceptionMessageProperty)
+		SanitizingLogEventSinkSpec._PropertyText(captured, SanitizingLogEventSink.ExceptionMessageProperty)
 			.Should().NotContain("spoofed", "the sink's own redacted value wins")
-			.And.NotContain(_ResetToken, "and it is still redacted");
+			.And.NotContain(SanitizingLogEventSinkSpec._ResetToken, "and it is still redacted");
 	}
 
 	// --- F3: dictionary KEYS are sanitized, not just values -------------------------
@@ -203,18 +203,18 @@ public sealed class SanitizingLogEventSinkSpec {
 	[Fact]
 	public void ItShouldRedactSensitiveStringKeysInADictionaryValue() {
 		var dictionary = new DictionaryValue([
-			_KeyValue($"token={_ResetToken}", "safe-value"),
-			_KeyValue($"contact {_RecipientAddress}", "safe-value"),
+			SanitizingLogEventSinkSpec._KeyValue($"token={SanitizingLogEventSinkSpec._ResetToken}", "safe-value"),
+			SanitizingLogEventSinkSpec._KeyValue($"contact {SanitizingLogEventSinkSpec._RecipientAddress}", "safe-value"),
 		]);
 		var sink = new CapturingSink();
 
 		new SanitizingLogEventSink(sink).Emit(
-			_BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
+			SanitizingLogEventSinkSpec._BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
-		var rendered = _RenderProperties(captured);
-		rendered.Should().NotContain(_ResetToken, "a token in a dictionary KEY must be redacted");
-		rendered.Should().NotContain(_RecipientAddress, "an email in a dictionary KEY must be redacted");
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken, "a token in a dictionary KEY must be redacted");
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress, "an email in a dictionary KEY must be redacted");
 		rendered.Should().Contain("[redacted-token]").And.Contain("[redacted-email]");
 	}
 
@@ -224,13 +224,13 @@ public sealed class SanitizingLogEventSinkSpec {
 	[Fact]
 	public void ItShouldDisambiguateDictionaryKeysThatRedactToTheSameSentinel() {
 		var dictionary = new DictionaryValue([
-			_KeyValue("alice@example.com", "first"),
-			_KeyValue("bob@example.com", "second"),
+			SanitizingLogEventSinkSpec._KeyValue("alice@example.com", "first"),
+			SanitizingLogEventSinkSpec._KeyValue("bob@example.com", "second"),
 		]);
 		var sink = new CapturingSink();
 
 		new SanitizingLogEventSink(sink).Emit(
-			_BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
+			SanitizingLogEventSinkSpec._BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
 		var sanitized = captured.Properties["Data"].Should().BeOfType<DictionaryValue>().Subject;
@@ -238,7 +238,7 @@ public sealed class SanitizingLogEventSinkSpec {
 		sanitized.Elements.Should().HaveCount(2, "a redaction collision must not drop an entry");
 		sanitized.Elements.Select(element => element.Key.Value).Should().OnlyHaveUniqueItems(
 			"colliding sanitized keys are disambiguated deterministically, never left as duplicates");
-		_RenderProperties(captured).Should()
+		SanitizingLogEventSinkSpec._RenderProperties(captured).Should()
 			.NotContain("alice@example.com").And.NotContain("bob@example.com");
 	}
 
@@ -247,10 +247,10 @@ public sealed class SanitizingLogEventSinkSpec {
 	// must be redacted by the configured pipeline (finding F3).
 	[Fact]
 	public void ItShouldRedactSensitiveDictionaryKeysThroughTheConfiguredPipeline() {
-		var (logger, capture) = _BuildConfiguredPipeline();
+		var (logger, capture) = SanitizingLogEventSinkSpec._BuildConfiguredPipeline();
 		var data = new Dictionary<string, string> {
-			[$"token={_ResetToken}"] = "value",
-			[$"user {_RecipientAddress}"] = "value",
+			[$"token={SanitizingLogEventSinkSpec._ResetToken}"] = "value",
+			[$"user {SanitizingLogEventSinkSpec._RecipientAddress}"] = "value",
 		};
 
 		using (logger) {
@@ -258,9 +258,9 @@ public sealed class SanitizingLogEventSinkSpec {
 		}
 
 		var captured = capture.Captured.Should().ContainSingle().Subject;
-		var rendered = _RenderProperties(captured);
-		rendered.Should().NotContain(_ResetToken, "token-shaped dictionary keys must be redacted");
-		rendered.Should().NotContain(_RecipientAddress, "email dictionary keys must be redacted");
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken, "token-shaped dictionary keys must be redacted");
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress, "email dictionary keys must be redacted");
 	}
 
 	// The finding's named shape: a token/email placed in exception.Data as a KEY, logged via
@@ -268,19 +268,19 @@ public sealed class SanitizingLogEventSinkSpec {
 	// into, the sensitive key must not reach the durable sink (finding F3).
 	[Fact]
 	public void ItShouldRedactSensitiveExceptionDataKeysThroughTheConfiguredPipeline() {
-		var (logger, capture) = _BuildConfiguredPipeline();
+		var (logger, capture) = SanitizingLogEventSinkSpec._BuildConfiguredPipeline();
 		var exception = new InvalidOperationException("boom");
-		exception.Data[$"token={_ResetToken}"] = "value";
-		exception.Data[$"user {_RecipientAddress}"] = "value";
+		exception.Data[$"token={SanitizingLogEventSinkSpec._ResetToken}"] = "value";
+		exception.Data[$"user {SanitizingLogEventSinkSpec._RecipientAddress}"] = "value";
 
 		using (logger) {
 			logger.Error("update failed {@Error}", exception);
 		}
 
 		var captured = capture.Captured.Should().ContainSingle().Subject;
-		var rendered = _RenderProperties(captured);
-		rendered.Should().NotContain(_ResetToken, "a token in exception.Data must not leak as a key");
-		rendered.Should().NotContain(_RecipientAddress, "an email in exception.Data must not leak as a key");
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken, "a token in exception.Data must not leak as a key");
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress, "an email in exception.Data must not leak as a key");
 	}
 
 	// --- F1: NON-string dictionary keys are sanitized, not passed through -----------
@@ -291,7 +291,7 @@ public sealed class SanitizingLogEventSinkSpec {
 	// non-string key must be rendered and redacted like any string key (finding F1).
 	[Fact]
 	public void ItShouldRedactSensitiveNonStringKeysLikeAUriInADictionaryValue() {
-		var uri = new Uri($"https://host/{_ResetToken}?email={_RecipientAddress}");
+		var uri = new Uri($"https://host/{SanitizingLogEventSinkSpec._ResetToken}?email={SanitizingLogEventSinkSpec._RecipientAddress}");
 		var dictionary = new DictionaryValue([
 			new KeyValuePair<ScalarValue, LogEventPropertyValue>(
 				new ScalarValue(uri), new ScalarValue("safe-value")),
@@ -299,13 +299,13 @@ public sealed class SanitizingLogEventSinkSpec {
 		var sink = new CapturingSink();
 
 		new SanitizingLogEventSink(sink).Emit(
-			_BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
+			SanitizingLogEventSinkSpec._BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
-		var rendered = _RenderProperties(captured);
-		rendered.Should().NotContain(_ResetToken,
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken,
 			"a token in a NON-string (Uri) dictionary key must be redacted, not passed through");
-		rendered.Should().NotContain(_RecipientAddress,
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress,
 			"an email in a Uri dictionary key must be redacted");
 		rendered.Should().Contain("[redacted-token]").And.Contain("[redacted-email]");
 	}
@@ -316,19 +316,19 @@ public sealed class SanitizingLogEventSinkSpec {
 	// (finding F1).
 	[Fact]
 	public void ItShouldRedactSensitiveUriExceptionDataKeysThroughTheConfiguredPipeline() {
-		var (logger, capture) = _BuildConfiguredPipeline();
+		var (logger, capture) = SanitizingLogEventSinkSpec._BuildConfiguredPipeline();
 		var exception = new InvalidOperationException("boom");
-		exception.Data[new Uri($"https://host/{_ResetToken}?email={_RecipientAddress}")] = "value";
+		exception.Data[new Uri($"https://host/{SanitizingLogEventSinkSpec._ResetToken}?email={SanitizingLogEventSinkSpec._RecipientAddress}")] = "value";
 
 		using (logger) {
 			logger.Error("update failed {@Error}", exception);
 		}
 
 		var captured = capture.Captured.Should().ContainSingle().Subject;
-		var rendered = _RenderProperties(captured);
-		rendered.Should().NotContain(_ResetToken,
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken,
 			"a token in a Uri exception.Data key must not leak through the configured pipeline");
-		rendered.Should().NotContain(_RecipientAddress,
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._RecipientAddress,
 			"an email in a Uri exception.Data key must not leak");
 	}
 
@@ -347,14 +347,14 @@ public sealed class SanitizingLogEventSinkSpec {
 		const int keyCount = 25_000;
 		var padding = new string('A', 28);
 		var elements = Enumerable.Range(0, keyCount)
-			.Select(index => _KeyValue($"{padding}{index}", "value"))
+			.Select(index => SanitizingLogEventSinkSpec._KeyValue($"{padding}{index}", "value"))
 			.ToArray();
 		var dictionary = new DictionaryValue(elements);
 		var sink = new CapturingSink();
 
 		var stopwatch = Stopwatch.StartNew();
 		new SanitizingLogEventSink(sink).Emit(
-			_BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
+			SanitizingLogEventSinkSpec._BuildEvent(exception: null, new LogEventProperty("Data", dictionary)));
 		stopwatch.Stop();
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
@@ -376,23 +376,23 @@ public sealed class SanitizingLogEventSinkSpec {
 	// F4). The bound replaces content past the limit with a safe sentinel and returns normally.
 	[Fact]
 	public void ItShouldBoundRecursionDepthInsteadOfOverflowingTheStack() {
-		LogEventPropertyValue graph = new ScalarValue($"leaf token={_ResetToken}");
+		LogEventPropertyValue graph = new ScalarValue($"leaf token={SanitizingLogEventSinkSpec._ResetToken}");
 		for (var depth = 0; depth < 5_000; depth++) {
 			graph = new StructureValue([new LogEventProperty("next", graph)]);
 		}
 		var sink = new CapturingSink();
 
 		var act = () => new SanitizingLogEventSink(sink).Emit(
-			_BuildEvent(exception: null, new LogEventProperty("graph", graph)));
+			SanitizingLogEventSinkSpec._BuildEvent(exception: null, new LogEventProperty("graph", graph)));
 
 		act.Should().NotThrow(
 			"a deep acyclic value graph must be depth-bounded, never overflow the process stack");
 
 		var captured = sink.Captured.Should().ContainSingle().Subject;
-		var rendered = _RenderProperties(captured);
+		var rendered = SanitizingLogEventSinkSpec._RenderProperties(captured);
 		rendered.Should().Contain("[redacted-depth-exceeded]",
 			"content past the depth bound is replaced with a safe sentinel");
-		rendered.Should().NotContain(_ResetToken,
+		rendered.Should().NotContain(SanitizingLogEventSinkSpec._ResetToken,
 			"the leaf far below the depth bound is dropped with everything past the limit");
 	}
 
@@ -406,7 +406,7 @@ public sealed class SanitizingLogEventSinkSpec {
 	private static LogEvent _EmitThrough(Exception exception, params LogEventProperty[] properties) {
 		var sink = new CapturingSink();
 
-		new SanitizingLogEventSink(sink).Emit(_BuildEvent(exception, properties));
+		new SanitizingLogEventSink(sink).Emit(SanitizingLogEventSinkSpec._BuildEvent(exception, properties));
 
 		return sink.Captured.Should().ContainSingle().Subject;
 	}
@@ -461,7 +461,7 @@ public sealed class SanitizingLogEventSinkSpec {
 		public List<LogEvent> Captured { get; } = [];
 
 		public void Emit(LogEvent logEvent) {
-			Captured.Add(logEvent);
+			this.Captured.Add(logEvent);
 		}
 	}
 }

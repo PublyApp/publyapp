@@ -26,26 +26,26 @@ public sealed class SocialAccountDisconnectProofSpec : IClassFixture<ApiFixture>
 	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountDisconnectProofSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldRevokeEraseSecretAndThenRejectReconnect() {
-		var (tenantId, token) = await _ConnectNewAccountAsync();
-		var listBody = await _ListAsync(tenantId, token);
-		var accountId = _ParseSingleId(listBody);
+		var (tenantId, token) = await this._ConnectNewAccountAsync();
+		var listBody = await this._ListAsync(tenantId, token);
+		var accountId = SocialAccountDisconnectProofSpec._ParseSingleId(listBody);
 
 		// Disconnect.
 		using var disconnectRequest = new HttpRequestMessage(
 			HttpMethod.Post, $"/social-accounts/{accountId}/disconnect"
 		).WithSessionToken(token).WithTenantId(tenantId);
-		using var disconnect = await _Http.SendAsync(disconnectRequest);
+		using var disconnect = await this._Http.SendAsync(disconnectRequest);
 		disconnect.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		// Row revoked + secret erased at rest.
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var row = await db.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == accountId);
@@ -59,7 +59,7 @@ public sealed class SocialAccountDisconnectProofSpec : IClassFixture<ApiFixture>
 			.Outcome.Should().Be(UnprotectOutcome.Absent);
 
 		// Still listed (history kept), now revoked.
-		var after = await _ListAsync(tenantId, token);
+		var after = await this._ListAsync(tenantId, token);
 		after.Should().Contain(accountId.ToString());
 
 		// Reconnect after revoke → 404.
@@ -69,16 +69,16 @@ public sealed class SocialAccountDisconnectProofSpec : IClassFixture<ApiFixture>
 		reconnectRequest.Content = JsonContent.Create(new {
 			appPassword = "app-password-222",
 		});
-		using var reconnect = await _Http.SendAsync(reconnectRequest);
+		using var reconnect = await this._Http.SendAsync(reconnectRequest);
 		reconnect.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	private async Task<(Guid TenantId, string Token)> _ConnectNewAccountAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, staffToken, SeedConstants.Tenants.AcmeName
+			this._Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
 		);
 		using var request = new HttpRequestMessage(
@@ -88,7 +88,7 @@ public sealed class SocialAccountDisconnectProofSpec : IClassFixture<ApiFixture>
 			identifier = $"bye-{Guid.NewGuid():N}@example.com",
 			appPassword = "app-password-333",
 		});
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		return (tenantId, token);
 	}
@@ -99,7 +99,7 @@ public sealed class SocialAccountDisconnectProofSpec : IClassFixture<ApiFixture>
 		using var request = new HttpRequestMessage(HttpMethod.Get, "/social-accounts/")
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		return await response.Content.ReadAsStringAsync();
 	}

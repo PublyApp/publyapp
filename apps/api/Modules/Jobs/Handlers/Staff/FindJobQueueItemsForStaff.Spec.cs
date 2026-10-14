@@ -30,9 +30,9 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public FindJobQueueItemsForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _Url() {
@@ -45,14 +45,14 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldListQueueItemsIncludingTheSeededPendingRow() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var jobType = await _SeedQueueItemAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var jobType = await this._SeedQueueItemAsync();
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Get, _Url())
+			var request = new HttpRequestMessage(HttpMethod.Get, FindJobQueueItemsForStaffSpec._Url())
 				.WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -65,21 +65,21 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 				"the seeded pending row appears in the list page"
 			);
 		} finally {
-			await _CleanupAsync(jobType);
+			await this._CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByExactJobType() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var jobType = await _SeedQueueItemAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var jobType = await this._SeedQueueItemAsync();
 
 		try {
-			var url = $"{_Url()}?job_type={Uri.EscapeDataString(jobType)}";
+			var url = $"{FindJobQueueItemsForStaffSpec._Url()}?job_type={Uri.EscapeDataString(jobType)}";
 			var request = new HttpRequestMessage(HttpMethod.Get, url)
 				.WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -90,39 +90,39 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 				item.GetProperty("jobType").GetString() == jobType
 			);
 		} finally {
-			await _CleanupAsync(jobType);
+			await this._CleanupAsync(jobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForAnUnknownStatusToken() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			$"{_Url()}?status=not-a-status"
+			$"{FindJobQueueItemsForStaffSpec._Url()}?status=not-a-status"
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
 	[Fact]
 	public async Task ItShouldRequireASession() {
-		using var response = await _Http.GetAsync(_Url());
+		using var response = await this._Http.GetAsync(FindJobQueueItemsForStaffSpec._Url());
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
+		var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Get, _Url())
+		var request = new HttpRequestMessage(HttpMethod.Get, FindJobQueueItemsForStaffSpec._Url())
 			.WithSessionToken(unprivileged.Token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -132,7 +132,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _SeedQueueItemAsync() {
 		var jobType = $"spec.a5.queue.{Guid.NewGuid():N}";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		dbContext.JobQueue.Add(new JobQueueItem {
@@ -147,7 +147,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string jobType) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		_ = await dbContext.JobQueue
 			.Where(row => row.JobType == jobType)
@@ -158,7 +158,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-queue-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -179,7 +179,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

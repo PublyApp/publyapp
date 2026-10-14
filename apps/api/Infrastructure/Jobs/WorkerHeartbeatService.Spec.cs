@@ -22,31 +22,31 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 	private readonly string _HeartbeatPath = WorkerHeartbeat.ResolvePath();
 
 	public WorkerHeartbeatServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	// --- heartbeat writer: DB probe gates the file --------------------------------
 
 	[Fact]
 	public async Task ItShouldWriteAFreshHeartbeatOnlyAfterASuccessfulDatabaseProbe() {
-		_DeleteHeartbeatFile();
+		this._DeleteHeartbeatFile();
 
 		// Scope factory resolving the REAL (Testcontainers) database → SELECT 1 succeeds.
 		var service = new WorkerHeartbeatService(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<WorkerHeartbeatService>.Instance
 		);
 
 		await service.WriteHeartbeatAsync(CancellationToken.None);
 
-		File.Exists(_HeartbeatPath).Should().BeTrue("a successful DB probe writes the heartbeat");
-		WorkerHeartbeat.IsFresh(_HeartbeatPath, DateTime.UtcNow)
+		File.Exists(this._HeartbeatPath).Should().BeTrue("a successful DB probe writes the heartbeat");
+		WorkerHeartbeat.IsFresh(this._HeartbeatPath, DateTime.UtcNow)
 			.Should().BeTrue("a just-written heartbeat is inside the freshness window");
 	}
 
 	[Fact]
 	public async Task ItShouldNotWriteAHeartbeatWhenTheDatabaseProbeFails() {
-		_DeleteHeartbeatFile();
+		this._DeleteHeartbeatFile();
 
 		// Scope factory whose AppDbContext points at a dead endpoint → SELECT 1 fails.
 		var services = new ServiceCollection();
@@ -63,7 +63,7 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 		var act = async () => await service.WriteHeartbeatAsync(CancellationToken.None);
 
 		await act.Should().ThrowAsync<Exception>("the DB probe cannot reach the endpoint");
-		File.Exists(_HeartbeatPath).Should().BeFalse(
+		File.Exists(this._HeartbeatPath).Should().BeFalse(
 			"the heartbeat must reflect DB reachability — a failed probe writes nothing, "
 			+ "letting the file go stale so --worker-health reports unhealthy"
 		);
@@ -73,28 +73,28 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExitHealthyFromTheWorkerHealthCliWhenTheHeartbeatIsFresh() {
-		await WorkerHeartbeat.TouchAsync(_HeartbeatPath, DateTime.UtcNow, CancellationToken.None);
+		await WorkerHeartbeat.TouchAsync(this._HeartbeatPath, DateTime.UtcNow, CancellationToken.None);
 
-		_RunWorkerHealthCli().Should().Be(WorkerHealthCli.HealthyExitCode);
+		WorkerHeartbeatServiceSpec._RunWorkerHealthCli().Should().Be(WorkerHealthCli.HealthyExitCode);
 	}
 
 	[Fact]
 	public async Task ItShouldExitUnhealthyFromTheWorkerHealthCliWhenTheHeartbeatIsStale() {
-		await WorkerHeartbeat.TouchAsync(_HeartbeatPath, DateTime.UtcNow, CancellationToken.None);
+		await WorkerHeartbeat.TouchAsync(this._HeartbeatPath, DateTime.UtcNow, CancellationToken.None);
 		// Backdate the mtime just past the 60 s freshness window — no sleeping.
 		File.SetLastWriteTimeUtc(
-			_HeartbeatPath,
+			this._HeartbeatPath,
 			DateTime.UtcNow - WorkerHeartbeat.FreshnessWindow - TimeSpan.FromSeconds(5)
 		);
 
-		_RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
+		WorkerHeartbeatServiceSpec._RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
 	}
 
 	[Fact]
 	public void ItShouldExitUnhealthyFromTheWorkerHealthCliWhenTheHeartbeatFileIsMissing() {
-		_DeleteHeartbeatFile();
+		this._DeleteHeartbeatFile();
 
-		_RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
+		WorkerHeartbeatServiceSpec._RunWorkerHealthCli().Should().Be(WorkerHealthCli.UnhealthyExitCode);
 	}
 
 	[Fact]
@@ -121,8 +121,8 @@ public sealed class WorkerHeartbeatServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private void _DeleteHeartbeatFile() {
-		if (File.Exists(_HeartbeatPath)) {
-			File.Delete(_HeartbeatPath);
+		if (File.Exists(this._HeartbeatPath)) {
+			File.Delete(this._HeartbeatPath);
 		}
 	}
 }

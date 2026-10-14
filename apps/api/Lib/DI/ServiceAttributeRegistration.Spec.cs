@@ -108,7 +108,7 @@ public sealed class ServiceAttributeRegistrationSpec
 	];
 
 	private static bool _IsExplicitlyRegistered(QualifyingService service) {
-		return _ExplicitlyRegisteredServices.Any(candidate =>
+		return ServiceAttributeRegistrationSpec._ExplicitlyRegisteredServices.Any(candidate =>
 			candidate.ServiceType == service.ServiceType
 		);
 	}
@@ -118,17 +118,17 @@ public sealed class ServiceAttributeRegistrationSpec
 	public ServiceAttributeRegistrationSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public void
 	ItShouldDiscoverAllQualifyingModuleServicesForAttributeRegistration() {
 		var qualifyingServices =
-			_GetQualifyingModuleServices();
+			ServiceAttributeRegistrationSpec._GetQualifyingModuleServices();
 
 		qualifyingServices.Should().BeEquivalentTo(
-			_ExpectedServices
+			ServiceAttributeRegistrationSpec._ExpectedServices
 				.Select(x => new QualifyingService(
 					x.ServiceType,
 					x.ImplementationType
@@ -153,7 +153,7 @@ public sealed class ServiceAttributeRegistrationSpec
 
 		actualServices.Should().BeEquivalentTo(
 			qualifyingServices
-				.Where(x => !_IsExplicitlyRegistered(x))
+				.Where(x => !ServiceAttributeRegistrationSpec._IsExplicitlyRegistered(x))
 				.Select(x => new {
 					x.ServiceType,
 					x.ImplementationType,
@@ -167,13 +167,13 @@ public sealed class ServiceAttributeRegistrationSpec
 	public async Task
 	ItShouldResolveAllAttributeRegisteredModuleServicesFromTheApplicationContainer() {
 		await using var scope =
-			_Fixture.Factory.Services
+			this._Fixture.Factory.Services
 				.CreateAsyncScope();
 
 		foreach (var (
 			serviceType,
 			implementationType
-		) in _ExpectedServices) {
+		) in ServiceAttributeRegistrationSpec._ExpectedServices) {
 			var resolved = scope.ServiceProvider
 				.GetRequiredService(serviceType);
 

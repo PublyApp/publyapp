@@ -58,21 +58,21 @@ public sealed class DatabaseMigrationHealthCheckSpec {
 		var warning = logger.Entries.Should().ContainSingle().Subject;
 		warning.Level.Should().Be(LogLevel.Warning);
 		warning.State.Should().Contain(pair =>
-			pair.Key == "PendingMigrationCount" && Equals(pair.Value, 2)
+			pair.Key == "PendingMigrationCount" && DatabaseMigrationHealthCheckSpec.Equals(pair.Value, 2)
 		);
 		warning.State.Should().Contain(pair =>
 			pair.Key == "PendingMigrationNames"
-			&& Equals(
+			&& DatabaseMigrationHealthCheckSpec.Equals(
 				pair.Value,
 				"20260905_add_publication_status, 20260905_add_publication_indexes"
 			)
 		);
 		warning.State.Should().Contain(pair =>
-			pair.Key == "PendingMigrationNamesTruncated" && Equals(pair.Value, false)
+			pair.Key == "PendingMigrationNamesTruncated" && DatabaseMigrationHealthCheckSpec.Equals(pair.Value, false)
 		);
 		warning.State.Should().Contain(pair =>
 			pair.Key == "PendingMigrationNextAction"
-			&& Equals(
+			&& DatabaseMigrationHealthCheckSpec.Equals(
 				pair.Value,
 				"Run the pending migrations or wait for the migration job to complete."
 			)

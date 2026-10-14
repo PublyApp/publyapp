@@ -23,8 +23,8 @@ public sealed class PasswordRegisterSpec
 	public PasswordRegisterSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -38,7 +38,7 @@ public sealed class PasswordRegisterSpec
 			lastName = "  Okonkwo  ",
 		};
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.Register,
 			registerRequest
 		);
@@ -51,7 +51,7 @@ public sealed class PasswordRegisterSpec
 		Assert.NotNull(result);
 		result.Email.Should().Be(email);
 
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var persistedUser = await dbContext.User
@@ -74,7 +74,7 @@ public sealed class PasswordRegisterSpec
 		string field,
 		string value
 	) {
-		var body = _BuildRegisterBody(
+		var body = PasswordRegisterSpec._BuildRegisterBody(
 			$"register-{Guid.NewGuid():N}@example.com",
 			field,
 			value
@@ -87,7 +87,7 @@ public sealed class PasswordRegisterSpec
 			Content = JsonContent.Create(body)
 		};
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -101,7 +101,7 @@ public sealed class PasswordRegisterSpec
 		string field
 	) {
 		var tooLong = new string('a', 101);
-		var body = _BuildRegisterBody(
+		var body = PasswordRegisterSpec._BuildRegisterBody(
 			$"register-{Guid.NewGuid():N}@example.com",
 			field,
 			tooLong
@@ -114,7 +114,7 @@ public sealed class PasswordRegisterSpec
 			Content = JsonContent.Create(body)
 		};
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -136,7 +136,7 @@ public sealed class PasswordRegisterSpec
 			Content = JsonContent.Create(body)
 		};
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

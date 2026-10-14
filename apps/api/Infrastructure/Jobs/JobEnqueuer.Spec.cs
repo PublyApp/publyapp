@@ -24,17 +24,17 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public JobEnqueuerSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldPersistTheFullEnvelopeWithProvenanceAndDatabaseTimestamps() {
-		var definition = _NewDefinition("envelope", priority: 100, maxAttempts: 5);
+		var definition = JobEnqueuerSpec._NewDefinition("envelope", priority: 100, maxAttempts: 5);
 		var userId = Guid.NewGuid();
 		var tenantId = Guid.NewGuid();
 
 		try {
-			await using var dbContext = await _CreateDbContextAsync();
+			await using var dbContext = await this._CreateDbContextAsync();
 			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext {
 				SessionToken = "spec-session",
 				UserId = userId,
@@ -48,7 +48,7 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 				definition, payload, new EnqueueOptions { IdempotencyKey = "k-1" }
 			);
 
-			await using var verifyContext = await _CreateDbContextAsync();
+			await using var verifyContext = await this._CreateDbContextAsync();
 			var row = await verifyContext.JobQueue.SingleAsync(j => j.Id == jobId);
 
 			row.JobType.Should().Be(definition.JobType);
@@ -64,16 +64,16 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			row.NextAttemptAt.Should().NotBe(default);
 			row.Status.Should().Be(Modules.Jobs.Entities.JobQueueStatus.Pending);
 		} finally {
-			await _DeleteJobsByTypeAsync(definition.JobType);
+			await this._DeleteJobsByTypeAsync(definition.JobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldJoinTheCallersTransactionAndRollBackWithIt() {
-		var definition = _NewDefinition("txn");
+		var definition = JobEnqueuerSpec._NewDefinition("txn");
 
 		try {
-			await using var dbContext = await _CreateDbContextAsync();
+			await using var dbContext = await this._CreateDbContextAsync();
 			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
 
 			Guid jobId;
@@ -89,20 +89,20 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 				await transaction.RollbackAsync();
 			}
 
-			await using var verifyContext = await _CreateDbContextAsync();
+			await using var verifyContext = await this._CreateDbContextAsync();
 			var row = await verifyContext.JobQueue.SingleOrDefaultAsync(j => j.Id == jobId);
 			row.Should().BeNull("a rolled-back domain transaction takes its job with it");
 		} finally {
-			await _DeleteJobsByTypeAsync(definition.JobType);
+			await this._DeleteJobsByTypeAsync(definition.JobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldDedupOnJobTypePlusIdempotencyKey() {
-		var definition = _NewDefinition("dedup");
+		var definition = JobEnqueuerSpec._NewDefinition("dedup");
 
 		try {
-			await using var dbContext = await _CreateDbContextAsync();
+			await using var dbContext = await this._CreateDbContextAsync();
 			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
 			var options = new EnqueueOptions { IdempotencyKey = "same-key" };
 
@@ -111,7 +111,7 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			);
 
 			// Same (job_type, key) while the first is in flight → unique violation.
-			await using var secondContext = await _CreateDbContextAsync();
+			await using var secondContext = await this._CreateDbContextAsync();
 			var secondEnqueuer = new JobEnqueuer(secondContext, new RequestAuthContext());
 			var act = async () => await secondEnqueuer.EnqueueAsync(
 				definition, new ExportPayload { TargetId = Guid.NewGuid() }, options
@@ -119,22 +119,22 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 
 			await act.Should().ThrowAsync<DbUpdateException>();
 
-			await using var verifyContext = await _CreateDbContextAsync();
+			await using var verifyContext = await this._CreateDbContextAsync();
 			var count = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == definition.JobType);
 			count.Should().Be(1);
 		} finally {
-			await _DeleteJobsByTypeAsync(definition.JobType);
+			await this._DeleteJobsByTypeAsync(definition.JobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldAllowTheSameIdempotencyKeyAcrossDifferentJobTypes() {
-		var definitionA = _NewDefinition("scope-a");
-		var definitionB = _NewDefinition("scope-b");
+		var definitionA = JobEnqueuerSpec._NewDefinition("scope-a");
+		var definitionB = JobEnqueuerSpec._NewDefinition("scope-b");
 
 		try {
-			await using var dbContext = await _CreateDbContextAsync();
+			await using var dbContext = await this._CreateDbContextAsync();
 			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
 			var options = new EnqueueOptions { IdempotencyKey = "shared-key" };
 
@@ -147,7 +147,7 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 				definitionB, new ExportPayload { TargetId = Guid.NewGuid() }, options
 			);
 
-			await using var verifyContext = await _CreateDbContextAsync();
+			await using var verifyContext = await this._CreateDbContextAsync();
 			var countA = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == definitionA.JobType);
 			var countB = await verifyContext.JobQueue
@@ -155,17 +155,17 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			countA.Should().Be(1);
 			countB.Should().Be(1);
 		} finally {
-			await _DeleteJobsByTypeAsync(definitionA.JobType);
-			await _DeleteJobsByTypeAsync(definitionB.JobType);
+			await this._DeleteJobsByTypeAsync(definitionA.JobType);
+			await this._DeleteJobsByTypeAsync(definitionB.JobType);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRejectAnEmptyGuidPayloadWithoutPersistingAnything() {
-		var definition = _NewDefinition("empty-id");
+		var definition = JobEnqueuerSpec._NewDefinition("empty-id");
 
 		try {
-			await using var dbContext = await _CreateDbContextAsync();
+			await using var dbContext = await this._CreateDbContextAsync();
 			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
 
 			var act = async () => await enqueuer.EnqueueAsync(
@@ -176,12 +176,12 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			await act.Should().ThrowAsync<InvalidOperationException>()
 				.WithMessage("*TargetId*Guid.Empty*");
 
-			await using var verifyContext = await _CreateDbContextAsync();
+			await using var verifyContext = await this._CreateDbContextAsync();
 			var count = await verifyContext.JobQueue
 				.CountAsync(j => j.JobType == definition.JobType);
 			count.Should().Be(0);
 		} finally {
-			await _DeleteJobsByTypeAsync(definition.JobType);
+			await this._DeleteJobsByTypeAsync(definition.JobType);
 		}
 	}
 
@@ -191,10 +191,10 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 	// could never strand a durably-committed row behind a caller-visible exception.
 	[Fact]
 	public async Task ItShouldCommitInsertAndNotifyAtomicallyWhenItOwnsTheTransaction() {
-		var definition = _NewDefinition("own-txn-notify");
+		var definition = JobEnqueuerSpec._NewDefinition("own-txn-notify");
 
 		try {
-			var connectionString = await _GetConnectionStringAsync();
+			var connectionString = await this._GetConnectionStringAsync();
 
 			await using var listenConnection =
 				new Npgsql.NpgsqlConnection(connectionString);
@@ -215,7 +215,7 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 				await listen.ExecuteNonQueryAsync();
 			}
 
-			await using var dbContext = await _CreateDbContextAsync();
+			await using var dbContext = await this._CreateDbContextAsync();
 			var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext());
 
 			dbContext.Database.CurrentTransaction.Should().BeNull(
@@ -234,11 +234,11 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 			await notified.Task;
 
 			// And the row itself is durably committed and visible elsewhere.
-			await using var verifyContext = await _CreateDbContextAsync();
+			await using var verifyContext = await this._CreateDbContextAsync();
 			var row = await verifyContext.JobQueue.SingleOrDefaultAsync(j => j.Id == jobId);
 			row.Should().NotBeNull();
 		} finally {
-			await _DeleteJobsByTypeAsync(definition.JobType);
+			await this._DeleteJobsByTypeAsync(definition.JobType);
 		}
 	}
 
@@ -257,14 +257,14 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _DeleteJobsByTypeAsync(string jobType) {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type = {jobType}"
 		);
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -281,7 +281,7 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 	private async Task<AppDbContext> _CreateDbContextAsync() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(await _GetConnectionStringAsync())
+				.UseNpgsql(await this._GetConnectionStringAsync())
 				.Options
 		);
 	}

@@ -46,7 +46,7 @@ public static class CanaryBootLogCli {
 			childEnv["ASPNETCORE_ENVIRONMENT"] = EnvironmentNames.Development;
 		}
 
-		var (exitCode, stdout, _) = RunBootProcess(assemblyArgs, childEnv);
+		var (exitCode, stdout, _) = CanaryBootLogCli.RunBootProcess(assemblyArgs, childEnv);
 
 		if (exitCode != CanaryBootLogProbe.SuccessExitCode) {
 			throw new InvalidOperationException(
@@ -60,7 +60,7 @@ public static class CanaryBootLogCli {
 					+ $"arg actually wired into Program.Main? Stdout:\n{stdout}");
 		}
 
-		return _ExtractLines(stdout);
+		return CanaryBootLogCli._ExtractLines(stdout);
 	}
 
 	/// <summary>

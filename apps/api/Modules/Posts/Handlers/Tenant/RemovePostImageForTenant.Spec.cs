@@ -33,9 +33,9 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public RemovePostImageForTenantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	// PNG header fixture with REAL width/height in IHDR (big-endian), parsed
@@ -61,17 +61,17 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRemoveImageAndLeaveNoRow() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
-		var attachedPath = await _AttachImageAsync(tenantId, token, postId);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		var attachedPath = await this._AttachImageAsync(tenantId, token, postId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_ImageUrl(postId)
+			RemovePostImageForTenantSpec._ImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<ApiResponse>();
 		Assert.NotNull(payload);
@@ -81,7 +81,7 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// to zero — physical deletion stays exclusively sweeper's.
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var remaining = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -101,16 +101,16 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn404WhenRemovingWithoutImage() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, token);
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_ImageUrl(postId)
+			RemovePostImageForTenantSpec._ImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
 		// The refusal names its cause: there is no image to remove.
@@ -122,22 +122,22 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHideForeignTenantPostFromRemove() {
-		var (acmeTenantId, acmeToken) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(acmeTenantId, acmeToken);
-		await _AttachImageAsync(acmeTenantId, acmeToken, postId);
+		var (acmeTenantId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(acmeTenantId, acmeToken);
+		await this._AttachImageAsync(acmeTenantId, acmeToken, postId);
 
-		var techStartToken = await _AuthClient.LoginAsync(
+		var techStartToken = await this._AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_ImageUrl(postId)
+			RemovePostImageForTenantSpec._ImageUrl(postId)
 		)
 			.WithSessionToken(techStartToken)
-			.WithTenantId(await _GetTechStartTenantIdAsync());
-		using var response = await _Http.SendAsync(request);
+			.WithTenantId(await this._GetTechStartTenantIdAsync());
+		using var response = await this._Http.SendAsync(request);
 
 		// Foreign-tenant resources are invisible, never forbidden: 404.
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -146,7 +146,7 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// referenced.
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var livePaths = await (
 			from a in db.PostMediaAsset.AsNoTracking()
@@ -165,20 +165,20 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRefuseRemoveWithoutPermission() {
-		var (tenantId, adminToken) = await _LoginAsAcmeAdminAsync();
-		var postId = await _CreatePostAsync(tenantId, adminToken);
-		var userToken = await _AuthClient.LoginAsync(
+		var (tenantId, adminToken) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, adminToken);
+		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_ImageUrl(postId)
+			RemovePostImageForTenantSpec._ImageUrl(postId)
 		)
 			.WithSessionToken(userToken)
 			.WithTenantId(tenantId);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 		var problem =
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -205,13 +205,13 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_ImageUrl(postId)
+			RemovePostImageForTenantSpec._ImageUrl(postId)
 		)
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
-		request.Content = _BuildFileContent(_PngBytes(width: 32, height: 32));
+		request.Content = RemovePostImageForTenantSpec._BuildFileContent(RemovePostImageForTenantSpec._PngBytes(width: 32, height: 32));
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload =
 			await response.Content.ReadFromJsonAsync<PostImageAttached>();
@@ -221,8 +221,8 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await _GetAcmeIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -230,18 +230,18 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	private async Task<Guid> _GetTechStartTenantIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -255,7 +255,7 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 			body = "Remove image spec " + Guid.NewGuid().ToString("N")[..8],
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 		var payload = await response.Content.ReadFromJsonAsync<CreatePostDto>();
 		if (payload is null) {

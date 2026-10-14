@@ -24,17 +24,17 @@ public sealed class CheckInvitationTokenSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public CheckInvitationTokenSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithValidStatusForAPendingUnexpiredInvitation() {
-		var invitation = await _CreateTenantInvitationAsync();
+		var invitation = await this._CreateTenantInvitationAsync();
 
-		var response = await _CheckAsync(invitation.Email, invitation.Token);
+		var response = await this._CheckAsync(invitation.Email, invitation.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content.ReadFromJsonAsync<CheckInvitationTokenResult>();
@@ -47,13 +47,13 @@ public sealed class CheckInvitationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnDistinctTranslationKeyWhenInvitationAlreadyAccepted() {
-		var invitation = await _CreateTenantInvitationAsync();
-		await _MutateInvitationAsync(invitation.Id, inv => {
+		var invitation = await this._CreateTenantInvitationAsync();
+		await this._MutateInvitationAsync(invitation.Id, inv => {
 			inv.Status = InvitationStatus.Accepted;
 			inv.AcceptedAt = DateTime.UtcNow;
 		});
 
-		var response = await _CheckAsync(invitation.Email, invitation.Token);
+		var response = await this._CheckAsync(invitation.Email, invitation.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>();
@@ -65,13 +65,13 @@ public sealed class CheckInvitationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnDistinctTranslationKeyWhenInvitationRevoked() {
-		var invitation = await _CreateTenantInvitationAsync();
-		await _MutateInvitationAsync(invitation.Id, inv => {
+		var invitation = await this._CreateTenantInvitationAsync();
+		await this._MutateInvitationAsync(invitation.Id, inv => {
 			inv.Status = InvitationStatus.Revoked;
 			inv.RevokedAt = DateTime.UtcNow;
 		});
 
-		var response = await _CheckAsync(invitation.Email, invitation.Token);
+		var response = await this._CheckAsync(invitation.Email, invitation.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>();
@@ -83,12 +83,12 @@ public sealed class CheckInvitationTokenSpec
 	[Fact]
 	public async Task
 	ItShouldReturnDistinctTranslationKeyWhenInvitationExpired() {
-		var invitation = await _CreateTenantInvitationAsync();
-		await _MutateInvitationAsync(invitation.Id, inv => {
+		var invitation = await this._CreateTenantInvitationAsync();
+		await this._MutateInvitationAsync(invitation.Id, inv => {
 			inv.ExpiresAt = DateTime.UtcNow.AddDays(-1);
 		});
 
-		var response = await _CheckAsync(invitation.Email, invitation.Token);
+		var response = await this._CheckAsync(invitation.Email, invitation.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var problem = await response.Content.ReadFromJsonAsync<ProblemPayload>();
@@ -102,7 +102,7 @@ public sealed class CheckInvitationTokenSpec
 	ItShouldReturnGenericInvalidTranslationKeyWhenTokenDoesNotExist() {
 		var email = $"unknown-{Guid.NewGuid():N}@example.com";
 		var id = Uri.EscapeDataString(CryptoUtils.EncryptString(email));
-		var response = await _Http.GetAsync(
+		var response = await this._Http.GetAsync(
 			$"/invitations/check?id={id}&token=does-not-exist-{Guid.NewGuid():N}"
 		);
 
@@ -115,11 +115,11 @@ public sealed class CheckInvitationTokenSpec
 
 	private async Task<HttpResponseMessage> _CheckAsync(string email, string token) {
 		var id = Uri.EscapeDataString(CryptoUtils.EncryptString(email));
-		return await _Http.GetAsync($"/invitations/check?id={id}&token={token}");
+		return await this._Http.GetAsync($"/invitations/check?id={id}&token={token}");
 	}
 
 	private async Task<(Guid Id, string Email, string Token)> _CreateTenantInvitationAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var inviteEmail = $"check-invitation-{Guid.NewGuid():N}@example.com";
 
 		using var createBody = JsonDocument.Parse(
@@ -138,14 +138,14 @@ public sealed class CheckInvitationTokenSpec
 		);
 
 		var createResponse = await TenantTestHelper.CreateTenantAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			createBody.RootElement
 		);
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await dbContext.Invitation
 			.Where(inv =>
@@ -158,7 +158,7 @@ public sealed class CheckInvitationTokenSpec
 	}
 
 	private async Task _MutateInvitationAsync(Guid invitationId, Action<Invitation> mutate) {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await dbContext.Invitation
 			.Where(inv => inv.Id == invitationId)

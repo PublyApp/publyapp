@@ -31,16 +31,16 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public BulkRevokeStaffInvitationsSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMalformedBulkRevokeBody() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			["not-a-guid"]
 		);
@@ -61,18 +61,18 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnPartialSuccessWhenBulkRevokingMixedTargets() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		Guid pendingInvitationId = await _CreateStaffInvitationAsync(
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		Guid pendingInvitationId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-pending-{Guid.NewGuid():N}@example.com"
 		);
-		Guid acceptedInvitationId = await _CreateStaffInvitationAsync(
+		Guid acceptedInvitationId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-accepted-{Guid.NewGuid():N}@example.com"
 		);
 		Guid missingInvitationId = Guid.NewGuid();
 
-		await _MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			pendingInvitationId,
 			acceptedInvitationId,
@@ -95,22 +95,22 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			&& item.Reason == "not_found"
 		);
 
-		await _AssertInvitationStatusAsync(pendingInvitationId, InvitationStatus.Revoked);
-		await _AssertInvitationStatusAsync(acceptedInvitationId, InvitationStatus.Accepted);
-		await _AssertInvitationRevokeAuditLogAsync(pendingInvitationId);
+		await this._AssertInvitationStatusAsync(pendingInvitationId, InvitationStatus.Revoked);
+		await this._AssertInvitationStatusAsync(acceptedInvitationId, InvitationStatus.Accepted);
+		await this._AssertInvitationRevokeAuditLogAsync(pendingInvitationId);
 	}
 
 	[Fact]
 	public async Task ItShouldRevokeAllPendingInvitationsOnBulkRevokeHappyPath() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		List<Guid> pendingIds = [];
 		for (int i = 0; i < 3; i++) {
-			pendingIds.Add(await _CreateStaffInvitationAsync(
+			pendingIds.Add(await this._CreateStaffInvitationAsync(
 				$"bulk-revoke-happy-{i}-{Guid.NewGuid():N}@example.com"
 			));
 		}
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			[.. pendingIds]
 		);
@@ -125,16 +125,16 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = result?.FailedItems.Should().BeEmpty();
 
 		foreach (Guid invitationId in pendingIds) {
-			await _AssertInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
-			await _AssertInvitationRevokeAuditLogAsync(invitationId);
+			await this._AssertInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
+			await this._AssertInvitationRevokeAuditLogAsync(invitationId);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemWhenBulkRevokeBodyIsEmptyArray() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			Array.Empty<string>()
 		);
@@ -151,16 +151,16 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldDedupeDuplicateInvitationIdsInBulkRevoke() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		Guid firstId = await _CreateStaffInvitationAsync(
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		Guid firstId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-dup-a-{Guid.NewGuid():N}@example.com"
 		);
-		Guid secondId = await _CreateStaffInvitationAsync(
+		Guid secondId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-dup-b-{Guid.NewGuid():N}@example.com"
 		);
 
 		// [a, a, b] — duplicates must be deduped before service call.
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			firstId,
 			firstId,
@@ -176,23 +176,23 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = result?.FailedCount.Should().Be(0);
 		_ = result?.FailedItems.Should().BeEmpty();
 
-		await _AssertInvitationStatusAsync(firstId, InvitationStatus.Revoked);
-		await _AssertInvitationStatusAsync(secondId, InvitationStatus.Revoked);
+		await this._AssertInvitationStatusAsync(firstId, InvitationStatus.Revoked);
+		await this._AssertInvitationStatusAsync(secondId, InvitationStatus.Revoked);
 
 		// Only one audit-log row per id (no double-write from the dedupe).
-		await _AssertInvitationRevokeAuditLogCountAsync(firstId, expectedCount: 1);
-		await _AssertInvitationRevokeAuditLogCountAsync(secondId, expectedCount: 1);
+		await this._AssertInvitationRevokeAuditLogCountAsync(firstId, expectedCount: 1);
+		await this._AssertInvitationRevokeAuditLogCountAsync(secondId, expectedCount: 1);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemWhenBulkRevokeExceedsMaxCount() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		// Validator caps the array at 100; 101 valid GUIDs must trip maxCount.
 		Guid[] tooManyIds = Enumerable.Range(0, 101)
 			.Select(_ => Guid.NewGuid())
 			.ToArray();
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			tooManyIds
 		);
@@ -213,13 +213,13 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldCountAlreadyRevokedInvitationsAsSucceededOnBulkRevoke() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		Guid alreadyRevokedId = await _CreateStaffInvitationAsync(
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		Guid alreadyRevokedId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-already-{Guid.NewGuid():N}@example.com"
 		);
-		await _MarkStaffInvitationRevokedAsync(alreadyRevokedId);
+		await this._MarkStaffInvitationRevokedAsync(alreadyRevokedId);
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			alreadyRevokedId
 		);
@@ -235,19 +235,19 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = result?.FailedCount.Should().Be(0);
 		_ = result?.FailedItems.Should().BeEmpty();
 
-		await _AssertInvitationStatusAsync(alreadyRevokedId, InvitationStatus.Revoked);
+		await this._AssertInvitationStatusAsync(alreadyRevokedId, InvitationStatus.Revoked);
 	}
 
 	[Fact]
 	public async Task ItShouldRevokeExpiredInvitationsOnBulkRevoke() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		// Expired invitations are still Status=Pending with a past ExpiresAt;
 		// the service revokes them since IsRevoked()/IsAccepted() are both false.
-		Guid expiredId = await _CreateExpiredStaffInvitationAsync(
+		Guid expiredId = await this._CreateExpiredStaffInvitationAsync(
 			$"bulk-revoke-expired-{Guid.NewGuid():N}@example.com"
 		);
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			expiredId
 		);
@@ -261,64 +261,64 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = result?.FailedCount.Should().Be(0);
 		_ = result?.FailedItems.Should().BeEmpty();
 
-		await _AssertInvitationStatusAsync(expiredId, InvitationStatus.Revoked);
-		await _AssertInvitationRevokeAuditLogAsync(expiredId);
+		await this._AssertInvitationStatusAsync(expiredId, InvitationStatus.Revoked);
+		await this._AssertInvitationRevokeAuditLogAsync(expiredId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUserOnBulkRevoke() {
 		// Pre-create the invitation directly so the request body is valid.
-		Guid invitationId = await _CreateStaffInvitationAsync(
+		Guid invitationId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-tenant-user-{Guid.NewGuid():N}@example.com"
 		);
 
-		string tenantToken = await _AuthClient.LoginAsync(
+		string tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			tenantToken,
 			invitationId
 		);
 
 		_ = response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-		await _AssertInvitationStatusAsync(invitationId, InvitationStatus.Pending);
+		await this._AssertInvitationStatusAsync(invitationId, InvitationStatus.Pending);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSessionOnBulkRevoke() {
-		Guid invitationId = await _CreateStaffInvitationAsync(
+		Guid invitationId = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-no-session-{Guid.NewGuid():N}@example.com"
 		);
 
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkRevokeUrl()
+			BulkRevokeStaffInvitationsSpec._GetBulkRevokeUrl()
 		);
 		request.Content = JsonContent.Create(new {
 			invitationIds = new[] { invitationId.ToString() }
 		});
 
-		using HttpResponseMessage response = await _Http.SendAsync(request);
+		using HttpResponseMessage response = await this._Http.SendAsync(request);
 
 		_ = response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-		await _AssertInvitationStatusAsync(invitationId, InvitationStatus.Pending);
+		await this._AssertInvitationStatusAsync(invitationId, InvitationStatus.Pending);
 	}
 
 	[Fact]
 	public async Task ItShouldWriteAuditLogsForEverySucceededBulkRevoke() {
-		string staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		Guid pendingA = await _CreateStaffInvitationAsync(
+		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		Guid pendingA = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-audit-a-{Guid.NewGuid():N}@example.com"
 		);
-		Guid pendingB = await _CreateStaffInvitationAsync(
+		Guid pendingB = await this._CreateStaffInvitationAsync(
 			$"bulk-revoke-audit-b-{Guid.NewGuid():N}@example.com"
 		);
 		Guid missingId = Guid.NewGuid();
-		Guid staffAdminUserId = await _GetStaffAdminUserIdAsync();
+		Guid staffAdminUserId = await this._GetStaffAdminUserIdAsync();
 
-		using HttpResponseMessage response = await _BulkRevokeAsync(
+		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
 			pendingA,
 			pendingB,
@@ -327,11 +327,11 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		// One audit-log row per succeeded id: correct user, action, target.
-		await _AssertInvitationRevokeAuditLogContentAsync(pendingA, staffAdminUserId);
-		await _AssertInvitationRevokeAuditLogContentAsync(pendingB, staffAdminUserId);
+		await this._AssertInvitationRevokeAuditLogContentAsync(pendingA, staffAdminUserId);
+		await this._AssertInvitationRevokeAuditLogContentAsync(pendingB, staffAdminUserId);
 
 		// No audit-log row for the not-found id.
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		bool missingHasLog = await dbContext.AuditLog
@@ -346,7 +346,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		params Guid[] invitationIds
 	) {
-		return await _BulkRevokeAsync(
+		return await this._BulkRevokeAsync(
 			staffToken,
 			invitationIds.Select(invitationId => invitationId.ToString()).ToArray()
 		);
@@ -358,26 +358,26 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	) {
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkRevokeUrl()
+			BulkRevokeStaffInvitationsSpec._GetBulkRevokeUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(new {
 			invitationIds
 		});
 
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private static string _GetBulkRevokeUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Invitations.ForStaff.Root,
-			_BulkRevokeRoute
+			BulkRevokeStaffInvitationsSpec._BulkRevokeRoute
 		);
 	}
 
 	private async Task<Guid> _CreateStaffInvitationAsync(string email) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -407,7 +407,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _MarkStaffInvitationAcceptedAsync(Guid invitationId) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -426,7 +426,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _MarkStaffInvitationRevokedAsync(Guid invitationId) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -445,7 +445,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _CreateExpiredStaffInvitationAsync(string email) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -475,7 +475,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetStaffAdminUserIdAsync() {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -489,7 +489,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		Guid invitationId,
 		InvitationStatus status
 	) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -501,7 +501,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AssertInvitationRevokeAuditLogAsync(Guid invitationId) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -521,7 +521,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		Guid invitationId,
 		int expectedCount
 	) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -539,7 +539,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		Guid invitationId,
 		Guid expectedUserId
 	) {
-		using IServiceScope scope = _Fixture.Factory.Services.CreateScope();
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

@@ -458,16 +458,16 @@ internal static partial class RawPlainBind {
 		}
 
 		var address = new byte[16];
-		address[0] = _AfInet;                // family, little-endian
+		address[0] = RawPlainBind._AfInet;                // family, little-endian
 		address[1] = 0;
-		address[2] = _Port >> 8;             // port, big-endian (network order)
-		address[3] = _Port & 0xFF;
+		address[2] = RawPlainBind._Port >> 8;             // port, big-endian (network order)
+		address[3] = RawPlainBind._Port & 0xFF;
 		address[4] = 127;                   // 127.0.0.1
 		address[5] = 0;
 		address[6] = 0;
 		address[7] = 1;
 
-		var fd = _Socket(_AfInet, _SockStream, _TcpProtocol);
+		var fd = RawPlainBind._Socket(RawPlainBind._AfInet, RawPlainBind._SockStream, RawPlainBind._TcpProtocol);
 		if (fd < 0) {
 			// Cannot even create a probe socket (exotic sandbox): report as
 			// occupied — a LOUD failure, never a silent pass.
@@ -475,9 +475,9 @@ internal static partial class RawPlainBind {
 		}
 
 		try {
-			return _Bind(fd, address, address.Length) == 0;
+			return RawPlainBind._Bind(fd, address, address.Length) == 0;
 		} finally {
-			_Close(fd);
+			RawPlainBind._Close(fd);
 		}
 	}
 }

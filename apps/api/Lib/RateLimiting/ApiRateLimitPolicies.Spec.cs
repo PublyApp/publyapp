@@ -15,11 +15,11 @@ public sealed class ApiRateLimitPoliciesSpec {
 
 	[Fact]
 	public void ItShouldIgnoreUnvalidatedSessionTokenHeaders() {
-		var firstContext = _CreateContext(
+		var firstContext = ApiRateLimitPoliciesSpec._CreateContext(
 			"forged-session-token",
 			"203.0.113.60"
 		);
-		var otherContext = _CreateContext(
+		var otherContext = ApiRateLimitPoliciesSpec._CreateContext(
 			"other-forged-session-token",
 			"203.0.113.60"
 		);
@@ -41,7 +41,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	[Fact]
 	public async Task ItShouldKeepAuthenticatedSessionPartitionsIndependent() {
 		await using var store = new ApiRateLimiterStore(
-			_CreateSettings(authenticatedPermitLimit: 1),
+			ApiRateLimitPoliciesSpec._CreateSettings(authenticatedPermitLimit: 1),
 			new MemoryRateLimitCounterStore()
 		);
 
@@ -66,7 +66,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	[Fact]
 	public async Task ItShouldReplenishAndBecomeEvictableAfterTheWindow() {
 		await using var store = new ApiRateLimiterStore(
-			_CreateSettings(
+			ApiRateLimitPoliciesSpec._CreateSettings(
 				authenticatedPermitLimit: 1,
 				authenticatedWindowSeconds: 1
 			),
@@ -96,7 +96,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	[Fact]
 	public async Task ItShouldShareTheTenantBulkLimitAcrossSessions() {
 		await using var store = new ApiRateLimiterStore(
-			_CreateSettings(
+			ApiRateLimitPoliciesSpec._CreateSettings(
 				bulkPermitLimit: 10,
 				tenantBulkPermitLimit: 2
 			),
@@ -141,22 +141,22 @@ public sealed class ApiRateLimitPoliciesSpec {
 
 	[Fact]
 	public async Task ItShouldApplyTheGlobalFloorByIpAndExcludeInfrastructurePaths() {
-		var settings = _CreateSettings(
+		var settings = ApiRateLimitPoliciesSpec._CreateSettings(
 			globalPermitLimit: 1
 		);
 		await using var store = new ApiRateLimiterStore(
 			settings,
 			new MemoryRateLimitCounterStore()
 		);
-		var firstContext = _CreateIpContext(
+		var firstContext = ApiRateLimitPoliciesSpec._CreateIpContext(
 			"203.0.113.50",
 			"/global-only"
 		);
-		var sameIpContext = _CreateIpContext(
+		var sameIpContext = ApiRateLimitPoliciesSpec._CreateIpContext(
 			"203.0.113.50",
 			"/global-only"
 		);
-		var otherIpContext = _CreateIpContext(
+		var otherIpContext = ApiRateLimitPoliciesSpec._CreateIpContext(
 			"203.0.113.51",
 			"/global-only"
 		);
@@ -184,19 +184,19 @@ public sealed class ApiRateLimitPoliciesSpec {
 		rejectedLease.IsAcquired.Should().BeFalse();
 		independentLease.IsAcquired.Should().BeTrue();
 		GlobalRateLimitMiddleware.IsExcluded(
-			_CreateIpContext(
+			ApiRateLimitPoliciesSpec._CreateIpContext(
 				"203.0.113.50",
 				"/files/logo.png"
 			)
 		).Should().BeTrue();
 		GlobalRateLimitMiddleware.IsExcluded(
-			_CreateIpContext(
+			ApiRateLimitPoliciesSpec._CreateIpContext(
 				"203.0.113.50",
 				"/health/ready"
 			)
 		).Should().BeTrue();
 		GlobalRateLimitMiddleware.IsExcluded(
-			_CreateIpContext(
+			ApiRateLimitPoliciesSpec._CreateIpContext(
 				"203.0.113.50",
 				"/health/not-real"
 			)
@@ -323,19 +323,19 @@ public sealed class ApiRateLimitPoliciesSpec {
 	private static ApiRateLimitSettings _CreateSettings(
 		int globalPermitLimit = 100,
 		int authenticatedPermitLimit = 100,
-		int authenticatedWindowSeconds = _LongWindowSeconds,
+		int authenticatedWindowSeconds = ApiRateLimitPoliciesSpec._LongWindowSeconds,
 		int bulkPermitLimit = 100,
 		int tenantBulkPermitLimit = 100
 	) {
 		var generous = new RateLimitWindowSettings(
 			100,
-			_LongWindowSeconds
+			ApiRateLimitPoliciesSpec._LongWindowSeconds
 		);
 
 		return new ApiRateLimitSettings(
 			Global: new RateLimitWindowSettings(
 				globalPermitLimit,
-				_LongWindowSeconds
+				ApiRateLimitPoliciesSpec._LongWindowSeconds
 			),
 			AnonymousOther: generous,
 			Authenticated: new RateLimitWindowSettings(
@@ -345,11 +345,11 @@ public sealed class ApiRateLimitPoliciesSpec {
 			HeavySearch: generous,
 			Bulk: new RateLimitWindowSettings(
 				bulkPermitLimit,
-				_LongWindowSeconds
+				ApiRateLimitPoliciesSpec._LongWindowSeconds
 			),
 			TenantBulk: new RateLimitWindowSettings(
 				tenantBulkPermitLimit,
-				_LongWindowSeconds
+				ApiRateLimitPoliciesSpec._LongWindowSeconds
 			),
 			Email: generous,
 			TenantEmail: generous,
@@ -410,11 +410,11 @@ public sealed class ApiRateLimitPoliciesSpec {
 		}
 
 		public override long GetTimestamp() {
-			return _Timestamp;
+			return this._Timestamp;
 		}
 
 		public void Advance(TimeSpan duration) {
-			_Timestamp += duration.Ticks;
+			this._Timestamp += duration.Ticks;
 		}
 	}
 }

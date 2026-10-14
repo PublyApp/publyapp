@@ -119,7 +119,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	private readonly RouteMapFactory _Factory = new();
 
 	public void Dispose() {
-		_Factory.Dispose();
+		this._Factory.Dispose();
 	}
 
 	// ── (a) Every publishing tenant endpoint is guarded ──────────────────────
@@ -133,10 +133,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	/// </summary>
 	[Fact]
 	public void ItShouldRequirePermissionAndRateLimitOnEveryPublishingTenantEndpoint() {
-		var endpoints = _GetRouteEndpoints();
+		var endpoints = this._GetRouteEndpoints();
 
 		// (a1) Every publishing route by name still carries permission + rate limit.
-		foreach (var name in _PublishingRouteEndpointNames) {
+		foreach (var name in PublishingDispatchArchitectureSpec._PublishingRouteEndpointNames) {
 			var endpoint = endpoints.SingleOrDefault(route =>
 				route.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName
 					== name
@@ -176,9 +176,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				return path.StartsWith("/posts", StringComparison.Ordinal);
 			})
 			.Select(endpoint => new {
-				Path = _NormalizeRoutePath(
+				Path = PublishingDispatchArchitectureSpec._NormalizeRoutePath(
 					endpoint.RoutePattern.RawText ?? string.Empty),
-				Method = _GetHttpMethod(endpoint),
+				Method = PublishingDispatchArchitectureSpec._GetHttpMethod(endpoint),
 				Endpoint = endpoint
 			})
 			.ToList();
@@ -190,9 +190,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 		var unknownRoutes = new List<string>();
 		foreach (var entry in postsRoutesOnMap) {
-			var match = _PublishingRouteInventory.FirstOrDefault(inv =>
+			var match = PublishingDispatchArchitectureSpec._PublishingRouteInventory.FirstOrDefault(inv =>
 				string.Equals(
-					_NormalizeRoutePath(inv.Path),
+					PublishingDispatchArchitectureSpec._NormalizeRoutePath(inv.Path),
 					entry.Path,
 					StringComparison.Ordinal)
 				&& string.Equals(inv.Method, entry.Method, StringComparison.Ordinal)
@@ -211,7 +211,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 					?.EndpointName;
 
 				if (endpointName is not null
-					&& !_PublishingRouteEndpointNames.Contains(
+					&& !PublishingDispatchArchitectureSpec._PublishingRouteEndpointNames.Contains(
 						endpointName, StringComparer.Ordinal)) {
 					unknownRoutes.Add(
 						$"{entry.Method} {entry.Path} (endpoint '{endpointName}' "
@@ -234,7 +234,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		// complete. If a route was removed from the API, this fails, forcing the
 		// inventory to ratchet down.
 		_ = postsRoutesOnMap.Should().HaveCount(
-			_PublishingRouteInventory.Length,
+			PublishingDispatchArchitectureSpec._PublishingRouteInventory.Length,
 			"the /posts/* route count on the live map must equal the explicit "
 			+ "inventory length; adding or removing a route requires reconciling "
 			+ "this closed set"
@@ -245,8 +245,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	[Fact]
 	public void ItShouldLetOnlyTheDueScanJobLockPublicationRowsWithSkipLocked() {
-		var apiRoot = _FindApiRoot();
-		var sources = _EnumerateApiSources(apiRoot);
+		var apiRoot = PublishingDispatchArchitectureSpec._FindApiRoot();
+		var sources = PublishingDispatchArchitectureSpec._EnumerateApiSources(apiRoot);
 
 		_ = sources.Should().NotBeEmpty(
 			"an empty enumeration would silently drop the single-claimant "
@@ -255,7 +255,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 		// Specs are excluded (same precedent as PublicationArchitectureSpec):
 		// they quote SQL corpora and host this detector's own doc comments.
-		var scan = _ScanForUpdateSkipLockedOnPublications(
+		var scan = PublishingDispatchArchitectureSpec._ScanForUpdateSkipLockedOnPublications(
 			sources.Where(entry => !entry.RelativePath.EndsWith(
 					".Spec.cs",
 					StringComparison.Ordinal
@@ -264,12 +264,12 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		);
 
 		_ = scan.TotalMatches.Should().BeGreaterThanOrEqualTo(
-			_MinimumTotalSkipLockedMatches,
+			PublishingDispatchArchitectureSpec._MinimumTotalSkipLockedMatches,
 			"the sanctioned due-scan claim alone must be visible; a near-zero "
 				+ "count means the lexical scan collapsed and failed open"
 		);
 
-		_ = scan.SanctionedByFile.GetValueOrDefault(_DueScanJobRelativePath)
+		_ = scan.SanctionedByFile.GetValueOrDefault(PublishingDispatchArchitectureSpec._DueScanJobRelativePath)
 			.Should().BeGreaterThanOrEqualTo(
 				1,
 				"the D3 due scan must still be seen claiming publications rows "
@@ -281,7 +281,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"only {0} may SELECT … FOR UPDATE SKIP LOCKED against the "
 				+ "publications table — a second claimant forks the "
 				+ "exactly-once dispatch guarantee; found {1} offender(s):\n{2}",
-			_DueScanJobRelativePath,
+			PublishingDispatchArchitectureSpec._DueScanJobRelativePath,
 			scan.Offenders.Count,
 			string.Join("\n", scan.Offenders.Take(20))
 		);
@@ -290,7 +290,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// ── Helpers ──────────────────────────────────────────────────────────────
 
 	private IReadOnlyList<RouteEndpoint> _GetRouteEndpoints() {
-		using var scope = _Factory.Services.CreateScope();
+		using var scope = this._Factory.Services.CreateScope();
 		var dataSource = scope.ServiceProvider
 			.GetRequiredService<EndpointDataSource>();
 
@@ -357,10 +357,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			// carry DESCRIPTIONS (data), so their contents are blanked too — raw
 			// string literals ("""…"""), where executable SQL lives, stay
 			// scannable. Both passes preserve length for line attribution.
-			var source = _BlankCommentsAndDataStrings(rawSource);
+			var source = PublishingDispatchArchitectureSpec._BlankCommentsAndDataStrings(rawSource);
 			var index = 0;
 			while ((index = source.IndexOf(
-						_SkipLockedToken,
+						PublishingDispatchArchitectureSpec._SkipLockedToken,
 						index,
 						StringComparison.OrdinalIgnoreCase
 					)) >= 0) {
@@ -374,27 +374,27 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				var statement = source[statementStart..index];
 
 				if (statement.Contains(
-						_PublicationsTableToken,
+						PublishingDispatchArchitectureSpec._PublicationsTableToken,
 						StringComparison.OrdinalIgnoreCase
 					)) {
 					total++;
 
 					if (string.Equals(
 							relativePath,
-							_DueScanJobRelativePath,
+							PublishingDispatchArchitectureSpec._DueScanJobRelativePath,
 							StringComparison.Ordinal
 						)) {
 						sanctionedByFile[relativePath] =
 							sanctionedByFile.GetValueOrDefault(relativePath) + 1;
 					} else {
 						offenders.Add(
-							$"{relativePath}:{_LineOfOffset(source, index)}: "
-								+ $"{_Flatten(statement + _SkipLockedToken)}"
+							$"{relativePath}:{PublishingDispatchArchitectureSpec._LineOfOffset(source, index)}: "
+								+ $"{PublishingDispatchArchitectureSpec._Flatten(statement + PublishingDispatchArchitectureSpec._SkipLockedToken)}"
 						);
 					}
 				}
 
-				index += _SkipLockedToken.Length;
+				index += PublishingDispatchArchitectureSpec._SkipLockedToken.Length;
 			}
 		}
 
@@ -410,7 +410,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				RelativePath: Path.GetRelativePath(apiRoot, path)
 					.Replace('\\', '/')
 			))
-			.Where(entry => !_IsGeneratedOutput(entry.RelativePath))
+			.Where(entry => !PublishingDispatchArchitectureSpec._IsGeneratedOutput(entry.RelativePath))
 			.OrderBy(entry => entry.RelativePath, StringComparer.Ordinal)
 			.Select(entry => (entry.RelativePath, File.ReadAllText(entry.FullPath)))
 			.ToList();
@@ -472,9 +472,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 					chars[i + 1] = ' ';
 					i += 2;
 				}
-			} else if (_IsRawStringDelimiter(chars, i)) {
+			} else if (PublishingDispatchArchitectureSpec._IsRawStringDelimiter(chars, i)) {
 				// Raw string literal: EXECUTABLE SQL territory — keep contents.
-				i += _RawStringLength(chars, i);
+				i += PublishingDispatchArchitectureSpec._RawStringLength(chars, i);
 			} else if (chars[i] == '"') {
 				// Ordinary/interpolated single-line string: data (descriptions,
 				// log text). Blank the contents but keep the delimiters so
@@ -562,7 +562,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	}
 
 	private static string _Flatten(string snippet) {
-		var flattened = _WhitespaceRun().Replace(snippet, " ").Trim();
+		var flattened = PublishingDispatchArchitectureSpec._WhitespaceRun().Replace(snippet, " ").Trim();
 		return flattened.Length <= 140 ? flattened : flattened[..140] + "…";
 	}
 

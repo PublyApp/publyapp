@@ -28,18 +28,18 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public BulkCreateInvitationsForTenantAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldCreateTenantInvitationsInPartialSuccessMode() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetAcmeTenantIdAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetAcmeTenantIdAsync();
 		var techStartTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.TechStartName
 		);
@@ -47,7 +47,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		Guid successProfileA;
 		Guid successProfileB;
 		Guid foreignProfileId;
-		using (var setupScope = _Fixture.Factory.Services.CreateScope()) {
+		using (var setupScope = this._Fixture.Factory.Services.CreateScope()) {
 			var dbContext = setupScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -82,7 +82,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		string invalidProfileInviteeEmail =
 			$"tenant-bulk-invalid-profile-{Guid.NewGuid():N}@example.com";
 
-		using HttpResponseMessage response = await _SendBulkCreateAsync(
+		using HttpResponseMessage response = await this._SendBulkCreateAsync(
 			staffToken,
 			tenantId.ToString(),
 				new {
@@ -128,7 +128,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			&& item.TranslationKey == ResponseKeys.NotFound.Value
 		);
 
-		using (var scope = _Fixture.Factory.Services.CreateScope()) {
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -163,9 +163,9 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedForBulkTenantInvitesWithoutSession() {
-		var tenantId = await _GetAcmeTenantIdAsync();
+		var tenantId = await this._GetAcmeTenantIdAsync();
 
-		using HttpResponseMessage response = await _SendBulkCreateAsync(
+		using HttpResponseMessage response = await this._SendBulkCreateAsync(
 			sessionToken: null,
 			tenantId.ToString(),
 			new {
@@ -184,10 +184,10 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldCreateBulkTenantInvitationForExistingNonStaffUserFromAnotherTenant() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetAcmeTenantIdAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetAcmeTenantIdAsync();
 
-		using var response = await _SendBulkCreateAsync(
+		using var response = await this._SendBulkCreateAsync(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -210,7 +210,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		payload.FailedCount.Should().Be(0);
 		payload.FailedItems.Should().BeEmpty();
 
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var invitationExists = await dbContext.Invitation
@@ -226,12 +226,12 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldRejectAdminInviteeWithProfiles() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetAcmeTenantIdAsync();
-		var profileIds = await _CreateTenantProfilesAsync(tenantId, count: 1);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetAcmeTenantIdAsync();
+		var profileIds = await this._CreateTenantProfilesAsync(tenantId, count: 1);
 		var email = $"tenant-bulk-admin-profiles-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _SendBulkCreateAsync(
+		using var response = await this._SendBulkCreateAsync(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -256,18 +256,18 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			item.Email == email
 			&& item.TranslationKey == "admin-invitee-cannot-have-profiles"
 		);
-		(await _TenantInvitationExistsAsync(tenantId, email)).Should().BeFalse();
+		(await this._TenantInvitationExistsAsync(tenantId, email)).Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task ItShouldRejectUserInviteeWhenProfileCountExceedsConfiguredCap() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetAcmeTenantIdAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetAcmeTenantIdAsync();
 		var profileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
-		var profileIds = await _CreateTenantProfilesAsync(tenantId, profileCount);
+		var profileIds = await this._CreateTenantProfilesAsync(tenantId, profileCount);
 		var email = $"tenant-bulk-user-profile-cap-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _SendBulkCreateAsync(
+		using var response = await this._SendBulkCreateAsync(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -292,18 +292,18 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			item.Email == email
 			&& item.TranslationKey == "too-many-profiles-for-invitee"
 		);
-		(await _TenantInvitationExistsAsync(tenantId, email)).Should().BeFalse();
+		(await this._TenantInvitationExistsAsync(tenantId, email)).Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task ItShouldCreateUserInviteeWithProfilesAtConfiguredCap() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetAcmeTenantIdAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetAcmeTenantIdAsync();
 		var profileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
-		var profileIds = await _CreateTenantProfilesAsync(tenantId, profileCount);
+		var profileIds = await this._CreateTenantProfilesAsync(tenantId, profileCount);
 		var email = $"tenant-bulk-user-at-profile-cap-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _SendBulkCreateAsync(
+		using var response = await this._SendBulkCreateAsync(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -326,7 +326,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		payload.FailedCount.Should().Be(0);
 		payload.FailedItems.Should().BeEmpty();
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var persistedProfileIds = await (
 			from invitation in dbContext.Invitation
@@ -347,16 +347,16 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	}
 
 	private async Task<Guid> _GetAcmeTenantIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	private async Task<List<Guid>> _CreateTenantProfilesAsync(Guid tenantId, int count) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profiles = new List<Profile>();
 
@@ -376,7 +376,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	}
 
 	private async Task<bool> _TenantInvitationExistsAsync(Guid tenantId, string email) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await dbContext.Invitation.AnyAsync(invitation =>
 			invitation.TenantId == tenantId
@@ -392,7 +392,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	) {
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkInviteUrl(tenantId)
+			BulkCreateInvitationsForTenantAsStaffSpec._GetBulkInviteUrl(tenantId)
 		);
 
 		if (!string.IsNullOrWhiteSpace(sessionToken)) {
@@ -400,7 +400,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		}
 		request.Content = JsonContent.Create(body);
 
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private record BulkCreateTenantInvitationsResponse {

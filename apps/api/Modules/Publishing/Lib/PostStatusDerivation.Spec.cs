@@ -27,8 +27,8 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBeFailedWhenAnyPublicationFailed() {
 		var publications = new[] {
-			_WithStatus(PublicationStatus.Published),
-			_WithStatus(PublicationStatus.Failed),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Published),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Failed),
 		};
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Failed);
@@ -37,8 +37,8 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBePublishedWhenAllArePublished() {
 		var publications = new[] {
-			_WithStatus(PublicationStatus.Published),
-			_WithStatus(PublicationStatus.Published),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Published),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Published),
 		};
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Published);
@@ -47,8 +47,8 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBeScheduledWhenAllAreScheduled() {
 		var publications = new[] {
-			_WithStatus(PublicationStatus.Scheduled),
-			_WithStatus(PublicationStatus.Scheduled),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Scheduled),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Scheduled),
 		};
 
 		PostStatusDerivation.Derive(publications)
@@ -58,10 +58,10 @@ public sealed class PostStatusDerivationSpec {
 	[Fact]
 	public void ItShouldBePartialForAMixWithoutFailures() {
 		var publications = new[] {
-			_WithStatus(PublicationStatus.Scheduled),
-			_WithStatus(PublicationStatus.Published),
-			_WithStatus(PublicationStatus.InProgress),
-			_WithStatus(PublicationStatus.Paused),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Scheduled),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Published),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.InProgress),
+			PostStatusDerivationSpec._WithStatus(PublicationStatus.Paused),
 		};
 
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Partial);

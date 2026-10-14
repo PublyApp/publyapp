@@ -17,17 +17,17 @@ public sealed class CreateStaffUserSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public CreateStaffUserSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundWhenDirectStaffUserCreationIsRequested() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetCreateUrl()
+			CreateStaffUserSpec._GetCreateUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
@@ -39,7 +39,7 @@ public sealed class CreateStaffUserSpec : IClassFixture<ApiFixture> {
 			}
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}

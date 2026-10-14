@@ -36,26 +36,26 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public CreateInvitationForTenantAsStaffSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldSendTenantInvitationEmailWhenInvitationIsCreated() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		var inviteeEmail =
 			$"tenant-invite-{Guid.NewGuid():N}@example.com";
-		var request = _CreateTenantInviteRequest(
+		var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -65,7 +65,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
@@ -77,7 +77,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		Assert.NotNull(responseBody);
 
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -87,7 +87,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 		var matchingJobs = pendingJobs
 			.Where(j =>
-				_JobPayloadContainsId(j.Payload, "invitationId", responseBody.Required().InvitationId)
+				CreateInvitationForTenantAsStaffSpec._JobPayloadContainsId(j.Payload, "invitationId", responseBody.Required().InvitationId)
 			)
 			.ToList();
 
@@ -118,16 +118,16 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldAllowPermissionedNonAdminStaffUserToCreateTenantInvitation() {
 		var staffToken =
-			await _CreateStaffUserTokenWithPermissionAsync(
+			await this._CreateStaffUserTokenWithPermissionAsync(
 				AppPermissions.Staff.Users.CREATE_FOR_TENANT.Key
 			);
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var inviteeEmail =
 			$"tenant-permissioned-invite-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -145,15 +145,15 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldCreateTenantInvitationForExistingNonStaffUserFromAnotherTenant() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var request = _CreateTenantInviteRequest(
+		var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -163,7 +163,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
@@ -174,7 +174,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		responseBody.Should().NotBeNull();
 
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -190,15 +190,15 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldRejectTenantInvitationWhenExistingUserAlreadyBelongsToTargetTenant() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var request = _CreateTenantInviteRequest(
+		var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -208,7 +208,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -223,15 +223,15 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldRejectTenantInvitationWhenExistingUserHasStaffAccount() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var request = _CreateTenantInviteRequest(
+		var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -241,7 +241,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -256,13 +256,13 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldRejectTenantInvitationWhenPendingInvitationAlreadyExists() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var inviteeEmail =
 			$"tenant-pending-duplicate-{Guid.NewGuid():N}@example.com";
 
-		var firstInvitation = await _CreateTenantInvitationAsync(
+		var firstInvitation = await this._CreateTenantInvitationAsync(
 			staffToken,
 			tenantId,
 			inviteeEmail
@@ -270,8 +270,8 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		firstInvitation.InvitationId.Should()
 			.NotBeEmpty();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -296,13 +296,13 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldCreateAdminTenantInvitationWithoutDefaultProfile() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var inviteeEmail =
 			$"tenant-admin-invite-{Guid.NewGuid():N}@example.com";
 
-		var responseBody = await _CreateTenantInvitationAsync(
+		var responseBody = await this._CreateTenantInvitationAsync(
 			staffToken,
 			tenantId,
 			inviteeEmail,
@@ -310,7 +310,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -329,16 +329,16 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldRejectAdminTenantInvitationWithProfiles() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var profileIds =
-			await _CreateTenantProfilesAsync(tenantId, count: 1);
+			await this._CreateTenantProfilesAsync(tenantId, count: 1);
 		var inviteeEmail =
 			$"tenant-admin-profile-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -357,7 +357,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		Assert.NotNull(problem);
 		problem.TranslationKey.Should()
 			.Be(ResponseKeys.AdminInviteeCannotHaveProfiles.Value);
-		(await _TenantInvitationExistsAsync(tenantId, inviteeEmail))
+		(await this._TenantInvitationExistsAsync(tenantId, inviteeEmail))
 			.Should().BeFalse();
 	}
 
@@ -365,18 +365,18 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldRejectUserTenantInvitationAboveConfiguredProfileCap() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var profileCount =
 			AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
 		var profileIds =
-			await _CreateTenantProfilesAsync(tenantId, profileCount);
+			await this._CreateTenantProfilesAsync(tenantId, profileCount);
 		var inviteeEmail =
 			$"tenant-user-profile-cap-{Guid.NewGuid():N}@example.com";
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -395,7 +395,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		Assert.NotNull(problem);
 		problem.TranslationKey.Should()
 			.Be(ResponseKeys.TooManyProfilesForInvitee.Value);
-		(await _TenantInvitationExistsAsync(tenantId, inviteeEmail))
+		(await this._TenantInvitationExistsAsync(tenantId, inviteeEmail))
 			.Should().BeFalse();
 	}
 
@@ -403,16 +403,16 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldCreateTenantInvitationWithSpecifiedProfileIds() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var inviteeEmail =
 			$"tenant-profile-ids-{Guid.NewGuid():N}@example.com";
 		var profileAName = $"tenant-profile-a-{Guid.NewGuid():N}";
 		var profileBName = $"tenant-profile-b-{Guid.NewGuid():N}";
 
 		using var setupScope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = setupScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -429,8 +429,8 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		await dbContext.Profile.AddRangeAsync(profileA, profileB);
 		await dbContext.SaveChangesAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -465,18 +465,18 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldRejectTenantInvitationWithForeignTenantProfileId() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var techStartTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.TechStartName
 			);
 
 		using var setupScope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = setupScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -495,8 +495,8 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			await dbContext.SaveChangesAsync();
 		}
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				acmeTenantId.ToString(),
 				new {
@@ -520,20 +520,20 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldCreateAuditLogWhenTenantInvitationIsCreated() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var inviteeEmail =
 			$"tenant-audit-invite-{Guid.NewGuid():N}@example.com";
 
-		var responseBody = await _CreateTenantInvitationAsync(
+		var responseBody = await this._CreateTenantInvitationAsync(
 			staffToken,
 			tenantId,
 			inviteeEmail
 		);
 
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -566,10 +566,10 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenTenantIdIsMalformed() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				"not-a-guid",
 				new {
@@ -594,10 +594,10 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnBadRequestWhenTenantDoesNotExist() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				Guid.NewGuid().ToString(),
 				new {
@@ -622,10 +622,10 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				sessionToken: null,
 				tenantId.ToString(),
 				new {
@@ -643,14 +643,14 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
-		var tenantToken = await _AuthClient.LoginAsync(
+			await this._GetAcmeTenantIdAsync();
+		var tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				tenantToken,
 				tenantId.ToString(),
 				new {
@@ -668,12 +668,12 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 		var staffUserToken =
-			await _CreateUnprivilegedStaffUserTokenAsync();
+			await this._CreateUnprivilegedStaffUserTokenAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffUserToken,
 				tenantId.ToString(),
 				new {
@@ -691,12 +691,12 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenEmailIsMissing() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -705,19 +705,19 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			)
 		);
 
-		await _AssertValidationProblemAsync(response, "Email");
+		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "Email");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenEmailIsInvalid() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -727,19 +727,19 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			)
 		);
 
-		await _AssertValidationProblemAsync(response, "Email");
+		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "Email");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenAccountLevelIsMissing() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -748,19 +748,19 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			)
 		);
 
-		await _AssertValidationProblemAsync(response, "AccountLevel");
+		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "AccountLevel");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenAccountLevelIsInvalid() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await _GetAcmeTenantIdAsync();
+			await this._GetAcmeTenantIdAsync();
 
-		using var response = await _Http.SendAsync(
-			_CreateTenantInviteRequest(
+		using var response = await this._Http.SendAsync(
+			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
 				new {
@@ -770,24 +770,24 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			)
 		);
 
-		await _AssertValidationProblemAsync(response, "AccountLevel");
+		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "AccountLevel");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldCreateTenantInvitationWithEmptyProfileIds() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
 		var inviteeEmail =
 			$"tenant-empty-profile-ids-{Guid.NewGuid():N}@example.com";
-		var request = _CreateTenantInviteRequest(
+		var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -798,7 +798,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
@@ -809,7 +809,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		responseBody.Should().NotBeNull();
 
 		using (var scope =
-			_Fixture.Factory.Services.CreateScope()) {
+			this._Fixture.Factory.Services.CreateScope()) {
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
@@ -841,7 +841,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetInviteUrl(tenantId)
+			CreateInvitationForTenantAsStaffSpec._GetInviteUrl(tenantId)
 		);
 
 		if (!string.IsNullOrWhiteSpace(sessionToken)) {
@@ -855,10 +855,10 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 	private async Task<Guid> _GetAcmeTenantIdAsync() {
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -869,7 +869,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		int count
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var profiles = new List<Profile>();
@@ -897,7 +897,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		string email
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -915,7 +915,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			string email,
 			string accountLevel = "User"
 		) {
-		using var request = _CreateTenantInviteRequest(
+		using var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
@@ -925,7 +925,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Created);
 
@@ -943,11 +943,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			$"tenant-invite-unprivileged-{Guid.NewGuid():N}@example.com";
 
 		await StaffUserTestHelper.SeedStaffUserAsync(
-			_Fixture,
+			this._Fixture,
 			email
 		);
 
-		return await _AuthClient.LoginAsync(
+		return await this._AuthClient.LoginAsync(
 			email,
 			TestConstants.SeedPassword
 		);
@@ -959,12 +959,12 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var email =
 			$"tenant-invite-permissioned-{Guid.NewGuid():N}@example.com";
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
-			_Fixture,
+			this._Fixture,
 			email
 		);
 
 		using var scope =
-			_Fixture.Factory.Services.CreateScope();
+			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -994,7 +994,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		});
 		await dbContext.SaveChangesAsync();
 
-		return await _AuthClient.LoginAsync(
+		return await this._AuthClient.LoginAsync(
 			email,
 			TestConstants.SeedPassword
 		);

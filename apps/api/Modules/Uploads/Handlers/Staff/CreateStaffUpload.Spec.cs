@@ -65,33 +65,33 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public CreateStaffUploadSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
-		_Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
+		this._Fixture = fixture;
 	}
 
 	public static TheoryData<byte[], string, string> SupportedImageTypes {
 		get {
 			return new() {
-				{ _PngBytes, "logo.png", "image/png" },
-				{ _JpegBytes, "logo.jpg", "image/jpeg" },
-				{ _WebPBytes, "logo.webp", "image/webp" },
-				{ _GifBytes, "logo.gif", "image/gif" },
+				{ CreateStaffUploadSpec._PngBytes, "logo.png", "image/png" },
+				{ CreateStaffUploadSpec._JpegBytes, "logo.jpg", "image/jpeg" },
+				{ CreateStaffUploadSpec._WebPBytes, "logo.webp", "image/webp" },
+				{ CreateStaffUploadSpec._GifBytes, "logo.gif", "image/gif" },
 			};
 		}
 	}
 
 	[Theory]
-	[MemberData(nameof(SupportedImageTypes))]
+	[MemberData(nameof(CreateStaffUploadSpec.SupportedImageTypes))]
 	public async Task ItShouldReturn201AndAServedUrlForSupportedImageTypes(
 		byte[] bytes,
 		string fileName,
 		string expectedContentType
 	) {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, bytes, fileName, expectedContentType)
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, bytes, fileName, expectedContentType)
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -106,13 +106,13 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 		// The generated path must never carry the client-supplied file name —
 		// it must be a server-generated UUID under uploads/yyyy/MM/.
-		_GeneratedPathPattern().IsMatch(resultValue.Path).Should().BeTrue(
+		CreateStaffUploadSpec._GeneratedPathPattern().IsMatch(resultValue.Path).Should().BeTrue(
 			$"'{resultValue.Path}' must match the server-generated path shape"
 		);
 		resultValue.Path.Should().NotContain("logo");
 
 		// The returned URL must be anonymously retrievable with the sniffed content type.
-		using var fileResponse = await _Http.GetAsync(resultValue.Url);
+		using var fileResponse = await this._Http.GetAsync(resultValue.Url);
 		fileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		fileResponse.Content.Headers.ContentType.Should().NotBeNull();
 		fileResponse.Content.Headers.ContentType.Required().MediaType
@@ -121,9 +121,9 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		retrievedBytes.Should().Equal(bytes);
 
 		var uploaderUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_Fixture.Factory, TestConstants.StaffAdminEmail
+			this._Fixture.Factory, TestConstants.StaffAdminEmail
 		);
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var auditLogExists = await dbContext.AuditLog.AnyAsync(a =>
 			a.Action == AuditActions.UploadCreated
@@ -142,14 +142,14 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn201WithSniffedContentTypeWhenFilenameAndClaimedTypeLie() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		// The client claims this is an HTML file, but the bytes are a PNG.
 		// A handler that echoes the claimed type/extension instead of the
 		// sniffed one would let this be served back as text/html — a stored
 		// XSS vector. It must be classified (and stored) as a PNG regardless.
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, _PngBytes, "payload.html", "text/html")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, CreateStaffUploadSpec._PngBytes, "payload.html", "text/html")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -162,7 +162,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		result.Path.Should().EndWith(".png");
 		result.Path.Should().NotContain("payload");
 
-		using var fileResponse = await _Http.GetAsync(result.Url);
+		using var fileResponse = await this._Http.GetAsync(result.Url);
 		fileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		fileResponse.Content.Headers.ContentType.Should().NotBeNull();
 		fileResponse.Content.Headers.ContentType.Required().MediaType.Should().Be("image/png");
@@ -185,7 +185,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	// the real, existing sentinel is NOT served.
 	[Fact]
 	public async Task ItShouldRejectPathTraversalToARealFileOutsideTheServedRoot() {
-		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var fileStorage = this._Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var rootPath = fileStorage.RootPath;
 		var uploadsDir = Path.Combine(rootPath, "uploads");
 		Directory.CreateDirectory(uploadsDir);
@@ -204,11 +204,11 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		await File.WriteAllTextAsync(sentinelPath, sentinelContent);
 
 		try {
-			using var controlResponse = await _Http.GetAsync($"/files/uploads/{controlFileName}");
+			using var controlResponse = await this._Http.GetAsync($"/files/uploads/{controlFileName}");
 			controlResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 			(await controlResponse.Content.ReadAsStringAsync()).Should().Be(controlContent);
 
-			var traversalContext = await _Fixture.Factory.Server.SendAsync(context => {
+			var traversalContext = await this._Fixture.Factory.Server.SendAsync(context => {
 				context.Request.Method = "GET";
 				context.Request.Path = new PathString($"/files/../{sentinelFileName}");
 			});
@@ -227,10 +227,10 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	// is what CreateStaffUpload actually returns.
 	[Fact]
 	public async Task ItShouldServeUploadedFilesAnonymously() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var uploadResponse = await _Http.SendAsync(
-			_BuildUploadRequest(token, _PngBytes, "logo.png", "image/png")
+		using var uploadResponse = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, CreateStaffUploadSpec._PngBytes, "logo.png", "image/png")
 		);
 		uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
@@ -241,25 +241,25 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		// A deliberately bare request — no session token, no tenant header —
 		// pins the intended contract: the served asset is public.
 		using var request = new HttpRequestMessage(HttpMethod.Get, uploaded.Url);
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
 	[Fact]
 	public async Task ItShouldReturn422WhenFileIsMissing() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		// A well-formed multipart body that simply omits the "file" part —
 		// distinct from an empty body, which ASP.NET Core's own form reader
 		// short-circuits with a raw 400 before the handler ever runs.
 		using var content = new MultipartFormDataContent {
 			{ new StringContent("not-a-file"), "unrelated-field" }
 		};
-		using var request = new HttpRequestMessage(HttpMethod.Post, _UploadUrl) {
+		using var request = new HttpRequestMessage(HttpMethod.Post, CreateStaffUploadSpec._UploadUrl) {
 			Content = content
 		}.WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -271,15 +271,15 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn413WhenFileExceedsMaxSize() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		// Stays under the transport-level RequestSizeLimitAttribute buffer
 		// (UPLOAD_MAX_BYTES + UploadLimits.MultipartHeaderHeadroomBytes) so this
 		// exercises the handler's own size check, not Kestrel's earlier rejection.
 		var oversized = new byte[AppEnvironment.Instance.UPLOAD_MAX_BYTES + 1];
-		_PngBytes.CopyTo(oversized, 0);
+		CreateStaffUploadSpec._PngBytes.CopyTo(oversized, 0);
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, oversized, "big.png", "image/png")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, oversized, "big.png", "image/png")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
@@ -294,7 +294,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		// the same 413. Reading the endpoint metadata directly is the only way
 		// this test fails when the RequestSizeLimitAttribute is dropped or its
 		// value drifts.
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dataSource = scope.ServiceProvider.GetRequiredService<EndpointDataSource>();
 
 		var endpoint = dataSource.Endpoints
@@ -331,13 +331,13 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		// all. See ItShouldAccept... below for the actual spoofing case (valid
 		// magic bytes followed by arbitrary data), which _SniffImageType does NOT
 		// currently detect (round-5 API F5).
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var fakeBytes = "this is plain text, not an image at all"u8.ToArray();
 
-		using var response = await _Http.SendAsync(
+		using var response = await this._Http.SendAsync(
 			// Client claims .png / image/png, but the content is plain text —
 			// magic-byte sniffing must reject this regardless of the claim.
-			_BuildUploadRequest(token, fakeBytes, "fake.png", "image/png")
+			CreateStaffUploadSpec._BuildUploadRequest(token, fakeBytes, "fake.png", "image/png")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
@@ -350,13 +350,13 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenPngSignatureIsTruncated() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		// Only the first 4 of the 8 PNG signature bytes — _SniffImageType must not
 		// misclassify a short read as a valid image (round-5 API F5).
-		var truncatedBytes = _PngBytes[..4];
+		var truncatedBytes = CreateStaffUploadSpec._PngBytes[..4];
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, truncatedBytes, "truncated.png", "image/png")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, truncatedBytes, "truncated.png", "image/png")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
@@ -364,7 +364,7 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422WhenGifLogicalScreenIsZeroSized() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		// Valid GIF89a signature but width=0, height=0 — a degenerate canvas that
 		// cannot be a real image (round-5 API F5).
 		byte[] zeroSizedGif = [
@@ -372,8 +372,8 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 		];
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, zeroSizedGif, "empty.gif", "image/gif")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, zeroSizedGif, "empty.gif", "image/gif")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
@@ -399,13 +399,13 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		// safe image otherwise (round-5 API F5; see CreateStaffUpload.cs F5
 		// comment for the hardening this would require: full decode + dimension
 		// bounds via a hardened image library).
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var spoofedBytes = _PngBytes
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var spoofedBytes = CreateStaffUploadSpec._PngBytes
 			.Concat("<script>alert(1)</script> definitely not image data"u8.ToArray())
 			.ToArray();
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, spoofedBytes, "spoofed.png", "image/png")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, spoofedBytes, "spoofed.png", "image/png")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -413,12 +413,12 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn422ForSvgUploads() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var svgBytes = "<?xml version=\"1.0\"?><svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"u8
 			.ToArray();
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, svgBytes, "evil.svg", "image/svg+xml")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, svgBytes, "evil.svg", "image/svg+xml")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
@@ -431,10 +431,10 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403ForStaffWithoutUploadPermission() {
-		var token = await _CreateUnprivilegedStaffUserTokenAsync();
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
-		using var response = await _Http.SendAsync(
-			_BuildUploadRequest(token, _PngBytes, "logo.png", "image/png")
+		using var response = await this._Http.SendAsync(
+			CreateStaffUploadSpec._BuildUploadRequest(token, CreateStaffUploadSpec._PngBytes, "logo.png", "image/png")
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -443,16 +443,16 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn401WithoutASession() {
 		using var content = new MultipartFormDataContent();
-		var fileContent = new ByteArrayContent(_PngBytes);
+		var fileContent = new ByteArrayContent(CreateStaffUploadSpec._PngBytes);
 		fileContent.Headers.ContentType =
 			new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
 		content.Add(fileContent, "file", "logo.png");
 
-		using var request = new HttpRequestMessage(HttpMethod.Post, _UploadUrl) {
+		using var request = new HttpRequestMessage(HttpMethod.Post, CreateStaffUploadSpec._UploadUrl) {
 			Content = content
 		};
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
@@ -469,14 +469,14 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 			new System.Net.Http.Headers.MediaTypeHeaderValue(claimedContentType);
 		content.Add(fileContent, "file", fileName);
 
-		return new HttpRequestMessage(HttpMethod.Post, _UploadUrl) {
+		return new HttpRequestMessage(HttpMethod.Post, CreateStaffUploadSpec._UploadUrl) {
 			Content = content
 		}.WithSessionToken(token);
 	}
 
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"upload-no-permission-{Guid.NewGuid():N}@example.com";
-		await StaffUserTestHelper.SeedStaffUserAsync(_Fixture, email);
-		return await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		await StaffUserTestHelper.SeedStaffUserAsync(this._Fixture, email);
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
 }

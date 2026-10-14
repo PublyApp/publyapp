@@ -15,7 +15,7 @@ internal sealed class TestAuthClient {
 	private readonly HttpClient _Http;
 
 	public TestAuthClient(HttpClient http) {
-		_Http = http;
+		this._Http = http;
 	}
 
 	/// <summary>
@@ -25,7 +25,7 @@ internal sealed class TestAuthClient {
 	public async Task<string> LoginAsStaffAdminAsync(
 		CancellationToken ct = default
 	) {
-		return await LoginAsync(
+		return await this.LoginAsync(
 			TestConstants.StaffAdminEmail,
 			TestConstants.SeedPassword,
 			ct
@@ -45,7 +45,7 @@ internal sealed class TestAuthClient {
 	) {
 		var loginRequest = new { email, password };
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			AppRoutes.Auth.Login,
 			loginRequest,
 			ct

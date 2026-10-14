@@ -31,73 +31,73 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public PasswordResetServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldEnqueueResetJobAndPersistTokenWhenUserIsVerified() {
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUserAsync(email, verified: true);
+		var userId = await this._SeedUserAsync(email, verified: true);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider.GetRequiredService<IPasswordResetService>();
 		await service.RequestAsync(email, CancellationToken.None);
 
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 
 		var user = await db.User.AsNoTracking().FirstAsync(u => u.Id == userId);
 		user.PasswordResetToken.Should().NotBeNullOrEmpty();
 		user.PasswordResetTokenExpiresAt.Should().NotBeNull();
 
-		var jobs = await _ResetJobsForUserAsync(db, userId);
+		var jobs = await PasswordResetServiceSpec._ResetJobsForUserAsync(db, userId);
 		jobs.Should().HaveCount(1);
 	}
 
 	[Fact]
 	public async Task ItShouldReuseLiveTokenAndStillEnqueueWhenTokenNotExpired() {
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUserAsync(email, verified: true);
+		var userId = await this._SeedUserAsync(email, verified: true);
 
 		var liveToken = "existing-live-token";
-		await using (var seed = _CreateDbContext()) {
+		await using (var seed = this._CreateDbContext()) {
 			var user = await seed.User.FirstAsync(u => u.Id == userId);
 			user.PasswordResetToken = liveToken;
 			user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
 			await seed.SaveChangesAsync();
 		}
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider.GetRequiredService<IPasswordResetService>();
 		await service.RequestAsync(email, CancellationToken.None);
 
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		var reloaded = await db.User.AsNoTracking().FirstAsync(u => u.Id == userId);
 		reloaded.PasswordResetToken.Should().Be(liveToken, "a still-live token is reused, not rotated");
 
-		var jobs = await _ResetJobsForUserAsync(db, userId);
+		var jobs = await PasswordResetServiceSpec._ResetJobsForUserAsync(db, userId);
 		jobs.Should().HaveCount(1);
 	}
 
 	[Fact]
 	public async Task ItShouldNotEnqueueWhenUserIsUnverified() {
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUserAsync(email, verified: false);
+		var userId = await this._SeedUserAsync(email, verified: false);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider.GetRequiredService<IPasswordResetService>();
 		await service.RequestAsync(email, CancellationToken.None);
 
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		var user = await db.User.AsNoTracking().FirstAsync(u => u.Id == userId);
 		user.PasswordResetToken.Should().BeNull();
-		(await _ResetJobsForUserAsync(db, userId)).Should().BeEmpty();
+		(await PasswordResetServiceSpec._ResetJobsForUserAsync(db, userId)).Should().BeEmpty();
 	}
 
 	[Fact]
 	public async Task ItShouldNotEnqueueWhenUserDoesNotExist() {
 		var email = $"missing-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider.GetRequiredService<IPasswordResetService>();
 
 		// A missing user is a committed no-op — no throw, no enumeration signal.
@@ -112,20 +112,20 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		// persisted and no job row exists. Proven with a real transaction (a poisoned
 		// enqueuer that throws), not a mock verification.
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUserAsync(email, verified: true);
+		var userId = await this._SeedUserAsync(email, verified: true);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var service = new PasswordResetService(db, new ThrowingEnqueuer());
 
 		var act = async () => await service.RequestAsync(email, CancellationToken.None);
 		await act.Should().ThrowAsync<InvalidOperationException>();
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		var user = await verify.User.AsNoTracking().FirstAsync(u => u.Id == userId);
 		user.PasswordResetToken.Should().BeNull("the enqueue failure rolls the token issuance back");
 		user.PasswordResetTokenExpiresAt.Should().BeNull();
-		(await _ResetJobsForUserAsync(verify, userId)).Should().BeEmpty();
+		(await PasswordResetServiceSpec._ResetJobsForUserAsync(verify, userId)).Should().BeEmpty();
 	}
 
 	[Fact]
@@ -135,9 +135,9 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		// The job row must not survive — proving the enqueue truly joined the caller's
 		// transaction rather than committing independently.
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUserAsync(email, verified: true);
+		var userId = await this._SeedUserAsync(email, verified: true);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var realEnqueuer = scope.ServiceProvider.GetRequiredService<IJobEnqueuer>();
 		var service = new PasswordResetService(db, new ThrowAfterEnqueue(realEnqueuer));
@@ -145,8 +145,8 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		var act = async () => await service.RequestAsync(email, CancellationToken.None);
 		await act.Should().ThrowAsync<InvalidOperationException>();
 
-		await using var verify = _CreateDbContext();
-		(await _ResetJobsForUserAsync(verify, userId))
+		await using var verify = this._CreateDbContext();
+		(await PasswordResetServiceSpec._ResetJobsForUserAsync(verify, userId))
 			.Should().BeEmpty("the post-enqueue failure rolls the staged job row back");
 		var user = await verify.User.AsNoTracking().FirstAsync(u => u.Id == userId);
 		user.PasswordResetToken.Should().BeNull();
@@ -155,11 +155,11 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldSerializeConcurrentRequestsBeforeChoosingTheResetToken() {
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUserAsync(email, verified: true);
+		var userId = await this._SeedUserAsync(email, verified: true);
 		var secondAppName = $"password-reset-race-{Guid.NewGuid():N}";
 
-		await using var firstDb = _CreateDbContext("password-reset-race-first");
-		await using var secondDb = _CreateDbContext(secondAppName);
+		await using var firstDb = this._CreateDbContext("password-reset-race-first");
+		await using var secondDb = this._CreateDbContext(secondAppName);
 		var firstGate = new GatedEnqueuer(
 			new JobEnqueuer(firstDb, new RequestAuthContext())
 		);
@@ -176,7 +176,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			await firstGate.Reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
 			secondTask = secondService.RequestAsync(email, CancellationToken.None);
 
-			await _WaitUntilBackendWaitsOnLockAsync(secondAppName);
+			await this._WaitUntilBackendWaitsOnLockAsync(secondAppName);
 			secondGate.Reached.Task.IsCompleted.Should().BeFalse(
 				"the second request must lock before its reuse-versus-rotate decision"
 			);
@@ -193,7 +193,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		await secondGate.Reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
 		await secondTask.WaitAsync(TimeSpan.FromSeconds(10));
 
-		await using var assertDb = _CreateDbContext();
+		await using var assertDb = this._CreateDbContext();
 		var user = await assertDb.User.AsNoTracking().SingleAsync(u => u.Id == userId);
 		var retainedToken = user.PasswordResetToken;
 		retainedToken.Should().NotBeNullOrEmpty();
@@ -202,7 +202,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		}
 		user.PasswordResetTokenExpiresAt.Should().BeAfter(DateTime.UtcNow);
 
-		var jobs = await _ResetJobsForUserAsync(assertDb, userId);
+		var jobs = await PasswordResetServiceSpec._ResetJobsForUserAsync(assertDb, userId);
 		jobs.Should().HaveCount(2);
 
 		var sender = new RecordingEmailSender();
@@ -211,7 +211,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 				throw new InvalidOperationException("A password-reset job id was null.");
 			}
 
-			await using var handlerDb = _CreateDbContext();
+			await using var handlerDb = this._CreateDbContext();
 			var handler = new PasswordResetEmailJobHandler(
 				handlerDb,
 				sender,
@@ -254,7 +254,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		private readonly IJobEnqueuer _Inner;
 
 		public ThrowAfterEnqueue(IJobEnqueuer inner) {
-			_Inner = inner;
+			this._Inner = inner;
 		}
 
 		public async Task<Guid> EnqueueAsync<TPayload>(
@@ -263,7 +263,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			EnqueueOptions? options = null,
 			CancellationToken cancellationToken = default
 		) {
-			await _Inner.EnqueueAsync(definition, payload, options, cancellationToken);
+			await this._Inner.EnqueueAsync(definition, payload, options, cancellationToken);
 			throw new InvalidOperationException("token-side failure after enqueue");
 		}
 	}
@@ -277,7 +277,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			new(TaskCreationOptions.RunContinuationsAsynchronously);
 
 		public GatedEnqueuer(IJobEnqueuer inner) {
-			_Inner = inner;
+			this._Inner = inner;
 		}
 
 		public async Task<Guid> EnqueueAsync<TPayload>(
@@ -286,9 +286,9 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			EnqueueOptions? options = null,
 			CancellationToken cancellationToken = default
 		) {
-			Reached.TrySetResult();
-			await Release.Task.WaitAsync(cancellationToken);
-			return await _Inner.EnqueueAsync(definition, payload, options, cancellationToken);
+			this.Reached.TrySetResult();
+			await this.Release.Task.WaitAsync(cancellationToken);
+			return await this._Inner.EnqueueAsync(definition, payload, options, cancellationToken);
 		}
 	}
 
@@ -300,14 +300,14 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			string? idempotencyKey = null,
 			CancellationToken cancellationToken = default
 		) {
-			Requests.Add(request);
+			this.Requests.Add(request);
 			return Task.FromResult(new EmailSendReceipt(Guid.NewGuid().ToString()));
 		}
 	}
 
 	private async Task _WaitUntilBackendWaitsOnLockAsync(string applicationName) {
 		var deadline = DateTime.UtcNow.AddSeconds(10);
-		await using var connection = new NpgsqlConnection(_BaseConnectionString());
+		await using var connection = new NpgsqlConnection(this._BaseConnectionString());
 		await connection.OpenAsync();
 
 		while (DateTime.UtcNow < deadline) {
@@ -341,7 +341,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			.ToListAsync();
 
 		return jobs
-			.Where(j => _PayloadGuid(j.Payload, "userId") == userId)
+			.Where(j => PasswordResetServiceSpec._PayloadGuid(j.Payload, "userId") == userId)
 			.ToList();
 	}
 
@@ -356,7 +356,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedUserAsync(string email, bool verified) {
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		var user = new User {
 			Email = email,
 			Password = "unused-password-hash",
@@ -368,11 +368,11 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private AppDbContext _CreateDbContext() {
-		return _CreateDbContext(applicationName: null);
+		return this._CreateDbContext(applicationName: null);
 	}
 
 	private AppDbContext _CreateDbContext(string? applicationName) {
-		var connectionString = _BaseConnectionString();
+		var connectionString = this._BaseConnectionString();
 		if (applicationName is not null) {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString) {
 				ApplicationName = applicationName
@@ -388,7 +388,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private string _BaseConnectionString() {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

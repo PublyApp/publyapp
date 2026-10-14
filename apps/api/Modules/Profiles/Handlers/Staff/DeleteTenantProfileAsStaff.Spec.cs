@@ -29,9 +29,9 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public DeleteTenantProfileAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetUrl(string tenantId, string profileId) {
@@ -44,60 +44,60 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await _GetTenantIdAsync();
+		var tenantId = await this._GetTenantIdAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var tenantId = await _GetTenantIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await _GetTenantIdAsync();
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl("not-a-guid", Guid.NewGuid().ToString())
+			DeleteTenantProfileAsStaffSpec._GetUrl("not-a-guid", Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -108,15 +108,15 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedProfileId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), "not-a-guid")
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), "not-a-guid")
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -127,26 +127,26 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMissingProfile() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	[Fact]
 	public async Task ItShouldRejectDeletingDefaultProfile() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var defaultProfileId = await _GetDefaultTenantProfileIdAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var defaultProfileId = await this._GetDefaultTenantProfileIdAsync(tenantId);
 		var profileGuid = defaultProfileId;
 
-		var auditLogBefore = await _GetLatestAuditLogAsync(
+		var auditLogBefore = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileDeleted,
 			profileGuid
 		);
@@ -154,10 +154,10 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), defaultProfileId.ToString())
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), defaultProfileId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -168,7 +168,7 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 				);
 		problem.Detail.Should().Be("Default tenant profile cannot be deleted");
 
-		var auditLogAfter = await _GetLatestAuditLogAsync(
+		var auditLogAfter = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileDeleted,
 			profileGuid
 		);
@@ -177,29 +177,29 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldDeleteProfileAndRemoveItFromGetById() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var createdProfile = await _CreateProfileAsync(token, tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var createdProfile = await this._CreateProfileAsync(token, tenantId);
 		var profileId = createdProfile.ProfileId;
 		var profileName = createdProfile.ProfileName;
 		var profileGuid = Guid.Parse(profileId);
 
 		using var deleteRequest = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetUrl(tenantId.ToString(), profileId)
+			DeleteTenantProfileAsStaffSpec._GetUrl(tenantId.ToString(), profileId)
 		).WithSessionToken(token);
 
-		using var deleteResponse = await _Http.SendAsync(deleteRequest);
+		using var deleteResponse = await this._Http.SendAsync(deleteRequest);
 		deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileDeleted,
 			profileGuid
 		);
 		auditLog.Should().NotBeNull();
 		Assert.NotNull(auditLog);
 		auditLog.Action.Should().Be(AuditActions.TenantProfileDeleted);
-		_AssertAuditDetails(
+		DeleteTenantProfileAsStaffSpec._AssertAuditDetails(
 			auditLog,
 			expectedTenantId: tenantId,
 			expectedProfileId: profileGuid,
@@ -216,21 +216,21 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			)
 		).WithSessionToken(token);
 
-		using var getResponse = await _Http.SendAsync(getRequest);
+		using var getResponse = await this._Http.SendAsync(getRequest);
 		getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	private async Task<Guid> _GetDefaultTenantProfileIdAsync(Guid tenantId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var profileService =
 			scope.ServiceProvider.GetRequiredService<ITenantProfileAsStaffService>();
 		var profile = await profileService.GetOrCreateDefaultTenantProfileAsync(tenantId);
@@ -260,7 +260,7 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 			description = "Profile created for delete tests",
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantProfileByIdResponse>();
@@ -273,7 +273,7 @@ public sealed class DeleteTenantProfileAsStaffSpec : IClassFixture<ApiFixture> {
 		string action,
 		Guid targetId
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.AuditLog

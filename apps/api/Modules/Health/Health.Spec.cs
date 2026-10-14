@@ -23,14 +23,14 @@ public sealed class HealthSpec
 	private readonly HttpClient _Http;
 
 	public HealthSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
 	}
 
 	[Fact]
 	public async Task ItShouldReturnReadyOnBothReadinessRoutesWhenAllMigrationsAreApplied() {
-		var readyResponse = await _Http.GetAsync("/health/ready");
-		var aliasResponse = await _Http.GetAsync("/health");
+		var readyResponse = await this._Http.GetAsync("/health/ready");
+		var aliasResponse = await this._Http.GetAsync("/health");
 
 		readyResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -40,7 +40,7 @@ public sealed class HealthSpec
 
 	[Fact]
 	public async Task ItShouldReturnLiveAndNotReadyWhenAMigrationIsPending() {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var migrations = dbContext.Database.GetMigrations().ToList();
 		migrations.Should().HaveCountGreaterThan(1);
@@ -51,8 +51,8 @@ public sealed class HealthSpec
 
 		await migrator.MigrateAsync(previousMigration);
 		try {
-			var liveResponse = await _Http.GetAsync("/health/live");
-			var readyResponse = await _Http.GetAsync("/health/ready");
+			var liveResponse = await this._Http.GetAsync("/health/live");
+			var readyResponse = await this._Http.GetAsync("/health/ready");
 
 			liveResponse.StatusCode.Should()
 				.Be(HttpStatusCode.OK);

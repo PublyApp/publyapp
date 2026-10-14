@@ -24,7 +24,7 @@ public sealed class SystemNoticeValidationRulesSpec {
 	private class RequiredSeverityValidator
 		: AbstractValidator<RequiredSeverityModel> {
 		public RequiredSeverityValidator() {
-			RuleFor(x => x.Severity)
+			this.RuleFor(x => x.Severity)
 				.MustBeRequiredSeverity();
 		}
 	}
@@ -32,7 +32,7 @@ public sealed class SystemNoticeValidationRulesSpec {
 	private class NullableSeverityValidator
 		: AbstractValidator<NullableSeverityModel> {
 		public NullableSeverityValidator() {
-			RuleFor(x => x.Severity)
+			this.RuleFor(x => x.Severity)
 				.MustBeNullableSeverity();
 		}
 	}

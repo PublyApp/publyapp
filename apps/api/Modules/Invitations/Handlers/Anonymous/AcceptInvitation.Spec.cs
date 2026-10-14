@@ -28,15 +28,15 @@ public sealed class AcceptInvitationSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public AcceptInvitationSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldActivatePendingTenantAfterAcceptingTenantInvitation() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var inviteEmail = $"tenant-accept-{Guid.NewGuid():N}@example.com";
 
 		using var createBody = JsonDocument.Parse(
@@ -55,14 +55,14 @@ public sealed class AcceptInvitationSpec
 		);
 
 		var createResponse = await TenantTestHelper.CreateTenantAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			createBody.RootElement
 		);
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var setupScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var setupScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var setupDbContext =
 			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await setupDbContext.Invitation
@@ -82,7 +82,7 @@ public sealed class AcceptInvitationSpec
 			"""
 		);
 
-		var acceptResponse = await _Http.PostAsJsonAsync(
+		var acceptResponse = await this._Http.PostAsJsonAsync(
 			Routes.Invitations.Anonymous.AcceptByTokenFn(invitation.Token),
 			acceptBody.RootElement
 		);
@@ -101,7 +101,7 @@ public sealed class AcceptInvitationSpec
 			Routes.Auth.GetUserTenantsForPicker
 		).WithSessionToken(accepted.SessionToken);
 
-		using var pickerResponse = await _Http.SendAsync(pickerRequest);
+		using var pickerResponse = await this._Http.SendAsync(pickerRequest);
 
 		pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -116,7 +116,7 @@ public sealed class AcceptInvitationSpec
 			t.Status == "Active"
 		);
 
-		await using var assertScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var assertScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var assertDbContext =
 			assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await assertDbContext.Tenant
@@ -129,8 +129,8 @@ public sealed class AcceptInvitationSpec
 	[Fact]
 	public async Task
 	ItShouldAllowExistingTenantUserToAcceptTenantInvitationWithCurrentSession() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var existingUserToken = await _AuthClient.LoginAsync(
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
@@ -152,14 +152,14 @@ public sealed class AcceptInvitationSpec
 		);
 
 		var createResponse = await TenantTestHelper.CreateTenantAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			createBody.RootElement
 		);
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var setupScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var setupScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var setupDbContext =
 			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var invitation = await setupDbContext.Invitation
@@ -179,7 +179,7 @@ public sealed class AcceptInvitationSpec
 			useExistingAccount = true
 		});
 
-		using var acceptResponse = await _Http.SendAsync(acceptRequest);
+		using var acceptResponse = await this._Http.SendAsync(acceptRequest);
 
 		acceptResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -196,7 +196,7 @@ public sealed class AcceptInvitationSpec
 			Routes.Auth.GetUserTenantsForPicker
 		).WithSessionToken(existingUserToken);
 
-		using var pickerResponse = await _Http.SendAsync(pickerRequest);
+		using var pickerResponse = await this._Http.SendAsync(pickerRequest);
 
 		pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -209,7 +209,7 @@ public sealed class AcceptInvitationSpec
 					t.Status == "Active"
 				);
 
-		await using var assertScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var assertScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var assertDbContext =
 			assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await assertDbContext.Tenant
@@ -222,8 +222,8 @@ public sealed class AcceptInvitationSpec
 	[Fact]
 	public async Task
 	ItShouldNotExposeAcceptanceExceptionDetailsWhenExistingUserAcceptanceFails() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var existingUserToken = await _AuthClient.LoginAsync(
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
 			TestConstants.SeedPassword
 		);
@@ -244,7 +244,7 @@ public sealed class AcceptInvitationSpec
 		);
 
 		var createResponse = await TenantTestHelper.CreateTenantAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			createBody.RootElement
 		);
@@ -253,7 +253,7 @@ public sealed class AcceptInvitationSpec
 		Guid invitationId;
 		Guid tenantId;
 		string invitationToken;
-		await using (var setupScope = _Fixture.Factory.Services.CreateAsyncScope()) {
+		await using (var setupScope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var dbContext = setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var invitation = await dbContext.Invitation
 				.Where(inv =>
@@ -284,7 +284,7 @@ public sealed class AcceptInvitationSpec
 			useExistingAccount = true
 		});
 
-		using var acceptResponse = await _Http.SendAsync(acceptRequest);
+		using var acceptResponse = await this._Http.SendAsync(acceptRequest);
 
 		acceptResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		acceptResponse.Content.Headers.ContentType?.MediaType.Should()

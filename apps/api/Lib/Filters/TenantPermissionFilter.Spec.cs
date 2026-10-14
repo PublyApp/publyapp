@@ -47,24 +47,24 @@ public sealed class TenantPermissionFilterSpec
 	public TenantPermissionFilterSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	// Creates a bare Acme tenant member with NO profiles at all (round 2: the
 	// seeded AcmeUserEmail member gained publishing permissions via
 	// demo-publishing-acme, so empty-derived-permission proofs need a fresh one).
 	private async Task<(Guid TenantId, string Email)> _CreateBareAcmeMemberAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
 		var email = $"perm-filter-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -94,28 +94,28 @@ public sealed class TenantPermissionFilterSpec
 		// Pre-fix (no Admin short-circuit in TenantPermissionFilter), this call fails
 		// with 403 "user-does-not-have-the-necessary-permissions" (red-before).
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var acmeAdminToken = await _AuthClient.LoginAsync(
+		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsEndpoint
+			TenantPermissionFilterSpec._PostsEndpoint
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
@@ -126,22 +126,22 @@ public sealed class TenantPermissionFilterSpec
 		// Round 2: the seeded Acme member now carries publishing permissions through
 		// the demo profile, so this denial pin uses a dedicated profile-less member
 		// whose derived permission set is provably empty.
-		var (bareTenantId, bareEmail) = await _CreateBareAcmeMemberAsync();
+		var (bareTenantId, bareEmail) = await this._CreateBareAcmeMemberAsync();
 
-		var acmeUserToken = await _AuthClient.LoginAsync(
+		var acmeUserToken = await this._AuthClient.LoginAsync(
 			bareEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsEndpoint
+			TenantPermissionFilterSpec._PostsEndpoint
 		)
 			.WithSessionToken(acmeUserToken)
 			.WithTenantId(bareTenantId);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -160,10 +160,10 @@ public sealed class TenantPermissionFilterSpec
 		// Regression guard: profile-derived permissions must still grant access for
 		// non-admin users exactly as before the Admin bypass was introduced.
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
@@ -171,36 +171,36 @@ public sealed class TenantPermissionFilterSpec
 		var createdProfileIds = new List<Guid>();
 
 		try {
-			var profileId = await _CreateTenantProfileWithPermissionsAsync(
+			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Posts.VIEW.Key]
 			);
 			createdProfileIds.Add(profileId);
 
-			await _AssignProfileToTenantUserAsync(
+			await this._AssignProfileToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeUserToken = await _AuthClient.LoginAsync(
+			var acmeUserToken = await this._AuthClient.LoginAsync(
 				TestConstants.AcmeUserEmail,
 				TestConstants.SeedPassword
 			);
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_PostsEndpoint
+				TenantPermissionFilterSpec._PostsEndpoint
 			)
 				.WithSessionToken(acmeUserToken)
 				.WithTenantId(acmeId);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		} finally {
-			await _CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
 		}
 	}
 
@@ -211,33 +211,33 @@ public sealed class TenantPermissionFilterSpec
 		// Solutions (see UserAccountSeeder cross-tenant fixtures). The bypass earned in
 		// Acme must not follow the user into a different tenant scope.
 		var staffToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.AcmeName
 			);
 		var globalId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
-				_Http,
+				this._Http,
 				staffToken,
 				SeedConstants.Tenants.GlobalName
 			);
 
-		var charlieToken = await _AuthClient.LoginAsync(
+		var charlieToken = await this._AuthClient.LoginAsync(
 			TestConstants.CharlieEmail,
 			TestConstants.SeedPassword
 		);
 
 		using (var acmeRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsEndpoint
+			TenantPermissionFilterSpec._PostsEndpoint
 		)
 			.WithSessionToken(charlieToken)
 			.WithTenantId(acmeId)) {
 			using var acmeResponse =
-				await _Http.SendAsync(acmeRequest);
+				await this._Http.SendAsync(acmeRequest);
 
 			// Admin in Acme: bypass applies.
 			acmeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -245,12 +245,12 @@ public sealed class TenantPermissionFilterSpec
 
 		using (var globalRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			_PostsEndpoint
+			TenantPermissionFilterSpec._PostsEndpoint
 		)
 			.WithSessionToken(charlieToken)
 			.WithTenantId(globalId)) {
 			using var globalResponse =
-				await _Http.SendAsync(globalRequest);
+				await this._Http.SendAsync(globalRequest);
 
 			// Non-admin in Global Solutions, no profiles assigned: must be denied.
 			globalResponse.StatusCode.Should()
@@ -272,7 +272,7 @@ public sealed class TenantPermissionFilterSpec
 		// Hitting a staff-scope permission-gated endpoint must be rejected by
 		// StaffAuthFilter before any permission check runs — proving the tenant Admin
 		// bypass cannot cross into staff-scope enforcement.
-		var acmeAdminToken = await _AuthClient.LoginAsync(
+		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -289,7 +289,7 @@ public sealed class TenantPermissionFilterSpec
 		).WithSessionToken(acmeAdminToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -306,7 +306,7 @@ public sealed class TenantPermissionFilterSpec
 		IEnumerable<string> permissionKeys
 	) {
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -344,7 +344,7 @@ public sealed class TenantPermissionFilterSpec
 		var trimmedEmail = email.Trim();
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -394,7 +394,7 @@ public sealed class TenantPermissionFilterSpec
 		}
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

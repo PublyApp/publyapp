@@ -104,7 +104,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 	public void ItShouldDiscoverScopedHandlerEntrypointsToGuard() {
 		// Vacuity check: a silent zero-count (e.g. from a broken namespace filter)
 		// would make the scope-naming guards pass for the wrong reason.
-		var scopedHandlers = _DiscoverScopedHandlerEntrypointTypes();
+		var scopedHandlers = HandlerScopeNamingGuardSpec._DiscoverScopedHandlerEntrypointTypes();
 
 		_ = scopedHandlers.Should().NotBeEmpty(
 			"scoped handler-entrypoint discovery (Staff/Tenant/Anonymous) must "
@@ -126,10 +126,10 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// "Tenant". See the class-level doc comment for the ratchet plan.
 	[Fact]
 	public void ItShouldNameStaffHandlersWithStaffOrTenantScopeMarker() {
-		var staffHandlers = _DiscoverScopedHandlerEntrypointTypes()
+		var staffHandlers = HandlerScopeNamingGuardSpec._DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					_StaffNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
@@ -141,8 +141,8 @@ public sealed class HandlerScopeNamingGuardSpec {
 		);
 
 		List<string> offenders = staffHandlers
-			.Where(type => !_IsAllowlisted(type, _StaffScopeAllowlist))
-			.Where(type => !_HasStaffScopeMarker(type.Name))
+			.Where(type => !HandlerScopeNamingGuardSpec._IsAllowlisted(type, HandlerScopeNamingGuardSpec._StaffScopeAllowlist))
+			.Where(type => !HandlerScopeNamingGuardSpec._HasStaffScopeMarker(type.Name))
 			.Select(type =>
 				$"{type.FullName} (expected name to contain 'Staff' or 'Tenant')")
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -163,16 +163,16 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// correct scope marker.
 	[Fact]
 	public void ItShouldNameTenantHandlersWithTenantScopeMarker() {
-		var tenantHandlers = _DiscoverScopedHandlerEntrypointTypes()
+		var tenantHandlers = HandlerScopeNamingGuardSpec._DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					_TenantNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._TenantNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
 
 		List<string> offenders = tenantHandlers
-			.Where(type => !_HasTenantScopeMarker(type.Name))
+			.Where(type => !HandlerScopeNamingGuardSpec._HasTenantScopeMarker(type.Name))
 			.Select(type =>
 				$"{type.FullName} (expected name to contain 'Tenant' or 'ForTenant')")
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -192,10 +192,10 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// when handlers are expected.
 	[Fact]
 	public void ItShouldDiscoverAnonymousHandlers() {
-		var anonymousHandlers = _DiscoverScopedHandlerEntrypointTypes()
+		var anonymousHandlers = HandlerScopeNamingGuardSpec._DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					_AnonymousNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._AnonymousNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();
@@ -214,19 +214,19 @@ public sealed class HandlerScopeNamingGuardSpec {
 	// downward over time.
 	[Fact]
 	public void ItShouldKeepStaffAllowlistEntriesRelevant() {
-		var allHandlerFullNames = _DiscoverScopedHandlerEntrypointTypes()
+		var allHandlerFullNames = HandlerScopeNamingGuardSpec._DiscoverScopedHandlerEntrypointTypes()
 			.Select(type => type.FullName.Required())
 			.ToHashSet(StringComparer.Ordinal);
 
-		var staffHandlersByFullName = _DiscoverScopedHandlerEntrypointTypes()
+		var staffHandlersByFullName = HandlerScopeNamingGuardSpec._DiscoverScopedHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					_StaffNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToDictionary(type => type.FullName.Required(), StringComparer.Ordinal);
 
-		List<string> staleEntries = _StaffScopeAllowlist
+		List<string> staleEntries = HandlerScopeNamingGuardSpec._StaffScopeAllowlist
 			.Where(entry => {
 				// Stale if the type no longer exists at all.
 				if (!allHandlerFullNames.Contains(entry)) {
@@ -235,7 +235,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 
 				// Stale if the type now HAS a scope marker — the ratchet succeeded.
 				if (staffHandlersByFullName.TryGetValue(entry, out var type)
-					&& _HasStaffScopeMarker(type.Name)) {
+					&& HandlerScopeNamingGuardSpec._HasStaffScopeMarker(type.Name)) {
 					return true;
 				}
 
@@ -267,15 +267,15 @@ public sealed class HandlerScopeNamingGuardSpec {
 			.EnumerateHandlerEntrypointTypes()
 			.Where(type =>
 				type.Namespace?.EndsWith(
-					_StaffNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._StaffNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true
 				|| type.Namespace?.EndsWith(
-					_TenantNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._TenantNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true
 				|| type.Namespace?.EndsWith(
-					_AnonymousNamespaceSuffix,
+					HandlerScopeNamingGuardSpec._AnonymousNamespaceSuffix,
 					StringComparison.Ordinal
 				) is true)
 			.ToList();

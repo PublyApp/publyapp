@@ -19,12 +19,12 @@ public sealed class EndpointRateLimitStartupGuardSpec
 	public EndpointRateLimitStartupGuardSpec(
 		ApiFixture fixture
 	) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public void ItShouldDiscoverRealRouteEndpointsToGuard() {
-		var endpoints = _GetRouteEndpoints();
+		var endpoints = this._GetRouteEndpoints();
 
 		endpoints.Should().HaveCountGreaterThan(
 			100,
@@ -36,7 +36,7 @@ public sealed class EndpointRateLimitStartupGuardSpec
 	public void ItShouldRequireARateLimitDispositionOnEveryEndpoint() {
 		var act = () =>
 			EndpointRateLimitStartupGuard.Validate(
-				_GetRouteEndpoints()
+				this._GetRouteEndpoints()
 			);
 
 		act.Should().NotThrow(
@@ -107,7 +107,7 @@ public sealed class EndpointRateLimitStartupGuardSpec
 
 	[Fact]
 	public void ItShouldObserveRealRouteGroupPolicyInheritance() {
-		var endpoint = _GetRouteEndpoints()
+		var endpoint = this._GetRouteEndpoints()
 			.Single(route =>
 				route.Metadata
 					.GetMetadata<IEndpointNameMetadata>()
@@ -125,7 +125,7 @@ public sealed class EndpointRateLimitStartupGuardSpec
 	}
 
 	private IReadOnlyList<RouteEndpoint> _GetRouteEndpoints() {
-		return _Fixture.Factory.Services
+		return this._Fixture.Factory.Services
 			.GetRequiredService<EndpointDataSource>()
 			.Endpoints
 			.OfType<RouteEndpoint>()

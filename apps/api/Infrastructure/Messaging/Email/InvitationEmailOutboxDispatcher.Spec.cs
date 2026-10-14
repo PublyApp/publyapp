@@ -21,13 +21,13 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	private readonly ApiFixture _Fixture;
 
 	public InvitationEmailOutboxDispatcherSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldMarkRowSentWhenDeliverySucceeds() {
-		var dispatcher = _CreateDispatcher();
-		await using var dbContext = await _CreateDbContextAsync();
+		var dispatcher = this._CreateDispatcher();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("succeed@example.com", "tok-succeed");
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
@@ -45,8 +45,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldScheduleBackoffRetryWhenDeliveryFailsAndAttemptsRemain() {
-		var dispatcher = _CreateDispatcher();
-		await using var dbContext = await _CreateDbContextAsync();
+		var dispatcher = this._CreateDispatcher();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("retry@example.com", "tok-retry");
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
@@ -67,8 +67,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldMarkRowPermanentlyFailedWhenAttemptsAreExhausted() {
-		var dispatcher = _CreateDispatcher();
-		await using var dbContext = await _CreateDbContextAsync();
+		var dispatcher = this._CreateDispatcher();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("exhausted@example.com", "tok-exhausted");
 		row.AttemptCount = InvitationEmailOutboxDispatcher.MaxAttempts - 1;
@@ -85,8 +85,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldDeliverTenantInvitationWithTenantNameAndAccountLevel() {
-		var dispatcher = _CreateDispatcher();
-		await using var dbContext = await _CreateDbContextAsync();
+		var dispatcher = this._CreateDispatcher();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateTenantInvitation(
 			"tenant-invite@example.com",
@@ -120,7 +120,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	// never overlap, however the batch happens to split between them.
 	[Fact]
 	public async Task ItShouldNeverClaimTheSameRowFromTwoConcurrentDispatchers() {
-		await using var seedContext = await _CreateDbContextAsync();
+		await using var seedContext = await this._CreateDbContextAsync();
 		for (var i = 0; i < 50; i++) {
 			var row = InvitationEmailOutbox.CreateStaffInvitation(
 				$"claim-race-{Guid.NewGuid():N}@example.com",
@@ -131,8 +131,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		}
 		await seedContext.SaveChangesAsync();
 
-		await using var dbContextA = await _CreateDbContextAsync();
-		await using var dbContextB = await _CreateDbContextAsync();
+		await using var dbContextA = await this._CreateDbContextAsync();
+		await using var dbContextB = await this._CreateDbContextAsync();
 
 		var claimA = InvitationEmailOutboxDispatcher.ClaimBatchAsync(dbContextA, CancellationToken.None);
 		var claimB = InvitationEmailOutboxDispatcher.ClaimBatchAsync(dbContextB, CancellationToken.None);
@@ -159,7 +159,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	// send. This test now asserts that retirement (the row is NOT eagerly cancelled).
 	[Fact]
 	public async Task ItShouldNotSynchronouslyCancelTheOutboxRowWhenTheInvitationIsRevoked() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var revokeService = scope.ServiceProvider
 			.GetRequiredService<IInvitationRevokeService>();
@@ -168,7 +168,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			.CreateStaffInvitationWithProfiles(
 				$"revoke-cancel-{Guid.NewGuid():N}@example.com",
 				[],
-				(await _GetAnyStaffUserIdAsync(dbContext)),
+				(await InvitationEmailOutboxDispatcherSpec._GetAnyStaffUserIdAsync(dbContext)),
 				DateTime.UtcNow.AddDays(7),
 				$"tok-{Guid.NewGuid():N}"
 			);
@@ -186,7 +186,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			RevokeInvitationForStaffResult.Success
 		>();
 
-		await using var verifyScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var verifyScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var reloadedRow = await verifyDbContext.InvitationEmailOutbox
 			.SingleAsync(o => o.Id == outboxRow.Id);
@@ -202,14 +202,14 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	// closes (row written, provider down, invitation revoked before retry).
 	[Fact]
 	public async Task ItShouldCancelInsteadOfSendWhenTheLinkedInvitationIsNoLongerEligible() {
-		var dispatcher = _CreateDispatcher();
-		await using var dbContext = await _CreateDbContextAsync();
+		var dispatcher = this._CreateDispatcher();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		var invitation = Invitation
 			.CreateStaffInvitationWithProfiles(
 				$"stale-{Guid.NewGuid():N}@example.com",
 				[],
-				(await _GetAnyStaffUserIdAsync(dbContext)),
+				(await InvitationEmailOutboxDispatcherSpec._GetAnyStaffUserIdAsync(dbContext)),
 				DateTime.UtcNow.AddDays(7),
 				$"tok-{Guid.NewGuid():N}"
 			);
@@ -238,14 +238,14 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 
 	private InvitationEmailOutboxDispatcher _CreateDispatcher() {
 		return new InvitationEmailOutboxDispatcher(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
-			_Fixture.Factory.Services.GetRequiredService<IInvitationEmailOutboxSignal>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IInvitationEmailOutboxSignal>(),
 			NullLogger<InvitationEmailOutboxDispatcher>.Instance
 		);
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -269,7 +269,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			TenantInvitationsSent { get; } = [];
 
 		public StubEmailService(bool shouldThrow) {
-			_ShouldThrow = shouldThrow;
+			this._ShouldThrow = shouldThrow;
 		}
 
 		// F3 contract: IEmailService methods now return an EmailSendReceipt and throw a
@@ -308,12 +308,12 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		}
 
 		public Task<EmailSendReceipt> SendInvitationToJoinStaffEmailAsync(string email, string token) {
-			if (_ShouldThrow) {
+			if (this._ShouldThrow) {
 				throw new EmailProviderPermanentException("StubEmailService: simulated send failure");
 			}
 
-			StaffInvitationsSent.Add((email, token));
-			return _Receipt();
+			this.StaffInvitationsSent.Add((email, token));
+			return InvitationEmailOutboxDispatcherSpec.StubEmailService._Receipt();
 		}
 
 		public Task<EmailSendReceipt> SendTenantInvitationEmailAsync(
@@ -322,12 +322,12 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			string token,
 			AccountLevel level
 		) {
-			if (_ShouldThrow) {
+			if (this._ShouldThrow) {
 				throw new EmailProviderPermanentException("StubEmailService: simulated send failure");
 			}
 
-			TenantInvitationsSent.Add((email, tenantName, token, level));
-			return _Receipt();
+			this.TenantInvitationsSent.Add((email, tenantName, token, level));
+			return InvitationEmailOutboxDispatcherSpec.StubEmailService._Receipt();
 		}
 	}
 }

@@ -23,17 +23,17 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public RecoverStaleJobsJobSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldFenceOutTheExpiredOwnerWhenRecoveringAStaleRow() {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM job_queue;");
 
 		// A worker claims the row, then "crashes": the negative lease puts
 		// locked_until in the past immediately, with the claim's real fencing token.
-		var row = new JobQueueItem { JobType = _JobType };
+		var row = new JobQueueItem { JobType = RecoverStaleJobsJobSpec._JobType };
 		await dbContext.JobQueue.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 		var rowId = row.Id.GetValueOrDefault();
@@ -49,7 +49,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 		var reclaimed = await job.RecoverAsync(CancellationToken.None);
 		reclaimed.Should().BeGreaterThan(0, "the expired lease must be recovered");
 
-		await using var verifyContext = await _CreateDbContextAsync();
+		await using var verifyContext = await this._CreateDbContextAsync();
 		var recovered = await verifyContext.JobQueue.SingleAsync(j => j.Id == rowId);
 		recovered.Status.Should().Be(JobQueueStatus.Pending);
 		recovered.LockToken.Should().BeNull(
@@ -84,10 +84,10 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNotRecoverARowWhoseLeaseIsStillLive() {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM job_queue;");
 
-		var row = new JobQueueItem { JobType = _JobType };
+		var row = new JobQueueItem { JobType = RecoverStaleJobsJobSpec._JobType };
 		await dbContext.JobQueue.AddAsync(row);
 		await dbContext.SaveChangesAsync();
 		var rowId = row.Id.GetValueOrDefault();
@@ -102,7 +102,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 		await job.RecoverAsync(CancellationToken.None);
 
 		// A live lease is untouched: still Processing, token intact, owner can complete.
-		await using var verifyContext = await _CreateDbContextAsync();
+		await using var verifyContext = await this._CreateDbContextAsync();
 		var untouched = await verifyContext.JobQueue.SingleAsync(j => j.Id == rowId);
 		untouched.Status.Should().Be(JobQueueStatus.Processing);
 		untouched.LockToken.Should().Be(liveToken);
@@ -114,7 +114,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

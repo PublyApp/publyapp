@@ -24,28 +24,28 @@ public sealed class DeleteSystemNoticeSpec
 	public DeleteSystemNoticeSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithApiResponseForExistingNotice() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "To Be Deleted"
 			);
 
-		var url = _GetDeleteUrl(noticeId);
+		var url = DeleteSystemNoticeSpec._GetDeleteUrl(noticeId);
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -62,20 +62,20 @@ public sealed class DeleteSystemNoticeSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutAuth() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token
+				this._Http, token
 			);
 
 		try {
-			var url = _GetDeleteUrl(noticeId);
+			var url = DeleteSystemNoticeSpec._GetDeleteUrl(noticeId);
 			var request = new HttpRequestMessage(
 				HttpMethod.Delete, url
 			);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Unauthorized);
@@ -83,7 +83,7 @@ public sealed class DeleteSystemNoticeSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -95,15 +95,15 @@ public sealed class DeleteSystemNoticeSpec
 	public async Task
 	ItShouldReturnNotFoundForNonexistent() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var url = _GetDeleteUrl(Guid.NewGuid());
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var url = DeleteSystemNoticeSpec._GetDeleteUrl(Guid.NewGuid());
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -120,21 +120,21 @@ public sealed class DeleteSystemNoticeSpec
 	public async Task
 	ItShouldReturnNotFoundForAlreadyDeleted() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Delete Twice"
 			);
 
 		// Delete first time
-		var url = _GetDeleteUrl(noticeId);
+		var url = DeleteSystemNoticeSpec._GetDeleteUrl(noticeId);
 		var firstRequest = new HttpRequestMessage(
 			HttpMethod.Delete, url
 		).WithSessionToken(token);
 
 		using var firstResponse =
-			await _Http.SendAsync(firstRequest);
+			await this._Http.SendAsync(firstRequest);
 		firstResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
@@ -144,7 +144,7 @@ public sealed class DeleteSystemNoticeSpec
 		).WithSessionToken(token);
 
 		using var secondResponse =
-			await _Http.SendAsync(secondRequest);
+			await this._Http.SendAsync(secondRequest);
 
 		secondResponse.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -154,9 +154,9 @@ public sealed class DeleteSystemNoticeSpec
 	public async Task
 	ItShouldReturnBadRequestForMalformedId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tempId = Guid.NewGuid();
-		var url = _GetDeleteUrl(tempId).Replace(
+		var url = DeleteSystemNoticeSpec._GetDeleteUrl(tempId).Replace(
 			tempId.ToString(),
 			"not-a-guid",
 			StringComparison.Ordinal
@@ -168,7 +168,7 @@ public sealed class DeleteSystemNoticeSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);

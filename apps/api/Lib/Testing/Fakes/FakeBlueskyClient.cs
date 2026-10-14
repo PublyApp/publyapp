@@ -21,7 +21,7 @@ public sealed class FakeBlueskyClient : IBlueskyClient {
 
 	/// <summary>All recorded attempts in arrival order.</summary>
 	public IReadOnlyList<CreateAttempt> Attempts {
-		get { return _Attempts.ToList(); }
+		get { return this._Attempts.ToList(); }
 	}
 
 	/// <summary>
@@ -34,10 +34,10 @@ public sealed class FakeBlueskyClient : IBlueskyClient {
 		BlueskyCredentials credentials,
 		CancellationToken cancellationToken = default
 	) {
-		_Attempts.Enqueue(new CreateAttempt(credentials.Identifier));
+		this._Attempts.Enqueue(new CreateAttempt(credentials.Identifier));
 
-		if (NextResult is not null) {
-			return Task.FromResult(NextResult);
+		if (this.NextResult is not null) {
+			return Task.FromResult(this.NextResult);
 		}
 
 		// Deterministic identity derived from the identifier so specs can assert exact
@@ -56,6 +56,6 @@ public sealed class FakeBlueskyClient : IBlueskyClient {
 
 	/// <summary>Clears recorded attempts (single-test phase resets only; see class remarks).</summary>
 	public void Clear() {
-		_Attempts.Clear();
+		this._Attempts.Clear();
 	}
 }

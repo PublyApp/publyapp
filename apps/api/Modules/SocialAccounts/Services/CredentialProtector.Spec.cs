@@ -16,7 +16,7 @@ public sealed class CredentialProtectorSpec {
 
 	[Fact]
 	public void ItShouldRoundTripTheSecretForEachProviderPurpose() {
-		var protector = _Provider();
+		var protector = CredentialProtectorSpec._Provider();
 		var clear = "app-password-secret";
 
 		var protectedValue = protector.Protect(clear, SocialProvider.Bluesky);
@@ -29,7 +29,7 @@ public sealed class CredentialProtectorSpec {
 
 	[Fact]
 	public void ItShouldReportAbsentWithoutThrowingWhenTheInputIsNullOrEmpty() {
-		var protector = _Provider();
+		var protector = CredentialProtectorSpec._Provider();
 
 		protector.Unprotect(null, SocialProvider.Bluesky).Outcome
 			.Should().Be(UnprotectOutcome.Absent, "no credential stored is not a failure");
@@ -41,7 +41,7 @@ public sealed class CredentialProtectorSpec {
 
 	[Fact]
 	public void ItShouldReportTamperedWhenTheBlobIsGarbageInsteadOfSwallowingItIntoNull() {
-		var protector = _Provider();
+		var protector = CredentialProtectorSpec._Provider();
 		var result = protector.Unprotect("not-a-valid-token", SocialProvider.Bluesky);
 		result.Outcome.Should().Be(
 			UnprotectOutcome.Tampered,
@@ -52,7 +52,7 @@ public sealed class CredentialProtectorSpec {
 
 	[Fact]
 	public void ItShouldReportTamperedWhenTheBlobWasTruncatedOrBitFlipped() {
-		var protector = _Provider();
+		var protector = CredentialProtectorSpec._Provider();
 		var protectedValue = protector.Protect("app-password-secret", SocialProvider.Bluesky);
 
 		// Flip one bit in the payload body — GCM authentication must fail.
@@ -67,7 +67,7 @@ public sealed class CredentialProtectorSpec {
 
 	[Fact]
 	public void ItShouldReportTamperedForACrossPurposePayload() {
-		var protector = _Provider();
+		var protector = CredentialProtectorSpec._Provider();
 		// Only Bluesky exists today; the purpose string is per-provider by design. A blob
 		// minted under another purpose (future provider) or another key must NOT decrypt:
 		// assert the tamper branch directly against a foreign-purpose protector.

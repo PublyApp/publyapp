@@ -24,12 +24,12 @@ public sealed class HealthFailureLogRedactionSpec {
 			logger,
 			new HealthCheckLogGate()
 		);
-		using var logScope = logger.BeginScope(_SafeScopeMarker);
+		using var logScope = logger.BeginScope(HealthFailureLogRedactionSpec._SafeScopeMarker);
 
 		var result = await check.CheckHealthAsync(new HealthCheckContext());
 
 		result.Status.Should().Be(HealthStatus.Unhealthy);
-		_AssertNoSentinelInLogs(logger.Entries);
+		HealthFailureLogRedactionSpec._AssertNoSentinelInLogs(logger.Entries);
 	}
 
 	[Fact]
@@ -40,12 +40,12 @@ public sealed class HealthFailureLogRedactionSpec {
 			logger,
 			new HealthCheckLogGate()
 		);
-		using var logScope = logger.BeginScope(_SafeScopeMarker);
+		using var logScope = logger.BeginScope(HealthFailureLogRedactionSpec._SafeScopeMarker);
 
 		var result = await check.CheckHealthAsync(new HealthCheckContext());
 
 		result.Status.Should().Be(HealthStatus.Unhealthy);
-		_AssertNoSentinelInLogs(logger.Entries);
+		HealthFailureLogRedactionSpec._AssertNoSentinelInLogs(logger.Entries);
 	}
 
 	[Fact]
@@ -64,13 +64,13 @@ public sealed class HealthFailureLogRedactionSpec {
 				HeartbeatPath = heartbeatPath,
 			}
 		);
-		using var logScope = logger.BeginScope(_SafeScopeMarker);
+		using var logScope = logger.BeginScope(HealthFailureLogRedactionSpec._SafeScopeMarker);
 
 		var act = async () => await gate.StartAsync(CancellationToken.None);
 
 		try {
 			await act.Should().ThrowAsync<TimeoutException>();
-			_AssertNoSentinelInLogs(logger.Entries);
+			HealthFailureLogRedactionSpec._AssertNoSentinelInLogs(logger.Entries);
 		} finally {
 			File.Delete(heartbeatPath);
 		}
@@ -79,26 +79,26 @@ public sealed class HealthFailureLogRedactionSpec {
 	private static void _AssertNoSentinelInLogs(IReadOnlyList<CapturedLog> entries) {
 		entries.Should().NotBeEmpty();
 		foreach (var entry in entries) {
-			entry.Message.Should().NotContain(_SecretSentinel);
+			entry.Message.Should().NotContain(HealthFailureLogRedactionSpec._SecretSentinel);
 			entry.State.Should().NotContain(pair =>
-				_ContainsSentinel(pair.Key) || _ContainsSentinel(pair.Value)
+				HealthFailureLogRedactionSpec._ContainsSentinel(pair.Key) || HealthFailureLogRedactionSpec._ContainsSentinel(pair.Value)
 			);
-			entry.Scopes.Should().Contain(_SafeScopeMarker);
-			entry.Scopes.Should().NotContain(scope => _ContainsSentinel(scope));
+			entry.Scopes.Should().Contain(HealthFailureLogRedactionSpec._SafeScopeMarker);
+			entry.Scopes.Should().NotContain(scope => HealthFailureLogRedactionSpec._ContainsSentinel(scope));
 			entry.Exception.Should().BeNull();
 		}
 	}
 
 	private static bool _ContainsSentinel(object? value) {
 		return value?.ToString()?.Contains(
-			_SecretSentinel,
+			HealthFailureLogRedactionSpec._SecretSentinel,
 			StringComparison.Ordinal
 		) is true;
 	}
 
 	private static Exception _CreateHealthLogSecretSentinelConnectionStringKeyToken() {
 		try {
-			_ThrowHealthLogSecretSentinelConnectionStringKeyToken();
+			HealthFailureLogRedactionSpec._ThrowHealthLogSecretSentinelConnectionStringKeyToken();
 		} catch (Exception exception) {
 			return exception;
 		}
@@ -108,9 +108,9 @@ public sealed class HealthFailureLogRedactionSpec {
 
 	private static void _ThrowHealthLogSecretSentinelConnectionStringKeyToken() {
 		var exception = new InvalidOperationException(
-			$"{_SecretSentinel} Host=db.internal Port=5432 Password=secret-value"
+			$"{HealthFailureLogRedactionSpec._SecretSentinel} Host=db.internal Port=5432 Password=secret-value"
 		);
-		exception.Data[_SecretSentinel] = $"private-key-{_SecretSentinel}";
+		exception.Data[HealthFailureLogRedactionSpec._SecretSentinel] = $"private-key-{HealthFailureLogRedactionSpec._SecretSentinel}";
 		throw exception;
 	}
 

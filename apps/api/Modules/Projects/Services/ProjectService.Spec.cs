@@ -18,13 +18,13 @@ public sealed class ProjectServiceSpec
 	private readonly ApiFixture _Fixture;
 
 	public ProjectServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task
 	ItShouldSoftDeleteProjectWithoutChangingLifecycleStatusWhenDeleting() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var tenantId = await dbContext.Tenant

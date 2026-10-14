@@ -20,15 +20,15 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public VerifyEmailRequestServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldPersistTokenAndEnqueueVerifyEmailForUnverifiedUser() {
 		var email = $"verify-unverified-{Guid.NewGuid():N}@example.com";
-		var token = await _SeedUnverifiedUserAsync(email);
+		var token = await this._SeedUnverifiedUserAsync(email);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var enqueuer = new RecordingEnqueuer();
 		var service = new VerifyEmailRequestService(dbContext, enqueuer);
@@ -40,7 +40,7 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		enqueuer.Payload.Should().BeOfType<VerifyEmailPayload>();
 		enqueuer.Payload.Required().IsWelcomeEmail.Should().BeFalse();
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		var user = await verify.User.FirstAsync(u => u.Id == token);
 		user.EmailVerifyToken.Should().NotBeNullOrEmpty();
 		user.EmailVerifyTokenExpiresAt.Should().NotBeNull();
@@ -51,13 +51,13 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		var email = $"verify-reuse-{Guid.NewGuid():N}@example.com";
 		var liveToken = "live-token-" + Guid.NewGuid().ToString("N");
 		var liveExpiresAt = DateTime.UtcNow.AddMinutes(15);
-		var userId = await _SeedUnverifiedUserAsync(
+		var userId = await this._SeedUnverifiedUserAsync(
 			email,
 			token: liveToken,
 			expiresAt: liveExpiresAt
 		);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var enqueuer = new RecordingEnqueuer();
 		var service = new VerifyEmailRequestService(dbContext, enqueuer);
@@ -67,7 +67,7 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		result.Should().BeOfType<VerifyEmailRequestServiceResult.Success>();
 		enqueuer.Calls.Should().Be(1);
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		var user = await verify.User.FirstAsync(u => u.Id == userId);
 		user.EmailVerifyToken.Should().Be(liveToken, "a live token is reused");
 		user.EmailVerifyTokenExpiresAt.Should().BeCloseTo(
@@ -79,9 +79,9 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRollbackTokenAndNotCreateJobWhenEnqueueFails() {
 		var email = $"verify-rollback-{Guid.NewGuid():N}@example.com";
-		var userId = await _SeedUnverifiedUserAsync(email);
+		var userId = await this._SeedUnverifiedUserAsync(email);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var service = new VerifyEmailRequestService(
 			dbContext,
@@ -91,7 +91,7 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		var act = async () => await service.RequestAsync(email, CancellationToken.None);
 		await act.Should().ThrowAsync<InvalidOperationException>();
 
-		await using var verify = _CreateDbContext();
+		await using var verify = this._CreateDbContext();
 		var user = await verify.User.FirstAsync(u => u.Id == userId);
 		user.EmailVerifyToken.Should().BeNull();
 		user.EmailVerifyTokenExpiresAt.Should().BeNull();
@@ -102,7 +102,7 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		string? token = null,
 		DateTime? expiresAt = null
 	) {
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		var user = new User {
 			Email = email,
 			Password = PasswordUtils.HashPassword("unused-password"),
@@ -133,11 +133,11 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private AppDbContext _CreateDbContext() {
-		return _CreateDbContext(applicationName: null);
+		return this._CreateDbContext(applicationName: null);
 	}
 
 	private AppDbContext _CreateDbContext(string? applicationName) {
-		var connectionString = _BaseConnectionString(_Fixture);
+		var connectionString = VerifyEmailRequestServiceSpec._BaseConnectionString(this._Fixture);
 		if (applicationName is not null) {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString) {
 				ApplicationName = applicationName
@@ -162,9 +162,9 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 			EnqueueOptions? options = null,
 			CancellationToken cancellationToken = default
 		) {
-			Calls += 1;
+			this.Calls += 1;
 			if (payload is VerifyEmailPayload verifyPayload) {
-				Payload = verifyPayload;
+				this.Payload = verifyPayload;
 			}
 
 			return Task.FromResult(Guid.NewGuid());

@@ -18,7 +18,7 @@ public sealed class PasswordLoginSpec
 	public PasswordLoginSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
+		this._Http = fixture.HttpClient;
 	}
 
 	[Fact]
@@ -29,7 +29,7 @@ public sealed class PasswordLoginSpec
 			password = TestConstants.SeedPassword
 		};
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);
@@ -57,7 +57,7 @@ public sealed class PasswordLoginSpec
 			password = TestConstants.SeedPassword
 		};
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);
@@ -80,7 +80,7 @@ public sealed class PasswordLoginSpec
 			password = "wrong-password-at-least-6-chars"
 		};
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);
@@ -97,7 +97,7 @@ public sealed class PasswordLoginSpec
 			password = "any-password-at-least-6"
 		};
 
-		using var response = await _Http.PostAsJsonAsync(
+		using var response = await this._Http.PostAsJsonAsync(
 			Routes.Auth.Login,
 			loginRequest
 		);

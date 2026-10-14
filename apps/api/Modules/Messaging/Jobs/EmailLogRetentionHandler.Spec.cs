@@ -21,14 +21,14 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public EmailLogRetentionHandlerSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldDeleteOnlyRowsBeyondTheRetentionHorizonKeepingTheBoundaryRow() {
 		var retentionDays = AppEnvironment.Instance.EMAIL_LOG_RETENTION_DAYS;
 		var marker = $"retain-{Guid.NewGuid():N}@example.com";
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		try {
 			var beyond = $"beyond-{marker}";
@@ -37,17 +37,17 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			var boundaryKept = $"bkeep-{marker}";
 			var boundaryDeleted = $"bdel-{marker}";
 
-			await _InsertLogAsync(dbContext, beyond, days: retentionDays + 20);
-			await _InsertLogAsync(dbContext, justInside, days: retentionDays - 1);
-			await _InsertLogAsync(dbContext, fresh, days: 10);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, beyond, days: retentionDays + 20);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, justInside, days: retentionDays - 1);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, fresh, days: 10);
 			// Exact-horizon boundary (strict <): 2 s inside is KEPT, 2 s beyond is DELETED.
-			await _InsertLogAsync(dbContext, boundaryKept, days: retentionDays, secondsOffset: -2);
-			await _InsertLogAsync(dbContext, boundaryDeleted, days: retentionDays, secondsOffset: 2);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, boundaryKept, days: retentionDays, secondsOffset: -2);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, boundaryDeleted, days: retentionDays, secondsOffset: 2);
 
-			var result = await _RunAsync(dbContext);
+			var result = await EmailLogRetentionHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			(await verify.EmailLog.AnyAsync(e => e.Recipient == beyond))
 				.Should().BeFalse("a row well beyond the horizon is swept");
 			(await verify.EmailLog.AnyAsync(e => e.Recipient == justInside))
@@ -61,7 +61,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			(await verify.EmailLog.CountAsync(e => e.Recipient.EndsWith(marker)))
 				.Should().Be(3, "exactly the two beyond-horizon rows are deleted");
 		} finally {
-			await _CleanupAsync(marker);
+			await this._CleanupAsync(marker);
 		}
 	}
 
@@ -69,21 +69,21 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
 		var retentionDays = AppEnvironment.Instance.EMAIL_LOG_RETENTION_DAYS;
 		var marker = $"retain-idem-{Guid.NewGuid():N}@example.com";
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		try {
-			await _InsertLogAsync(dbContext, $"old-{marker}", days: retentionDays + 20);
-			await _InsertLogAsync(dbContext, $"new-{marker}", days: 1);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, $"old-{marker}", days: retentionDays + 20);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, $"new-{marker}", days: 1);
 
-			await _RunAsync(dbContext);
-			var second = await _RunAsync(dbContext);
+			await EmailLogRetentionHandlerSpec._RunAsync(dbContext);
+			var second = await EmailLogRetentionHandlerSpec._RunAsync(dbContext);
 			second.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await _CreateDbContextAsync();
+			await using var verify = await this._CreateDbContextAsync();
 			var remaining = await verify.EmailLog.CountAsync(e => e.Recipient.EndsWith(marker));
 			remaining.Should().Be(1, "only the fresh row remains after either run");
 		} finally {
-			await _CleanupAsync(marker);
+			await this._CleanupAsync(marker);
 		}
 	}
 
@@ -93,7 +93,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var marker = $"exact-{Guid.NewGuid():N}@example.com";
 		var exactCutoff = $"exact-{marker}";
 		var justBeyond = $"beyond-{marker}";
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 
 		// PostgreSQL now() == transaction_timestamp(): frozen for the whole transaction. The
 		// seed and the handler's sweep run in ONE transaction, so the exact-cutoff row's
@@ -102,10 +102,10 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		// nothing persists, so no cross-test cleanup is needed.
 		await using var transaction = await dbContext.Database.BeginTransactionAsync();
 		try {
-			await _InsertLogAsync(dbContext, exactCutoff, days: retentionDays, secondsOffset: 0);
-			await _InsertLogAsync(dbContext, justBeyond, days: retentionDays, secondsOffset: 1);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, exactCutoff, days: retentionDays, secondsOffset: 0);
+			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, justBeyond, days: retentionDays, secondsOffset: 1);
 
-			var result = await _RunAsync(dbContext);
+			var result = await EmailLogRetentionHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
 			(await dbContext.EmailLog.AnyAsync(e => e.Recipient == exactCutoff))
@@ -123,7 +123,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var handler = new EmailLogRetentionHandler(
 			dbContext, NullLogger<EmailLogRetentionHandler>.Instance
 		);
-		return await handler.HandleAsync(_FakeContext(handler.JobType), CancellationToken.None);
+		return await handler.HandleAsync(EmailLogRetentionHandlerSpec._FakeContext(handler.JobType), CancellationToken.None);
 	}
 
 	private static JobContext _FakeContext(string jobType) {
@@ -154,14 +154,14 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string marker) {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM email_log WHERE recipient LIKE {"%" + marker}"
 		);
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

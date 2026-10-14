@@ -67,10 +67,10 @@ public sealed class HealthEndpointDependencyFailureSpec {
 			).Subject;
 			warning.Message.Should().Contain("database");
 			warning.State.Should().Contain(pair =>
-				pair.Key == "HealthCheck" && Equals(pair.Value, "application readiness")
+				pair.Key == "HealthCheck" && HealthEndpointDependencyFailureSpec.Equals(pair.Value, "application readiness")
 			);
 			warning.State.Should().Contain(pair =>
-				pair.Key == "FailureReason" && Equals(pair.Value, "database_unreachable")
+				pair.Key == "FailureReason" && HealthEndpointDependencyFailureSpec.Equals(pair.Value, "database_unreachable")
 			);
 		} finally {
 			if (Directory.Exists(storageRoot)) {

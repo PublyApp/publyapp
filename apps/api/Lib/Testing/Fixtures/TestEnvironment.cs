@@ -95,14 +95,14 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 		/// </summary>
 		[System.Runtime.CompilerServices.ModuleInitializer]
 		internal static void Bootstrap() {
-			InitializeOnce(_PlaceholderConnectionString);
+			TestEnvironment.InitializeOnce(TestEnvironment._PlaceholderConnectionString);
 		}
 
 		public static void InitializeOnce(
 			string postgresConnectionString
 		) {
 			if (Interlocked.CompareExchange(
-				ref _IsInitialized, 1, 0
+				ref TestEnvironment._IsInitialized, 1, 0
 			) != 0) {
 				return;
 			}
@@ -213,7 +213,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures {
 				//    accesses AppEnvironment.Instance).
 				_ = AppEnvironment.Initialize();
 			} catch {
-				Volatile.Write(ref _IsInitialized, 0);
+				Volatile.Write(ref TestEnvironment._IsInitialized, 0);
 				throw;
 			}
 		}

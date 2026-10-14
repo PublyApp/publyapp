@@ -31,27 +31,27 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 	private readonly ApiFixture _Fixture = new();
 
 	public Task InitializeAsync() {
-		return _Fixture.InitializeAsync();
+		return this._Fixture.InitializeAsync();
 	}
 
 	public Task DisposeAsync() {
-		return _Fixture.DisposeAsync();
+		return this._Fixture.DisposeAsync();
 	}
 
 	[Fact]
 	public async Task ItShouldDispatchSubmittedEmailThroughTheRegisteredProcessor() {
-		var (invitationId, _) = await _SeedStaffInvitationAsync();
-		var jobId = await _SeedQueuedStaffInvitationAsync(invitationId);
-		var sender = _Fixture.GetFakeEmailSender();
+		var (invitationId, _) = await this._SeedStaffInvitationAsync();
+		var jobId = await this._SeedQueuedStaffInvitationAsync(invitationId);
+		var sender = this._Fixture.GetFakeEmailSender();
 
-		var result = await _CreateProcessor().ProcessBatchAsync(CancellationToken.None);
+		var result = await this._CreateProcessor().ProcessBatchAsync(CancellationToken.None);
 
 		result.Should().Be(new JobQueueProcessor.BatchResult(1, 1, 1, true));
 		sender.Sends.Should().ContainSingle(send =>
 			send.IdempotencyKey == jobId.ToString("N")
 		);
 
-		await using var assertDb = _CreateDbContext();
+		await using var assertDb = this._CreateDbContext();
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(job => job.Id == jobId))
 			.Should().BeFalse();
 		var log = await assertDb.EmailLog.AsNoTracking()
@@ -63,17 +63,17 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldDispatchPermanentEmailFailureThroughTheRegisteredProcessor() {
-		var (invitationId, _) = await _SeedStaffInvitationAsync();
-		var jobId = await _SeedQueuedStaffInvitationAsync(invitationId);
-		var sender = _Fixture.GetFakeEmailSender();
+		var (invitationId, _) = await this._SeedStaffInvitationAsync();
+		var jobId = await this._SeedQueuedStaffInvitationAsync(invitationId);
+		var sender = this._Fixture.GetFakeEmailSender();
 		sender.FailWith = _ => new EmailProviderPermanentException("provider_rejected:422");
 
-		var result = await _CreateProcessor().ProcessBatchAsync(CancellationToken.None);
+		var result = await this._CreateProcessor().ProcessBatchAsync(CancellationToken.None);
 
 		result.Should().Be(new JobQueueProcessor.BatchResult(1, 1, 1, true));
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = _CreateDbContext();
+		await using var assertDb = this._CreateDbContext();
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(job => job.Id == jobId))
 			.Should().BeFalse();
 		(await assertDb.JobDeadLetter.AsNoTracking()
@@ -90,8 +90,8 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 		var instance = new JobWorkerInstance();
 
 		return new JobQueueProcessor(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
-			_Fixture.Factory.Services.GetRequiredService<JobHandlerRegistry>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<JobHandlerRegistry>(),
 			new JobsMetrics(instance, NullLogger<JobsMetrics>.Instance),
 			instance,
 			NullLogger<JobQueueProcessor>.Instance,
@@ -105,8 +105,8 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 
 	private async Task<(Guid InvitationId, string Token)> _SeedStaffInvitationAsync() {
 		var token = $"tok-{Guid.NewGuid():N}";
-		await using var db = _CreateDbContext();
-		var invitedBy = await _SeedUserInAsync(db);
+		await using var db = this._CreateDbContext();
+		var invitedBy = await EmailJobHandlersDispatchSpec._SeedUserInAsync(db);
 		var invitation = Invitation.CreateStaffInvitationWithProfiles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
@@ -121,7 +121,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 	}
 
 	private async Task<Guid> _SeedQueuedStaffInvitationAsync(Guid invitationId) {
-		await using var db = _CreateDbContext();
+		await using var db = this._CreateDbContext();
 		var job = new JobQueueItem {
 			JobType = InvitationEmailJobs.StaffInvitationV1.JobType,
 			Payload = $"{{\"invitationId\":\"{invitationId}\"}}",
@@ -150,7 +150,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 	}
 
 	private AppDbContext _CreateDbContext() {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

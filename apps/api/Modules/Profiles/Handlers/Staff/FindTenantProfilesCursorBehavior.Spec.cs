@@ -34,15 +34,15 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public FindTenantProfilesCursorBehaviorSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryPageOnANameSortWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		// Deterministic, anti-correlated names: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -56,7 +56,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 		// determine the order of the two equal-key rows.
 		for (var i = 0; i < total; i++) {
 			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
-			seededIds.Add(await _SeedTenantProfileWithNameAsync(tenantId, name));
+			seededIds.Add(await this._SeedTenantProfileWithNameAsync(tenantId, name));
 			seededNames.Add(name);
 		}
 		seededNames.Sort(StringComparer.OrdinalIgnoreCase);
@@ -73,10 +73,10 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(tenantId.ToString(), query)
+				FindTenantProfilesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query)
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -109,8 +109,8 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		// 3 profiles with distinct Id; the walk must visit each once in
 		// ascending Id order. A keySelector swap to another same-type field
@@ -118,7 +118,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
 			var name = $"Id Walk {i} {Guid.NewGuid():N}";
-			seededIds.Add(await _SeedTenantProfileWithNameAsync(tenantId, name));
+			seededIds.Add(await this._SeedTenantProfileWithNameAsync(tenantId, name));
 		}
 
 		var visitedIds = new List<Guid>();
@@ -132,10 +132,10 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(tenantId.ToString(), query)
+				FindTenantProfilesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query)
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -162,8 +162,8 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		// 3 profiles with distinct, deliberately NOT insertion-ordered
 		// CreatedAt (anti-correlated). The walk must visit each once in
@@ -178,7 +178,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var id = await _SeedTenantProfileAtAsync(tenantId, $"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
+			var id = await this._SeedTenantProfileAtAsync(tenantId, $"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
 			seededIds.Add(id);
 			seededOrder.Add(createdAt);
 		}
@@ -188,7 +188,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapTenantProfileIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapTenantProfileIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -202,10 +202,10 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				_GetUrl(tenantId.ToString(), query)
+				FindTenantProfilesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query)
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content.ReadFromJsonAsync<FindTenantProfilesResponse>();
@@ -235,7 +235,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _SeedTenantProfileAtAsync(Guid tenantId, string name, DateTime createdAt) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(tenantId, name, isDefault: false);
@@ -254,15 +254,15 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			_GetUrl(tenantId.ToString(), $"cursor={Guid.NewGuid()}")
+			FindTenantProfilesCursorBehaviorSpec._GetUrl(tenantId.ToString(), $"cursor={Guid.NewGuid()}")
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -284,16 +284,16 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
 	}
 
 	private async Task<Guid> _SeedTenantProfileWithNameAsync(Guid tenantId, string name) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(tenantId, name, isDefault: false);
@@ -314,7 +314,7 @@ public sealed class FindTenantProfilesCursorBehaviorSpec
 	}
 
 	private async Task _SwapTenantProfileIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();
 		await dbContext.Database.ExecuteSqlRawAsync(

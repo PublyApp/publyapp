@@ -21,7 +21,7 @@ public sealed class
 		string name,
 		string value
 	) {
-		lock (_EnvLock) {
+		lock (AppEnvironmentRateLimitSecuritySpec._EnvLock) {
 			var previous = Environment.GetEnvironmentVariable(name);
 			try {
 				Environment.SetEnvironmentVariable(name, value);
@@ -46,7 +46,7 @@ public sealed class
 		string name,
 		long literalDefault
 	) {
-		lock (_EnvLock) {
+		lock (AppEnvironmentRateLimitSecuritySpec._EnvLock) {
 			var previous = Environment.GetEnvironmentVariable(name);
 			try {
 				foreach (var absentValue in new string?[] { null, "", "   " }) {
@@ -54,7 +54,7 @@ public sealed class
 
 					AppEnvironment.GetOptionalLong(
 						name,
-						_GetUploadBudgetDefault(name)
+						AppEnvironmentRateLimitSecuritySpec._GetUploadBudgetDefault(name)
 					).Should().Be(literalDefault);
 				}
 			} finally {
@@ -80,14 +80,14 @@ public sealed class
 		string name,
 		string value
 	) {
-		lock (_EnvLock) {
+		lock (AppEnvironmentRateLimitSecuritySpec._EnvLock) {
 			var previous = Environment.GetEnvironmentVariable(name);
 			try {
 				Environment.SetEnvironmentVariable(name, value);
 
 				var act = () => AppEnvironment.GetOptionalLong(
 					name,
-					_GetUploadBudgetDefault(name)
+					AppEnvironmentRateLimitSecuritySpec._GetUploadBudgetDefault(name)
 				);
 
 				act.Should().Throw<InvalidOperationException>()
@@ -107,7 +107,7 @@ public sealed class
 		long perStaffBytes,
 		string expectedMessage
 	) {
-		var environment = _CreateEnvironmentWithUploadBudgets(
+		var environment = AppEnvironmentRateLimitSecuritySpec._CreateEnvironmentWithUploadBudgets(
 			globalBytes,
 			perStaffBytes
 		);
@@ -118,7 +118,7 @@ public sealed class
 
 	[Fact]
 	public void ItShouldRejectAGlobalUploadBudgetSmallerThanPerStaffBudget() {
-		var environment = _CreateEnvironmentWithUploadBudgets(9, 10);
+		var environment = AppEnvironmentRateLimitSecuritySpec._CreateEnvironmentWithUploadBudgets(9, 10);
 
 		new AppEnvironmentValidator().Validate(environment).Errors
 			.Should().Contain(error => error.ErrorMessage.Contains(
@@ -132,7 +132,7 @@ public sealed class
 	ItShouldRejectUniversalTrustedProxyNetworks(
 		string cidr
 	) {
-		var environment = _CreateEnvironmentWithProxy(
+		var environment = AppEnvironmentRateLimitSecuritySpec._CreateEnvironmentWithProxy(
 			cidr
 		);
 
@@ -158,7 +158,7 @@ public sealed class
 	ItShouldAcceptExactTrustedProxyAddresses(
 		string cidr
 	) {
-		var environment = _CreateEnvironmentWithProxy(
+		var environment = AppEnvironmentRateLimitSecuritySpec._CreateEnvironmentWithProxy(
 			cidr
 		);
 
@@ -200,8 +200,8 @@ public sealed class
 		var environment = (AppEnvironment)RuntimeHelpers.GetUninitializedObject(
 			typeof(AppEnvironment)
 		);
-		_SetBackingField(environment, nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), globalBytes);
-		_SetBackingField(environment, nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), perStaffBytes);
+		AppEnvironmentRateLimitSecuritySpec._SetBackingField(environment, nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), globalBytes);
+		AppEnvironmentRateLimitSecuritySpec._SetBackingField(environment, nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), perStaffBytes);
 		return environment;
 	}
 

@@ -57,13 +57,13 @@ public sealed class ExportAuditLogsSpec
 	}
 
 	public ExportAuditLogsSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
-		_Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
+		this._Fixture = fixture;
 	}
 
 	[Theory]
-	[MemberData(nameof(QueryParameterNames))]
+	[MemberData(nameof(ExportAuditLogsSpec.QueryParameterNames))]
 	public void
 	ItShouldDeclareSnakeCaseQueryParameterNames(
 		string propertyName,
@@ -85,16 +85,16 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturnCsvWithValidFormat() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.LoginSucceeded
 		);
@@ -107,7 +107,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -139,16 +139,16 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturnJsonWithValidFormat() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.InvitationAccepted
 		);
@@ -161,7 +161,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -184,7 +184,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturn422ForInvalidFormat() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"xml"
@@ -194,20 +194,20 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Theory]
-	[MemberData(nameof(MalformedActionsCsv))]
+	[MemberData(nameof(ExportAuditLogsSpec.MalformedActionsCsv))]
 	public async Task
 	ItShouldReturn422WithActionsErrorWhenActionsCsvContainsEmptyToken(
 		string actions
 	) {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetExportUrl("csv")
 			+ "&actions="
@@ -217,7 +217,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -236,21 +236,21 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldApplyFiltersToExport() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.StaffProfileCreated
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			AuditActions.ImpersonationEnded
 		);
@@ -264,7 +264,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -283,11 +283,11 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldNeutralizeFormulaTriggerCharsWhenExportingCsv() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
@@ -301,31 +301,31 @@ public sealed class ExportAuditLogsSpec
 
 		// Seed logs with formula-trigger details
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			seededAction,
 			details: $"=1+1 {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			seededAction,
 			details: $"+cmd|'/C calc'!A0 {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			seededAction,
 			details: $"-1+1 {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			seededAction,
 			details: $"@SUM(A1:A10) {rowMarker}"
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			userId,
 			seededAction,
 			details: $"\t=bypass {rowMarker}"
@@ -340,7 +340,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -378,7 +378,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenStartDateIsMalformed() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
@@ -389,7 +389,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -399,7 +399,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenTargetIdIsNotValidGuid() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
@@ -410,7 +410,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -420,7 +420,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturn422WithStartDateKeyWhenStartDateIsAfterEndDate() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
@@ -432,7 +432,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
@@ -458,7 +458,7 @@ public sealed class ExportAuditLogsSpec
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -468,7 +468,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.AcmeAdminEmail,
 				TestConstants.SeedPassword
 			);
@@ -481,7 +481,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -491,7 +491,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token =
-			await _AuthClient.LoginAsync(
+			await this._AuthClient.LoginAsync(
 				TestConstants.StaffUserEmail,
 				TestConstants.SeedPassword
 			);
@@ -504,7 +504,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -514,11 +514,11 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturn400WhenExportExceedsLimit() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
@@ -531,7 +531,7 @@ public sealed class ExportAuditLogsSpec
 		for (var i = 0; i < 3; i++) {
 			await AuditLogTestHelper
 				.SeedAuditLogAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					userId,
 					seededAction
 				);
@@ -542,7 +542,7 @@ public sealed class ExportAuditLogsSpec
 		// exceed the limit.
 		var originalLimit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
-		_SetExportMaxRows(2);
+		ExportAuditLogsSpec._SetExportMaxRows(2);
 
 		try {
 			var url = AuditLogTestHelper.GetExportUrl(
@@ -554,12 +554,12 @@ public sealed class ExportAuditLogsSpec
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.BadRequest);
 		} finally {
-			_SetExportMaxRows(originalLimit);
+			ExportAuditLogsSpec._SetExportMaxRows(originalLimit);
 		}
 	}
 
@@ -567,24 +567,24 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldExportRowsForMultipleActionsWhenActionsProvided() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var userId =
 			await AuditLogTestHelper
 				.GetUserIdByEmailAsync(
-					_Fixture.Factory,
+					this._Fixture.Factory,
 					TestConstants.StaffAdminEmail
 				);
 
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory, userId,
+			this._Fixture.Factory, userId,
 			AuditActions.LoginSucceeded
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory, userId,
+			this._Fixture.Factory, userId,
 			AuditActions.LoginFailed
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
-			_Fixture.Factory, userId,
+			this._Fixture.Factory, userId,
 			AuditActions.InvitationCreated
 		);
 
@@ -600,7 +600,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -617,7 +617,7 @@ public sealed class ExportAuditLogsSpec
 	public async Task
 	ItShouldReturn422WhenExportActionsContainsUnknown() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
@@ -628,7 +628,7 @@ public sealed class ExportAuditLogsSpec
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);

@@ -34,9 +34,9 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	private static readonly string[] _MalformedProfileIds = ["not-a-guid"];
 
 	public BulkDeleteStaffProfilesSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetCreateProfileUrl() {
@@ -57,7 +57,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			sessionToken: null,
 			new { profileIds = new[] { Guid.NewGuid() } }
 		);
@@ -67,7 +67,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedForInvalidSession() {
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			"invalid-session-token",
 			new { profileIds = new[] { Guid.NewGuid() } }
 		);
@@ -77,12 +77,12 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await _AuthClient.LoginAsync(
+		var tenantToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			tenantToken,
 			new { profileIds = new[] { Guid.NewGuid() } }
 		);
@@ -94,12 +94,12 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithoutPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-delete-staff-profile-no-permission"
 			);
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { Guid.NewGuid() } }
 		);
@@ -111,14 +111,14 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldAllowPermissionedStaffUserToBulkDeleteStaffProfiles() {
 		var staffToken = await TenantBulkActionSpecSupport
 			.CreateStaffUserTokenWithPermissionAsync(
-				_Fixture,
-				_AuthClient,
+				this._Fixture,
+				this._AuthClient,
 				"bulk-delete-staff-profile-permissioned",
 				AppPermissions.Staff.Profiles.DELETE_FOR_STAFF.Key
 			);
-		var profileId = await _SeedStaffProfileAsync();
+		var profileId = await this._SeedStaffProfileAsync();
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { profileId } }
 		);
@@ -132,16 +132,16 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		result.SucceededCount.Should().Be(1);
 		result.FailedCount.Should().Be(0);
 
-		await _AssertStaffProfileDeletedAsync(profileId);
+		await this._AssertStaffProfileDeletedAsync(profileId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMalformedProfileIds() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
-			new { profileIds = _MalformedProfileIds }
+			new { profileIds = BulkDeleteStaffProfilesSpec._MalformedProfileIds }
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
@@ -155,11 +155,11 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Theory]
-	[MemberData(nameof(InvalidBodies))]
+	[MemberData(nameof(BulkDeleteStaffProfilesSpec.InvalidBodies))]
 	public async Task ItShouldReturnValidationProblemWhenBodyIsInvalid(string body) {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var response = await _BulkDeleteRawJsonAsync(staffToken, body);
+		using var response = await this._BulkDeleteRawJsonAsync(staffToken, body);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
@@ -173,11 +173,11 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldAcceptMaximumProfileIdsBoundary() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var body =
-			$$"""{ "profileIds": [{{_CreateProfileIdsJson(count: 100)}}] }""";
+			$$"""{ "profileIds": [{{BulkDeleteStaffProfilesSpec._CreateProfileIdsJson(count: 100)}}] }""";
 
-		using var response = await _BulkDeleteRawJsonAsync(staffToken, body);
+		using var response = await this._BulkDeleteRawJsonAsync(staffToken, body);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -192,14 +192,14 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldDeleteStaffProfilesInOneBulkRequest() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var firstProfileId = await _CreateStaffProfileAsync(staffToken);
-		var secondProfileId = await _CreateStaffProfileAsync(staffToken);
-		await _AttachStaffProfileUserLinkAsync(firstProfileId);
-		await _AttachStaffProfileUserLinkAsync(secondProfileId);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var firstProfileId = await this._CreateStaffProfileAsync(staffToken);
+		var secondProfileId = await this._CreateStaffProfileAsync(staffToken);
+		await this._AttachStaffProfileUserLinkAsync(firstProfileId);
+		await this._AttachStaffProfileUserLinkAsync(secondProfileId);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { firstProfileId, secondProfileId } }
 		);
@@ -214,11 +214,11 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await _AssertStaffProfileDeletedAsync(firstProfileId);
-		await _AssertStaffProfileDeletedAsync(secondProfileId);
-		await _AssertProfileRelationsRemovedAsync(firstProfileId);
-		await _AssertProfileRelationsRemovedAsync(secondProfileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertStaffProfileDeletedAsync(firstProfileId);
+		await this._AssertStaffProfileDeletedAsync(secondProfileId);
+		await this._AssertProfileRelationsRemovedAsync(firstProfileId);
+		await this._AssertProfileRelationsRemovedAsync(secondProfileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 2,
 			expectedSucceededCount: 2,
@@ -229,11 +229,11 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldDeduplicateRepeatedStaffProfileIdsBeforeDeleting() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var profileId = await _CreateStaffProfileAsync(staffToken);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await this._CreateStaffProfileAsync(staffToken);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { profileId, profileId } }
 		);
@@ -248,9 +248,9 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		result.FailedCount.Should().Be(0);
 		result.FailedItems.Should().BeEmpty();
 
-		await _AssertStaffProfileDeletedAsync(profileId);
-		await _AssertProfileRelationsRemovedAsync(profileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertStaffProfileDeletedAsync(profileId);
+		await this._AssertProfileRelationsRemovedAsync(profileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 1,
 			expectedSucceededCount: 1,
@@ -261,12 +261,12 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnPartialResultForMissingStaffProfile() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var profileId = await _CreateStaffProfileAsync(staffToken);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await this._CreateStaffProfileAsync(staffToken);
 		var missingProfileId = Guid.NewGuid();
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { profileId, missingProfileId } }
 		);
@@ -284,8 +284,8 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			&& item.Error == "Profile not found"
 		);
 
-		await _AssertStaffProfileDeletedAsync(profileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertStaffProfileDeletedAsync(profileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 2,
 			expectedSucceededCount: 1,
@@ -299,17 +299,17 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReportAlreadyDeletedStaffProfilesAsNotFound() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var profileId = await _CreateStaffProfileAsync(staffToken);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var profileId = await this._CreateStaffProfileAsync(staffToken);
 
-		using var firstResponse = await _BulkDeleteAsync(
+		using var firstResponse = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { profileId } }
 		);
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var startedAt = DateTime.UtcNow;
-		using var secondResponse = await _BulkDeleteAsync(
+		using var secondResponse = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { profileId } }
 		);
@@ -327,8 +327,8 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			&& item.Error == "Profile not found"
 		);
 
-		await _AssertStaffProfileDeletedAsync(profileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertStaffProfileDeletedAsync(profileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 1,
 			expectedSucceededCount: 0,
@@ -347,12 +347,12 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	// count.
 	[Fact]
 	public async Task ItShouldAccountForEveryRequestedStaffProfileId() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var deletableProfileId = await _CreateStaffProfileAsync(staffToken);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var deletableProfileId = await this._CreateStaffProfileAsync(staffToken);
 		var notFoundProfileId = Guid.NewGuid();
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { deletableProfileId, notFoundProfileId } }
 		);
@@ -372,8 +372,8 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			&& item.Error == "Profile not found"
 		);
 
-		await _AssertStaffProfileDeletedAsync(deletableProfileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertStaffProfileDeletedAsync(deletableProfileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 2,
 			expectedSucceededCount: 1,
@@ -393,12 +393,12 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	// the row directly to pin the accounting invariant at the boundary.
 	[Fact]
 	public async Task ItShouldReportDefaultStaffProfileAsFailedInsteadOfDroppingIt() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var deletableProfileId = await _CreateStaffProfileAsync(staffToken);
-		var defaultProfileId = await _SeedStaffDefaultProfileAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var deletableProfileId = await this._CreateStaffProfileAsync(staffToken);
+		var defaultProfileId = await this._SeedStaffDefaultProfileAsync();
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { deletableProfileId, defaultProfileId } }
 		);
@@ -418,9 +418,9 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			&& item.Error == "Default profiles cannot be deleted"
 		);
 
-		await _AssertStaffProfileDeletedAsync(deletableProfileId);
-		await _AssertProfileNotDeletedAsync(defaultProfileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertStaffProfileDeletedAsync(deletableProfileId);
+		await this._AssertProfileNotDeletedAsync(defaultProfileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 2,
 			expectedSucceededCount: 1,
@@ -434,12 +434,12 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRejectTenantProfilesInStaffProfileBulkDelete() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync();
-		var tenantProfileId = await _SeedTenantProfileAsync(tenantId);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync();
+		var tenantProfileId = await this._SeedTenantProfileAsync(tenantId);
 		var startedAt = DateTime.UtcNow;
 
-		using var response = await _BulkDeleteAsync(
+		using var response = await this._BulkDeleteAsync(
 			staffToken,
 			new { profileIds = new[] { tenantProfileId } }
 		);
@@ -457,8 +457,8 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			&& item.Error == "Profile not found"
 		);
 
-		await _AssertProfileNotDeletedAsync(tenantProfileId);
-		await _AssertLatestBulkDeleteAuditLogAsync(
+		await this._AssertProfileNotDeletedAsync(tenantProfileId);
+		await this._AssertLatestBulkDeleteAuditLogAsync(
 			startedAt,
 			expectedRequestedCount: 1,
 			expectedSucceededCount: 0,
@@ -483,7 +483,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			$$"""
 			{
 				"profileIds": [
-					{{_CreateProfileIdsJson(count: 101)}}
+					{{BulkDeleteStaffProfilesSpec._CreateProfileIdsJson(count: 101)}}
 				]
 			}
 			""",
@@ -493,7 +493,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	private async Task<Guid> _CreateStaffProfileAsync(string staffToken) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetCreateProfileUrl()
+			BulkDeleteStaffProfilesSpec._GetCreateProfileUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(new {
@@ -503,7 +503,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			emails = Array.Empty<string>()
 		});
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
@@ -513,7 +513,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedStaffProfileAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profile = Profile.CreateStaffProfile(
 			"Seeded Staff Bulk Delete " + Guid.NewGuid().ToString("N")[..8],
@@ -527,9 +527,9 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
@@ -541,7 +541,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	// boundary must still account for one if it ever reaches the database.
 	// Seeding directly is what lets the spec pin that accounting contract.
 	private async Task<Guid> _SeedStaffDefaultProfileAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profile = Profile.CreateStaffProfile(
 			"Seeded Staff Default " + Guid.NewGuid().ToString("N")[..8],
@@ -556,7 +556,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedTenantProfileAsync(Guid tenantId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var profile = Profile.CreateTenantProfile(
 			tenantId,
@@ -570,9 +570,9 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AttachStaffProfileUserLinkAsync(Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userAccountId = await _GetStaffAccountIdByEmailAsync(
+		var userAccountId = await BulkDeleteStaffProfilesSpec._GetStaffAccountIdByEmailAsync(
 			dbContext,
 			TestConstants.StaffAdminEmail
 		);
@@ -592,7 +592,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkDeleteUrl()
+			BulkDeleteStaffProfilesSpec._GetBulkDeleteUrl()
 		);
 
 		if (sessionToken is not null) {
@@ -600,7 +600,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		}
 
 		request.Content = JsonContent.Create(body);
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private async Task<HttpResponseMessage> _BulkDeleteRawJsonAsync(
@@ -609,7 +609,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	) {
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetBulkDeleteUrl()
+			BulkDeleteStaffProfilesSpec._GetBulkDeleteUrl()
 		).WithSessionToken(sessionToken);
 
 		request.Content = new StringContent(
@@ -618,11 +618,11 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			"application/json"
 		);
 
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private async Task _AssertStaffProfileDeletedAsync(Guid profileId) {
-		var profile = await _GetProfileIgnoringFiltersAsync(profileId);
+		var profile = await this._GetProfileIgnoringFiltersAsync(profileId);
 		profile.Should().NotBeNull();
 		if (profile is null) {
 			throw new InvalidOperationException("Seeded profile could not be loaded.");
@@ -634,7 +634,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AssertProfileNotDeletedAsync(Guid profileId) {
-		var profile = await _GetProfileIgnoringFiltersAsync(profileId);
+		var profile = await this._GetProfileIgnoringFiltersAsync(profileId);
 		profile.Should().NotBeNull();
 		if (profile is null) {
 			throw new InvalidOperationException("Seeded profile could not be loaded.");
@@ -645,7 +645,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AssertProfileRelationsRemovedAsync(Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Joins are hard-deleted on profile removal, so ignore query filters to catch
@@ -666,7 +666,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Profile?> _GetProfileIgnoringFiltersAsync(Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await (
@@ -684,7 +684,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		IReadOnlyCollection<Guid>? expectedProfileIds = null,
 		IReadOnlyDictionary<Guid, string>? expectedFailedItems = null
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var auditLog = await (
@@ -700,7 +700,7 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			throw new InvalidOperationException("Bulk delete audit log was not written.");
 		}
 
-		var expectedUserId = await _GetUserIdByEmailAsync(
+		var expectedUserId = await BulkDeleteStaffProfilesSpec._GetUserIdByEmailAsync(
 			dbContext,
 			TestConstants.StaffAdminEmail
 		);

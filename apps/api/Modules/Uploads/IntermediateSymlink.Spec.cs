@@ -21,13 +21,13 @@ public sealed class IntermediateSymlinkSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public IntermediateSymlinkSpec(ApiFixture fixture) {
-		_Http = fixture.HttpClient;
-		_Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldNotFollowSymlinkedDirectoriesInsideUploads() {
-		var fileStorage = _Fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var fileStorage = this._Fixture.Factory.Services.GetRequiredService<IFileStorage>();
 		var uploadsDir = Path.Combine(fileStorage.RootPath, "uploads");
 		Directory.CreateDirectory(uploadsDir);
 
@@ -51,7 +51,7 @@ public sealed class IntermediateSymlinkSpec : IClassFixture<ApiFixture> {
 				var sentinelFile = Path.GetFileName(sentinelPath);
 				var requestUrl = $"/files/uploads/{linkDirName}/{sentinelFile}";
 
-				using var response = await _Http.GetAsync(requestUrl);
+				using var response = await this._Http.GetAsync(requestUrl);
 
 				response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 			} finally {

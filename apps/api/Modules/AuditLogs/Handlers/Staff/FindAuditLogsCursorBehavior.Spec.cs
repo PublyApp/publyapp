@@ -34,16 +34,16 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public FindAuditLogsCursorBehaviorSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var staffUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
-			_Fixture.Factory,
+			this._Fixture.Factory,
 			SeedConstants.Staff.AdminEmail
 		);
 
@@ -60,7 +60,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			// different value (i=1). The tiebreaker (Id ascending) must
 			// determine the order of the two equal-key rows.
 			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
-			var id = await _SeedAuditLogAtAsync(
+			var id = await this._SeedAuditLogAtAsync(
 				staffUserId,
 				$"audit-walk-{i}-{Guid.NewGuid():N}",
 				createdAt
@@ -74,7 +74,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		await _SwapAuditLogIdsAsync(seededIds[0], seededIds[2]);
+		await this._SwapAuditLogIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
 		var visitedIds = new List<Guid>();
@@ -92,7 +92,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			var page = await response.Content
@@ -139,7 +139,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			cursor: Guid.NewGuid().ToString()
@@ -148,7 +148,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -161,7 +161,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 
 	[Fact]
 	public async Task ItShouldAcceptAnUppercaseSortId() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
 		var url = AuditLogTestHelper.GetFindUrl(
 			limit: 5,
@@ -171,7 +171,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		// The handler dictionary resolves keys case-insensitively; an
 		// ordinal-sensitive lookup would turn this into a 400.
@@ -183,7 +183,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		string action,
 		DateTime createdAt
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
@@ -212,7 +212,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 	}
 
 	private async Task _SwapAuditLogIdsAsync(Guid idA, Guid idB) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		var temp = Guid.NewGuid();

@@ -27,28 +27,28 @@ public sealed class FindSystemNoticesSpec
 	public FindSystemNoticesSpec(
 		ApiFixture fixture
 	) {
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithDefaults() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var noticeId =
 			await SystemNoticeTestHelper.CreateNoticeAsync(
-				_Http, token,
+				this._Http, token,
 				title: "Find Default Test"
 			);
 
 		try {
 			var request = new HttpRequestMessage(
-				HttpMethod.Get, _FindUrl
+				HttpMethod.Get, FindSystemNoticesSpec._FindUrl
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -65,7 +65,7 @@ public sealed class FindSystemNoticesSpec
 			try {
 				await SystemNoticeTestHelper
 					.DeleteNoticeAsync(
-						_Http, token, noticeId
+						this._Http, token, noticeId
 					);
 			} catch {
 				// Ignore
@@ -77,11 +77,11 @@ public sealed class FindSystemNoticesSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutAuth() {
 		var request = new HttpRequestMessage(
-			HttpMethod.Get, _FindUrl
+			HttpMethod.Get, FindSystemNoticesSpec._FindUrl
 		);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Unauthorized);
@@ -91,15 +91,15 @@ public sealed class FindSystemNoticesSpec
 	public async Task
 	ItShouldReturnBadRequestForInvalidSortId() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var url = _FindUrl + "?sort_id=invalid_field";
+		var url = FindSystemNoticesSpec._FindUrl + "?sort_id=invalid_field";
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
 		).WithSessionToken(token);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -109,7 +109,7 @@ public sealed class FindSystemNoticesSpec
 	public async Task
 	ItShouldReturnNextCursorWithPagination() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var ids = new List<Guid>();
 
 		try {
@@ -118,20 +118,20 @@ public sealed class FindSystemNoticesSpec
 				var id =
 					await SystemNoticeTestHelper
 						.CreateNoticeAsync(
-							_Http, token,
+							this._Http, token,
 							title: $"Paginate Test {i}"
 						);
 				ids.Add(id);
 			}
 
 			// Fetch with limit=2 to force pagination
-			var url = _FindUrl + "?limit=2";
+			var url = FindSystemNoticesSpec._FindUrl + "?limit=2";
 			var request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -148,7 +148,7 @@ public sealed class FindSystemNoticesSpec
 				try {
 					await SystemNoticeTestHelper
 						.DeleteNoticeAsync(
-							_Http, token, id
+							this._Http, token, id
 						);
 				} catch {
 					// Ignore
@@ -161,7 +161,7 @@ public sealed class FindSystemNoticesSpec
 	public async Task
 	ItShouldReturnInOrderWhenSortedByStartsAtAsc() {
 		var token =
-			await _AuthClient.LoginAsStaffAdminAsync();
+			await this._AuthClient.LoginAsStaffAdminAsync();
 		var ids = new List<Guid>();
 
 		try {
@@ -173,7 +173,7 @@ public sealed class FindSystemNoticesSpec
 			var earlyId =
 				await SystemNoticeTestHelper
 					.CreateNoticeAsync(
-						_Http, token,
+						this._Http, token,
 						title: "Early Notice",
 						startsAt: earlyStart
 					);
@@ -182,20 +182,20 @@ public sealed class FindSystemNoticesSpec
 			var lateId =
 				await SystemNoticeTestHelper
 					.CreateNoticeAsync(
-						_Http, token,
+						this._Http, token,
 						title: "Late Notice",
 						startsAt: lateStart
 					);
 			ids.Add(lateId);
 
-			var url = _FindUrl
+			var url = FindSystemNoticesSpec._FindUrl
 				+ "?sort_id=starts_at&sort_order=asc";
 			var request = new HttpRequestMessage(
 				HttpMethod.Get, url
 			).WithSessionToken(token);
 
 			using var response =
-				await _Http.SendAsync(request);
+				await this._Http.SendAsync(request);
 
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.OK);
@@ -218,7 +218,7 @@ public sealed class FindSystemNoticesSpec
 				try {
 					await SystemNoticeTestHelper
 						.DeleteNoticeAsync(
-							_Http, token, id
+							this._Http, token, id
 						);
 				} catch {
 					// Ignore

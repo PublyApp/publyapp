@@ -45,9 +45,9 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public TenantProfileUsersAsStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetToggleUrl(
@@ -70,18 +70,18 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[InlineData("POST")]
 	[InlineData("DELETE")]
 	public async Task ItShouldReturnUnauthorizedWithoutSession(string verb) {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			new HttpMethod(verb),
-			_GetToggleUrl(
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString(),
 				Guid.NewGuid().ToString()
 			)
 		);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
@@ -89,22 +89,22 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[InlineData("POST")]
 	[InlineData("DELETE")]
 	public async Task ItShouldReturnForbiddenForStaffWithNeitherPermission(string verb) {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var token = await _AuthClient.LoginAsync(
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
 
 		using var request = new HttpRequestMessage(
 			new HttpMethod(verb),
-			_GetToggleUrl(
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString(),
 				Guid.NewGuid().ToString()
 			)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -121,26 +121,26 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		string verb,
 		bool holdsProfilesPermission
 	) {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
 		var heldPermission = holdsProfilesPermission
 			? AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT.Key
 			: AppPermissions.Staff.Users.UPDATE_FOR_TENANT.Key;
 
-		var token = await _CreateStaffTokenWithPermissionsAsync("one-perm", heldPermission);
+		var token = await this._CreateStaffTokenWithPermissionsAsync("one-perm", heldPermission);
 
 		using var request = new HttpRequestMessage(
 			new HttpMethod(verb),
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
 		// The rejection must be authorization, not a silent no-op.
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
 	}
 
 	/// <summary>
@@ -149,11 +149,11 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldAllowAssignForStaffWithBothRequiredPermissions() {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		var token = await _CreateStaffTokenWithPermissionsAsync(
+		var token = await this._CreateStaffTokenWithPermissionsAsync(
 			"both-perms",
 			AppPermissions.Staff.Profiles.UPDATE_FOR_TENANT.Key,
 			AppPermissions.Staff.Users.UPDATE_FOR_TENANT.Key
@@ -161,13 +161,13 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
 	}
 
 	// ---------------------------------------------------------------------------------------
@@ -187,19 +187,19 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		string? malformedProfileId,
 		string? malformedUserAccountId
 	) {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 
 		using var request = new HttpRequestMessage(
 			new HttpMethod(verb),
-			_GetToggleUrl(
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(
 				malformedTenantId ?? tenantId.ToString(),
 				malformedProfileId ?? Guid.NewGuid().ToString(),
 				malformedUserAccountId ?? Guid.NewGuid().ToString()
 			)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -228,25 +228,25 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		string verb,
 		TenantProfileUserGuardCase guardCase
 	) {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var (profileId, userAccountId) = await _BuildGuardCaseAsync(tenantId, guardCase);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var (profileId, userAccountId) = await this._BuildGuardCaseAsync(tenantId, guardCase);
 
-		var auditCountBefore = await _CountAuditLogsAsync(profileId);
-		var assignmentCountBefore = await _CountAssignmentsAsync(userAccountId, profileId);
+		var auditCountBefore = await this._CountAuditLogsAsync(profileId);
+		var assignmentCountBefore = await this._CountAssignmentsAsync(userAccountId, profileId);
 
 		using var request = new HttpRequestMessage(
 			new HttpMethod(verb),
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
 		// A rejected guard must neither create nor destroy membership, nor fabricate history.
-		(await _CountAssignmentsAsync(userAccountId, profileId))
+		(await this._CountAssignmentsAsync(userAccountId, profileId))
 			.Should().Be(assignmentCountBefore);
-		(await _CountAuditLogsAsync(profileId)).Should().Be(auditCountBefore);
+		(await this._CountAuditLogsAsync(profileId)).Should().Be(auditCountBefore);
 	}
 
 	/// <summary>
@@ -255,23 +255,23 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldAssignForSuspendedMember() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(
 			tenantId,
 			status: AccountStatus.Suspended
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
 	}
 
 	// ---------------------------------------------------------------------------------------
@@ -280,97 +280,97 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldAssignMemberToTenantProfileWithAuditEntry() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUserAssigned,
 			profileId
 		);
 		Assert.NotNull(auditLog);
-		_AssertAuditDetails(auditLog, tenantId, profileId, userAccountId);
+		TenantProfileUsersAsStaffSpec._AssertAuditDetails(auditLog, tenantId, profileId, userAccountId);
 	}
 
 	[Fact]
 	public async Task ItShouldTreatRepeatedAssignAsIdempotentSuccessWithoutSecondAuditEntry() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await _AssignAsync(token, tenantId, profileId, userAccountId);
+		await this._AssignAsync(token, tenantId, profileId, userAccountId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		// One membership row, and exactly one audit entry: a no-op must not append history.
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
-		(await _CountAuditLogsAsync(profileId, AuditActions.TenantProfileUserAssigned))
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
+		(await this._CountAuditLogsAsync(profileId, AuditActions.TenantProfileUserAssigned))
 			.Should().Be(1);
 	}
 
 	[Fact]
 	public async Task ItShouldUnassignMemberFromTenantProfileWithAuditEntry() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await _AssignAsync(token, tenantId, profileId, userAccountId);
+		await this._AssignAsync(token, tenantId, profileId, userAccountId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		// Unassignment hard-deletes the junction row; the audit entry is the only history.
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
 
-		var auditLog = await _GetLatestAuditLogAsync(
+		var auditLog = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantProfileUserUnassigned,
 			profileId
 		);
 		Assert.NotNull(auditLog);
-		_AssertAuditDetails(auditLog, tenantId, profileId, userAccountId);
+		TenantProfileUsersAsStaffSpec._AssertAuditDetails(auditLog, tenantId, profileId, userAccountId);
 	}
 
 	[Fact]
 	public async Task ItShouldTreatUnassignOfUnassignedProfileAsNoOp() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
-		(await _CountAuditLogsAsync(profileId, AuditActions.TenantProfileUserUnassigned))
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
+		(await this._CountAuditLogsAsync(profileId, AuditActions.TenantProfileUserUnassigned))
 			.Should().Be(0);
 	}
 
@@ -386,14 +386,14 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldWriteAssignmentAndAuditEntryInTheSameTransaction() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await _AssignAsync(token, tenantId, profileId, userAccountId);
+		await this._AssignAsync(token, tenantId, profileId, userAccountId);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var junctionXmin = await dbContext.Database
@@ -425,11 +425,11 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotPersistAssignmentWhenItsAuditEntryCannotBeWritten() {
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<ITenantProfileAsStaffService>();
 
@@ -445,8 +445,8 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		_ = await act.Should().ThrowAsync<DbUpdateException>();
 
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
-		(await _CountAuditLogsAsync(profileId)).Should().Be(0);
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(0);
+		(await this._CountAuditLogsAsync(profileId)).Should().Be(0);
 	}
 
 	/// <summary>
@@ -456,14 +456,14 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotUnassignWhenItsAuditEntryCannotBeWritten() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await _AssignAsync(token, tenantId, profileId, userAccountId);
+		await this._AssignAsync(token, tenantId, profileId, userAccountId);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var service = scope.ServiceProvider
 			.GetRequiredService<ITenantProfileAsStaffService>();
 
@@ -480,8 +480,8 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		_ = await act.Should().ThrowAsync<DbUpdateException>();
 
 		// The membership survives because its removal could not be recorded.
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
-		(await _CountAuditLogsAsync(profileId, AuditActions.TenantProfileUserUnassigned))
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(1);
+		(await this._CountAuditLogsAsync(profileId, AuditActions.TenantProfileUserUnassigned))
 			.Should().Be(0);
 	}
 
@@ -491,28 +491,28 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemWhenMaxProfilesPerUserExceeded() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 
 		for (var i = 0; i < maxProfilesPerUser; i++) {
-			var filledProfileId = await _CreateTenantProfileAsync(tenantId);
-			await _AssignAsync(token, tenantId, filledProfileId, userAccountId);
+			var filledProfileId = await this._CreateTenantProfileAsync(tenantId);
+			await this._AssignAsync(token, tenantId, filledProfileId, userAccountId);
 		}
 
-		var overflowProfileId = await _CreateTenantProfileAsync(tenantId);
+		var overflowProfileId = await this._CreateTenantProfileAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				overflowProfileId.ToString(),
 				userAccountId.ToString()
 			)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content
@@ -521,21 +521,21 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		problem.TranslationKey.Should().Be(ResponseKeys.MaxProfilesPerUserExceeded);
 		problem.Errors.Should().ContainKey("user_account_id");
 
-		(await _CountAssignmentsAsync(userAccountId, overflowProfileId)).Should().Be(0);
-		(await _CountAuditLogsAsync(overflowProfileId)).Should().Be(0);
+		(await this._CountAssignmentsAsync(userAccountId, overflowProfileId)).Should().Be(0);
+		(await this._CountAuditLogsAsync(overflowProfileId)).Should().Be(0);
 	}
 
 	[Fact]
 	public async Task ItShouldAllowRepeatedAssignOfExistingProfileWhenAtCap() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 
 		var assignedProfileIds = new List<Guid>();
 		for (var i = 0; i < maxProfilesPerUser; i++) {
-			var filledProfileId = await _CreateTenantProfileAsync(tenantId);
-			await _AssignAsync(token, tenantId, filledProfileId, userAccountId);
+			var filledProfileId = await this._CreateTenantProfileAsync(tenantId);
+			await this._AssignAsync(token, tenantId, filledProfileId, userAccountId);
 			assignedProfileIds.Add(filledProfileId);
 		}
 
@@ -543,17 +543,17 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		// the member sits exactly at the cap.
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				assignedProfileIds[0].ToString(),
 				userAccountId.ToString()
 			)
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-		(await _CountAssignmentsAsync(userAccountId, assignedProfileIds[0])).Should().Be(1);
+		(await this._CountAssignmentsAsync(userAccountId, assignedProfileIds[0])).Should().Be(1);
 	}
 
 	/// <summary>
@@ -563,36 +563,36 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldExcludeLinksToSoftDeletedProfilesFromTheQuota() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 
 		var assignedProfileIds = new List<Guid>();
 		for (var i = 0; i < maxProfilesPerUser; i++) {
-			var filledProfileId = await _CreateTenantProfileAsync(tenantId);
-			await _AssignAsync(token, tenantId, filledProfileId, userAccountId);
+			var filledProfileId = await this._CreateTenantProfileAsync(tenantId);
+			await this._AssignAsync(token, tenantId, filledProfileId, userAccountId);
 			assignedProfileIds.Add(filledProfileId);
 		}
 
 		// Soft-delete the profile while deliberately leaving the junction row behind: exactly
 		// the state the quota count must ignore.
-		await _SoftDeleteProfileLeavingLinksAsync(assignedProfileIds[0]);
+		await this._SoftDeleteProfileLeavingLinksAsync(assignedProfileIds[0]);
 
-		var newProfileId = await _CreateTenantProfileAsync(tenantId);
+		var newProfileId = await this._CreateTenantProfileAsync(tenantId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), newProfileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), newProfileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(
 			HttpStatusCode.NoContent,
 			"the dead profile's link must not occupy a quota slot"
 		);
 
-		(await _CountAssignmentsAsync(userAccountId, newProfileId)).Should().Be(1);
+		(await this._CountAssignmentsAsync(userAccountId, newProfileId)).Should().Be(1);
 	}
 
 	// ---------------------------------------------------------------------------------------
@@ -615,23 +615,23 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotExceedCapForConcurrentAssignsAtTheLastFreeSlot() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 
 		for (var i = 0; i < maxProfilesPerUser - 1; i++) {
-			var filledProfileId = await _CreateTenantProfileAsync(tenantId);
-			await _AssignAsync(token, tenantId, filledProfileId, userAccountId);
+			var filledProfileId = await this._CreateTenantProfileAsync(tenantId);
+			await this._AssignAsync(token, tenantId, filledProfileId, userAccountId);
 		}
 
 		const int ContenderCount = 4;
 		var contendedProfileIds = new List<Guid>();
 		for (var i = 0; i < ContenderCount; i++) {
-			contendedProfileIds.Add(await _CreateTenantProfileAsync(tenantId));
+			contendedProfileIds.Add(await this._CreateTenantProfileAsync(tenantId));
 		}
 
-		await using var barrierScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
 		_ = await barrierDb.Database.ExecuteSqlAsync(
@@ -643,20 +643,20 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			contendedProfileIds.Select(async contendedProfileId => {
 				using var request = new HttpRequestMessage(
 					HttpMethod.Post,
-					_GetToggleUrl(
+					TenantProfileUsersAsStaffSpec._GetToggleUrl(
 						tenantId.ToString(),
 						contendedProfileId.ToString(),
 						userAccountId.ToString()
 					)
 				).WithSessionToken(token);
 
-				using var response = await _Http.SendAsync(request);
+				using var response = await this._Http.SendAsync(request);
 				return response.StatusCode;
 			})
 		);
 
 		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			_Fixture.Factory.Services,
+			this._Fixture.Factory.Services,
 			ContenderCount,
 			barrierPid
 		);
@@ -668,7 +668,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		responses.Count(status => status == HttpStatusCode.UnprocessableEntity)
 			.Should().Be(ContenderCount - 1);
 
-		(await _CountLiveProfilesForMemberAsync(userAccountId))
+		(await this._CountLiveProfilesForMemberAsync(userAccountId))
 			.Should().Be(maxProfilesPerUser);
 	}
 
@@ -680,12 +680,12 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotLeaveStaleLinkWhenProfileIsDeletedDuringAssign() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await using var barrierScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
 		_ = await barrierDb.Database.ExecuteSqlAsync(
@@ -696,14 +696,14 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var responseTask = Task.Run(async () => {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Post,
-				_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+				TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			return response.StatusCode;
 		});
 
-		await PostgresLockBarrier.WaitUntilBlockedAsync(_Fixture.Factory.Services, 1, barrierPid);
+		await PostgresLockBarrier.WaitUntilBlockedAsync(this._Fixture.Factory.Services, 1, barrierPid);
 
 		// Complete the delete the assign is racing, exactly as the delete path does it.
 		_ = await barrierDb.Database.ExecuteSqlAsync(
@@ -719,7 +719,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await barrierTx.CommitAsync();
 
 		(await responseTask).Should().Be(HttpStatusCode.NotFound);
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(
 			0,
 			"a deleted profile must not gain a member behind the delete's cleanup"
 		);
@@ -733,12 +733,12 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldNotLeaveStaleLinkWhenMemberIsRemovedDuringAssign() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await _GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
-		var profileId = await _CreateTenantProfileAsync(tenantId);
-		var userAccountId = await _CreateTenantMemberAsync(tenantId);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
+		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		await using var barrierScope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
 		_ = await barrierDb.Database.ExecuteSqlAsync(
@@ -749,14 +749,14 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var responseTask = Task.Run(async () => {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Post,
-				_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+				TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 			).WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			return response.StatusCode;
 		});
 
-		await PostgresLockBarrier.WaitUntilBlockedAsync(_Fixture.Factory.Services, 1, barrierPid);
+		await PostgresLockBarrier.WaitUntilBlockedAsync(this._Fixture.Factory.Services, 1, barrierPid);
 
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"""
@@ -771,7 +771,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await barrierTx.CommitAsync();
 
 		(await responseTask).Should().Be(HttpStatusCode.NotFound);
-		(await _CountAssignmentsAsync(userAccountId, profileId)).Should().Be(
+		(await this._CountAssignmentsAsync(userAccountId, profileId)).Should().Be(
 			0,
 			"a removed membership must not be resurrected by a racing assign"
 		);
@@ -786,49 +786,49 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		TenantProfileUserGuardCase guardCase
 	) {
 		if (guardCase == TenantProfileUserGuardCase.ForeignTenantProfile) {
-			var otherTenantId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+			var otherTenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 			return (
-				await _CreateTenantProfileAsync(otherTenantId),
-				await _CreateTenantMemberAsync(tenantId)
+				await this._CreateTenantProfileAsync(otherTenantId),
+				await this._CreateTenantMemberAsync(tenantId)
 			);
 		}
 
 		if (guardCase == TenantProfileUserGuardCase.ForeignTenantMember) {
-			var otherTenantId = await _GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
+			var otherTenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.TechStartName);
 			return (
-				await _CreateTenantProfileAsync(tenantId),
-				await _CreateTenantMemberAsync(otherTenantId)
+				await this._CreateTenantProfileAsync(tenantId),
+				await this._CreateTenantMemberAsync(otherTenantId)
 			);
 		}
 
 		if (guardCase == TenantProfileUserGuardCase.StaffScopeProfile) {
 			return (
-				await _CreateStaffProfileAsync(),
-				await _CreateTenantMemberAsync(tenantId)
+				await this._CreateStaffProfileAsync(),
+				await this._CreateTenantMemberAsync(tenantId)
 			);
 		}
 
 		if (guardCase == TenantProfileUserGuardCase.StaffScopeAccount) {
 			return (
-				await _CreateTenantProfileAsync(tenantId),
-				await _CreateStaffAccountAsync()
+				await this._CreateTenantProfileAsync(tenantId),
+				await this._CreateStaffAccountAsync()
 			);
 		}
 
 		if (guardCase == TenantProfileUserGuardCase.DeletedProfile) {
 			// Assign first, then soft-delete the profile while leaving the link, so the spec
 			// also proves the guard does not silently mutate the surviving row.
-			var token = await _AuthClient.LoginAsStaffAdminAsync();
-			var profileId = await _CreateTenantProfileAsync(tenantId);
-			var userAccountId = await _CreateTenantMemberAsync(tenantId);
-			await _AssignAsync(token, tenantId, profileId, userAccountId);
-			await _SoftDeleteProfileLeavingLinksAsync(profileId);
+			var token = await this._AuthClient.LoginAsStaffAdminAsync();
+			var profileId = await this._CreateTenantProfileAsync(tenantId);
+			var userAccountId = await this._CreateTenantMemberAsync(tenantId);
+			await this._AssignAsync(token, tenantId, profileId, userAccountId);
+			await this._SoftDeleteProfileLeavingLinksAsync(profileId);
 			return (profileId, userAccountId);
 		}
 
 		if (guardCase == TenantProfileUserGuardCase.DeletedMember) {
-			var profileId = await _CreateTenantProfileAsync(tenantId);
-			var userAccountId = await _CreateTenantMemberAsync(tenantId, isDeleted: true);
+			var profileId = await this._CreateTenantProfileAsync(tenantId);
+			var userAccountId = await this._CreateTenantMemberAsync(tenantId, isDeleted: true);
 			return (profileId, userAccountId);
 		}
 
@@ -840,9 +840,9 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		params string[] permissionKeys
 	) {
 		var email = $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
-		var userId = await StaffUserTestHelper.SeedStaffUserAsync(_Fixture, email);
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(this._Fixture, email);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var staffAccount = await (
@@ -874,7 +874,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		});
 		_ = await dbContext.SaveChangesAsync();
 
-		return await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
 
 	private async Task _AssignAsync(
@@ -885,20 +885,20 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
+			TenantProfileUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), profileId.ToString(), userAccountId.ToString())
 		).WithSessionToken(staffToken);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 	}
 
 	private async Task<Guid> _GetTenantIdAsync(string tenantName) {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(_Http, token, tenantName);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		return await TenantTestHelper.GetTenantIdByNameAsync(this._Http, token, tenantName);
 	}
 
 	private async Task<Guid> _CreateTenantProfileAsync(Guid tenantId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateTenantProfile(
@@ -915,7 +915,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _CreateStaffProfileAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var profile = Profile.CreateStaffProfile(
@@ -931,7 +931,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SoftDeleteProfileLeavingLinksAsync(Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Raw SQL on purpose: the delete service would also purge the junction rows, and these
@@ -948,9 +948,9 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> _CreateStaffAccountAsync() {
 		var email = $"staff-account-{Guid.NewGuid():N}@example.com";
-		var userId = await StaffUserTestHelper.SeedStaffUserAsync(_Fixture, email);
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(this._Fixture, email);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var staffAccount = await (
@@ -973,7 +973,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		AccountStatus status = AccountStatus.Active,
 		bool isDeleted = false
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
@@ -1010,7 +1010,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<int> _CountAssignmentsAsync(Guid userAccountId, Guid profileId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.UserAccountProfile
@@ -1019,7 +1019,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<int> _CountLiveProfilesForMemberAsync(Guid userAccountId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await (
@@ -1033,7 +1033,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<int> _CountAuditLogsAsync(Guid targetId, string? action = null) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.AuditLog
@@ -1045,7 +1045,7 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<AuditLog?> _GetLatestAuditLogAsync(string action, Guid targetId) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		return await dbContext.AuditLog

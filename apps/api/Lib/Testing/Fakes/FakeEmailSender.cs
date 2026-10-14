@@ -22,12 +22,12 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 		private readonly ConcurrentQueue<SentEmail> _Sent = new();
 
 		public IReadOnlyCollection<EmailRequest> SentEmails {
-			get { return _Sent.Select(s => s.Request).ToList(); }
+			get { return this._Sent.Select(s => s.Request).ToList(); }
 		}
 
 		/// <summary>The full send records (request + idempotency key + returned message id).</summary>
 		public IReadOnlyCollection<SentEmail> Sends {
-			get { return _Sent.ToList(); }
+			get { return this._Sent.ToList(); }
 		}
 
 		/// <summary>
@@ -45,12 +45,12 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 			string? idempotencyKey = null,
 			CancellationToken cancellationToken = default
 		) {
-			if (FailWith?.Invoke(request) is { } failure) {
+			if (this.FailWith?.Invoke(request) is { } failure) {
 				throw failure;
 			}
 
 			var messageId = Guid.NewGuid().ToString();
-			_Sent.Enqueue(new SentEmail(request, idempotencyKey, messageId));
+			this._Sent.Enqueue(new SentEmail(request, idempotencyKey, messageId));
 
 			return new EmailSendReceipt(messageId);
 		}
@@ -63,13 +63,13 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 		/// wants to discard an earlier phase of its own multi-step scenario.
 		/// </summary>
 		public void Clear() {
-			_Sent.Clear();
+			this._Sent.Clear();
 		}
 
 		/// <summary>Returns all captured emails and clears the queue.</summary>
 		public IReadOnlyList<EmailRequest> DrainAll() {
-			var snapshot = _Sent.Select(s => s.Request).ToList();
-			_Sent.Clear();
+			var snapshot = this._Sent.Select(s => s.Request).ToList();
+			this._Sent.Clear();
 			return snapshot;
 		}
 	}

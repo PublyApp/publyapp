@@ -26,9 +26,9 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 	private readonly TestAuthClient _AuthClient;
 
 	public UpdateStaffUserSuspensionInvariantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _GetSuspendUrl(string userId) {
@@ -51,18 +51,18 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 	public async Task
 	ItShouldSetIsSuspendedAndBlockLoginWhenStatusSetToSuspended() {
 		var adminToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var userId = await _GetUserIdByEmailAsync(
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var userId = await this._GetUserIdByEmailAsync(
 			TestConstants.StaffUserEmail
 		);
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetSuspendUrl(userId)
+			UpdateStaffUserSuspensionInvariantSpec._GetSuspendUrl(userId)
 		).WithSessionToken(adminToken);
 
 		using var response =
-			await _Http.SendAsync(request);
+			await this._Http.SendAsync(request);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -75,7 +75,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 
 		await using (
 			var scope =
-				_Fixture.Factory.Services.CreateAsyncScope()
+				this._Fixture.Factory.Services.CreateAsyncScope()
 		) {
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
@@ -92,7 +92,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		}
 
 		using var loginResponse =
-			await _Http.PostAsJsonAsync(
+			await this._Http.PostAsJsonAsync(
 				Routes.Auth.Login,
 				new {
 					email = TestConstants.StaffUserEmail,
@@ -110,9 +110,9 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		// Cleanup: keep the seed staff user active so other specs can reuse it safely.
 		using var reactivateRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetReactivateUrl(userId)
+			UpdateStaffUserSuspensionInvariantSpec._GetReactivateUrl(userId)
 		).WithSessionToken(adminToken);
-		using var reactivateResponse = await _Http.SendAsync(reactivateRequest);
+		using var reactivateResponse = await this._Http.SendAsync(reactivateRequest);
 		reactivateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
@@ -122,26 +122,26 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		const string targetEmail = TestConstants.StaffUserEmail;
 
 		var adminToken =
-			await _AuthClient.LoginAsStaffAdminAsync();
-		var userId = await _GetUserIdByEmailAsync(targetEmail);
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var userId = await this._GetUserIdByEmailAsync(targetEmail);
 
 		var suspendRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetSuspendUrl(userId)
+			UpdateStaffUserSuspensionInvariantSpec._GetSuspendUrl(userId)
 		).WithSessionToken(adminToken);
 
 		using var suspendResponse =
-			await _Http.SendAsync(suspendRequest);
+			await this._Http.SendAsync(suspendRequest);
 		suspendResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
 
 		var reactivateRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			_GetReactivateUrl(userId)
+			UpdateStaffUserSuspensionInvariantSpec._GetReactivateUrl(userId)
 		).WithSessionToken(adminToken);
 
 		using var reactivateResponse =
-			await _Http.SendAsync(reactivateRequest);
+			await this._Http.SendAsync(reactivateRequest);
 
 		reactivateResponse.StatusCode.Should()
 			.Be(HttpStatusCode.OK);
@@ -154,7 +154,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 
 		await using (
 			var scope =
-				_Fixture.Factory.Services.CreateAsyncScope()
+				this._Fixture.Factory.Services.CreateAsyncScope()
 		) {
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
@@ -170,7 +170,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 			user.Status.Should().Be(UserStatus.Active);
 		}
 
-		var userToken = await _AuthClient.LoginAsync(
+		var userToken = await this._AuthClient.LoginAsync(
 			targetEmail,
 			TestConstants.SeedPassword
 		);
@@ -184,7 +184,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
 		await using var scope =
-			_Fixture.Factory.Services.CreateAsyncScope();
+			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 

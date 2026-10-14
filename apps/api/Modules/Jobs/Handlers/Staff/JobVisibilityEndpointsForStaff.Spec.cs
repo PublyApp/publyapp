@@ -33,9 +33,9 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 	private readonly TestAuthClient _AuthClient;
 
 	public JobVisibilityEndpointsForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _QueueUrl() {
@@ -101,41 +101,41 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 	[Fact]
 	public async Task
 		ItShouldReachAllTenStaffJobsRoutesForStaffAdminAndForbiddenForUnprivileged() {
-		var adminToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var queueItemId = await _SeedQueueItemAsync();
-		var deadLetterId = await _InsertDeadLetterAsync();
-		var definitionId = await _SeedDefinitionAsync();
+		var queueItemId = await this._SeedQueueItemAsync();
+		var deadLetterId = await this._InsertDeadLetterAsync();
+		var definitionId = await this._SeedDefinitionAsync();
 		var requeuedJobId = Guid.Empty;
 
 		try {
-			await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 			// --- privileged walk: ten routes, ten successes -------------------
 
-			using var r1 = await _SendAsync(adminToken, () =>
-				new HttpRequestMessage(HttpMethod.Get, _QueueUrl()));
+			using var r1 = await this._SendAsync(adminToken, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._QueueUrl()));
 			r1.StatusCode.Should().Be(HttpStatusCode.OK, "route 1: GET /queue");
 
-			using var r2 = await _SendAsync(adminToken, () =>
-				new HttpRequestMessage(HttpMethod.Get, _QueueItemUrl(queueItemId)));
+			using var r2 = await this._SendAsync(adminToken, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._QueueItemUrl(queueItemId)));
 			r2.StatusCode.Should().Be(HttpStatusCode.OK, "route 2: GET /queue/{id}");
 
-			using var r3 = await _SendAsync(adminToken, () =>
-				new HttpRequestMessage(HttpMethod.Get, _DlqListUrl()));
+			using var r3 = await this._SendAsync(adminToken, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._DlqListUrl()));
 			r3.StatusCode.Should().Be(HttpStatusCode.OK, "route 3: GET /dead-letter");
 
-			using var r4 = await _SendAsync(adminToken, () =>
-				new HttpRequestMessage(HttpMethod.Get, _DlqItemUrl(deadLetterId.ToString())));
+			using var r4 = await this._SendAsync(adminToken, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._DlqItemUrl(deadLetterId.ToString())));
 			r4.StatusCode.Should().Be(
 				HttpStatusCode.OK, "route 4: GET /jobs/dead-letter/{id}"
 			);
 
 			// Route 5: POST requeue at the K-1 root.
-			using var r5 = await _SendAsync(adminToken, () => {
+			using var r5 = await this._SendAsync(adminToken, () => {
 				var request = new HttpRequestMessage(
-					HttpMethod.Post, _RequeueUrl(deadLetterId.ToString())
+					HttpMethod.Post, JobVisibilityEndpointsForStaffSpec._RequeueUrl(deadLetterId.ToString())
 				);
 				request.Content = JsonContent.Create(new { });
 				return request;
@@ -157,22 +157,22 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			}
 			requeuedJobId = requeuedId.Value;
 
-			using var r6 = await _SendAsync(adminToken, () =>
-				new HttpRequestMessage(HttpMethod.Get, _SysJobsUrl()));
+			using var r6 = await this._SendAsync(adminToken, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._SysJobsUrl()));
 			r6.StatusCode.Should().Be(
 				HttpStatusCode.OK, "route 6: GET /system-jobs"
 			);
 
-			using var r7 = await _SendAsync(adminToken, () =>
-				new HttpRequestMessage(HttpMethod.Get, _SysJobUrl(definitionId)));
+			using var r7 = await this._SendAsync(adminToken, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId)));
 			r7.StatusCode.Should().Be(
 				HttpStatusCode.OK, "route 7: GET /system-jobs/{id}"
 			);
 
-			using var r8 = await _SendAsync(adminToken, () => {
+			using var r8 = await this._SendAsync(adminToken, () => {
 				var request = new HttpRequestMessage(
 					HttpMethod.Post,
-					PathUtils.Join(_SysJobUrl(definitionId), "trigger")
+					PathUtils.Join(JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId), "trigger")
 				);
 				request.Content = JsonContent.Create(new { });
 				return request;
@@ -194,10 +194,10 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 				j.Id == Guid.Parse(triggeredJobId.Required())
 			)).Should().Be(1, "exactly one queue row for this trigger");
 
-			using var r9 = await _SendAsync(adminToken, () => {
+			using var r9 = await this._SendAsync(adminToken, () => {
 				var request = new HttpRequestMessage(
 					HttpMethod.Patch,
-					PathUtils.Join(_SysJobUrl(definitionId), "enabled")
+					PathUtils.Join(JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId), "enabled")
 				);
 				request.Content = JsonContent.Create(new { isEnabled = false });
 				return request;
@@ -211,10 +211,10 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			afterEnabledFlip.IsEnabled.Should()
 				.BeFalse("the enabled flip actually landed");
 
-			using var r10 = await _SendAsync(adminToken, () => {
+			using var r10 = await this._SendAsync(adminToken, () => {
 				var request = new HttpRequestMessage(
 					HttpMethod.Patch,
-					PathUtils.Join(_SysJobUrl(definitionId), "cron")
+					PathUtils.Join(JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId), "cron")
 				);
 				request.Content = JsonContent.Create(
 					new { cronExpression = "0 15 4 * * ?" }
@@ -231,55 +231,55 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 
 			// --- unprivileged walk: the same ten routes, ten 403s -------------
 
-			var unprivileged = await _CreateUnprivilegedStaffUserAsync();
+			var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
 
-			using var u1 = await _SendAsync(unprivileged.Token, () =>
-				new HttpRequestMessage(HttpMethod.Get, _QueueUrl()));
+			using var u1 = await this._SendAsync(unprivileged.Token, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._QueueUrl()));
 			u1.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u2 = await _SendAsync(unprivileged.Token, () =>
-				new HttpRequestMessage(HttpMethod.Get, _QueueItemUrl(queueItemId)));
+			using var u2 = await this._SendAsync(unprivileged.Token, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._QueueItemUrl(queueItemId)));
 			u2.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u3 = await _SendAsync(unprivileged.Token, () =>
-				new HttpRequestMessage(HttpMethod.Get, _DlqListUrl()));
+			using var u3 = await this._SendAsync(unprivileged.Token, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._DlqListUrl()));
 			u3.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u4 = await _SendAsync(unprivileged.Token, () =>
-				new HttpRequestMessage(HttpMethod.Get, _DlqItemUrl(deadLetterId.ToString())));
+			using var u4 = await this._SendAsync(unprivileged.Token, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._DlqItemUrl(deadLetterId.ToString())));
 			u4.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u5 = await _SendAsync(unprivileged.Token, () => {
+			using var u5 = await this._SendAsync(unprivileged.Token, () => {
 				var request = new HttpRequestMessage(
-					HttpMethod.Post, _RequeueUrl(deadLetterId.ToString())
+					HttpMethod.Post, JobVisibilityEndpointsForStaffSpec._RequeueUrl(deadLetterId.ToString())
 				);
 				request.Content = JsonContent.Create(new { });
 				return request;
 			});
 			u5.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u6 = await _SendAsync(unprivileged.Token, () =>
-				new HttpRequestMessage(HttpMethod.Get, _SysJobsUrl()));
+			using var u6 = await this._SendAsync(unprivileged.Token, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._SysJobsUrl()));
 			u6.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u7 = await _SendAsync(unprivileged.Token, () =>
-				new HttpRequestMessage(HttpMethod.Get, _SysJobUrl(definitionId)));
+			using var u7 = await this._SendAsync(unprivileged.Token, () =>
+				new HttpRequestMessage(HttpMethod.Get, JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId)));
 			u7.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u8 = await _SendAsync(unprivileged.Token, () => {
+			using var u8 = await this._SendAsync(unprivileged.Token, () => {
 				var request = new HttpRequestMessage(
 					HttpMethod.Patch,
-					PathUtils.Join(_SysJobUrl(definitionId), "enabled")
+					PathUtils.Join(JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId), "enabled")
 				);
 				request.Content = JsonContent.Create(new { isEnabled = true });
 				return request;
 			});
 			u8.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u9 = await _SendAsync(unprivileged.Token, () => {
+			using var u9 = await this._SendAsync(unprivileged.Token, () => {
 				var request = new HttpRequestMessage(
 					HttpMethod.Patch,
-					PathUtils.Join(_SysJobUrl(definitionId), "cron")
+					PathUtils.Join(JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId), "cron")
 				);
 				request.Content = JsonContent.Create(
 					new { cronExpression = "0 0 3 * * ?" }
@@ -288,17 +288,17 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			});
 			u9.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			using var u10 = await _SendAsync(unprivileged.Token, () => {
+			using var u10 = await this._SendAsync(unprivileged.Token, () => {
 				var request = new HttpRequestMessage(
 					HttpMethod.Post,
-					PathUtils.Join(_SysJobUrl(definitionId), "trigger")
+					PathUtils.Join(JobVisibilityEndpointsForStaffSpec._SysJobUrl(definitionId), "trigger")
 				);
 				request.Content = JsonContent.Create(new { });
 				return request;
 			});
 			u10.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 		} finally {
-			await _CleanupAsync(deadLetterId, definitionId, requeuedJobId);
+			await this._CleanupAsync(deadLetterId, definitionId, requeuedJobId);
 		}
 	}
 
@@ -307,7 +307,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		Func<HttpRequestMessage> createRequest
 	) {
 		var request = createRequest().WithSessionToken(token);
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	// --- helpers ------------------------------------------------------------------------
@@ -315,7 +315,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 	private async Task<string> _SeedQueueItemAsync() {
 		var jobType = $"spec.a5.group.queue.{Guid.NewGuid():N}";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		dbContext.JobQueue.Add(new JobQueueItem {
@@ -325,18 +325,18 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			MaxAttempts = 10,
 		});
 		_ = await dbContext.SaveChangesAsync();
-		_TrackedQueueJobTypes.Add(jobType);
+		this._TrackedQueueJobTypes.Add(jobType);
 
-		await using var verify = await _CreateDbContextAsync();
+		await using var verify = await this._CreateDbContextAsync();
 		var row = await verify.JobQueue.SingleAsync(j => j.JobType == jobType);
 		return row.Id.Required().ToString();
 	}
 
 	private async Task<Guid> _InsertDeadLetterAsync() {
 		var jobType = $"spec.a5.group.dlq.{Guid.NewGuid():N}";
-		_TrackedDlqJobTypes.Add(jobType);
+		this._TrackedDlqJobTypes.Add(jobType);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		await dbContext.Database.ExecuteSqlAsync(
@@ -346,14 +346,14 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 				 enqueued_at, failed_at, external_state_status,
 				 external_state_prepared_at, external_state_expires_at)
 			VALUES (
-				{Guid.NewGuid()}, {jobType}, {_EmptyJson}::jsonb, 0, 10, 10,
+				{Guid.NewGuid()}, {jobType}, {JobVisibilityEndpointsForStaffSpec._EmptyJson}::jsonb, 0, 10, 10,
 				now(), now(), {(int)ExternalStateStatus.Unclassified}, now(),
 				now() + make_interval(days => 7)
 			)
 			"""
 		);
 
-		await using var verify = await _CreateDbContextAsync();
+		await using var verify = await this._CreateDbContextAsync();
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
 		var id = row.Id;
 		if (id is null) {
@@ -367,9 +367,9 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 
 	private async Task<string> _SeedDefinitionAsync() {
 		var jobKey = $"spec.a5.group.sys.{Guid.NewGuid():N}";
-		_TrackedSysJobKeys.Add(jobKey);
+		this._TrackedSysJobKeys.Add(jobKey);
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var definition = new SystemJobDefinition {
@@ -394,7 +394,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		string definitionId,
 		Guid extraJobId
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		if (extraJobId != Guid.Empty) {
@@ -402,7 +402,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 				$"DELETE FROM job_queue WHERE id = {extraJobId}"
 			);
 		}
-		foreach (var tracked in _TrackedQueueJobTypes) {
+		foreach (var tracked in this._TrackedQueueJobTypes) {
 			await dbContext.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {tracked}"
 			);
@@ -419,7 +419,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM audit_logs WHERE target_id = {Guid.Parse(definitionId)}"
 		);
-		foreach (var jobKey in _TrackedSysJobKeys) {
+		foreach (var jobKey in this._TrackedSysJobKeys) {
 			await dbContext.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {jobKey}"
 			);
@@ -441,7 +441,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -462,7 +462,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-group-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -483,7 +483,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

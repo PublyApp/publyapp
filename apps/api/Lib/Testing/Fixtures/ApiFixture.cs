@@ -30,13 +30,13 @@ public sealed class ApiFixture : IAsyncLifetime {
 
 	public ApiFactory Factory {
 		get {
-			if (_Factory is null) {
+			if (this._Factory is null) {
 				throw new InvalidOperationException("API fixture factory has not been initialized.");
 			}
 
-			return _Factory;
+			return this._Factory;
 		}
-		private set { _Factory = value; }
+		private set { this._Factory = value; }
 	}
 
 	/// <summary>
@@ -47,18 +47,18 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// </summary>
 	public HttpClient HttpClient {
 		get {
-			if (_HttpClient is null) {
+			if (this._HttpClient is null) {
 				throw new InvalidOperationException("API fixture HTTP client has not been initialized.");
 			}
 
-			return _HttpClient;
+			return this._HttpClient;
 		}
-		private set { _HttpClient = value; }
+		private set { this._HttpClient = value; }
 	}
 
 	public ApiFixture() {
-		_TestDbName = $"publyapp_api_test_{Guid.NewGuid():N}";
-		_StorageRoot = Path.Combine(
+		this._TestDbName = $"publyapp_api_test_{Guid.NewGuid():N}";
+		this._StorageRoot = Path.Combine(
 			Path.GetTempPath(),
 			$"publyapp-api-storage-{Guid.NewGuid():N}"
 		);
@@ -74,10 +74,10 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// </summary>
 	public ApiFactory CreateSecondHost() {
 		var factory = new ApiFactory(
-			_TestDbConnectionString,
-			_StorageRoot
+			this._TestDbConnectionString,
+			this._StorageRoot
 		);
-		_AdditionalFactories.Add(factory);
+		this._AdditionalFactories.Add(factory);
 		return factory;
 	}
 
@@ -86,7 +86,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// cookies disabled by default).
 	/// </summary>
 	public HttpClient CreateClient() {
-		return Factory.CreateClient(
+		return this.Factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
 			}
@@ -95,11 +95,11 @@ public sealed class ApiFixture : IAsyncLifetime {
 
 	public HttpClient CreateClient(IUploadAdmissionService uploadAdmissionService) {
 		var factory = new ApiFactory(
-			_TestDbConnectionString,
-			_StorageRoot,
+			this._TestDbConnectionString,
+			this._StorageRoot,
 			uploadAdmissionService
 		);
-		_AdditionalFactories.Add(factory);
+		this._AdditionalFactories.Add(factory);
 		return factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
@@ -111,21 +111,21 @@ public sealed class ApiFixture : IAsyncLifetime {
 		var container =
 			await PostgresContainerFixture.GetSharedAsync();
 
-		_DbManager = new DatabaseTemplateManager(
+		this._DbManager = new DatabaseTemplateManager(
 			container.AdminConnectionString,
 			container.TemplateDbName
 		);
 
-		_TestDbConnectionString =
-			await _DbManager.CreateDatabaseFromTemplateAsync(
-				_TestDbName
+		this._TestDbConnectionString =
+			await this._DbManager.CreateDatabaseFromTemplateAsync(
+				this._TestDbName
 			);
 
-		Factory = new ApiFactory(_TestDbConnectionString, _StorageRoot);
+		this.Factory = new ApiFactory(this._TestDbConnectionString, this._StorageRoot);
 
 		// Cookies disabled to prevent cross-test session
 		// state leakage via cookie jar
-		HttpClient = Factory.CreateClient(
+		this.HttpClient = this.Factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
 			}
@@ -143,7 +143,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// shared instance, is what keeps email assertions independent of run order.
 	/// </summary>
 	public FakeEmailSender GetFakeEmailSender() {
-		return Factory.Services
+		return this.Factory.Services
 			.GetRequiredService<FakeEmailSender>();
 	}
 
@@ -156,20 +156,20 @@ public sealed class ApiFixture : IAsyncLifetime {
 		List<Exception> errors = [];
 
 		try {
-			_HttpClient?.Dispose();
+			this._HttpClient?.Dispose();
 		} catch (Exception ex) {
 			errors.Add(ex);
 		}
 
-		if (_Factory is not null) {
+		if (this._Factory is not null) {
 			try {
-				await _Factory.DisposeAsync();
+				await this._Factory.DisposeAsync();
 			} catch (Exception ex) {
 				errors.Add(ex);
 			}
 		}
 
-		foreach (var factory in _AdditionalFactories) {
+		foreach (var factory in this._AdditionalFactories) {
 			try {
 				await factory.DisposeAsync();
 			} catch (Exception ex) {
@@ -177,17 +177,17 @@ public sealed class ApiFixture : IAsyncLifetime {
 			}
 		}
 
-		if (_DbManager is not null) {
+		if (this._DbManager is not null) {
 			try {
-				await _DbManager.DropDatabaseAsync(_TestDbName);
+				await this._DbManager.DropDatabaseAsync(this._TestDbName);
 			} catch (Exception ex) {
 				errors.Add(ex);
 			}
 		}
 
 		try {
-			if (Directory.Exists(_StorageRoot)) {
-				Directory.Delete(_StorageRoot, recursive: true);
+			if (Directory.Exists(this._StorageRoot)) {
+				Directory.Delete(this._StorageRoot, recursive: true);
 			}
 		} catch (Exception ex) {
 			errors.Add(ex);

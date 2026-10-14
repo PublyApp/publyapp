@@ -32,7 +32,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldConfigureCkPublicationStatusWithExactlyTheEnumValues() {
-		var entity = _Model();
+		var entity = PublicationEntitySpec._Model();
 
 		var constraint = entity
 			.GetCheckConstraints()
@@ -49,7 +49,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldDeclareTheUniquePostAccountIndexAsPartialOnLiveRows() {
-		var entity = _Model();
+		var entity = PublicationEntitySpec._Model();
 
 		var unique = entity.GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ux_publications_post_account"
@@ -72,7 +72,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldDeclareTheDueScanAndTenantListIndexes() {
-		var entity = _Model();
+		var entity = PublicationEntitySpec._Model();
 
 		var dueScan = entity.GetIndexes().SingleOrDefault(i =>
 			i.GetDatabaseName() == "ix_publications_status_scheduled_at"
@@ -97,7 +97,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldMapTheScheduleValueObjectColumns() {
-		var entity = _Model();
+		var entity = PublicationEntitySpec._Model();
 		var table = StoreObjectIdentifier.Table("publications");
 
 		var instant = entity.FindProperty(nameof(Publication.ScheduledAtUtc));
@@ -114,7 +114,7 @@ public sealed class PublicationEntitySpec {
 
 	[Fact]
 	public void ItShouldStoreTheIdempotencyKeyOnTheRow() {
-		var entity = _Model();
+		var entity = PublicationEntitySpec._Model();
 
 		var key = entity.FindProperty(nameof(Publication.IdempotencyKey));
 		key.Should().NotBeNull(

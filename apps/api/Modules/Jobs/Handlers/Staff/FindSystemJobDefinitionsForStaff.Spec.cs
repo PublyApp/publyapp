@@ -29,9 +29,9 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 	private readonly TestAuthClient _AuthClient;
 
 	public FindSystemJobDefinitionsForStaffSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private static string _Url() {
@@ -44,14 +44,14 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 
 	[Fact]
 	public async Task ItShouldListDefinitionsIncludingTheSeededOne() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var jobKey = await _SeedDefinitionAsync(isEnabled: true);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var jobKey = await this._SeedDefinitionAsync(isEnabled: true);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Get, _Url())
+			var request = new HttpRequestMessage(HttpMethod.Get, FindSystemJobDefinitionsForStaffSpec._Url())
 				.WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -68,21 +68,21 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 			seededItem.TryGetProperty("payload", out _)
 				.Should().BeFalse();
 		} finally {
-			await _CleanupAsync(jobKey);
+			await this._CleanupAsync(jobKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldFilterByIsEnabled() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
-		var enabledKey = await _SeedDefinitionAsync(isEnabled: true);
-		var disabledKey = await _SeedDefinitionAsync(isEnabled: false);
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var enabledKey = await this._SeedDefinitionAsync(isEnabled: true);
+		var disabledKey = await this._SeedDefinitionAsync(isEnabled: false);
 
 		try {
-			var request = new HttpRequestMessage(HttpMethod.Get, $"{_Url()}?is_enabled=false")
+			var request = new HttpRequestMessage(HttpMethod.Get, $"{FindSystemJobDefinitionsForStaffSpec._Url()}?is_enabled=false")
 				.WithSessionToken(token);
 
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -92,38 +92,38 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 				.Should().Contain(disabledKey)
 				.And.NotContain(enabledKey);
 		} finally {
-			await _CleanupAsync(enabledKey);
-			await _CleanupAsync(disabledKey);
+			await this._CleanupAsync(enabledKey);
+			await this._CleanupAsync(disabledKey);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForAnInvalidIsEnabledFilter() {
-		var token = await _AuthClient.LoginAsStaffAdminAsync();
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Get, $"{_Url()}?is_enabled=yes")
+		var request = new HttpRequestMessage(HttpMethod.Get, $"{FindSystemJobDefinitionsForStaffSpec._Url()}?is_enabled=yes")
 			.WithSessionToken(token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]
 	public async Task ItShouldRequireASession() {
-		using var response = await _Http.GetAsync(_Url());
+		using var response = await this._Http.GetAsync(FindSystemJobDefinitionsForStaffSpec._Url());
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var unprivileged = await _CreateUnprivilegedStaffUserAsync();
+		var unprivileged = await this._CreateUnprivilegedStaffUserAsync();
 
-		var request = new HttpRequestMessage(HttpMethod.Get, _Url())
+		var request = new HttpRequestMessage(HttpMethod.Get, FindSystemJobDefinitionsForStaffSpec._Url())
 			.WithSessionToken(unprivileged.Token);
 
-		using var response = await _Http.SendAsync(request);
+		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -133,7 +133,7 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 	private async Task<string> _SeedDefinitionAsync(bool isEnabled) {
 		var jobKey = $"spec.a5.sys-list.{Guid.NewGuid():N}";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		dbContext.SystemJobDefinition.Add(new SystemJobDefinition {
@@ -149,7 +149,7 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
@@ -163,7 +163,7 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-list-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var user = new User {
@@ -184,7 +184,7 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
 
-		var token = await _AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);
 	}
 }

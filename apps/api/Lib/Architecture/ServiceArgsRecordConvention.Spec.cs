@@ -61,7 +61,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	public void ItShouldDiscoverServiceInterfacesToGuard() {
 		// Vacuity check: an empty discovery would make the convention guard pass
 		// for the wrong reason.
-		_ = _EnumerateServiceInterfaces()
+		_ = ServiceArgsRecordConventionSpec._EnumerateServiceInterfaces()
 			.Should()
 			.NotBeEmpty(
 				"service-interface discovery must find I*Service interfaces; an "
@@ -71,7 +71,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 
 	[Fact]
 	public void ItShouldUseArgsRecordsForMethodsWithThreeOrMoreParameters() {
-		var serviceInterfaces = _EnumerateServiceInterfaces();
+		var serviceInterfaces = ServiceArgsRecordConventionSpec._EnumerateServiceInterfaces();
 
 		// Vacuity check inside the guard: an empty scan (e.g. a broken namespace
 		// filter) would make this guard pass for the wrong reason.
@@ -86,14 +86,14 @@ public sealed class ServiceArgsRecordConventionSpec {
 				.Select(method => (
 					Interface: serviceInterface,
 					Method: method,
-					NonTokenCount: _CountNonTokenParameters(method)
+					NonTokenCount: ServiceArgsRecordConventionSpec._CountNonTokenParameters(method)
 				)))
 			.Where(entry => entry.NonTokenCount >= 3)
 			.Select(entry => (
-				Key: _BuildSignatureKey(entry.Interface, entry.Method),
+				Key: ServiceArgsRecordConventionSpec._BuildSignatureKey(entry.Interface, entry.Method),
 				Count: entry.NonTokenCount
 			))
-			.Where(entry => !_AllowedMultiParamMethods.Contains(entry.Key))
+			.Where(entry => !ServiceArgsRecordConventionSpec._AllowedMultiParamMethods.Contains(entry.Key))
 			.Select(entry => $"{entry.Key} ({entry.Count} params)")
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -111,14 +111,14 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// Guards against stale allowlist drift: every allowlisted method must still
 		// exist and still actually have 3+ non-token parameters. If a baseline case
 		// is fixed (or removed), its allowlist entry must go too.
-		var actualMultiParamKeys = _EnumerateServiceInterfaces()
+		var actualMultiParamKeys = ServiceArgsRecordConventionSpec._EnumerateServiceInterfaces()
 			.SelectMany(serviceInterface => serviceInterface
 				.GetMethods()
-				.Where(method => _CountNonTokenParameters(method) >= 3)
-				.Select(method => _BuildSignatureKey(serviceInterface, method)))
+				.Where(method => ServiceArgsRecordConventionSpec._CountNonTokenParameters(method) >= 3)
+				.Select(method => ServiceArgsRecordConventionSpec._BuildSignatureKey(serviceInterface, method)))
 			.ToHashSet(StringComparer.Ordinal);
 
-		List<string> staleEntries = _AllowedMultiParamMethods
+		List<string> staleEntries = ServiceArgsRecordConventionSpec._AllowedMultiParamMethods
 			.Where(entry => !actualMultiParamKeys.Contains(entry))
 			.OrderBy(name => name, StringComparer.Ordinal)
 			.ToList();
@@ -134,87 +134,87 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// Positive coverage retained from the original issue-specific guard: these
 		// methods already adopt args records, and we assert the exact parameter
 		// shape so a regression away from the record form is caught explicitly.
-		_AssertMethodParameterTypeNames<IAccountProfileService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IAccountProfileService>(
 			"UpdateAccountProfileAsync",
 			"UpdateAccountProfileArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IAuditLogService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IAuditLogService>(
 			"LogAsync",
 			"CreateAuditLogArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IImpersonationService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IImpersonationService>(
 			"CreateImpersonationSessionAsync",
 			"CreateImpersonationSessionArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IInvitationService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IInvitationService>(
 			"CreateStaffInvitationAsync",
 			"CreateStaffInvitationArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IInvitationService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IInvitationService>(
 			"CreateTenantInvitationAsync",
 			"CreateTenantInvitationArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IInvitationQueryService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IInvitationQueryService>(
 			"FindStaffInvitationsAsync",
 			"FindStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
 			"AcceptStaffInvitationAsync",
 			"AcceptStaffInvitationArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IInvitationAcceptanceService>(
 			"AcceptTenantInvitationAsync",
 			"AcceptTenantInvitationArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IInvitationService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IInvitationService>(
 			"BulkCreateStaffInvitationsAsync",
 			"BulkCreateStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IStaffProfileAsStaffService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IStaffProfileAsStaffService>(
 			"CreateStaffProfileAsync",
 			"CreateStaffProfileArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<ISystemNoticeService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<ISystemNoticeService>(
 			"FindAsync",
 			"FindSystemNoticesArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkInProgressAsync",
 			"MarkPublicationInProgressArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkPublishedAsync",
 			"MarkPublicationPublishedArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkFailedAsync",
 			"MarkPublicationFailedArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkPausedAsync",
 			"MarkPublicationPausedArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"RescheduleToNowAsync",
 			"ReschedulePublicationToNowArgs",
 			nameof(CancellationToken)
 		);
-		_AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkScheduledAsync",
 			"MarkPublicationScheduledArgs",
 			nameof(CancellationToken)
@@ -256,7 +256,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 			.GetParameters()
 			.Where(parameter =>
 				parameter.ParameterType != typeof(CancellationToken))
-			.Select(parameter => _RenderTypeName(parameter.ParameterType));
+			.Select(parameter => ServiceArgsRecordConventionSpec._RenderTypeName(parameter.ParameterType));
 
 		return $"{serviceInterface.Name}.{method.Name}"
 			+ $"({string.Join(", ", parameterTypes)})";

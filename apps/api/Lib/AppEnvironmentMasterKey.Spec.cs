@@ -20,7 +20,7 @@ public sealed class AppEnvironmentMasterKeySpec {
 
 	[Fact]
 	public void ItShouldThrowWhenTheVariableIsMissing() {
-		var act = _WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", string.Empty);
+		var act = AppEnvironmentMasterKeySpec._WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", string.Empty);
 		act.Should().Throw<InvalidOperationException>()
 			.WithMessage("*required*");
 	}
@@ -29,14 +29,14 @@ public sealed class AppEnvironmentMasterKeySpec {
 	public void ItShouldThrowWhenTheKeyIsTooShort() {
 		// 16 bytes instead of 32
 		var shortKey = Convert.ToBase64String(new byte[16]);
-		var act = _WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", shortKey);
+		var act = AppEnvironmentMasterKeySpec._WrapParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", shortKey);
 		act.Should().Throw<InvalidOperationException>()
 			.WithMessage("*32 bytes*");
 	}
 
 	[Fact]
 	public void ItShouldThrowWhenTheKeyIsNotValidBase64() {
-		var act = _WrapParseMasterKey(
+		var act = AppEnvironmentMasterKeySpec._WrapParseMasterKey(
 			"SOCIAL_ACCOUNTS_MASTER_KEY",
 			"not-valid-base64!!!"
 		);
@@ -62,7 +62,7 @@ public sealed class AppEnvironmentMasterKeySpec {
 	private static Action _WrapParseMasterKey(string name, string value) {
 		return () => {
 			try {
-				_InvokeParseMasterKey(name, value);
+				AppEnvironmentMasterKeySpec._InvokeParseMasterKey(name, value);
 			} catch (System.Reflection.TargetInvocationException ex)
 				when (ex.InnerException is not null) {
 				throw ex.InnerException;

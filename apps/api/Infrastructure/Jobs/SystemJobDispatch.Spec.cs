@@ -18,7 +18,7 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public SystemJobDispatchSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
@@ -26,7 +26,7 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 		var marker = $"dispatch-cleanup-{Guid.NewGuid():N}";
 		Guid? jobId = null;
 
-		var connectionString = await _GetTestConnectionStringAsync();
+		var connectionString = await this._GetTestConnectionStringAsync();
 		var builder = Program.CreateWorkerHostBuilder([]);
 		builder.Services.RemoveAll<AppDbContext>();
 		builder.Services.RemoveAll<DbContextOptions<AppDbContext>>();
@@ -97,7 +97,7 @@ public sealed class SystemJobDispatchSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<string> _GetTestConnectionStringAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

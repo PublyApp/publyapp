@@ -26,19 +26,19 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 	private readonly TestAuthClient _AuthClient;
 
 	public FindNeedsReconnectAccountsForTenantSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http,
+			this._Http,
 			staffToken,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
@@ -46,9 +46,9 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 	}
 
 	private async Task<Guid> _GetOtherTenantIdAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		return await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, staffToken, SeedConstants.Tenants.GlobalName
+			this._Http, staffToken, SeedConstants.Tenants.GlobalName
 		);
 	}
 
@@ -67,7 +67,7 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 		SocialAccountStatus status,
 		string? lastError = null
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		db.SocialAccount.Add(new SocialAccount {
 			TenantId = tenantId,
@@ -82,12 +82,12 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 
 	[Fact]
 	public async Task ItShouldReturnOnlyNeedsReconnectAccountsOfTheCallingTenant() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		await _SeedAccountAsync(
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		await this._SeedAccountAsync(
 			tenantId, "did:plc:test", SocialAccountStatus.NeedsReconnect, "Bluesky refused"
 		);
 
-		using var response = await _Http.SendAsync(_GetRequest(token, tenantId));
+		using var response = await this._Http.SendAsync(FindNeedsReconnectAccountsForTenantSpec._GetRequest(token, tenantId));
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
@@ -118,9 +118,9 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 
 	[Fact]
 	public async Task ItShouldReturnEmptyListWhenNoAccountNeedsReconnect() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 
-		using var response = await _Http.SendAsync(_GetRequest(token, tenantId));
+		using var response = await this._Http.SendAsync(FindNeedsReconnectAccountsForTenantSpec._GetRequest(token, tenantId));
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
@@ -130,13 +130,13 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 
 	[Fact]
 	public async Task ItShouldNotLeakAnotherTenantsAccounts() {
-		var (acmeId, acmeToken) = await _LoginAsAcmeAdminAsync();
-		var globalId = await _GetOtherTenantIdAsync();
-		await _SeedAccountAsync(
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var globalId = await this._GetOtherTenantIdAsync();
+		await this._SeedAccountAsync(
 			globalId, "did:plc:other", SocialAccountStatus.NeedsReconnect, "Bluesky refused"
 		);
 
-		using var response = await _Http.SendAsync(_GetRequest(acmeToken, acmeId));
+		using var response = await this._Http.SendAsync(FindNeedsReconnectAccountsForTenantSpec._GetRequest(acmeToken, acmeId));
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();

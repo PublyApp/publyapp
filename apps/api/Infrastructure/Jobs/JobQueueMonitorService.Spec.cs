@@ -30,14 +30,14 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public JobQueueMonitorServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	// --- threshold alerting: returned breach codes (pure) -------------------------------
 
 	[Fact]
 	public void ItShouldAlertWhenDueDepthExceedsThresholdAndStaySilentAtOrBelow() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.EvaluateAndAlert(
 			JobQueueSample.Empty with { DueDepthBulk = JobQueueMonitorService.DueDepthWarnThreshold + 1 }
@@ -50,7 +50,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public void ItShouldAlertWhenOldestHighPriorityAgeExceedsItsThreshold() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.EvaluateAndAlert(
 			JobQueueSample.Empty with {
@@ -68,7 +68,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public void ItShouldAlertWhenOldestBulkPriorityAgeExceedsItsThreshold() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.EvaluateAndAlert(
 			JobQueueSample.Empty with {
@@ -79,7 +79,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public void ItShouldAlertWhenTheDeadLetterQueueGrewInTheLastHour() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.EvaluateAndAlert(JobQueueSample.Empty with { DeadLetterGrowth1h = 1 })
 			.Should().Contain("dlq_growth");
@@ -91,7 +91,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// Same anomaly semantics as dlq_growth — re-breaches every sample while > 0, silent at 0.
 	[Fact]
 	public void ItShouldAlertWhileUntriagedMissingRowsAreHeldAndStaySilentAtZero() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.EvaluateAndAlert(JobQueueSample.Empty with { MissingTriagedCount = 1 })
 			.Should().Contain("dlq_untriaged_missing");
@@ -106,7 +106,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public void ItShouldAlertOnProcessingOverLeaseOnlyAfterThreeConsecutiveSamples() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 		var breached = JobQueueSample.Empty with { ProcessingOverLeaseCount = 1 };
 
 		monitor.EvaluateAndAlert(breached).Should().NotContain("processing_over_lease");
@@ -126,7 +126,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	public void ItShouldLogAWarningWithPropertiesAboveThresholdAndNothingBelow() {
 		var logger = new CapturingLogger<JobQueueMonitorService>();
 		using var monitor = new JobQueueMonitorService(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			logger,
 			new SchedulerSyncState()
 		);
@@ -139,12 +139,12 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		).Subject;
 		warning.Message.Should().Contain("due_depth");
 		warning.State.Should().Contain(
-			kvp => kvp.Key == "DueDepth" && Equals(kvp.Value, (long)overBy),
+			kvp => kvp.Key == "DueDepth" && JobQueueMonitorServiceSpec.Equals(kvp.Value, (long)overBy),
 			"the warning carries the breached value as a structured property"
 		);
 		warning.State.Should().Contain(
 			kvp => kvp.Key == "Threshold"
-				&& Equals(kvp.Value, JobQueueMonitorService.DueDepthWarnThreshold),
+				&& JobQueueMonitorServiceSpec.Equals(kvp.Value, JobQueueMonitorService.DueDepthWarnThreshold),
 			"the warning carries the threshold as a structured property"
 		);
 
@@ -161,19 +161,19 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldSampleSeededQueueStateAndEmitMatchingGauges() {
 		var jobType = $"spec.monitor.{Guid.NewGuid():N}";
 		var recipient = $"{jobType}@example.com";
-		await using var dbContext = await _CreateDbContextAsync();
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync();
+		using var monitor = this._CreateMonitor();
 
 		try {
 			// Baseline captures ambient rows; the delta after seeding is the EXACT seeded
 			// count regardless of what else lives in the shared queue.
 			var before = await monitor.SampleAsync(dbContext, CancellationToken.None);
 
-			await _SeedDueHighAsync(dbContext, jobType, count: 4);
-			await _SeedDueBulkAsync(dbContext, jobType, count: 5);
-			await _SeedProcessingOverLeaseAsync(dbContext, jobType, count: 2);
-			await _SeedDeadLetterAsync(dbContext, jobType, count: 3);
-			await _SeedEmailFailureAsync(dbContext, recipient);
+			await JobQueueMonitorServiceSpec._SeedDueHighAsync(dbContext, jobType, count: 4);
+			await JobQueueMonitorServiceSpec._SeedDueBulkAsync(dbContext, jobType, count: 5);
+			await JobQueueMonitorServiceSpec._SeedProcessingOverLeaseAsync(dbContext, jobType, count: 2);
+			await JobQueueMonitorServiceSpec._SeedDeadLetterAsync(dbContext, jobType, count: 3);
+			await JobQueueMonitorServiceSpec._SeedEmailFailureAsync(dbContext, recipient);
 
 			var after = await monitor.SampleAsync(dbContext, CancellationToken.None);
 
@@ -195,7 +195,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			);
 
 			// Every gauge/tag series emits exactly the sampled value (ten series total).
-			var gauges = _ReadGauges();
+			var gauges = JobQueueMonitorServiceSpec._ReadGauges();
 			gauges.DueHigh.Should().Be(after.DueDepthHigh);
 			gauges.DueBulk.Should().Be(after.DueDepthBulk);
 			gauges.OverLease.Should().Be(after.ProcessingOverLeaseCount);
@@ -206,15 +206,15 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			gauges.OldestHigh.Should().Be(after.OldestDueAgeSecondsHigh);
 			gauges.OldestBulk.Should().Be(after.OldestDueAgeSecondsBulk);
 		} finally {
-			await _DeleteByTypeAsync(jobType, recipient);
+			await this._DeleteByTypeAsync(jobType, recipient);
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldReadAQueueSampleWithOneCoherentAggregateStatement() {
 		var interceptor = new CountingCommandInterceptor();
-		await using var dbContext = await _CreateDbContextAsync(interceptor);
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync(interceptor);
+		using var monitor = this._CreateMonitor();
 
 		await monitor.SampleAsync(dbContext, CancellationToken.None);
 
@@ -236,20 +236,20 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldSampleAndEmitTheUntriagedMissingCountUntilTriaged() {
 		var jobType = $"{JobDeadLetter.MissingJobTypePrefix}spec.monitor-missing.{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync();
+		using var monitor = this._CreateMonitor();
 
 		try {
 			var before = await monitor.SampleAsync(dbContext, CancellationToken.None);
 
-			await _SeedDeadLetterAsync(dbContext, jobType, count: 2);
+			await JobQueueMonitorServiceSpec._SeedDeadLetterAsync(dbContext, jobType, count: 2);
 			var held = await monitor.SampleAsync(dbContext, CancellationToken.None);
 
 			held.MissingTriagedCount.Should().Be(
 				before.MissingTriagedCount + 2,
 				"two durable untriaged missing-anomaly rows are counted exactly"
 			);
-			_ReadGauges().UntriagedMissing.Should().Be(held.MissingTriagedCount);
+			JobQueueMonitorServiceSpec._ReadGauges().UntriagedMissing.Should().Be(held.MissingTriagedCount);
 
 			// The operator acknowledgement releases them from the held set (#636 will be
 			// the real writer; here the stamp itself is what is under test).
@@ -267,13 +267,13 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				"triage empties the held set — the alert recovers only then"
 			);
 		} finally {
-			await _DeleteByTypeAsync(jobType, $"spec.monitor-cleanup.{Guid.NewGuid():N}@example.com");
+			await this._DeleteByTypeAsync(jobType, $"spec.monitor-cleanup.{Guid.NewGuid():N}@example.com");
 		}
 	}
 
 	[Fact]
 	public async Task ItShouldRecoverAfterASampleErrorAndStopDuringAControlledDelay() {
-		var innerScopeFactory = _Fixture.Factory.Services
+		var innerScopeFactory = this._Fixture.Factory.Services
 			.GetRequiredService<IServiceScopeFactory>();
 		var scopeFactory = new FailingOnceScopeFactory(innerScopeFactory);
 		var logger = new CapturingLogger<JobQueueMonitorService>();
@@ -349,9 +349,9 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		};
 		listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) => {
 			if (instrument.Name == "jobs.due_depth") {
-				if (_TagClass(tags) == "high") {
+				if (JobQueueMonitorServiceSpec._TagClass(tags) == "high") {
 					dueHigh = measurement;
-				} else if (_TagClass(tags) == "bulk") {
+				} else if (JobQueueMonitorServiceSpec._TagClass(tags) == "bulk") {
 					dueBulk = measurement;
 				}
 			} else if (instrument.Name == "jobs.processing_over_lease") {
@@ -370,9 +370,9 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		});
 		listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) => {
 			if (instrument.Name == "jobs.oldest_due_age_seconds") {
-				if (_TagClass(tags) == "high") {
+				if (JobQueueMonitorServiceSpec._TagClass(tags) == "high") {
 					oldestHigh = measurement;
-				} else if (_TagClass(tags) == "bulk") {
+				} else if (JobQueueMonitorServiceSpec._TagClass(tags) == "bulk") {
 					oldestBulk = measurement;
 				}
 			}
@@ -417,8 +417,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReportLeaderAbsenceWithoutAttemptingTheAdvisoryLock() {
 		var interceptor = new CountingCommandInterceptor();
-		await using var dbContext = await _CreateDbContextAsync(interceptor);
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync(interceptor);
+		using var monitor = this._CreateMonitor();
 
 		var sample = await monitor.SampleAsync(dbContext, CancellationToken.None);
 
@@ -484,7 +484,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		);
 
 		// Secondary behavioral control: the probe left the lock untouched and available.
-		await using var connection = new NpgsqlConnection(_GetTestConnectionString());
+		await using var connection = new NpgsqlConnection(this._GetTestConnectionString());
 		await connection.OpenAsync();
 		await using var command = new NpgsqlCommand(
 			$"SELECT pg_try_advisory_lock({SchedulerLeaderService.SchedulerLeaderLockKey})",
@@ -503,11 +503,11 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// `false` would satisfy the absence assertion.
 	[Fact]
 	public async Task ItShouldReportLeaderPresentWhenTheAdvisoryLockIsHeld() {
-		await using var dbContext = await _CreateDbContextAsync();
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync();
+		using var monitor = this._CreateMonitor();
 
 		// A dedicated session holding the real key, standing in for a live leader.
-		await using var leaderConnection = new NpgsqlConnection(_GetTestConnectionString());
+		await using var leaderConnection = new NpgsqlConnection(this._GetTestConnectionString());
 		await leaderConnection.OpenAsync();
 		await using var acquire = new NpgsqlCommand(
 			$"SELECT pg_advisory_lock({SchedulerLeaderService.SchedulerLeaderLockKey})",
@@ -529,7 +529,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// but reconciliation has stopped. Staleness is what catches it.
 	[Fact]
 	public void ItShouldAlertWhenTheLeaderSyncGoesStaleAndStaySilentAtOrBelow() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		var stale = JobQueueSample.Empty with {
 			SchedulerSyncAgeSeconds = JobQueueMonitorService.SchedulerSyncStaleSeconds + 1,
@@ -548,7 +548,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// staleness. Otherwise every follower in the fleet would alert forever.
 	[Fact]
 	public void ItShouldStaySilentOnSyncStalenessWhenThisReplicaIsNotTheLeader() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.EvaluateAndAlert(
 			JobQueueSample.Empty with { SchedulerSyncAgeSeconds = null }
@@ -562,10 +562,10 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// again, so it cannot keep alerting on the timestamp it happens to still hold.
 	[Fact]
 	public async Task ItShouldMeasureSyncStalenessFromElectionUntilTheFirstSyncCompletes() {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		var syncState = new SchedulerSyncState();
 		using var monitor = new JobQueueMonitorService(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<JobQueueMonitorService>.Instance,
 			syncState
 		);
@@ -606,17 +606,17 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// stay silent until this replica leads AND has completed a sync.
 	[Fact]
 	public async Task ItShouldEmitSchedulerGaugesOnlyWhenKnownAndNeverFabricateAHealthyLeader() {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		var syncState = new SchedulerSyncState();
 		using var monitor = new JobQueueMonitorService(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<JobQueueMonitorService>.Instance,
 			syncState
 		);
 
 		// Pre-sample: presence is UNKNOWN — the gauge emits no measurement, and sync is owed
 		// by no one, so its gauge is silent too.
-		var before = _ReadSchedulerGauges();
+		var before = JobQueueMonitorServiceSpec._ReadSchedulerGauges();
 		before.LeaderPresent.Should().BeNull(
 			"before any probe completes, leader presence is unknown — the gauge must emit "
 			+ "nothing rather than a fabricated healthy 1"
@@ -626,14 +626,14 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		// A real probe against this cloned DB (no leader) emits 0 — from the probe, not a
 		// pre-sample default.
 		await monitor.SampleAsync(dbContext, CancellationToken.None);
-		_ReadSchedulerGauges().LeaderPresent.Should().Be(
+		JobQueueMonitorServiceSpec._ReadSchedulerGauges().LeaderPresent.Should().Be(
 			0, "an absent leader reads 0 from a real pg_locks probe, never a fabricated value"
 		);
 
 		// last_sync_at appears only once this replica leads and has completed a sync.
 		syncState.MarkLeadershipAcquired();
 		syncState.MarkSyncCompleted();
-		_ReadSchedulerGauges().LastSyncAt.Should().NotBeNull(
+		JobQueueMonitorServiceSpec._ReadSchedulerGauges().LastSyncAt.Should().NotBeNull(
 			"a completed reconcile under leadership publishes scheduler.last_sync_at"
 		);
 	}
@@ -681,8 +681,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldSamplePreparedStateOverdueSecondsFromTheOldestDeletableOrphan() {
 		var marker = $"spec.monitor-prepared.{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync();
+		using var monitor = this._CreateMonitor();
 
 		try {
 			var orphanJobId = Guid.NewGuid();
@@ -691,22 +691,22 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				INSERT INTO email_prepared_sends
 					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
 				VALUES (
-					{orphanJobId}, {_EmptyJson}::jsonb, 'sha', {marker},
-					now() - make_interval(days => {_OverdueFloorDays}, mins => {_OverdueMinutes})
+					{orphanJobId}, {JobQueueMonitorServiceSpec._EmptyJson}::jsonb, 'sha', {marker},
+					now() - make_interval(days => {JobQueueMonitorServiceSpec._OverdueFloorDays}, mins => {JobQueueMonitorServiceSpec._OverdueMinutes})
 				)
 				"""
 			);
 
 			var after = await monitor.SampleAsync(dbContext, CancellationToken.None);
 
-			var floorSeconds = _OverdueFloorDays * 24 * 60 * 60;
+			var floorSeconds = JobQueueMonitorServiceSpec._OverdueFloorDays * 24 * 60 * 60;
 			after.PreparedStateOverdueSeconds.Should().BeGreaterThanOrEqualTo(
-				floorSeconds + (_OverdueMinutes * 60) - 30,
+				floorSeconds + (JobQueueMonitorServiceSpec._OverdueMinutes * 60) - 30,
 				"the sampled gauge carries the age of the oldest deletable prepared row "
 				+ "(retention floor + the extra minutes it has been waiting)"
 			);
 			after.PreparedStateOverdueSeconds.Should().BeLessThanOrEqualTo(
-				floorSeconds + ((_OverdueMinutes + 5) * 60),
+				floorSeconds + ((JobQueueMonitorServiceSpec._OverdueMinutes + 5) * 60),
 				"sampling must not fabricate overdue ages far above the oldest real row"
 			);
 		} finally {
@@ -721,8 +721,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReadZeroPreparedStateOverdueWhenNothingIsEligibleForDeletion() {
 		var marker = $"spec.monitor-young.{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync();
+		using var monitor = this._CreateMonitor();
 
 		try {
 			await dbContext.Database.ExecuteSqlAsync(
@@ -730,7 +730,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				INSERT INTO email_prepared_sends
 					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
 				VALUES (
-					{Guid.NewGuid()}, {_EmptyJson}::jsonb, 'sha', {marker}, now()
+					{Guid.NewGuid()}, {JobQueueMonitorServiceSpec._EmptyJson}::jsonb, 'sha', {marker}, now()
 				)
 				"""
 			);
@@ -756,7 +756,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			AppEnvironment.Instance.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES * 60;
 
 		var capturingMonitor = new JobQueueMonitorService(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			logger,
 			new SchedulerSyncState()
 		);
@@ -783,8 +783,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldEmitThePreparedStateOverdueGaugeWithTheSampledValue() {
 		var marker = $"spec.monitor-gauge.{Guid.NewGuid():N}";
-		await using var dbContext = await _CreateDbContextAsync();
-		using var monitor = _CreateMonitor();
+		await using var dbContext = await this._CreateDbContextAsync();
+		using var monitor = this._CreateMonitor();
 
 		try {
 			var orphanJobId = Guid.NewGuid();
@@ -793,14 +793,14 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				INSERT INTO email_prepared_sends
 					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
 				VALUES (
-					{orphanJobId}, {_EmptyJson}::jsonb, 'sha', {marker},
-					now() - make_interval(days => {_OverdueFloorDays}, mins => {_OverdueMinutes})
+					{orphanJobId}, {JobQueueMonitorServiceSpec._EmptyJson}::jsonb, 'sha', {marker},
+					now() - make_interval(days => {JobQueueMonitorServiceSpec._OverdueFloorDays}, mins => {JobQueueMonitorServiceSpec._OverdueMinutes})
 				)
 				"""
 			);
 
 			var sample = await monitor.SampleAsync(dbContext, CancellationToken.None);
-			_TryReadOverdueGauge().Should().Be(
+			JobQueueMonitorServiceSpec._TryReadOverdueGauge().Should().Be(
 				sample.PreparedStateOverdueSeconds,
 				"the observable gauge observes the latest sample, exactly like jobs.dlq_size"
 			);
@@ -817,12 +817,12 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	// above while alerting backends read a fake negative age from the series.
 	[Fact]
 	public void ItShouldEmitNoPreparedStateOverdueMeasurementWhileTheSampleIsUnknown() {
-		using var monitor = _CreateMonitor();
+		using var monitor = this._CreateMonitor();
 
 		monitor.LastSample.PreparedStateOverdueSeconds.Should().Be(
 			-1, "an instance that never sampled carries the UNKNOWN sentinel"
 		);
-		_TryReadOverdueGauge().Should().BeNull(
+		JobQueueMonitorServiceSpec._TryReadOverdueGauge().Should().BeNull(
 			"UNKNOWN must emit NOTHING — no measurement may exist before a real sample"
 		);
 	}
@@ -860,14 +860,14 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 	private JobQueueMonitorService _CreateMonitor() {
 		return new JobQueueMonitorService(
-			_Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<JobQueueMonitorService>.Instance,
 			new SchedulerSyncState()
 		);
 	}
 
 	private string _GetTestConnectionString() {
-		using var scope = _Fixture.Factory.Services.CreateScope();
+		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -937,7 +937,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				INSERT INTO job_dead_letter
 					(original_job_id, job_type, payload, priority, max_attempts, attempts,
 					 enqueued_at, failed_at)
-				VALUES (uuidv7(), {jobType}, {_EmptyJson}::jsonb, 0, 10, 10, now(), now())
+				VALUES (uuidv7(), {jobType}, {JobQueueMonitorServiceSpec._EmptyJson}::jsonb, 0, 10, 10, now(), now())
 				"""
 			);
 		}
@@ -961,7 +961,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _DeleteByTypeAsync(string jobType, string recipient) {
-		await using var dbContext = await _CreateDbContextAsync();
+		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type = {jobType}"
 		);
@@ -976,7 +976,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 	private async Task<AppDbContext> _CreateDbContextAsync(
 		params IInterceptor[] interceptors
 	) {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();
@@ -1008,23 +1008,23 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 		public IReadOnlyList<string> AllCommands {
 			get {
-				lock (_Gate) {
-					return _Commands.ToList();
+				lock (this._Gate) {
+					return this._Commands.ToList();
 				}
 			}
 		}
 
 		private void _CaptureReader(DbCommand command) {
-			lock (_Gate) {
-				ReaderCommandCount++;
-				LastReaderCommandText = command.CommandText;
-				_Commands.Add(command.CommandText);
+			lock (this._Gate) {
+				this.ReaderCommandCount++;
+				this.LastReaderCommandText = command.CommandText;
+				this._Commands.Add(command.CommandText);
 			}
 		}
 
 		private void _Capture(DbCommand command) {
-			lock (_Gate) {
-				_Commands.Add(command.CommandText);
+			lock (this._Gate) {
+				this._Commands.Add(command.CommandText);
 			}
 		}
 
@@ -1033,7 +1033,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			CommandEventData eventData,
 			InterceptionResult<DbDataReader> result
 		) {
-			_CaptureReader(command);
+			this._CaptureReader(command);
 			return result;
 		}
 
@@ -1043,7 +1043,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			InterceptionResult<DbDataReader> result,
 			CancellationToken cancellationToken = default
 		) {
-			_CaptureReader(command);
+			this._CaptureReader(command);
 			return ValueTask.FromResult(result);
 		}
 
@@ -1052,7 +1052,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			CommandEventData eventData,
 			InterceptionResult<object> result
 		) {
-			_Capture(command);
+			this._Capture(command);
 			return result;
 		}
 
@@ -1062,7 +1062,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			InterceptionResult<object> result,
 			CancellationToken cancellationToken = default
 		) {
-			_Capture(command);
+			this._Capture(command);
 			return ValueTask.FromResult(result);
 		}
 
@@ -1071,7 +1071,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			CommandEventData eventData,
 			InterceptionResult<int> result
 		) {
-			_Capture(command);
+			this._Capture(command);
 			return result;
 		}
 
@@ -1081,7 +1081,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			InterceptionResult<int> result,
 			CancellationToken cancellationToken = default
 		) {
-			_Capture(command);
+			this._Capture(command);
 			return ValueTask.FromResult(result);
 		}
 	}
@@ -1090,18 +1090,18 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		private readonly IServiceScopeFactory _Inner;
 
 		public FailingOnceScopeFactory(IServiceScopeFactory inner) {
-			_Inner = inner;
+			this._Inner = inner;
 		}
 
 		public int Attempts { get; private set; }
 
 		public IServiceScope CreateScope() {
-			Attempts++;
-			if (Attempts == 1) {
+			this.Attempts++;
+			if (this.Attempts == 1) {
 				throw new InvalidOperationException("expected first-cycle failure");
 			}
 
-			return _Inner.CreateScope();
+			return this._Inner.CreateScope();
 		}
 	}
 
@@ -1118,11 +1118,11 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		private readonly List<Entry> _Entries = [];
 
 		public IEnumerable<Entry> Warnings {
-			get { return _Entries.Where(e => e.Level == LogLevel.Warning); }
+			get { return this._Entries.Where(e => e.Level == LogLevel.Warning); }
 		}
 
 		public void Clear() {
-			_Entries.Clear();
+			this._Entries.Clear();
 		}
 
 		public IDisposable BeginScope<TState>(TState state) where TState : notnull {
@@ -1142,7 +1142,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		) {
 			var kvps = state as IReadOnlyList<KeyValuePair<string, object?>>
 				?? Array.Empty<KeyValuePair<string, object?>>();
-			_Entries.Add(new Entry(logLevel, formatter(state, exception), kvps));
+			this._Entries.Add(new Entry(logLevel, formatter(state, exception), kvps));
 		}
 
 		private sealed class NullScope : IDisposable {

@@ -20,31 +20,31 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
 	public PublishTargetServiceSpec(ApiFixture fixture) {
-		_Fixture = fixture;
+		this._Fixture = fixture;
 	}
 
 	[Fact]
 	public async Task ItShouldReturnOnlyActiveTenantTargetsInCreatedAtIdOrder() {
-		await using var db = await _NewDbAsync();
-		var (tenantId, foreignTenantId) = await _SeedTenantsAsync(db);
+		await using var db = await this._NewDbAsync();
+		var (tenantId, foreignTenantId) = await PublishTargetServiceSpec._SeedTenantsAsync(db);
 
-		var oldActive = await _SeedAccountAsync(
+		var oldActive = await PublishTargetServiceSpec._SeedAccountAsync(
 			db, tenantId, "@targets-old.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 120
 		);
-		var everywhere = await _SeedAccountAsync(
+		var everywhere = await PublishTargetServiceSpec._SeedAccountAsync(
 			db, tenantId, "@targets-everywhere.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 90
 		);
-		var recentActive = await _SeedAccountAsync(
+		var recentActive = await PublishTargetServiceSpec._SeedAccountAsync(
 			db, tenantId, "@targets-recent.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 60
 		);
-		await _SeedAccountAsync(
+		await PublishTargetServiceSpec._SeedAccountAsync(
 			db, tenantId, "@targets-stale.bsky.social",
 			SocialAccountStatus.NeedsReconnect, minutesAgo: 30
 		);
-		await _SeedAccountAsync(
+		await PublishTargetServiceSpec._SeedAccountAsync(
 			db, foreignTenantId, "@foreign-target.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 10
 		);
@@ -62,19 +62,19 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldApplyTheSingleVisibilityRulePerProject() {
-		await using var db = await _NewDbAsync();
-		var (tenantId, _) = await _SeedTenantsAsync(db);
+		await using var db = await this._NewDbAsync();
+		var (tenantId, _) = await PublishTargetServiceSpec._SeedTenantsAsync(db);
 
-		var attached = await _SeedAccountAsync(
+		var attached = await PublishTargetServiceSpec._SeedAccountAsync(
 			db, tenantId, "@targets-attached.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 100
 		);
-		var roaming = await _SeedAccountAsync(
+		var roaming = await PublishTargetServiceSpec._SeedAccountAsync(
 			db, tenantId, "@targets-roaming.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 80
 		);
-		var projectOne = await _SeedProjectAsync(db, tenantId);
-		var projectTwo = await _SeedProjectAsync(db, tenantId);
+		var projectOne = await PublishTargetServiceSpec._SeedProjectAsync(db, tenantId);
+		var projectTwo = await PublishTargetServiceSpec._SeedProjectAsync(db, tenantId);
 		db.SocialAccountProject.Add(new SocialAccountProject {
 			SocialAccountId = attached,
 			ProjectId = projectOne,
@@ -97,10 +97,10 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNeverLeakAnotherTenantsAccounts() {
-		await using var db = await _NewDbAsync();
-		var (tenantId, foreignTenantId) = await _SeedTenantsAsync(db);
+		await using var db = await this._NewDbAsync();
+		var (tenantId, foreignTenantId) = await PublishTargetServiceSpec._SeedTenantsAsync(db);
 
-		await _SeedAccountAsync(
+		await PublishTargetServiceSpec._SeedAccountAsync(
 			db, foreignTenantId, "@leak-probe.bsky.social",
 			SocialAccountStatus.Active, minutesAgo: 1
 		);
@@ -117,7 +117,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>()
 			.Database.GetConnectionString();

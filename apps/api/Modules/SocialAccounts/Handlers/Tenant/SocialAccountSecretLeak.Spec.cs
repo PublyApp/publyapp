@@ -29,18 +29,18 @@ public sealed class SocialAccountSecretLeakSpec : IClassFixture<ApiFixture> {
 	private readonly TestAuthClient _AuthClient;
 
 	public SocialAccountSecretLeakSpec(ApiFixture fixture) {
-		_Fixture = fixture;
-		_Http = fixture.HttpClient;
-		_AuthClient = new TestAuthClient(_Http);
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
 	[Fact]
 	public async Task ItShouldNeverExposeTheAppPasswordAnywhere() {
-		var (tenantId, token) = await _LoginAsAcmeAdminAsync();
-		var fake = _GetFake();
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var fake = this._GetFake();
 
-		using var connect = await _ConnectAsync(
-			tenantId, token, $"leak-{Guid.NewGuid():N}@example.com", _Password
+		using var connect = await this._ConnectAsync(
+			tenantId, token, $"leak-{Guid.NewGuid():N}@example.com", SocialAccountSecretLeakSpec._Password
 		);
 		connect.StatusCode.Should().Be(HttpStatusCode.Created);
 		var created = await connect.Content.ReadFromJsonAsync<SocialAccountCreated>();
@@ -56,21 +56,21 @@ public sealed class SocialAccountSecretLeakSpec : IClassFixture<ApiFixture> {
 			using var request = new HttpRequestMessage(HttpMethod.Get, url)
 				.WithSessionToken(token)
 				.WithTenantId(tenantId);
-			using var response = await _Http.SendAsync(request);
+			using var response = await this._Http.SendAsync(request);
 			if (response.StatusCode == HttpStatusCode.MethodNotAllowed) {
 				continue; // route exists but is not a GET; nothing to sweep
 			}
 			var text = await response.Content.ReadAsStringAsync();
-			text.Should().NotContain(_Password, $"GET {url} must never echo the secret");
+			text.Should().NotContain(SocialAccountSecretLeakSpec._Password, $"GET {url} must never echo the secret");
 		}
 
 		// Sweep 2: every persisted social_accounts column.
-		await using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var row = await db.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == created.Id);
 		row.ProtectedCredentials.Should().NotBeNullOrEmpty();
-		row.ProtectedCredentials.Should().NotContain(_Password);
+		row.ProtectedCredentials.Should().NotContain(SocialAccountSecretLeakSpec._Password);
 
 		// The stored blob still decrypts to the password (round-trip proof).
 		var protector = scope.ServiceProvider
@@ -79,7 +79,7 @@ public sealed class SocialAccountSecretLeakSpec : IClassFixture<ApiFixture> {
 			row.ProtectedCredentials, SocialProvider.Bluesky
 		);
 		unprotect.Outcome.Should().Be(UnprotectOutcome.Ok);
-		unprotect.Plaintext.Should().Be(_Password);
+		unprotect.Plaintext.Should().Be(SocialAccountSecretLeakSpec._Password);
 
 		// Sweep 3: audit_log rows for this account.
 		var audits = await db.AuditLog.AsNoTracking()
@@ -88,7 +88,7 @@ public sealed class SocialAccountSecretLeakSpec : IClassFixture<ApiFixture> {
 		audits.Should().NotBeEmpty();
 		foreach (var audit in audits) {
 			audit.Action.Should().NotBeNullOrWhiteSpace();
-			audit.Details.Should().NotContain(_Password);
+			audit.Details.Should().NotContain(SocialAccountSecretLeakSpec._Password);
 		}
 
 		// Sanity: the fake recorded the identifier, never a password.
@@ -110,20 +110,20 @@ public sealed class SocialAccountSecretLeakSpec : IClassFixture<ApiFixture> {
 			identifier,
 			appPassword = password,
 		});
-		return await _Http.SendAsync(request);
+		return await this._Http.SendAsync(request);
 	}
 
 	private FakeBlueskyClient _GetFake() {
-		using var scope = _Fixture.Factory.Services.CreateAsyncScope();
+		using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		return scope.ServiceProvider.GetRequiredService<FakeBlueskyClient>();
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await _AuthClient.LoginAsStaffAdminAsync();
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			_Http, staffToken, SeedConstants.Tenants.AcmeName
+			this._Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		var token = await _AuthClient.LoginAsync(
+		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
 		);
 		return (tenantId, token);
