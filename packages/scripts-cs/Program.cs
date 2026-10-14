@@ -5,7 +5,7 @@ namespace PublyApp.Scripts;
 public static class Program {
 	public static int Main(string[] args) {
 		if (args.Length == 0) {
-			_WriteUsage();
+			Program._WriteUsage();
 			return 1;
 		}
 
@@ -21,7 +21,7 @@ public static class Program {
 		}
 
 		Console.Error.WriteLine($"Unknown command: {command}");
-		_WriteUsage();
+		Program._WriteUsage();
 		return 1;
 	}
 

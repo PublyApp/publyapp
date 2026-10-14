@@ -2,6 +2,31 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
+		<!-- Private analyzer build, one per invocation of this project (the solution build and the API's
+		     codegen `dotnet run` use different BaseIntermediateOutputPath values, so they never share it). -->
+		<PublyAnalyzersOutDir>$(BaseIntermediateOutputPath)analyzers\bin\</PublyAnalyzersOutDir>
 	</PropertyGroup>
+
+	<!-- The API's codegen `dotnet run` restores this net10.0 project into a shared private obj root. A
+	     ProjectReference to the netstandard2.0 analyzer would restore into that same assets file
+	     (NETSDK1005), so the analyzer is built by a separate MSBuild call with its own restore and
+	     intermediate/output paths, then loaded as a plain Analyzer item. -->
+	<ItemGroup>
+		<Analyzer Include="$(PublyAnalyzersOutDir)PublyApp.Analyzers.dll" />
+	</ItemGroup>
+
+	<Target Name="BuildPublyAnalyzers" BeforeTargets="CoreCompile;ResolveAssemblyReferences" Condition="'$(DesignTimeBuild)' != 'true'">
+		<PropertyGroup>
+			<_PublyAnalyzersProps>BaseIntermediateOutputPath=$(BaseIntermediateOutputPath)analyzers\obj\;BaseOutputPath=$(BaseIntermediateOutputPath)analyzers\bin\;OutDir=$(PublyAnalyzersOutDir);Configuration=Debug</_PublyAnalyzersProps>
+		</PropertyGroup>
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\lint-cs\PublyApp.Analyzers.csproj"
+				 Targets="Restore"
+				 RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained"
+				 Properties="$(_PublyAnalyzersProps);MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\lint-cs\PublyApp.Analyzers.csproj"
+				 Targets="Build"
+				 RemoveProperties="TargetFramework;RuntimeIdentifier;SelfContained"
+				 Properties="$(_PublyAnalyzersProps)" />
+	</Target>
 
 </Project>
