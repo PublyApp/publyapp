@@ -854,7 +854,7 @@ jobs:
       - name: Setup Docker Buildx
         id: setup-buildx
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Setup GitHub Actions runtime
         id: setup-runtime
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
