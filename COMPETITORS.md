@@ -1,7 +1,5 @@
 # Social media scheduler apps (competitors)
 
-Restored from `docs/misc/social-media-competitors.md` (removed in the docs prune, #988), with openpo.st added.
-
 [https://www.ayrshare.com](https://www.ayrshare.com) => API
 
 [https://getlate.dev](https://getlate.dev) renamed to [https://zernio.com/](https://zernio.com/) => API
