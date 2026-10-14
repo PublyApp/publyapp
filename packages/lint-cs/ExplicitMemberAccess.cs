@@ -89,7 +89,8 @@ internal static class ExplicitMemberAccessHelper {
 		SemanticModel semanticModel
 	) {
 		var replacementName = name.WithoutTrivia();
-		if (info.Kind == ExplicitMemberAccessKind.Instance) {
+		if (info.Kind == ExplicitMemberAccessKind.Instance
+			&& _IsThisAvailable(name, semanticModel)) {
 			var instanceReplacement = _CreateMemberAccess(
 				SyntaxFactory.ThisExpression(),
 				replacementName,
@@ -136,6 +137,37 @@ internal static class ExplicitMemberAccessHelper {
 		)
 			? fullyQualifiedReplacement
 			: null;
+	}
+
+	// Attribute arguments, initializers, parameter defaults and static
+	// members/lambdas/local functions have no `this`;
+	// instance members are still nameable there as ContainingType.Member (nameof only).
+	private static bool _IsThisAvailable(SimpleNameSyntax name, SemanticModel semanticModel) {
+		foreach (var ancestor in name.Ancestors()) {
+			if (ancestor is AttributeSyntax or ConstructorInitializerSyntax) {
+				return false;
+			}
+
+			// Field/property initializers and parameter defaults have no `this` either.
+			if (ancestor is EqualsValueClauseSyntax {
+				Parent: ParameterSyntax or PropertyDeclarationSyntax
+					or VariableDeclaratorSyntax { Parent.Parent: BaseFieldDeclarationSyntax },
+			}) {
+				return false;
+			}
+		}
+
+		for (
+			var symbol = semanticModel.GetEnclosingSymbol(name.SpanStart);
+			symbol is not null and not INamedTypeSymbol;
+			symbol = symbol.ContainingSymbol
+		) {
+			if (symbol.IsStatic) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private static string _GetContainingTypeName(INamedTypeSymbol containingType) {

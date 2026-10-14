@@ -1453,6 +1453,247 @@ public sealed class ExplicitMemberAccessAnalyzerSpec {
 		return actions;
 	}
 
+	private const string _NameofAttributeDecl = """
+		public sealed class MarkAttribute(string name) : System.Attribute {
+			public string Name { get; } = name;
+		}
+		""";
+
+	private static async Task _RunNameofFixAsync(
+		string source,
+		string fixedSource,
+		params string[] names
+	) {
+		var test = new CodeFixTest {
+			TestCode = source,
+			FixedCode = fixedSource,
+			BatchFixedCode = fixedSource,
+		};
+		test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", _EnableConfig));
+		for (var index = 0; index < names.Length; index++) {
+			test.ExpectedDiagnostics.Add(_ExpectedAt(index, names[index]));
+		}
+
+		await test.RunAsync();
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyInstanceNameofWithTheTypeInAStaticMethod() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public static string Read() {
+					return nameof({|#0:Value|});
+				}
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInStaticLocalFunctionsAndLambdas() {
+		const string source = """
+			using System;
+
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public string Read() {
+					static string Local() => nameof({|#0:Value|});
+					Func<string> lambda = static () => nameof({|#1:Value|});
+					return Local() + lambda() + nameof({|#2:Value|});
+				}
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value")
+				.Replace("{|#1:Value|}", "Example.Value")
+				.Replace("{|#2:Value|}", "this.Value"),
+			"Value",
+			"Value",
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInClassPropertyAndMethodAttributes() {
+		const string source = """
+			namespace Sample;
+
+			""" + _NameofAttributeDecl + """
+
+
+			[Mark(nameof({|#0:Value|}))]
+			public sealed class Example {
+				public int Value { get; set; }
+
+				[Mark(nameof({|#1:Value|}))]
+				public int Other { get; set; }
+
+				[Mark(nameof({|#2:Value|}))]
+				public void Run() { }
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value")
+				.Replace("{|#1:Value|}", "Example.Value")
+				.Replace("{|#2:Value|}", "Example.Value"),
+			"Value",
+			"Value",
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheClosedGenericTypeInAttributes() {
+		const string source = """
+			namespace Sample;
+
+			""" + _NameofAttributeDecl + """
+
+
+			public sealed class Example<T> {
+				[Mark(nameof({|#0:Other|}))]
+				public T Value { get; set; } = default!;
+
+				public int Other { get; set; }
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Other|}", "Example<T>.Other"),
+			"Other"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInInstanceFieldInitializer() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public string F = nameof({|#0:Value|});
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInInstancePropertyInitializer() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public string P { get; } = nameof({|#0:Value|});
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInLambdaInsideFieldInitializer() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public System.Func<string> F = () => nameof({|#0:Value|});
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInConstructorBaseInitializer() {
+		const string source = """
+			namespace Sample;
+
+			public class BaseType {
+				public BaseType() { }
+				public BaseType(string s) { }
+			}
+
+			public class Example : BaseType {
+				public int Value;
+
+				public Example() : base(nameof({|#0:Value|})) { }
+
+				public Example(string s) : base(s) { }
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInConstructorThisInitializer() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public Example() : this(nameof({|#0:Value|})) { }
+
+				public Example(string s) { }
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldQualifyNameofWithTheTypeInInstanceMethodParameterDefault() {
+		const string source = """
+			namespace Sample;
+
+			public sealed class Example {
+				public int Value;
+
+				public void M(string s = nameof({|#0:Value|})) { }
+			}
+			""";
+		await _RunNameofFixAsync(
+			source,
+			source.Replace("{|#0:Value|}", "Example.Value"),
+			"Value"
+		);
+	}
+
 	private const string _IsExternalInitPolyfill = """
 		namespace System.Runtime.CompilerServices;
 
