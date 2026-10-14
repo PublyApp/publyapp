@@ -80,7 +80,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify
           path: ci-results/classify.json
@@ -509,7 +509,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-verification
           path: ci-results/verification.json
@@ -568,7 +568,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-development
           path: ci-results/audit-development.json
@@ -627,7 +627,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-production
           path: ci-results/audit-production.json
@@ -716,7 +716,7 @@ jobs:
       - name: Upload API test results
         id: test-results
         if: always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: api-test-results-${{ github.run_id }}
           path: |
@@ -741,7 +741,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api
           path: ci-results/api.json
@@ -795,7 +795,7 @@ jobs:
       - name: Upload Vitest report
         id: report-upload
         if: always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: front-ci-vitest-report-${{ matrix.shard }}-of-4
           path: apps/front/test-results
@@ -817,7 +817,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-vitest-${{ matrix.shard }}
           path: ci-results/front-vitest-${{ matrix.shard }}.json
@@ -901,7 +901,7 @@ jobs:
       - name: Upload fork e2e images
         id: upload-images
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-stack-images-${{ steps.image-tag.outputs.tag }}
           path: /tmp/e2e-images/*.tar.gz
@@ -925,7 +925,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-build
           path: ci-results/e2e-build.json
@@ -1066,7 +1066,7 @@ jobs:
       - name: Upload Playwright report
         id: report-upload
         if: always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: front-e2e-playwright-report-${{ matrix.shard }}-of-4
           path: |
@@ -1095,7 +1095,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}
           path: ci-results/e2e-test-${{ matrix.shard }}.json
@@ -1139,7 +1139,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup
           path: ci-results/e2e-cleanup.json
@@ -1348,7 +1348,7 @@ jobs:
         run: node packages/scripts-ts/src/ci-pr-snapshot.ts
       - name: Upload live PR snapshot
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}
           path: ci-results/ci-pr-snapshot.json
