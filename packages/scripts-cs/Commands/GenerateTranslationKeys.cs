@@ -7,7 +7,7 @@ namespace PublyApp.Scripts.Commands;
 public static class GenerateTranslationKeys {
 	public static int Run(IReadOnlyList<string> args) {
 		if (args.Count != 2) {
-			_WriteUsage();
+			GenerateTranslationKeys._WriteUsage();
 			return 1;
 		}
 
@@ -15,7 +15,7 @@ public static class GenerateTranslationKeys {
 		var outputFile = args[1];
 
 		try {
-			var didWrite = _GenerateKeysClass(inputFile, outputFile);
+			var didWrite = GenerateTranslationKeys._GenerateKeysClass(inputFile, outputFile);
 			var state = didWrite ? "Generated" : "Translation keys unchanged";
 			Console.WriteLine($"{state}: {outputFile}");
 			return 0;
@@ -62,8 +62,8 @@ public static class GenerateTranslationKeys {
 		sortedKeys.Sort((a, b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
 
 		foreach (var (key, value) in sortedKeys) {
-			var propertyName = _ToPascalCase(key);
-			var escapedValue = _EscapeXmlComment(value);
+			var propertyName = GenerateTranslationKeys._ToPascalCase(key);
+			var escapedValue = GenerateTranslationKeys._EscapeXmlComment(value);
 
 			sb.AppendLine("\t/// <summary>");
 			sb.AppendLine(CultureInfo.InvariantCulture, $"\t/// {escapedValue}");

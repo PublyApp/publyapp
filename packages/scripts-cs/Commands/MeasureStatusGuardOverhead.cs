@@ -94,13 +94,13 @@ public static partial class MeasureStatusGuardOverhead {
 		//   word, so the subtraction isolates the guard's incremental cost.
 		bool GuardedPath(string sql) {
 			foreach (var statement in sql.Split(';')) {
-				if (!_PublicationsTableWord.IsMatch(statement)) {
+				if (!MeasureStatusGuardOverhead._PublicationsTableWord.IsMatch(statement)) {
 					continue;
 				}
 
-				foreach (Match match in _UpdateStatementShape.Matches(
+				foreach (Match match in MeasureStatusGuardOverhead._UpdateStatementShape.Matches(
 					StripSqlComments(statement))) {
-					if (_StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
+					if (MeasureStatusGuardOverhead._StatusColumnWord.IsMatch(match.Groups["setList"].Value)) {
 						return true;
 					}
 				}
@@ -114,7 +114,7 @@ public static partial class MeasureStatusGuardOverhead {
 		// on publications presence (which is the work the guard piggy-backs on).
 		bool UnguardedBaseline(string sql) {
 			foreach (var statement in sql.Split(';')) {
-				if (!_PublicationsTableWord.IsMatch(statement)) {
+				if (!MeasureStatusGuardOverhead._PublicationsTableWord.IsMatch(statement)) {
 					continue;
 				}
 
@@ -125,7 +125,7 @@ public static partial class MeasureStatusGuardOverhead {
 		}
 
 		static string StripSqlComments(string sql) {
-			return _SqlBlockComment.Replace(_SqlLineComment.Replace(sql, " "), " ");
+			return MeasureStatusGuardOverhead._SqlBlockComment.Replace(MeasureStatusGuardOverhead._SqlLineComment.Replace(sql, " "), " ");
 		}
 
 		// ── Warmup ──────────────────────────────────────────────────────────
@@ -195,12 +195,12 @@ public static partial class MeasureStatusGuardOverhead {
 			var name = kv.Key;
 			var (guardedArr, unguardedArr) = results[name];
 
-			var gMed = _Percentile(guardedArr, 0.50);
-			var gP90 = _Percentile(guardedArr, 0.90);
-			var uMed = _Percentile(unguardedArr, 0.50);
+			var gMed = MeasureStatusGuardOverhead._Percentile(guardedArr, 0.50);
+			var gP90 = MeasureStatusGuardOverhead._Percentile(guardedArr, 0.90);
+			var uMed = MeasureStatusGuardOverhead._Percentile(unguardedArr, 0.50);
 
 			Console.WriteLine(
-				$"  {_PadRight(name, 33)} {_Fmt(gMed),8:F1} {_Fmt(gP90),8:F1} {_Fmt(uMed),8:F1}"
+				$"  {MeasureStatusGuardOverhead._PadRight(name, 33)} {MeasureStatusGuardOverhead._Fmt(gMed),8:F1} {MeasureStatusGuardOverhead._Fmt(gP90),8:F1} {MeasureStatusGuardOverhead._Fmt(uMed),8:F1}"
 			);
 		}
 
@@ -223,12 +223,12 @@ public static partial class MeasureStatusGuardOverhead {
 			var name = kv.Key;
 			var (guardedArr, unguardedArr) = results[name];
 
-			var gMed = _Percentile(guardedArr, 0.50);
-			var uMed = _Percentile(unguardedArr, 0.50);
+			var gMed = MeasureStatusGuardOverhead._Percentile(guardedArr, 0.50);
+			var uMed = MeasureStatusGuardOverhead._Percentile(unguardedArr, 0.50);
 			var netUs = (gMed - uMed) * ticksToUs;
 
 			Console.WriteLine(
-				$"  {_PadRight(name, 33)} {netUs,8:F4}"
+				$"  {MeasureStatusGuardOverhead._PadRight(name, 33)} {netUs,8:F4}"
 			);
 
 			if (name == "Publication SELECT (read)") {
@@ -260,7 +260,7 @@ public static partial class MeasureStatusGuardOverhead {
 			var status = match ? "PASS" : "FAIL";
 
 			Console.WriteLine(
-				$"  [{status}] {_PadRight(name, 33)} detected: {actual} (expected: {expected})"
+				$"  [{status}] {MeasureStatusGuardOverhead._PadRight(name, 33)} detected: {actual} (expected: {expected})"
 			);
 
 			if (!match) {
