@@ -48,8 +48,8 @@ registry fails loud rather than passing silently.
 The .NET side is audited by **Audit .NET packages**
 (`ci.yml::verification`, mirrored locally by `just nuget-audit`, script
 `packages/scripts-ts/src/nuget-audit.ts`). It scans every tracked `.csproj`
-(`git ls-files '*.csproj'` — five projects, including the `lint-cs` pair that
-`PublyApp.slnx` omits) with `dotnet list package --vulnerable
+(`git ls-files '*.csproj'` — seven projects, including `apps/apphost`, which
+`PublyApp.slnx` deliberately omits, #1584) with `dotnet list package --vulnerable
 --include-transitive`, parsed from machine-readable JSON because
 `TreatWarningsAsErrors` turns the text format's NU1903 warning into a build error
 before a grep could match it. It fails loud on anything it cannot fully inspect:
@@ -66,7 +66,7 @@ Proven working, both directions, on 2026-08-25:
   the guard exit 1 naming every package, severity, and advisory URL.
   (This closes the live-proof gap PR #1199 recorded — the advisory database now
   flags those versions.)
-- **GREEN:** the repo tree audits clean — five projects inspected, zero
+- **GREEN:** the repo tree audits clean — five projects inspected (seven today), zero
   vulnerable, exit 0.
 
 The scan-set contract itself is spec-pinned: `parseGitLsFilesCsproj` (exported,
@@ -74,7 +74,7 @@ covered by `nuget-audit.test.ts`) parses the `git ls-files` output, so a
 regression cannot silently shrink which projects get audited.
 
 Rung-3 record (issue #1197): at the rung's start (base `1ea296005`, 2026-08-25)
-the audit already reported **zero vulnerable packages** across all five projects,
+the audit already reported **zero vulnerable packages** across all five projects (seven today),
 and GitHub's Dependabot alert list for the repository was empty (0 open, all
 ecosystems). Earlier findings were closed on `develop` by direct bumps and
 transitive security pins — e.g. `System.Security.Cryptography.Xml` `10.0.10` for
@@ -267,7 +267,7 @@ node packages/scripts-ts/src/npm-audit-runner.ts dev moderate   # bounded CI dev
 pnpm audit --prod --audit-level=critical  # today: passes (no critical in prod)
 pnpm audit                              # full graph including dev
 
-just nuget-audit                        # the NuGet gate CI runs (all five csproj)
+just nuget-audit                        # the NuGet gate CI runs (all seven csproj)
 
 # Underlying commands the recipe wraps:
 dotnet list apps/api/PublyApp.Api.csproj package --vulnerable --include-transitive

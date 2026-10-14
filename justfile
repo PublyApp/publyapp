@@ -186,8 +186,8 @@ react-doctor base="origin/develop":
 # machine-readable `--format json` output (not the
 # text format that TreatWarningsAsErrors breaks by converting NU1903 into an
 # error before the grep pattern can match). Scans EVERY .csproj (via
-# `git ls-files`), since PublyApp.slnx omits packages/lint-cs/* but the audit
-# scope covers all five projects.
+# `git ls-files`), so the audit covers all seven projects, including apps/apphost,
+# which PublyApp.slnx deliberately omits (#1584).
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   node packages/scripts-ts/src/nuget-audit.ts
   pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
