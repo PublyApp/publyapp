@@ -81,10 +81,11 @@
   <!-- Transitive security pins (with CentralPackageTransitivePinningEnabled these
        override the resolved version of transitive dependencies):
        System.Security.Cryptography.Xml is pulled by DataProtection; advisories
-       GHSA-37gx-xxp4-5rgx / GHSA-cvvh-rhrc-wg4q et al. are patched at 10.0.10.
+       GHSA-37gx-xxp4-5rgx / GHSA-cvvh-rhrc-wg4q et al. are patched at 10.0.10; later advisories (Pkcs and Xml) at 10.0.13.
        Keep the pin at the latest 10.x patch (>= the version DataProtection requires)
        so NU1109 never fires: bump in lockstep when DataProtection moves. -->
   <ItemGroup Label="TransitiveSecurityPins">
-    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.13" />
   </ItemGroup>
 </Project>

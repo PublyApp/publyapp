@@ -94,6 +94,17 @@ that note.
 
 Same for NuGet: bump or override, never `ignore` without a note.
 
+## Accepted risks
+
+| Alert | Package | Severity | Accepted | Review / expiry |
+|---|---|---|---|---|
+| GHSA-vfj7-8cjw-p6xm | `braces` <=3.0.3 (stack exhaustion on deeply nested patterns) | high | 2026-10-14 (owner) | 2027-01-14 |
+
+- **Mechanism:** `pnpm.auditConfig.ignoreGhsas` in the root `package.json`, keyed on this single GHSA id. Every other advisory still fails the audit.
+- **Impact:** dev-only. `braces` is reached solely via the `shadcn` CLI devDependency, then `fast-glob`, then `micromatch`. It is never in the production graph, and the prod audit stays strict.
+- **Reason:** no patched release upstream (`first_patched_version` is null; 3.0.3 is the latest).
+- **Removal condition:** drop the ignore as soon as `braces` ships a fix, or `shadcn` is removed or vendored. Re-check by the review date at the latest.
+
 ## How the #880 moderate advisories closed
 
 Both moderate alerts tracked in #880 were already remediated on `develop` by the mechanisms

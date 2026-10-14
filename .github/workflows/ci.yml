@@ -33,12 +33,12 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Checkout classifier from the base commit
         id: base_checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           path: base-ref
@@ -46,7 +46,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Setup Node
         id: setup_node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Classify changed paths once
@@ -96,7 +96,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Install pnpm
@@ -106,7 +106,7 @@ jobs:
           version: 10.13.1
       - name: Setup Node
         id: setup_node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Setup .NET
@@ -525,7 +525,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pnpm
         id: install_pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -533,7 +533,7 @@ jobs:
           version: 10.13.1
       - name: Setup Node
         id: setup_node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Audit development dependencies
@@ -584,7 +584,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pnpm
         id: install_pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -592,7 +592,7 @@ jobs:
           version: 10.13.1
       - name: Setup Node
         id: setup_node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Audit production dependencies
@@ -644,7 +644,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up .NET
         id: setup_dotnet
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -657,7 +657,7 @@ jobs:
           version: 10.13.1
       - name: Setup Node
         id: setup_node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Setup just
@@ -761,7 +761,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pnpm
         id: install_pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
@@ -769,7 +769,7 @@ jobs:
           version: 10.13.1
       - name: Setup Node
         id: setup_node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Install dependencies
@@ -838,7 +838,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Resolve image tag
         id: image-tag
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
@@ -950,7 +950,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pnpm
         id: install-pnpm
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
@@ -960,7 +960,7 @@ jobs:
       - name: Setup Node
         id: setup-node
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Assert exact pins
@@ -1112,7 +1112,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Cleanup e2e images
         id: cleanup
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
@@ -1168,11 +1168,11 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
       - name: Install pnpm
