@@ -15,14 +15,14 @@ public class RequestPasswordResetBody {
 	public required JsonElement Email { get; set; }
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return this.Email.GetValueAsString();
 	}
 }
 
 public class RequestPasswordResetBodyValidator
 	: AbstractValidator<RequestPasswordResetBody> {
 	public RequestPasswordResetBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 	}
 }

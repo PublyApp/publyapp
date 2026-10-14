@@ -25,7 +25,7 @@ public static class ServiceScanner {
 	/// Scans the assembly containing the specified type for [Service] attributed classes.
 	/// </summary>
 	public static List<DiscoveredService> ScanAssembly<TAssemblyMarker>() {
-		return ScanAssembly(typeof(TAssemblyMarker).Assembly);
+		return ServiceScanner.ScanAssembly(typeof(TAssemblyMarker).Assembly);
 	}
 
 	/// <summary>
@@ -72,7 +72,7 @@ public static class ServiceScanner {
 				continue;
 			}
 
-			var (primaryInterface, interfaceResolutionError) = _FindPrimaryInterface(type);
+			var (primaryInterface, interfaceResolutionError) = ServiceScanner._FindPrimaryInterface(type);
 
 			discovered.Add(new DiscoveredService {
 				ImplementationType = type,

@@ -17,7 +17,7 @@ public static class LoggerConfigExtensions {
 		builder.Services.AddSerilog((serviceProvider, loggerConfig) => {
 			var hostEnvironment = serviceProvider.GetRequiredService<IHostEnvironment>();
 
-			BuildLoggerConfiguration(loggerConfig, hostEnvironment);
+			LoggerConfigExtensions.BuildLoggerConfiguration(loggerConfig, hostEnvironment);
 		});
 
 		return builder;

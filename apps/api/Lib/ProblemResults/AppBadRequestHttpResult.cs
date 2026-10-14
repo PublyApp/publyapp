@@ -12,17 +12,17 @@ public sealed class AppBadRequestHttpResult : IResult, IEndpointMetadataProvider
 	private readonly AppProblemDetails _ProblemDetails;
 
 	internal AppBadRequestHttpResult(AppProblemDetails problemDetails) {
-		_ProblemDetails = problemDetails;
+		this._ProblemDetails = problemDetails;
 	}
 
 	public async Task ExecuteAsync(HttpContext httpContext) {
-		_ProblemDetails.Instance ??= httpContext.Request.Path.Value;
-		_ProblemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+		this._ProblemDetails.Instance ??= httpContext.Request.Path.Value;
+		this._ProblemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
 
 		httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
 		httpContext.Response.ContentType = "application/problem+json";
 		await httpContext.Response.WriteAsJsonAsync(
-			_ProblemDetails,
+			this._ProblemDetails,
 			options: null,
 			contentType: "application/problem+json",
 			cancellationToken: httpContext.RequestAborted

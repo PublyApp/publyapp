@@ -20,12 +20,12 @@ public sealed class ResolveTenantProfileNamesAsStaffBody {
 	private List<string> _Names = [];
 
 	private List<string> _ParseNames() {
-		if (Names.ValueKind != JsonValueKind.Array) {
+		if (this.Names.ValueKind != JsonValueKind.Array) {
 			throw new InvalidOperationException("Names must be an array");
 		}
 
 		var names = new List<string>();
-		foreach (var element in Names.EnumerateArray()) {
+		foreach (var element in this.Names.EnumerateArray()) {
 			var value = element.GetString();
 
 			// Post-validation invariant: the endpoint uses FluentValidation to ensure every
@@ -42,20 +42,20 @@ public sealed class ResolveTenantProfileNamesAsStaffBody {
 	}
 
 	public List<string> GetNames() {
-		if (_Parsed) {
-			return _Names;
+		if (this._Parsed) {
+			return this._Names;
 		}
 
-		_Names = _ParseNames();
-		_Parsed = true;
-		return _Names;
+		this._Names = this._ParseNames();
+		this._Parsed = true;
+		return this._Names;
 	}
 }
 
 public sealed class ResolveTenantProfileNamesAsStaffBodyValidator
 	: AbstractValidator<ResolveTenantProfileNamesAsStaffBody> {
 	public ResolveTenantProfileNamesAsStaffBodyValidator() {
-		RuleFor(x => x.Names)
+		this.RuleFor(x => x.Names)
 			.MustBeRequiredStringArrayAllowingEmpty(
 				"Names",
 				"name",

@@ -32,12 +32,12 @@ public static class InvitationEmailJobs {
 	public static readonly JobDefinition<TenantInvitationEmailPayload> TenantInvitationV1 =
 		new() {
 			JobType = "email.tenant-invitation.v1",
-			Priority = _EmailPriority
+			Priority = InvitationEmailJobs._EmailPriority
 		};
 
 	public static readonly JobDefinition<StaffInvitationEmailPayload> StaffInvitationV1 =
 		new() {
 			JobType = "email.staff-invitation.v1",
-			Priority = _EmailPriority
+			Priority = InvitationEmailJobs._EmailPriority
 		};
 }

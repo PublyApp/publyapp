@@ -22,14 +22,14 @@ public class ProjectService : IProjectService {
 	private readonly AppDbContext _DbContext;
 
 	public ProjectService(AppDbContext context) {
-		_DbContext = context;
+		this._DbContext = context;
 	}
 
 	public async Task<Project?> GetProjectAsync(
 		Guid projectId,
 		CancellationToken cancellationToken = default
 	) {
-		return await _DbContext.Project
+		return await this._DbContext.Project
 			.Where(x => x.Id == projectId && !x.IsDeleted)
 			.FirstOrDefaultAsync(cancellationToken);
 	}
@@ -38,7 +38,7 @@ public class ProjectService : IProjectService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		return await _DbContext.Project
+		return await this._DbContext.Project
 			.Where(x =>
 				x.TenantId == tenantId
 				&& !x.IsDeleted
@@ -52,8 +52,8 @@ public class ProjectService : IProjectService {
 		Project project,
 		CancellationToken cancellationToken = default
 	) {
-		await _DbContext.Project.AddAsync(project, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.Project.AddAsync(project, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 		return project;
 	}
 
@@ -61,18 +61,18 @@ public class ProjectService : IProjectService {
 		Project project,
 		CancellationToken cancellationToken = default
 	) {
-		_DbContext.Project.Update(project);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		this._DbContext.Project.Update(project);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 		return project;
 	}
 
 	public async Task DeleteProjectAsync(Guid projectId, CancellationToken cancellationToken = default) {
-		var project = await GetProjectAsync(projectId, cancellationToken);
+		var project = await this.GetProjectAsync(projectId, cancellationToken);
 		if (project is not null) {
 			// Deletion is audit state. ProjectStatus.Inactive remains available for non-deleted projects.
 			project.IsDeleted = true;
 			project.DeletedAt = DateTime.UtcNow;
-			await _DbContext.SaveChangesAsync(cancellationToken);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		}
 	}
 }

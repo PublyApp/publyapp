@@ -19,7 +19,7 @@ public static class RateLimitCounterStoreSelection {
 	public static RateLimitCounterStoreKind FromEnvironment(
 		AppEnvironment environment
 	) {
-		return Parse(environment.RATE_LIMIT_COUNTER_STORE);
+		return RateLimitCounterStoreSelection.Parse(environment.RATE_LIMIT_COUNTER_STORE);
 	}
 
 	public static RateLimitCounterStoreKind Parse(string value) {
@@ -42,7 +42,7 @@ public static class RateLimitCounterStoreSelection {
 		}
 
 		throw new InvalidOperationException(
-			$"Environment variable '{VariableName}' must be "
+			$"Environment variable '{RateLimitCounterStoreSelection.VariableName}' must be "
 				+ "'postgres' or 'memory', got '" + value + "'"
 		);
 	}

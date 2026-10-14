@@ -28,7 +28,7 @@ public record TenantSuspendedResult {
 
 public class SuspendTenantAsStaffBodyValidator : AbstractValidator<SuspendTenantAsStaffBody> {
 	public SuspendTenantAsStaffBodyValidator() {
-		RuleFor(x => x.Reason)
+		this.RuleFor(x => x.Reason)
 			.MustBeNullableStringWithMaxLength("Reason", 500);
 	}
 }

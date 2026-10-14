@@ -9,7 +9,7 @@ using PublyApp.Api.Data;
 namespace PublyApp.Api.Modules.Users.Entities;
 
 [Table("users")]
-[Index(nameof(Email), IsUnique = true)]
+[Index(nameof(User.Email), IsUnique = true)]
 public class User : BaseAttributes, INoTenantEntity {
 	[Column("last_name")]
 	public string? LastName { get; set; }
@@ -22,8 +22,8 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("email")]
 	[EmailAddress]
 	public required string Email {
-		get { return _Email; }
-		set { _Email = value.ToLowerInvariant(); }
+		get { return this._Email; }
+		set { this._Email = value.ToLowerInvariant(); }
 	}
 
 	[Column("password")]
@@ -87,11 +87,11 @@ public class User : BaseAttributes, INoTenantEntity {
 	}
 
 	public bool IsSuspended() {
-		return IsSuspended(Status);
+		return User.IsSuspended(this.Status);
 	}
 
 	public bool IsActive() {
-		return IsActive(Status);
+		return User.IsActive(this.Status);
 	}
 
 	public static bool IsSuspended(UserStatus status) {

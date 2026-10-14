@@ -30,11 +30,11 @@ public static class SeederGateProbeCli {
 	/// </summary>
 	public static bool TryRun(string[] args) {
 		if (args.Length == 0
-			|| !args[0].Equals(VerifyArg, StringComparison.Ordinal)) {
+			|| !args[0].Equals(SeederGateProbeCli.VerifyArg, StringComparison.Ordinal)) {
 			return false;
 		}
 
-		return _Run().GetAwaiter().GetResult();
+		return SeederGateProbeCli._Run().GetAwaiter().GetResult();
 	}
 
 	private static async Task<bool> _Run() {
@@ -150,8 +150,8 @@ public static class SeederGateProbeCli {
 				OwnerPasswordIsNotSeedPassword = !ownerPasswordMatchesCommittedSeed,
 			};
 
-			Console.Out.WriteLine($"{LinePrefix}{JsonSerializer.Serialize(result)}");
-			Console.Out.WriteLine(EndMarker);
+			Console.Out.WriteLine($"{SeederGateProbeCli.LinePrefix}{JsonSerializer.Serialize(result)}");
+			Console.Out.WriteLine(SeederGateProbeCli.EndMarker);
 
 			Environment.ExitCode = result.DemoSeedersExcluded
 				&& result.HasSeededPermissions
@@ -160,7 +160,7 @@ public static class SeederGateProbeCli {
 				&& result.HasOwnerUser
 				&& result.HasOwnerAccount
 				&& result.OwnerPasswordIsNotSeedPassword
-				? SuccessExitCode
+				? SeederGateProbeCli.SuccessExitCode
 				: 1;
 
 			return true;

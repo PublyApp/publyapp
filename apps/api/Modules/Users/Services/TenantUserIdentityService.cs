@@ -79,8 +79,8 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		AppDbContext dbContext,
 		IUploadAssetReferenceService uploadReferences
 	) {
-		_DbContext = dbContext;
-		_UploadReferences = uploadReferences;
+		this._DbContext = dbContext;
+		this._UploadReferences = uploadReferences;
 	}
 
 	public async Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityForStaffAsync(
@@ -89,11 +89,11 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		CancellationToken cancellationToken = default
 	) {
 		var tenantUserQuery =
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.Id == userId
 				&& !u.IsDeleted
 			where (
-				from ua in _DbContext.UserAccount
+				from ua in this._DbContext.UserAccount
 				where ua.UserId == userId
 					&& ua.Scope == AccountScope.Tenant
 				select ua
@@ -123,21 +123,21 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			// Acquire the new blob's reference BEFORE the entity write so the URL
 			// can never commit while its asset reads zero references (#807 F5).
 			if (ServedUploadPath.ExtractOrNull(document.AvatarUrl.Value) is { } acquiredPath) {
-				await _UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+				await this._UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
 			}
 			user.AvatarUrl = document.AvatarUrl.Value;
 		}
 
 		user.UpdatedAt = DateTime.UtcNow;
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
 			&& ServedUploadPath.ExtractOrNull(previousAvatarUrl) is { } releasedPath
 			&& previousAvatarUrl != user.AvatarUrl) {
-			await _UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+			await this._UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
 		}
 
-		var userData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var userData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -159,7 +159,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 	) {
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
-		var user = await _BuildLiveTenantUserIdentityMutationQuery(userId)
+		var user = await this._BuildLiveTenantUserIdentityMutationQuery(userId)
 			.FirstOrDefaultAsync(cancellationToken);
 
 		if (user is null) {
@@ -167,7 +167,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		}
 
 		if (!string.Equals(user.Email, normalizedEmail, StringComparison.Ordinal)) {
-			var existing = await _GetUserByEmailAsync(
+			var existing = await this._GetUserByEmailAsync(
 				normalizedEmail,
 				cancellationToken
 			);
@@ -177,10 +177,10 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 
 			user.Email = normalizedEmail;
 			user.UpdatedAt = DateTime.UtcNow;
-			await _DbContext.SaveChangesAsync(cancellationToken);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		}
 
-		var userData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var userData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -200,7 +200,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var userData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var userData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -218,7 +218,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		// READ COMMITTED (see TenantMembershipLockOrder). SSI protected this only while every
 		// participant was SERIALIZABLE.
 		await using var transaction =
-			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
+			await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
 			// TenantMembershipLockOrder step 1: freeze this identity's membership set BEFORE
@@ -227,7 +227,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			// operation never locked, never guarded, and then stranded at zero active admins
 			// when the status update lands. A set discovered before it is frozen is not a set.
 			await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
-				_DbContext,
+				this._DbContext,
 				[userId],
 				cancellationToken
 			);
@@ -238,7 +238,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			// against a single-tenant path.
 			var affectedTenantIds = (
 				await (
-					from ua in _DbContext.UserAccount
+					from ua in this._DbContext.UserAccount
 					where ua.UserId == userId
 						&& ua.Scope == AccountScope.Tenant
 						&& ua.TenantId != null
@@ -252,7 +252,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 				.ToList();
 
 			await TenantMembershipLockOrder.LockTenantRowsAsync(
-				_DbContext,
+				this._DbContext,
 				affectedTenantIds,
 				cancellationToken
 			);
@@ -260,8 +260,8 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			// Global suspension disables this user in every tenant. The last-admin
 			// guard must therefore scan all active admin memberships atomically.
 			var hasTenantWithoutAnotherActiveAdmin = await (
-				from ua in _DbContext.UserAccount
-				join u in _DbContext.User on ua.UserId equals u.Id
+				from ua in this._DbContext.UserAccount
+				join u in this._DbContext.User on ua.UserId equals u.Id
 				where ua.UserId == userId
 					&& ua.Scope == AccountScope.Tenant
 					&& ua.TenantId != null
@@ -271,8 +271,8 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 					&& !u.IsDeleted
 					&& u.Status != UserStatus.Suspended
 				where !(
-					from otherUa in _DbContext.UserAccount
-					join otherUser in _DbContext.User
+					from otherUa in this._DbContext.UserAccount
+					join otherUser in this._DbContext.User
 						on otherUa.UserId equals otherUser.Id
 					where otherUa.TenantId == ua.TenantId
 						&& otherUa.UserId != userId
@@ -294,7 +294,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			}
 
 			var now = DateTime.UtcNow;
-			var updatedUserCount = await _BuildLiveTenantUserIdentityMutationQuery(
+			var updatedUserCount = await this._BuildLiveTenantUserIdentityMutationQuery(
 				userId
 			)
 				.Where(x => x.Status != UserStatus.Suspended)
@@ -307,7 +307,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 
 			if (updatedUserCount == 0) {
 				await transaction.RollbackAsync(cancellationToken);
-				return await _ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
+				return await this._ResolveSuspendTenantUserIdentityAfterNoRowsAsync(
 					userId,
 					cancellationToken
 				);
@@ -319,7 +319,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			throw;
 		}
 
-		var updatedUserData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var updatedUserData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -339,7 +339,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		Guid userId,
 		CancellationToken cancellationToken = default
 	) {
-		var userData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var userData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -353,7 +353,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		}
 
 		var now = DateTime.UtcNow;
-		var updatedUserCount = await _BuildLiveTenantUserIdentityMutationQuery(userId)
+		var updatedUserCount = await this._BuildLiveTenantUserIdentityMutationQuery(userId)
 			.Where(x => x.Status == UserStatus.Suspended)
 			.ExecuteUpdateAsync(
 				setters => setters
@@ -363,13 +363,13 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			);
 
 		if (updatedUserCount == 0) {
-			return await _ResolveReactivateTenantUserIdentityAfterNoRowsAsync(
+			return await this._ResolveReactivateTenantUserIdentityAfterNoRowsAsync(
 				userId,
 				cancellationToken
 			);
 		}
 
-		var updatedUserData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var updatedUserData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -390,7 +390,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 	) {
 		var normalizedEmail = email.ToLowerInvariant();
 		var query =
-			from u in _DbContext.User
+			from u in this._DbContext.User
 			where u.Email == normalizedEmail
 				&& !u.IsDeleted
 			select u;
@@ -403,17 +403,17 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserDetailsQueries.GetForStaffAsync(
-			_DbContext,
+			this._DbContext,
 			userId,
 			cancellationToken
 		);
 	}
 
 	private IQueryable<User> _BuildLiveTenantUserIdentityMutationQuery(Guid userId) {
-		return _DbContext.User.Where(u =>
+		return this._DbContext.User.Where(u =>
 			u.Id == userId
 			&& !u.IsDeleted
-			&& _DbContext.UserAccount.Any(ua =>
+			&& this._DbContext.UserAccount.Any(ua =>
 				ua.UserId == u.Id
 				&& ua.Scope == AccountScope.Tenant
 			)
@@ -425,7 +425,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var currentUserData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);
@@ -447,7 +447,7 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		Guid userId,
 		CancellationToken cancellationToken
 	) {
-		var currentUserData = await _GetTenantUserDetailsForStaffForMutationAsync(
+		var currentUserData = await this._GetTenantUserDetailsForStaffForMutationAsync(
 			userId,
 			cancellationToken
 		);

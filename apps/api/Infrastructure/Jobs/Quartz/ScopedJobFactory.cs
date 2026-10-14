@@ -13,11 +13,11 @@ public sealed class ScopedJobFactory : IJobFactory {
 	private readonly IServiceScopeFactory _ScopeFactory;
 
 	public ScopedJobFactory(IServiceScopeFactory scopeFactory) {
-		_ScopeFactory = scopeFactory;
+		this._ScopeFactory = scopeFactory;
 	}
 
 	public IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler) {
-		var scope = _ScopeFactory.CreateScope();
+		var scope = this._ScopeFactory.CreateScope();
 		try {
 			var job = (IJob)scope.ServiceProvider.GetRequiredService(bundle.JobDetail.JobType);
 			return new ScopedJob(scope, job);
@@ -40,16 +40,16 @@ public sealed class ScopedJobFactory : IJobFactory {
 		private readonly IJob _Inner;
 
 		public ScopedJob(IServiceScope scope, IJob inner) {
-			_Scope = scope;
-			_Inner = inner;
+			this._Scope = scope;
+			this._Inner = inner;
 		}
 
 		public Task Execute(IJobExecutionContext context) {
-			return _Inner.Execute(context);
+			return this._Inner.Execute(context);
 		}
 
 		public void Dispose() {
-			_Scope.Dispose();
+			this._Scope.Dispose();
 		}
 	}
 }

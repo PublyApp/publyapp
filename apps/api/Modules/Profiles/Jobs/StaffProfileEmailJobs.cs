@@ -27,6 +27,6 @@ public static class StaffProfileEmailJobs {
 	public static readonly JobDefinition<StaffJoinedNotificationEmailPayload> StaffJoinedNotificationV1 =
 		new() {
 			JobType = "email.staff-joined-notification.v1",
-			Priority = _EmailPriority
+			Priority = StaffProfileEmailJobs._EmailPriority
 		};
 }

@@ -42,16 +42,16 @@ public record InvitationAccepted {
 public class AcceptInvitationBodyValidator
 	: AbstractValidator<AcceptInvitationBody> {
 	public AcceptInvitationBodyValidator() {
-		When(
+		this.When(
 			x => !x.UseExistingAccount.GetValueAsBoolean(),
 			() => {
-				RuleFor(x => x.FirstName)
+				this.RuleFor(x => x.FirstName)
 					.MustBeRequiredString("FirstName");
 
-				RuleFor(x => x.LastName)
+				this.RuleFor(x => x.LastName)
 					.MustBeRequiredString("LastName");
 
-				RuleFor(x => x.Password)
+				this.RuleFor(x => x.Password)
 					.MustBeRequiredPassword();
 			}
 		);

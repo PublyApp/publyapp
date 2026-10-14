@@ -91,7 +91,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 	private readonly AppDbContext _DbContext;
 
 	public TenantUserQueryService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 
@@ -111,7 +111,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		StringComparer.OrdinalIgnoreCase
 	) {
 		["id"] = CursorSortFieldHandlerFactory.Create<UserAccount, Guid, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
@@ -120,7 +120,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		cancellationToken
 	),
 		["email"] = CursorSortFieldHandlerFactory.Create<UserAccount, string, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
@@ -129,7 +129,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		cancellationToken
 	),
 		["status"] = CursorSortFieldHandlerFactory.Create<UserAccount, int, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
@@ -138,7 +138,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		cancellationToken
 	),
 		["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
@@ -147,7 +147,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		cancellationToken
 	),
 		["created_at"] = CursorSortFieldHandlerFactory.Create<UserAccount, DateTime, Guid>(
-		cursorLookupQuery: () => _DbContext.UserAccount
+		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
@@ -169,7 +169,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		}
 
 		var baseQuery =
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -269,7 +269,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
@@ -288,7 +288,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		return await TenantUserDetailsQueries.GetForStaffAsync(
-			_DbContext,
+			this._DbContext,
 			userId,
 			cancellationToken
 		);
@@ -299,7 +299,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		ExportTenantUsersArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var query = _ApplyExportFilters(_BuildExportBaseQuery(tenantId), args);
+		var query = TenantUserQueryService._ApplyExportFilters(this._BuildExportBaseQuery(tenantId), args);
 
 		return await (
 			from ua in query
@@ -317,7 +317,7 @@ public class TenantUserQueryService : ITenantUserQueryService {
 
 	private IQueryable<UserAccount> _BuildExportBaseQuery(Guid tenantId) {
 		return
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted

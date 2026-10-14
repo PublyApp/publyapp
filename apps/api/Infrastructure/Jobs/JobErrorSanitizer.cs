@@ -50,11 +50,11 @@ public static partial class JobErrorSanitizer {
 			return null;
 		}
 
-		var safe = _ControlCharacters().Replace(raw, " ");
-		safe = _EmailPattern().Replace(safe, "[redacted-email]");
-		safe = _TokenPattern().Replace(safe, "[redacted-token]");
+		var safe = JobErrorSanitizer._ControlCharacters().Replace(raw, " ");
+		safe = JobErrorSanitizer._EmailPattern().Replace(safe, "[redacted-email]");
+		safe = JobErrorSanitizer._TokenPattern().Replace(safe, "[redacted-token]");
 
-		return safe.Length <= MaxLength ? safe : safe[..MaxLength];
+		return safe.Length <= JobErrorSanitizer.MaxLength ? safe : safe[..JobErrorSanitizer.MaxLength];
 	}
 
 	/// <summary>
@@ -66,9 +66,9 @@ public static partial class JobErrorSanitizer {
 	/// this boundary.
 	/// </summary>
 	public static string Describe(Exception exception) {
-		var described = $"{exception.GetType().Name}: {Sanitize(exception.Message)}";
+		var described = $"{exception.GetType().Name}: {JobErrorSanitizer.Sanitize(exception.Message)}";
 
-		return described.Length <= MaxLength ? described : described[..MaxLength];
+		return described.Length <= JobErrorSanitizer.MaxLength ? described : described[..JobErrorSanitizer.MaxLength];
 	}
 
 	/// <summary>
@@ -81,10 +81,10 @@ public static partial class JobErrorSanitizer {
 	/// </summary>
 	public static string DescribeStack(Exception exception) {
 		var frames = new StackTrace(exception, fNeedFileInfo: true).GetFrames();
-		var described = new List<string>(Math.Min(frames.Length, MaxStackFrames));
+		var described = new List<string>(Math.Min(frames.Length, JobErrorSanitizer.MaxStackFrames));
 
 		foreach (var frame in frames) {
-			if (described.Count == MaxStackFrames) {
+			if (described.Count == JobErrorSanitizer.MaxStackFrames) {
 				break;
 			}
 
@@ -105,7 +105,7 @@ public static partial class JobErrorSanitizer {
 
 		var joined = string.Join(" <- ", described);
 
-		return joined.Length <= MaxLength ? joined : joined[..MaxLength];
+		return joined.Length <= JobErrorSanitizer.MaxLength ? joined : joined[..JobErrorSanitizer.MaxLength];
 	}
 
 	/// <summary>
@@ -119,7 +119,7 @@ public static partial class JobErrorSanitizer {
 			return (string.Empty, string.Empty);
 		}
 
-		return (Describe(exception), DescribeStack(exception));
+		return (JobErrorSanitizer.Describe(exception), JobErrorSanitizer.DescribeStack(exception));
 	}
 
 	/// <summary>
@@ -139,18 +139,18 @@ public static partial class JobErrorSanitizer {
 		var depth = 0;
 
 		while (current is not null
-			&& depth < _MaxExceptionChainDepth
-			&& described.Count < MaxStackFrames) {
+			&& depth < JobErrorSanitizer._MaxExceptionChainDepth
+			&& described.Count < JobErrorSanitizer.MaxStackFrames) {
 			if (depth > 0) {
 				described.Add($"--- inner {current.GetType().FullName} ---");
 			}
 
 			foreach (var frame in new StackTrace(current, fNeedFileInfo: true).GetFrames()) {
-				if (described.Count >= MaxStackFrames) {
+				if (described.Count >= JobErrorSanitizer.MaxStackFrames) {
 					break;
 				}
 
-				var describedFrame = _DescribeFrame(frame);
+				var describedFrame = JobErrorSanitizer._DescribeFrame(frame);
 				if (describedFrame is not null) {
 					described.Add(describedFrame);
 				}

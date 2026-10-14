@@ -6,14 +6,14 @@ public class CursorPaginatedQueryValidator<T>
 	: AbstractValidator<T>
 	where T : CursorPaginatedQuery {
 	public CursorPaginatedQueryValidator() {
-		RuleFor(x => x.Cursor)
+		this.RuleFor(x => x.Cursor)
 			.Must(PaginationPredicates
 				.BeValidNullableString)
 			.WithMessage(
 				"cursor must be a valid string"
 			);
 
-		RuleFor(x => x.Limit)
+		this.RuleFor(x => x.Limit)
 			.Must(PaginationPredicates
 				.BeValidNullableLimit)
 			.WithMessage(
@@ -22,14 +22,14 @@ public class CursorPaginatedQueryValidator<T>
 				+ AppEnvironment.Instance.PAGINATION_MAX_LIMIT
 			);
 
-		RuleFor(x => x.SortId)
+		this.RuleFor(x => x.SortId)
 			.Must(PaginationPredicates
 				.BeValidNullableString)
 			.WithMessage(
 				"sort_id must be a valid string"
 			);
 
-		RuleFor(x => x.SortOrder)
+		this.RuleFor(x => x.SortOrder)
 			.Must(PaginationPredicates
 				.BeValidNullableSort)
 			.WithMessage(

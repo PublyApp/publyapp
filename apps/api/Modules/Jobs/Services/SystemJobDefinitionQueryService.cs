@@ -260,7 +260,7 @@ public class SystemJobDefinitionQueryService(
 				ScheduledFireAt = occurrence.ScheduledFireAt,
 				EnqueuedAt = occurrence.EnqueuedAt,
 			}
-		).Take(_RecentOccurrenceCount).ToListAsync(cancellationToken);
+		).Take(SystemJobDefinitionQueryService._RecentOccurrenceCount).ToListAsync(cancellationToken);
 
 		return detail with { RecentOccurrences = occurrences };
 	}

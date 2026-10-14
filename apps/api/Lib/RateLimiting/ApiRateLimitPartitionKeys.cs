@@ -18,7 +18,7 @@ internal static class ApiRateLimitPartitionKeys {
 	) {
 		if (
 			context.Items.TryGetValue(
-				_ValidatedSessionFingerprintItemKey,
+				ApiRateLimitPartitionKeys._ValidatedSessionFingerprintItemKey,
 				out var value
 			)
 			&& value is string fingerprint
@@ -29,7 +29,7 @@ internal static class ApiRateLimitPartitionKeys {
 		var clientIp =
 			AnonymousAuthRateLimitPartitionKeys
 				.GetClientIp(context);
-		return $"unauthenticated:{Hash(clientIp)}";
+		return $"unauthenticated:{ApiRateLimitPartitionKeys.Hash(clientIp)}";
 	}
 
 	public static void SetValidatedSession(
@@ -37,15 +37,15 @@ internal static class ApiRateLimitPartitionKeys {
 		Guid sessionId
 	) {
 		context.Items[
-			_ValidatedSessionFingerprintItemKey
-		] = Hash(sessionId.ToString("D"));
+			ApiRateLimitPartitionKeys._ValidatedSessionFingerprintItemKey
+		] = ApiRateLimitPartitionKeys.Hash(sessionId.ToString("D"));
 	}
 
 	public static void MarkSessionValidationAttempted(
 		HttpContext context
 	) {
 		context.Items[
-			_SessionValidationAttemptedItemKey
+			ApiRateLimitPartitionKeys._SessionValidationAttemptedItemKey
 		] = true;
 	}
 
@@ -53,7 +53,7 @@ internal static class ApiRateLimitPartitionKeys {
 		HttpContext context
 	) {
 		return context.Items.ContainsKey(
-			_SessionValidationAttemptedItemKey
+			ApiRateLimitPartitionKeys._SessionValidationAttemptedItemKey
 		);
 	}
 
@@ -64,17 +64,17 @@ internal static class ApiRateLimitPartitionKeys {
 			"tenantId"
 		]?.ToString();
 		if (!string.IsNullOrWhiteSpace(routeTenant)) {
-			return _NormalizeTenant(routeTenant);
+			return ApiRateLimitPartitionKeys._NormalizeTenant(routeTenant);
 		}
 
 		var headerTenant = context.Request.Headers[
 			AppEnvironment.Instance.TENANT_ID_HEADER_KEY
 		].ToString();
 		if (!string.IsNullOrWhiteSpace(headerTenant)) {
-			return _NormalizeTenant(headerTenant);
+			return ApiRateLimitPartitionKeys._NormalizeTenant(headerTenant);
 		}
 
-		return $"missing:{GetSessionFingerprint(context)}";
+		return $"missing:{ApiRateLimitPartitionKeys.GetSessionFingerprint(context)}";
 	}
 
 	public static string Hash(string value) {
@@ -101,12 +101,12 @@ internal sealed class
 	public ValidatedSessionRateLimitPartitionMiddleware(
 		RequestDelegate next
 	) {
-		_Next = next;
+		this._Next = next;
 	}
 
 	public async Task InvokeAsync(HttpContext context) {
-		if (!_RequiresValidatedSessionPartition(context)) {
-			await _Next(context);
+		if (!ValidatedSessionRateLimitPartitionMiddleware._RequiresValidatedSessionPartition(context)) {
+			await this._Next(context);
 			return;
 		}
 
@@ -114,7 +114,7 @@ internal sealed class
 			AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY
 		].FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(token)) {
-			await _Next(context);
+			await this._Next(context);
 			return;
 		}
 
@@ -131,7 +131,7 @@ internal sealed class
 			sessionData?.Session.Id is not Guid sessionId
 			|| sessionData.User.Id is not Guid userId
 		) {
-			await _Next(context);
+			await this._Next(context);
 			return;
 		}
 
@@ -144,7 +144,7 @@ internal sealed class
 			sessionId
 		);
 
-		await _Next(context);
+		await this._Next(context);
 	}
 
 	private static bool
@@ -197,9 +197,9 @@ internal static class RateLimitRejectionContext {
 		var hash = ApiRateLimitPartitionKeys.Hash(
 			partitionKey
 		);
-		context.Items[_ItemKey] = new RateLimitRejectionInfo(
+		context.Items[RateLimitRejectionContext._ItemKey] = new RateLimitRejectionInfo(
 			policyName,
-			hash[.._FingerprintLength]
+			hash[..RateLimitRejectionContext._FingerprintLength]
 		);
 	}
 
@@ -207,7 +207,7 @@ internal static class RateLimitRejectionContext {
 		HttpContext context
 	) {
 		if (
-			context.Items.TryGetValue(_ItemKey, out var value)
+			context.Items.TryGetValue(RateLimitRejectionContext._ItemKey, out var value)
 			&& value is RateLimitRejectionInfo info
 		) {
 			return info;

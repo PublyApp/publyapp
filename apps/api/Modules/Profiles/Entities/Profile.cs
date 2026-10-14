@@ -41,19 +41,19 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	// Computed properties for easy identification
 	public bool IsStaffProfile {
 		get {
-			return Scope == ProfileScope.Staff && TenantId is null && ProjectId is null;
+			return this.Scope == ProfileScope.Staff && this.TenantId is null && this.ProjectId is null;
 		}
 	}
 
 	public bool IsTenantProfile {
 		get {
-			return Scope == ProfileScope.Tenant && TenantId is not null && ProjectId is null;
+			return this.Scope == ProfileScope.Tenant && this.TenantId is not null && this.ProjectId is null;
 		}
 	}
 
 	public bool IsProjectProfile {
 		get {
-			return Scope == ProfileScope.Project && TenantId is not null && ProjectId is not null;
+			return this.Scope == ProfileScope.Project && this.TenantId is not null && this.ProjectId is not null;
 		}
 	}
 
@@ -102,33 +102,33 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 
 	// Validation
 	public void ValidateProfileType() {
-		switch (Scope) {
+		switch (this.Scope) {
 			case ProfileScope.Staff:
-				if (TenantId is not null || ProjectId is not null) {
+				if (this.TenantId is not null || this.ProjectId is not null) {
 					throw new InvalidOperationException("Staff profiles cannot have TenantId or ProjectId");
 				}
-				if (IsDefault) {
+				if (this.IsDefault) {
 					throw new InvalidOperationException("Staff profiles cannot be default profiles");
 				}
 				break;
 			case ProfileScope.Tenant:
-				if (TenantId is null || ProjectId is not null) {
+				if (this.TenantId is null || this.ProjectId is not null) {
 					throw new InvalidOperationException("Tenant profiles must have TenantId but not ProjectId");
 				}
 				break;
 			case ProfileScope.Project:
-				if (TenantId is null || ProjectId is null) {
+				if (this.TenantId is null || this.ProjectId is null) {
 					throw new InvalidOperationException("Project profiles must have both TenantId and ProjectId");
 				}
-				if (IsDefault) {
+				if (this.IsDefault) {
 					throw new InvalidOperationException("Project profiles cannot be default profiles");
 				}
 				break;
 			default:
 				throw new ArgumentOutOfRangeException(
-					nameof(Scope),
-					Scope,
-					$"Unhandled ProfileScope: {Scope}"
+					nameof(this.Scope),
+					this.Scope,
+					$"Unhandled ProfileScope: {this.Scope}"
 				);
 		}
 	}

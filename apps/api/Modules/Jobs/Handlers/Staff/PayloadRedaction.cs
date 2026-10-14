@@ -27,7 +27,7 @@ public static class PayloadRedaction {
 
 	public static string RedactedEnvelope {
 		get {
-			return $$"""{"redacted":true,"reason":"{{RedactedReason}}"}""";
+			return $$"""{"redacted":true,"reason":"{{PayloadRedaction.RedactedReason}}"}""";
 		}
 	}
 
@@ -37,7 +37,7 @@ public static class PayloadRedaction {
 		}
 
 		var key = jobType ?? string.Empty;
-		if (_SafeJobKeys.Contains(key)) {
+		if (PayloadRedaction._SafeJobKeys.Contains(key)) {
 			return payloadJson;
 		}
 
@@ -46,9 +46,9 @@ public static class PayloadRedaction {
 			|| key.StartsWith("socialaccount.", StringComparison.Ordinal)
 			|| key.StartsWith("social-account-", StringComparison.Ordinal)
 			|| key.StartsWith("messaging.", StringComparison.Ordinal)) {
-			return RedactedEnvelope;
+			return PayloadRedaction.RedactedEnvelope;
 		}
 
-		return RedactedEnvelope;
+		return PayloadRedaction.RedactedEnvelope;
 	}
 }

@@ -22,23 +22,23 @@ public class FindDeadLettersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "job_type")] public string? JobType { get; set; }
 
 	public Guid? GetTenantId() {
-		return QueryPredicates.ParseNullableGuid(TenantId);
+		return QueryPredicates.ParseNullableGuid(this.TenantId);
 	}
 
 	public IReadOnlyList<string>? GetExternalStateStatusList() {
-		if (string.IsNullOrWhiteSpace(ExternalStateStatus)) {
+		if (string.IsNullOrWhiteSpace(this.ExternalStateStatus)) {
 			return null;
 		}
 
-		return ExternalStateStatus.Split(',', StringSplitOptions.TrimEntries);
+		return this.ExternalStateStatus.Split(',', StringSplitOptions.TrimEntries);
 	}
 
 	public string? GetJobType() {
-		if (string.IsNullOrWhiteSpace(JobType)) {
+		if (string.IsNullOrWhiteSpace(this.JobType)) {
 			return null;
 		}
 
-		var trimmed = JobType.Trim();
+		var trimmed = this.JobType.Trim();
 		return trimmed.Length > 200 ? trimmed[..200] : trimmed;
 	}
 }
@@ -46,11 +46,11 @@ public class FindDeadLettersQuery : CursorPaginatedQuery {
 public class FindDeadLettersQueryValidator
 	: CursorPaginatedQueryValidator<FindDeadLettersQuery> {
 	public FindDeadLettersQueryValidator() {
-		RuleFor(x => x.TenantId)
+		this.RuleFor(x => x.TenantId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage("tenant_id must be a valid GUID");
 
-		RuleFor(x => x.ExternalStateStatus)
+		this.RuleFor(x => x.ExternalStateStatus)
 			.Custom((raw, context) => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return;

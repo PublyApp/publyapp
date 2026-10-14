@@ -59,7 +59,7 @@ public class TenantUsageService : ITenantUsageService {
 		AppDbContext dbContext,
 		ILogger<TenantUsageService> logger
 	) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 		_ = logger;
 	}
 
@@ -70,7 +70,7 @@ public class TenantUsageService : ITenantUsageService {
 		var now = DateTime.UtcNow;
 
 		var exists = await (
-			from tenant in _DbContext.Tenant.AsNoTracking()
+			from tenant in this._DbContext.Tenant.AsNoTracking()
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant.Id
 		).AnyAsync(cancellationToken);
@@ -78,15 +78,15 @@ public class TenantUsageService : ITenantUsageService {
 			return null;
 		}
 
-		var lastActivityAt = await LastActivityAtQuery(tenantId).FirstAsync(cancellationToken);
+		var lastActivityAt = await this.LastActivityAtQuery(tenantId).FirstAsync(cancellationToken);
 
 		// Membership counts mirror CountTenantUsersAsync parity rules: exclude
 		// soft-deleted memberships AND members whose owning User row was
 		// soft-deleted, so the number never drifts from the tenant users list.
-		var usersTotal = await UsersTotalQuery(tenantId).CountAsync(cancellationToken);
-		var usersActive = await UsersActiveQuery(tenantId).CountAsync(cancellationToken);
-		var projectsCount = await ProjectsCountQuery(tenantId).CountAsync(cancellationToken);
-		var scheduledPublicationsCount = await ScheduledPublicationsCountQuery(tenantId)
+		var usersTotal = await this.UsersTotalQuery(tenantId).CountAsync(cancellationToken);
+		var usersActive = await this.UsersActiveQuery(tenantId).CountAsync(cancellationToken);
+		var projectsCount = await this.ProjectsCountQuery(tenantId).CountAsync(cancellationToken);
+		var scheduledPublicationsCount = await this.ScheduledPublicationsCountQuery(tenantId)
 			.CountAsync(cancellationToken);
 
 		return new TenantUsageSnapshot {
@@ -110,7 +110,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from tenant in _DbContext.Tenant.AsNoTracking()
+			from tenant in this._DbContext.Tenant.AsNoTracking()
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant.LastActivityAt
 		);
@@ -125,7 +125,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -143,7 +143,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from ua in _DbContext.UserAccount.AsNoTracking()
+			from ua in this._DbContext.UserAccount.AsNoTracking()
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& !ua.IsDeleted
@@ -161,7 +161,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from project in _DbContext.Project.AsNoTracking()
+			from project in this._DbContext.Project.AsNoTracking()
 			where project.TenantId == tenantId
 				&& !project.IsDeleted
 			select project
@@ -176,7 +176,7 @@ public class TenantUsageService : ITenantUsageService {
 		Guid tenantId
 	) {
 		return (
-			from publication in _DbContext.Publication.AsNoTracking()
+			from publication in this._DbContext.Publication.AsNoTracking()
 			where publication.TenantId == tenantId
 				&& !publication.IsDeleted
 				&& publication.Status == PublicationStatus.Scheduled

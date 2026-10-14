@@ -12,9 +12,9 @@ public class MediaPermissionsForTenant : ISlicePermissions {
 	public Permission DELETE { get; }
 
 	public MediaPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -31,9 +31,9 @@ public class MediaPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		UPLOAD = Permission
+		this.UPLOAD = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "upload" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "upload" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -50,9 +50,9 @@ public class MediaPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		EDIT = Permission
+		this.EDIT = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "edit" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "edit" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -69,9 +69,9 @@ public class MediaPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		DELETE = Permission
+		this.DELETE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "delete" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "delete" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

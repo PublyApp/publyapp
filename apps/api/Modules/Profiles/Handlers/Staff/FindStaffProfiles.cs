@@ -18,18 +18,18 @@ public class FindStaffProfilesQuery : CursorPaginatedQuery {
 	public string? Search { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
+		if (this.Search is null) {
 			return null;
 		}
 
-		var trimmed = Search.Trim();
+		var trimmed = this.Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 }
 
 public class FindStaffProfilesQueryValidator : CursorPaginatedQueryValidator<FindStaffProfilesQuery> {
 	public FindStaffProfilesQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.Search).MaximumLength(200);
 	}
 }
 

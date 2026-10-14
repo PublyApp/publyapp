@@ -9,21 +9,21 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		OpenApiDocumentTransformerContext context,
 		CancellationToken cancellationToken
 	) {
-		Normalize(document);
+		OpenApiDocumentNormalizer.Normalize(document);
 
 		return Task.CompletedTask;
 	}
 
 	public static void Normalize(OpenApiDocument document) {
 		if (document.Info is not null) {
-			document.Info.Description = _NormalizeNewlines(document.Info.Description);
+			document.Info.Description = OpenApiDocumentNormalizer._NormalizeNewlines(document.Info.Description);
 		}
 
 		var visitedSchemas = new HashSet<IOpenApiSchema>();
 
 		if (document.Components?.Schemas is not null) {
 			foreach (var schema in document.Components.Schemas.Values) {
-				_NormalizeSchema(schema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(schema, visitedSchemas);
 			}
 		}
 
@@ -37,9 +37,9 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 				continue;
 			}
 
-			pathItem.Description = _NormalizeNewlines(pathItem.Description);
-			_SortParameters(pathItem.Parameters, path.Key);
-			_NormalizeParameters(pathItem.Parameters, visitedSchemas);
+			pathItem.Description = OpenApiDocumentNormalizer._NormalizeNewlines(pathItem.Description);
+			OpenApiDocumentNormalizer._SortParameters(pathItem.Parameters, path.Key);
+			OpenApiDocumentNormalizer._NormalizeParameters(pathItem.Parameters, visitedSchemas);
 
 			if (pathItem.Operations is null) {
 				continue;
@@ -50,9 +50,9 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 					continue;
 				}
 
-				operation.Description = _NormalizeNewlines(operation.Description);
-				_SortParameters(operation.Parameters, path.Key);
-				_NormalizeParameters(operation.Parameters, visitedSchemas);
+				operation.Description = OpenApiDocumentNormalizer._NormalizeNewlines(operation.Description);
+				OpenApiDocumentNormalizer._SortParameters(operation.Parameters, path.Key);
+				OpenApiDocumentNormalizer._NormalizeParameters(operation.Parameters, visitedSchemas);
 			}
 		}
 	}
@@ -104,8 +104,8 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 				Parameter = parameter,
 				OriginalIndex = index,
 			})
-			.OrderBy(item => _GetParameterLocationOrder(item.Parameter.In))
-			.ThenBy(item => _GetPathParameterIndex(path, item.Parameter))
+			.OrderBy(item => OpenApiDocumentNormalizer._GetParameterLocationOrder(item.Parameter.In))
+			.ThenBy(item => OpenApiDocumentNormalizer._GetPathParameterIndex(path, item.Parameter))
 			.ThenBy(item => item.Parameter.Name ?? string.Empty, StringComparer.Ordinal)
 			.ThenBy(item => item.OriginalIndex)
 			.Select(item => item.Parameter)
@@ -149,8 +149,8 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		}
 
 		foreach (var parameter in parameters) {
-			parameter.Description = _NormalizeNewlines(parameter.Description);
-			_NormalizeSchema(parameter.Schema, visitedSchemas);
+			parameter.Description = OpenApiDocumentNormalizer._NormalizeNewlines(parameter.Description);
+			OpenApiDocumentNormalizer._NormalizeSchema(parameter.Schema, visitedSchemas);
 		}
 	}
 
@@ -163,47 +163,47 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 			return;
 		}
 
-		_FoldNullableReferenceUnions(schema);
+		OpenApiDocumentNormalizer._FoldNullableReferenceUnions(schema);
 
-		schema.Description = _NormalizeNewlines(schema.Description);
+		schema.Description = OpenApiDocumentNormalizer._NormalizeNewlines(schema.Description);
 
-		_NormalizeSchema(schema.Not, visitedSchemas);
-		_NormalizeSchema(schema.Items, visitedSchemas);
-		_NormalizeSchema(schema.AdditionalProperties, visitedSchemas);
+		OpenApiDocumentNormalizer._NormalizeSchema(schema.Not, visitedSchemas);
+		OpenApiDocumentNormalizer._NormalizeSchema(schema.Items, visitedSchemas);
+		OpenApiDocumentNormalizer._NormalizeSchema(schema.AdditionalProperties, visitedSchemas);
 
 		if (schema.AllOf is not null) {
 			foreach (var childSchema in schema.AllOf) {
-				_NormalizeSchema(childSchema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.OneOf is not null) {
 			foreach (var childSchema in schema.OneOf) {
-				_NormalizeSchema(childSchema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.AnyOf is not null) {
 			foreach (var childSchema in schema.AnyOf) {
-				_NormalizeSchema(childSchema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.Properties is not null) {
 			foreach (var childSchema in schema.Properties.Values) {
-				_NormalizeSchema(childSchema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.PatternProperties is not null) {
 			foreach (var childSchema in schema.PatternProperties.Values) {
-				_NormalizeSchema(childSchema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 
 		if (schema.Definitions is not null) {
 			foreach (var childSchema in schema.Definitions.Values) {
-				_NormalizeSchema(childSchema, visitedSchemas);
+				OpenApiDocumentNormalizer._NormalizeSchema(childSchema, visitedSchemas);
 			}
 		}
 	}

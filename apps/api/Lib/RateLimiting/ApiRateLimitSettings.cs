@@ -108,33 +108,33 @@ public static class ApiRateLimitPolicies {
 	public const string SystemJobTrigger = "system-job-trigger";
 
 	public static bool IsKnown(string? policyName) {
-		return policyName is AnonymousOther
-			or AuthenticatedDefault
-			or HeavySearchList
-			or BulkOperation
-			or TenantBulkOperation
-			or EmailOperation
-			or TenantEmailOperation
-			or Export
-			or TenantExport
-			or Upload
-			or SocialConnect
-			or SystemJobTrigger;
+		return policyName is ApiRateLimitPolicies.AnonymousOther
+			or ApiRateLimitPolicies.AuthenticatedDefault
+			or ApiRateLimitPolicies.HeavySearchList
+			or ApiRateLimitPolicies.BulkOperation
+			or ApiRateLimitPolicies.TenantBulkOperation
+			or ApiRateLimitPolicies.EmailOperation
+			or ApiRateLimitPolicies.TenantEmailOperation
+			or ApiRateLimitPolicies.Export
+			or ApiRateLimitPolicies.TenantExport
+			or ApiRateLimitPolicies.Upload
+			or ApiRateLimitPolicies.SocialConnect
+			or ApiRateLimitPolicies.SystemJobTrigger;
 	}
 
 	public static bool UsesValidatedSessionPartition(
 		string? policyName
 	) {
-		return policyName is AuthenticatedDefault
-			or HeavySearchList
-			or BulkOperation
-			or TenantBulkOperation
-			or EmailOperation
-			or TenantEmailOperation
-			or Export
-			or TenantExport
-			or Upload
-			or SocialConnect
-			or SystemJobTrigger;
+		return policyName is ApiRateLimitPolicies.AuthenticatedDefault
+			or ApiRateLimitPolicies.HeavySearchList
+			or ApiRateLimitPolicies.BulkOperation
+			or ApiRateLimitPolicies.TenantBulkOperation
+			or ApiRateLimitPolicies.EmailOperation
+			or ApiRateLimitPolicies.TenantEmailOperation
+			or ApiRateLimitPolicies.Export
+			or ApiRateLimitPolicies.TenantExport
+			or ApiRateLimitPolicies.Upload
+			or ApiRateLimitPolicies.SocialConnect
+			or ApiRateLimitPolicies.SystemJobTrigger;
 	}
 }

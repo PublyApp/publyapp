@@ -13,7 +13,7 @@ internal sealed class FilterableDirectoryContents : IDirectoryContents {
 	private readonly IReadOnlyList<IFileInfo> _Entries;
 
 	public FilterableDirectoryContents(IReadOnlyList<IFileInfo> entries) {
-		_Entries = entries;
+		this._Entries = entries;
 	}
 
 	public bool Exists {
@@ -21,10 +21,10 @@ internal sealed class FilterableDirectoryContents : IDirectoryContents {
 	}
 
 	public IEnumerator<IFileInfo> GetEnumerator() {
-		return _Entries.GetEnumerator();
+		return this._Entries.GetEnumerator();
 	}
 
 	IEnumerator IEnumerable.GetEnumerator() {
-		return GetEnumerator();
+		return this.GetEnumerator();
 	}
 }

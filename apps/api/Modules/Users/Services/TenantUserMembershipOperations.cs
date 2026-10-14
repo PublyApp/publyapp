@@ -48,14 +48,14 @@ internal static class TenantUserMembershipOperations {
 
 			// Check if this user is the last admin
 			if (userAccount.Level == AccountLevel.Admin) {
-				var isRemovingActiveAdmin = await IsActiveTenantAdminAsync(
+				var isRemovingActiveAdmin = await TenantUserMembershipOperations.IsActiveTenantAdminAsync(
 					dbContext,
 					tenantId,
 					userId,
 					cancellationToken
 				);
 				var activeAdminCount = isRemovingActiveAdmin
-					? await _CountActiveTenantAdminsAsync(
+					? await TenantUserMembershipOperations._CountActiveTenantAdminsAsync(
 						dbContext,
 						tenantId,
 						cancellationToken
@@ -73,7 +73,7 @@ internal static class TenantUserMembershipOperations {
 			// Soft delete the user account
 			userAccount.IsDeleted = true;
 			userAccount.DeletedAt = DateTime.UtcNow;
-			await RemoveUserAccountProfileLinksAsync(
+			await TenantUserMembershipOperations.RemoveUserAccountProfileLinksAsync(
 				dbContext,
 				userAccount.GetRequiredId(),
 				cancellationToken
@@ -137,7 +137,7 @@ internal static class TenantUserMembershipOperations {
 					group => group.Key,
 					group => group.OrderByDescending(row => row.Account.CreatedAt).First()
 				);
-			var activeAdminCount = await _CountActiveTenantAdminsAsync(
+			var activeAdminCount = await TenantUserMembershipOperations._CountActiveTenantAdminsAsync(
 				dbContext,
 				tenantId,
 				cancellationToken
@@ -267,14 +267,14 @@ internal static class TenantUserMembershipOperations {
 
 			// Derive admin status after the lock instead of trusting the account loaded before
 			// this transaction: a concurrent promotion may have committed while we waited.
-			var isSuspendingActiveAdmin = await IsActiveTenantAdminAsync(
+			var isSuspendingActiveAdmin = await TenantUserMembershipOperations.IsActiveTenantAdminAsync(
 				dbContext,
 				tenantId,
 				userId,
 				cancellationToken
 			);
 			var activeAdminCount = isSuspendingActiveAdmin
-				? await _CountActiveTenantAdminsAsync(
+				? await TenantUserMembershipOperations._CountActiveTenantAdminsAsync(
 					dbContext,
 					tenantId,
 					cancellationToken
@@ -419,7 +419,7 @@ internal static class TenantUserMembershipOperations {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
+			from ua in TenantUserMembershipOperations._BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
 			where ua.UserId == userId
 			select ua
 		).AnyAsync(cancellationToken);
@@ -432,7 +432,7 @@ internal static class TenantUserMembershipOperations {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
+			from ua in TenantUserMembershipOperations._BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
 			where ua.UserId != userId
 			select ua
 		).AnyAsync(cancellationToken);
@@ -489,7 +489,7 @@ internal static class TenantUserMembershipOperations {
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
-		return await _BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
+		return await TenantUserMembershipOperations._BuildActiveTenantAdminAccountsQuery(dbContext, tenantId)
 			.CountAsync(cancellationToken);
 	}
 }

@@ -211,7 +211,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 	public TenantProfileQueryAsStaffService(
 		AppDbContext dbContext
 	) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<FindTenantProfilesResult> FindTenantProfilesAsync(
@@ -229,7 +229,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			StringComparer.OrdinalIgnoreCase
 		) {
 			["id"] = CursorSortFieldHandlerFactory.Create<Profile, Guid, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Scope == ProfileScope.Tenant
 						&& p.TenantId == args.TenantId
@@ -239,7 +239,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				cancellationToken
 			),
 			["name"] = CursorSortFieldHandlerFactory.Create<Profile, string, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Id != null
 						&& p.Scope == ProfileScope.Tenant
@@ -250,7 +250,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				cancellationToken
 			),
 			["created_at"] = CursorSortFieldHandlerFactory.Create<Profile, DateTime, Guid?>(
-				cursorLookupQuery: () => _DbContext.Profile
+				cursorLookupQuery: () => this._DbContext.Profile
 					.AsNoTracking()
 					.Where(p => p.Id != null
 						&& p.Scope == ProfileScope.Tenant
@@ -267,7 +267,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		}
 
 		var baseQuery =
-			from p in _DbContext.Profile.AsNoTracking()
+			from p in this._DbContext.Profile.AsNoTracking()
 			where p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted
@@ -314,7 +314,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		// The list DTO needs current assignment counts. Because unassignment hard-deletes
 		// links, counting rows directly is the active membership count.
 		var userAccountCounts = await (
-			from uap in _DbContext.UserAccountProfile.AsNoTracking()
+			from uap in this._DbContext.UserAccountProfile.AsNoTracking()
 			where profileIds.Contains(uap.ProfileId)
 			group uap by uap.ProfileId into g
 			select new { ProfileId = g.Key, Count = g.Count() }
@@ -328,7 +328,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		// Batched grouped-count query mirrors the userAccountCounts pattern above:
 		// one query for the page's profile IDs, not a per-row lookup.
 		var permissionCounts = await (
-			from pp in _DbContext.ProfilePermission.AsNoTracking()
+			from pp in this._DbContext.ProfilePermission.AsNoTracking()
 			where profileIds.Contains(pp.ProfileId)
 			group pp by pp.ProfileId into g
 			select new { ProfileId = g.Key, Count = g.Count() }
@@ -368,7 +368,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		CancellationToken cancellationToken = default
 	) {
 		var profile = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
@@ -400,7 +400,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			CancellationToken cancellationToken = default
 		) {
 		var profileExists = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
@@ -413,8 +413,8 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		}
 
 		var permissionKeys = await (
-			from pp in _DbContext.ProfilePermission
-			join p in _DbContext.Permission on pp.PermissionKey equals p.Key
+			from pp in this._DbContext.ProfilePermission
+			join p in this._DbContext.Permission on pp.PermissionKey equals p.Key
 			where pp.ProfileId == args.ProfileId
 				&& !p.IsDeleted
 				&& p.Scope == PermissionScope.Tenant
@@ -431,7 +431,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		CancellationToken cancellationToken = default
 	) {
 		var count =
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Scope == ProfileScope.Tenant
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -455,7 +455,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		// staff-scope profile or another tenant's profile is treated as not-found here too,
 		// mirroring TenantMembershipLockOrder.LockLiveTenantProfileAsync's liveness predicate.
 		var profileExists = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
@@ -475,9 +475,9 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		// - The UI can disable actions for non-actionable statuses, but hiding rows causes
 		//   confusing "disappearing" behavior right after a status mutation.
 		var query =
-			from uap in _DbContext.UserAccountProfile
-			join ua in _DbContext.UserAccount on uap.UserAccountId equals ua.Id
-			join u in _DbContext.User on ua.UserId equals u.Id
+			from uap in this._DbContext.UserAccountProfile
+			join ua in this._DbContext.UserAccount on uap.UserAccountId equals ua.Id
+			join u in this._DbContext.User on ua.UserId equals u.Id
 			where uap.ProfileId == args.ProfileId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == args.TenantId
@@ -574,8 +574,8 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			.Select(member => member.UserAccountId)
 			.ToList();
 		var otherProfileRows = await (
-			from uap in _DbContext.UserAccountProfile.AsNoTracking()
-			join profile in _DbContext.Profile.AsNoTracking()
+			from uap in this._DbContext.UserAccountProfile.AsNoTracking()
+			join profile in this._DbContext.Profile.AsNoTracking()
 				on uap.ProfileId equals profile.Id
 			where pageUserAccountIds.Contains(uap.UserAccountId)
 				&& uap.ProfileId != args.ProfileId
@@ -638,7 +638,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		CancellationToken cancellationToken = default
 	) {
 		var profileExists = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Tenant
 				&& p.TenantId == args.TenantId
@@ -673,9 +673,9 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		//   status as a separate field rather than overloading IsAssigned with it.
 		// - Junction links are hard-deleted when members are unassigned.
 		var assignedUserAccountIds = await (
-			from ua in _DbContext.UserAccount
-			join uap in _DbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
-			join u in _DbContext.User on ua.UserId equals u.Id
+			from ua in this._DbContext.UserAccount
+			join uap in this._DbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
+			join u in this._DbContext.User on ua.UserId equals u.Id
 			where userAccountIdsNullable.Contains(ua.Id)
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == args.TenantId
@@ -718,7 +718,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		ResolveTenantProfileNamesArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var tenantExists = await _DbContext.Tenant
+		var tenantExists = await this._DbContext.Tenant
 			.AnyAsync(tenant => tenant.Id == args.TenantId, cancellationToken);
 		if (!tenantExists) {
 			return new ResolveTenantProfileNamesResult.TenantNotFound();
@@ -735,7 +735,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			))
 			.ToList();
 
-		var candidates = await _DbContext.Profile
+		var candidates = await this._DbContext.Profile
 			.AsNoTracking()
 			.Where(profile =>
 				profile.TenantId == args.TenantId

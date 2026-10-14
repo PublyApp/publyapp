@@ -22,8 +22,8 @@ public class FindSocialAccountsForTenantQuery : CursorPaginatedQuery {
 public class FindSocialAccountsForTenantQueryValidator
 	: CursorPaginatedQueryValidator<FindSocialAccountsForTenantQuery> {
 	public FindSocialAccountsForTenantQueryValidator() {
-		RuleFor(x => x.ProjectId)
-			.Must(_BeValidNullableGuid)
+		this.RuleFor(x => x.ProjectId)
+			.Must(FindSocialAccountsForTenantQueryValidator._BeValidNullableGuid)
 			.WithMessage("project_id must be a valid GUID");
 	}
 

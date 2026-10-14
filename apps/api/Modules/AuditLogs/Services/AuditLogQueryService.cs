@@ -105,7 +105,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 	private readonly AppDbContext _DbContext;
 
 	public AuditLogQueryService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<FindAuditLogsResult> FindAsync(
@@ -127,7 +127,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				StringComparer.OrdinalIgnoreCase
 			) {
 				["created_at"] = CursorSortFieldHandlerFactory.Create<AuditLog, DateTime, Guid?>(
-					cursorLookupQuery: () => _DbContext.AuditLog
+					cursorLookupQuery: () => this._DbContext.AuditLog
 						.AsNoTracking()
 						.Where(auditLog => !auditLog.IsDeleted),
 					keySelector: auditLog => auditLog.CreatedAt,
@@ -144,9 +144,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			);
 		}
 
-		var query = _BaseQuery();
+		var query = this._BaseQuery();
 
-		query = _ApplyFilters(
+		query = AuditLogQueryService._ApplyFilters(
 			query,
 			args.UserId,
 			args.Actions,
@@ -179,7 +179,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var projectedQuery =
 			from a in orderedQuery
 				.Take(effectiveLimit + 1)
-			join u in _DbContext.User
+			join u in this._DbContext.User
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
@@ -229,11 +229,11 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		CancellationToken cancellationToken = default
 	) {
 		var detailQuery =
-			from a in _DbContext.AuditLog
+			from a in this._DbContext.AuditLog
 				.AsNoTracking()
 			where a.Id == id
 				&& !a.IsDeleted
-			join u in _DbContext.User
+			join u in this._DbContext.User
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
@@ -281,9 +281,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var limit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 
-		var query = _BaseQuery();
+		var query = this._BaseQuery();
 
-		query = _ApplyFilters(
+		query = AuditLogQueryService._ApplyFilters(
 			query,
 			args.UserId,
 			args.Actions,
@@ -307,9 +307,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var limit = AppEnvironment.Instance
 			.AUDIT_LOG_EXPORT_MAX_ROWS;
 
-		var query = _BaseQuery();
+		var query = this._BaseQuery();
 
-		query = _ApplyFilters(
+		query = AuditLogQueryService._ApplyFilters(
 			query,
 			args.UserId,
 			args.Actions,
@@ -327,7 +327,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 
 		var exportQuery =
 			from a in baseQuery
-			join u in _DbContext.User
+			join u in this._DbContext.User
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
@@ -407,7 +407,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 
 	private IQueryable<AuditLog> _BaseQuery() {
 		return
-			from auditLog in _DbContext.AuditLog.AsNoTracking()
+			from auditLog in this._DbContext.AuditLog.AsNoTracking()
 			where !auditLog.IsDeleted
 				&& auditLog.Id != null
 			select auditLog;

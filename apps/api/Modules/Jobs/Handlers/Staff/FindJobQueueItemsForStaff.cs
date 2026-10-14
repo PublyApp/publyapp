@@ -21,7 +21,7 @@ public class FindJobQueueItemsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "job_type")] public string? JobType { get; set; }
 
 	public Guid? GetTenantId() {
-		return QueryPredicates.ParseNullableGuid(TenantId);
+		return QueryPredicates.ParseNullableGuid(this.TenantId);
 	}
 
 	// CSV-encoded so the property stays primitive — required for [AsParameters]
@@ -29,19 +29,19 @@ public class FindJobQueueItemsQuery : CursorPaginatedQuery {
 	// property forces a custom BindAsync which strips every query param from the
 	// generated Kiota client URI template).
 	public IReadOnlyList<string>? GetStatusList() {
-		if (string.IsNullOrWhiteSpace(Status)) {
+		if (string.IsNullOrWhiteSpace(this.Status)) {
 			return null;
 		}
 
-		return Status.Split(',', StringSplitOptions.TrimEntries);
+		return this.Status.Split(',', StringSplitOptions.TrimEntries);
 	}
 
 	public string? GetJobType() {
-		if (string.IsNullOrWhiteSpace(JobType)) {
+		if (string.IsNullOrWhiteSpace(this.JobType)) {
 			return null;
 		}
 
-		var trimmed = JobType.Trim();
+		var trimmed = this.JobType.Trim();
 		return trimmed.Length > 200 ? trimmed[..200] : trimmed;
 	}
 }
@@ -49,11 +49,11 @@ public class FindJobQueueItemsQuery : CursorPaginatedQuery {
 public class FindJobQueueItemsQueryValidator
 	: CursorPaginatedQueryValidator<FindJobQueueItemsQuery> {
 	public FindJobQueueItemsQueryValidator() {
-		RuleFor(x => x.TenantId)
+		this.RuleFor(x => x.TenantId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage("tenant_id must be a valid GUID");
 
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Custom((raw, context) => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return;
@@ -86,7 +86,7 @@ internal static class JobQueueStatusCsv {
 		};
 
 	public static bool IsKnown(string raw) {
-		return _KnownStatuses.ContainsKey(raw);
+		return JobQueueStatusCsv._KnownStatuses.ContainsKey(raw);
 	}
 }
 

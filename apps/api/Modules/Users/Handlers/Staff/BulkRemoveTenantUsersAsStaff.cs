@@ -23,7 +23,7 @@ public sealed class BulkRemoveTenantUsersBody {
 
 	public List<Guid> GetUserIds() {
 		var userIds = new List<Guid>();
-		foreach (var userIdElement in UserIds.EnumerateArray()) {
+		foreach (var userIdElement in this.UserIds.EnumerateArray()) {
 			userIds.Add(userIdElement.GetValueAsGuid());
 		}
 		return userIds;
@@ -34,7 +34,7 @@ public sealed class BulkRemoveTenantUsersBodyValidator
 	: AbstractValidator<BulkRemoveTenantUsersBody> {
 	public BulkRemoveTenantUsersBodyValidator() {
 		// Must stay in sync with shared BULK_ACTION_MAX_COUNT
-		RuleFor(x => x.UserIds)
+		this.RuleFor(x => x.UserIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "userIds",
 				itemName: "userId",

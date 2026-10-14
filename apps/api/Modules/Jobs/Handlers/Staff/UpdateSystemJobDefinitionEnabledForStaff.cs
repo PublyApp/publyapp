@@ -22,14 +22,14 @@ public record UpdateSystemJobDefinitionEnabledForStaffBody {
 	public JsonElement? IsEnabled { get; init; }
 
 	public bool GetIsEnabled() {
-		return IsEnabled.GetValueAsBoolean();
+		return this.IsEnabled.GetValueAsBoolean();
 	}
 }
 
 public class UpdateSystemJobDefinitionEnabledForStaffBodyValidator
 	: AbstractValidator<UpdateSystemJobDefinitionEnabledForStaffBody> {
 	public UpdateSystemJobDefinitionEnabledForStaffBodyValidator() {
-		RuleFor(x => x.IsEnabled)
+		this.RuleFor(x => x.IsEnabled)
 			.MustBeNullableBoolean("IsEnabled");
 	}
 }

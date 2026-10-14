@@ -52,6 +52,6 @@ public sealed class JobContext {
 	/// classifies as a <see cref="JobOutcome.PermanentFailure"/> — never a retry.
 	/// </summary>
 	public T DeserializePayload<T>() {
-		return JobJson.Deserialize<T>(Payload);
+		return JobJson.Deserialize<T>(this.Payload);
 	}
 }

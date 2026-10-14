@@ -30,16 +30,16 @@ public static partial class LastErrorSanitiser {
 		if (string.IsNullOrEmpty(raw)) {
 			return raw;
 		}
-		var scrubbed = _SecretPattern().Replace(raw, "'[redacted]'");
-		scrubbed = _BearerPattern().Replace(scrubbed, "Bearer [redacted]");
-		scrubbed = _QueryTokenPattern().Replace(scrubbed, "$1=[redacted]");
-		scrubbed = _JsonSecretPattern().Replace(scrubbed, "\"$1\": \"[redacted]\"");
+		var scrubbed = LastErrorSanitiser._SecretPattern().Replace(raw, "'[redacted]'");
+		scrubbed = LastErrorSanitiser._BearerPattern().Replace(scrubbed, "Bearer [redacted]");
+		scrubbed = LastErrorSanitiser._QueryTokenPattern().Replace(scrubbed, "$1=[redacted]");
+		scrubbed = LastErrorSanitiser._JsonSecretPattern().Replace(scrubbed, "\"$1\": \"[redacted]\"");
 		var bytes = System.Text.Encoding.UTF8.GetBytes(scrubbed);
-		if (bytes.Length <= _MaxBytes) {
+		if (bytes.Length <= LastErrorSanitiser._MaxBytes) {
 			return scrubbed;
 		}
 		// Trim to the last complete UTF-8 char within budget.
-		var truncated = System.Text.Encoding.UTF8.GetString(bytes, 0, _MaxBytes);
+		var truncated = System.Text.Encoding.UTF8.GetString(bytes, 0, LastErrorSanitiser._MaxBytes);
 		var lastChar = truncated.LastIndexOfAny([' ', '\t', '\n']);
 		return lastChar > 0 ? truncated[..lastChar] : truncated;
 	}

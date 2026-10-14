@@ -21,7 +21,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 	) {
 		var rkey = $"pub-{request.IdempotencyKey}";
 		var did = request.Session.Did;
-		var recordId = $"at://{did}/{_Collection}/{rkey}";
+		var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";
 		var url = $"https://bsky.app/profile/{did}/post/{rkey}";
 
 		return Task.FromResult<PublishResult>(
@@ -41,7 +41,7 @@ public static partial class FakePublishingProviderEnabled {
 			return false;
 		}
 
-		return _GetOptionalBool(
+		return FakePublishingProviderEnabled._GetOptionalBool(
 			"PUBLISHING_FAKE_PROVIDER",
 			defaultValue: false
 		);

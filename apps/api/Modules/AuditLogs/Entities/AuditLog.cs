@@ -11,9 +11,9 @@ using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
 namespace PublyApp.Api.Modules.AuditLogs.Entities;
 
 [Table("audit_logs")]
-[Index(nameof(UserId), nameof(CreatedAt))]
-[Index(nameof(Action), nameof(CreatedAt))]
-[Index(nameof(TargetId))]
+[Index(nameof(AuditLog.UserId), nameof(AuditLog.CreatedAt))]
+[Index(nameof(AuditLog.Action), nameof(AuditLog.CreatedAt))]
+[Index(nameof(AuditLog.TargetId))]
 public class AuditLog : BaseAttributes, INoTenantEntity {
 	private UserEntity? _User;
 
@@ -21,8 +21,8 @@ public class AuditLog : BaseAttributes, INoTenantEntity {
 	public required Guid UserId { get; set; }
 	[JsonIgnore]
 	public UserEntity User {
-		get { return RequiredNavigation.Get(_User, nameof(AuditLog), nameof(User)); }
-		set { _User = value; }
+		get { return RequiredNavigation.Get(this._User, nameof(AuditLog), nameof(this.User)); }
+		set { this._User = value; }
 	}
 
 	[Column("action")]

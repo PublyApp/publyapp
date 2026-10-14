@@ -23,12 +23,12 @@ public sealed class SystemJobOccurrenceRetentionHandler : IJobHandler {
 		AppDbContext dbContext,
 		ILogger<SystemJobOccurrenceRetentionHandler> logger
 	) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public string JobType {
-		get { return JobKey; }
+		get { return SystemJobOccurrenceRetentionHandler.JobKey; }
 	}
 
 	public async Task<JobOutcome> HandleAsync(
@@ -41,24 +41,24 @@ public sealed class SystemJobOccurrenceRetentionHandler : IJobHandler {
 
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
-			deleted = await _DbContext.Database.ExecuteSqlAsync(
+			deleted = await this._DbContext.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM system_job_occurrences
 				WHERE ctid IN (
 					SELECT ctid FROM system_job_occurrences
 					WHERE scheduled_fire_at < now() - make_interval(days => {retentionDays})
 					ORDER BY scheduled_fire_at
-					LIMIT {_BatchSize}
+					LIMIT {SystemJobOccurrenceRetentionHandler._BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""",
 				cancellationToken
 			);
 			totalDeleted += deleted;
-		} while (deleted == _BatchSize);
+		} while (deleted == SystemJobOccurrenceRetentionHandler._BatchSize);
 
-		if (totalDeleted > 0 && _Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (totalDeleted > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"system-job-occurrence-retention deleted {Count} row(s) older than {Days} day(s)",
 				totalDeleted,
 				retentionDays

@@ -20,7 +20,7 @@ public record RequeueDeadLetterForStaffBody {
 	public JsonElement? Note { get; init; }
 
 	public string? GetNote() {
-		return Note.GetValueAsStringOrNull();
+		return this.Note.GetValueAsStringOrNull();
 	}
 }
 
@@ -36,7 +36,7 @@ public record DeadLetterRequeuedResponse {
 public class RequeueDeadLetterForStaffBodyValidator
 	: AbstractValidator<RequeueDeadLetterForStaffBody> {
 	public RequeueDeadLetterForStaffBodyValidator() {
-		RuleFor(x => x.Note)
+		this.RuleFor(x => x.Note)
 			.MustBeNullableStringWithMaxLength("Note", 500, trim: true);
 	}
 }

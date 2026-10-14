@@ -31,23 +31,23 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 		IInvitationEmailOutboxSignal signal,
 		ILogger<InvitationEmailOutboxDispatcher> logger
 	) {
-		_ScopeFactory = scopeFactory;
-		_Signal = signal;
-		_Logger = logger;
+		this._ScopeFactory = scopeFactory;
+		this._Signal = signal;
+		this._Logger = logger;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
 		while (!stoppingToken.IsCancellationRequested) {
 			try {
-				await ProcessBatchAsync(stoppingToken);
+				await this.ProcessBatchAsync(stoppingToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
-				_Logger.LogError(ex, "Invitation email outbox dispatch loop failed");
+				this._Logger.LogError(ex, "Invitation email outbox dispatch loop failed");
 			}
 
 			// Wakes early when a writer signals fresh rows; _PollInterval is only the
 			// fallback that guarantees progress even if a signal is missed or a row
 			// was left over from a process restart with nobody around to signal it.
-			await _Signal.WaitAsync(_PollInterval, stoppingToken);
+			await this._Signal.WaitAsync(InvitationEmailOutboxDispatcher._PollInterval, stoppingToken);
 		}
 	}
 
@@ -58,11 +58,11 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 	// Public: lets specs drive a single batch deterministically instead of racing
 	// ExecuteAsync's poll loop (round-5 API F3, LAW 2).
 	public async Task ProcessBatchAsync(CancellationToken stoppingToken) {
-		using var scope = _ScopeFactory.CreateScope();
+		using var scope = this._ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
-		var claimedIds = await ClaimBatchAsync(dbContext, stoppingToken);
+		var claimedIds = await InvitationEmailOutboxDispatcher.ClaimBatchAsync(dbContext, stoppingToken);
 		if (claimedIds.Count == 0) {
 			return;
 		}
@@ -74,7 +74,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 			.ToListAsync(stoppingToken);
 
 		foreach (var item in batch) {
-			await SendOneAsync(dbContext, emailService, item, stoppingToken);
+			await this.SendOneAsync(dbContext, emailService, item, stoppingToken);
 		}
 	}
 
@@ -93,7 +93,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 		CancellationToken stoppingToken
 	) {
 		var now = DateTime.UtcNow;
-		var leaseCutoff = now - _LeaseDuration;
+		var leaseCutoff = now - InvitationEmailOutboxDispatcher._LeaseDuration;
 		const int pending = (int)InvitationEmailOutboxStatus.Pending;
 		const int processing = (int)InvitationEmailOutboxStatus.Processing;
 
@@ -106,7 +106,7 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 				WHERE (status = {pending} AND next_attempt_at <= {now})
 					OR (status = {processing} AND claimed_at <= {leaseCutoff})
 				ORDER BY created_at
-				LIMIT {_BatchSize}
+				LIMIT {InvitationEmailOutboxDispatcher._BatchSize}
 				FOR UPDATE SKIP LOCKED
 			)
 			RETURNING id AS "Value"
@@ -138,8 +138,8 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 				|| invitation.IsExpired(DateTime.UtcNow))) {
 			item.Status = InvitationEmailOutboxStatus.Cancelled;
 
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation(
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation(
 					"Skipped invitation email {OutboxId} to {Email}: invitation {InvitationId} "
 					+ "is no longer eligible (status {Status})",
 					item.GetRequiredId(),
@@ -175,8 +175,8 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 			item.Status = InvitationEmailOutboxStatus.Sent;
 			item.SentAt = DateTime.UtcNow;
 
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation(
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation(
 					"Delivered invitation email {OutboxId} to {Email}",
 					item.GetRequiredId(),
 					item.Email
@@ -186,9 +186,9 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 			item.AttemptCount++;
 			item.LastError = ex.Message;
 
-			if (item.AttemptCount >= MaxAttempts) {
+			if (item.AttemptCount >= InvitationEmailOutboxDispatcher.MaxAttempts) {
 				item.Status = InvitationEmailOutboxStatus.Failed;
-				_Logger.LogError(
+				this._Logger.LogError(
 					ex,
 					"Invitation email {OutboxId} to {Email} permanently failed after {Attempts} attempts",
 					item.GetRequiredId(),
@@ -196,18 +196,18 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 					item.AttemptCount
 				);
 			} else {
-				var delaySeconds = Math.Min(Math.Pow(2, item.AttemptCount), MaxBackoffSeconds);
+				var delaySeconds = Math.Min(Math.Pow(2, item.AttemptCount), InvitationEmailOutboxDispatcher.MaxBackoffSeconds);
 				item.NextAttemptAt = DateTime.UtcNow.AddSeconds(delaySeconds);
 
-				if (_Logger.IsEnabled(LogLevel.Warning)) {
-					_Logger.LogWarning(
+				if (this._Logger.IsEnabled(LogLevel.Warning)) {
+					this._Logger.LogWarning(
 						ex,
 						"Failed to deliver invitation email {OutboxId} to {Email} "
 						+ "(attempt {Attempt}/{MaxAttempts}), retrying at {NextAttemptAt}",
 						item.GetRequiredId(),
 						item.Email,
 						item.AttemptCount,
-						MaxAttempts,
+						InvitationEmailOutboxDispatcher.MaxAttempts,
 						item.NextAttemptAt
 					);
 				}

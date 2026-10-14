@@ -45,12 +45,12 @@ public class FindTenantProfileUsersAsStaffQuery : OffsetPaginatedQuery {
 	public string? Search { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
+		if (this.Search is null) {
 			return null;
 		}
 
 		// Keep "blank" searches out of the DB query for consistency with other list endpoints.
-		var trimmed = Search.Trim();
+		var trimmed = this.Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 }
@@ -58,7 +58,7 @@ public class FindTenantProfileUsersAsStaffQuery : OffsetPaginatedQuery {
 public class FindTenantProfileUsersAsStaffQueryValidator
 	: OffsetPaginatedQueryValidator<FindTenantProfileUsersAsStaffQuery> {
 	public FindTenantProfileUsersAsStaffQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.Search).MaximumLength(200);
 	}
 }
 

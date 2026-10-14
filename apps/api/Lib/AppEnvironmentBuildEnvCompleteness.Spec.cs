@@ -68,7 +68,7 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 	}
 
 	[GeneratedRegex(
-		"GetRequired(?:String|Int)\\(\\s*(?:nameof\\(([A-Za-z_][A-Za-z0-9_]*)\\)|\"([A-Za-z_][A-Za-z0-9_]*)\")"
+		"GetRequired(?:String|Int)\\(\\s*(?:nameof\\((?:(?:AppEnvironment|this)\\.)?([A-Za-z_][A-Za-z0-9_]*)\\)|\"([A-Za-z_][A-Za-z0-9_]*)\")"
 	)]
 	private static partial Regex _RequiredReaderRegex();
 

@@ -12,9 +12,9 @@ public class InvitationPermissionsForTenant : ISlicePermissions {
 	public Permission RESEND { get; }
 
 	public InvitationPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -31,9 +31,9 @@ public class InvitationPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		CREATE = Permission
+		this.CREATE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "create" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "create" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -50,9 +50,9 @@ public class InvitationPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		REVOKE = Permission
+		this.REVOKE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "revoke" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "revoke" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -69,9 +69,9 @@ public class InvitationPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		RESEND = Permission
+		this.RESEND = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "resend" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "resend" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

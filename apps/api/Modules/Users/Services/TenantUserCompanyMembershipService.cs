@@ -59,7 +59,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		AppDbContext dbContext,
 		ILogger<TenantUserCompanyMembershipService> logger
 	) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 		_ = logger;
 	}
 
@@ -72,13 +72,13 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		var failedItems = new List<TenantUserCompanyBulkActionFailedItem>();
 		var succeededCount = 0;
 
-		var identityError = await _GetTenantUserIdentityAssignmentErrorAsync(
+		var identityError = await this._GetTenantUserIdentityAssignmentErrorAsync(
 			args.UserId,
 			cancellationToken
 		);
 
 		if (identityError is not null) {
-			return _BuildTenantUserCompanyBulkFailure(
+			return TenantUserCompanyMembershipService._BuildTenantUserCompanyBulkFailure(
 				tenantIds,
 				identityError
 			);
@@ -86,7 +86,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 
 		foreach (var tenantId in tenantIds) {
 			var tenantExists = await (
-				from tenant in _DbContext.Tenant.AsNoTracking()
+				from tenant in this._DbContext.Tenant.AsNoTracking()
 				where tenant.Id == tenantId
 					&& !tenant.IsDeleted
 				select tenant.Id
@@ -103,7 +103,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			}
 
 			var existingAccount = await (
-				from account in _DbContext.UserAccount.IgnoreQueryFilters()
+				from account in this._DbContext.UserAccount.IgnoreQueryFilters()
 				where account.UserId == args.UserId
 					&& account.TenantId == tenantId
 					&& account.Scope == AccountScope.Tenant
@@ -122,7 +122,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			}
 
 			await using var transaction =
-				await _DbContext.Database.BeginTransactionAsync(
+				await this._DbContext.Database.BeginTransactionAsync(
 					cancellationToken
 				);
 
@@ -137,7 +137,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 				// identity mutex orders this "add an admin" against that "reduce the active
 				// admin count" instead of letting it slip in behind the enumeration.
 				await TenantMembershipLockOrder.LockUserIdentityRowsAsync(
-					_DbContext,
+					this._DbContext,
 					[args.UserId],
 					cancellationToken
 				);
@@ -149,7 +149,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 						args.Level
 					);
 					tenantAccount.ValidateAccountType();
-					await _DbContext.UserAccount.AddAsync(
+					await this._DbContext.UserAccount.AddAsync(
 						tenantAccount,
 						cancellationToken
 					);
@@ -162,21 +162,21 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 					tenantAccount.ValidateAccountType();
 				}
 
-				await _DbContext.SaveChangesAsync(cancellationToken);
+				await this._DbContext.SaveChangesAsync(cancellationToken);
 				if (isRestoringRemovedAccount) {
 					// Removed memberships may still have old profile links. Purge
 					// them before adding the tenant default profile so reassignment
 					// cannot resurrect stale permissions.
 					await TenantUserMembershipOperations
 						.RemoveUserAccountProfileLinksAsync(
-						_DbContext,
+						this._DbContext,
 						tenantAccount.GetRequiredId(),
 						cancellationToken
 					);
-					await _DbContext.SaveChangesAsync(cancellationToken);
+					await this._DbContext.SaveChangesAsync(cancellationToken);
 				}
 
-				await _AssignDefaultProfileToTenantAccountAsync(
+				await this._AssignDefaultProfileToTenantAccountAsync(
 					tenantAccount,
 					tenantId,
 					cancellationToken
@@ -207,7 +207,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 
 		foreach (var tenantId in args.TenantIds.Distinct()) {
 			var result = await TenantUserMembershipOperations.RemoveUserFromTenantAsync(
-				_DbContext,
+				this._DbContext,
 				tenantId,
 				args.UserId,
 				cancellationToken
@@ -221,7 +221,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			failedItems.Add(
 				new TenantUserCompanyBulkActionFailedItem(
 					tenantId,
-					_GetRemoveTenantUserCompanyError(result)
+					TenantUserCompanyMembershipService._GetRemoveTenantUserCompanyError(result)
 				)
 			);
 		}
@@ -243,7 +243,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 
 		foreach (var tenantId in args.TenantIds.Distinct()) {
 			var result = await TenantUserMembershipOperations.SuspendTenantUserAsync(
-				_DbContext,
+				this._DbContext,
 				tenantId,
 				args.UserId,
 				cancellationToken
@@ -257,7 +257,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			failedItems.Add(
 				new TenantUserCompanyBulkActionFailedItem(
 					tenantId,
-					_GetSuspendTenantUserCompanyError(result)
+					TenantUserCompanyMembershipService._GetSuspendTenantUserCompanyError(result)
 				)
 			);
 		}
@@ -279,7 +279,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 
 		foreach (var tenantId in args.TenantIds.Distinct()) {
 			var result = await TenantUserMembershipOperations.ReactivateTenantUserAsync(
-				_DbContext,
+				this._DbContext,
 				tenantId,
 				args.UserId,
 				cancellationToken
@@ -293,7 +293,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			failedItems.Add(
 				new TenantUserCompanyBulkActionFailedItem(
 					tenantId,
-					_GetReactivateTenantUserCompanyError(result)
+					TenantUserCompanyMembershipService._GetReactivateTenantUserCompanyError(result)
 				)
 			);
 		}
@@ -310,7 +310,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		CancellationToken cancellationToken
 	) {
 		var userExists = await (
-			from user in _DbContext.User.AsNoTracking()
+			from user in this._DbContext.User.AsNoTracking()
 			where user.Id == userId
 				&& !user.IsDeleted
 			select user.Id
@@ -321,7 +321,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		}
 
 		var hasTenantIdentity = await (
-			from account in _DbContext.UserAccount.IgnoreQueryFilters()
+			from account in this._DbContext.UserAccount.IgnoreQueryFilters()
 			where account.UserId == userId
 				&& account.Scope == AccountScope.Tenant
 			select account.Id
@@ -332,7 +332,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		}
 
 		var hasStaffAccount = await (
-			from account in _DbContext.UserAccount.AsNoTracking()
+			from account in this._DbContext.UserAccount.AsNoTracking()
 			where account.UserId == userId
 				&& account.Scope == AccountScope.Staff
 				&& !account.IsDeleted
@@ -375,14 +375,14 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		}
 
 		var accountId = account.GetRequiredId();
-		var defaultProfile = await _GetOrCreateDefaultTenantProfileAsync(
+		var defaultProfile = await this._GetOrCreateDefaultTenantProfileAsync(
 			tenantId,
 			cancellationToken
 		);
 		var profileId = defaultProfile.GetRequiredId();
 
 		var linkExists = await (
-			from link in _DbContext.UserAccountProfile
+			from link in this._DbContext.UserAccountProfile
 			where link.UserAccountId == accountId
 				&& link.ProfileId == profileId
 			select link
@@ -392,14 +392,14 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			return;
 		}
 
-		await _DbContext.UserAccountProfile.AddAsync(
+		await this._DbContext.UserAccountProfile.AddAsync(
 			new UserAccountProfile {
 				UserAccountId = accountId,
 				ProfileId = profileId,
 			},
 			cancellationToken
 		);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 	}
 
 	private async Task<Profile> _GetOrCreateDefaultTenantProfileAsync(
@@ -407,7 +407,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		CancellationToken cancellationToken
 	) {
 		var defaultProfile = await (
-			from profile in _DbContext.Profile
+			from profile in this._DbContext.Profile
 			where profile.Scope == ProfileScope.Tenant
 				&& profile.TenantId == tenantId
 				&& profile.IsDefault
@@ -426,11 +426,11 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			isDefault: true
 		);
 
-		var savedProfile = await _DbContext.Profile.AddAsync(
+		var savedProfile = await this._DbContext.Profile.AddAsync(
 			defaultProfile,
 			cancellationToken
 		);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return savedProfile.Entity;
 	}

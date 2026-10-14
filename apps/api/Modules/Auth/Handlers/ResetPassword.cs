@@ -23,39 +23,39 @@ public class ResetPasswordBody {
 	public required JsonElement ConfirmPassword { get; set; }
 
 	public string GetId() {
-		return Id.GetValueAsString();
+		return this.Id.GetValueAsString();
 	}
 
 	public string GetToken() {
-		return Token.GetValueAsString();
+		return this.Token.GetValueAsString();
 	}
 
 	public string GetNewPassword() {
-		return NewPassword.GetValueAsString();
+		return this.NewPassword.GetValueAsString();
 	}
 
 	public string GetConfirmPassword() {
-		return ConfirmPassword.GetValueAsString();
+		return this.ConfirmPassword.GetValueAsString();
 	}
 }
 
 public class ResetPasswordBodyValidator
 	: AbstractValidator<ResetPasswordBody> {
 	public ResetPasswordBodyValidator() {
-		RuleFor(x => x.Id)
+		this.RuleFor(x => x.Id)
 			.MustBeRequiredEncryptedId();
 
-		RuleFor(x => x.Token)
+		this.RuleFor(x => x.Token)
 			.MustBeRequiredString("Token");
 
-		RuleFor(x => x.NewPassword)
+		this.RuleFor(x => x.NewPassword)
 			.MustBeRequiredPassword();
 
-		RuleFor(x => x.ConfirmPassword)
+		this.RuleFor(x => x.ConfirmPassword)
 			.MustBeRequiredString("Confirm password");
 
 		// Cross-field: passwords must match
-		RuleFor(x => x)
+		this.RuleFor(x => x)
 			.Must(body => {
 				if (
 					body.NewPassword.ValueKind

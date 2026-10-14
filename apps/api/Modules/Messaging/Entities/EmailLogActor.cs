@@ -23,18 +23,18 @@ public sealed record EmailLogActor {
 	public string Id { get; }
 
 	private EmailLogActor(string kind, string id) {
-		Kind = kind;
-		Id = id;
+		this.Kind = kind;
+		this.Id = id;
 	}
 
 	/// <summary>An authenticated, idempotently processed provider webhook (§4.4).</summary>
 	public static EmailLogActor ProviderWebhook(string id) {
-		return new EmailLogActor(EmailLogActorKinds.ProviderWebhook, _ValidateId(id));
+		return new EmailLogActor(EmailLogActorKinds.ProviderWebhook, EmailLogActor._ValidateId(id));
 	}
 
 	/// <summary>An import of provider-side logs reconciling historical rows (§4.4).</summary>
 	public static EmailLogActor ProviderReconciliation(string id) {
-		return new EmailLogActor(EmailLogActorKinds.ProviderReconciliation, _ValidateId(id));
+		return new EmailLogActor(EmailLogActorKinds.ProviderReconciliation, EmailLogActor._ValidateId(id));
 	}
 
 	private static string _ValidateId(string id) {
@@ -43,9 +43,9 @@ public sealed record EmailLogActor {
 				"id is required: every email_log evidence row names its author (#866).");
 		}
 
-		if (id.Length > MaxIdLength) {
+		if (id.Length > EmailLogActor.MaxIdLength) {
 			throw new EmailLogActorException(
-				$"id must be at most {MaxIdLength} characters (got {id.Length}).");
+				$"id must be at most {EmailLogActor.MaxIdLength} characters (got {id.Length}).");
 		}
 
 		return id;

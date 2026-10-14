@@ -33,7 +33,7 @@ public class BaseAttributes : BaseAttributesNoKey {
 	/// Since database generates UUID v7 null or empty Guid indicates it hasn't been saved yet.
 	/// </summary>
 	public bool IsNew() {
-		return Id is null || Id == Guid.Empty;
+		return this.Id is null || this.Id == Guid.Empty;
 	}
 
 	/// <summary>
@@ -41,9 +41,9 @@ public class BaseAttributes : BaseAttributesNoKey {
 	/// This should be used when the entity is expected to be persisted (not new).
 	/// </summary>
 	public Guid GetRequiredId() {
-		if (Id is null) {
-			throw new InvalidOperationException($"Entity {GetType().Name} Id is null. Make sure the entity is saved before accessing Id.");
+		if (this.Id is null) {
+			throw new InvalidOperationException($"Entity {this.GetType().Name} Id is null. Make sure the entity is saved before accessing Id.");
 		}
-		return Id.Value;
+		return this.Id.Value;
 	}
 }

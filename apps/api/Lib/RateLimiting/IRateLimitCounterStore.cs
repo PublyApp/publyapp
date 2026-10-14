@@ -74,6 +74,6 @@ public static class CounterFailModes {
 			.ToFrozenSet(StringComparer.Ordinal);
 
 	public static bool MustFailClosed(string policyName) {
-		return _FailClosedPolicies.Contains(policyName);
+		return CounterFailModes._FailClosedPolicies.Contains(policyName);
 	}
 }

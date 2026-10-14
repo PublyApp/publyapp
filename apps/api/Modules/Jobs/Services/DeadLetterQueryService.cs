@@ -151,7 +151,7 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 		if (!string.IsNullOrWhiteSpace(args.ExternalStateStatusCsv)) {
 			statuses = [];
 			foreach (var token in args.ExternalStateStatusCsv.Split(',')) {
-				if (!_StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
+				if (!DeadLetterQueryService._StatusCsvValues.TryGetValue(token.Trim(), out var status)) {
 					return new FindDeadLetterItemsResult.InvalidStatusCsv(
 						args.ExternalStateStatusCsv
 					);
@@ -161,14 +161,14 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			}
 		}
 
-		var query = _ApplyFilters(
-			_BaseQuery(), args.TenantId, statuses, args.JobType
+		var query = DeadLetterQueryService._ApplyFilters(
+			this._BaseQuery(), args.TenantId, statuses, args.JobType
 		);
 
 		IQueryable<JobDeadLetter> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
-				from item in _BaseQuery()
+				from item in this._BaseQuery()
 				where item.Id == args.Cursor
 				select new { item.FailedAt }
 			).FirstOrDefaultAsync(cancellationToken);

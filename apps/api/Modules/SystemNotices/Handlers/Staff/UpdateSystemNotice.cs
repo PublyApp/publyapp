@@ -26,30 +26,30 @@ public record UpdateSystemNoticeBody {
 	public JsonElement ExpiresAt { get; init; }
 
 	public string? GetSeverity() {
-		return Severity.GetValueAsStringOrNull();
+		return this.Severity.GetValueAsStringOrNull();
 	}
 
 	public string? GetTitle() {
-		return Title.GetValueAsStringOrNull();
+		return this.Title.GetValueAsStringOrNull();
 	}
 
 	public string? GetMessage() {
-		return Message.GetValueAsStringOrNull();
+		return this.Message.GetValueAsStringOrNull();
 	}
 
 	public DateTime? GetStartsAt() {
-		return StartsAt.GetValueAsDateTimeOrNull();
+		return this.StartsAt.GetValueAsDateTimeOrNull();
 	}
 
 	public PatchField<DateTime?> GetExpiresAt() {
-		return ExpiresAt.ValueKind switch {
+		return this.ExpiresAt.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<DateTime?>.Absent(),
 			JsonValueKind.Null =>
 				PatchField<DateTime?>.Set(null),
 			JsonValueKind.String =>
 				PatchField<DateTime?>.Set(
-					ExpiresAt.GetValueAsDateTime()
+					this.ExpiresAt.GetValueAsDateTime()
 				),
 			JsonValueKind.Object
 				or JsonValueKind.Array
@@ -60,9 +60,9 @@ public record UpdateSystemNoticeBody {
 				+ "null, or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(ExpiresAt),
-				ExpiresAt.ValueKind,
-				$"Unhandled JsonValueKind: {ExpiresAt.ValueKind}"
+				nameof(this.ExpiresAt),
+				this.ExpiresAt.ValueKind,
+				$"Unhandled JsonValueKind: {this.ExpiresAt.ValueKind}"
 			),
 		};
 	}
@@ -80,19 +80,19 @@ public record SystemNoticeUpdated {
 public class UpdateSystemNoticeBodyValidator
 	: AbstractValidator<UpdateSystemNoticeBody> {
 	public UpdateSystemNoticeBodyValidator() {
-		RuleFor(x => x.Severity)
+		this.RuleFor(x => x.Severity)
 			.MustBeNullableSeverity();
 
-		RuleFor(x => x.Title)
+		this.RuleFor(x => x.Title)
 			.MustBeNullableStringWithMaxLength("Title", 200);
 
-		RuleFor(x => x.Message)
+		this.RuleFor(x => x.Message)
 			.MustBeNullableStringWithMaxLength("Message", 2000);
 
-		RuleFor(x => x.StartsAt)
+		this.RuleFor(x => x.StartsAt)
 			.MustBeNullableIsoDateTime("StartsAt");
 
-		RuleFor(x => x.ExpiresAt)
+		this.RuleFor(x => x.ExpiresAt)
 			.MustBePatchFieldIsoDateTime("ExpiresAt");
 	}
 }

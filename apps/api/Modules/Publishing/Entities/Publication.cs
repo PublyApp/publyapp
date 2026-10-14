@@ -20,8 +20,8 @@ public class Publication : BaseAttributes, ITenantEntity {
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_Tenant, nameof(Publication), nameof(Tenant)); }
-		set { _Tenant = value; }
+		get { return RequiredNavigation.Get(this._Tenant, nameof(Publication), nameof(this.Tenant)); }
+		set { this._Tenant = value; }
 	}
 
 	[Column("post_id")]
@@ -64,8 +64,8 @@ public class Publication : BaseAttributes, ITenantEntity {
 
 	[JsonIgnore]
 	public Post Post {
-		get { return RequiredNavigation.Get(_Post, nameof(Publication), nameof(Post)); }
-		set { _Post = value; }
+		get { return RequiredNavigation.Get(this._Post, nameof(Publication), nameof(this.Post)); }
+		set { this._Post = value; }
 	}
 	private Post? _Post;
 
@@ -73,10 +73,10 @@ public class Publication : BaseAttributes, ITenantEntity {
 	public Modules.SocialAccounts.Entities.SocialAccount SocialAccount {
 		get {
 			return RequiredNavigation.Get(
-				_SocialAccount, nameof(Publication), nameof(SocialAccount)
+				this._SocialAccount, nameof(Publication), nameof(this.SocialAccount)
 			);
 		}
-		set { _SocialAccount = value; }
+		set { this._SocialAccount = value; }
 	}
 	private Modules.SocialAccounts.Entities.SocialAccount? _SocialAccount;
 }

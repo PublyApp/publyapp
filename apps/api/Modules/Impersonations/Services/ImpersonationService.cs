@@ -36,9 +36,9 @@ public class ImpersonationService : IImpersonationService {
 		IHttpContextAccessor httpContextAccessor,
 		ILogger<ImpersonationService> logger
 	) {
-		_DbContext = dbContext;
-		_HttpContextAccessor = httpContextAccessor;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._HttpContextAccessor = httpContextAccessor;
+		this._Logger = logger;
 	}
 
 	public async Task<Session> CreateImpersonationSessionAsync(
@@ -51,7 +51,7 @@ public class ImpersonationService : IImpersonationService {
 		var durationMinutes = args.DurationMinutes;
 
 		var tenantAccountQuery =
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.Status != AccountStatus.Suspended
@@ -68,7 +68,7 @@ public class ImpersonationService : IImpersonationService {
 
 		var session = new Session {
 			UserId = tenantUserAccount.UserId,
-			Token = _GenerateSessionToken(),
+			Token = ImpersonationService._GenerateSessionToken(),
 			ExpiresAt = expiresAt,
 			IsImpersonation = true,
 			ImpersonatingStaffUserId = staffUserId,
@@ -76,14 +76,14 @@ public class ImpersonationService : IImpersonationService {
 			ImpersonationExpiresAt = expiresAt
 		};
 
-		await using var tx = await _DbContext.Database.BeginTransactionAsync(cancellationToken);
-		await _DbContext.Session.AddAsync(session, cancellationToken);
-		_AddAuditEntry(staffUserId, tenantId, reason, durationMinutes);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await using var tx = await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
+		await this._DbContext.Session.AddAsync(session, cancellationToken);
+		this._AddAuditEntry(staffUserId, tenantId, reason, durationMinutes);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 		await tx.CommitAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Staff user {StaffUserId} started impersonation session for tenant {TenantId}",
 				staffUserId,
 				tenantId
@@ -99,7 +99,7 @@ public class ImpersonationService : IImpersonationService {
 		string reason,
 		int durationMinutes
 	) {
-		var httpContext = _HttpContextAccessor.HttpContext;
+		var httpContext = this._HttpContextAccessor.HttpContext;
 		var auditLog = AuditLog.CreateEntry(
 			userId: staffUserId,
 			action: AuditActions.ImpersonationStarted,
@@ -112,7 +112,7 @@ public class ImpersonationService : IImpersonationService {
 			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
 		);
 
-		_ = _DbContext.AuditLog.Add(auditLog);
+		_ = this._DbContext.AuditLog.Add(auditLog);
 	}
 
 	public async Task<bool> ValidateImpersonationSessionAsync(
@@ -120,7 +120,7 @@ public class ImpersonationService : IImpersonationService {
 		CancellationToken cancellationToken = default
 	) {
 		var sessionQuery =
-			from s in _DbContext.Session
+			from s in this._DbContext.Session
 			where s.Token == sessionToken && s.IsImpersonation
 			select s;
 

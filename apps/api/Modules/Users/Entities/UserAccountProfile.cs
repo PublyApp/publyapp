@@ -26,12 +26,12 @@ public class UserAccountProfile : INoTenantEntity {
 	public UserAccount UserAccount {
 		get {
 			return RequiredNavigation.Get(
-				_UserAccount,
+				this._UserAccount,
 				nameof(UserAccountProfile),
-				nameof(UserAccount)
+				nameof(this.UserAccount)
 			);
 		}
-		set { _UserAccount = value; }
+		set { this._UserAccount = value; }
 	}
 
 	// Foreign key to profiles.id; second half of the composite primary key.
@@ -43,12 +43,12 @@ public class UserAccountProfile : INoTenantEntity {
 	public PublyApp.Api.Modules.Profiles.Entities.Profile Profile {
 		get {
 			return RequiredNavigation.Get(
-				_Profile,
+				this._Profile,
 				nameof(UserAccountProfile),
-				nameof(Profile)
+				nameof(this.Profile)
 			);
 		}
-		set { _Profile = value; }
+		set { this._Profile = value; }
 	}
 
 	// Keep assignment timestamps because profile-user lists sort by when the link was created.

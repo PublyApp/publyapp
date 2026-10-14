@@ -20,21 +20,21 @@ public class PasswordLoginBody {
 	public JsonElement Password { get; set; }
 
 	public string GetPassword() {
-		return Password.GetValueAsString();
+		return this.Password.GetValueAsString();
 	}
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return this.Email.GetValueAsString();
 	}
 }
 
 public class PasswordLoginBodyValidator
 	: AbstractValidator<PasswordLoginBody> {
 	public PasswordLoginBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		RuleFor(x => x.Password)
+		this.RuleFor(x => x.Password)
 			.MustBeRequiredPassword();
 	}
 }

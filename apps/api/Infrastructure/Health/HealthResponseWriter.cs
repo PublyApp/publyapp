@@ -61,7 +61,7 @@ public static class HealthResponseWriter {
 		await JsonSerializer.SerializeAsync(
 			httpContext.Response.Body,
 			payload,
-			_SerializerOptions,
+			HealthResponseWriter._SerializerOptions,
 			httpContext.RequestAborted
 		);
 	}

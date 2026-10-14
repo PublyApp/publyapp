@@ -32,22 +32,22 @@ public class AuditLogService : IAuditLogService {
 		IHttpContextAccessor httpContextAccessor,
 		ILogger<AuditLogService> logger
 	) {
-		_DbContext = dbContext;
-		_HttpContextAccessor = httpContextAccessor;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._HttpContextAccessor = httpContextAccessor;
+		this._Logger = logger;
 	}
 
 	public async Task LogAsync(
 		CreateAuditLogArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var auditLog = _BuildAuditLog(args);
+		var auditLog = this._BuildAuditLog(args);
 
-		await _DbContext.AuditLog.AddAsync(auditLog, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.AuditLog.AddAsync(auditLog, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Audit log created for action {Action} by user {UserId} targeting {TargetId}",
 				args.Action,
 				args.UserId,
@@ -64,13 +64,13 @@ public class AuditLogService : IAuditLogService {
 			return;
 		}
 
-		var auditLogs = argsList.Select(_BuildAuditLog).ToList();
+		var auditLogs = argsList.Select(this._BuildAuditLog).ToList();
 
-		await _DbContext.AuditLog.AddRangeAsync(auditLogs, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.AuditLog.AddRangeAsync(auditLogs, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		if (_Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+		if (this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"Audit log batch of {Count} entries created",
 				argsList.Count
 			);
@@ -78,7 +78,7 @@ public class AuditLogService : IAuditLogService {
 	}
 
 	private AuditLog _BuildAuditLog(CreateAuditLogArgs args) {
-		var httpContext = _HttpContextAccessor.HttpContext;
+		var httpContext = this._HttpContextAccessor.HttpContext;
 
 		return AuditLog.CreateEntry(
 			args.UserId,

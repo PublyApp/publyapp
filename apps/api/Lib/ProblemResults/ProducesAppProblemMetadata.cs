@@ -7,7 +7,7 @@ namespace PublyApp.Api.Lib.ProblemResults;
 /// </summary>
 internal sealed class ProducesAppProblemMetadata : IProducesResponseTypeMetadata {
 	public ProducesAppProblemMetadata(int statusCode) {
-		StatusCode = statusCode;
+		this.StatusCode = statusCode;
 	}
 
 	public Type? Type {

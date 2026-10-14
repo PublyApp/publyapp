@@ -13,28 +13,28 @@ public class SystemNoticePermissionsForStaff : ISlicePermissions {
 	public Permission DELETE { get; }
 
 	public SystemNoticePermissionsForStaff() {
-		LIST = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "list" }))
+		this.LIST = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "list" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "List system notices", Description = "View list of all system notices" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Lister les avis système", Description = "Voir la liste de tous les avis système" });
 
-		GET = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "get" }))
+		this.GET = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "get" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Get system notice", Description = "View details of a system notice" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Voir un avis système", Description = "Voir les détails d'un avis système" });
 
-		CREATE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "create" }))
+		this.CREATE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "create" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Create system notice", Description = "Create a new system notice" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Créer un avis système", Description = "Créer un nouvel avis système" });
 
-		UPDATE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "update" }))
+		this.UPDATE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "update" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update system notice", Description = "Update an existing system notice" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mettre à jour un avis système", Description = "Mettre à jour un avis système existant" });
 
-		DELETE = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { KeyPrefix, "delete" }))
+		this.DELETE = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "delete" }))
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Delete system notice", Description = "Delete a system notice" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Supprimer un avis système", Description = "Supprimer un avis système" });
 	}

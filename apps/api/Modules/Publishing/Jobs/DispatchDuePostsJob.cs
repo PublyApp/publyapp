@@ -29,13 +29,13 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 		IJobEnqueuer jobEnqueuer,
 		IPublicationStatusTransitionService transitions
 	) {
-		_DbContext = dbContext;
-		_JobEnqueuer = jobEnqueuer;
-		_Transitions = transitions;
+		this._DbContext = dbContext;
+		this._JobEnqueuer = jobEnqueuer;
+		this._Transitions = transitions;
 	}
 
 	public string JobType {
-		get { return JobKey; }
+		get { return DispatchDuePostsJob.JobKey; }
 	}
 
 	public async Task<JobOutcome> HandleAsync(
@@ -49,15 +49,15 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 		// inserts, so a competing scan either SKIPS the still-locked row or
 		// finds it already InProgress — never both enqueued.
 		await using var transaction =
-			await _DbContext.Database.BeginTransactionAsync(cancellationToken);
+			await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 
-		var claimedIds = await _DbContext.Database
+		var claimedIds = await this._DbContext.Database
 			.SqlQuery<Guid>($"""
 				SELECT id AS "Value" FROM publications
 				WHERE status = {scheduledStatus} AND is_deleted = false
 					AND scheduled_at_utc <= now()
 				ORDER BY scheduled_at_utc, id
-				LIMIT {_DueScanBatchSize}
+				LIMIT {DispatchDuePostsJob._DueScanBatchSize}
 				FOR UPDATE SKIP LOCKED
 				""")
 			.ToListAsync(cancellationToken);
@@ -66,7 +66,7 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 			cancellationToken.ThrowIfCancellationRequested();
 
 			var key = PublicationIdempotencyKey.For(publicationId);
-			_ = await _JobEnqueuer.EnqueueAsync(
+			_ = await this._JobEnqueuer.EnqueueAsync(
 				PublishingJobs.PublishPublicationV1,
 				new PublishPublicationPayload {
 					PublicationId = publicationId,
@@ -76,10 +76,10 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 				cancellationToken
 			);
 
-			_ = await _Transitions.MarkInProgressAsync(
+			_ = await this._Transitions.MarkInProgressAsync(
 				new MarkPublicationInProgressArgs(
 					publicationId,
-					await _TenantOfAsync(publicationId, cancellationToken)
+					await this._TenantOfAsync(publicationId, cancellationToken)
 				),
 				cancellationToken
 			);
@@ -96,7 +96,7 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 		CancellationToken cancellationToken
 	) {
 		var tenantId = await (
-			from p in _DbContext.Publication.AsNoTracking()
+			from p in this._DbContext.Publication.AsNoTracking()
 			where p.Id == publicationId
 			select p.TenantId
 		).FirstOrDefaultAsync(cancellationToken);

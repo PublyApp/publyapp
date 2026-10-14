@@ -27,38 +27,38 @@ public record CreateStaffProfileBody {
 	public JsonElement Tone { get; init; }
 
 	public string GetName() {
-		if (!Name.HasValue) {
+		if (!this.Name.HasValue) {
 			throw new InvalidOperationException("Name is required");
 		}
-		return Name.Value.GetValueAsString();
+		return this.Name.Value.GetValueAsString();
 	}
 
 	public string? GetDescription() {
-		return Description.GetValueAsStringOrNull();
+		return this.Description.GetValueAsStringOrNull();
 	}
 
 	public List<string> GetPermissions() {
-		if (!Permissions.HasValue) {
+		if (!this.Permissions.HasValue) {
 			return [];
 		}
 
-		return Permissions.Value.Deserialize<List<string>>() ?? [];
+		return this.Permissions.Value.Deserialize<List<string>>() ?? [];
 	}
 
 	public List<string> GetEmails() {
-		if (!Emails.HasValue) {
+		if (!this.Emails.HasValue) {
 			return [];
 		}
 
-		return Emails.Value.Deserialize<List<string>>() ?? [];
+		return this.Emails.Value.Deserialize<List<string>>() ?? [];
 	}
 
 	public string? GetIcon() {
-		return Icon.GetValueAsStringOrNull();
+		return this.Icon.GetValueAsStringOrNull();
 	}
 
 	public string? GetTone() {
-		return Tone.GetValueAsStringOrNull();
+		return this.Tone.GetValueAsStringOrNull();
 	}
 }
 
@@ -74,7 +74,7 @@ public record StaffProfileCreated {
 public partial class CreateStaffProfileBodyValidator
 	: AbstractValidator<CreateStaffProfileBody> {
 	public CreateStaffProfileBodyValidator() {
-		RuleFor(x => x.Name).Custom((maybeElement, context) => {
+		this.RuleFor(x => x.Name).Custom((maybeElement, context) => {
 			if (!maybeElement.HasValue) {
 				context.AddFailure("Name is required");
 				return;
@@ -98,10 +98,10 @@ public partial class CreateStaffProfileBodyValidator
 			}
 		});
 
-		RuleFor(x => x.Description)
+		this.RuleFor(x => x.Description)
 			.MustBeNullableStringWithMaxLength("Description", 500, trim: true);
 
-		RuleFor(x => x.Permissions).Custom((maybeElement, context) => {
+		this.RuleFor(x => x.Permissions).Custom((maybeElement, context) => {
 			if (!maybeElement.HasValue) {
 				context.AddFailure("Permissions is required");
 				return;
@@ -121,7 +121,7 @@ public partial class CreateStaffProfileBodyValidator
 			}
 		});
 
-		RuleFor(x => x.Emails).Custom((maybeElement, context) => {
+		this.RuleFor(x => x.Emails).Custom((maybeElement, context) => {
 			if (!maybeElement.HasValue) {
 				return;
 			}
@@ -140,7 +140,7 @@ public partial class CreateStaffProfileBodyValidator
 					);
 					return;
 				}
-				if (!list.All(email => _EmailRegex().IsMatch(email))) {
+				if (!list.All(email => CreateStaffProfileBodyValidator._EmailRegex().IsMatch(email))) {
 					context.AddFailure("Emails must be a list of valid email addresses");
 				}
 			} catch {
@@ -148,13 +148,13 @@ public partial class CreateStaffProfileBodyValidator
 			}
 		});
 
-		RuleFor(x => x.Icon)
+		this.RuleFor(x => x.Icon)
 			.MustBePatchFieldStringInSet(
 				"Icon",
 				ProfileStyleValidationRules.Icons
 			);
 
-		RuleFor(x => x.Tone)
+		this.RuleFor(x => x.Tone)
 			.MustBePatchFieldStringInSet(
 				"Tone",
 				ProfileStyleValidationRules.Tones
@@ -244,7 +244,7 @@ public sealed class CreateStaffProfile {
 		}
 
 		if (result is CreateStaffProfileResult.Success success) {
-			return await _HandleSuccessAsync(
+			return await CreateStaffProfile._HandleSuccessAsync(
 				success,
 				auditLogService,
 				currentUserId,

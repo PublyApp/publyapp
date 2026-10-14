@@ -24,7 +24,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 	private readonly AppDbContext _DbContext;
 
 	public StaffUserProfileAssignmentService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<StaffUserProfilesSummary?> GetStaffUserProfilesAsync(
@@ -37,7 +37,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		// suspended users (view-only), so we DO NOT filter on suspension here. Suspension affects
 		// authentication and action availability, not whether the record exists.
 		var staffAccountId = await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -54,8 +54,8 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		// Junction rows are hard-deleted when unassigned, so row existence is the active
 		// assignment state. We still filter deleted profiles and enforce staff scope.
 		var assignedProfilesRaw = await (
-			from uap in _DbContext.UserAccountProfile
-			join p in _DbContext.Profile on uap.ProfileId equals p.Id
+			from uap in this._DbContext.UserAccountProfile
+			join p in this._DbContext.Profile on uap.ProfileId equals p.Id
 			where uap.UserAccountId == staffAccountId.Value
 				&& !p.IsDeleted
 				&& p.Scope == ProfileScope.Staff
@@ -92,7 +92,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		// Suspending a user should block login and disable UI actions for that user, but staff
 		// administrators may still need to update profile assignment for cleanup or future reactivation.
 		var staffAccountId = await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -111,7 +111,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		// Load all requested profiles in a single query.
 		// We only select the fields we need to validate and to return the updated assignment.
 		var requestedProfiles = await (
-			from p in _DbContext.Profile
+			from p in this._DbContext.Profile
 			where profileIdsNullable.Contains(p.Id)
 				&& !p.IsDeleted
 			select new {
@@ -147,14 +147,14 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 			return new UpdateStaffUserProfilesServiceResult.ProfilesNotStaffScope(nonStaffIds);
 		}
 
-		await using var transaction = await _DbContext.Database.BeginTransactionAsync(
+		await using var transaction = await this._DbContext.Database.BeginTransactionAsync(
 			cancellationToken
 		);
 		// This is intentional commit-order serialization: if profile update acquires the
 		// live staff-account lock and commits first, it returns Success. A concurrent
 		// delete blocks on the same account row and then sweeps these committed links.
 		var lockedStaffAccount =
-			await _LockLiveStaffUserAccountForProfileUpdateAsync(
+			await this._LockLiveStaffUserAccountForProfileUpdateAsync(
 				userId,
 				staffAccountId.Value,
 				cancellationToken
@@ -171,7 +171,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		// - remove links that are currently assigned but not in the new set
 		// - add links that are in the new set but not currently assigned
 		var existingLinks = await (
-			from uap in _DbContext.UserAccountProfile
+			from uap in this._DbContext.UserAccountProfile
 			where uap.UserAccountId == lockedStaffAccountId
 			select uap
 		).ToListAsync(cancellationToken);
@@ -189,7 +189,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		if (linksToRemove.Count > 0) {
 			// RemoveRange is a hard delete because UserAccountProfile no longer inherits
 			// BaseAttributesNoKey, so SaveChanges will not convert it to soft-delete.
-			_DbContext.UserAccountProfile.RemoveRange(linksToRemove);
+			this._DbContext.UserAccountProfile.RemoveRange(linksToRemove);
 		}
 
 		var toAddIds = desiredProfileIds
@@ -206,11 +206,11 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		}
 
 		if (linksToInsert.Count > 0) {
-			await _DbContext.UserAccountProfile.AddRangeAsync(linksToInsert, cancellationToken);
+			await this._DbContext.UserAccountProfile.AddRangeAsync(linksToInsert, cancellationToken);
 		}
 
 		try {
-			await _DbContext.SaveChangesAsync(cancellationToken);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
 		} catch {
 			await transaction.RollbackAsync(cancellationToken);
@@ -253,7 +253,7 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		// soft-delete the account while missing this transaction's uncommitted links.
 		// If delete arrives after we hold this lock, it serializes behind us and cleans
 		// up the committed links once the lock is released.
-		return await _DbContext.UserAccount
+		return await this._DbContext.UserAccount
 			.FromSqlInterpolated($"""
 				SELECT ua.*
 				FROM user_accounts AS ua

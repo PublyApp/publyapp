@@ -15,7 +15,7 @@ public class SessionAuthFilter : IEndpointFilter {
 	private readonly ILogger<SessionAuthFilter> _Logger;
 
 	public SessionAuthFilter(ILogger<SessionAuthFilter> logger) {
-		_Logger = logger;
+		this._Logger = logger;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -31,7 +31,7 @@ public class SessionAuthFilter : IEndpointFilter {
 			?? httpContext.Request.Headers[env.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
-			_Logger.LogDebug("Session token is missing in request");
+			this._Logger.LogDebug("Session token is missing in request");
 			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
 		}
 
@@ -43,7 +43,7 @@ public class SessionAuthFilter : IEndpointFilter {
 			ApiRateLimitPartitionKeys
 				.WasSessionValidationAttempted(httpContext)
 		) {
-			_Logger.LogDebug(
+			this._Logger.LogDebug(
 				"Session token is invalid or expired"
 			);
 			return TypedProblems.Unauthorized(
@@ -56,7 +56,7 @@ public class SessionAuthFilter : IEndpointFilter {
 		var sessionData = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (sessionData is null) {
-			_Logger.LogDebug("Session token is invalid or expired");
+			this._Logger.LogDebug("Session token is invalid or expired");
 			return TypedProblems.Unauthorized("Session token is invalid or expired", ResponseKeys.Unauthorized);
 		}
 
@@ -65,7 +65,7 @@ public class SessionAuthFilter : IEndpointFilter {
 		authContext.UserId = sessionData.User.Id;
 
 		if (!authContext.IsAuthenticated) {
-			_Logger.LogError("Failed to authenticate user, session has no user attached");
+			this._Logger.LogError("Failed to authenticate user, session has no user attached");
 			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
 		}
 

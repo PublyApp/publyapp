@@ -33,14 +33,14 @@ public static partial class TenantValidationRules {
 	/// blob this API owns and can safely delete.
 	/// </summary>
 	public static bool IsServedUploadLogoUrl(string value) {
-		return _ServedUploadLogoUrlPattern().IsMatch(value);
+		return TenantValidationRules._ServedUploadLogoUrlPattern().IsMatch(value);
 	}
 
 	private static bool _IsValidLogoUrl(string value) {
-		if (value.Length > LogoUrlMaxLength) {
+		if (value.Length > TenantValidationRules.LogoUrlMaxLength) {
 			return false;
 		}
-		if (IsServedUploadLogoUrl(value)) {
+		if (TenantValidationRules.IsServedUploadLogoUrl(value)) {
 			return true;
 		}
 		return Uri.TryCreate(value, UriKind.Absolute, out var uri)
@@ -75,11 +75,11 @@ public static partial class TenantValidationRules {
 				if (string.IsNullOrWhiteSpace(str)) {
 					return true;
 				}
-				return str is not null && _IsValidLogoUrl(str);
+				return str is not null && TenantValidationRules._IsValidLogoUrl(str);
 			})
 			.WithMessage(
 				"LogoUrl must be a served upload path or an absolute http(s) URL "
-				+ $"of at most {LogoUrlMaxLength} characters"
+				+ $"of at most {TenantValidationRules.LogoUrlMaxLength} characters"
 			);
 	}
 
@@ -108,11 +108,11 @@ public static partial class TenantValidationRules {
 				if (string.IsNullOrWhiteSpace(str)) {
 					return true;
 				}
-				return str is not null && _IsValidLogoUrl(str);
+				return str is not null && TenantValidationRules._IsValidLogoUrl(str);
 			})
 			.WithMessage(
 				"LogoUrl must be a served upload path or an absolute http(s) URL "
-				+ $"of at most {LogoUrlMaxLength} characters, null, or omitted"
+				+ $"of at most {TenantValidationRules.LogoUrlMaxLength} characters, null, or omitted"
 			);
 	}
 
@@ -137,7 +137,7 @@ public static partial class TenantValidationRules {
 					return false;
 				}
 				var str = e.Value.GetString();
-				return str is not null && _AllowedLocales.Contains(str);
+				return str is not null && TenantValidationRules._AllowedLocales.Contains(str);
 			})
 			.WithMessage("DefaultLocale must be 'en' or 'fr'");
 	}
@@ -161,7 +161,7 @@ public static partial class TenantValidationRules {
 					return false;
 				}
 				var str = e.GetString();
-				return str is not null && _AllowedLocales.Contains(str);
+				return str is not null && TenantValidationRules._AllowedLocales.Contains(str);
 			})
 			.WithMessage("DefaultLocale must be 'en', 'fr', null, or omitted");
 	}

@@ -22,13 +22,13 @@ public record SchedulePostBody {
 	public required JsonElement TimeZone { get; init; }
 
 	public List<Guid> GetAccountIds() {
-		return AccountIds.EnumerateArray()
+		return this.AccountIds.EnumerateArray()
 			.Select(item => item.GetGuid())
 			.ToList();
 	}
 
 	public DateTime GetScheduledAtLocal() {
-		var raw = ScheduledAtLocal.GetValueAsString();
+		var raw = this.ScheduledAtLocal.GetValueAsString();
 		if (DateUtils.TryParseIsoUtc(raw, out var utc)) {
 			return utc;
 		}
@@ -39,20 +39,20 @@ public record SchedulePostBody {
 	}
 
 	public string GetTimeZone() {
-		return TimeZone.GetValueAsString().Trim();
+		return this.TimeZone.GetValueAsString().Trim();
 	}
 }
 
 public sealed class SchedulePostBodyValidator
 	: AbstractValidator<SchedulePostBody> {
 	public SchedulePostBodyValidator() {
-		RuleFor(x => x.AccountIds)
+		this.RuleFor(x => x.AccountIds)
 			.MustBeRequiredGuidArray("AccountIds", "social account ID", 50);
 
-		RuleFor(x => x.ScheduledAtLocal)
+		this.RuleFor(x => x.ScheduledAtLocal)
 			.MustBeRequiredIsoDateTime("ScheduledAtLocal");
 
-		RuleFor(x => x.TimeZone)
+		this.RuleFor(x => x.TimeZone)
 			.MustBeRequiredTimezone(
 				"TimeZone",
 				PublicationSchedule.MaxTimeZoneLength

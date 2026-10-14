@@ -26,11 +26,11 @@ public record UpdateStaffProfileBody {
 	public JsonElement Tone { get; init; }
 
 	public PatchField<string?> GetName() {
-		return Name.ValueKind switch {
+		return this.Name.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<string?>.Absent(),
 			JsonValueKind.String =>
-				PatchField<string?>.Set(Name.GetValueAsString()),
+				PatchField<string?>.Set(this.Name.GetValueAsString()),
 			JsonValueKind.Null =>
 				throw new InvalidOperationException(
 					// "name" is required at the entity level; PATCH supports "omit" but not "clear".
@@ -44,20 +44,20 @@ public record UpdateStaffProfileBody {
 				"Name must be a string or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(Name),
-				Name.ValueKind,
-				$"Unhandled JsonValueKind: {Name.ValueKind}"
+				nameof(this.Name),
+				this.Name.ValueKind,
+				$"Unhandled JsonValueKind: {this.Name.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetDescription() {
-		return Description.ValueKind switch {
+		return this.Description.ValueKind switch {
 			JsonValueKind.Undefined =>
 				PatchField<string?>.Absent(),
 			JsonValueKind.String =>
 				PatchField<string?>.Set(
-					Description.GetValueAsString()
+					this.Description.GetValueAsString()
 				),
 			JsonValueKind.Null =>
 				PatchField<string?>.Set(null),
@@ -69,19 +69,19 @@ public record UpdateStaffProfileBody {
 				"Description must be a string, null, or omitted"
 			),
 			_ => throw new ArgumentOutOfRangeException(
-				nameof(Description),
-				Description.ValueKind,
-				$"Unhandled JsonValueKind: {Description.ValueKind}"
+				nameof(this.Description),
+				this.Description.ValueKind,
+				$"Unhandled JsonValueKind: {this.Description.ValueKind}"
 			),
 		};
 	}
 
 	public PatchField<string?> GetIcon() {
-		return _GetClearableString(Icon, nameof(Icon));
+		return UpdateStaffProfileBody._GetClearableString(this.Icon, nameof(this.Icon));
 	}
 
 	public PatchField<string?> GetTone() {
-		return _GetClearableString(Tone, nameof(Tone));
+		return UpdateStaffProfileBody._GetClearableString(this.Tone, nameof(this.Tone));
 	}
 
 	private static PatchField<string?> _GetClearableString(
@@ -113,19 +113,19 @@ public record UpdateStaffProfileBody {
 public class UpdateStaffProfileBodyValidator
 	: AbstractValidator<UpdateStaffProfileBody> {
 	public UpdateStaffProfileBodyValidator() {
-		RuleFor(x => x.Name)
+		this.RuleFor(x => x.Name)
 			.MustBePatchFieldStringWithLength("Name", 2, 100, trim: true);
 
-		RuleFor(x => x.Description)
+		this.RuleFor(x => x.Description)
 			.MustBePatchFieldStringWithMaxLength("Description", 500, trim: true);
 
-		RuleFor(x => x.Icon)
+		this.RuleFor(x => x.Icon)
 			.MustBePatchFieldStringInSet(
 				"Icon",
 				ProfileStyleValidationRules.Icons
 			);
 
-		RuleFor(x => x.Tone)
+		this.RuleFor(x => x.Tone)
 			.MustBePatchFieldStringInSet(
 				"Tone",
 				ProfileStyleValidationRules.Tones

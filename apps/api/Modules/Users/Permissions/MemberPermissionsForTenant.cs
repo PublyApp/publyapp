@@ -12,9 +12,9 @@ public class MemberPermissionsForTenant : ISlicePermissions {
 	public Permission REMOVE { get; }
 
 	public MemberPermissionsForTenant() {
-		VIEW = Permission
+		this.VIEW = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "view" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -31,9 +31,9 @@ public class MemberPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		MANAGE = Permission
+		this.MANAGE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "manage" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "manage" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -52,9 +52,9 @@ public class MemberPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		SUSPEND = Permission
+		this.SUSPEND = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "suspend" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "suspend" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -71,9 +71,9 @@ public class MemberPermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		REMOVE = Permission
+		this.REMOVE = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "remove" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "remove" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

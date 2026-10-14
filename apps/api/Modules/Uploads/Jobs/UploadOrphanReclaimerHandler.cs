@@ -78,7 +78,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 	// ever becomes eligible after the full grace period (its updated_at predates
 	// delete_not_before), so the backoff can never delay a legitimate first
 	// attempt — it only spaces out retries after observed failures.
-	private const int _ScanMinAgeMinutes = _BlobFailureRetryBackoffMinutes;
+	private const int _ScanMinAgeMinutes = UploadOrphanReclaimerHandler._BlobFailureRetryBackoffMinutes;
 
 	private readonly AppDbContext _DbContext;
 	private readonly IFileStorage _FileStorage;
@@ -91,14 +91,14 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		IAuditLogService auditLogService,
 		ILogger<UploadOrphanReclaimerHandler> logger
 	) {
-		_DbContext = dbContext;
-		_FileStorage = fileStorage;
-		_AuditLogService = auditLogService;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._FileStorage = fileStorage;
+		this._AuditLogService = auditLogService;
+		this._Logger = logger;
 	}
 
 	public string JobType {
-		get { return JobKey; }
+		get { return UploadOrphanReclaimerHandler.JobKey; }
 	}
 
 	public async Task<JobOutcome> HandleAsync(
@@ -116,15 +116,15 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 			(orphansDeleted, staleReleased) =
-				await _ReclaimBatchAsync(cancellationToken);
+				await this._ReclaimBatchAsync(cancellationToken);
 			totalOrphansDeleted += orphansDeleted;
 			totalStaleReservationsReleased += staleReleased;
-		} while ((orphansDeleted == _BatchSize || staleReleased == _BatchSize)
+		} while ((orphansDeleted == UploadOrphanReclaimerHandler._BatchSize || staleReleased == UploadOrphanReclaimerHandler._BatchSize)
 			&& (orphansDeleted > 0 || staleReleased > 0));
 
 		if ((totalOrphansDeleted > 0 || totalStaleReservationsReleased > 0)
-			&& _Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation(
+			&& this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation(
 				"upload-orphan-reclaim reclaimed {OrphanCount} orphaned asset(s) "
 				+ "and released {StaleCount} stale reservation(s)",
 				totalOrphansDeleted,
@@ -155,7 +155,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		// mutating statement below re-checks everything under the tuple lock, so
 		// a racy read here can only cause a harmless skip, never a wrong delete
 		// or wrong accounting.
-		var candidates = await _DbContext.Database
+		var candidates = await this._DbContext.Database
 			.SqlQuery<ReclaimCandidate>($"""
 				SELECT id AS "Id",
 					relative_path AS "RelativePath",
@@ -170,7 +170,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 								AND reference_count = 0
 								AND delete_not_before IS NOT NULL
 								AND delete_not_before <= now()
-								AND updated_at < now() - make_interval(mins => {_ScanMinAgeMinutes}))
+								AND updated_at < now() - make_interval(mins => {UploadOrphanReclaimerHandler._ScanMinAgeMinutes}))
 							OR (state = {(int)UploadAssetState.Stored}
 								AND reference_count = 0
 								AND delete_not_before IS NULL
@@ -178,7 +178,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 									- make_interval(mins => {storedOrphanTtlMinutes}))
 						)
 					ORDER BY delete_not_before, id
-					LIMIT {_BatchSize}
+					LIMIT {UploadOrphanReclaimerHandler._BatchSize}
 					FOR UPDATE SKIP LOCKED
 				)
 				""")
@@ -188,15 +188,15 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		foreach (var candidate in candidates) {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			if (!await _TryRemoveBlobAsync(candidate)) {
+			if (!await this._TryRemoveBlobAsync(candidate)) {
 				continue;
 			}
-			if (!await _MarkOrphanDeletedAndReleaseCommittedBytesAsync(candidate)) {
+			if (!await this._MarkOrphanDeletedAndReleaseCommittedBytesAsync(candidate)) {
 				continue;
 			}
 
 			orphansDeleted += 1;
-			await _WriteAuditQuietlyAsync(candidate, cancellationToken);
+			await this._WriteAuditQuietlyAsync(candidate, cancellationToken);
 		}
 
 		// ── Stale Reserved rows past the TTL ────────────────────────────────
@@ -206,13 +206,13 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		// the row and give them back on both scopes in the SAME statement. A live
 		// writer holding the row blocks this UPDATE until it commits/rolls back —
 		// and if it commits, the row is no longer Reserved and matches nothing.
-		var staleReleased = await _DbContext.Database.ExecuteSqlAsync($"""
+		var staleReleased = await this._DbContext.Database.ExecuteSqlAsync($"""
 			WITH stale AS (
 				SELECT id FROM upload_assets
 				WHERE is_deleted = false
 					AND state = {(int)UploadAssetState.Reserved}
 					AND updated_at < now() - make_interval(mins => {staleTtlMinutes})
-				LIMIT {_BatchSize}
+				LIMIT {UploadOrphanReclaimerHandler._BatchSize}
 				FOR UPDATE SKIP LOCKED
 			), budget_release AS (
 				UPDATE upload_budgets b
@@ -237,13 +237,13 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 	// SURVIVES deletion.
 	private async Task<bool> _TryRemoveBlobAsync(ReclaimCandidate candidate) {
 		try {
-			var removed = await _FileStorage.DeleteAsync(candidate.RelativePath);
+			var removed = await this._FileStorage.DeleteAsync(candidate.RelativePath);
 			if (removed) {
 				return true;
 			}
-			await _BackOffCandidateAsync(candidate);
-			if (_Logger.IsEnabled(LogLevel.Warning)) {
-				_Logger.LogWarning(
+			await this._BackOffCandidateAsync(candidate);
+			if (this._Logger.IsEnabled(LogLevel.Warning)) {
+				this._Logger.LogWarning(
 					"upload-orphan-reclaim postponed reclaiming one orphaned asset "
 					+ "because its blob is still present after deletion was "
 					+ "attempted; the row stays accounted and retries after the "
@@ -252,9 +252,9 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 			}
 			return false;
 		} catch (Exception exception) {
-			await _BackOffCandidateAsync(candidate);
-			if (_Logger.IsEnabled(LogLevel.Warning)) {
-				_Logger.LogWarning(
+			await this._BackOffCandidateAsync(candidate);
+			if (this._Logger.IsEnabled(LogLevel.Warning)) {
+				this._Logger.LogWarning(
 					exception,
 					"upload-orphan-reclaim postponed reclaiming one orphaned asset "
 					+ "because its blob could not be deleted from storage; the row "
@@ -267,7 +267,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 
 	private async Task _BackOffCandidateAsync(ReclaimCandidate candidate) {
 		try {
-			await _DbContext.Database.ExecuteSqlAsync(
+			await this._DbContext.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE upload_assets
 				SET updated_at = NOW()
@@ -293,7 +293,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		string relativePath,
 		long sizeBytes
 	) {
-		var deleted = await _DbContext.Database.ExecuteSqlAsync($"""
+		var deleted = await this._DbContext.Database.ExecuteSqlAsync($"""
 			WITH target AS (
 				SELECT id FROM upload_assets
 				WHERE relative_path = {relativePath}
@@ -328,7 +328,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 	private Task<bool> _MarkOrphanDeletedAndReleaseCommittedBytesAsync(
 		ReclaimCandidate candidate
 	) {
-		return _MarkOrphanDeletedAndReleaseCommittedBytesAsync(
+		return this._MarkOrphanDeletedAndReleaseCommittedBytesAsync(
 			candidate.RelativePath, candidate.SizeBytes
 		);
 	}
@@ -342,7 +342,7 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 		CancellationToken cancellationToken
 	) {
 		try {
-			await _AuditLogService.LogAsync(
+			await this._AuditLogService.LogAsync(
 				new CreateAuditLogArgs(
 					UserId: candidate.CreatedByUserId,
 					Action: AuditActions.UploadAssetDeleted,
@@ -358,8 +358,8 @@ public sealed class UploadOrphanReclaimerHandler : IJobHandler {
 				cancellationToken
 			);
 		} catch (Exception exception) {
-			if (_Logger.IsEnabled(LogLevel.Warning)) {
-				_Logger.LogWarning(
+			if (this._Logger.IsEnabled(LogLevel.Warning)) {
+				this._Logger.LogWarning(
 					exception,
 					"upload-orphan-reclaim could not write the audit entry for one "
 					+ "reclaimed asset; the reclaim itself is already committed"

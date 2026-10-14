@@ -11,8 +11,8 @@ using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
 namespace PublyApp.Api.Modules.Auth.Entities;
 
 [Table("sessions")]
-[Index(nameof(Token), IsUnique = true)]
-[Index(nameof(ExpiresAt), nameof(Id), Name = "ix_sessions_expires_at_id")]
+[Index(nameof(Session.Token), IsUnique = true)]
+[Index(nameof(Session.ExpiresAt), nameof(Session.Id), Name = "ix_sessions_expires_at_id")]
 public class Session : INoTenantEntity {
 	private UserEntity? _User;
 
@@ -31,8 +31,8 @@ public class Session : INoTenantEntity {
 
 	[JsonIgnore]
 	public UserEntity User {
-		get { return RequiredNavigation.Get(_User, nameof(Session), nameof(User)); }
-		set { _User = value; }
+		get { return RequiredNavigation.Get(this._User, nameof(Session), nameof(this.User)); }
+		set { this._User = value; }
 	}
 
 	[Column("token")]
@@ -57,8 +57,8 @@ public class Session : INoTenantEntity {
 	public DateTime? ImpersonationExpiresAt { get; set; }
 
 	public bool IsImpersonationValid() {
-		return IsImpersonation
-			&& ImpersonationExpiresAt is not null
-			&& ImpersonationExpiresAt.Value > DateTime.UtcNow;
+		return this.IsImpersonation
+			&& this.ImpersonationExpiresAt is not null
+			&& this.ImpersonationExpiresAt.Value > DateTime.UtcNow;
 	}
 }

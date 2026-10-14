@@ -24,7 +24,7 @@ public class AppEnvironment {
 	/// </summary>
 	public static AppEnvironment Instance {
 		get {
-			var instance = Volatile.Read(ref _Instance);
+			var instance = Volatile.Read(ref AppEnvironment._Instance);
 			if (instance is null) {
 				throw new InvalidOperationException(
 					"AppEnvironment not initialized. "
@@ -179,13 +179,13 @@ public class AppEnvironment {
 	// Maps the HTTP request surface (endpoints + middleware). Computed the same way
 	// as the IsDevelopment accessors: `api` and `all` serve HTTP, `worker` does not.
 	public bool IsApiRole {
-		get { return Role is AppRole.Api or AppRole.All; }
+		get { return this.Role is AppRole.Api or AppRole.All; }
 	}
 
 	// Runs the worker-only job hosted-services. `worker` and `all` run the engine,
 	// `api` does not.
 	public bool IsWorkerRole {
-		get { return Role is AppRole.Worker or AppRole.All; }
+		get { return this.Role is AppRole.Worker or AppRole.All; }
 	}
 
 	// ========== Constants (hardcoded, not from environment) ==========
@@ -223,7 +223,7 @@ public class AppEnvironment {
 	public static bool IsDevelopment {
 		get {
 			return string.Equals(
-		_GetHostEnvironmentName(),
+		AppEnvironment._GetHostEnvironmentName(),
 		EnvironmentNames.Development,
 		StringComparison.OrdinalIgnoreCase
 	);
@@ -233,7 +233,7 @@ public class AppEnvironment {
 	public static bool IsProduction {
 		get {
 			return string.Equals(
-		_GetHostEnvironmentName(),
+		AppEnvironment._GetHostEnvironmentName(),
 		EnvironmentNames.Production,
 		StringComparison.OrdinalIgnoreCase
 	);
@@ -243,7 +243,7 @@ public class AppEnvironment {
 	public static bool IsTesting {
 		get {
 			return string.Equals(
-		_GetHostEnvironmentName(),
+		AppEnvironment._GetHostEnvironmentName(),
 		EnvironmentNames.Testing,
 		StringComparison.OrdinalIgnoreCase
 	);
@@ -256,7 +256,7 @@ public class AppEnvironment {
 	// Production, Staging, or an UNSET host environment (what a bare container gets)
 	// refuses — fail closed.
 	public static bool IsProbeAllowedHostEnvironment() {
-		var name = _GetHostEnvironmentName();
+		var name = AppEnvironment._GetHostEnvironmentName();
 		return string.Equals(
 				name,
 				EnvironmentNames.Development,
@@ -313,7 +313,7 @@ public class AppEnvironment {
 
 	public static string EnvironmentName {
 		get {
-			return _GetHostEnvironmentName();
+			return AppEnvironment._GetHostEnvironmentName();
 		}
 	}
 #pragma warning restore CA1822
@@ -400,101 +400,101 @@ public class AppEnvironment {
 		int jobAlertLeaseRetentionDays,
 		IReadOnlyList<string> jobRegistryDlqOrphanAllowlist
 	) {
-		POSTGRES_CONNECTION_STRING = postgresConnectionString;
-		FRONT_URL = frontUrl;
-		RESEND_API_KEY = resendApiKey;
-		STAFF_OWNER_EMAIL = staffOwnerEmail;
-		STAFF_OWNER_BOOTSTRAP_CODE = staffOwnerBootstrapCode;
-		SocialAccountsMasterKey = _ParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", socialAccountsMasterKey);
-		APP_NAME = appName;
-		DEFAULT_EMAIL_SENDER_EMAIL = defaultEmailSenderEmail;
-		DEFAULT_EMAIL_SENDER_NAME = defaultEmailSenderName;
-		SESSION_TOKEN_HEADER_KEY = sessionTokenHeaderKey;
-		TENANT_ID_HEADER_KEY = tenantIdHeaderKey;
-		SESSION_EXPIRY_DAYS = sessionExpiryDays;
-		EMAIL_VERIFY_TOKEN_VALIDITY_DURATION = emailVerifyTokenValidityDuration;
-		PASSWORD_RESET_TOKEN_VALIDITY_DURATION = passwordResetTokenValidityDuration;
-		PASSWORD_MIN_LENGTH = passwordMinLength;
-		EMAIL_VERIFY_TOKEN_LENGTH = emailVerifyTokenLength;
-		PASSWORD_RESET_TOKEN_LENGTH = passwordResetTokenLength;
-		INVITATION_TOKEN_LENGTH = invitationTokenLength;
-		DI_MANIFEST_ENABLED = diManifestEnabled;
-		AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
-		MAX_PROFILES_PER_USER = maxProfilesPerUser;
-		TENANT_USER_EXPORT_MAX_ROWS = tenantUserExportMaxRows;
-		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
-		FILE_STORAGE_ROOT = fileStorageRoot;
-		UPLOAD_MAX_BYTES = uploadMaxBytes;
-		UPLOAD_GLOBAL_MAX_BYTES = uploadGlobalMaxBytes;
-		UPLOAD_PER_STAFF_MAX_BYTES = uploadPerStaffMaxBytes;
-		UPLOAD_ORPHAN_GRACE_DAYS = uploadOrphanGraceDays;
-		UPLOAD_STALE_RESERVATION_TTL_MINUTES = uploadStaleReservationTtlMinutes;
-		UPLOAD_STORED_ORPHAN_TTL_MINUTES = uploadStoredOrphanTtlMinutes;
-		TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
-		ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
-		ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
-		ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT = anonAuthEmailRateLimitPermitLimit;
-		ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS = anonAuthEmailRateLimitWindowSeconds;
-		PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
+		this.POSTGRES_CONNECTION_STRING = postgresConnectionString;
+		this.FRONT_URL = frontUrl;
+		this.RESEND_API_KEY = resendApiKey;
+		this.STAFF_OWNER_EMAIL = staffOwnerEmail;
+		this.STAFF_OWNER_BOOTSTRAP_CODE = staffOwnerBootstrapCode;
+		this.SocialAccountsMasterKey = AppEnvironment._ParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", socialAccountsMasterKey);
+		this.APP_NAME = appName;
+		this.DEFAULT_EMAIL_SENDER_EMAIL = defaultEmailSenderEmail;
+		this.DEFAULT_EMAIL_SENDER_NAME = defaultEmailSenderName;
+		this.SESSION_TOKEN_HEADER_KEY = sessionTokenHeaderKey;
+		this.TENANT_ID_HEADER_KEY = tenantIdHeaderKey;
+		this.SESSION_EXPIRY_DAYS = sessionExpiryDays;
+		this.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION = emailVerifyTokenValidityDuration;
+		this.PASSWORD_RESET_TOKEN_VALIDITY_DURATION = passwordResetTokenValidityDuration;
+		this.PASSWORD_MIN_LENGTH = passwordMinLength;
+		this.EMAIL_VERIFY_TOKEN_LENGTH = emailVerifyTokenLength;
+		this.PASSWORD_RESET_TOKEN_LENGTH = passwordResetTokenLength;
+		this.INVITATION_TOKEN_LENGTH = invitationTokenLength;
+		this.DI_MANIFEST_ENABLED = diManifestEnabled;
+		this.AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
+		this.MAX_PROFILES_PER_USER = maxProfilesPerUser;
+		this.TENANT_USER_EXPORT_MAX_ROWS = tenantUserExportMaxRows;
+		this.TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
+		this.FILE_STORAGE_ROOT = fileStorageRoot;
+		this.UPLOAD_MAX_BYTES = uploadMaxBytes;
+		this.UPLOAD_GLOBAL_MAX_BYTES = uploadGlobalMaxBytes;
+		this.UPLOAD_PER_STAFF_MAX_BYTES = uploadPerStaffMaxBytes;
+		this.UPLOAD_ORPHAN_GRACE_DAYS = uploadOrphanGraceDays;
+		this.UPLOAD_STALE_RESERVATION_TTL_MINUTES = uploadStaleReservationTtlMinutes;
+		this.UPLOAD_STORED_ORPHAN_TTL_MINUTES = uploadStoredOrphanTtlMinutes;
+		this.TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
+		this.ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
+		this.ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
+		this.ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT = anonAuthEmailRateLimitPermitLimit;
+		this.ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS = anonAuthEmailRateLimitWindowSeconds;
+		this.PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
 			passwordResetEmailRateLimitPermitLimit;
-		PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
+		this.PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
 			passwordResetEmailRateLimitWindowSeconds;
-		GLOBAL_RATE_LIMIT_PERMIT_LIMIT = globalRateLimitPermitLimit;
-		GLOBAL_RATE_LIMIT_WINDOW_SECONDS = globalRateLimitWindowSeconds;
-		ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT =
+		this.GLOBAL_RATE_LIMIT_PERMIT_LIMIT = globalRateLimitPermitLimit;
+		this.GLOBAL_RATE_LIMIT_WINDOW_SECONDS = globalRateLimitWindowSeconds;
+		this.ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT =
 			anonymousOtherRateLimitPermitLimit;
-		ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS =
+		this.ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS =
 			anonymousOtherRateLimitWindowSeconds;
-		AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT =
+		this.AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT =
 			authenticatedRateLimitPermitLimit;
-		AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS =
+		this.AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS =
 			authenticatedRateLimitWindowSeconds;
-		HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT =
+		this.HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT =
 			heavySearchRateLimitPermitLimit;
-		HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS =
+		this.HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS =
 			heavySearchRateLimitWindowSeconds;
-		BULK_RATE_LIMIT_PERMIT_LIMIT = bulkRateLimitPermitLimit;
-		BULK_RATE_LIMIT_WINDOW_SECONDS = bulkRateLimitWindowSeconds;
-		TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT =
+		this.BULK_RATE_LIMIT_PERMIT_LIMIT = bulkRateLimitPermitLimit;
+		this.BULK_RATE_LIMIT_WINDOW_SECONDS = bulkRateLimitWindowSeconds;
+		this.TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT =
 			tenantBulkRateLimitPermitLimit;
-		TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS =
+		this.TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS =
 			tenantBulkRateLimitWindowSeconds;
-		EMAIL_RATE_LIMIT_PERMIT_LIMIT = emailRateLimitPermitLimit;
-		EMAIL_RATE_LIMIT_WINDOW_SECONDS = emailRateLimitWindowSeconds;
-		TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
+		this.EMAIL_RATE_LIMIT_PERMIT_LIMIT = emailRateLimitPermitLimit;
+		this.EMAIL_RATE_LIMIT_WINDOW_SECONDS = emailRateLimitWindowSeconds;
+		this.TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT =
 			tenantEmailRateLimitPermitLimit;
-		TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
+		this.TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS =
 			tenantEmailRateLimitWindowSeconds;
-		EXPORT_RATE_LIMIT_PERMIT_LIMIT = exportRateLimitPermitLimit;
-		EXPORT_RATE_LIMIT_WINDOW_SECONDS = exportRateLimitWindowSeconds;
-		TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT =
+		this.EXPORT_RATE_LIMIT_PERMIT_LIMIT = exportRateLimitPermitLimit;
+		this.EXPORT_RATE_LIMIT_WINDOW_SECONDS = exportRateLimitWindowSeconds;
+		this.TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT =
 			tenantExportRateLimitPermitLimit;
-		TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS =
+		this.TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS =
 			tenantExportRateLimitWindowSeconds;
-		UPLOAD_RATE_LIMIT_PERMIT_LIMIT = uploadRateLimitPermitLimit;
-		UPLOAD_RATE_LIMIT_WINDOW_SECONDS = uploadRateLimitWindowSeconds;
-		SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT =
+		this.UPLOAD_RATE_LIMIT_PERMIT_LIMIT = uploadRateLimitPermitLimit;
+		this.UPLOAD_RATE_LIMIT_WINDOW_SECONDS = uploadRateLimitWindowSeconds;
+		this.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT =
 			socialConnectRateLimitPermitLimit;
-		SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS =
+		this.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS =
 			socialConnectRateLimitWindowSeconds;
-		SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT =
+		this.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT =
 			systemJobTriggerRateLimitPermitLimit;
-		SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS =
+		this.SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS =
 			systemJobTriggerRateLimitWindowSeconds;
-		RATE_LIMIT_COUNTER_STORE = rateLimitCounterStore;
-		Role = role;
-		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
-		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
-		JOB_LEASE_SECONDS = jobLeaseSeconds;
-		JOB_QUEUE_DRAIN_BUDGET_SECONDS = jobQueueDrainBudgetSeconds;
-		JOB_QUEUE_DRAIN_STALL_SECONDS = jobQueueDrainStallSeconds;
-		EMAIL_LOG_RETENTION_DAYS = emailLogRetentionDays;
-		JOB_DEAD_LETTER_RETENTION_DAYS = jobDeadLetterRetentionDays;
-		EMAIL_PREPARED_SEND_RETENTION_DAYS = emailPreparedSendRetentionDays;
-		EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES = emailPreparedSweepMaxLagMinutes;
-		SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS = systemJobOccurrenceRetentionDays;
-		JOB_ALERT_LEASE_RETENTION_DAYS = jobAlertLeaseRetentionDays;
-		JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST = jobRegistryDlqOrphanAllowlist;
+		this.RATE_LIMIT_COUNTER_STORE = rateLimitCounterStore;
+		this.Role = role;
+		this.JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
+		this.JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
+		this.JOB_LEASE_SECONDS = jobLeaseSeconds;
+		this.JOB_QUEUE_DRAIN_BUDGET_SECONDS = jobQueueDrainBudgetSeconds;
+		this.JOB_QUEUE_DRAIN_STALL_SECONDS = jobQueueDrainStallSeconds;
+		this.EMAIL_LOG_RETENTION_DAYS = emailLogRetentionDays;
+		this.JOB_DEAD_LETTER_RETENTION_DAYS = jobDeadLetterRetentionDays;
+		this.EMAIL_PREPARED_SEND_RETENTION_DAYS = emailPreparedSendRetentionDays;
+		this.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES = emailPreparedSweepMaxLagMinutes;
+		this.SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS = systemJobOccurrenceRetentionDays;
+		this.JOB_ALERT_LEASE_RETENTION_DAYS = jobAlertLeaseRetentionDays;
+		this.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST = jobRegistryDlqOrphanAllowlist;
 	}
 
 	/// <summary>
@@ -508,207 +508,207 @@ public class AppEnvironment {
 		//   and certain hosting scenarios can cause multiple entrypoints/threads to access config.
 		// - We guarantee exactly-once initialization with a lock + Volatile reads/writes so that
 		//   any thread that reads `Instance` after initialization sees a fully-constructed object.
-		var existing = Volatile.Read(ref _Instance);
+		var existing = Volatile.Read(ref AppEnvironment._Instance);
 		if (existing is not null) {
 			return existing;
 		}
 
-		lock (_InitLock) {
-			existing = Volatile.Read(ref _Instance);
+		lock (AppEnvironment._InitLock) {
+			existing = Volatile.Read(ref AppEnvironment._Instance);
 			if (existing is not null) {
 				return existing;
 			}
 
-			_LoadDotEnvIfDevelopment();
+			AppEnvironment._LoadDotEnvIfDevelopment();
 
 			var settings = new AppEnvironment(
 				// Environment variables
-				postgresConnectionString: _GetRequiredString(nameof(POSTGRES_CONNECTION_STRING)),
-				frontUrl: _GetRequiredString(nameof(FRONT_URL)),
-				resendApiKey: _GetRequiredString(nameof(RESEND_API_KEY)),
-				staffOwnerEmail: _GetRequiredString(nameof(STAFF_OWNER_EMAIL)),
-				staffOwnerBootstrapCode: _GetRequiredString(nameof(STAFF_OWNER_BOOTSTRAP_CODE)),
-				socialAccountsMasterKey: _GetRequiredString("SOCIAL_ACCOUNTS_MASTER_KEY"),
-				appName: _GetRequiredString(nameof(APP_NAME)),
-				defaultEmailSenderEmail: _GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_EMAIL)),
-				defaultEmailSenderName: _GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_NAME)),
-				sessionTokenHeaderKey: _GetRequiredString(nameof(SESSION_TOKEN_HEADER_KEY)),
-				tenantIdHeaderKey: _GetRequiredString(nameof(TENANT_ID_HEADER_KEY)),
-				sessionExpiryDays: _GetRequiredInt(nameof(SESSION_EXPIRY_DAYS)),
-				emailVerifyTokenValidityDuration: _GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_VALIDITY_DURATION)),
-				passwordResetTokenValidityDuration: _GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_VALIDITY_DURATION)),
-				passwordMinLength: _GetRequiredInt(nameof(PASSWORD_MIN_LENGTH)),
-				emailVerifyTokenLength: _GetRequiredInt(nameof(EMAIL_VERIFY_TOKEN_LENGTH)),
-				passwordResetTokenLength: _GetRequiredInt(nameof(PASSWORD_RESET_TOKEN_LENGTH)),
-				invitationTokenLength: _GetRequiredInt(nameof(INVITATION_TOKEN_LENGTH)),
-				diManifestEnabled: _GetOptionalBool(nameof(DI_MANIFEST_ENABLED), false),
-				auditLogExportMaxRows: _GetOptionalInt(nameof(AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
-				maxProfilesPerUser: _GetOptionalInt(nameof(MAX_PROFILES_PER_USER), 5),
-				tenantUserExportMaxRows: _GetOptionalInt(nameof(TENANT_USER_EXPORT_MAX_ROWS), 10000),
-				tenantActivityThrottleMinutes: _GetOptionalInt(nameof(TENANT_ACTIVITY_THROTTLE_MINUTES), 5),
+				postgresConnectionString: AppEnvironment._GetRequiredString(nameof(AppEnvironment.POSTGRES_CONNECTION_STRING)),
+				frontUrl: AppEnvironment._GetRequiredString(nameof(AppEnvironment.FRONT_URL)),
+				resendApiKey: AppEnvironment._GetRequiredString(nameof(AppEnvironment.RESEND_API_KEY)),
+				staffOwnerEmail: AppEnvironment._GetRequiredString(nameof(AppEnvironment.STAFF_OWNER_EMAIL)),
+				staffOwnerBootstrapCode: AppEnvironment._GetRequiredString(nameof(AppEnvironment.STAFF_OWNER_BOOTSTRAP_CODE)),
+				socialAccountsMasterKey: AppEnvironment._GetRequiredString("SOCIAL_ACCOUNTS_MASTER_KEY"),
+				appName: AppEnvironment._GetRequiredString(nameof(AppEnvironment.APP_NAME)),
+				defaultEmailSenderEmail: AppEnvironment._GetRequiredString(nameof(AppEnvironment.DEFAULT_EMAIL_SENDER_EMAIL)),
+				defaultEmailSenderName: AppEnvironment._GetRequiredString(nameof(AppEnvironment.DEFAULT_EMAIL_SENDER_NAME)),
+				sessionTokenHeaderKey: AppEnvironment._GetRequiredString(nameof(AppEnvironment.SESSION_TOKEN_HEADER_KEY)),
+				tenantIdHeaderKey: AppEnvironment._GetRequiredString(nameof(AppEnvironment.TENANT_ID_HEADER_KEY)),
+				sessionExpiryDays: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.SESSION_EXPIRY_DAYS)),
+				emailVerifyTokenValidityDuration: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION)),
+				passwordResetTokenValidityDuration: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.PASSWORD_RESET_TOKEN_VALIDITY_DURATION)),
+				passwordMinLength: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.PASSWORD_MIN_LENGTH)),
+				emailVerifyTokenLength: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.EMAIL_VERIFY_TOKEN_LENGTH)),
+				passwordResetTokenLength: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.PASSWORD_RESET_TOKEN_LENGTH)),
+				invitationTokenLength: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.INVITATION_TOKEN_LENGTH)),
+				diManifestEnabled: AppEnvironment._GetOptionalBool(nameof(AppEnvironment.DI_MANIFEST_ENABLED), false),
+				auditLogExportMaxRows: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
+				maxProfilesPerUser: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.MAX_PROFILES_PER_USER), 5),
+				tenantUserExportMaxRows: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.TENANT_USER_EXPORT_MAX_ROWS), 10000),
+				tenantActivityThrottleMinutes: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.TENANT_ACTIVITY_THROTTLE_MINUTES), 5),
 				// Relative to the process's current working directory — mirrors how
 				// the Serilog file sink resolves ".artifacts/logs" (see LoggerConfigExtensions).
 				// This keeps the default identical across `dotnet watch run` (CWD = apps/api),
 				// `dotnet test` (CWD = test output dir), and the published container (CWD = /app),
 				// with no repo-root lookup needed.
-				fileStorageRoot: _GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
-				uploadMaxBytes: _GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
-				uploadGlobalMaxBytes: GetOptionalLong(
-					nameof(UPLOAD_GLOBAL_MAX_BYTES),
-					DefaultUploadGlobalMaxBytes
+				fileStorageRoot: AppEnvironment._GetOptionalString(nameof(AppEnvironment.FILE_STORAGE_ROOT), ".artifacts/storage"),
+				uploadMaxBytes: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.UPLOAD_MAX_BYTES), 2_000_000),
+				uploadGlobalMaxBytes: AppEnvironment.GetOptionalLong(
+					nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES),
+					AppEnvironment.DefaultUploadGlobalMaxBytes
 				),
-				uploadPerStaffMaxBytes: GetOptionalLong(
-					nameof(UPLOAD_PER_STAFF_MAX_BYTES),
-					DefaultUploadPerStaffMaxBytes
+				uploadPerStaffMaxBytes: AppEnvironment.GetOptionalLong(
+					nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES),
+					AppEnvironment.DefaultUploadPerStaffMaxBytes
 				),
-				uploadOrphanGraceDays: _GetOptionalInt(nameof(UPLOAD_ORPHAN_GRACE_DAYS), 7),
-				uploadStaleReservationTtlMinutes: _GetOptionalInt(
-					nameof(UPLOAD_STALE_RESERVATION_TTL_MINUTES), 60
+				uploadOrphanGraceDays: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.UPLOAD_ORPHAN_GRACE_DAYS), 7),
+				uploadStaleReservationTtlMinutes: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.UPLOAD_STALE_RESERVATION_TTL_MINUTES), 60
 				),
-				uploadStoredOrphanTtlMinutes: _GetOptionalInt(
-					nameof(UPLOAD_STORED_ORPHAN_TTL_MINUTES), 1440
+				uploadStoredOrphanTtlMinutes: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.UPLOAD_STORED_ORPHAN_TTL_MINUTES), 1440
 				),
-				trustedProxyCidrs: _GetOptionalCsvList(
-					nameof(TRUSTED_PROXY_CIDRS),
+				trustedProxyCidrs: AppEnvironment._GetOptionalCsvList(
+					nameof(AppEnvironment.TRUSTED_PROXY_CIDRS),
 					["127.0.0.1/32", "::1/128"]
 				),
-				anonAuthIpRateLimitPermitLimit: _GetOptionalInt(
-					nameof(ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT),
+				anonAuthIpRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				anonAuthIpRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS),
+				anonAuthIpRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				anonAuthEmailRateLimitPermitLimit: _GetOptionalInt(
-					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+				anonAuthEmailRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				anonAuthEmailRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+				anonAuthEmailRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				passwordResetEmailRateLimitPermitLimit: _GetOptionalInt(
-					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+				passwordResetEmailRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					3
 				),
-				passwordResetEmailRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+				passwordResetEmailRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					900
 				),
-				globalRateLimitPermitLimit: _GetOptionalInt(
-					nameof(GLOBAL_RATE_LIMIT_PERMIT_LIMIT),
+				globalRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.GLOBAL_RATE_LIMIT_PERMIT_LIMIT),
 					6_000
 				),
-				globalRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(GLOBAL_RATE_LIMIT_WINDOW_SECONDS),
+				globalRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.GLOBAL_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				anonymousOtherRateLimitPermitLimit: _GetOptionalInt(
-					nameof(ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT),
+				anonymousOtherRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT),
 					120
 				),
-				anonymousOtherRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS),
+				anonymousOtherRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				authenticatedRateLimitPermitLimit: _GetOptionalInt(
-					nameof(AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT),
+				authenticatedRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT),
 					600
 				),
-				authenticatedRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS),
+				authenticatedRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				heavySearchRateLimitPermitLimit: _GetOptionalInt(
-					nameof(HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT),
+				heavySearchRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT),
 					180
 				),
-				heavySearchRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
+				heavySearchRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				bulkRateLimitPermitLimit: _GetOptionalInt(
-					nameof(BULK_RATE_LIMIT_PERMIT_LIMIT),
+				bulkRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.BULK_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				bulkRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(BULK_RATE_LIMIT_WINDOW_SECONDS),
+				bulkRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.BULK_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				tenantBulkRateLimitPermitLimit: _GetOptionalInt(
-					nameof(TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT),
+				tenantBulkRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT),
 					120
 				),
-				tenantBulkRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS),
+				tenantBulkRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				emailRateLimitPermitLimit: _GetOptionalInt(
-					nameof(EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+				emailRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					10
 				),
-				emailRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+				emailRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					900
 				),
-				tenantEmailRateLimitPermitLimit: _GetOptionalInt(
-					nameof(TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
+				tenantEmailRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT),
 					50
 				),
-				tenantEmailRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
+				tenantEmailRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS),
 					900
 				),
-				exportRateLimitPermitLimit: _GetOptionalInt(
-					nameof(EXPORT_RATE_LIMIT_PERMIT_LIMIT),
+				exportRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.EXPORT_RATE_LIMIT_PERMIT_LIMIT),
 					10
 				),
-				exportRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(EXPORT_RATE_LIMIT_WINDOW_SECONDS),
+				exportRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.EXPORT_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				tenantExportRateLimitPermitLimit: _GetOptionalInt(
-					nameof(TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT),
+				tenantExportRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT),
 					40
 				),
-				tenantExportRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS),
+				tenantExportRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
-				uploadRateLimitPermitLimit: _GetOptionalInt(
-					nameof(UPLOAD_RATE_LIMIT_PERMIT_LIMIT),
+				uploadRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.UPLOAD_RATE_LIMIT_PERMIT_LIMIT),
 					20
 				),
-				uploadRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(UPLOAD_RATE_LIMIT_WINDOW_SECONDS),
+				uploadRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.UPLOAD_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
 				// Stricter-than-read window for the routes that call Bluesky with
 				// user-supplied credentials (Epic C §4): 5 attempts per hour by default.
-				socialConnectRateLimitPermitLimit: _GetOptionalInt(
-					nameof(SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT),
+				socialConnectRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT),
 					5
 				),
-				socialConnectRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS),
+				socialConnectRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS),
 					3600
 				),
 				// A real enqueue into job_queue per accepted request (#636): per-minute,
 				// not per-hour. 30 triggers / 60 s by default, env-overridable.
-				systemJobTriggerRateLimitPermitLimit: _GetOptionalInt(
-					nameof(SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT),
+				systemJobTriggerRateLimitPermitLimit: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT),
 					30
 				),
-				systemJobTriggerRateLimitWindowSeconds: _GetOptionalInt(
-					nameof(SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS),
+				systemJobTriggerRateLimitWindowSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS),
 					60
 				),
 				// Optional (#953): defaults to postgres so scaling to a second replica
 				// still yields one fleet-wide budget per partition; 'memory' is the
 				// explicit operator escape hatch.
-				rateLimitCounterStore: _GetOptionalString(
-					nameof(RATE_LIMIT_COUNTER_STORE),
+				rateLimitCounterStore: AppEnvironment._GetOptionalString(
+					nameof(AppEnvironment.RATE_LIMIT_COUNTER_STORE),
 					"postgres"
 				),
 				// Fail-fast here (same InvalidOperationException path the other vars use),
@@ -716,27 +716,27 @@ public class AppEnvironment {
 				// outside Development/Testing can produce an enum value to range-check
 				// (design §3.1, C6/F24). The `All` argument is the DEV/TEST-ONLY default;
 				// _GetOptionalAppRole applies it only in those environments.
-				role: _GetOptionalAppRole(AppRoleVariableName, AppRole.All),
-				jobQueueBatchSize: _GetOptionalInt(nameof(JOB_QUEUE_BATCH_SIZE), 20),
-				jobQueuePollSeconds: _GetOptionalInt(nameof(JOB_QUEUE_POLL_SECONDS), 5),
-				jobLeaseSeconds: _GetOptionalInt(nameof(JOB_LEASE_SECONDS), 300),
-				jobQueueDrainBudgetSeconds: _GetOptionalInt(
-					nameof(JOB_QUEUE_DRAIN_BUDGET_SECONDS), 60),
-				jobQueueDrainStallSeconds: _GetOptionalInt(
-					nameof(JOB_QUEUE_DRAIN_STALL_SECONDS), 120),
-				emailLogRetentionDays: _GetOptionalInt(nameof(EMAIL_LOG_RETENTION_DAYS), 180),
-				jobDeadLetterRetentionDays: _GetOptionalInt(
-					nameof(JOB_DEAD_LETTER_RETENTION_DAYS), 90),
-				emailPreparedSendRetentionDays: _GetOptionalInt(
-					nameof(EMAIL_PREPARED_SEND_RETENTION_DAYS), 7),
-				emailPreparedSweepMaxLagMinutes: _GetOptionalInt(
-					nameof(EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES), 60),
-				systemJobOccurrenceRetentionDays: _GetOptionalInt(
-					nameof(SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS), 30),
-				jobAlertLeaseRetentionDays: _GetOptionalInt(
-					nameof(JOB_ALERT_LEASE_RETENTION_DAYS), 30),
-				jobRegistryDlqOrphanAllowlist: _GetOptionalCsvList(
-					nameof(JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST))
+				role: AppEnvironment._GetOptionalAppRole(AppEnvironment.AppRoleVariableName, AppRole.All),
+				jobQueueBatchSize: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.JOB_QUEUE_BATCH_SIZE), 20),
+				jobQueuePollSeconds: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.JOB_QUEUE_POLL_SECONDS), 5),
+				jobLeaseSeconds: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.JOB_LEASE_SECONDS), 300),
+				jobQueueDrainBudgetSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.JOB_QUEUE_DRAIN_BUDGET_SECONDS), 60),
+				jobQueueDrainStallSeconds: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.JOB_QUEUE_DRAIN_STALL_SECONDS), 120),
+				emailLogRetentionDays: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.EMAIL_LOG_RETENTION_DAYS), 180),
+				jobDeadLetterRetentionDays: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.JOB_DEAD_LETTER_RETENTION_DAYS), 90),
+				emailPreparedSendRetentionDays: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.EMAIL_PREPARED_SEND_RETENTION_DAYS), 7),
+				emailPreparedSweepMaxLagMinutes: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES), 60),
+				systemJobOccurrenceRetentionDays: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS), 30),
+				jobAlertLeaseRetentionDays: AppEnvironment._GetOptionalInt(
+					nameof(AppEnvironment.JOB_ALERT_LEASE_RETENTION_DAYS), 30),
+				jobRegistryDlqOrphanAllowlist: AppEnvironment._GetOptionalCsvList(
+					nameof(AppEnvironment.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST))
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -747,7 +747,7 @@ public class AppEnvironment {
 				throw new InvalidOperationException($"Environment validation failed:\n  • {errors}");
 			}
 
-			Volatile.Write(ref _Instance, settings);
+			Volatile.Write(ref AppEnvironment._Instance, settings);
 			return settings;
 		}
 	}
@@ -819,7 +819,7 @@ public class AppEnvironment {
 	}
 
 	internal static long GetOptionalLong(string name, long defaultValue) {
-		return ParseOptionalLong(
+		return AppEnvironment.ParseOptionalLong(
 			name,
 			Environment.GetEnvironmentVariable(name),
 			defaultValue
@@ -858,7 +858,7 @@ public class AppEnvironment {
 	// _GetHostEnvironmentName), so it is correctly NOT covered here — the build-time
 	// OpenAPI path runs with the host environment unset and must pin APP_ROLE=api.
 	internal static bool IsAppRoleDefaultAllowed {
-		get { return IsDevelopment || IsTesting; }
+		get { return AppEnvironment.IsDevelopment || AppEnvironment.IsTesting; }
 	}
 
 	// Whether APP_ROLE was explicitly provided. Backs the validator's defense-in-depth
@@ -866,7 +866,7 @@ public class AppEnvironment {
 	internal static bool IsAppRoleExplicitlySet {
 		get {
 			return !string.IsNullOrWhiteSpace(
-				Environment.GetEnvironmentVariable(AppRoleVariableName)
+				Environment.GetEnvironmentVariable(AppEnvironment.AppRoleVariableName)
 			);
 		}
 	}
@@ -875,7 +875,7 @@ public class AppEnvironment {
 		get {
 			return !string.IsNullOrWhiteSpace(
 				Environment.GetEnvironmentVariable(
-					nameof(TRUSTED_PROXY_CIDRS)
+					nameof(AppEnvironment.TRUSTED_PROXY_CIDRS)
 				)
 			);
 		}
@@ -898,13 +898,13 @@ public class AppEnvironment {
 	private static AppRole _GetOptionalAppRole(string name, AppRole defaultValue) {
 		var value = Environment.GetEnvironmentVariable(name);
 		if (string.IsNullOrWhiteSpace(value)) {
-			if (IsAppRoleDefaultAllowed) {
+			if (AppEnvironment.IsAppRoleDefaultAllowed) {
 				return defaultValue;
 			}
 
 			throw new InvalidOperationException(
 				$"Environment variable '{name}' is not set. It is REQUIRED in the "
-				+ $"'{_GetHostEnvironmentName()}' environment and must be one of 'api', "
+				+ $"'{AppEnvironment._GetHostEnvironmentName()}' environment and must be one of 'api', "
 				+ "'worker', or 'all' (case-insensitive). It defaults to 'all' only in the "
 				+ $"'{EnvironmentNames.Development}' and '{EnvironmentNames.Testing}' "
 				+ "environments: 'all' composes the job engine into the process, so it must "
@@ -913,7 +913,7 @@ public class AppEnvironment {
 				+ "APP_ROLE=worker for the job engine).");
 		}
 
-		if (_AppRoleMap.TryGetValue(value.Trim(), out var role)) {
+		if (AppEnvironment._AppRoleMap.TryGetValue(value.Trim(), out var role)) {
 			return role;
 		}
 
@@ -1010,7 +1010,7 @@ public class AppEnvironment {
 			&& string.IsNullOrWhiteSpace(dotNetEnvironment);
 
 		var isDevelopment = string.Equals(
-			_GetHostEnvironmentName(),
+			AppEnvironment._GetHostEnvironmentName(),
 			EnvironmentNames.Development,
 			StringComparison.OrdinalIgnoreCase
 		);
@@ -1018,7 +1018,7 @@ public class AppEnvironment {
 			return;
 		}
 
-		var path = FindDotEnvPath(".env.development");
+		var path = AppEnvironment.FindDotEnvPath(".env.development");
 		if (path is null) {
 			var reason = isDevelopment
 				? "Host environment is Development"
@@ -1063,124 +1063,124 @@ public class AppEnvironment {
 public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 	public AppEnvironmentValidator() {
 		// Environment variables
-		RuleFor(x => x.POSTGRES_CONNECTION_STRING)
+		this.RuleFor(x => x.POSTGRES_CONNECTION_STRING)
 			.NotEmpty().WithMessage("POSTGRES_CONNECTION_STRING is not set or is empty")
-			.Must(_BeValidPostgresConnectionString)
+			.Must(AppEnvironmentValidator._BeValidPostgresConnectionString)
 			.WithMessage("POSTGRES_CONNECTION_STRING must be a valid PostgreSQL connection string");
 
-		RuleFor(x => x.FRONT_URL)
+		this.RuleFor(x => x.FRONT_URL)
 			.NotEmpty().WithMessage("FRONT_URL is not set or is empty")
-			.Must(_BeValidUrl)
+			.Must(AppEnvironmentValidator._BeValidUrl)
 			.WithMessage("FRONT_URL must be a valid URL");
 
-		RuleFor(x => x.RESEND_API_KEY)
+		this.RuleFor(x => x.RESEND_API_KEY)
 			.NotEmpty().WithMessage("RESEND_API_KEY is not set or is empty");
 
-		RuleFor(x => x.STAFF_OWNER_EMAIL)
+		this.RuleFor(x => x.STAFF_OWNER_EMAIL)
 			.NotEmpty().WithMessage("STAFF_OWNER_EMAIL is not set or is empty")
 			.EmailAddress().WithMessage("STAFF_OWNER_EMAIL must be a valid email address");
 
-		RuleFor(x => x.STAFF_OWNER_BOOTSTRAP_CODE)
+		this.RuleFor(x => x.STAFF_OWNER_BOOTSTRAP_CODE)
 			.NotEmpty().WithMessage("STAFF_OWNER_BOOTSTRAP_CODE is not set or is empty");
 
 		// App settings
-		RuleFor(x => x.APP_NAME)
+		this.RuleFor(x => x.APP_NAME)
 			.NotEmpty().WithMessage("APP_NAME is not set or is empty");
 
-		RuleFor(x => x.DEFAULT_EMAIL_SENDER_EMAIL)
+		this.RuleFor(x => x.DEFAULT_EMAIL_SENDER_EMAIL)
 			.NotEmpty().WithMessage("DEFAULT_EMAIL_SENDER_EMAIL is not set or is empty")
 			.EmailAddress().WithMessage("DEFAULT_EMAIL_SENDER_EMAIL must be a valid email address");
 
-		RuleFor(x => x.DEFAULT_EMAIL_SENDER_NAME)
+		this.RuleFor(x => x.DEFAULT_EMAIL_SENDER_NAME)
 			.NotEmpty().WithMessage("DEFAULT_EMAIL_SENDER_NAME is not set or is empty");
 
-		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
+		this.RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.NotEmpty().WithMessage("SESSION_TOKEN_HEADER_KEY is not set or is empty");
 
-		RuleFor(x => x.TENANT_ID_HEADER_KEY)
+		this.RuleFor(x => x.TENANT_ID_HEADER_KEY)
 			.NotEmpty().WithMessage("TENANT_ID_HEADER_KEY is not set or is empty");
 
-		RuleFor(x => x.SESSION_EXPIRY_DAYS)
+		this.RuleFor(x => x.SESSION_EXPIRY_DAYS)
 			.InclusiveBetween(1, 365).WithMessage("SESSION_EXPIRY_DAYS must be between 1 and 365");
 
-		RuleFor(x => x.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION)
+		this.RuleFor(x => x.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION)
 			.InclusiveBetween(1, 365)
 			.WithMessage("EMAIL_VERIFY_TOKEN_VALIDITY_DURATION must be between 1 and 365");
 
-		RuleFor(x => x.PASSWORD_RESET_TOKEN_VALIDITY_DURATION)
+		this.RuleFor(x => x.PASSWORD_RESET_TOKEN_VALIDITY_DURATION)
 			.InclusiveBetween(1, 365)
 			.WithMessage("PASSWORD_RESET_TOKEN_VALIDITY_DURATION must be between 1 and 365");
 
-		RuleFor(x => x.PASSWORD_MIN_LENGTH)
+		this.RuleFor(x => x.PASSWORD_MIN_LENGTH)
 			.InclusiveBetween(1, 100).WithMessage("PASSWORD_MIN_LENGTH must be between 1 and 100");
 
-		RuleFor(x => x.EMAIL_VERIFY_TOKEN_LENGTH)
+		this.RuleFor(x => x.EMAIL_VERIFY_TOKEN_LENGTH)
 			.GreaterThanOrEqualTo(25).WithMessage("EMAIL_VERIFY_TOKEN_LENGTH must be at least 25");
 
-		RuleFor(x => x.PASSWORD_RESET_TOKEN_LENGTH)
+		this.RuleFor(x => x.PASSWORD_RESET_TOKEN_LENGTH)
 			.GreaterThanOrEqualTo(25).WithMessage("PASSWORD_RESET_TOKEN_LENGTH must be at least 25");
 
-		RuleFor(x => x.INVITATION_TOKEN_LENGTH)
+		this.RuleFor(x => x.INVITATION_TOKEN_LENGTH)
 			.GreaterThanOrEqualTo(25).WithMessage("INVITATION_TOKEN_LENGTH must be at least 25");
 
-		RuleFor(x => x.AUDIT_LOG_EXPORT_MAX_ROWS)
+		this.RuleFor(x => x.AUDIT_LOG_EXPORT_MAX_ROWS)
 			.InclusiveBetween(1, 1_000_000)
 			.WithMessage("AUDIT_LOG_EXPORT_MAX_ROWS must be between 1 and 1000000");
 
-		RuleFor(x => x.MAX_PROFILES_PER_USER)
+		this.RuleFor(x => x.MAX_PROFILES_PER_USER)
 			.InclusiveBetween(1, 50)
 			.WithMessage("MAX_PROFILES_PER_USER must be between 1 and 50");
 
-		RuleFor(x => x.TENANT_USER_EXPORT_MAX_ROWS)
+		this.RuleFor(x => x.TENANT_USER_EXPORT_MAX_ROWS)
 			.InclusiveBetween(1, 1_000_000)
 			.WithMessage("TENANT_USER_EXPORT_MAX_ROWS must be between 1 and 1000000");
 
-		RuleFor(x => x.TENANT_ACTIVITY_THROTTLE_MINUTES)
+		this.RuleFor(x => x.TENANT_ACTIVITY_THROTTLE_MINUTES)
 			.InclusiveBetween(1, 1_440)
 			.WithMessage("TENANT_ACTIVITY_THROTTLE_MINUTES must be between 1 and 1440");
 
-		RuleFor(x => x.FILE_STORAGE_ROOT)
+		this.RuleFor(x => x.FILE_STORAGE_ROOT)
 			.NotEmpty().WithMessage("FILE_STORAGE_ROOT is not set or is empty");
 
-		RuleFor(x => x.UPLOAD_MAX_BYTES)
+		this.RuleFor(x => x.UPLOAD_MAX_BYTES)
 			.InclusiveBetween(1, 100_000_000)
 			.WithMessage("UPLOAD_MAX_BYTES must be between 1 and 100000000");
 
-		RuleFor(x => x.UPLOAD_GLOBAL_MAX_BYTES)
+		this.RuleFor(x => x.UPLOAD_GLOBAL_MAX_BYTES)
 			.GreaterThan(0)
 			.WithMessage("UPLOAD_GLOBAL_MAX_BYTES must be positive");
 
-		RuleFor(x => x.UPLOAD_PER_STAFF_MAX_BYTES)
+		this.RuleFor(x => x.UPLOAD_PER_STAFF_MAX_BYTES)
 			.GreaterThan(0)
 			.WithMessage("UPLOAD_PER_STAFF_MAX_BYTES must be positive");
 
-		RuleFor(x => x.UPLOAD_GLOBAL_MAX_BYTES)
+		this.RuleFor(x => x.UPLOAD_GLOBAL_MAX_BYTES)
 			.GreaterThanOrEqualTo(x => x.UPLOAD_PER_STAFF_MAX_BYTES)
 			.WithMessage(
 				"UPLOAD_GLOBAL_MAX_BYTES must be greater than or equal to UPLOAD_PER_STAFF_MAX_BYTES"
 			);
 
-		RuleFor(x => x.UPLOAD_ORPHAN_GRACE_DAYS)
+		this.RuleFor(x => x.UPLOAD_ORPHAN_GRACE_DAYS)
 			.InclusiveBetween(1, 365)
 			.WithMessage("UPLOAD_ORPHAN_GRACE_DAYS must be between 1 and 365");
 
-		RuleFor(x => x.UPLOAD_STALE_RESERVATION_TTL_MINUTES)
+		this.RuleFor(x => x.UPLOAD_STALE_RESERVATION_TTL_MINUTES)
 			.InclusiveBetween(1, 10080)
 			.WithMessage(
 				"UPLOAD_STALE_RESERVATION_TTL_MINUTES must be between 1 and 10080 (7 days)"
 			);
 
-		RuleFor(x => x.UPLOAD_STORED_ORPHAN_TTL_MINUTES)
+		this.RuleFor(x => x.UPLOAD_STORED_ORPHAN_TTL_MINUTES)
 			.InclusiveBetween(5, 20160)
 			.WithMessage(
 				"UPLOAD_STORED_ORPHAN_TTL_MINUTES must be between 5 and 20160 (14 days)"
 			);
 
-		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
+		this.RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
 			.Must(cidr => IPNetwork.TryParse(cidr, out _))
 			.WithMessage("TRUSTED_PROXY_CIDRS entries must use valid CIDR notation");
 
-		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
+		this.RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
 			.Must(cidr =>
 				!IPNetwork.TryParse(cidr, out var network)
 				|| network.PrefixLength != 0
@@ -1189,168 +1189,168 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 				"TRUSTED_PROXY_CIDRS entries must not trust a universal network"
 			);
 
-		RuleFor(x => x.TRUSTED_PROXY_CIDRS)
+		this.RuleFor(x => x.TRUSTED_PROXY_CIDRS)
 			.Must(_ => AppEnvironment.IsTrustedProxyCidrsExplicitlySet)
 			.When(x => AppEnvironment.IsProduction && x.IsApiRole)
 			.WithMessage(
 				"TRUSTED_PROXY_CIDRS must be set explicitly for a production API role");
 
-		RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 10_000)
 			.WithMessage(
 				"ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
 
-		RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 10_000)
 			.WithMessage(
 				"ANON_AUTH_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
 
-		RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"ANON_AUTH_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 10_000)
 			.WithMessage(
 				"PASSWORD_RESET_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 10000");
 
-		RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.GLOBAL_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.GLOBAL_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"GLOBAL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.GLOBAL_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.GLOBAL_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"GLOBAL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"ANONYMOUS_OTHER_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"ANONYMOUS_OTHER_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"AUTHENTICATED_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"AUTHENTICATED_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"HEAVY_SEARCH_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"HEAVY_SEARCH_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.BULK_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.BULK_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"BULK_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.BULK_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.BULK_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"BULK_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"TENANT_BULK_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"TENANT_BULK_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.EMAIL_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.EMAIL_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"TENANT_EMAIL_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"TENANT_EMAIL_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.EXPORT_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.EXPORT_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"EXPORT_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.EXPORT_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.EXPORT_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"EXPORT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"TENANT_EXPORT_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.UPLOAD_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.UPLOAD_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"UPLOAD_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.UPLOAD_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.UPLOAD_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"UPLOAD_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 100_000)
 			.WithMessage(
 				"SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
 
-		RuleFor(x => x.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
-		RuleFor(x => x.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT)
+		this.RuleFor(x => x.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT)
 			.InclusiveBetween(1, 1000)
 			.WithMessage(
 				"SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 1000");
 
-		RuleFor(x => x.SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS)
+		this.RuleFor(x => x.SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS)
 			.InclusiveBetween(1, 3600)
 			.WithMessage(
 				"SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 3600");
@@ -1358,7 +1358,7 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		// APP_ROLE is already parsed to a defined enum by _GetOptionalAppRole (which
 		// fails fast on any other string); this rule is defense-in-depth against an
 		// undefined enum value ever reaching startup.
-		RuleFor(x => x.Role)
+		this.RuleFor(x => x.Role)
 			.IsInEnum().WithMessage("APP_ROLE must be a valid hosting role (api/worker/all)");
 
 		// Environment-gated default (design §3.1, C6/F24). Defense in depth mirroring
@@ -1366,7 +1366,7 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		// never set must not boot. `All` composes the job engine, so a process that
 		// inherited it by omission would run the worker surface — and double-claim queue
 		// rows — inside a container an operator intended as API-only.
-		RuleFor(x => x.Role)
+		this.RuleFor(x => x.Role)
 			.Must(_ => AppEnvironment.IsAppRoleExplicitlySet)
 			.When(_ => !AppEnvironment.IsAppRoleDefaultAllowed)
 			.WithMessage(
@@ -1374,11 +1374,11 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 				+ "(api/worker/all) outside the Development and Testing environments; "
 				+ "'all' is never an implicit default");
 
-		RuleFor(x => x.JOB_QUEUE_BATCH_SIZE)
+		this.RuleFor(x => x.JOB_QUEUE_BATCH_SIZE)
 			.InclusiveBetween(1, 1_000)
 			.WithMessage("JOB_QUEUE_BATCH_SIZE must be between 1 and 1000");
 
-		RuleFor(x => x.JOB_QUEUE_POLL_SECONDS)
+		this.RuleFor(x => x.JOB_QUEUE_POLL_SECONDS)
 			.InclusiveBetween(1, 3_600)
 			.WithMessage("JOB_QUEUE_POLL_SECONDS must be between 1 and 3600");
 
@@ -1387,53 +1387,53 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		// one bounded renewal retry inside the remainder. A 1-second lease leaves no room
 		// for either, so sub-10s leases are rejected at startup rather than pretending to
 		// be supportable.
-		RuleFor(x => x.JOB_LEASE_SECONDS)
+		this.RuleFor(x => x.JOB_LEASE_SECONDS)
 			.InclusiveBetween(10, 86_400)
 			.WithMessage("JOB_LEASE_SECONDS must be between 10 and 86400");
 
-		RuleFor(x => x.JOB_QUEUE_DRAIN_BUDGET_SECONDS)
+		this.RuleFor(x => x.JOB_QUEUE_DRAIN_BUDGET_SECONDS)
 			.InclusiveBetween(1, 3_600)
 			.WithMessage("JOB_QUEUE_DRAIN_BUDGET_SECONDS must be between 1 and 3600");
 
-		RuleFor(x => x.EMAIL_LOG_RETENTION_DAYS)
+		this.RuleFor(x => x.EMAIL_LOG_RETENTION_DAYS)
 			.InclusiveBetween(1, 3_650)
 			.WithMessage("EMAIL_LOG_RETENTION_DAYS must be between 1 and 3650");
 
-		RuleFor(x => x.JOB_DEAD_LETTER_RETENTION_DAYS)
+		this.RuleFor(x => x.JOB_DEAD_LETTER_RETENTION_DAYS)
 			.InclusiveBetween(1, 3_650)
 			.WithMessage("JOB_DEAD_LETTER_RETENTION_DAYS must be between 1 and 3650");
 
-		RuleFor(x => x.EMAIL_PREPARED_SEND_RETENTION_DAYS)
+		this.RuleFor(x => x.EMAIL_PREPARED_SEND_RETENTION_DAYS)
 			.InclusiveBetween(1, 3_650)
 			.WithMessage("EMAIL_PREPARED_SEND_RETENTION_DAYS must be between 1 and 3650");
 
-		RuleFor(x => x.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES)
+		this.RuleFor(x => x.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES)
 			.InclusiveBetween(1, 525_600)
 			.WithMessage("EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES must be between 1 and 525600");
 
-		RuleFor(x => x.SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS)
+		this.RuleFor(x => x.SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS)
 			.InclusiveBetween(1, 3_650)
 			.WithMessage("SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS must be between 1 and 3650");
 
-		RuleFor(x => x.JOB_ALERT_LEASE_RETENTION_DAYS)
+		this.RuleFor(x => x.JOB_ALERT_LEASE_RETENTION_DAYS)
 			.InclusiveBetween(1, 3_650)
 			.WithMessage("JOB_ALERT_LEASE_RETENTION_DAYS must be between 1 and 3650");
 
 		// Exact job_type strings only (design §3.1/§5.4, R2-9). A wildcard would turn an
 		// audited, per-type escape for retired DLQ handlers into the global bypass the
 		// design explicitly refuses, so any pattern metacharacter is rejected at startup.
-		RuleForEach(x => x.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST)
+		this.RuleForEach(x => x.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST)
 			.Must(entry => entry.IndexOfAny(['*', '?', '%']) < 0)
 			.WithMessage(
 				"JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST entries must be exact job_type strings; "
 				+ "wildcards ('*', '?', '%') are not allowed");
 
-		RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
-			.Must(_BeValidHeaderName)
+		this.RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
+			.Must(AppEnvironmentValidator._BeValidHeaderName)
 			.WithMessage("SESSION_TOKEN_HEADER_KEY must be a valid HTTP header name");
 
-		RuleFor(x => x.TENANT_ID_HEADER_KEY)
-			.Must(_BeValidHeaderName)
+		this.RuleFor(x => x.TENANT_ID_HEADER_KEY)
+			.Must(AppEnvironmentValidator._BeValidHeaderName)
 			.WithMessage("TENANT_ID_HEADER_KEY must be a valid HTTP header name");
 	}
 

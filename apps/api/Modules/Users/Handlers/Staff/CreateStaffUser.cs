@@ -35,33 +35,33 @@ public class CreateStaffUserBody {
 	public JsonElement? SendNotification { get; set; }
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return this.Email.GetValueAsString();
 	}
 
 	public string GetLastName() {
-		return LastName.GetValueAsString();
+		return this.LastName.GetValueAsString();
 	}
 
 	public string? GetFirstName() {
-		return FirstName.GetValueAsStringOrNull();
+		return this.FirstName.GetValueAsStringOrNull();
 	}
 
 	public string? GetAvatarUrl() {
-		return AvatarUrl.GetValueAsStringOrNull();
+		return this.AvatarUrl.GetValueAsStringOrNull();
 	}
 
 	public bool GetSendNotification() {
-		return SendNotification.GetValueAsBoolean();
+		return this.SendNotification.GetValueAsBoolean();
 	}
 
 	public AccountLevelEnum GetAccountLevel() {
-		switch (AccountLevelValue?.ValueKind) {
+		switch (this.AccountLevelValue?.ValueKind) {
 			case null:
 			case JsonValueKind.Null:
 			case JsonValueKind.Undefined:
 				return AccountLevelEnum.User;
 			case JsonValueKind.String: {
-					var accountLevelString = AccountLevelValue.GetValueAsString();
+					var accountLevelString = this.AccountLevelValue.GetValueAsString();
 					var accountLevel = UserAccountEntity.ParseLevel(accountLevelString);
 					if (accountLevel is null) {
 						throw new InvalidOperationException("Invalid account level: " + accountLevelString);
@@ -77,9 +77,9 @@ public class CreateStaffUserBody {
 				throw new InvalidOperationException("AccountLevel must be a string or null");
 			default:
 				throw new ArgumentOutOfRangeException(
-					nameof(AccountLevelValue),
-					AccountLevelValue?.ValueKind,
-					$"Unhandled JsonValueKind: {AccountLevelValue?.ValueKind}"
+					nameof(this.AccountLevelValue),
+					this.AccountLevelValue?.ValueKind,
+					$"Unhandled JsonValueKind: {this.AccountLevelValue?.ValueKind}"
 				);
 		}
 	}
@@ -88,22 +88,22 @@ public class CreateStaffUserBody {
 public class CreateStaffUserBodyValidator
 	: AbstractValidator<CreateStaffUserBody> {
 	public CreateStaffUserBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		RuleFor(x => x.LastName)
+		this.RuleFor(x => x.LastName)
 			.MustBeRequiredString("LastName");
 
-		RuleFor(x => x.FirstName)
+		this.RuleFor(x => x.FirstName)
 			.MustBeNullableNonEmptyString("FirstName");
 
-		RuleFor(x => x.AvatarUrl)
+		this.RuleFor(x => x.AvatarUrl)
 			.MustBeNullableUrl("AvatarUrl");
 
-		RuleFor(x => x.AccountLevelValue)
+		this.RuleFor(x => x.AccountLevelValue)
 			.MustBeNullableAccountLevel();
 
-		RuleFor(x => x.SendNotification)
+		this.RuleFor(x => x.SendNotification)
 			.MustBeNullableBoolean(
 				"SendNotification"
 			);

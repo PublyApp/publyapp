@@ -37,51 +37,51 @@ public class CreateTenantAsStaffBody {
 	public JsonElement? Notes { get; set; }
 
 	public string GetName() {
-		return Name.GetValueAsString();
+		return this.Name.GetValueAsString();
 	}
 
 	public int? GetMaxUsers() {
-		return MaxUsers.GetValueAsInt32OrNull();
+		return this.MaxUsers.GetValueAsInt32OrNull();
 	}
 
 	public string? GetCode() {
-		return Code.GetValueAsStringOrNull();
+		return this.Code.GetValueAsStringOrNull();
 	}
 
 	public string? GetLogoUrl() {
-		return _NormalizeClearableString(LogoUrl.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.LogoUrl.GetValueAsStringOrNull());
 	}
 
 	public string? GetLegalName() {
-		return _NormalizeClearableString(LegalName.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.LegalName.GetValueAsStringOrNull());
 	}
 
 	public string? GetDescription() {
-		return _NormalizeClearableString(Description.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.Description.GetValueAsStringOrNull());
 	}
 
 	public string? GetWebsiteUrl() {
-		return _NormalizeClearableString(WebsiteUrl.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.WebsiteUrl.GetValueAsStringOrNull());
 	}
 
 	public string? GetBillingEmail() {
-		return _NormalizeClearableString(BillingEmail.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.BillingEmail.GetValueAsStringOrNull());
 	}
 
 	public string? GetSupportEmail() {
-		return _NormalizeClearableString(SupportEmail.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.SupportEmail.GetValueAsStringOrNull());
 	}
 
 	public string? GetDefaultLocale() {
-		return _NormalizeClearableString(DefaultLocale.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.DefaultLocale.GetValueAsStringOrNull());
 	}
 
 	public string? GetTimezone() {
-		return _NormalizeClearableString(Timezone.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.Timezone.GetValueAsStringOrNull());
 	}
 
 	public string? GetNotes() {
-		return _NormalizeClearableString(Notes.GetValueAsStringOrNull());
+		return CreateTenantAsStaffBody._NormalizeClearableString(this.Notes.GetValueAsStringOrNull());
 	}
 
 	// Trims and maps whitespace-only input to null so "cleared"/"omitted" has a
@@ -97,20 +97,20 @@ public class CreateTenantAsStaffBody {
 
 	// Defaults to true to preserve current behavior when the field is omitted.
 	public bool GetSeedDefaultProfile() {
-		var kind = SeedDefaultProfile?.ValueKind;
+		var kind = this.SeedDefaultProfile?.ValueKind;
 		if (kind is null or JsonValueKind.Null or JsonValueKind.Undefined) {
 			return true;
 		}
-		return SeedDefaultProfile.GetValueAsBoolean();
+		return this.SeedDefaultProfile.GetValueAsBoolean();
 	}
 
 	public List<CreateTenantAsStaffInitialUserItem> GetInitialUsers() {
-		if (InitialUsers.ValueKind != JsonValueKind.Array) {
-			throw new ArgumentException("InitialUsers must be an array", nameof(InitialUsers));
+		if (this.InitialUsers.ValueKind != JsonValueKind.Array) {
+			throw new ArgumentException("InitialUsers must be an array", nameof(this.InitialUsers));
 		}
 
 		var users = new List<CreateTenantAsStaffInitialUserItem>();
-		foreach (var item in InitialUsers.EnumerateArray()) {
+		foreach (var item in this.InitialUsers.EnumerateArray()) {
 			var email = item.GetProperty("email").GetValueAsString();
 			var accountLevel = item.GetProperty("accountLevel").GetValueAsString();
 
@@ -137,10 +137,10 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 	private static partial Regex _CodeFormatRegex();
 
 	public CreateTenantAsStaffBodyValidator() {
-		RuleFor(x => x.Name)
+		this.RuleFor(x => x.Name)
 			.MustBeRequiredStringWithLength("Name", 5, TenantValidationRules.NameMaxLength);
 
-		RuleFor(x => x.MaxUsers).Custom((element, context) => {
+		this.RuleFor(x => x.MaxUsers).Custom((element, context) => {
 			var kind = element.ValueKind;
 			if (kind is JsonValueKind.Null or JsonValueKind.Undefined) {
 				return;
@@ -154,40 +154,40 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			context.AddFailure("MaxUsers must be a number, null, or undefined");
 		});
 
-		RuleFor(x => x.Code).Custom(_ValidateCode);
+		this.RuleFor(x => x.Code).Custom(CreateTenantAsStaffBodyValidator._ValidateCode);
 
-		RuleFor(x => x.SeedDefaultProfile)
+		this.RuleFor(x => x.SeedDefaultProfile)
 			.MustBeNullableBoolean("SeedDefaultProfile");
 
-		RuleFor(x => x.LogoUrl)
+		this.RuleFor(x => x.LogoUrl)
 			.MustBeNullableLogoUrl();
 
-		RuleFor(x => x.LegalName)
+		this.RuleFor(x => x.LegalName)
 			.MustBeNullableStringWithMaxLength("LegalName", 256);
 
-		RuleFor(x => x.Description)
+		this.RuleFor(x => x.Description)
 			.MustBeNullableStringWithMaxLength("Description", 1024);
 
-		RuleFor(x => x.WebsiteUrl)
+		this.RuleFor(x => x.WebsiteUrl)
 			.MustBeNullableClearableUrl("WebsiteUrl", TenantValidationRules.WebsiteUrlMaxLength);
 
-		RuleFor(x => x.BillingEmail)
+		this.RuleFor(x => x.BillingEmail)
 			.MustBeNullableEmailWithMaxLength("BillingEmail", 320);
 
-		RuleFor(x => x.SupportEmail)
+		this.RuleFor(x => x.SupportEmail)
 			.MustBeNullableEmailWithMaxLength("SupportEmail", 320);
 
-		RuleFor(x => x.DefaultLocale)
+		this.RuleFor(x => x.DefaultLocale)
 			.MustBeNullableLocale();
 
-		RuleFor(x => x.Timezone)
+		this.RuleFor(x => x.Timezone)
 			.MustBeNullableTimezone();
 
-		RuleFor(x => x.Notes)
+		this.RuleFor(x => x.Notes)
 			.MustBeNullableStringWithMaxLength("Notes", 4000);
 
-		RuleFor(x => x.InitialUsers)
-			.Custom(_ValidateInitialUsers);
+		this.RuleFor(x => x.InitialUsers)
+			.Custom(CreateTenantAsStaffBodyValidator._ValidateInitialUsers);
 	}
 
 	private static void _ValidateCode(
@@ -214,14 +214,14 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			return;
 		}
 
-		if (code.Length is < _CodeMinLength or > _CodeMaxLength) {
+		if (code.Length is < CreateTenantAsStaffBodyValidator._CodeMinLength or > CreateTenantAsStaffBodyValidator._CodeMaxLength) {
 			context.AddFailure(
-				$"Code must be between {_CodeMinLength} and {_CodeMaxLength} characters"
+				$"Code must be between {CreateTenantAsStaffBodyValidator._CodeMinLength} and {CreateTenantAsStaffBodyValidator._CodeMaxLength} characters"
 			);
 			return;
 		}
 
-		if (!_CodeFormatRegex().IsMatch(code)) {
+		if (!CreateTenantAsStaffBodyValidator._CodeFormatRegex().IsMatch(code)) {
 			context.AddFailure(
 				"Code must contain only lowercase letters, digits, and hyphens, "
 				+ "and cannot start or end with a hyphen"
@@ -286,7 +286,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			} else if (emailElement.ValueKind != JsonValueKind.String) {
 				context.AddFailure($"initialUsers[{i}].email", "Must be a string");
 			} else {
-				_ValidateInitialUserEmail(context, emailOccurrences, i, emailElement);
+				CreateTenantAsStaffBodyValidator._ValidateInitialUserEmail(context, emailOccurrences, i, emailElement);
 			}
 
 			if (!item.TryGetProperty("accountLevel", out var levelElement)) {
@@ -339,7 +339,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 		var email = emailElement.GetString();
 		if (string.IsNullOrWhiteSpace(email)) {
 			context.AddFailure($"initialUsers[{index}].email", "Email is required");
-		} else if (!_IsValidEmail(email)) {
+		} else if (!CreateTenantAsStaffBodyValidator._IsValidEmail(email)) {
 			context.AddFailure($"initialUsers[{index}].email", "Invalid email format");
 		} else {
 			if (!emailOccurrences.TryGetValue(email, out var indices)) {

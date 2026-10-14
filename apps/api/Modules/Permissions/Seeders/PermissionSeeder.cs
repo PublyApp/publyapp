@@ -18,7 +18,7 @@ public class PermissionSeeder : IEntitySeeder {
 	private readonly ILogger<PermissionSeeder> _Logger;
 
 	public PermissionSeeder(ILogger<PermissionSeeder>? logger = null) {
-		_Logger = logger
+		this._Logger = logger
 			?? SeederLoggerUtils.CreateDefault<PermissionSeeder>();
 	}
 
@@ -29,7 +29,7 @@ public class PermissionSeeder : IEntitySeeder {
 	}
 
 	public async Task SeedAsync(AppDbContext dbContext, CancellationToken cancellationToken = default) {
-		List<Permission> permissions = _GetPermissionsPool();
+		List<Permission> permissions = PermissionSeeder._GetPermissionsPool();
 
 		var existingKeysQuery =
 			from p in dbContext.Permission
@@ -41,7 +41,7 @@ public class PermissionSeeder : IEntitySeeder {
 			.ToList();
 
 		if (newPermissions.Count == 0) {
-			_Logger.LogInformation("Permission seeding skipped; all permissions already exist.");
+			this._Logger.LogInformation("Permission seeding skipped; all permissions already exist.");
 			return;
 		}
 
@@ -55,12 +55,12 @@ public class PermissionSeeder : IEntitySeeder {
 				await dbContext.Permission.AddRangeAsync(newPermissions, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation("Seeded {Count} permissions.", newPermissions.Count);
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation("Seeded {Count} permissions.", newPermissions.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				await transaction.RollbackAsync(cancellationToken);
-				_Logger.LogWarning(ex, "Duplicate permissions detected during seeding; skipping insert.");
+				this._Logger.LogWarning(ex, "Duplicate permissions detected during seeding; skipping insert.");
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -70,11 +70,11 @@ public class PermissionSeeder : IEntitySeeder {
 			try {
 				await dbContext.Permission.AddRangeAsync(newPermissions, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation("Seeded {Count} permissions.", newPermissions.Count);
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation("Seeded {Count} permissions.", newPermissions.Count);
 				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				_Logger.LogWarning(ex, "Duplicate permissions detected during seeding; skipping insert.");
+				this._Logger.LogWarning(ex, "Duplicate permissions detected during seeding; skipping insert.");
 			}
 		}
 	}

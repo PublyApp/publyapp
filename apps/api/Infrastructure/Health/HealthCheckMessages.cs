@@ -63,44 +63,44 @@ public static class HealthCheckMessages {
 		HealthStatus status,
 		string? description
 	) {
-		if (registrationName == DatabaseMigrationRegistrationName) {
-			if (status == HealthStatus.Healthy && description == ApplicationReady) {
-				return new(ApplicationReadinessName, ApplicationReady);
+		if (registrationName == HealthCheckMessages.DatabaseMigrationRegistrationName) {
+			if (status == HealthStatus.Healthy && description == HealthCheckMessages.ApplicationReady) {
+				return new(HealthCheckMessages.ApplicationReadinessName, HealthCheckMessages.ApplicationReady);
 			}
 
-			if (status == HealthStatus.Unhealthy && description == DatabaseUnreachable) {
-				return new(ApplicationReadinessName, DatabaseUnreachable);
+			if (status == HealthStatus.Unhealthy && description == HealthCheckMessages.DatabaseUnreachable) {
+				return new(HealthCheckMessages.ApplicationReadinessName, HealthCheckMessages.DatabaseUnreachable);
 			}
 
-			if (status == HealthStatus.Unhealthy && description == ApplicationNotReady) {
-				return new(ApplicationReadinessName, ApplicationNotReady);
+			if (status == HealthStatus.Unhealthy && description == HealthCheckMessages.ApplicationNotReady) {
+				return new(HealthCheckMessages.ApplicationReadinessName, HealthCheckMessages.ApplicationNotReady);
 			}
 		}
 
-		if (registrationName == JobQueueDrainRegistrationName) {
+		if (registrationName == HealthCheckMessages.JobQueueDrainRegistrationName) {
 			if (
 				status == HealthStatus.Healthy
-				&& description == ScheduledPublicationsBeingSent
+				&& description == HealthCheckMessages.ScheduledPublicationsBeingSent
 			) {
-				return new(PublicationDeliveryName, ScheduledPublicationsBeingSent);
+				return new(HealthCheckMessages.PublicationDeliveryName, HealthCheckMessages.ScheduledPublicationsBeingSent);
 			}
 
 			if (
 				status == HealthStatus.Unhealthy
-				&& description == DatabaseUnreachable
+				&& description == HealthCheckMessages.DatabaseUnreachable
 			) {
-				return new(PublicationDeliveryName, DatabaseUnreachable);
+				return new(HealthCheckMessages.PublicationDeliveryName, HealthCheckMessages.DatabaseUnreachable);
 			}
 
 			if (
 				status == HealthStatus.Unhealthy
-				&& description == ScheduledPublicationsNotBeingSent
+				&& description == HealthCheckMessages.ScheduledPublicationsNotBeingSent
 			) {
-				return new(PublicationDeliveryName, ScheduledPublicationsNotBeingSent);
+				return new(HealthCheckMessages.PublicationDeliveryName, HealthCheckMessages.ScheduledPublicationsNotBeingSent);
 			}
 		}
 
-		return new(GenericHealthName, GenericHealthStatusUnavailable);
+		return new(HealthCheckMessages.GenericHealthName, HealthCheckMessages.GenericHealthStatusUnavailable);
 	}
 }
 

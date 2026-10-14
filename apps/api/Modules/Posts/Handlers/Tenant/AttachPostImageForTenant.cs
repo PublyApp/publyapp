@@ -74,7 +74,7 @@ public sealed class AttachPostImageForTenant {
 		}
 
 		if (file is null || file.Length == 0) {
-			return _ValidationFailure(
+			return AttachPostImageForTenant._ValidationFailure(
 				"An image file is required",
 				ResponseKeys.PostImageRequired
 			);
@@ -93,7 +93,7 @@ public sealed class AttachPostImageForTenant {
 		await using var uploadStream = file.OpenReadStream();
 		var inspection = ImageInspector.Inspect(uploadStream);
 		if (inspection is ImageInspector.UnknownType) {
-			return _ValidationFailure(
+			return AttachPostImageForTenant._ValidationFailure(
 				"File must be a PNG, JPEG, WEBP, or GIF image",
 				ResponseKeys.PostImageUnsupportedType
 			);
@@ -101,7 +101,7 @@ public sealed class AttachPostImageForTenant {
 		if (inspection is ImageInspector.DegenerateDimensions) {
 			// A recognized image type declaring a zero/negative canvas: name the
 			// DIMENSIONS as the cause, not the (known) type.
-			return _ValidationFailure(
+			return AttachPostImageForTenant._ValidationFailure(
 				"Image dimensions are invalid",
 				ResponseKeys.PostImageDimensionsInvalid
 			);
@@ -130,8 +130,8 @@ public sealed class AttachPostImageForTenant {
 					nameof(rejected), rejected.ExhaustedScope, "Unhandled UploadBudgetScope"
 				),
 			};
-			var humanRequested = _FormatBytes(rejected.RequestedBytes);
-			var humanAvailable = _FormatBytes(Math.Max(0, rejected.AvailableBytes));
+			var humanRequested = AttachPostImageForTenant._FormatBytes(rejected.RequestedBytes);
+			var humanAvailable = AttachPostImageForTenant._FormatBytes(Math.Max(0, rejected.AvailableBytes));
 			return TypedProblems.TooManyRequests(
 				$"Image refused: {scopeName} has {humanAvailable} free, which is less "
 				+ $"than this file's {humanRequested}. Remove unused images or wait "
@@ -155,7 +155,7 @@ public sealed class AttachPostImageForTenant {
 			var cleanupConfirmed = exception is StorageWriteException {
 				CleanupConfirmed: true
 			};
-			string? attemptedPath = _RelativePathOrNull(asset.RelativePath);
+			string? attemptedPath = AttachPostImageForTenant._RelativePathOrNull(asset.RelativePath);
 			if (exception is StorageWriteException storageWriteException) {
 				attemptedPath = storageWriteException.RelativePath;
 				asset.RelativePath = storageWriteException.RelativePath;
@@ -249,7 +249,7 @@ public sealed class AttachPostImageForTenant {
 					cancellationToken
 				);
 			}
-		} catch (DbUpdateException ex) when (_IsPostImageUniqueViolation(ex)) {
+		} catch (DbUpdateException ex) when (AttachPostImageForTenant._IsPostImageUniqueViolation(ex)) {
 			// Loser of the concurrent-attach race (#1653 contract): another attach
 			// for this post just won. Release the reference we acquired so its blob is
 			// not left stuck at reference_count = 1 (#1616), and tell the client to
@@ -270,7 +270,7 @@ public sealed class AttachPostImageForTenant {
 			// leaks (#1616). The compensation asks the database whether our blob is
 			// now the live image (rather than assuming the write landed or not), so
 			// it never double-releases a row a later attach will release for us.
-			await _ReleaseUnattachedReferenceAsync(
+			await AttachPostImageForTenant._ReleaseUnattachedReferenceAsync(
 				assetService,
 				uploadReferences,
 				logger,

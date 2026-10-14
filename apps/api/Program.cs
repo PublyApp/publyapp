@@ -100,7 +100,7 @@ public class Program {
 		// ever registered, ASPNETCORE_URLS is inert, nothing listens on any port —
 		// "zero mapped endpoints" on a web host would still start an HTTP server.
 		if (role is AppRole.Worker) {
-			using var workerHost = CreateWorkerHostBuilder(args).Build();
+			using var workerHost = Program.CreateWorkerHostBuilder(args).Build();
 			workerHost.LogDiManifestIfPresent();
 			// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size,
 			// or wrong-VALUE. The canary (review r3) decrypts a sentinel persisted beside
@@ -128,7 +128,7 @@ public class Program {
 			return;
 		}
 
-		var builder = CreateWebHostBuilder(args, role);
+		var builder = Program.CreateWebHostBuilder(args, role);
 		var app = builder.Build();
 
 		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size, or
@@ -157,7 +157,7 @@ public class Program {
 
 		app.LogDiManifestIfPresent();
 
-		ConfigureHttpPipeline(app);
+		Program.ConfigureHttpPipeline(app);
 
 		app.Run();
 	}

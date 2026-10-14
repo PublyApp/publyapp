@@ -22,16 +22,16 @@ public class InvitationProfile : INoTenantEntity {
 
 	private Invitation? _Invitation;
 	[JsonIgnore]
-	[ForeignKey(nameof(InvitationId))]
+	[ForeignKey(nameof(InvitationProfile.InvitationId))]
 	public Invitation Invitation {
 		get {
 			return RequiredNavigation.Get(
-				_Invitation,
+				this._Invitation,
 				nameof(InvitationProfile),
-				nameof(Invitation)
+				nameof(this.Invitation)
 			);
 		}
-		set { _Invitation = value; }
+		set { this._Invitation = value; }
 	}
 
 	// Foreign key to profiles.id; second half of the composite primary key.
@@ -40,16 +40,16 @@ public class InvitationProfile : INoTenantEntity {
 
 	private ProfileEntity? _Profile;
 	[JsonIgnore]
-	[ForeignKey(nameof(ProfileId))]
+	[ForeignKey(nameof(InvitationProfile.ProfileId))]
 	public ProfileEntity Profile {
 		get {
 			return RequiredNavigation.Get(
-				_Profile,
+				this._Profile,
 				nameof(InvitationProfile),
-				nameof(Profile)
+				nameof(this.Profile)
 			);
 		}
-		set { _Profile = value; }
+		set { this._Profile = value; }
 	}
 
 	// Timestamp columns (cannot inherit from BaseAttributes due to composite PK)

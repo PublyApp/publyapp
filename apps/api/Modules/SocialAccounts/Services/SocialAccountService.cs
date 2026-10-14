@@ -136,9 +136,9 @@ public sealed class SocialAccountService {
 		ICredentialProtector protector,
 		IBlueskyClient bluesky
 	) {
-		_Db = db;
-		_Protector = protector;
-		_Bluesky = bluesky;
+		this._Db = db;
+		this._Protector = protector;
+		this._Bluesky = bluesky;
 	}
 
 	public async Task<SocialAccount?> FindByExternalAccountAsync(
@@ -147,7 +147,7 @@ public sealed class SocialAccountService {
 		string externalAccountId,
 		CancellationToken ct = default
 	) {
-		return await _Db.SocialAccount
+		return await this._Db.SocialAccount
 			.Where(a => a.TenantId == tenantId
 				&& a.Provider == provider
 				&& a.ExternalAccountId == externalAccountId
@@ -173,7 +173,7 @@ public sealed class SocialAccountService {
 				StringComparer.OrdinalIgnoreCase
 			) {
 				["created_at"] = CursorSortFieldHandlerFactory.Create<SocialAccount, DateTime, Guid?>(
-					cursorLookupQuery: () => _Db.SocialAccount
+					cursorLookupQuery: () => this._Db.SocialAccount
 						.AsNoTracking()
 						.Where(a => a.TenantId == tenantId && !a.IsDeleted),
 					keySelector: a => a.CreatedAt,
@@ -181,7 +181,7 @@ public sealed class SocialAccountService {
 					cancellationToken
 				),
 				["updated_at"] = CursorSortFieldHandlerFactory.Create<SocialAccount, DateTime, Guid?>(
-					cursorLookupQuery: () => _Db.SocialAccount
+					cursorLookupQuery: () => this._Db.SocialAccount
 						.AsNoTracking()
 						.Where(a => a.TenantId == tenantId && !a.IsDeleted),
 					keySelector: a => a.UpdatedAt,
@@ -197,7 +197,7 @@ public sealed class SocialAccountService {
 		}
 
 		IQueryable<SocialAccount> query =
-			from a in _Db.SocialAccount.AsNoTracking()
+			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.TenantId == tenantId && !a.IsDeleted
 			select a;
 
@@ -233,7 +233,7 @@ public sealed class SocialAccountService {
 			// Links must be loaded BEFORE VisibleIn runs: with AsNoTracking the
 			// Projects navigation is otherwise empty and every account would look
 			// unattached (visible everywhere) — a cross-project leak.
-			await _LoadProjectLinksAsync(candidates, cancellationToken);
+			await this._LoadProjectLinksAsync(candidates, cancellationToken);
 			results = candidates
 				.Where(a => VisibleIn.Visible(a, projectId))
 				.Take(effectiveLimit + 1)
@@ -242,7 +242,7 @@ public sealed class SocialAccountService {
 			results = await orderedQuery
 				.Take(effectiveLimit + 1)
 				.ToListAsync(cancellationToken);
-			await _LoadProjectLinksAsync(results, cancellationToken);
+			await this._LoadProjectLinksAsync(results, cancellationToken);
 		}
 
 		string? nextCursor = null;
@@ -251,7 +251,7 @@ public sealed class SocialAccountService {
 			nextCursor = results.Last().GetRequiredId().ToString();
 		}
 
-		var items = results.Select(ToListItem).ToList();
+		var items = results.Select(SocialAccountService.ToListItem).ToList();
 
 		return new FindSocialAccountsResult.Success(
 			new CursorPaginatedResult<SocialAccountListItem> {
@@ -267,7 +267,7 @@ public sealed class SocialAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from a in _Db.SocialAccount.AsNoTracking()
+			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.Id == id && a.TenantId == tenantId && !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
@@ -278,7 +278,7 @@ public sealed class SocialAccountService {
 	public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>>
 		FindNeedsReconnectAccountsAsync(Guid tenantId, CancellationToken cancellationToken) {
 		var accounts = await (
-			from a in _Db.SocialAccount.AsNoTracking()
+			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.TenantId == tenantId
 				&& !a.IsDeleted
 				&& a.Status == SocialAccountStatus.NeedsReconnect
@@ -304,7 +304,7 @@ public sealed class SocialAccountService {
 		string appPassword,
 		CancellationToken cancellationToken = default
 	) {
-		var opened = await _Bluesky.CreateSessionAsync(
+		var opened = await this._Bluesky.CreateSessionAsync(
 			new BlueskyCredentials(identifier.Trim(), appPassword),
 			cancellationToken
 		);
@@ -322,7 +322,7 @@ public sealed class SocialAccountService {
 		var did = success.Identity.Did;
 		var handle = success.Identity.Handle;
 
-		var existing = await FindByExternalAccountAsync(
+		var existing = await this.FindByExternalAccountAsync(
 			tenantId, SocialProvider.Bluesky, did, cancellationToken
 		);
 
@@ -333,14 +333,14 @@ public sealed class SocialAccountService {
 		if (existing is not null) {
 			// Same DID reconnecting after disconnect/needs-reconnect: replace the
 			// secret and reactivate. The blob is write-only from here on.
-			existing.ProtectedCredentials = _Protector.Protect(
+			existing.ProtectedCredentials = this._Protector.Protect(
 				appPassword, SocialProvider.Bluesky
 			);
 			existing.DisplayHandle = handle;
 			existing.Status = SocialAccountStatus.Active;
 			existing.LastError = null;
 			existing.LastSuccessAt = DateTime.UtcNow;
-			await _Db.SaveChangesAsync(cancellationToken);
+			await this._Db.SaveChangesAsync(cancellationToken);
 			return new ConnectSocialAccountResult.Connected(existing, false);
 		}
 
@@ -350,14 +350,14 @@ public sealed class SocialAccountService {
 			ExternalAccountId = did,
 			DisplayHandle = handle,
 			CredentialType = SocialCredentialType.AppPassword,
-			ProtectedCredentials = _Protector.Protect(
+			ProtectedCredentials = this._Protector.Protect(
 				appPassword, SocialProvider.Bluesky
 			),
 			Status = SocialAccountStatus.Active,
 			LastSuccessAt = DateTime.UtcNow,
 		};
-		await _Db.SocialAccount.AddAsync(account, cancellationToken);
-		await _Db.SaveChangesAsync(cancellationToken);
+		await this._Db.SocialAccount.AddAsync(account, cancellationToken);
+		await this._Db.SaveChangesAsync(cancellationToken);
 
 		return new ConnectSocialAccountResult.Connected(account, false);
 	}
@@ -369,7 +369,7 @@ public sealed class SocialAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var account = await (
-			from a in _Db.SocialAccount
+			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
 				&& a.TenantId == tenantId
 				&& !a.IsDeleted
@@ -386,7 +386,7 @@ public sealed class SocialAccountService {
 			return new ReconnectSocialAccountResult.NotFound();
 		}
 
-		var opened = await _Bluesky.CreateSessionAsync(
+		var opened = await this._Bluesky.CreateSessionAsync(
 			new BlueskyCredentials(account.DisplayHandle, appPassword),
 			cancellationToken
 		);
@@ -400,14 +400,14 @@ public sealed class SocialAccountService {
 		}
 
 		var success = (BlueskySessionResult.Success)opened;
-		account.ProtectedCredentials = _Protector.Protect(
+		account.ProtectedCredentials = this._Protector.Protect(
 			appPassword, SocialProvider.Bluesky
 		);
 		account.DisplayHandle = success.Identity.Handle;
 		account.Status = SocialAccountStatus.Active;
 		account.LastError = null;
 		account.LastSuccessAt = DateTime.UtcNow;
-		await _Db.SaveChangesAsync(cancellationToken);
+		await this._Db.SaveChangesAsync(cancellationToken);
 
 		return new ReconnectSocialAccountResult.Reconnected(account);
 	}
@@ -418,7 +418,7 @@ public sealed class SocialAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var account = await (
-			from a in _Db.SocialAccount
+			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
 				&& a.TenantId == tenantId
 				&& !a.IsDeleted
@@ -433,7 +433,7 @@ public sealed class SocialAccountService {
 		account.Status = SocialAccountStatus.Revoked;
 		account.ProtectedCredentials = string.Empty;
 		account.LastError = null;
-		await _Db.SaveChangesAsync(cancellationToken);
+		await this._Db.SaveChangesAsync(cancellationToken);
 
 		return new DisconnectSocialAccountResult.Disconnected(account);
 	}
@@ -447,7 +447,7 @@ public sealed class SocialAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var account = await (
-			from a in _Db.SocialAccount
+			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
 				&& a.TenantId == tenantId
 				&& !a.IsDeleted
@@ -462,7 +462,7 @@ public sealed class SocialAccountService {
 
 		// Every requested id must be one of this tenant's live projects.
 		var tenantProjectIds = await (
-			from p in _Db.Project.AsNoTracking()
+			from p in this._Db.Project.AsNoTracking()
 			where p.TenantId == tenantId && !p.IsDeleted
 			select p.Id
 		).ToListAsync(cancellationToken);
@@ -475,7 +475,7 @@ public sealed class SocialAccountService {
 		}
 
 		var links = await (
-			from l in _Db.SocialAccountProject
+			from l in this._Db.SocialAccountProject
 			where l.SocialAccountId == socialAccountId
 			select l
 		).ToListAsync(cancellationToken);
@@ -485,13 +485,13 @@ public sealed class SocialAccountService {
 		var toRemove = links.Where(l => !distinctIds.Contains(l.ProjectId)).ToList();
 
 		foreach (var id in toAdd) {
-			await _Db.SocialAccountProject.AddAsync(new SocialAccountProject {
+			await this._Db.SocialAccountProject.AddAsync(new SocialAccountProject {
 				SocialAccountId = socialAccountId,
 				ProjectId = id,
 			}, cancellationToken);
 		}
-		_Db.SocialAccountProject.RemoveRange(toRemove);
-		await _Db.SaveChangesAsync(cancellationToken);
+		this._Db.SocialAccountProject.RemoveRange(toRemove);
+		await this._Db.SaveChangesAsync(cancellationToken);
 
 		return new SetSocialAccountProjectsResult.Applied(
 			account,
@@ -512,7 +512,7 @@ public sealed class SocialAccountService {
 
 		var ids = accounts.Select(a => a.Id).ToList();
 		var links = await (
-			from l in _Db.SocialAccountProject.AsNoTracking()
+			from l in this._Db.SocialAccountProject.AsNoTracking()
 			where ids.Contains(l.SocialAccountId)
 			select l
 		).ToListAsync(cancellationToken);

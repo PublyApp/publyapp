@@ -21,25 +21,25 @@ public class FindTenantProfilesAsStaffQuery : CursorPaginatedQuery {
 	public string? IsDefault { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
+		if (this.Search is null) {
 			return null;
 		}
 
-		var trimmed = Search.Trim();
+		var trimmed = this.Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
 	public bool? GetIsDefault() {
-		return QueryPredicates.ParseNullableBoolean(IsDefault);
+		return QueryPredicates.ParseNullableBoolean(this.IsDefault);
 	}
 }
 
 public class FindTenantProfilesAsStaffQueryValidator
 	: CursorPaginatedQueryValidator<FindTenantProfilesAsStaffQuery> {
 	public FindTenantProfilesAsStaffQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.Search).MaximumLength(200);
 
-		RuleFor(x => x.IsDefault)
+		this.RuleFor(x => x.IsDefault)
 			.Must(QueryPredicates.BeValidNullableBoolean)
 			.WithMessage("is_default must be 'true' or 'false'");
 	}

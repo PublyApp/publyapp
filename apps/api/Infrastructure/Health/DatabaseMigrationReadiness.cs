@@ -18,16 +18,16 @@ public sealed class DatabaseMigrationReadinessResult {
 	public IReadOnlyList<string> PendingMigrationNames { get; }
 	public bool PendingMigrationNamesTruncated { get; }
 	public bool IsReady {
-		get { return PendingMigrationCount == 0; }
+		get { return this.PendingMigrationCount == 0; }
 	}
 
 	private DatabaseMigrationReadinessResult(
 		int pendingMigrationCount,
 		IReadOnlyList<string> pendingMigrationNames
 	) {
-		PendingMigrationCount = pendingMigrationCount;
-		PendingMigrationNames = pendingMigrationNames;
-		PendingMigrationNamesTruncated = pendingMigrationCount > pendingMigrationNames.Count;
+		this.PendingMigrationCount = pendingMigrationCount;
+		this.PendingMigrationNames = pendingMigrationNames;
+		this.PendingMigrationNamesTruncated = pendingMigrationCount > pendingMigrationNames.Count;
 	}
 
 	public static DatabaseMigrationReadinessResult FromPendingMigrations(
@@ -37,12 +37,12 @@ public sealed class DatabaseMigrationReadinessResult {
 			throw new ArgumentNullException(nameof(pendingMigrations));
 		}
 
-		var pendingMigrationNames = new List<string>(MaxPendingMigrationNames);
+		var pendingMigrationNames = new List<string>(DatabaseMigrationReadinessResult.MaxPendingMigrationNames);
 		var pendingMigrationCount = 0;
 		foreach (var migrationName in pendingMigrations) {
 			pendingMigrationCount++;
-			if (pendingMigrationNames.Count < MaxPendingMigrationNames) {
-				pendingMigrationNames.Add(_SanitizeMigrationName(migrationName));
+			if (pendingMigrationNames.Count < DatabaseMigrationReadinessResult.MaxPendingMigrationNames) {
+				pendingMigrationNames.Add(DatabaseMigrationReadinessResult._SanitizeMigrationName(migrationName));
 			}
 		}
 
@@ -58,10 +58,10 @@ public sealed class DatabaseMigrationReadinessResult {
 		}
 
 		var safeName = new StringBuilder(
-			Math.Min(migrationName.Length, MaxPendingMigrationNameLength)
+			Math.Min(migrationName.Length, DatabaseMigrationReadinessResult.MaxPendingMigrationNameLength)
 		);
 		foreach (var character in migrationName) {
-			if (safeName.Length == MaxPendingMigrationNameLength) {
+			if (safeName.Length == DatabaseMigrationReadinessResult.MaxPendingMigrationNameLength) {
 				break;
 			}
 
@@ -81,13 +81,13 @@ public sealed class DatabaseMigrationReadiness : IDatabaseMigrationReadiness {
 	private readonly IServiceScopeFactory _ScopeFactory;
 
 	public DatabaseMigrationReadiness(IServiceScopeFactory scopeFactory) {
-		_ScopeFactory = scopeFactory;
+		this._ScopeFactory = scopeFactory;
 	}
 
 	public async Task<DatabaseMigrationReadinessResult> IsReadyAsync(
 		CancellationToken cancellationToken
 	) {
-		using var scope = _ScopeFactory.CreateScope();
+		using var scope = this._ScopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync(
 			cancellationToken

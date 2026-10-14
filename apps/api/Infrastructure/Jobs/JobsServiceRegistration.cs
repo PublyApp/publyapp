@@ -112,8 +112,8 @@ public static class JobsServiceRegistration {
 			return new UnimplementedSocialSessionProvider();
 		});
 
-		_AddEmailJobHandlers(builder);
-		_AddPublishingJobHandlers(builder);
+		JobsServiceRegistration._AddEmailJobHandlers(builder);
+		JobsServiceRegistration._AddPublishingJobHandlers(builder);
 
 		return builder;
 	}

@@ -61,8 +61,8 @@ public sealed class PublishNowService : IPublishNowService {
 	private readonly IJobEnqueuer _JobEnqueuer;
 
 	public PublishNowService(AppDbContext db, IJobEnqueuer jobEnqueuer) {
-		_Db = db;
-		_JobEnqueuer = jobEnqueuer;
+		this._Db = db;
+		this._JobEnqueuer = jobEnqueuer;
 	}
 
 	public async Task<PublishNowResult> PublishNowAsync(
@@ -73,7 +73,7 @@ public sealed class PublishNowService : IPublishNowService {
 			.Distinct()
 			.ToList();
 
-		var post = await _Db.Post.SingleOrDefaultAsync(
+		var post = await this._Db.Post.SingleOrDefaultAsync(
 			p => p.Id == args.PostId
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted,
@@ -83,12 +83,12 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.PostNotFound();
 		}
 
-		var candidates = await _Db.SocialAccount
+		var candidates = await this._Db.SocialAccount
 			.Where(account => account.TenantId == args.TenantId
 				&& account.Id != null
 				&& requestedIds.Contains(account.Id.Value))
 			.ToListAsync(cancellationToken);
-		await _AttachProjectLinksAsync(candidates, cancellationToken);
+		await this._AttachProjectLinksAsync(candidates, cancellationToken);
 
 		var knownIds = candidates
 			.Select(account => account.GetRequiredId())
@@ -111,7 +111,7 @@ public sealed class PublishNowService : IPublishNowService {
 			.Select(account => account.GetRequiredId())
 			.ToList();
 
-		var liveAccountIds = await _LivePairAccountIdsAsync(
+		var liveAccountIds = await this._LivePairAccountIdsAsync(
 			post.GetRequiredId(),
 			eligibleIds,
 			cancellationToken
@@ -120,7 +120,7 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
 		}
 
-		return await _CreatePublicationsAndEnqueueAsync(
+		return await this._CreatePublicationsAndEnqueueAsync(
 			args,
 			post.GetRequiredId(),
 			eligible,
@@ -138,7 +138,7 @@ public sealed class PublishNowService : IPublishNowService {
 		CancellationToken cancellationToken
 	) {
 		await using var transaction =
-			await _Db.Database.BeginTransactionAsync(cancellationToken);
+			await this._Db.Database.BeginTransactionAsync(cancellationToken);
 		try {
 			var scheduledAtUtc = DateTime.UtcNow;
 			var keysByPublicationId = new List<(Guid PublicationId, string Key)>(
@@ -157,14 +157,14 @@ public sealed class PublishNowService : IPublishNowService {
 					IdempotencyKey = idempotencyKey,
 				};
 				publication.Id = publicationId;
-				_Db.Publication.Add(publication);
+				this._Db.Publication.Add(publication);
 				keysByPublicationId.Add((publicationId, idempotencyKey));
 			}
 
-			await _Db.SaveChangesAsync(cancellationToken);
+			await this._Db.SaveChangesAsync(cancellationToken);
 
 			foreach (var (publicationId, key) in keysByPublicationId) {
-				await _JobEnqueuer.EnqueueAsync(
+				await this._JobEnqueuer.EnqueueAsync(
 					PublishingJobs.PublishPublicationV1,
 					new PublishPublicationPayload {
 						PublicationId = publicationId,
@@ -189,11 +189,11 @@ public sealed class PublishNowService : IPublishNowService {
 			// violation into the SAME plain-words structured outcome the proactive
 			// check returns — never a raw 500. The tracker still holds the rolled-back
 			// Added rows; clear it so the follow-up audit write cannot re-insert them.
-			_Db.ChangeTracker.Clear();
+			this._Db.ChangeTracker.Clear();
 			var candidateIds = candidates
 				.Select(account => account.GetRequiredId())
 				.ToList();
-			var occupiedIds = await _Db.Publication
+			var occupiedIds = await this._Db.Publication
 				.Where(publication => !publication.IsDeleted)
 				.Where(publication => publication.PostId == postId)
 				.Where(publication => candidateIds.Contains(publication.SocialAccountId))
@@ -220,7 +220,7 @@ public sealed class PublishNowService : IPublishNowService {
 		IReadOnlyList<Guid> accountIds,
 		CancellationToken cancellationToken
 	) {
-		return await _Db.Publication
+		return await this._Db.Publication
 			.Where(publication => !publication.IsDeleted)
 			.Where(publication =>
 				publication.Status == PublicationStatus.Scheduled
@@ -246,7 +246,7 @@ public sealed class PublishNowService : IPublishNowService {
 		var accountIds = accounts
 			.Select(account => account.GetRequiredId())
 			.ToList();
-		var links = await _Db.SocialAccountProject
+		var links = await this._Db.SocialAccountProject
 			.Where(link => accountIds.Contains(link.SocialAccountId))
 			.ToListAsync(cancellationToken);
 

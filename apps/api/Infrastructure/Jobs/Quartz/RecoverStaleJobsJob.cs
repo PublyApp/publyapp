@@ -25,23 +25,23 @@ public sealed class RecoverStaleJobsJob : IJob {
 	private readonly ILogger<RecoverStaleJobsJob> _Logger;
 
 	public RecoverStaleJobsJob(AppDbContext dbContext, ILogger<RecoverStaleJobsJob> logger) {
-		_DbContext = dbContext;
-		_Logger = logger;
+		this._DbContext = dbContext;
+		this._Logger = logger;
 	}
 
 	public async Task Execute(IJobExecutionContext context) {
-		await RecoverAsync(context.CancellationToken);
+		await this.RecoverAsync(context.CancellationToken);
 	}
 
 	// Public: lets specs drive one recovery pass deterministically (the repo's
 	// public-methods-for-determinism discipline) without faking IJobExecutionContext.
 	public async Task<int> RecoverAsync(CancellationToken cancellationToken) {
 		var reclaimed = await JobQueueProcessor.ResetExpiredLeasesAsync(
-			_DbContext, cancellationToken
+			this._DbContext, cancellationToken
 		);
 
-		if (reclaimed > 0 && _Logger.IsEnabled(LogLevel.Information)) {
-			_Logger.LogInformation("Recovered {Count} stale job_queue row(s) to Pending", reclaimed);
+		if (reclaimed > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
+			this._Logger.LogInformation("Recovered {Count} stale job_queue row(s) to Pending", reclaimed);
 		}
 
 		return reclaimed;

@@ -25,11 +25,11 @@ public static partial class AccountProfileValidationRules {
 	/// <see cref="_ServedUploadAvatarUrlPattern"/>.
 	/// </summary>
 	public static bool IsServedUploadAvatarUrl(string value) {
-		return _ServedUploadAvatarUrlPattern().IsMatch(value);
+		return AccountProfileValidationRules._ServedUploadAvatarUrlPattern().IsMatch(value);
 	}
 
 	private static bool _IsValidAvatarUrl(string value) {
-		if (IsServedUploadAvatarUrl(value)) {
+		if (AccountProfileValidationRules.IsServedUploadAvatarUrl(value)) {
 			return true;
 		}
 
@@ -64,7 +64,7 @@ public static partial class AccountProfileValidationRules {
 				if (string.IsNullOrWhiteSpace(url)) {
 					return false;
 				}
-				return _IsValidAvatarUrl(url);
+				return AccountProfileValidationRules._IsValidAvatarUrl(url);
 			})
 			.WithMessage(
 				$"{fieldName} must be a served upload path or an absolute "

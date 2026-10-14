@@ -17,14 +17,14 @@ public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return this.Email.GetValueAsString();
 	}
 }
 
 public class VerifyEmailRequestBodyValidator
 	: AbstractValidator<VerifyEmailRequestBody> {
 	public VerifyEmailRequestBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 	}
 }

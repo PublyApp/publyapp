@@ -14,17 +14,17 @@ public class FindStaffPermissionsQuery {
 	public string? Language { get; set; }
 
 	public string GetLanguage() {
-		if (string.IsNullOrEmpty(Language)) {
+		if (string.IsNullOrEmpty(this.Language)) {
 			return SupportedLanguage.English;
 		}
 
 		var language = SupportedLanguage.All
 			.FirstOrDefault(l =>
-				string.Equals(l, Language, StringComparison.OrdinalIgnoreCase)
+				string.Equals(l, this.Language, StringComparison.OrdinalIgnoreCase)
 			);
 
 		if (language is null) {
-			throw new ArgumentException($"Invalid language: {Language}");
+			throw new ArgumentException($"Invalid language: {this.Language}");
 		}
 
 		return language;
@@ -39,13 +39,13 @@ public class FindStaffPermissionsQueryValidator : AbstractValidator<FindStaffPer
 	public FindStaffPermissionsQueryValidator() {
 		// Inline rule: no JsonElementRules.* equivalent for query-string language allowlists.
 		//   See docs/guides/validator-conventions.md; extract if this shape repeats.
-		RuleFor(x => x.Language)
-			.Must(_BeSupportedLanguage)
+		this.RuleFor(x => x.Language)
+			.Must(FindStaffPermissionsQueryValidator._BeSupportedLanguage)
 			.WithMessage(
 				"Language must be one of the following: "
 				+ string.Join(", ", SupportedLanguage.All)
 			)
-			.When(_HasLanguage);
+			.When(FindStaffPermissionsQueryValidator._HasLanguage);
 	}
 
 	private static bool _BeSupportedLanguage(string? language) {

@@ -79,13 +79,13 @@ public sealed class JobQueueProcessor : BackgroundService {
 		IJobQueueSignal? signal = null,
 		JobQueueProcessorOptions? options = null
 	) {
-		_ScopeFactory = scopeFactory;
-		_Registry = registry;
-		_Metrics = metrics;
-		_Signal = signal;
-		_Instance = instance;
-		_Logger = logger;
-		_Options = options ?? new JobQueueProcessorOptions();
+		this._ScopeFactory = scopeFactory;
+		this._Registry = registry;
+		this._Metrics = metrics;
+		this._Signal = signal;
+		this._Instance = instance;
+		this._Logger = logger;
+		this._Options = options ?? new JobQueueProcessorOptions();
 	}
 
 	/// <summary>
@@ -176,9 +176,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 	/// </summary>
 	private sealed record JobDispatch {
 		private JobDispatch(JobOutcome outcome, IJobHandler? hookTarget, Exception? failure) {
-			Outcome = outcome;
-			HookTarget = hookTarget;
-			Failure = failure;
+			this.Outcome = outcome;
+			this.HookTarget = hookTarget;
+			this.Failure = failure;
 		}
 
 		public JobOutcome Outcome { get; }
@@ -221,16 +221,16 @@ public sealed class JobQueueProcessor : BackgroundService {
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
-		await _LogDeadLetterOrphansAsync(stoppingToken);
+		await this._LogDeadLetterOrphansAsync(stoppingToken);
 
 		while (!stoppingToken.IsCancellationRequested) {
 			var exitReason = DrainExitReason.Drained;
 
 			try {
-				var result = await DrainAsync(stoppingToken);
+				var result = await this.DrainAsync(stoppingToken);
 				exitReason = result.Reason;
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
-				_Logger.LogError(
+				this._Logger.LogError(
 					"Job queue processing loop failed: {FailureDescription} {FailureStack}",
 					JobErrorSanitizer.Describe(ex),
 					JobErrorSanitizer.DescribeStack(ex)
@@ -247,9 +247,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 			try {
 				// 2C's JobQueueListener adds a LISTEN/NOTIFY wake ahead of this
 				// fallback poll; the interval remains the correctness fallback.
-				var waitAsyncTask = _Signal is null
-					? Task.Delay(TimeSpan.FromSeconds(_Options.PollSeconds), stoppingToken)
-					: _Signal.WaitAsync(TimeSpan.FromSeconds(_Options.PollSeconds), stoppingToken);
+				var waitAsyncTask = this._Signal is null
+					? Task.Delay(TimeSpan.FromSeconds(this._Options.PollSeconds), stoppingToken)
+					: this._Signal.WaitAsync(TimeSpan.FromSeconds(this._Options.PollSeconds), stoppingToken);
 				await waitAsyncTask;
 			} catch (OperationCanceledException) {
 				break;
@@ -268,7 +268,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		var totalDispatched = 0;
 
 		while (!stoppingToken.IsCancellationRequested) {
-			var batch = await ProcessBatchAsync(stoppingToken);
+			var batch = await this.ProcessBatchAsync(stoppingToken);
 			totalClaimed += batch.Claimed;
 			totalDispatched += batch.Dispatched;
 
@@ -278,9 +278,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 				);
 			}
 
-			if (budget.Elapsed.TotalSeconds >= _Options.DrainBudgetSeconds) {
-				if (_Logger.IsEnabled(LogLevel.Information)) {
-					_Logger.LogInformation(
+			if (budget.Elapsed.TotalSeconds >= this._Options.DrainBudgetSeconds) {
+				if (this._Logger.IsEnabled(LogLevel.Information)) {
+					this._Logger.LogInformation(
 						"Job queue drain budget exhausted after {Dispatched} jobs; yielding",
 						totalDispatched
 					);
@@ -308,16 +308,16 @@ public sealed class JobQueueProcessor : BackgroundService {
 		try {
 			List<JobQueueItem> batch;
 
-			using (var scope = _ScopeFactory.CreateScope()) {
+			using (var scope = this._ScopeFactory.CreateScope()) {
 				var claimContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-				await ResetExpiredLeasesAsync(claimContext, stoppingToken);
+				await JobQueueProcessor.ResetExpiredLeasesAsync(claimContext, stoppingToken);
 
-				var claimed = await ClaimBatchAsync(
+				var claimed = await JobQueueProcessor.ClaimBatchAsync(
 					claimContext,
-					_Instance.Id,
-					_Options.LeaseSeconds,
-					_Options.BatchSize,
+					this._Instance.Id,
+					this._Options.LeaseSeconds,
+					this._Options.BatchSize,
 					stoppingToken
 				);
 				claimedCount = claimed.Count;
@@ -328,7 +328,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 				// Ownership acquisition is the claim itself — count it here, not at
 				// dispatch (F21 accounting).
 				foreach (var claim in claimed) {
-					_Metrics.Claimed(claim.JobType);
+					this._Metrics.Claimed(claim.JobType);
 					unsettled[claim.Id] = claim;
 				}
 
@@ -356,7 +356,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 				dispatched++;
 				var claim = unsettled[itemId];
-				var result = await ProcessOneAsync(item, claim.LockToken, stoppingToken);
+				var result = await this.ProcessOneAsync(item, claim.LockToken, stoppingToken);
 
 				// ProcessOneAsync settles ownership on all of its return paths.
 				unsettled.Remove(itemId);
@@ -367,11 +367,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 			}
 
 			return new BatchResult(
-				claimedCount, dispatched, completed, claimedCount == _Options.BatchSize
+				claimedCount, dispatched, completed, claimedCount == this._Options.BatchSize
 			);
 		} finally {
 			if (unsettled.Count > 0) {
-				await _ReleaseUnsettledAsync(unsettled.Values);
+				await this._ReleaseUnsettledAsync(unsettled.Values);
 			}
 		}
 	}
@@ -444,9 +444,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 		Guid lockToken,
 		CancellationToken stoppingToken
 	) {
-		var itemId = _RequireId(item);
+		var itemId = JobQueueProcessor._RequireId(item);
 
-		await using var scope = _ScopeFactory.CreateAsyncScope();
+		await using var scope = this._ScopeFactory.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		// Per-dispatch re-stamp (F1): job #20 of a slow serial batch must not start
@@ -455,11 +455,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// measured against it can only OVER-count the time since the database's own
 		// now() — never under-count it (see ConfirmedLease).
 		var restampAnchor = Stopwatch.GetTimestamp();
-		var restamped = await TryRenewLeaseAsync(
-			dbContext, itemId, lockToken, _Options.LeaseSeconds, stoppingToken
+		var restamped = await JobQueueProcessor.TryRenewLeaseAsync(
+			dbContext, itemId, lockToken, this._Options.LeaseSeconds, stoppingToken
 		);
 		if (restamped is null) {
-			_Metrics.LeaseLost(item.JobType);
+			this._Metrics.LeaseLost(item.JobType);
 			return JobExecutionResult.LeaseLost;
 		}
 
@@ -471,22 +471,22 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 		// The re-stamp above is the renewal loop's time zero: it is the first
 		// confirmed database deadline, and the loop arms its deadline timer from it.
-		var renewalTask = _Options.EnableLeaseRenewal
-			? _RenewLeaseLoopAsync(
+		var renewalTask = this._Options.EnableLeaseRenewal
+			? this._RenewLeaseLoopAsync(
 				itemId,
 				lockToken,
-				ConfirmedLease.From(restamped, restampAnchor, _SafetyMargin()),
+				ConfirmedLease.From(restamped, restampAnchor, this._SafetyMargin()),
 				leaseLostSource,
 				renewalStop.Token
 			)
 			: Task.CompletedTask;
 
-		var context = _BuildContext(item, lastError: null);
+		var context = JobQueueProcessor._BuildContext(item, lastError: null);
 		var stopwatch = Stopwatch.StartNew();
 		JobDispatch dispatch;
 
 		try {
-			dispatch = await _DispatchAsync(
+			dispatch = await this._DispatchAsync(
 				scope.ServiceProvider,
 				context,
 				linkedSource.Token,
@@ -497,21 +497,21 @@ public sealed class JobQueueProcessor : BackgroundService {
 			// Renewal detected a lost lease: the row belongs to a new claimant. The
 			// outcome is discarded; nothing is written (F1).
 			stopwatch.Stop();
-			_Metrics.HandlerDuration(item.JobType, "LeaseLost", stopwatch.Elapsed.TotalSeconds);
-			_Metrics.LeaseLost(item.JobType);
+			this._Metrics.HandlerDuration(item.JobType, "LeaseLost", stopwatch.Elapsed.TotalSeconds);
+			this._Metrics.LeaseLost(item.JobType);
 			return JobExecutionResult.LeaseLost;
 		} catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) {
 			// Host shutdown (F12/§3.6): abandon cleanly — no attempt burned, no DLQ.
 			// Proactively release so a restart resumes immediately.
 			stopwatch.Stop();
-			_Metrics.HandlerDuration(
+			this._Metrics.HandlerDuration(
 				item.JobType, "ShutdownAbandoned", stopwatch.Elapsed.TotalSeconds
 			);
-			var released = await TryReleaseAsync(
+			var released = await JobQueueProcessor.TryReleaseAsync(
 				dbContext, itemId, lockToken, CancellationToken.None
 			);
 			if (!released) {
-				_LogReleaseLost(itemId, item.JobType);
+				this._LogReleaseLost(itemId, item.JobType);
 				return JobExecutionResult.LeaseLost;
 			}
 			return JobExecutionResult.Released;
@@ -540,12 +540,12 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// normally; the conditioned transitions below would no-op, but check first so
 		// the discard is explicit and counted.
 		if (leaseLostSource.IsCancellationRequested) {
-			_Metrics.HandlerDuration(item.JobType, "LeaseLost", stopwatch.Elapsed.TotalSeconds);
-			_Metrics.LeaseLost(item.JobType);
+			this._Metrics.HandlerDuration(item.JobType, "LeaseLost", stopwatch.Elapsed.TotalSeconds);
+			this._Metrics.LeaseLost(item.JobType);
 			return JobExecutionResult.LeaseLost;
 		}
 
-		_Metrics.HandlerDuration(
+		this._Metrics.HandlerDuration(
 			item.JobType, dispatch.Outcome.GetType().Name, stopwatch.Elapsed.TotalSeconds
 		);
 
@@ -555,7 +555,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// arriving between handler return and the transition SQL (§3.6). The
 		// settlement result is CONFIRMED, not assumed: a fenced zero-row transition
 		// reports LeaseLost, a rolled-back terminal step reports Faulted.
-		return await _ApplyOutcomeAsync(dbContext, dispatch, item, lockToken);
+		return await this._ApplyOutcomeAsync(dbContext, dispatch, item, lockToken);
 	}
 
 	// Resolves the registration and runs the handler, returning the outcome TOGETHER
@@ -574,7 +574,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		CancellationToken leaseLostToken,
 		CancellationToken stoppingToken
 	) {
-		if (!_Registry.TryResolve(context.JobType, out var registration)) {
+		if (!this._Registry.TryResolve(context.JobType, out var registration)) {
 			// Nothing is registered for this job_type: no instance exists and none
 			// can, so there is nothing to hook. Retries gain nothing (F12).
 			return JobDispatch.NoHandlerReached(
@@ -617,7 +617,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			return JobDispatch.NoHandlerReached(
 				new JobOutcome.PermanentFailure(JobErrorSanitizer.Describe(ex)), ex
 			);
-		} catch (Exception ex) when (_IsHandlerFailure(ex, leaseLostToken, stoppingToken)) {
+		} catch (Exception ex) when (JobQueueProcessor._IsHandlerFailure(ex, leaseLostToken, stoppingToken)) {
 			// The handler was legitimately reached and threw: its job, its retry, and
 			// — if this exhausts the attempts — its hook.
 			return JobDispatch.HandlerReached(
@@ -761,22 +761,22 @@ public sealed class JobQueueProcessor : BackgroundService {
 		JobQueueItem item,
 		Guid lockToken
 	) {
-		var itemId = _RequireId(item);
+		var itemId = JobQueueProcessor._RequireId(item);
 		var outcome = dispatch.Outcome;
 
 		if (outcome is JobOutcome.Success) {
-			var deleted = await TryCompleteAsync(
+			var deleted = await JobQueueProcessor.TryCompleteAsync(
 				dbContext, itemId, lockToken, CancellationToken.None
 			);
 			if (!deleted) {
-				_Metrics.LeaseLost(item.JobType);
+				this._Metrics.LeaseLost(item.JobType);
 				return JobExecutionResult.LeaseLost;
 			}
 
-			_Metrics.Succeeded(item.JobType);
+			this._Metrics.Succeeded(item.JobType);
 
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation(
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation(
 					"Completed job {JobId} of type {JobType}",
 					itemId,
 					item.JobType
@@ -786,18 +786,18 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 
 		if (outcome is JobOutcome.Cancelled cancelled) {
-			var deleted = await TryCompleteAsync(
+			var deleted = await JobQueueProcessor.TryCompleteAsync(
 				dbContext, itemId, lockToken, CancellationToken.None
 			);
 			if (!deleted) {
-				_Metrics.LeaseLost(item.JobType);
+				this._Metrics.LeaseLost(item.JobType);
 				return JobExecutionResult.LeaseLost;
 			}
 
-			_Metrics.Cancelled(item.JobType);
+			this._Metrics.Cancelled(item.JobType);
 
-			if (_Logger.IsEnabled(LogLevel.Information)) {
-				_Logger.LogInformation(
+			if (this._Logger.IsEnabled(LogLevel.Information)) {
+				this._Logger.LogInformation(
 					"Cancelled job {JobId} of type {JobType}: {Reason}",
 					itemId,
 					item.JobType,
@@ -808,7 +808,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		}
 
 		if (outcome is JobOutcome.PermanentFailure permanent) {
-			return await _DeadLetterAsync(
+			return await this._DeadLetterAsync(
 				dbContext, dispatch, item, lockToken,
 				item.Attempts + 1, JobErrorSanitizer.Sanitize(permanent.Reason)
 			);
@@ -819,7 +819,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			var safeError = JobErrorSanitizer.Sanitize(retry.Error);
 
 			if (failedAttempts >= item.MaxAttempts) {
-				return await _DeadLetterAsync(
+				return await this._DeadLetterAsync(
 					dbContext, dispatch, item, lockToken, failedAttempts, safeError
 				);
 			}
@@ -832,24 +832,24 @@ public sealed class JobQueueProcessor : BackgroundService {
 				delaySeconds = overrideDelay.TotalSeconds;
 			}
 
-			var requeued = await TryRequeueAsync(
+			var requeued = await JobQueueProcessor.TryRequeueAsync(
 				dbContext, itemId, lockToken, delaySeconds, safeError,
 				CancellationToken.None
 			);
 			if (!requeued) {
-				_Metrics.LeaseLost(item.JobType);
+				this._Metrics.LeaseLost(item.JobType);
 				return JobExecutionResult.LeaseLost;
 			}
 
-			_Metrics.Retried(item.JobType);
+			this._Metrics.Retried(item.JobType);
 
-			if (_Logger.IsEnabled(LogLevel.Warning)) {
+			if (this._Logger.IsEnabled(LogLevel.Warning)) {
 				// No raw exception argument (R2-8): a sink renders ex.Message
 				// verbatim. The sanitized description and the safe frame metadata
 				// carry the same diagnosis without the payload echo.
 				var (description, stack) = JobErrorSanitizer.DescribeForLog(dispatch.Failure);
 
-				_Logger.LogWarning(
+				this._Logger.LogWarning(
 					"Job {JobId} of type {JobType} failed (attempt "
 					+ "{Attempt}/{MaxAttempts}); requeued with {DelaySeconds:F0}s "
 					+ "backoff: {Error} [{FailureDescription}] {FailureStack}",
@@ -895,7 +895,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		int attempts,
 		string? lastError
 	) {
-		var itemId = _RequireId(item);
+		var itemId = JobQueueProcessor._RequireId(item);
 		var deadLetter = JobDeadLetter.FromJob(item, attempts, lastError);
 
 		JobDeadLetterEvent? unclassifiedEvent = null;
@@ -910,7 +910,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			deadLetter.Id = Guid.CreateVersion7();
 			deadLetter.ExternalStateStatus = (int)ExternalStateStatus.Unclassified;
 			deadLetter.ExternalStatePreparedAt = DateTime.UtcNow;
-			deadLetter.ExternalStateExpiresAt = DateTime.UtcNow.AddSeconds(_Options.LeaseSeconds);
+			deadLetter.ExternalStateExpiresAt = DateTime.UtcNow.AddSeconds(this._Options.LeaseSeconds);
 
 			unclassifiedEvent = new JobDeadLetterEvent {
 				DeadLetterId = deadLetter.Id.Value,
@@ -936,7 +936,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			// a handler that owned this job_type actually ran, because JobDispatch
 			// has no constructor that lets any other path supply one.
 			if (dispatch.HookTarget is { } hookTarget) {
-				var terminalContext = _BuildContext(item, lastError);
+				var terminalContext = JobQueueProcessor._BuildContext(item, lastError);
 				await hookTarget.OnTerminalFailureAsync(terminalContext, CancellationToken.None);
 			}
 
@@ -948,7 +948,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 			await dbContext.SaveChangesAsync(CancellationToken.None);
 
-			var deleted = await TryCompleteAsync(
+			var deleted = await JobQueueProcessor.TryCompleteAsync(
 				dbContext, itemId, lockToken, CancellationToken.None
 			);
 			if (!deleted) {
@@ -956,7 +956,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 				// row now. Roll back the DLQ copy — the job is not terminal for us.
 				await transaction.RollbackAsync(CancellationToken.None);
 				dbContext.Entry(deadLetter).State = EntityState.Detached;
-				_Metrics.LeaseLost(item.JobType);
+				this._Metrics.LeaseLost(item.JobType);
 				return JobExecutionResult.LeaseLost;
 			}
 
@@ -965,7 +965,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 			await transaction.RollbackAsync(CancellationToken.None);
 			dbContext.Entry(deadLetter).State = EntityState.Detached;
 
-			_Logger.LogError(
+			this._Logger.LogError(
 				"Terminal-failure step for job {JobId} of type {JobType} rolled back "
 				+ "(hook or DLQ write failed); the leased row will be retried whole "
 				+ "after lease expiry: {FailureDescription} {FailureStack}",
@@ -977,14 +977,14 @@ public sealed class JobQueueProcessor : BackgroundService {
 			return JobExecutionResult.Faulted;
 		}
 
-		_Metrics.DeadLettered(item.JobType);
-		_Metrics.AttemptsAtTerminal(item.JobType, attempts);
+		this._Metrics.DeadLettered(item.JobType);
+		this._Metrics.AttemptsAtTerminal(item.JobType, attempts);
 
 		// The durable last_error was sanitized before this call; the failure metadata
 		// is projected rather than handed over as an exception object (R2-8).
 		var (description, stack) = JobErrorSanitizer.DescribeForLog(dispatch.Failure);
 
-		_Logger.LogError(
+		this._Logger.LogError(
 			"Job {JobId} of type {JobType} dead-lettered after {Attempts} attempts: "
 			+ "{Error} [{FailureDescription}] {FailureStack}",
 			itemId,
@@ -1022,8 +1022,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 	/// </summary>
 	private readonly record struct ConfirmedLease {
 		private ConfirmedLease(TimeSpan safeIntervalAtConfirmation, long anchor) {
-			_SafeIntervalAtConfirmation = safeIntervalAtConfirmation;
-			_Anchor = anchor;
+			this._SafeIntervalAtConfirmation = safeIntervalAtConfirmation;
+			this._Anchor = anchor;
 		}
 
 		private TimeSpan _SafeIntervalAtConfirmation { get; }
@@ -1040,7 +1040,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		/// is spent: ownership must be abandoned rather than assumed.
 		/// </summary>
 		public TimeSpan RemainingSafeInterval() {
-			return _SafeIntervalAtConfirmation - Stopwatch.GetElapsedTime(_Anchor);
+			return this._SafeIntervalAtConfirmation - Stopwatch.GetElapsedTime(this._Anchor);
 		}
 	}
 
@@ -1049,7 +1049,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// lease could be renewed with any margin at all, and pretending otherwise is how
 	// a renewal loop ends up racing the reclaimer it was written to avoid.
 	private TimeSpan _SafetyMargin() {
-		return TimeSpan.FromSeconds(Math.Max(2.0, _Options.LeaseSeconds / 20.0));
+		return TimeSpan.FromSeconds(Math.Max(2.0, this._Options.LeaseSeconds / 20.0));
 	}
 
 	// Re-stamps the lease at lease/2 cadence while the handler runs, on its OWN scope
@@ -1072,8 +1072,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 		CancellationTokenSource leaseLostSource,
 		CancellationToken stopRenewal
 	) {
-		var renewInterval = TimeSpan.FromSeconds(_Options.LeaseSeconds / 2.0);
-		var retryInterval = TimeSpan.FromSeconds(Math.Max(0.25, _Options.LeaseSeconds / 8.0));
+		var renewInterval = TimeSpan.FromSeconds(this._Options.LeaseSeconds / 2.0);
+		var retryInterval = TimeSpan.FromSeconds(Math.Max(0.25, this._Options.LeaseSeconds / 8.0));
 
 		var confirmed = initial;
 		var proposedDelay = renewInterval;
@@ -1091,14 +1091,14 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// check and becomes a no-op — it can no longer abandon the freshly stamped lease.
 		using var deadline = new LeaseDeadlineArbiter(() => leaseLostSource.Cancel());
 
-		if (!await _ArmDeadlineAsync(deadline, leaseLostSource, confirmed, jobId)) {
+		if (!await this._ArmDeadlineAsync(deadline, leaseLostSource, confirmed, jobId)) {
 			return;
 		}
 
 		while (!stopRenewal.IsCancellationRequested) {
 			var remaining = confirmed.RemainingSafeInterval();
 			if (remaining <= TimeSpan.Zero) {
-				await _AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
+				await this._AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
 				return;
 			}
 
@@ -1114,14 +1114,14 @@ public sealed class JobQueueProcessor : BackgroundService {
 			// The sleep was capped to the deadline, so arriving here with nothing left
 			// means the margin is spent and no further command may be started.
 			if (confirmed.RemainingSafeInterval() <= TimeSpan.Zero) {
-				await _AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
+				await this._AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
 				return;
 			}
 
 			try {
 				var anchor = Stopwatch.GetTimestamp();
 
-				using var scope = _ScopeFactory.CreateScope();
+				using var scope = this._ScopeFactory.CreateScope();
 				var renewalContext =
 					scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
@@ -1136,8 +1136,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 					stopRenewal, leaseLostSource.Token
 				);
 
-				var stamp = await TryRenewLeaseAsync(
-					renewalContext, jobId, lockToken, _Options.LeaseSeconds,
+				var stamp = await JobQueueProcessor.TryRenewLeaseAsync(
+					renewalContext, jobId, lockToken, this._Options.LeaseSeconds,
 					renewalCommandStop.Token
 				);
 				if (stamp is null) {
@@ -1155,7 +1155,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 				// and the probe forces the deadline to win and raises the cancellation the
 				// client would observe. It exercises the SAME catch as a real Npgsql
 				// best-effort cancellation.
-				if (RenewalCommitProbe is { } probe) {
+				if (this.RenewalCommitProbe is { } probe) {
 					// The seam's "force the deadline to win" action drives the ARBITER to a
 					// real decision, exactly as a timer firing would (TryClaimAbandon sets
 					// _Decided and disarms the timer, then the CTS is cancelled), not the CTS
@@ -1170,7 +1170,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 					});
 				}
 
-				confirmed = ConfirmedLease.From(stamp, anchor, _SafetyMargin());
+				confirmed = ConfirmedLease.From(stamp, anchor, this._SafetyMargin());
 
 				// Stamp acceptance contends with the deadline for the generation. A false
 				// return is the one-winner transition reporting that the deadline ALREADY
@@ -1178,8 +1178,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 				// is now spent: either way this stamp extended an ABANDONED lease and must
 				// neither re-arm nor be kept. Expire it under the SAME lock_token fence so
 				// the row cannot stay Processing on a stamp the engine will never honour.
-				if (!await _ArmDeadlineAsync(deadline, leaseLostSource, confirmed, jobId)) {
-					await _ExpireAbandonedLeaseAsync(renewalContext, jobId, lockToken);
+				if (!await this._ArmDeadlineAsync(deadline, leaseLostSource, confirmed, jobId)) {
+					await JobQueueProcessor._ExpireAbandonedLeaseAsync(renewalContext, jobId, lockToken);
 					return;
 				}
 
@@ -1212,14 +1212,14 @@ public sealed class JobQueueProcessor : BackgroundService {
 				// nothing to compensate.
 				if (deadline.ClassifyRenewalCancellation()
 					== LeaseDeadlineArbiter.LeaseCancellationOutcome.Abandoned) {
-					await _CompensateAbandonedLeaseAsync(jobId, lockToken);
+					await this._CompensateAbandonedLeaseAsync(jobId, lockToken);
 				}
 				return;
 			} catch (Exception ex) {
 				// Transient: ownership is unknown, not lost. Keep trying until the
 				// confirmed deadline says otherwise — the arbiter's timer, not this loop,
 				// is what guarantees the handler stops.
-				_Logger.LogWarning(
+				this._Logger.LogWarning(
 					"Lease renewal attempt failed for job {JobId}; retrying within the "
 					+ "confirmed lease deadline: {FailureDescription} {FailureStack}",
 					jobId,
@@ -1247,7 +1247,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		var remaining = confirmed.RemainingSafeInterval();
 
 		if (remaining <= TimeSpan.Zero) {
-			await _AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
+			await this._AbandonAtDeadlineAsync(deadline, leaseLostSource, jobId);
 			return false;
 		}
 
@@ -1266,8 +1266,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 			return;
 		}
 
-		if (_Logger.IsEnabled(LogLevel.Warning)) {
-			_Logger.LogWarning(
+		if (this._Logger.IsEnabled(LogLevel.Warning)) {
+			this._Logger.LogWarning(
 				"Lease renewal for job {JobId} reached its confirmed safe deadline "
 				+ "without a fresh stamp; treating ownership as lost and cancelling "
 				+ "the handler",
@@ -1308,9 +1308,9 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// is exactly why the ambient tokens are cancelled, so this must not be governed by
 	// them (CancellationToken.None inside _ExpireAbandonedLeaseAsync).
 	private async Task _CompensateAbandonedLeaseAsync(Guid jobId, Guid lockToken) {
-		using var scope = _ScopeFactory.CreateScope();
+		using var scope = this._ScopeFactory.CreateScope();
 		var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await _ExpireAbandonedLeaseAsync(context, jobId, lockToken);
+		await JobQueueProcessor._ExpireAbandonedLeaseAsync(context, jobId, lockToken);
 	}
 
 	// R3-F2: the one-winner arbiter for the lease deadline. It replaces the
@@ -1374,8 +1374,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 			Action cancelLeaseLost,
 			ILeaseDeadlineScheduler? scheduler = null
 		) {
-			_CancelLeaseLost = cancelLeaseLost;
-			_Scheduler = scheduler ?? new TimerDeadlineScheduler();
+			this._CancelLeaseLost = cancelLeaseLost;
+			this._Scheduler = scheduler ?? new TimerDeadlineScheduler();
 		}
 
 		// Arm/re-arm for a freshly confirmed stamp. Rotates the generation FIRST (so any
@@ -1383,14 +1383,14 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// generation is now stale), then schedules a fresh timer for it. Returns false if
 		// a deadline has already won: the stamp is late and the caller must compensate.
 		public bool TryArm(TimeSpan remaining) {
-			lock (_Gate) {
-				if (_Decided || _Disposed) {
+			lock (this._Gate) {
+				if (this._Decided || this._Disposed) {
 					return false;
 				}
 
-				var generation = ++_Generation;
-				_Scheduled?.Dispose();
-				_Scheduled = _Scheduler.Schedule(remaining, () => _OnDeadline(generation));
+				var generation = ++this._Generation;
+				this._Scheduled?.Dispose();
+				this._Scheduled = this._Scheduler.Schedule(remaining, () => this._OnDeadline(generation));
 				return true;
 			}
 		}
@@ -1400,7 +1400,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// lease on the single loop thread. Returns whether THIS call is the one that
 		// transitioned the lease to abandoned; the caller performs the cancellation.
 		public bool TryClaimAbandon() {
-			return _Claim(requiredGeneration: null);
+			return this._Claim(requiredGeneration: null);
 		}
 
 		// R4-F1: classify a renewal-loop OperationCanceledException UNDER the same lock
@@ -1413,53 +1413,53 @@ public sealed class JobQueueProcessor : BackgroundService {
 		// callback fails its guard and can never subsequently claim abandonment, and
 		// report Stopped so the caller does not compensate a lease it still owns.
 		public LeaseCancellationOutcome ClassifyRenewalCancellation() {
-			lock (_Gate) {
-				if (_Decided) {
+			lock (this._Gate) {
+				if (this._Decided) {
 					return LeaseCancellationOutcome.Abandoned;
 				}
 
-				_Disposed = true;
-				_Scheduled?.Dispose();
-				_Scheduled = null;
+				this._Disposed = true;
+				this._Scheduled?.Dispose();
+				this._Scheduled = null;
 				return LeaseCancellationOutcome.Stopped;
 			}
 		}
 
 		private void _OnDeadline(long generation) {
-			if (!_Claim(generation)) {
+			if (!this._Claim(generation)) {
 				return;
 			}
 
 			try {
-				_CancelLeaseLost();
+				this._CancelLeaseLost();
 			} catch (ObjectDisposedException) {
 				// The lease is already being torn down; nothing left to abandon.
 			}
 		}
 
 		private bool _Claim(long? requiredGeneration) {
-			lock (_Gate) {
-				if (_Decided || _Disposed) {
+			lock (this._Gate) {
+				if (this._Decided || this._Disposed) {
 					return false;
 				}
 
-				if (requiredGeneration is { } generation && generation != _Generation) {
+				if (requiredGeneration is { } generation && generation != this._Generation) {
 					// Superseded by a newer accepted stamp — this stale callback no-ops.
 					return false;
 				}
 
-				_Decided = true;
-				_Scheduled?.Dispose();
-				_Scheduled = null;
+				this._Decided = true;
+				this._Scheduled?.Dispose();
+				this._Scheduled = null;
 				return true;
 			}
 		}
 
 		public void Dispose() {
-			lock (_Gate) {
-				_Disposed = true;
-				_Scheduled?.Dispose();
-				_Scheduled = null;
+			lock (this._Gate) {
+				this._Disposed = true;
+				this._Scheduled?.Dispose();
+				this._Scheduled = null;
 			}
 		}
 	}
@@ -1470,21 +1470,21 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// cancellation, load failure) so no row is left leased for the full window.
 	private async Task _ReleaseUnsettledAsync(IEnumerable<ClaimedJob> claims) {
 		try {
-			using var scope = _ScopeFactory.CreateScope();
+			using var scope = this._ScopeFactory.CreateScope();
 			var releaseContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 			foreach (var claim in claims) {
-				var released = await TryReleaseAsync(
+				var released = await JobQueueProcessor.TryReleaseAsync(
 					releaseContext, claim.Id, claim.LockToken, CancellationToken.None
 				);
 				if (!released) {
-					_LogReleaseLost(claim.Id, claim.JobType);
+					this._LogReleaseLost(claim.Id, claim.JobType);
 				}
 			}
 		} catch (Exception ex) {
 			// Release is best-effort: the lease + fence still guarantee safe reclaim
 			// after expiry even if this cleanup itself fails (§6).
-			_Logger.LogWarning(
+			this._Logger.LogWarning(
 				"Releasing unsettled claimed jobs failed: {FailureDescription} {FailureStack}",
 				JobErrorSanitizer.Describe(ex),
 				JobErrorSanitizer.DescribeStack(ex)
@@ -1493,8 +1493,8 @@ public sealed class JobQueueProcessor : BackgroundService {
 	}
 
 	private void _LogReleaseLost(Guid jobId, string jobType) {
-		if (_Logger.IsEnabled(LogLevel.Warning)) {
-			_Logger.LogWarning(
+		if (this._Logger.IsEnabled(LogLevel.Warning)) {
+			this._Logger.LogWarning(
 				"Release of job {JobId} of type {JobType} affected no rows — lease "
 				+ "lost to another claimant (or already transitioned)",
 				jobId,
@@ -1505,13 +1505,13 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	private async Task _LogDeadLetterOrphansAsync(CancellationToken stoppingToken) {
 		try {
-			using var scope = _ScopeFactory.CreateScope();
+			using var scope = this._ScopeFactory.CreateScope();
 			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			await _Registry.LogUnregisteredDeadLetterTypesAsync(
-				dbContext, _Logger, stoppingToken
+			await this._Registry.LogUnregisteredDeadLetterTypesAsync(
+				dbContext, this._Logger, stoppingToken
 			);
 		} catch (Exception ex) when (ex is not OperationCanceledException) {
-			_Logger.LogWarning(
+			this._Logger.LogWarning(
 				"Dead-letter orphan check failed at startup: {FailureDescription} "
 				+ "{FailureStack}",
 				JobErrorSanitizer.Describe(ex),
@@ -1522,7 +1522,7 @@ public sealed class JobQueueProcessor : BackgroundService {
 
 	private static JobContext _BuildContext(JobQueueItem item, string? lastError) {
 		return new JobContext {
-			JobId = _RequireId(item),
+			JobId = JobQueueProcessor._RequireId(item),
 			JobType = item.JobType,
 			Payload = item.Payload,
 			Attempts = item.Attempts,

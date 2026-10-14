@@ -34,8 +34,8 @@ public enum InvitationEmailOutboxStatus {
 /// InvitationEmailOutboxDispatcher (round-5 API F3).
 /// </summary>
 [Table("invitation_email_outbox")]
-[Index(nameof(Status), nameof(NextAttemptAt))]
-[Index(nameof(InvitationId))]
+[Index(nameof(InvitationEmailOutbox.Status), nameof(InvitationEmailOutbox.NextAttemptAt))]
+[Index(nameof(InvitationEmailOutbox.InvitationId))]
 public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 	[Column("email")]
 	public required string Email { get; set; }

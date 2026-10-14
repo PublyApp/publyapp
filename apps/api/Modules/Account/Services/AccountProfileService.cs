@@ -51,8 +51,8 @@ public class AccountProfileService : IAccountProfileService {
 		AppDbContext dbContext,
 		IUploadAssetReferenceService uploadReferences
 	) {
-		_DbContext = dbContext;
-		_UploadReferences = uploadReferences;
+		this._DbContext = dbContext;
+		this._UploadReferences = uploadReferences;
 	}
 
 	public async Task<AccountProfileData?> GetAccountProfileAsync(
@@ -60,20 +60,20 @@ public class AccountProfileService : IAccountProfileService {
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	) {
-		var user = await _FindTenantAccountUserAsync(
+		var user = await this._FindTenantAccountUserAsync(
 			userId,
 			tenantId,
 			cancellationToken
 		);
 
-		return user is null ? null : _ToResult(user);
+		return user is null ? null : AccountProfileService._ToResult(user);
 	}
 
 	public async Task<AccountProfileData?> UpdateAccountProfileAsync(
 		UpdateAccountProfileArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var user = await _FindTenantAccountUserAsync(
+		var user = await this._FindTenantAccountUserAsync(
 			args.UserId,
 			args.TenantId,
 			cancellationToken
@@ -99,24 +99,24 @@ public class AccountProfileService : IAccountProfileService {
 			// Acquire the new blob's reference BEFORE the entity write so the URL
 			// can never commit while its asset still reads zero references (#807 F5).
 			if (ServedUploadPath.ExtractOrNull(args.AvatarUrl.Value) is { } acquiredPath) {
-				await _UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+				await this._UploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
 			}
 			user.AvatarUrl = args.AvatarUrl.Value;
 		}
 
 		user.UpdatedAt = DateTime.UtcNow;
 
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		// Release the replaced avatar's reference in the SAME unit of work as the
 		// entity write; physical deletion stays exclusively the sweeper's.
 		if (args.AvatarUrl.IsPresent && previousAvatarUrlValue is not null
 			&& ServedUploadPath.ExtractOrNull(previousAvatarUrlValue) is { } releasedPath
 			&& previousAvatarUrlValue != user.AvatarUrl) {
-			await _UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+			await this._UploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
 		}
 
-		return _ToResult(user);
+		return AccountProfileService._ToResult(user);
 	}
 
 	// Same active-tenant-membership predicate as IAccountService
@@ -129,7 +129,7 @@ public class AccountProfileService : IAccountProfileService {
 		CancellationToken cancellationToken
 	) {
 		return await (
-			from ua in _DbContext.UserAccount
+			from ua in this._DbContext.UserAccount
 			where ua.UserId == userId
 				&& ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant

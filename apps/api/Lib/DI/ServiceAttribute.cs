@@ -20,7 +20,7 @@ public sealed class ServiceAttribute : Attribute {
 	public string? Key { get; }
 
 	public ServiceAttribute(ServiceLifetime lifetime, string? key = null) {
-		Lifetime = lifetime;
-		Key = key;
+		this.Lifetime = lifetime;
+		this.Key = key;
 	}
 }

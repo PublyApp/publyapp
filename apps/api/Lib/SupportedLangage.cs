@@ -3,5 +3,5 @@ namespace PublyApp.Api.Lib;
 public static class SupportedLanguage {
 	public static readonly string English = "en";
 	public static readonly string French = "fr";
-	public static readonly string[] All = [English, French];
+	public static readonly string[] All = [SupportedLanguage.English, SupportedLanguage.French];
 }

@@ -15,15 +15,15 @@ public static class BulkSeedCli {
 		}
 
 		return args[0] switch {
-			"seed-bulk" => _RunBulkSeed(args),
-			"seed-bulk-reset" => _RunBulkReset(args),
+			"seed-bulk" => BulkSeedCli._RunBulkSeed(args),
+			"seed-bulk-reset" => BulkSeedCli._RunBulkReset(args),
 			_ => false
 		};
 	}
 
 	private static bool _RunBulkSeed(string[] args) {
 		// Safety check: require Development env or --force for bulk seed operations
-		if (!_IsOperationAllowed(command: "seed-bulk", isDestructiveOperation: false, args)) {
+		if (!BulkSeedCli._IsOperationAllowed(command: "seed-bulk", isDestructiveOperation: false, args)) {
 			return true; // Return true to indicate we handled the command (just blocked it)
 		}
 
@@ -51,7 +51,7 @@ public static class BulkSeedCli {
 
 	private static bool _RunBulkReset(string[] args) {
 		// Safety check: require Development env or --force for destructive operations
-		if (!_IsOperationAllowed(command: "seed-bulk-reset", isDestructiveOperation: true, args)) {
+		if (!BulkSeedCli._IsOperationAllowed(command: "seed-bulk-reset", isDestructiveOperation: true, args)) {
 			return true; // Return true to indicate we handled the command (just blocked it)
 		}
 

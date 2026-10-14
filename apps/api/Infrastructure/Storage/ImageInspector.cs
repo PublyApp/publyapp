@@ -49,29 +49,29 @@ public static class ImageInspector {
 	private const long _MaxJpegScanBytes = 64 * 1024;
 
 	public static Inspection Inspect(Stream stream) {
-		Span<byte> header = stackalloc byte[_SniffWindowBytes];
+		Span<byte> header = stackalloc byte[ImageInspector._SniffWindowBytes];
 		var read = stream.ReadAtLeast(
 			header,
-			_MinimumBytes,
+			ImageInspector._MinimumBytes,
 			throwOnEndOfStream: false
 		);
-		if (read < _MinimumBytes) {
+		if (read < ImageInspector._MinimumBytes) {
 			return new UnknownType();
 		}
 
 		ReadOnlySpan<byte> view = header[..read];
 
-		if (_IsPng(view)) {
-			return _ParsePng(view);
+		if (ImageInspector._IsPng(view)) {
+			return ImageInspector._ParsePng(view);
 		}
-		if (_IsGif(view)) {
-			return _ParseGif(view);
+		if (ImageInspector._IsGif(view)) {
+			return ImageInspector._ParseGif(view);
 		}
-		if (_IsWebP(view)) {
-			return _ParseWebP(view);
+		if (ImageInspector._IsWebP(view)) {
+			return ImageInspector._ParseWebP(view);
 		}
-		if (_IsJpeg(view)) {
-			return _ParseJpeg(stream);
+		if (ImageInspector._IsJpeg(view)) {
+			return ImageInspector._ParseJpeg(stream);
 		}
 
 		return new UnknownType();
@@ -189,8 +189,8 @@ public static class ImageInspector {
 		var sofHead = new byte[5];
 		long scanned = 0;
 
-		while (scanned <= _MaxJpegScanBytes) {
-			if (!_TryReadExactly(stream, pair)) {
+		while (scanned <= ImageInspector._MaxJpegScanBytes) {
+			if (!ImageInspector._TryReadExactly(stream, pair)) {
 				return new UnknownType();
 			}
 			scanned += pair.Length;
@@ -203,7 +203,7 @@ public static class ImageInspector {
 				continue;
 			}
 
-			if (!_TryReadExactly(stream, pair)) {
+			if (!ImageInspector._TryReadExactly(stream, pair)) {
 				return new UnknownType();
 			}
 			scanned += pair.Length;
@@ -217,7 +217,7 @@ public static class ImageInspector {
 			if (isStartOfFrame) {
 				// SOFn body: precision byte, then big-endian uint16 height and
 				// width (height first per the JPEG spec).
-				if (!_TryReadExactly(stream, sofHead)) {
+				if (!ImageInspector._TryReadExactly(stream, sofHead)) {
 					return new UnknownType();
 				}
 				var height = (sofHead[1] << 8) | sofHead[2];

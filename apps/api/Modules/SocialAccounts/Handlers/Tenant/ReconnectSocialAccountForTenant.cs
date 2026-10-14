@@ -22,14 +22,14 @@ public record ReconnectSocialAccountBody {
 	public required JsonElement AppPassword { get; init; }
 
 	public string GetAppPassword() {
-		return AppPassword.GetValueAsString();
+		return this.AppPassword.GetValueAsString();
 	}
 }
 
 public class ReconnectSocialAccountBodyValidator
 	: AbstractValidator<ReconnectSocialAccountBody> {
 	public ReconnectSocialAccountBodyValidator() {
-		RuleFor(x => x.AppPassword)
+		this.RuleFor(x => x.AppPassword)
 			.MustBeRequiredStringWithLength(
 				"AppPassword",
 				ConnectSocialAccountBodyValidator.AppPasswordMinLength,

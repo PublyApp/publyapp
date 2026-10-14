@@ -32,7 +32,7 @@ public sealed class JobDefinition<TPayload> {
 	public void ValidatePayload(TPayload payload) {
 		if (payload is null) {
 			throw new InvalidOperationException(
-				$"Job '{JobType}' payload must not be null."
+				$"Job '{this.JobType}' payload must not be null."
 			);
 		}
 
@@ -41,11 +41,11 @@ public sealed class JobDefinition<TPayload> {
 
 			if (value is Guid guidValue && guidValue == Guid.Empty) {
 				throw new InvalidOperationException(
-					$"Job '{JobType}' payload property '{property.Name}' is Guid.Empty."
+					$"Job '{this.JobType}' payload property '{property.Name}' is Guid.Empty."
 				);
 			}
 		}
 
-		Validate?.Invoke(payload);
+		this.Validate?.Invoke(payload);
 	}
 }

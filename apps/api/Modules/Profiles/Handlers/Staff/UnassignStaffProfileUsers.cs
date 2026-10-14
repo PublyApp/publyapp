@@ -30,12 +30,12 @@ public sealed class UnassignStaffProfileUsersBody {
 		userIds = [];
 		invalidValues = [];
 
-		if (UserIds.ValueKind != JsonValueKind.Array) {
-			invalidValues.Add(UserIds.GetRawText());
+		if (this.UserIds.ValueKind != JsonValueKind.Array) {
+			invalidValues.Add(this.UserIds.GetRawText());
 			return false;
 		}
 
-		foreach (var userIdElement in UserIds.EnumerateArray()) {
+		foreach (var userIdElement in this.UserIds.EnumerateArray()) {
 			var raw = userIdElement.ValueKind == JsonValueKind.String
 				? userIdElement.GetString()
 				: null;
@@ -55,7 +55,7 @@ public sealed class UnassignStaffProfileUsersBody {
 public sealed class UnassignStaffProfileUsersBodyValidator
 	: AbstractValidator<UnassignStaffProfileUsersBody> {
 	public UnassignStaffProfileUsersBodyValidator() {
-		RuleFor(x => x.UserIds)
+		this.RuleFor(x => x.UserIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "userIds",
 				itemName: "userId",

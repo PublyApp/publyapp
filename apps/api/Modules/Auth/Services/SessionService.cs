@@ -37,7 +37,7 @@ public class SessionService : ISessionService {
 	private readonly AppDbContext _DbContext;
 
 	public SessionService(AppDbContext dbContext) {
-		_DbContext = dbContext;
+		this._DbContext = dbContext;
 	}
 
 	public async Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default) {
@@ -51,8 +51,8 @@ public class SessionService : ISessionService {
 			ExpiresAt = DateTime.UtcNow.AddDays(AppEnvironment.Instance.SESSION_EXPIRY_DAYS),
 		};
 
-		var result = await _DbContext.Session.AddAsync(session, cancellationToken);
-		await _DbContext.SaveChangesAsync(cancellationToken);
+		var result = await this._DbContext.Session.AddAsync(session, cancellationToken);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return result.Entity;
 	}
@@ -61,8 +61,8 @@ public class SessionService : ISessionService {
 		var utcNow = DateTime.UtcNow;
 
 		var query =
-			from s in _DbContext.Session
-			join u in _DbContext.User on s.UserId equals u.Id
+			from s in this._DbContext.Session
+			join u in this._DbContext.User on s.UserId equals u.Id
 			where s.Token == token
 			select new { Session = s, User = u };
 
@@ -73,7 +73,7 @@ public class SessionService : ISessionService {
 		}
 
 		if (result.Session.ExpiresAt <= utcNow) {
-			await _DbContext.Session
+			await this._DbContext.Session
 				.Where(s => s.Token == token && s.ExpiresAt <= utcNow)
 				.ExecuteDeleteAsync(cancellationToken);
 
@@ -102,7 +102,7 @@ public class SessionService : ISessionService {
 		// impersonation sessions — a valid impersonation token remains usable
 		// after this operation and no `impersonation.ended` audit action is
 		// emitted (that is handled elsewhere, not here).
-		var affectedRows = await _DbContext.Session
+		var affectedRows = await this._DbContext.Session
 			.Where(s => s.Token == token && !s.IsImpersonation)
 			.ExecuteDeleteAsync(cancellationToken);
 

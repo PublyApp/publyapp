@@ -18,14 +18,14 @@ public class FindSystemJobDefinitionsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "is_enabled")] public string? IsEnabled { get; set; }
 
 	public bool? GetIsEnabled() {
-		return QueryPredicates.ParseNullableBoolean(IsEnabled);
+		return QueryPredicates.ParseNullableBoolean(this.IsEnabled);
 	}
 }
 
 public class FindSystemJobDefinitionsQueryValidator
 	: CursorPaginatedQueryValidator<FindSystemJobDefinitionsQuery> {
 	public FindSystemJobDefinitionsQueryValidator() {
-		RuleFor(x => x.IsEnabled)
+		this.RuleFor(x => x.IsEnabled)
 			.Must(QueryPredicates.BeValidNullableBoolean)
 			.WithMessage("is_enabled must be a boolean");
 	}

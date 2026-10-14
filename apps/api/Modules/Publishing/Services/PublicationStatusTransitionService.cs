@@ -112,25 +112,25 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 	private readonly AppDbContext _Db;
 
 	public PublicationStatusTransitionService(AppDbContext db) {
-		_Db = db;
+		this._Db = db;
 	}
 
 	public async Task<bool> MarkInProgressAsync(
 		MarkPublicationInProgressArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
-		_TransitionOrThrow(publication.Status, PublicationStatus.InProgress);
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.InProgress);
 		publication.Attempts += 1;
 		publication.Status = PublicationStatus.InProgress;
 		publication.LastError = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
-		PublicationStatusWriteGuard.StampForStatusWrite(_Db);
-		await _Db.SaveChangesAsync(cancellationToken);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -138,19 +138,19 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		MarkPublicationPublishedArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
-		_TransitionOrThrow(publication.Status, PublicationStatus.Published);
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Published);
 		publication.Status = PublicationStatus.Published;
 		publication.ExternalRecordId = args.ExternalRecordId;
 		publication.ExternalUrl = args.ExternalUrl;
 		publication.LastError = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
-		PublicationStatusWriteGuard.StampForStatusWrite(_Db);
-		await _Db.SaveChangesAsync(cancellationToken);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -158,17 +158,17 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		MarkPublicationFailedArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
-		_TransitionOrThrow(publication.Status, PublicationStatus.Failed);
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Failed);
 		publication.Status = PublicationStatus.Failed;
 		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
-		PublicationStatusWriteGuard.StampForStatusWrite(_Db);
-		await _Db.SaveChangesAsync(cancellationToken);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -176,17 +176,17 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		MarkPublicationPausedArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
-		_TransitionOrThrow(publication.Status, PublicationStatus.Paused);
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Paused);
 		publication.Status = PublicationStatus.Paused;
 		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
-		PublicationStatusWriteGuard.StampForStatusWrite(_Db);
-		await _Db.SaveChangesAsync(cancellationToken);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -200,7 +200,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		DateTime scheduledAtUtc,
 		string scheduledTimeZone
 	) {
-		_TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
 		publication.Status = PublicationStatus.Scheduled;
 		publication.ScheduledAtUtc = scheduledAtUtc;
 		publication.ScheduledTimeZone = scheduledTimeZone;
@@ -213,12 +213,12 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		ReschedulePublicationToNowArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
-		_StageReschedule(
+		PublicationStatusTransitionService._StageReschedule(
 			publication,
 			DateTime.UtcNow,
 			publication.ScheduledTimeZone
@@ -226,8 +226,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		// IdempotencyKey is deliberately NOT regenerated: the same publication keeps
 		// its key across retries so Bluesky dedup survives a reschedule.
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
-		PublicationStatusWriteGuard.StampForStatusWrite(_Db);
-		await _Db.SaveChangesAsync(cancellationToken);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -240,7 +240,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		MarkPublicationScheduledArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
@@ -255,12 +255,12 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			);
 		}
 
-		_TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
 		publication.Status = PublicationStatus.Scheduled;
 		publication.LastError = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
-		PublicationStatusWriteGuard.StampForStatusWrite(_Db);
-		await _Db.SaveChangesAsync(cancellationToken);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -269,19 +269,19 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		ReschedulePublicationToFutureArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await _LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
-		_StageReschedule(
+		PublicationStatusTransitionService._StageReschedule(
 			publication,
 			args.Schedule.ScheduledAtUtc,
 			args.Schedule.ScheduledTimeZone
 		);
 		// Same doctrine as RescheduleToNowAsync: IdempotencyKey is preserved so the
 		// remote dedup key survives the reschedule.
-		await _Db.SaveChangesAsync(cancellationToken);
+		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
@@ -290,7 +290,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
-		return await _Db.Publication.SingleOrDefaultAsync(
+		return await this._Db.Publication.SingleOrDefaultAsync(
 			publication => publication.Id == publicationId
 				&& publication.TenantId == tenantId
 				&& !publication.IsDeleted,
@@ -302,7 +302,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		PublicationStatus from,
 		PublicationStatus to
 	) {
-		if (!_AllowedSources.TryGetValue(to, out var sources)
+		if (!PublicationStatusTransitionService._AllowedSources.TryGetValue(to, out var sources)
 			|| !sources.Contains(from)) {
 			throw new InvalidOperationException(
 				$"Illegal publication transition {from} → {to}; status changes must go "

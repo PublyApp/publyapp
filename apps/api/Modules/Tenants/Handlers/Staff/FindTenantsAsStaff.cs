@@ -34,20 +34,20 @@ public class FindTenantsAsStaffQuery : CursorPaginatedQuery {
 	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
+		if (this.Search is null) {
 			return null;
 		}
 
-		var trimmed = Search.Trim();
+		var trimmed = this.Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
 	public IReadOnlySet<TenantStatus>? GetStatusesOrNull() {
-		if (Status is null) {
+		if (this.Status is null) {
 			return null;
 		}
 
-		var trimmed = Status.Trim();
+		var trimmed = this.Status.Trim();
 		if (trimmed.Length == 0) {
 			return null;
 		}
@@ -80,20 +80,20 @@ public class FindTenantsAsStaffQueryValidator
 	];
 
 	private static readonly HashSet<string> _AllowedStatusSet =
-		new(_AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+		new(FindTenantsAsStaffQueryValidator._AllowedStatuses, StringComparer.OrdinalIgnoreCase);
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
 	// OrdinalIgnoreCase - ToLowerInvariant never runs on the request path.
 	private static readonly string _AllowedStatusesDisplay =
-		string.Join(", ", _AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+		string.Join(", ", FindTenantsAsStaffQueryValidator._AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindTenantsAsStaffQueryValidator() {
-		RuleFor(x => x.Search)
+		this.RuleFor(x => x.Search)
 			.MaximumLength(200)
 			.WithMessage("q must be at most 200 characters");
 
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrEmpty(raw)) {
 					return true;
@@ -105,9 +105,9 @@ public class FindTenantsAsStaffQueryValidator
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && _AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && FindTenantsAsStaffQueryValidator._AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"status must be one of: {_AllowedStatusesDisplay}");
+			.WithMessage($"status must be one of: {FindTenantsAsStaffQueryValidator._AllowedStatusesDisplay}");
 	}
 }
 

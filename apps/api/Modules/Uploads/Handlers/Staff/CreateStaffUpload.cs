@@ -58,7 +58,7 @@ public sealed class CreateStaffUpload {
 		}
 
 		if (file is null || file.Length == 0) {
-			return _ValidationFailure(
+			return CreateStaffUpload._ValidationFailure(
 				"A file is required",
 				ResponseKeys.UploadFileRequired
 			);
@@ -76,9 +76,9 @@ public sealed class CreateStaffUpload {
 		// multipart section to memory or a temp file before the handler runs), so
 		// sniff directly off it and rewind — no intermediate MemoryStream copy.
 		await using var uploadStream = file.OpenReadStream();
-		var sniffed = _SniffImageType(uploadStream);
+		var sniffed = CreateStaffUpload._SniffImageType(uploadStream);
 		if (sniffed is null) {
-			return _ValidationFailure(
+			return CreateStaffUpload._ValidationFailure(
 				"File must be a PNG, JPEG, WEBP, or GIF image",
 				ResponseKeys.UploadFileUnsupportedType
 			);
@@ -107,8 +107,8 @@ public sealed class CreateStaffUpload {
 					nameof(rejected), rejected.ExhaustedScope, "Unhandled UploadBudgetScope"
 				),
 			};
-			var humanRequested = _FormatBytes(rejected.RequestedBytes);
-			var humanAvailable = _FormatBytes(Math.Max(0, rejected.AvailableBytes));
+			var humanRequested = CreateStaffUpload._FormatBytes(rejected.RequestedBytes);
+			var humanAvailable = CreateStaffUpload._FormatBytes(Math.Max(0, rejected.AvailableBytes));
 			return TypedProblems.TooManyRequests(
 				$"Upload refused: {scopeName} has {humanAvailable} free, which is less "
 				+ $"than this file's {humanRequested}. Delete unused files or wait for "
@@ -227,19 +227,19 @@ public sealed class CreateStaffUpload {
 		// Stream.Read is contractually allowed to return fewer bytes than requested
 		// even when more are available; ReadAtLeast loops until the buffer is full
 		// or the stream truly ends, so a short read never misclassifies a valid image.
-		Span<byte> header = stackalloc byte[_SniffBufferLength];
-		var read = stream.ReadAtLeast(header, _SniffBufferLength, throwOnEndOfStream: false);
+		Span<byte> header = stackalloc byte[CreateStaffUpload._SniffBufferLength];
+		var read = stream.ReadAtLeast(header, CreateStaffUpload._SniffBufferLength, throwOnEndOfStream: false);
 
-		if (read >= 8 && _IsPng(header)) {
+		if (read >= 8 && CreateStaffUpload._IsPng(header)) {
 			return ("image/png", ".png");
 		}
-		if (read >= 3 && _IsJpeg(header)) {
+		if (read >= 3 && CreateStaffUpload._IsJpeg(header)) {
 			return ("image/jpeg", ".jpg");
 		}
-		if (read >= 10 && _IsGif(header)) {
+		if (read >= 10 && CreateStaffUpload._IsGif(header)) {
 			return ("image/gif", ".gif");
 		}
-		if (read >= 12 && _IsWebP(header)) {
+		if (read >= 12 && CreateStaffUpload._IsWebP(header)) {
 			return ("image/webp", ".webp");
 		}
 

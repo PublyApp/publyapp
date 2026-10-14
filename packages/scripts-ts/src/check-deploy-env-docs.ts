@@ -197,9 +197,10 @@ export const extractApiRequiredStrings = (
 
 	// --- Form 1: GetRequiredString -------------------------------------------
 	// Throws InvalidOperationException when the env var is missing/blank.
-	// nameof(X) resolves to "X"; literal form uses the literal directly.
+	// nameof(X), nameof(AppEnvironment.X) and nameof(this.X) all resolve to "X" (PUBLY0012
+	// qualifies member access); literal form uses the literal directly.
 	const requiredStringPattern =
-		/GetRequiredString\(\s*(?:nameof\s*\(\s*([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
+		/GetRequiredString\(\s*(?:nameof\s*\(\s*(?:(?:AppEnvironment|this)\s*\.\s*)?([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
 	let match: RegExpExecArray | null;
 	while ((match = requiredStringPattern.exec(initBody)) !== null) {
 		recognizedCalls.push({
@@ -218,7 +219,7 @@ export const extractApiRequiredStrings = (
 	// --- Form 2: GetRequiredInt ----------------------------------------------
 	// Throws InvalidOperationException when missing/blank/unparseable.
 	const requiredIntPattern =
-		/GetRequiredInt\(\s*(?:nameof\s*\(\s*([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
+		/GetRequiredInt\(\s*(?:nameof\s*\(\s*(?:(?:AppEnvironment|this)\s*\.\s*)?([A-Z][A-Z0-9_]*)\s*\)|"([A-Z][A-Z0-9_]*)")\s*\)/g;
 	let intMatch: RegExpExecArray | null;
 	while ((intMatch = requiredIntPattern.exec(initBody)) !== null) {
 		recognizedCalls.push({
@@ -240,7 +241,7 @@ export const extractApiRequiredStrings = (
 	// (AppRole.All). Outside Development/Testing a missing/blank APP_ROLE throws
 	// the SAME InvalidOperationException path GetRequiredString uses.
 	const optionalAppRolePattern =
-		/GetOptionalAppRole\s*\(\s*([A-Z][A-Za-z0-9_]*)\s*,\s*[^)]+\)/g;
+		/GetOptionalAppRole\s*\(\s*(?:(?:AppEnvironment|this)\s*\.\s*)?([A-Z][A-Za-z0-9_]*)\s*,\s*[^)]+\)/g;
 	let roleMatch: RegExpExecArray | null;
 	while ((roleMatch = optionalAppRolePattern.exec(initBody)) !== null) {
 		recognizedCalls.push({

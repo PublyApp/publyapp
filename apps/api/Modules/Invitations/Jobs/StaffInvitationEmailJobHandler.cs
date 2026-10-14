@@ -36,10 +36,10 @@ public sealed class StaffInvitationEmailJobHandler
 		StaffInvitationEmailPayload payload,
 		CancellationToken cancellationToken
 	) {
-		await LockRowAsync("invitations", payload.InvitationId, cancellationToken);
+		await this.LockRowAsync("invitations", payload.InvitationId, cancellationToken);
 
 		var invitationQuery =
-			from candidate in Db.Invitation
+			from candidate in this.Db.Invitation
 			where candidate.Id == payload.InvitationId
 			select candidate;
 		var invitation = await invitationQuery.FirstOrDefaultAsync(cancellationToken);
@@ -71,7 +71,7 @@ public sealed class StaffInvitationEmailJobHandler
 		CancellationToken cancellationToken
 	) {
 		var invitationQuery =
-			from candidate in Db.Invitation.AsNoTracking()
+			from candidate in this.Db.Invitation.AsNoTracking()
 			where candidate.Id == payload.InvitationId
 			select candidate;
 		var invitation = await invitationQuery.FirstOrDefaultAsync(cancellationToken);

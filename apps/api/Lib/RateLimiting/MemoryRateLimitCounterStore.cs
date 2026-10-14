@@ -28,7 +28,7 @@ internal sealed class MemoryRateLimitCounterStore
 				utcNow,
 				window
 			);
-		var state = _Windows.GetOrAdd(
+		var state = this._Windows.GetOrAdd(
 			$"{policyName}\n{partitionKey}",
 			_ => new WindowState()
 		);
@@ -55,7 +55,7 @@ internal sealed class MemoryRateLimitCounterStore
 	}
 
 	public ValueTask DisposeAsync() {
-		_Windows.Clear();
+		this._Windows.Clear();
 		return ValueTask.CompletedTask;
 	}
 

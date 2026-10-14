@@ -21,11 +21,11 @@ public class FindStaffInvitationsQuery : CursorPaginatedQuery {
 	// the single rejection point for malformed input — by the time this runs,
 	// the raw string has already passed validation.
 	public IReadOnlySet<InvitationEffectiveStatus>? GetStatusesOrNull() {
-		if (Status is null) {
+		if (this.Status is null) {
 			return null;
 		}
 
-		var trimmed = Status.Trim();
+		var trimmed = this.Status.Trim();
 		if (trimmed.Length == 0) {
 			return null;
 		}
@@ -57,16 +57,16 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 	];
 
 	private static readonly HashSet<string> _AllowedStatusSet =
-		new(_AllowedStatuses, StringComparer.OrdinalIgnoreCase);
+		new(FindStaffInvitationsQueryValidator._AllowedStatuses, StringComparer.OrdinalIgnoreCase);
 
 	// Lowercased once at type init so the validation message matches the wire
 	// contract (lowercase tokens). Comparison itself stays case-insensitive via
 	// OrdinalIgnoreCase — ToLowerInvariant never runs on the request path.
 	private static readonly string _AllowedStatusesDisplay =
-		string.Join(", ", _AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
+		string.Join(", ", FindStaffInvitationsQueryValidator._AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindStaffInvitationsQueryValidator() {
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
@@ -78,9 +78,9 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 				if (parts.Length == 0) {
 					return false;
 				}
-				return parts.All(p => p.Length > 0 && _AllowedStatusSet.Contains(p));
+				return parts.All(p => p.Length > 0 && FindStaffInvitationsQueryValidator._AllowedStatusSet.Contains(p));
 			})
-			.WithMessage($"Status must be one of: {_AllowedStatusesDisplay}");
+			.WithMessage($"Status must be one of: {FindStaffInvitationsQueryValidator._AllowedStatusesDisplay}");
 	}
 }
 

@@ -35,7 +35,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 	private readonly ILogger<PublishingProfileSeeder> _Logger;
 
 	public PublishingProfileSeeder(ILogger<PublishingProfileSeeder>? logger = null) {
-		_Logger = logger
+		this._Logger = logger
 			?? SeederLoggerUtils.CreateDefault<PublishingProfileSeeder>();
 	}
 
@@ -61,7 +61,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 		// during a partial MigrateAsync pass (which would target a schema point before
 		// the profiles.icon column existed and throw).
 		if (!FakePublishingProviderEnabled.IsEnabled()) {
-			_Logger.LogDebug(
+			this._Logger.LogDebug(
 				"PUBLISHING_FAKE_PROVIDER not enabled; skipping demo publishing-profile seeding (e2e-only)."
 			);
 			return;
@@ -71,7 +71,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 			.Where(t => !t.IsDeleted)
 			.ToListAsync(cancellationToken);
 		if (tenants.Count == 0) {
-			_Logger.LogWarning("No demo tenants found for publishing profile seeding; skipping.");
+			this._Logger.LogWarning("No demo tenants found for publishing profile seeding; skipping.");
 			return;
 		}
 
@@ -112,7 +112,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 			// .ContainsKey(...) inside a query (runtime translation failure).
 			var nonAdminAccountIds = nonAdminAccounts.Keys.ToHashSet();
 
-			var profileName = _PublishingProfileName(tenant.Code);
+			var profileName = PublishingProfileSeeder._PublishingProfileName(tenant.Code);
 			var profile = await dbContext.Profile
 				.Where(p => p.Name == profileName && p.Scope == ProfileScope.Tenant)
 				.SingleOrDefaultAsync(cancellationToken);
@@ -175,7 +175,7 @@ public class PublishingProfileSeeder : IEntitySeeder {
 				} catch (DbUpdateException ex) when (
 					ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505"
 				) {
-					_Logger.LogWarning(
+					this._Logger.LogWarning(
 						ex,
 						"Duplicate publishing-profile rows detected during seeding; skipping insert."
 					);

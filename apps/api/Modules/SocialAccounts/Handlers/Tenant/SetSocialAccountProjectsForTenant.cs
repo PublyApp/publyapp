@@ -20,14 +20,14 @@ public record SetSocialAccountProjectsBody {
 
 	/// <summary>Empty array is valid: the account becomes visible everywhere.</summary>
 	public IReadOnlyList<Guid> GetProjectIds() {
-		return [.. ProjectIds.EnumerateArray().Select(e => e.GetGuid())];
+		return [.. this.ProjectIds.EnumerateArray().Select(e => e.GetGuid())];
 	}
 }
 
 public class SetSocialAccountProjectsBodyValidator
 	: AbstractValidator<SetSocialAccountProjectsBody> {
 	public SetSocialAccountProjectsBodyValidator() {
-		RuleFor(x => x.ProjectIds)
+		this.RuleFor(x => x.ProjectIds)
 			.MustBeRequiredGuidArrayAllowingEmpty(
 				"ProjectIds", "projectIds", 100
 			);

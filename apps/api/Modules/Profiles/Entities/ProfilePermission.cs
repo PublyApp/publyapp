@@ -31,14 +31,14 @@ public class ProfilePermission : INoTenantEntity {
 	// Navigation properties
 	[JsonIgnore]
 	public Profile Profile {
-		get { return RequiredNavigation.Get(_Profile, nameof(ProfilePermission), nameof(Profile)); }
-		set { _Profile = value; }
+		get { return RequiredNavigation.Get(this._Profile, nameof(ProfilePermission), nameof(this.Profile)); }
+		set { this._Profile = value; }
 	}
 
 	[JsonIgnore]
 	public Permission Permission {
-		get { return RequiredNavigation.Get(_Permission, nameof(ProfilePermission), nameof(Permission)); }
-		set { _Permission = value; }
+		get { return RequiredNavigation.Get(this._Permission, nameof(ProfilePermission), nameof(this.Permission)); }
+		set { this._Permission = value; }
 	}
 
 	// Permission assignment screens do not expose a row id, but timestamps remain useful

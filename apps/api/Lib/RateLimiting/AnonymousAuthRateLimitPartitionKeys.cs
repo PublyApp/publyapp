@@ -32,7 +32,7 @@ internal static class AnonymousAuthRateLimitPartitionKeys {
 	public static string GetEmail(HttpContext context) {
 		if (
 			context.Items.TryGetValue(
-				_NormalizedEmailItemKey,
+				AnonymousAuthRateLimitPartitionKeys._NormalizedEmailItemKey,
 				out var value
 			)
 			&& value is string normalizedEmail
@@ -40,14 +40,14 @@ internal static class AnonymousAuthRateLimitPartitionKeys {
 			return normalizedEmail;
 		}
 
-		return $"missing:{GetClientIp(context)}";
+		return $"missing:{AnonymousAuthRateLimitPartitionKeys.GetClientIp(context)}";
 	}
 
 	public static void SetEmail(
 		HttpContext context,
 		string email
 	) {
-		context.Items[_NormalizedEmailItemKey] =
+		context.Items[AnonymousAuthRateLimitPartitionKeys._NormalizedEmailItemKey] =
 			email.Trim().ToLowerInvariant();
 	}
 }
@@ -60,7 +60,7 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 	public EmailRateLimitPartitionMiddleware(
 		RequestDelegate next
 	) {
-		_Next = next;
+		this._Next = next;
 	}
 
 	public async Task InvokeAsync(HttpContext context) {
@@ -71,7 +71,7 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 			is not null;
 
 		if (hasEmailRateLimit) {
-			var canContinue = await _ReadEmailAsync(
+			var canContinue = await EmailRateLimitPartitionMiddleware._ReadEmailAsync(
 				context
 			);
 			if (!canContinue) {
@@ -79,7 +79,7 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 			}
 		}
 
-		await _Next(context);
+		await this._Next(context);
 	}
 
 	private static async Task<bool> _ReadEmailAsync(
@@ -87,15 +87,15 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 	) {
 		if (
 			context.Request.ContentLength
-				is > _MaxInspectedBodyBytes
+				is > EmailRateLimitPartitionMiddleware._MaxInspectedBodyBytes
 		) {
-			await _WritePayloadTooLargeAsync(context);
+			await EmailRateLimitPartitionMiddleware._WritePayloadTooLargeAsync(context);
 			return false;
 		}
 
 		context.Request.EnableBuffering();
 		var inspectionLength =
-			_MaxInspectedBodyBytes + 1;
+			EmailRateLimitPartitionMiddleware._MaxInspectedBodyBytes + 1;
 		var buffer = ArrayPool<byte>.Shared.Rent(
 			inspectionLength
 		);
@@ -125,9 +125,9 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 
 			if (
 				!reachedEnd
-				|| bytesRead > _MaxInspectedBodyBytes
+				|| bytesRead > EmailRateLimitPartitionMiddleware._MaxInspectedBodyBytes
 			) {
-				await _WritePayloadTooLargeAsync(context);
+				await EmailRateLimitPartitionMiddleware._WritePayloadTooLargeAsync(context);
 				return false;
 			}
 
@@ -184,7 +184,7 @@ internal sealed class EmailRateLimitPartitionMiddleware {
 	) {
 		await TypedProblems.PayloadTooLarge(
 			$"Request body exceeds the "
-				+ $"{_MaxInspectedBodyBytes}-byte limit",
+				+ $"{EmailRateLimitPartitionMiddleware._MaxInspectedBodyBytes}-byte limit",
 			ResponseKeys.RequestBodyValidationFailed
 		).ExecuteAsync(context);
 	}

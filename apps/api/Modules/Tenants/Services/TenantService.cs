@@ -25,12 +25,12 @@ public class TenantService : ITenantService {
 	private readonly AppDbContext _DbContext;
 
 	public TenantService(AppDbContext context) {
-		_DbContext = context;
+		this._DbContext = context;
 	}
 
 	public async Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default) {
 		var query =
-			from tenant in _DbContext.Tenant
+			from tenant in this._DbContext.Tenant
 			where tenant.Id == tenantId
 			select tenant;
 
@@ -49,7 +49,7 @@ public class TenantService : ITenantService {
 		CancellationToken cancellationToken = default
 	) {
 		return await (
-			from tenant in _DbContext.Tenant
+			from tenant in this._DbContext.Tenant
 			where tenant.Id == tenantId && !tenant.IsDeleted
 			select tenant
 		).FirstOrDefaultAsync(cancellationToken);
@@ -66,7 +66,7 @@ public class TenantService : ITenantService {
 		var cutoff = DateTime.UtcNow
 			- TimeSpan.FromMinutes(AppEnvironment.Instance.TENANT_ACTIVITY_THROTTLE_MINUTES);
 
-		await _DbContext.Tenant
+		await this._DbContext.Tenant
 			// == null (not "is null") is required: this is an expression tree,
 			// the PUBLY0008 carve-out for that context.
 			.Where(t => t.Id == tenantId && (t.LastActivityAt == null || t.LastActivityAt <= cutoff))

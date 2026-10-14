@@ -31,7 +31,7 @@ public record BulkReactivateFailedItem {
 
 public class BulkReactivateTenantsAsStaffBodyValidator : AbstractValidator<BulkReactivateTenantsAsStaffBody> {
 	public BulkReactivateTenantsAsStaffBodyValidator() {
-		RuleFor(x => x.TenantIds)
+		this.RuleFor(x => x.TenantIds)
 			.Cascade(CascadeMode.Stop)
 			.MustBeRequiredGuidArray("TenantIds", "tenant ID", 100);
 	}

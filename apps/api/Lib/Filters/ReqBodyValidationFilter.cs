@@ -10,7 +10,7 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 	private readonly IValidator<TRequest> _Validator;
 
 	public ReqBodyValidationFilter(IValidator<TRequest> validator) {
-		_Validator = validator;
+		this._Validator = validator;
 	}
 
 	public async ValueTask<object?> InvokeAsync(
@@ -34,7 +34,7 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 		}
 
 		var request = context.GetArgument<TRequest>(idx);
-		var result = await _Validator.ValidateAsync(
+		var result = await this._Validator.ValidateAsync(
 			request,
 			context.HttpContext.RequestAborted
 		);

@@ -75,10 +75,10 @@ internal sealed partial class PostgresRateLimitCounterStore
 		AnonymousAuthRateLimitSettings anonymousAuthSettings,
 		TimeProvider? timeProvider = null
 	) {
-		_ScopeFactory = scopeFactory;
-		_TimeProvider = timeProvider ?? TimeProvider.System;
-		_Logger = logger;
-		_MaxWindow = Enumerable
+		this._ScopeFactory = scopeFactory;
+		this._TimeProvider = timeProvider ?? TimeProvider.System;
+		this._Logger = logger;
+		this._MaxWindow = Enumerable
 			.Empty<TimeSpan>()
 			.Append(TimeSpan.FromSeconds(apiSettings.Global.WindowSeconds))
 			.Append(TimeSpan.FromSeconds(apiSettings.AnonymousOther.WindowSeconds))
@@ -108,12 +108,12 @@ internal sealed partial class PostgresRateLimitCounterStore
 		int permitCount,
 		DateTimeOffset utcNow
 	) {
-		if (!_TryEnterClosedBreaker(policyName)) {
-			return _ApplyFailMode(policyName);
+		if (!this._TryEnterClosedBreaker(policyName)) {
+			return PostgresRateLimitCounterStore._ApplyFailMode(policyName);
 		}
 
 		try {
-			await using var scope = _ScopeFactory.CreateAsyncScope();
+			await using var scope = this._ScopeFactory.CreateAsyncScope();
 			var dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 			// Borrow only the scoped context's connection (test hosts override its
@@ -137,7 +137,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 			// (floor(EXTRACT(EPOCH FROM now())) truncated to the window boundary),
 			// not from the app's clock. Two replicas with NTP drift therefore land
 			// in the same aligned window and share one budget row.
-			var upsert = await _UpsertCounterAsync(
+			var upsert = await PostgresRateLimitCounterStore._UpsertCounterAsync(
 				connection,
 				policyName,
 				partitionKey,
@@ -147,16 +147,16 @@ internal sealed partial class PostgresRateLimitCounterStore
 			);
 
 			if (upsert is not null) {
-				await _DeleteSupersededWindowsAsync(
+				await PostgresRateLimitCounterStore._DeleteSupersededWindowsAsync(
 					connection,
 					policyName,
 					partitionKey,
 					upsert.Value.WindowStartedAt
 				);
 			}
-			await _MaybeSweepExpiredAsync(connection, utcNow);
+			await this._MaybeSweepExpiredAsync(connection, utcNow);
 
-			_RecordSuccess(policyName);
+			this._RecordSuccess(policyName);
 			return upsert is not null
 				? CounterLeaseResult.Granted(upsert.Value.PermitCount)
 				: CounterLeaseResult.Rejected();
@@ -166,9 +166,9 @@ internal sealed partial class PostgresRateLimitCounterStore
 				or InvalidOperationException
 				or NotSupportedException
 		) {
-			_RecordFailure(policyName);
-			_LogAcquisitionFailed(exception, policyName);
-			return _ApplyFailMode(policyName);
+			this._RecordFailure(policyName);
+			this._LogAcquisitionFailed(exception, policyName);
+			return PostgresRateLimitCounterStore._ApplyFailMode(policyName);
 		}
 	}
 
@@ -220,7 +220,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 		int permitLimit
 	) {
 		await using var command = connection.CreateCommand();
-		command.CommandTimeout = _CommandTimeoutSeconds;
+		command.CommandTimeout = PostgresRateLimitCounterStore._CommandTimeoutSeconds;
 		var windowSeconds = (long)window.TotalSeconds;
 		// #1546: window_started_at is computed by Postgres from its own clock
 		// (floor(EXTRACT(EPOCH FROM now())) truncated to the window boundary), not from the app clock. This guarantees every
@@ -239,11 +239,11 @@ internal sealed partial class PostgresRateLimitCounterStore
 				WHERE rate_limit_counters.permit_count + EXCLUDED.permit_count <= $5
 			RETURNING permit_count, window_started_at
 			""";
-		_AddParameter(command, policyName);
-		_AddParameter(command, HashPartitionKey(partitionKey));
-		_AddParameter(command, (long)permitCount);
-		_AddParameter(command, windowSeconds);
-		_AddParameter(command, (long)permitLimit);
+		PostgresRateLimitCounterStore._AddParameter(command, policyName);
+		PostgresRateLimitCounterStore._AddParameter(command, PostgresRateLimitCounterStore.HashPartitionKey(partitionKey));
+		PostgresRateLimitCounterStore._AddParameter(command, (long)permitCount);
+		PostgresRateLimitCounterStore._AddParameter(command, windowSeconds);
+		PostgresRateLimitCounterStore._AddParameter(command, (long)permitLimit);
 
 		await using var reader = await command.ExecuteReaderAsync();
 		if (await reader.ReadAsync()) {
@@ -272,16 +272,16 @@ internal sealed partial class PostgresRateLimitCounterStore
 		DateTimeOffset currentWindowStart
 	) {
 		await using var command = connection.CreateCommand();
-		command.CommandTimeout = _CommandTimeoutSeconds;
+		command.CommandTimeout = PostgresRateLimitCounterStore._CommandTimeoutSeconds;
 		command.CommandText = """
 			DELETE FROM rate_limit_counters
 			WHERE policy_name = $1
 				AND partition_key_hash = $2
 				AND window_started_at < $3
 			""";
-		_AddParameter(command, policyName);
-		_AddParameter(command, HashPartitionKey(partitionKey));
-		_AddParameter(command, currentWindowStart.UtcDateTime);
+		PostgresRateLimitCounterStore._AddParameter(command, policyName);
+		PostgresRateLimitCounterStore._AddParameter(command, PostgresRateLimitCounterStore.HashPartitionKey(partitionKey));
+		PostgresRateLimitCounterStore._AddParameter(command, currentWindowStart.UtcDateTime);
 
 		await command.ExecuteNonQueryAsync();
 	}
@@ -290,25 +290,25 @@ internal sealed partial class PostgresRateLimitCounterStore
 		NpgsqlConnection connection,
 		DateTimeOffset utcNow
 	) {
-		lock (_Guard) {
+		lock (this._Guard) {
 			if (
-				_LastSweepAt != default
-				&& utcNow - _LastSweepAt < SweepInterval
+				this._LastSweepAt != default
+				&& utcNow - this._LastSweepAt < PostgresRateLimitCounterStore.SweepInterval
 			) {
 				return;
 			}
 
-			_LastSweepAt = utcNow;
+			this._LastSweepAt = utcNow;
 		}
 
 		try {
 			await using var command = connection.CreateCommand();
-			command.CommandTimeout = _CommandTimeoutSeconds;
+			command.CommandTimeout = PostgresRateLimitCounterStore._CommandTimeoutSeconds;
 			command.CommandText = """
 				DELETE FROM rate_limit_counters
 				WHERE window_started_at < $1
 				""";
-			_AddParameter(command, utcNow.UtcDateTime - _MaxWindow);
+			PostgresRateLimitCounterStore._AddParameter(command, utcNow.UtcDateTime - this._MaxWindow);
 
 			await command.ExecuteNonQueryAsync();
 		} catch (Exception exception) when (
@@ -316,7 +316,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 		) {
 			// The acquisition itself succeeded; a lapsed-housekeeping miss must not
 			// flip the breaker or fail the request. The next sweep retries.
-			_LogSweepFailed(exception);
+			this._LogSweepFailed(exception);
 		}
 	}
 
@@ -327,10 +327,10 @@ internal sealed partial class PostgresRateLimitCounterStore
 	}
 
 	private bool _TryEnterClosedBreaker(string policyName) {
-		lock (_Guard) {
-			if (!_BreakerStates.TryGetValue(policyName, out var breaker)) {
+		lock (this._Guard) {
+			if (!this._BreakerStates.TryGetValue(policyName, out var breaker)) {
 				breaker = new BreakerStateData();
-				_BreakerStates.Add(policyName, breaker);
+				this._BreakerStates.Add(policyName, breaker);
 			}
 
 			switch (breaker.State) {
@@ -345,21 +345,21 @@ internal sealed partial class PostgresRateLimitCounterStore
 			}
 
 			if (
-				_TimeProvider.GetUtcNow() - breaker.OpenedAt
-				< BreakerCooldown
+				this._TimeProvider.GetUtcNow() - breaker.OpenedAt
+				< PostgresRateLimitCounterStore.BreakerCooldown
 			) {
 				return false;
 			}
 
 			breaker.State = BreakerState.HalfOpen;
-			_LogBreakerProbing(policyName);
+			this._LogBreakerProbing(policyName);
 			return true;
 		}
 	}
 
 	private void _RecordSuccess(string policyName) {
-		lock (_Guard) {
-			if (_BreakerStates.TryGetValue(policyName, out var breaker)) {
+		lock (this._Guard) {
+			if (this._BreakerStates.TryGetValue(policyName, out var breaker)) {
 				breaker.State = BreakerState.Closed;
 				breaker.ConsecutiveFailures = 0;
 			}
@@ -367,23 +367,23 @@ internal sealed partial class PostgresRateLimitCounterStore
 	}
 
 	private void _RecordFailure(string policyName) {
-		lock (_Guard) {
-			if (!_BreakerStates.TryGetValue(policyName, out var breaker)) {
+		lock (this._Guard) {
+			if (!this._BreakerStates.TryGetValue(policyName, out var breaker)) {
 				breaker = new BreakerStateData();
-				_BreakerStates.Add(policyName, breaker);
+				this._BreakerStates.Add(policyName, breaker);
 			}
 
 			breaker.ConsecutiveFailures++;
 			if (
 				breaker.State == BreakerState.HalfOpen
-				|| breaker.ConsecutiveFailures >= BreakerFailureThreshold
+				|| breaker.ConsecutiveFailures >= PostgresRateLimitCounterStore.BreakerFailureThreshold
 			) {
 				breaker.State = BreakerState.Open;
-				breaker.OpenedAt = _TimeProvider.GetUtcNow();
-				_LogBreakerOpened(
+				breaker.OpenedAt = this._TimeProvider.GetUtcNow();
+				this._LogBreakerOpened(
 					policyName,
 					breaker.ConsecutiveFailures,
-					(int)BreakerCooldown.TotalSeconds
+					(int)PostgresRateLimitCounterStore.BreakerCooldown.TotalSeconds
 				);
 			}
 		}
@@ -393,7 +393,7 @@ internal sealed partial class PostgresRateLimitCounterStore
 		Exception exception,
 		string policyName
 	) {
-		LoggerMessages.LogAcquisitionFailed(_Logger, exception, policyName);
+		LoggerMessages.LogAcquisitionFailed(this._Logger, exception, policyName);
 	}
 
 	private void _LogBreakerOpened(
@@ -401,15 +401,15 @@ internal sealed partial class PostgresRateLimitCounterStore
 		int failureCount,
 		int cooldownSeconds
 	) {
-		LoggerMessages.LogBreakerOpened(_Logger, policyName, failureCount, cooldownSeconds);
+		LoggerMessages.LogBreakerOpened(this._Logger, policyName, failureCount, cooldownSeconds);
 	}
 
 	private void _LogBreakerProbing(string policyName) {
-		LoggerMessages.LogBreakerProbing(_Logger, policyName);
+		LoggerMessages.LogBreakerProbing(this._Logger, policyName);
 	}
 
 	private void _LogSweepFailed(Exception exception) {
-		LoggerMessages.LogSweepFailed(_Logger, exception);
+		LoggerMessages.LogSweepFailed(this._Logger, exception);
 	}
 
 	private static partial class LoggerMessages {

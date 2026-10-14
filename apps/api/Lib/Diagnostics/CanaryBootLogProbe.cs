@@ -70,13 +70,13 @@ public static class CanaryBootLogProbe {
 	/// </para>
 	/// </summary>
 	public static bool ActivateIfRequested(string[] args) {
-		if (!args.Any(arg => arg.Equals(EmitArg, StringComparison.Ordinal))) {
+		if (!args.Any(arg => arg.Equals(CanaryBootLogProbe.EmitArg, StringComparison.Ordinal))) {
 			return false;
 		}
 
-		_EnforceTestOnlyGate();
-		_Requested = true;
-		_Sink = new BootLogCaptureSink();
+		CanaryBootLogProbe._EnforceTestOnlyGate();
+		CanaryBootLogProbe._Requested = true;
+		CanaryBootLogProbe._Sink = new BootLogCaptureSink();
 		return true;
 	}
 
@@ -84,15 +84,15 @@ public static class CanaryBootLogProbe {
 	// opt-in, or outside a test-shaped hosting environment. Never returns on the refusal
 	// path.
 	private static void _EnforceTestOnlyGate() {
-		var rawValue = Environment.GetEnvironmentVariable(TestOnlyFlagName);
-		if (_IsTestOnlyFlagValueAccepted(rawValue)
+		var rawValue = Environment.GetEnvironmentVariable(CanaryBootLogProbe.TestOnlyFlagName);
+		if (CanaryBootLogProbe._IsTestOnlyFlagValueAccepted(rawValue)
 			&& AppEnvironment.IsProbeAllowedHostEnvironment()) {
 			return;
 		}
 
 		Console.Error.WriteLine(
-			$"{EmitArg} was refused: {_DescribeRefusalCause(rawValue)}.");
-		Environment.Exit(RejectedExitCode);
+			$"{CanaryBootLogProbe.EmitArg} was refused: {CanaryBootLogProbe._DescribeRefusalCause(rawValue)}.");
+		Environment.Exit(CanaryBootLogProbe.RejectedExitCode);
 	}
 
 	// Transparent-failure rule (owner product policy): the refusal names BOTH the probe
@@ -103,28 +103,28 @@ public static class CanaryBootLogProbe {
 	// sanctioned-shape tail naming <see cref="TestOnlyFlagName"/>.
 	private static string _DescribeRefusalCause(string? rawValue) {
 		var causes = new List<string>();
-		var flagAccepted = _IsTestOnlyFlagValueAccepted(rawValue);
+		var flagAccepted = CanaryBootLogProbe._IsTestOnlyFlagValueAccepted(rawValue);
 
 		if (!AppEnvironment.IsProbeAllowedHostEnvironment()) {
 			causes.Add(AppEnvironment.TryGetHostEnvironmentName(out var resolved)
 				? $"refused: environment '{resolved}' is not a test environment; the "
 					+ "test-only flag is ignored here"
-				: $"{UnresolvedEnvironmentText}: neither ASPNETCORE_ENVIRONMENT nor "
+				: $"{CanaryBootLogProbe.UnresolvedEnvironmentText}: neither ASPNETCORE_ENVIRONMENT nor "
 					+ "DOTNET_ENVIRONMENT is set, which counts as a production-shaped "
 					+ "process; the test-only flag is ignored here");
 		}
 
 		if (!flagAccepted) {
 			causes.Add(string.IsNullOrWhiteSpace(rawValue)
-				? $"{TestOnlyFlagName} is not set"
-				: $"{TestOnlyFlagName} has the unaccepted value '{rawValue}'.");
+				? $"{CanaryBootLogProbe.TestOnlyFlagName} is not set"
+				: $"{CanaryBootLogProbe.TestOnlyFlagName} has the unaccepted value '{rawValue}'.");
 		}
 
 		return string.Join("; ", causes)
 			+ " This boot-log probe argument must never reach a deployed container or a "
 			+ "normal boot: it only works when the hosting environment is a test "
 			+ $"environment ({EnvironmentNames.Development}/{EnvironmentNames.Testing}) "
-			+ $"AND {TestOnlyFlagName} is set to exactly '1' or 'true', which is "
+			+ $"AND {CanaryBootLogProbe.TestOnlyFlagName} is set to exactly '1' or 'true', which is "
 			+ "reserved for the API integration suite.";
 	}
 
@@ -147,8 +147,8 @@ public static class CanaryBootLogProbe {
 	/// only when) the probe activated. No-op for every normal boot.
 	/// </summary>
 	public static void AttachSinkIfRequested(LoggerSinkConfiguration sinkConfiguration) {
-		if (_Sink is not null) {
-			sinkConfiguration.Sink(_Sink);
+		if (CanaryBootLogProbe._Sink is not null) {
+			sinkConfiguration.Sink(CanaryBootLogProbe._Sink);
 		}
 	}
 
@@ -159,16 +159,16 @@ public static class CanaryBootLogProbe {
 	/// (Main returns without starting the host). Returns false immediately otherwise.
 	/// </summary>
 	public static bool TryExitAfterBootGate() {
-		if (!_Requested || _Sink is null) {
+		if (!CanaryBootLogProbe._Requested || CanaryBootLogProbe._Sink is null) {
 			return false;
 		}
 
-		Console.WriteLine(BeginMarker);
-		foreach (var message in _Sink.Snapshot()) {
-			Console.WriteLine(LinePrefix + message);
+		Console.WriteLine(CanaryBootLogProbe.BeginMarker);
+		foreach (var message in CanaryBootLogProbe._Sink.Snapshot()) {
+			Console.WriteLine(CanaryBootLogProbe.LinePrefix + message);
 		}
-		Console.WriteLine(EndMarker);
-		Environment.ExitCode = SuccessExitCode;
+		Console.WriteLine(CanaryBootLogProbe.EndMarker);
+		Environment.ExitCode = CanaryBootLogProbe.SuccessExitCode;
 		return true;
 	}
 }
@@ -182,10 +182,10 @@ public sealed class BootLogCaptureSink : ILogEventSink {
 	private readonly ConcurrentQueue<string> _Messages = new();
 
 	public IReadOnlyList<string> Snapshot() {
-		return _Messages.ToArray();
+		return this._Messages.ToArray();
 	}
 
 	public void Emit(LogEvent logEvent) {
-		_Messages.Enqueue(logEvent.RenderMessage(CultureInfo.InvariantCulture));
+		this._Messages.Enqueue(logEvent.RenderMessage(CultureInfo.InvariantCulture));
 	}
 }

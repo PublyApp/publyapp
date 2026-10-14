@@ -24,7 +24,7 @@ public class TenantUserCompanyIdsForStaffBody {
 	public List<Guid> GetTenantIds() {
 		var tenantIds = new List<Guid>();
 
-		foreach (var tenantIdElement in TenantIds.EnumerateArray()) {
+		foreach (var tenantIdElement in this.TenantIds.EnumerateArray()) {
 			tenantIds.Add(tenantIdElement.GetValueAsGuid());
 		}
 
@@ -38,7 +38,7 @@ public sealed class TenantUserCompanyIdsForStaffBodyValidator
 		// Bulk actions are intentionally bounded even though the UI submits the
 		// current table selection; this endpoint should not become an unbounded
 		// assignment/removal surface.
-		RuleFor(x => x.TenantIds)
+		this.RuleFor(x => x.TenantIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "tenantIds",
 				itemName: "tenantId",

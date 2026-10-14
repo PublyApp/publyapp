@@ -29,23 +29,23 @@ public class ExportTenantUsersAsStaffQuery {
 	public string? Ids { get; set; }
 
 	public string? GetSearchNormalized() {
-		return TenantUserFilterQuery.NormalizeSearch(Search);
+		return TenantUserFilterQuery.NormalizeSearch(this.Search);
 	}
 
 	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
-		return TenantUserFilterQuery.ParseStatuses(Status);
+		return TenantUserFilterQuery.ParseStatuses(this.Status);
 	}
 
 	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
-		return TenantUserFilterQuery.ParseLevels(Level);
+		return TenantUserFilterQuery.ParseLevels(this.Level);
 	}
 
 	public IReadOnlySet<Guid>? GetIdsOrNull() {
-		if (Ids is null) {
+		if (this.Ids is null) {
 			return null;
 		}
 
-		var trimmed = Ids.Trim();
+		var trimmed = this.Ids.Trim();
 		if (trimmed.Length == 0) {
 			return null;
 		}
@@ -70,7 +70,7 @@ public class ExportTenantUsersAsStaffQuery {
 public class ExportTenantUsersAsStaffQueryValidator
 	: AbstractValidator<ExportTenantUsersAsStaffQuery> {
 	public ExportTenantUsersAsStaffQueryValidator() {
-		RuleFor(x => x.Search)
+		this.RuleFor(x => x.Search)
 			.MaximumLength(200)
 			.WithMessage("q must be at most 200 characters");
 
@@ -78,7 +78,7 @@ public class ExportTenantUsersAsStaffQueryValidator
 		// FindTenantUsersAsStaffQueryValidator so the export endpoint accepts
 		// exactly the filters the list page can produce — a new enum member
 		// added there is automatically accepted here too.
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
@@ -90,7 +90,7 @@ public class ExportTenantUsersAsStaffQueryValidator
 			})
 			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
 
-		RuleFor(x => x.Level)
+		this.RuleFor(x => x.Level)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
@@ -102,7 +102,7 @@ public class ExportTenantUsersAsStaffQueryValidator
 			})
 			.WithMessage($"level must be one of: {TenantUserFilterQuery.AllowedLevelsDisplay}");
 
-		RuleFor(x => x.Ids)
+		this.RuleFor(x => x.Ids)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
 					return true;
@@ -201,7 +201,7 @@ public sealed class ExportTenantUsersAsStaff {
 		httpContext.Response.Headers.ContentDisposition =
 			$"attachment; filename=\"{fileName}\"";
 
-		await WriteCsvAsync(httpContext, items, cancellationToken);
+		await ExportTenantUsersAsStaff.WriteCsvAsync(httpContext, items, cancellationToken);
 
 		return Results.Empty;
 	}
@@ -222,12 +222,12 @@ public sealed class ExportTenantUsersAsStaff {
 			foreach (var item in items) {
 				cancellationToken.ThrowIfCancellationRequested();
 				var line = string.Join(",",
-					_EscapeCsv(item.Email),
-					_EscapeCsv(item.FirstName ?? ""),
-					_EscapeCsv(item.LastName ?? ""),
-					_EscapeCsv(item.Level.ToString()),
-					_EscapeCsv(item.Status.ToString()),
-					_EscapeCsv(item.CreatedAt.ToString("o"))
+					ExportTenantUsersAsStaff._EscapeCsv(item.Email),
+					ExportTenantUsersAsStaff._EscapeCsv(item.FirstName ?? ""),
+					ExportTenantUsersAsStaff._EscapeCsv(item.LastName ?? ""),
+					ExportTenantUsersAsStaff._EscapeCsv(item.Level.ToString()),
+					ExportTenantUsersAsStaff._EscapeCsv(item.Status.ToString()),
+					ExportTenantUsersAsStaff._EscapeCsv(item.CreatedAt.ToString("o"))
 				);
 				await writer.WriteLineAsync(line);
 			}
@@ -247,7 +247,7 @@ public sealed class ExportTenantUsersAsStaff {
 		// Neutralize formula injection: prefix with single quote if the first
 		// non-whitespace/non-control character is a formula trigger. This
 		// prevents bypass via leading \t, \r, \n, spaces, or other control chars.
-		if (_StartsWithFormulaTrigger(value)) {
+		if (ExportTenantUsersAsStaff._StartsWithFormulaTrigger(value)) {
 			value = "'" + value;
 		}
 

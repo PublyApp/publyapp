@@ -20,14 +20,14 @@ public sealed class UpdateTenantUserEmailForStaffBody {
 	public JsonElement Email { get; init; }
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return this.Email.GetValueAsString();
 	}
 }
 
 public sealed class UpdateTenantUserEmailForStaffBodyValidator
 	: AbstractValidator<UpdateTenantUserEmailForStaffBody> {
 	public UpdateTenantUserEmailForStaffBodyValidator() {
-		RuleFor(x => x.Email)
+		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 	}
 }

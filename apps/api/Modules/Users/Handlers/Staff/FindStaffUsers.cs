@@ -32,20 +32,20 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 	public string? Status { get; set; }
 
 	public string? GetSearchNormalized() {
-		if (Search is null) {
+		if (this.Search is null) {
 			return null;
 		}
 
-		var trimmed = Search.Trim();
+		var trimmed = this.Search.Trim();
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
 	public IReadOnlySet<UserStatus>? GetStatusesOrNull() {
-		if (Status is null) {
+		if (this.Status is null) {
 			return null;
 		}
 
-		var trimmed = Status.Trim();
+		var trimmed = this.Status.Trim();
 		if (trimmed.Length == 0) {
 			return null;
 		}
@@ -74,8 +74,8 @@ public class FindStaffUsersQueryValidator
 		new(["active", "suspended"]);
 
 	public FindStaffUsersQueryValidator() {
-		RuleFor(x => x.Search).MaximumLength(200);
-		RuleFor(x => x.Status)
+		this.RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrEmpty(raw)) {
 					return true;
@@ -83,11 +83,11 @@ public class FindStaffUsersQueryValidator
 
 				var parts = raw
 					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(_AllowedStatuses.Contains);
+				return parts.All(FindStaffUsersQueryValidator._AllowedStatuses.Contains);
 			})
 			.WithMessage(
 				"Invalid status value. Must be comma-separated: "
-				+ string.Join(",", _AllowedStatuses)
+				+ string.Join(",", FindStaffUsersQueryValidator._AllowedStatuses)
 			);
 	}
 }

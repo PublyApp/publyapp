@@ -15,8 +15,8 @@ public class Post : BaseAttributes, ITenantEntity {
 	public required Guid TenantId { get; set; }
 	[JsonIgnore]
 	public PublyApp.Api.Modules.Tenants.Entities.Tenant Tenant {
-		get { return RequiredNavigation.Get(_Tenant, nameof(Post), nameof(Tenant)); }
-		set { _Tenant = value; }
+		get { return RequiredNavigation.Get(this._Tenant, nameof(Post), nameof(this.Tenant)); }
+		set { this._Tenant = value; }
 	}
 
 	[Column("project_id")]
@@ -36,8 +36,8 @@ public class Post : BaseAttributes, ITenantEntity {
 	public required Guid CreatedByUserId { get; set; }
 	[JsonIgnore]
 	public User CreatedByUser {
-		get { return RequiredNavigation.Get(_CreatedByUser, nameof(Post), nameof(CreatedByUser)); }
-		set { _CreatedByUser = value; }
+		get { return RequiredNavigation.Get(this._CreatedByUser, nameof(Post), nameof(this.CreatedByUser)); }
+		set { this._CreatedByUser = value; }
 	}
 	private User? _CreatedByUser;
 }

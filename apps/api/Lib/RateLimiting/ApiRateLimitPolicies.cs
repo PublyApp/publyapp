@@ -17,8 +17,8 @@ internal sealed class ApiRateLimiterStore
 		ApiRateLimitSettings settings,
 		IRateLimitCounterStore counterStore
 	) {
-		_CounterStore = counterStore;
-		_Windows = new Dictionary<
+		this._CounterStore = counterStore;
+		this._Windows = new Dictionary<
 			string,
 			RateLimitWindowSettings
 		>(StringComparer.Ordinal) {
@@ -42,9 +42,9 @@ internal sealed class ApiRateLimiterStore
 		string policyName,
 		string partitionKey
 	) {
-		var window = _GetWindow(policyName);
+		var window = this._GetWindow(policyName);
 		return new CounterBackedFixedWindowRateLimiter(
-			_CounterStore,
+			this._CounterStore,
 			policyName,
 			partitionKey,
 			window.PermitLimit,
@@ -55,7 +55,7 @@ internal sealed class ApiRateLimiterStore
 	public RateLimiter CreateGlobal(
 		string clientIp
 	) {
-		return CreateSingle(
+		return this.CreateSingle(
 			ApiRateLimitPolicies.GlobalSafetyNet,
 			clientIp
 		);
@@ -68,11 +68,11 @@ internal sealed class ApiRateLimiterStore
 		string tenantKey
 	) {
 		return RateLimiter.CreateChained(
-			CreateSingle(
+			this.CreateSingle(
 				sessionPolicyName,
 				sessionFingerprint
 			),
-			CreateSingle(
+			this.CreateSingle(
 				tenantPolicyName,
 				tenantKey
 			)
@@ -95,7 +95,7 @@ internal sealed class ApiRateLimiterStore
 				policyName,
 				sessionFingerprint
 			);
-			return CreateSingle(
+			return this.CreateSingle(
 				policyName,
 				sessionFingerprint
 			);
@@ -116,7 +116,7 @@ internal sealed class ApiRateLimiterStore
 				policyName,
 				partitionKey
 			);
-			return CreateTenantChained(
+			return this.CreateTenantChained(
 				ApiRateLimitPolicies.EmailOperation,
 				sessionFingerprint,
 				policyName,
@@ -131,13 +131,13 @@ internal sealed class ApiRateLimiterStore
 	}
 
 	public async ValueTask DisposeAsync() {
-		await _CounterStore.DisposeAsync();
+		await this._CounterStore.DisposeAsync();
 	}
 
 	private RateLimitWindowSettings _GetWindow(
 		string policyName
 	) {
-		if (_Windows.TryGetValue(policyName, out var window)) {
+		if (this._Windows.TryGetValue(policyName, out var window)) {
 			return window;
 		}
 
@@ -154,61 +154,61 @@ internal sealed class ApiRateLimiterOptionsSetup
 	public ApiRateLimiterOptionsSetup(
 		ApiRateLimiterStore store
 	) {
-		_Store = store;
+		this._Store = store;
 	}
 
 	public void Configure(RateLimiterOptions options) {
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.AnonymousOther,
-			_GetClientIp
+			ApiRateLimiterOptionsSetup._GetClientIp
 		);
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.AuthenticatedDefault,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.HeavySearchList,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.BulkOperation,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
-		_AddTenantPolicy(
+		this._AddTenantPolicy(
 			options,
 			ApiRateLimitPolicies.TenantBulkOperation,
 			ApiRateLimitPolicies.BulkOperation
 		);
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.EmailOperation,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
-		_AddTenantPolicy(
+		this._AddTenantPolicy(
 			options,
 			ApiRateLimitPolicies.TenantEmailOperation,
 			ApiRateLimitPolicies.EmailOperation
 		);
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.Export,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
-		_AddTenantPolicy(
+		this._AddTenantPolicy(
 			options,
 			ApiRateLimitPolicies.TenantExport,
 			ApiRateLimitPolicies.Export
 		);
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.Upload,
 			ApiRateLimitPartitionKeys
@@ -216,7 +216,7 @@ internal sealed class ApiRateLimiterOptionsSetup
 		);
 		// Stricter-than-read window (spec §4): connect/reconnect call Bluesky with
 		// user-supplied credentials; partition per session like other authed policies.
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.SocialConnect,
 			ApiRateLimitPartitionKeys
@@ -224,7 +224,7 @@ internal sealed class ApiRateLimiterOptionsSetup
 		);
 		// A5 (#636): trigger-now is a real enqueue; partition per validated session
 		// fingerprint so two staff sessions have independent trigger budgets.
-		_AddSinglePolicy(
+		this._AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.SystemJobTrigger,
 			ApiRateLimitPartitionKeys
@@ -250,7 +250,7 @@ internal sealed class ApiRateLimiterOptionsSetup
 				);
 				return RateLimitPartition.Get(
 					$"{policyName}\n{partitionKey}",
-					_ => _Store.CreateSingle(
+					_ => this._Store.CreateSingle(
 						policyName,
 						partitionKey
 					)
@@ -282,7 +282,7 @@ internal sealed class ApiRateLimiterOptionsSetup
 				);
 				return RateLimitPartition.Get(
 					$"{policyName}\n{partitionKey}",
-					_ => _Store.CreateTenantChained(
+					_ => this._Store.CreateTenantChained(
 						sessionPolicyName,
 						sessionFingerprint,
 						policyName,

@@ -10,8 +10,8 @@ using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
 namespace PublyApp.Api.Modules.SystemNotices.Entities;
 
 [Table("system_notices")]
-[Index(nameof(StartsAt), nameof(ExpiresAt))]
-[Index(nameof(Severity))]
+[Index(nameof(SystemNotice.StartsAt), nameof(SystemNotice.ExpiresAt))]
+[Index(nameof(SystemNotice.Severity))]
 public class SystemNotice : BaseAttributes, INoTenantEntity {
 	private UserEntity? _CreatedByStaff;
 
@@ -34,15 +34,15 @@ public class SystemNotice : BaseAttributes, INoTenantEntity {
 	public required Guid CreatedByStaffId { get; set; }
 	[JsonIgnore]
 	public UserEntity CreatedByStaff {
-		get { return RequiredNavigation.Get(_CreatedByStaff, nameof(SystemNotice), nameof(CreatedByStaff)); }
-		set { _CreatedByStaff = value; }
+		get { return RequiredNavigation.Get(this._CreatedByStaff, nameof(SystemNotice), nameof(this.CreatedByStaff)); }
+		set { this._CreatedByStaff = value; }
 	}
 
 	public bool IsActive() {
 		var now = DateTime.UtcNow;
-		return !IsDeleted
-			&& StartsAt <= now
-			&& (ExpiresAt is null || ExpiresAt > now);
+		return !this.IsDeleted
+			&& this.StartsAt <= now
+			&& (this.ExpiresAt is null || this.ExpiresAt > now);
 	}
 
 	public static NoticeSeverity? ParseSeverity(

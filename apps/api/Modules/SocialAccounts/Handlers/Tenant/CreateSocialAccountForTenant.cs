@@ -21,11 +21,11 @@ public record ConnectSocialAccountBody {
 	public required JsonElement AppPassword { get; init; }
 
 	public string GetIdentifier() {
-		return Identifier.GetValueAsString();
+		return this.Identifier.GetValueAsString();
 	}
 
 	public string GetAppPassword() {
-		return AppPassword.GetValueAsString();
+		return this.AppPassword.GetValueAsString();
 	}
 }
 
@@ -36,12 +36,12 @@ public class ConnectSocialAccountBodyValidator
 	public const int AppPasswordMinLength = 8;
 
 	public ConnectSocialAccountBodyValidator() {
-		RuleFor(x => x.Identifier)
-			.MustBeRequiredStringWithLength("Identifier", 1, IdentifierMaxLength);
+		this.RuleFor(x => x.Identifier)
+			.MustBeRequiredStringWithLength("Identifier", 1, ConnectSocialAccountBodyValidator.IdentifierMaxLength);
 
-		RuleFor(x => x.AppPassword)
+		this.RuleFor(x => x.AppPassword)
 			.MustBeRequiredStringWithLength(
-				"AppPassword", AppPasswordMinLength, AppPasswordMaxLength
+				"AppPassword", ConnectSocialAccountBodyValidator.AppPasswordMinLength, ConnectSocialAccountBodyValidator.AppPasswordMaxLength
 			);
 	}
 }

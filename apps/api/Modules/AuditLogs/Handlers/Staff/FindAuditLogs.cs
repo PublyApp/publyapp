@@ -29,30 +29,30 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 	// which strips every query param from the OpenAPI doc and from
 	// the generated Kiota client URI template).
 	public IReadOnlyList<string>? GetActionsList() {
-		return AuditLogActionsCsv.Parse(Actions);
+		return AuditLogActionsCsv.Parse(this.Actions);
 	}
 
 	public Guid? GetUserId() {
 		return QueryPredicates.ParseNullableGuid(
-			UserId
+			this.UserId
 		);
 	}
 
 	public Guid? GetTargetId() {
 		return QueryPredicates.ParseNullableGuid(
-			TargetId
+			this.TargetId
 		);
 	}
 
 	public DateTime? GetStartDate() {
 		return QueryPredicates.ParseNullableDate(
-			StartDate
+			this.StartDate
 		);
 	}
 
 	public DateTime? GetEndDate() {
 		return QueryPredicates.ParseNullableDate(
-			EndDate
+			this.EndDate
 		);
 	}
 }
@@ -60,13 +60,13 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 public class FindAuditLogsQueryValidator
 	: CursorPaginatedQueryValidator<FindAuditLogsQuery> {
 	public FindAuditLogsQueryValidator() {
-		RuleFor(x => x.UserId)
+		this.RuleFor(x => x.UserId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"user_id must be a valid GUID"
 			);
 
-		RuleFor(x => x.Actions)
+		this.RuleFor(x => x.Actions)
 			.Custom((raw, context) => {
 				var error =
 					AuditLogActionsCsv.GetValidationError(raw);
@@ -78,25 +78,25 @@ public class FindAuditLogsQueryValidator
 				}
 			});
 
-		RuleFor(x => x.TargetId)
+		this.RuleFor(x => x.TargetId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"target_id must be a valid GUID"
 			);
 
-		RuleFor(x => x.StartDate)
+		this.RuleFor(x => x.StartDate)
 			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
 				"start_date must be a valid ISO 8601 date"
 			);
 
-		RuleFor(x => x.EndDate)
+		this.RuleFor(x => x.EndDate)
 			.Must(QueryPredicates.BeValidNullableDate)
 			.WithMessage(
 				"end_date must be a valid ISO 8601 date"
 			);
 
-		RuleFor(x => x)
+		this.RuleFor(x => x)
 			.Custom((query, context) => {
 				if (query.StartDate is null
 					|| query.EndDate is null
@@ -147,7 +147,7 @@ internal static class AuditLogActionsCsv {
 	public static string? GetValidationError(
 		string? raw
 	) {
-		var actions = Parse(raw);
+		var actions = AuditLogActionsCsv.Parse(raw);
 		if (actions is null) {
 			return null;
 		}

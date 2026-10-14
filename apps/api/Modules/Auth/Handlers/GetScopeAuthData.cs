@@ -18,12 +18,12 @@ public class GetScopeAuthDataQuery {
 	public string Scope { get; set; } = string.Empty;
 
 	public bool IsStaffScope() {
-		return string.Equals(Scope, "staff", StringComparison.Ordinal);
+		return string.Equals(this.Scope, "staff", StringComparison.Ordinal);
 	}
 
 	public Guid GetTenantScopeId() {
 		return Guid.TryParse(
-			Scope, out var tenantId
+			this.Scope, out var tenantId
 		)
 			? tenantId
 			: Guid.Empty;

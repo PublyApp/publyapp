@@ -21,12 +21,12 @@ public static class WorkerHealthCli {
 	/// </summary>
 	public static bool TryRun(string[] args) {
 		if (args.Length == 0
-			|| !args[0].Equals(HealthArg, StringComparison.Ordinal)) {
+			|| !args[0].Equals(WorkerHealthCli.HealthArg, StringComparison.Ordinal)) {
 			return false;
 		}
 
 		var isHealthy = WorkerHeartbeat.IsFresh(WorkerHeartbeat.ResolvePath(), DateTime.UtcNow);
-		Environment.ExitCode = isHealthy ? HealthyExitCode : UnhealthyExitCode;
+		Environment.ExitCode = isHealthy ? WorkerHealthCli.HealthyExitCode : WorkerHealthCli.UnhealthyExitCode;
 		return true;
 	}
 }

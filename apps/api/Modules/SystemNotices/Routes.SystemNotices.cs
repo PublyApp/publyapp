@@ -26,7 +26,7 @@ public static partial class Routes {
 
 		public static class Anonymous {
 			public const string Root = "/notices";
-			public const string GetActive = $"{Root}/active";
+			public const string GetActive = $"{Routes.SystemNotices.Anonymous.Root}/active";
 		}
 	}
 }

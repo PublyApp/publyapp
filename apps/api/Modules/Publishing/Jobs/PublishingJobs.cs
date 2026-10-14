@@ -31,14 +31,14 @@ public static class PublishingJobs {
 
 	public static readonly JobDefinition<PublishPublicationPayload> PublishPublicationV1 =
 		new() {
-			JobType = PublishPublicationV1JobType,
+			JobType = PublishingJobs.PublishPublicationV1JobType,
 			Priority = 0,
 			MaxAttempts = 3,
 			Validate = payload => {
 				var expected = PublicationIdempotencyKey.For(payload.PublicationId);
 				if (!string.Equals(payload.IdempotencyKey, expected, StringComparison.Ordinal)) {
 					throw new InvalidOperationException(
-						$"Job '{PublishPublicationV1JobType}' payload IdempotencyKey "
+						$"Job '{PublishingJobs.PublishPublicationV1JobType}' payload IdempotencyKey "
 							+ $"'{payload.IdempotencyKey}' does not match the key derived from "
 							+ $"the publication id ('{expected}')."
 					);

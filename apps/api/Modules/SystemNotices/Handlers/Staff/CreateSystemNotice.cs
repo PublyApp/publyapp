@@ -25,23 +25,23 @@ public record CreateSystemNoticeBody {
 	public JsonElement? ExpiresAt { get; init; }
 
 	public string GetSeverity() {
-		return Severity.GetValueAsString();
+		return this.Severity.GetValueAsString();
 	}
 
 	public string GetTitle() {
-		return Title.GetValueAsString();
+		return this.Title.GetValueAsString();
 	}
 
 	public string GetMessage() {
-		return Message.GetValueAsString();
+		return this.Message.GetValueAsString();
 	}
 
 	public DateTime GetStartsAt() {
-		return StartsAt.GetValueAsDateTime();
+		return this.StartsAt.GetValueAsDateTime();
 	}
 
 	public DateTime? GetExpiresAt() {
-		return ExpiresAt.GetValueAsDateTimeOrNull();
+		return this.ExpiresAt.GetValueAsDateTimeOrNull();
 	}
 }
 
@@ -56,19 +56,19 @@ public record SystemNoticeCreated {
 public class CreateSystemNoticeBodyValidator
 	: AbstractValidator<CreateSystemNoticeBody> {
 	public CreateSystemNoticeBodyValidator() {
-		RuleFor(x => x.Severity)
+		this.RuleFor(x => x.Severity)
 			.MustBeRequiredSeverity();
 
-		RuleFor(x => x.Title)
+		this.RuleFor(x => x.Title)
 			.MustBeRequiredStringWithLength("Title", 1, 200);
 
-		RuleFor(x => x.Message)
+		this.RuleFor(x => x.Message)
 			.MustBeRequiredStringWithLength("Message", 1, 2000);
 
-		RuleFor(x => x.StartsAt)
+		this.RuleFor(x => x.StartsAt)
 			.MustBeRequiredIsoDateTime("StartsAt");
 
-		RuleFor(x => x.ExpiresAt)
+		this.RuleFor(x => x.ExpiresAt)
 			.MustBeNullableIsoDateTime("ExpiresAt");
 	}
 }

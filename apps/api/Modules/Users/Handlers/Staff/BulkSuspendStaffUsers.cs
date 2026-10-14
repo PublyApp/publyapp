@@ -22,7 +22,7 @@ public sealed class BulkSuspendStaffUsersBody {
 	public List<Guid> GetUserIds() {
 		var userIds = new List<Guid>();
 
-		foreach (var userIdElement in UserIds.EnumerateArray()) {
+		foreach (var userIdElement in this.UserIds.EnumerateArray()) {
 			userIds.Add(userIdElement.GetValueAsGuid());
 		}
 
@@ -33,7 +33,7 @@ public sealed class BulkSuspendStaffUsersBody {
 public sealed class BulkSuspendStaffUsersBodyValidator
 	: AbstractValidator<BulkSuspendStaffUsersBody> {
 	public BulkSuspendStaffUsersBodyValidator() {
-		RuleFor(x => x.UserIds)
+		this.RuleFor(x => x.UserIds)
 			.MustBeRequiredGuidArray(
 				fieldName: "userIds",
 				itemName: "userId",

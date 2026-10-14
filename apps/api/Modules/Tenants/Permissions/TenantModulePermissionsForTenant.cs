@@ -14,9 +14,9 @@ public class TenantModulePermissionsForTenant : ISlicePermissions {
 	public TenantModulePermissionsForTenant() {
 		// These keys are the canonical tenant-module gates consumed end to end:
 		// seeding, staff tenant-profile management, tenant auth data, and tenant UI gating.
-		ACCESS_DASHBOARD = Permission
+		this.ACCESS_DASHBOARD = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "access_dashboard" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "access_dashboard" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -33,9 +33,9 @@ public class TenantModulePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		ACCESS_BILLING = Permission
+		this.ACCESS_BILLING = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "access_billing" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "access_billing" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -52,9 +52,9 @@ public class TenantModulePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		ACCESS_SETTINGS = Permission
+		this.ACCESS_SETTINGS = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "access_settings" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "access_settings" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,
@@ -71,9 +71,9 @@ public class TenantModulePermissionsForTenant : ISlicePermissions {
 				}
 			);
 
-		ACCESS_USERS = Permission
+		this.ACCESS_USERS = Permission
 			.CreateTenantPermission(
-				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "access_users" })
+				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "access_users" })
 			)
 			.SetTranslation(
 				SupportedLanguage.English,

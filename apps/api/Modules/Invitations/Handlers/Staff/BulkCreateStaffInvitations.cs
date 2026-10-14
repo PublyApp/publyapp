@@ -25,7 +25,7 @@ public record BulkCreateStaffInvitationsBody {
 	private List<BulkStaffInvitationItem> _ParseInvitations() {
 		var invitations = new List<BulkStaffInvitationItem>();
 
-		foreach (var item in Invitations.EnumerateArray()) {
+		foreach (var item in this.Invitations.EnumerateArray()) {
 			var email = item.GetProperty("email")
 				.GetString();
 			if (email is null) {
@@ -60,14 +60,14 @@ public record BulkCreateStaffInvitationsBody {
 	}
 
 	public List<BulkStaffInvitationItem> GetInvitations() {
-		if (_InvitationsParsed) {
-			return _Invitations;
+		if (this._InvitationsParsed) {
+			return this._Invitations;
 		}
 
-		_Invitations = _ParseInvitations();
-		_InvitationsParsed = true;
+		this._Invitations = this._ParseInvitations();
+		this._InvitationsParsed = true;
 
-		return _Invitations;
+		return this._Invitations;
 	}
 }
 
@@ -78,7 +78,7 @@ public record BulkStaffInvitationsCreated {
 public class BulkCreateStaffInvitationsBodyValidator
 	: AbstractValidator<BulkCreateStaffInvitationsBody> {
 	public BulkCreateStaffInvitationsBodyValidator() {
-		RuleFor(x => x.Invitations)
+		this.RuleFor(x => x.Invitations)
 			.Custom((element, context) => {
 				if (element.ValueKind
 					is JsonValueKind.Undefined
@@ -144,7 +144,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 									$"invitations[{index}].email",
 									"Email is required"
 								);
-							} else if (!_BeValidEmail(email)) {
+							} else if (!BulkCreateStaffInvitationsBodyValidator._BeValidEmail(email)) {
 								context.AddFailure(
 									$"invitations[{index}].email",
 									"Invalid email format"

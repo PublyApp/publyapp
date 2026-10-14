@@ -36,21 +36,21 @@ public sealed class JobHandlerRegistry {
 		IEnumerable<JobHandlerRegistration> registrations,
 		IServiceScopeFactory? scopeFactory = null
 	) {
-		_Registrations = new Dictionary<string, JobHandlerRegistration>(StringComparer.Ordinal);
+		this._Registrations = new Dictionary<string, JobHandlerRegistration>(StringComparer.Ordinal);
 
 		foreach (var registration in registrations) {
-			if (_Registrations.ContainsKey(registration.JobType)) {
+			if (this._Registrations.ContainsKey(registration.JobType)) {
 				throw new InvalidOperationException(
 					$"Duplicate job handler registered for job type '{registration.JobType}'. "
 					+ "Each job_type must map to exactly one handler."
 				);
 			}
 
-			_Registrations.Add(registration.JobType, registration);
+			this._Registrations.Add(registration.JobType, registration);
 		}
 
 		if (scopeFactory is not null) {
-			_ValidateRegistrationConsistency(scopeFactory);
+			this._ValidateRegistrationConsistency(scopeFactory);
 		}
 	}
 
@@ -61,7 +61,7 @@ public sealed class JobHandlerRegistry {
 	private void _ValidateRegistrationConsistency(IServiceScopeFactory scopeFactory) {
 		using var scope = scopeFactory.CreateScope();
 
-		foreach (var registration in _Registrations.Values) {
+		foreach (var registration in this._Registrations.Values) {
 			var handler = registration.Factory(scope.ServiceProvider);
 
 			if (!string.Equals(handler.JobType, registration.JobType, StringComparison.Ordinal)) {
@@ -78,11 +78,11 @@ public sealed class JobHandlerRegistry {
 		string jobType,
 		[NotNullWhen(true)] out JobHandlerRegistration? registration
 	) {
-		return _Registrations.TryGetValue(jobType, out registration);
+		return this._Registrations.TryGetValue(jobType, out registration);
 	}
 
 	public IReadOnlyCollection<string> RegisteredJobTypes {
-		get { return _Registrations.Keys.ToList(); }
+		get { return this._Registrations.Keys.ToList(); }
 	}
 
 	/// <summary>
@@ -101,7 +101,7 @@ public sealed class JobHandlerRegistry {
 		).Distinct().ToListAsync(cancellationToken);
 
 		var orphaned = deadLetterTypes
-			.Where(t => !_Registrations.ContainsKey(t))
+			.Where(t => !this._Registrations.ContainsKey(t))
 			.ToList();
 
 		if (orphaned.Count > 0 && logger.IsEnabled(LogLevel.Warning)) {

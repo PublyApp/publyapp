@@ -17,13 +17,13 @@ public class GetRedirectCodeQuery {
 	// Query validation rejects malformed tenant_id before the
 	// handler runs; here null means no usable tenant hint.
 	public Guid? GetTenantId() {
-		return QueryPredicates.ParseNullableGuid(TenantId);
+		return QueryPredicates.ParseNullableGuid(this.TenantId);
 	}
 }
 
 public class GetRedirectCodeQueryValidator : AbstractValidator<GetRedirectCodeQuery> {
 	public GetRedirectCodeQueryValidator() {
-		RuleFor(x => x.TenantId)
+		this.RuleFor(x => x.TenantId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage("tenant_id must be a valid GUID");
 	}
