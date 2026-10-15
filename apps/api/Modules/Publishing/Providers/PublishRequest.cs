@@ -25,7 +25,22 @@ public sealed record PublishRequest {
 
 	// The post's images in publish order (empty for a text-only post).
 	public IReadOnlyList<PublishMedia> Media { get; init; } = [];
+
+	// Thread follow-ups (#2171): the texts of segments 2..N in order, each published
+	// as a reply to the segment before it. Empty = a plain single post.
+	public IReadOnlyList<string> FollowUpSegments { get; init; } = [];
+
+	// Segments (0-based position) a previous attempt already published, with the
+	// uri/cid the chain continues from. They are never published again.
+	public IReadOnlyList<CompletedSegment> CompletedSegments { get; init; } = [];
+
+	// Called right after EACH newly created (or read back) segment of a thread, so
+	// progress is persisted before the next segment is attempted.
+	public Func<CompletedSegment, CancellationToken, Task>? OnSegmentCompleted { get; init; }
 }
+
+/// <summary>A published thread segment: <see cref="Position"/> is 0-based (0 = root).</summary>
+public sealed record CompletedSegment(int Position, string RecordId, string Cid, string RecordUrl);
 
 /// <summary>
 /// One image of the post, already read from storage by the job handler. Width and

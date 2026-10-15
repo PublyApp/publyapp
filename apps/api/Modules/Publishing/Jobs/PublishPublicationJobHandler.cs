@@ -96,6 +96,27 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			.OrderBy(media => media.Position)
 			.ToListAsync(cancellationToken);
 
+		// Thread follow-ups and the segments an earlier attempt already published
+		// (#2171): the chain resumes after the last stored one, never republishing.
+		var followUps = await ThreadSegments.FollowUpBodiesAsync(
+			this._Db, post.GetRequiredId(), cancellationToken
+		);
+		var storedResults = await this._Db.PublicationSegmentResult
+			.AsNoTracking()
+			.Where(result => result.PublicationId == publicationId && !result.IsDeleted)
+			.OrderBy(result => result.SegmentPosition)
+			.ToListAsync(cancellationToken);
+		var completedSegments = storedResults
+			.Select(result => new CompletedSegment(
+				result.SegmentPosition,
+				result.ExternalRecordId,
+				result.ExternalCid,
+				result.ExternalUrl
+			))
+			.ToList();
+		var totalSegments = followUps.Count + 1;
+		var publishedNow = 0;
+
 		// Re-validate at dispatch (issue #2169): a body edited after scheduling may
 		// no longer fit the provider. Fails the publication with a plain content
 		// cause BEFORE any session/provider call.
@@ -108,7 +129,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			var contentFailure = PublishValidationService.Validate(
 				post.Body,
 				assets.Select(asset => asset.ContentType).ToList(),
-				[provider]
+				[provider],
+				followUps
 			);
 			if (contentFailure is not null) {
 				await this._Transitions.MarkFailedAsync(
@@ -126,7 +148,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		// Resolve the image bytes before touching the account: a file gone from
 		// storage is a content failure naming the image, never retried (#2170).
 		var media = new List<PublishMedia>(assets.Count);
-		for (var index = 0; index < assets.Count; index++) {
+		var rootAlreadyPublished = completedSegments.Any(segment => segment.Position == 0);
+		for (var index = 0; !rootAlreadyPublished && index < assets.Count; index++) {
 			var content = await this._FileStorage.ReadAsync(
 				assets[index].RelativePath, cancellationToken
 			);
@@ -179,10 +202,27 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				ScheduledAtUtc = publication.ScheduledAtUtc,
 				Session = opened.Session,
 				Media = media,
+				FollowUpSegments = followUps.Select(TextCounter.Normalize).ToList(),
+				CompletedSegments = completedSegments,
+				OnSegmentCompleted = async (segment, token) => {
+					this._Db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+						TenantId = publication.TenantId,
+						PublicationId = publicationId,
+						SegmentPosition = segment.Position,
+						ExternalRecordId = segment.RecordId,
+						ExternalCid = segment.Cid,
+						ExternalUrl = segment.RecordUrl,
+					});
+					await this._Db.SaveChangesAsync(token);
+					publishedNow += 1;
+				},
 			},
 			cancellationToken
 		);
 
+		var progress = PublishPublicationJobHandler._ProgressPrefix(
+			completedSegments.Count + publishedNow, totalSegments
+		);
 		switch (result) {
 			case PublishResult.Published published:
 				return await this._SucceedAsync(publication, published.RecordId, published.RecordUrl, cancellationToken);
@@ -193,21 +233,31 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
-						$"Bluesky refused the content: {content.Cause}"
+						$"{progress}Bluesky refused the content: {content.Cause}"
 					),
 					cancellationToken
 				);
 				return JobOutcome.Succeeded;
 			case PublishResult.AccountFailure account:
-				await this._PauseForAccountAsync(publication, account.Cause, cancellationToken);
+				await this._PauseForAccountAsync(publication, progress + account.Cause, cancellationToken);
 				return JobOutcome.Succeeded;
 			case PublishResult.TransientFailure transient:
-				return await this._FailTransientAsync(publication, transient.Cause, context, cancellationToken);
+				return await this._FailTransientAsync(publication, progress + transient.Cause, context, cancellationToken);
 			default:
 				throw new InvalidOperationException(
 					$"Unhandled PublishResult kind '{result.GetType().Name}'."
 				);
 		}
+	}
+
+	/// <summary>
+	/// "Published 2 of 5 segments; segment 3 failed: " for a thread, empty for a
+	/// plain post so single-segment causes stay exactly as before (#2171).
+	/// </summary>
+	private static string _ProgressPrefix(int published, int total) {
+		return total > 1
+			? $"Published {published} of {total} segments; segment {published + 1} failed: "
+			: string.Empty;
 	}
 
 	/// <summary>

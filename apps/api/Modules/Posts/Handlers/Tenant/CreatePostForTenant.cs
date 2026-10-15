@@ -21,9 +21,21 @@ namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 public record CreatePostBody {
 	public required JsonElement Body { get; init; }
 	public JsonElement? ProjectId { get; init; }
+	public JsonElement Segments { get; init; }
 
 	public string GetBody() {
 		return this.Body.GetValueAsString();
+	}
+
+	// Follow-up segments (segments 2..N, #2171); absent = no follow-ups / untouched.
+	public IReadOnlyList<string>? GetSegments() {
+		if (this.Segments.ValueKind != JsonValueKind.Array) {
+			return null;
+		}
+
+		return this.Segments.EnumerateArray()
+			.Select(item => item.GetString() ?? string.Empty)
+			.ToList();
 	}
 
 	public Guid? GetProjectId() {
@@ -41,6 +53,15 @@ public class CreatePostBodyValidator
 
 		this.RuleFor(x => x.ProjectId)
 			.MustBeNullableNonEmptyGuid("ProjectId");
+
+		this.RuleFor(x => x.Segments)
+			.MustBeRequiredStringArrayAllowingEmpty(
+				"Segments",
+				"segment",
+				PostValidationRules.MaxFollowUpSegments,
+				PostValidationRules.BodyMaxLength
+			)
+			.When(x => x.Segments.ValueKind != JsonValueKind.Undefined);
 	}
 }
 
@@ -83,6 +104,7 @@ public sealed class CreatePostForTenant {
 
 		var postBody = body.GetBody();
 		var projectId = body.GetProjectId();
+		var segments = body.GetSegments();
 
 		if (projectId.HasValue) {
 			var projectExists = await postService
@@ -105,7 +127,8 @@ public sealed class CreatePostForTenant {
 				TenantId: tenantId,
 				ProjectId: projectId,
 				Body: postBody,
-				CreatedByUserId: account.UserId
+				CreatedByUserId: account.UserId,
+				Segments: segments
 			),
 			cancellationToken
 		);

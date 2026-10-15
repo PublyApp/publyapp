@@ -19,12 +19,15 @@ import {
 } from '~/lib/query/tenant-publish-targets';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { countText, tightestLimit } from '~/lib/text-counter/text-counter';
 import { useTextCounter } from '~/lib/text-counter/use-text-counter';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { PublishLimitCounter } from './_publish-limit-counter';
+
+const NO_FOLLOW_UPS: string[] = [];
 
 /** Composer "Publish on" block (Epic D step 6, plan D2 Task 8): the accounts
  * visible in the project per the Epic C rule, shown only with BOTH
@@ -37,11 +40,14 @@ export const PublishOnBlock = ({
 	projectId,
 	postId,
 	body = '',
+	followUps = NO_FOLLOW_UPS,
 	onBeforePublish,
 }: {
 	projectId: string | null;
 	/** The text being composed: counted live against the checked destinations. */
 	body?: string;
+	/** Thread follow-up texts: each one is held to the same limits (#2171). */
+	followUps?: string[];
 	/** Present once the post exists (edit page). */
 	postId?: string | null;
 	/** In the creation drawer the
@@ -76,7 +82,18 @@ export const PublishOnBlock = ({
 		[targets, selectedIdSet],
 	);
 	const tightest = useTextCounter(body, limitedDestinations);
-	const isOverLimit = tightest?.state === 'error';
+	// The first follow-up over a limit (0-based), or -1: publishing a thread
+	// needs every segment within the limits.
+	const overLimitFollowUp = useMemo(
+		() =>
+			followUps.findIndex(
+				(text) =>
+					tightestLimit(countText(text), limitedDestinations)?.state ===
+					'error',
+			),
+		[followUps, limitedDestinations],
+	);
+	const isOverLimit = tightest?.state === 'error' || overLimitFollowUp >= 0;
 
 	const toggleTarget = (id: string, checked: boolean) => {
 		setCheckedIds((previous) => {
@@ -180,6 +197,15 @@ export const PublishOnBlock = ({
 				</div>
 			)}
 			<PublishLimitCounter tightest={tightest} />
+			{overLimitFollowUp >= 0 ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-segment-limit-error"
+				>
+					{t('posts:segment-over-limit', { index: overLimitFollowUp + 2 })}
+				</p>
+			) : null}
 			{isPublishing ? (
 				<span
 					data-testid="tenant-posts-publish-in-progress"

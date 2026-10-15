@@ -111,6 +111,7 @@
 	"post-image-too-large": "Image exceeds the maximum allowed size",
 	"post-image-unsupported-type": "Image must be a PNG, JPEG, or WEBP",
 	"post-image-dimensions-invalid": "Image dimensions are invalid",
+	"post-segments-locked": "Segments that are already published cannot be changed or removed",
 	"post-image-missing": "No image is attached to this post",
 	"post-image-conflict": "Another image attach for this post just won; retry to replace it",
 	"post-image-limit-reached": "A post can have at most 4 images",

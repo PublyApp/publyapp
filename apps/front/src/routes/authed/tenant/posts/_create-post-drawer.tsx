@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -24,9 +24,12 @@ import {
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { PostBodyCounter } from './_post-body-counter';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
+import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
+import { NO_SEGMENTS } from './_segment-draft';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
 
 const getSchema = (t: (k: string) => string) =>
@@ -37,6 +40,10 @@ const getSchema = (t: (k: string) => string) =>
 			.min(1, { message: t('posts:body-required') })
 			.max(20000, { message: t('posts:body-too-long') }),
 		projectId: z.string().nullable().optional(),
+		// Thread follow-ups (segments 2..N); at most 24 after the first body.
+		segments: z
+			.array(z.object({ id: z.string(), text: z.string().max(20000) }))
+			.max(24),
 	});
 
 type FormValues = z.infer<ReturnType<typeof getSchema>>;
@@ -113,12 +120,19 @@ export const CreatePostDrawer = ({
 	const projectItems = toTenantProjectItems(projectsQuery.data);
 	const methods = useForm<FormValues>({
 		resolver: zodResolver(getSchema(t)),
-		defaultValues: { body: '', projectId: null },
+		defaultValues: { body: '', projectId: null, segments: [] },
 	});
 	// useWatch subscribes to the field instead of calling `methods.watch()`
 	// during render — the render-time `watch()` read makes React Hook Form an
 	// incompatible library for this component and the compiler skips it.
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
+	const segments =
+		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
+	const followUps = useMemo(
+		() =>
+			Array.isArray(segments) ? segments.map((segment) => segment.text) : [],
+		[segments],
+	);
 
 	const deferredAttach = useAttachDeferredImages(tenantId);
 
@@ -186,6 +200,7 @@ export const CreatePostDrawer = ({
 			const created = await savePost({
 				body: values.body,
 				projectId: values.projectId ?? null,
+				segments: values.segments.map((segment) => segment.text),
 				tenantId,
 			});
 
@@ -279,16 +294,15 @@ export const CreatePostDrawer = ({
 							aria-describedby="post-body-counter"
 							data-testid="tenant-posts-create-body"
 						/>
-						<p
-							id="post-body-counter"
-							className={
-								body.length > 20000
-									? 'text-[var(--publy-danger)] text-xs'
-									: 'text-muted-foreground text-xs'
+						<PostBodyCounter length={body.length} id="post-body-counter" />
+						<PostSegmentsEditor
+							segments={segments}
+							publishedSegmentCount={0}
+							projectId={methods.watch('projectId') ?? null}
+							onChange={(next) =>
+								methods.setValue('segments', next, { shouldDirty: true })
 							}
-						>
-							{body.length} / 20000
-						</p>
+						/>
 						{methods.formState.errors.root ? (
 							<p className="text-sm text-destructive" role="alert">
 								{methods.formState.errors.root.message}
@@ -327,6 +341,7 @@ export const CreatePostDrawer = ({
 							<PublishOnBlock
 								projectId={methods.watch('projectId') ?? null}
 								body={body}
+								followUps={followUps}
 								onBeforePublish={async () => {
 									const values = methods.getValues();
 									await methods.trigger();
@@ -337,6 +352,7 @@ export const CreatePostDrawer = ({
 									const details = await savePost({
 										body: values.body,
 										projectId: values.projectId ?? null,
+										segments: values.segments.map((segment) => segment.text),
 										tenantId,
 									});
 									// Picked images belong on the post BEFORE it is published,
@@ -355,6 +371,7 @@ export const CreatePostDrawer = ({
 									methods.reset({
 										body: details.body,
 										projectId: details.projectId,
+										segments: values.segments,
 									});
 									return details.id;
 								}}

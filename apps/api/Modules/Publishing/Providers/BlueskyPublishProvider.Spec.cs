@@ -502,6 +502,203 @@ public sealed class BlueskyPublishProviderSpec {
 		creates.Should().Be(1, "the failed upload never reached createRecord, so the retry creates the only record");
 	}
 
+	private static PublishRequest _ThreadRequest(
+		IReadOnlyList<string> followUps,
+		IReadOnlyList<CompletedSegment>? completed = null,
+		Func<CompletedSegment, CancellationToken, Task>? onCompleted = null
+	) {
+		return new PublishRequest {
+			PublicationId = BlueskyPublishProviderSpec._PublicationId,
+			IdempotencyKey = BlueskyPublishProviderSpec._IdempotencyKey,
+			PostBody = "segment one",
+			ScheduledAtUtc = BlueskyPublishProviderSpec._ScheduledInstant(),
+			Session = BlueskyPublishProviderSpec._NewSession(),
+			FollowUpSegments = followUps,
+			CompletedSegments = completed ?? [],
+			OnSegmentCompleted = onCompleted,
+		};
+	}
+
+	private static JsonElement _Record(string body) {
+		return JsonDocument.Parse(body).RootElement.GetProperty("record");
+	}
+
+	[Fact]
+	public async Task ItShouldPublishAThreadAsAReplyChainWithRootAndParentStrongRefs() {
+		var created = 0;
+		var handler = new RecordingHandler(request => {
+			created += 1;
+			var rkey = $"pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+				+ (created == 1 ? string.Empty : $"-s{created - 1}");
+			return BlueskyPublishProviderSpec._JsonResponse(
+				200,
+				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/{{rkey}}","cid":"cid-{{created}}"}"""
+			);
+		});
+		var progress = new List<CompletedSegment>();
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(
+				["segment two", "segment three"],
+				onCompleted: (segment, _) => {
+					progress.Add(segment);
+					return Task.CompletedTask;
+				}
+			),
+			CancellationToken.None
+		);
+
+		var key = BlueskyPublishProviderSpec._IdempotencyKey;
+		handler.Bodies.Should().HaveCount(3);
+		var first = BlueskyPublishProviderSpec._Record(handler.Bodies[0]);
+		first.TryGetProperty("reply", out _).Should().BeFalse("the first segment is the root");
+
+		var second = BlueskyPublishProviderSpec._Record(handler.Bodies[1]);
+		second.GetProperty("text").GetString().Should().Be("segment two");
+		var secondReply = second.GetProperty("reply");
+		secondReply.GetProperty("root").GetProperty("uri").GetString()
+			.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{key}");
+		secondReply.GetProperty("root").GetProperty("cid").GetString().Should().Be("cid-1");
+		secondReply.GetProperty("parent").GetProperty("uri").GetString()
+			.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{key}");
+		secondReply.GetProperty("parent").GetProperty("cid").GetString().Should().Be("cid-1");
+
+		var third = BlueskyPublishProviderSpec._Record(handler.Bodies[2]);
+		var thirdReply = third.GetProperty("reply");
+		thirdReply.GetProperty("root").GetProperty("cid").GetString().Should().Be("cid-1");
+		thirdReply.GetProperty("parent").GetProperty("uri").GetString()
+			.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{key}-s1");
+		thirdReply.GetProperty("parent").GetProperty("cid").GetString().Should().Be("cid-2");
+
+		JsonDocument.Parse(handler.Bodies[1]).RootElement.GetProperty("rkey").GetString()
+			.Should().Be($"pub-{key}-s1");
+		JsonDocument.Parse(handler.Bodies[2]).RootElement.GetProperty("rkey").GetString()
+			.Should().Be($"pub-{key}-s2");
+		second.GetProperty("createdAt").GetString().Should().Be(
+			BlueskyPublishProviderSpec._ScheduledInstant().AddMilliseconds(1)
+				.ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+		);
+
+		progress.Select(segment => segment.Position).Should().Equal(0, 1, 2);
+		result.Should().BeOfType<PublishResult.Published>().Which.RecordId
+			.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{key}");
+	}
+
+	[Fact]
+	public async Task ItShouldStopTheChainAtAFailingSegmentAndResumeOnlyTheRest() {
+		var key = BlueskyPublishProviderSpec._IdempotencyKey;
+		var created = 0;
+		var failThird = true;
+		var handler = new RecordingHandler(request => {
+			if (created == 2 && failThird) {
+				return BlueskyPublishProviderSpec._JsonResponse(
+					400, """{"error":"InvalidRequest","message":"bad record"}"""
+				);
+			}
+
+			created += 1;
+			return BlueskyPublishProviderSpec._JsonResponse(
+				200,
+				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/r{{created}}","cid":"cid-{{created}}"}"""
+			);
+		});
+		var progress = new List<CompletedSegment>();
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var failed = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(
+				["two", "three"],
+				onCompleted: (segment, _) => {
+					progress.Add(segment);
+					return Task.CompletedTask;
+				}
+			),
+			CancellationToken.None
+		);
+
+		failed.Should().BeOfType<PublishResult.ContentFailure>();
+		progress.Select(segment => segment.Position).Should().Equal(0, 1);
+
+		failThird = false;
+		handler.Bodies.Clear();
+		var resumed = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(["two", "three"], completed: progress),
+			CancellationToken.None
+		);
+
+		resumed.Should().BeOfType<PublishResult.Published>().Which.RecordId
+			.Should().Be("at://did:plc:x/app.bsky.feed.post/r1", "the thread root stays segment one");
+		handler.Bodies.Should().ContainSingle("only the unpublished segment is created");
+		var record = BlueskyPublishProviderSpec._Record(handler.Bodies[0]);
+		record.GetProperty("text").GetString().Should().Be("three");
+		record.GetProperty("reply").GetProperty("parent").GetProperty("cid").GetString()
+			.Should().Be("cid-2", "the chain continues from the stored uri and cid");
+		record.GetProperty("reply").GetProperty("root").GetProperty("cid").GetString()
+			.Should().Be("cid-1");
+		JsonDocument.Parse(handler.Bodies[0]).RootElement.GetProperty("rkey").GetString()
+			.Should().Be($"pub-{key}-s2");
+	}
+
+	[Fact]
+	public async Task ItShouldReadBackASegmentCreatedBeforeItWasRecordedAndContinueWithoutDuplicates() {
+		var fakePds = new RkeyStoringFakePds();
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(fakePds));
+
+		// A previous attempt created segments one and two, but only recorded one.
+		var firstAttempt = new List<CompletedSegment>();
+		await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(
+				["two"],
+				onCompleted: (segment, _) => {
+					firstAttempt.Add(segment);
+					return Task.CompletedTask;
+				}
+			),
+			CancellationToken.None
+		);
+		fakePds.StoredRkeys.Should().HaveCount(2);
+
+		var recorded = new List<CompletedSegment>();
+		var resumed = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(
+				["two", "three"],
+				completed: [firstAttempt[0]],
+				onCompleted: (segment, _) => {
+					recorded.Add(segment);
+					return Task.CompletedTask;
+				}
+			),
+			CancellationToken.None
+		);
+
+		resumed.Should().BeOfType<PublishResult.Published>();
+		fakePds.StoredRkeys.Should().HaveCount(3, "segment two collided and was read back, not duplicated");
+		recorded.Select(segment => segment.Position).Should().Equal(1, 2);
+		recorded[0].Cid.Should().Be("bafy-existing");
+	}
+
+	[Fact]
+	public async Task ItShouldNotContinueAThreadFromAReadBackRecordWithoutACid() {
+		var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+			? BlueskyPublishProviderSpec._JsonResponse(
+				400, """{"error":"InvalidRequest","message":"record_already_exists"}"""
+			)
+			: BlueskyPublishProviderSpec._JsonResponse(
+				200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
+			));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>();
+		handler.Requests.Count(request => request.Method == HttpMethod.Post)
+			.Should().Be(1, "no reply is sent with an empty parent cid");
+	}
+
 	private sealed class RecordingHandler
 		: HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;

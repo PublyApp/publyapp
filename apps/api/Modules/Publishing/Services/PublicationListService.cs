@@ -25,6 +25,10 @@ public record PublicationListItem {
 	public string? ExternalUrl { get; init; }
 	public string? LastError { get; init; }
 	public required DateTime UpdatedAt { get; init; }
+	/// <summary>Thread segments published so far (0 for a plain post, #2171).</summary>
+	public int SegmentsPublished { get; init; }
+	/// <summary>Total segments of the post (1 for a plain post).</summary>
+	public int SegmentsTotal { get; init; } = 1;
 }
 
 public abstract record FindPublicationsResult {
@@ -103,6 +107,10 @@ public sealed class PublicationListService : IPublicationListService {
 				Publication = publication,
 				PostBody = publication.Post.Body,
 				AccountHandle = publication.SocialAccount.DisplayHandle,
+				SegmentsPublished = this._Db.PublicationSegmentResult.Count(result =>
+					result.PublicationId == publication.Id && !result.IsDeleted),
+				FollowUpCount = this._Db.PostSegment.Count(segment =>
+					segment.PostId == publication.PostId && !segment.IsDeleted),
 			})
 			.ToListAsync(cancellationToken);
 
@@ -136,6 +144,8 @@ public sealed class PublicationListService : IPublicationListService {
 			ExternalUrl = row.Publication.ExternalUrl,
 			LastError = row.Publication.LastError,
 			UpdatedAt = row.Publication.UpdatedAt,
+			SegmentsPublished = row.SegmentsPublished,
+			SegmentsTotal = row.FollowUpCount + 1,
 		};
 	}
 }
@@ -144,4 +154,6 @@ internal sealed class PublicationRow {
 	public required Publication Publication { get; init; }
 	public required string PostBody { get; init; }
 	public required string AccountHandle { get; init; }
+	public int SegmentsPublished { get; init; }
+	public int FollowUpCount { get; init; }
 }

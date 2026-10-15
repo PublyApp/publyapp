@@ -91,6 +91,8 @@ const EN_LABELS: TestLabelMap = {
 		'Reconnect paused account to resume',
 	'posts:publication-paused-next-action-link':
 		'Reconnect account in Settings under Integrations',
+	'posts:history-segments-progress': 'Thread progress',
+	'posts:history-segments-total': 'Whole thread',
 	'common:updated-at': 'Updated at',
 };
 
@@ -121,6 +123,8 @@ const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	externalUrl: 'https://bsky.app/profile/team.publyapp.dev/post/1',
 	lastError: null,
 	updatedAt: new Date('2026-08-25T10:00:00Z'),
+	segmentsPublished: 0,
+	segmentsTotal: 1,
 	...overrides,
 });
 
@@ -233,6 +237,55 @@ describe('TenantPostsHistoryPage', () => {
 		expect(retry.getAttribute('title')).toBe(
 			'Retrying a failed publication arrives with scheduling (D4).',
 		);
+	});
+
+	test('a plain single-segment post shows no thread progress', () => {
+		mocks.rows = [row({})];
+		render(<TenantPostsHistoryPage />);
+
+		expect(screen.queryByTestId('tenant-posts-history-segments')).toBeNull();
+	});
+
+	test('a failed thread shows how many segments went out and highlights the failing one', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-thread',
+				status: 'failed',
+				externalUrl: null,
+				lastError: 'Published 2 of 5 segments; segment 3 failed: refused',
+				segmentsPublished: 2,
+				segmentsTotal: 5,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen.getByTestId('tenant-posts-history-segments').textContent,
+		).toContain('Thread progress');
+		const states = screen
+			.getAllByTestId('tenant-posts-history-segment')
+			.map((marker) => marker.getAttribute('data-state'));
+		expect(states).toEqual([
+			'published',
+			'published',
+			'failed',
+			'pending',
+			'pending',
+		]);
+	});
+
+	test('a fully published thread reports the whole thread without a failing segment', () => {
+		mocks.rows = [row({ segmentsPublished: 3, segmentsTotal: 3 })];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen.getByTestId('tenant-posts-history-segments').textContent,
+		).toContain('Whole thread');
+		expect(
+			screen
+				.getAllByTestId('tenant-posts-history-segment')
+				.every((marker) => marker.getAttribute('data-state') === 'published'),
+		).toBe(true);
 	});
 
 	test('in-progress row shows the in-progress pill', () => {

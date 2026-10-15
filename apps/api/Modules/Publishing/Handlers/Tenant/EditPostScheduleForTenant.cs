@@ -196,6 +196,14 @@ public sealed class EditPostScheduleForTenant {
 				),
 			EditPostScheduleResult.ContentInvalid contentInvalid =>
 				PublishContentProblems.ToProblem(contentInvalid.Failure),
+			EditPostScheduleResult.SegmentsLocked =>
+				TypedProblems.ValidationProblem(
+					"Segments that are already published cannot be changed.",
+					ResponseKeys.PostSegmentsLocked,
+					new Dictionary<string, string[]> {
+						["body"] = ["The first segment is already published and cannot be changed."],
+					}
+				),
 			EditPostScheduleResult.Success success => await EditPostScheduleForTenant._ApplyReschedulesAsync(
 				success.Reschedules,
 				postIdGuid,

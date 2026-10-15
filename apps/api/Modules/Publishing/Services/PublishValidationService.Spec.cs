@@ -15,6 +15,41 @@ public sealed class PublishValidationServiceSpec {
 	}
 
 	[Fact]
+	public void ItShouldHoldEveryThreadSegmentToTheSameLimitsAndNameTheOffender() {
+		string[] followUps = ["fine", new string('b', 301), ""];
+
+		var tooLong = PublishValidationService.Validate(
+			"first", [], [SocialProvider.Bluesky], followUps
+		);
+
+		Assert.NotNull(tooLong);
+		tooLong.Kind.Should().Be(PublishContentFailureKind.TooLong);
+		tooLong.SegmentNumber.Should().Be(3);
+		tooLong.Cause.Should().StartWith("Segment 3:");
+
+		var empty = PublishValidationService.Validate(
+			"first", [], [SocialProvider.Bluesky], ["fine", "  "]
+		);
+		Assert.NotNull(empty);
+		empty.Kind.Should().Be(PublishContentFailureKind.Empty);
+		empty.SegmentNumber.Should().Be(3);
+
+		PublishValidationService.Validate(
+			"first", [], [SocialProvider.Bluesky], ["fine", new string('c', 300)]
+		).Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldCountTheFirstSegmentOfAThreadLikeAnyOther() {
+		var failure = PublishValidationService.Validate(
+			new string('a', 301), [], [SocialProvider.Bluesky], ["fine"]
+		);
+
+		Assert.NotNull(failure);
+		failure.SegmentNumber.Should().Be(1);
+	}
+
+	[Fact]
 	public void ItShouldAccept300GraphemesAndRejectWith301() {
 		PublishValidationServiceSpec._Validate(new string('a', 300)).Should().BeNull();
 

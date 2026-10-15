@@ -325,6 +325,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostScheduleCancelledSuccess = new("post-schedule-cancelled-success");
 
 	/// <summary>
+	/// Segments that are already published cannot be changed or removed
+	/// </summary>
+	public static readonly TranslationKey PostSegmentsLocked = new("post-segments-locked");
+
+	/// <summary>
 	/// profile
 	/// </summary>
 	public static readonly TranslationKey Profile = new("profile");

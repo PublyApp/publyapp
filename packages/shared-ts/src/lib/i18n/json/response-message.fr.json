@@ -111,6 +111,7 @@
 	"post-image-too-large": "L'image dépasse la taille maximale autorisée",
 	"post-image-unsupported-type": "L'image doit être un PNG, JPEG ou WEBP",
 	"post-image-dimensions-invalid": "Les dimensions de l'image sont invalides",
+	"post-segments-locked": "Les segments déjà publiés ne peuvent pas être modifiés ni supprimés",
 	"post-image-missing": "Aucune image n'est attachée à cet article",
 	"post-image-conflict": "Une autre requête d'image pour cet article a déjà gagné ; relancez pour la remplacer",
 	"post-image-limit-reached": "Un billet peut avoir au plus 4 images",

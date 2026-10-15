@@ -1217,6 +1217,60 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("post_media_assets");
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Posts.Entities.PostSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostId", "Position")
+                        .IsUnique()
+                        .HasDatabaseName("ux_post_segments_live_post_position")
+                        .HasFilter("is_deleted = false");
+
+                    b.HasIndex("TenantId", "PostId")
+                        .HasDatabaseName("ix_post_segments_tenant_post");
+
+                    b.ToTable("post_segments");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.Profile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1477,6 +1531,69 @@ namespace PublyApp.Api.Migrations
                         {
                             t.HasCheckConstraint("CK_Publication_Status", "status IN (10, 20, 30, 40, 50)");
                         });
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.PublicationSegmentResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ExternalCid")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("external_cid");
+
+                    b.Property<string>("ExternalRecordId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("external_record_id");
+
+                    b.Property<string>("ExternalUrl")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("external_url");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<Guid>("PublicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("publication_id");
+
+                    b.Property<int>("SegmentPosition")
+                        .HasColumnType("integer")
+                        .HasColumnName("segment_position");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("PublicationId", "SegmentPosition")
+                        .IsUnique()
+                        .HasDatabaseName("ux_publication_segment_results_live_position")
+                        .HasFilter("is_deleted = false");
+
+                    b.ToTable("publication_segment_results");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.RateLimiting.Entities.RateLimitCounter", b =>
@@ -2265,6 +2382,25 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Posts.Entities.PostSegment", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Posts.Entities.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.Profile", b =>
                 {
                     b.HasOne("PublyApp.Api.Modules.Projects.Entities.Project", "Project")
@@ -2333,6 +2469,23 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("Post");
 
                     b.Navigation("SocialAccount");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.PublicationSegmentResult", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Publishing.Entities.Publication", null)
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Tenant");
                 });

@@ -15597,6 +15597,9 @@
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
+          },
+          "segments": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
@@ -17498,7 +17501,9 @@
           "createdAt",
           "updatedAt",
           "image",
-          "images"
+          "images",
+          "segments",
+          "publishedSegmentCount"
         ],
         "type": "object",
         "properties": {
@@ -17553,6 +17558,20 @@
               "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
               "$ref": "#/components/schemas/PostImageReadModel"
             }
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "description": "One follow-up segment: int PostSegmentReadModel.Number is its 1-based place in the thread (2..N).",
+              "$ref": "#/components/schemas/PostSegmentReadModel"
+            },
+            "description": "Follow-up segments (segments 2..N) of a thread; empty for a plain post."
+          },
+          "publishedSegmentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Leading segments already published (read-only); 0 unless a thread went out.",
+            "format": "int32"
           }
         }
       },
@@ -17725,6 +17744,24 @@
           }
         }
       },
+      "PostSegmentReadModel": {
+        "required": [
+          "number",
+          "body"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "description": "One follow-up segment: int PostSegmentReadModel.Number is its 1-based place in the thread (2..N)."
+      },
       "PostUpdated": {
         "required": [
           "id",
@@ -17855,6 +17892,18 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "segmentsPublished": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Thread segments published so far (0 for a plain post, #2171).",
+            "format": "int32"
+          },
+          "segmentsTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Total segments of the post (1 for a plain post).",
+            "format": "int32"
           }
         },
         "description": "History row: one publication with the context History renders."
@@ -19785,6 +19834,9 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "imageAltText": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "segments": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }

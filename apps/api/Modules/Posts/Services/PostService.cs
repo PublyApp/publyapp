@@ -5,6 +5,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Posts.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 
 namespace PublyApp.Api.Modules.Posts.Services;
 
@@ -12,7 +13,8 @@ public record CreatePostArgs(
 	Guid TenantId,
 	Guid? ProjectId,
 	string Body,
-	Guid CreatedByUserId
+	Guid CreatedByUserId,
+	IReadOnlyList<string>? Segments = null
 );
 
 public record UpdatePostArgs(
@@ -20,7 +22,10 @@ public record UpdatePostArgs(
 	Guid PostId,
 	PatchField<Guid?> ProjectId,
 	string? Body,
-	PatchField<string?> ImageAltText
+	PatchField<string?> ImageAltText,
+	// Follow-up segments (thread, #2171): null leaves them untouched, an empty
+	// list removes them all, otherwise they replace the post's follow-ups.
+	IReadOnlyList<string>? Segments = null
 );
 
 public record FindPostsArgs(
@@ -57,6 +62,17 @@ public interface IPostService {
 		UpdatePostArgs args,
 		CancellationToken cancellationToken = default);
 
+	/// <summary>The post's follow-up segments (segments 2..N) in order.</summary>
+	Task<IReadOnlyList<PostSegmentReadModel>> FindSegmentsAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>How many leading segments are already published (read-only in the editor).</summary>
+	Task<int> GetPublishedSegmentCountAsync(
+		Guid postId,
+		CancellationToken cancellationToken = default);
+
 	Task<bool> DeleteForTenantAsync(
 		Guid tenantId,
 		Guid id,
@@ -85,6 +101,15 @@ public abstract record UpdatePostResult {
 	public sealed record ProjectNotFound(Guid ProjectId) : UpdatePostResult;
 
 	public sealed record ImageMissing : UpdatePostResult;
+
+	/// <summary>The edit would change or drop an already-published segment.</summary>
+	public sealed record SegmentsLocked : UpdatePostResult;
+}
+
+/// <summary>One follow-up segment: <see cref="Number"/> is its 1-based place in the thread (2..N).</summary>
+public record PostSegmentReadModel {
+	public required int Number { get; init; }
+	public required string Body { get; init; }
 }
 
 public record PostListItem {
@@ -140,8 +165,21 @@ public class PostService : IPostService {
 			Status = PostStatus.Draft,
 			CreatedByUserId = args.CreatedByUserId
 		};
+		// Minted up front so the follow-up segment rows can reference it in one save.
+		var postId = Guid.CreateVersion7();
+		post.Id = postId;
 
 		await this._DbContext.Post.AddAsync(post, cancellationToken);
+		var followUps = args.Segments ?? [];
+		for (var index = 0; index < followUps.Count; index++) {
+			this._DbContext.PostSegment.Add(new PostSegment {
+				TenantId = args.TenantId,
+				PostId = postId,
+				Position = index + 1,
+				Body = followUps[index],
+			});
+		}
+
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		if (this._Logger.IsEnabled(LogLevel.Information)) {
@@ -298,6 +336,11 @@ public class PostService : IPostService {
 			return new UpdatePostResult.NotFound();
 		}
 
+		var segmentsLocked = await this._ApplySegmentsAsync(post, args, cancellationToken);
+		if (segmentsLocked) {
+			return new UpdatePostResult.SegmentsLocked();
+		}
+
 		if (args.Body is not null) {
 			post.Body = args.Body;
 		}
@@ -353,6 +396,98 @@ public class PostService : IPostService {
 		}
 
 		return new UpdatePostResult.Success(post);
+	}
+
+	/// <summary>
+	/// Stages the follow-up replacement and enforces the read-only rule for
+	/// already-published segments of a thread. Returns true when the edit must be
+	/// refused (nothing has been changed at that point).
+	/// </summary>
+	private async Task<bool> _ApplySegmentsAsync(
+		Post post,
+		UpdatePostArgs args,
+		CancellationToken cancellationToken
+	) {
+		if (args.Segments is null && args.Body is null) {
+			return false;
+		}
+
+		var postId = post.GetRequiredId();
+		var existing = await (
+			from segment in this._DbContext.PostSegment
+			where segment.PostId == postId && !segment.IsDeleted
+			orderby segment.Position
+			select segment
+		).ToListAsync(cancellationToken);
+
+		var published = existing.Count > 0
+			? await ThreadSegments.PublishedSegmentCountAsync(
+				this._DbContext, postId, cancellationToken
+			)
+			: 0;
+		if (published > 0) {
+			var before = new List<string> { post.Body };
+			before.AddRange(existing.Select(segment => segment.Body));
+			var after = new List<string> { args.Body ?? post.Body };
+			after.AddRange(args.Segments ?? existing.Select(segment => segment.Body).ToList());
+			for (var index = 0; index < published; index++) {
+				if (index >= after.Count || after[index] != before[index]) {
+					return true;
+				}
+			}
+		}
+
+		if (args.Segments is null) {
+			return false;
+		}
+
+		for (var index = 0; index < args.Segments.Count; index++) {
+			var current = existing.FirstOrDefault(segment => segment.Position == index + 1);
+			if (current is null) {
+				this._DbContext.PostSegment.Add(new PostSegment {
+					TenantId = post.TenantId,
+					PostId = postId,
+					Position = index + 1,
+					Body = args.Segments[index],
+				});
+			} else if (current.Body != args.Segments[index]) {
+				current.Body = args.Segments[index];
+				current.UpdatedAt = DateTime.UtcNow;
+			}
+		}
+
+		foreach (var surplus in existing.Where(segment => segment.Position > args.Segments.Count)) {
+			this._DbContext.PostSegment.Remove(surplus);
+		}
+
+		return false;
+	}
+
+	public async Task<IReadOnlyList<PostSegmentReadModel>> FindSegmentsAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default
+	) {
+		return await (
+			from segment in this._DbContext.PostSegment.AsNoTracking()
+			where segment.TenantId == tenantId
+				&& segment.PostId == postId
+				&& !segment.IsDeleted
+			orderby segment.Position
+			select new PostSegmentReadModel {
+				Number = segment.Position + 1,
+				Body = segment.Body,
+			}
+		).ToListAsync(cancellationToken);
+	}
+
+	public async Task<int> GetPublishedSegmentCountAsync(
+		Guid postId,
+		CancellationToken cancellationToken = default
+	) {
+		return await ThreadSegments.PublishedSegmentCountAsync(
+			this._DbContext, postId, cancellationToken
+		);
 	}
 
 	public async Task<bool> DeleteForTenantAsync(
