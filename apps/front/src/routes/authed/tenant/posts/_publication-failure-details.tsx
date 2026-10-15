@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { StatusPill } from '~/components/ui/product-page';
+import { isVisuallyBlank } from '~/lib/is-visually-blank';
 import {
 	publicationFailurePresentation,
 	retryAvailability,
@@ -10,8 +11,6 @@ import {
 	useRetryPublicationMutation,
 	type TenantPublicationRow,
 } from '~/lib/query/tenant-publications';
-
-import { isVisuallyBlank } from '../../staff/jobs/_jobs-helpers';
 
 /** Category pill, plain-words cause (never blank, #2013), attempt count and
  * the row's one primary action for a Failed/Paused publication (#647). */
@@ -29,6 +28,7 @@ export const PublicationFailureDetails = ({
 	const presentation = publicationFailurePresentation(
 		publication.status,
 		publication.failureCategory,
+		publication.accountUsable,
 	);
 	if (presentation === null) {
 		return null;
@@ -44,7 +44,8 @@ export const PublicationFailureDetails = ({
 			: 'posts:publication-failed-cause';
 	const availability = retryAvailability({
 		status: publication.status,
-		accountNeedsReconnect: publication.accountNeedsReconnect,
+		accountUsable: publication.accountUsable,
+		superseded: publication.superseded,
 		canPublish,
 	});
 	const retryTitle = availability.enabled

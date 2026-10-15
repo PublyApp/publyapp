@@ -69,8 +69,15 @@ public sealed class RetryPublicationForTenant {
 
 		if (eligibility is RetryEligibility.ReconnectFirst) {
 			return TypedProblems.Conflict(
-				"Reconnect the account first, then retry",
+				"The account is not connected; reconnect it first, then retry",
 				ResponseKeys.PublicationRetryReconnectFirst
+			);
+		}
+
+		if (eligibility is RetryEligibility.Superseded) {
+			return TypedProblems.Conflict(
+				"A newer publication exists for this post and account; retry that one",
+				ResponseKeys.PublicationRetrySuperseded
 			);
 		}
 

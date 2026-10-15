@@ -129,6 +129,7 @@
 	"publication-retry-not-allowed": "Seule une publication échouée ou en pause peut être relancée",
 	"publication-retry-reconnect-first": "Reconnectez d'abord le compte, puis relancez",
 	"publication-retry-pair-occupied": "Une publication plus récente pour ce post et ce compte est déjà active",
+	"publication-retry-superseded": "Une publication plus récente existe pour ce post et ce compte ; relancez celle-là",
 	"social-account-connected": "Compte Bluesky connecté",
 	"social-account-reconnected": "Compte Bluesky reconnecté",
 	"social-account-projects-updated": "Attachements de projets mis à jour",

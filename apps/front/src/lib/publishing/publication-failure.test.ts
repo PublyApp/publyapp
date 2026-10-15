@@ -13,22 +13,24 @@ describe('publicationFailurePresentation', () => {
 		['unknown', 'retry'],
 	])('%s maps to one primary action (%s)', (category, action) => {
 		expect(
-			publicationFailurePresentation('failed', category)?.primaryAction,
+			publicationFailurePresentation('failed', category, true)?.primaryAction,
 		).toBe(action);
 	});
 
 	test('is null for statuses that did not fail', () => {
 		for (const status of ['scheduled', 'in_progress', 'published', null]) {
-			expect(publicationFailurePresentation(status, 'unknown')).toBeNull();
+			expect(
+				publicationFailurePresentation(status, 'unknown', true),
+			).toBeNull();
 		}
 	});
 
 	test('falls back per status when the category is absent or drifted', () => {
-		expect(publicationFailurePresentation('failed', null)?.primaryAction).toBe(
-			'retry',
-		);
 		expect(
-			publicationFailurePresentation('paused', 'weird')?.primaryAction,
+			publicationFailurePresentation('failed', null, true)?.primaryAction,
+		).toBe('retry');
+		expect(
+			publicationFailurePresentation('paused', 'weird', true)?.primaryAction,
 		).toBe('reconnect');
 	});
 });
@@ -36,7 +38,8 @@ describe('publicationFailurePresentation', () => {
 describe('retryAvailability', () => {
 	const base = {
 		status: 'failed',
-		accountNeedsReconnect: false,
+		accountUsable: true,
+		superseded: false,
 		canPublish: true,
 	};
 
@@ -54,20 +57,33 @@ describe('retryAvailability', () => {
 		}
 	});
 
-	test('a paused row waits for the account, a failed row does not', () => {
-		expect(
-			retryAvailability({
-				...base,
-				status: 'paused',
-				accountNeedsReconnect: true,
-			}),
-		).toEqual({
+	test('any row of an unusable account waits for a reconnect', () => {
+		for (const status of ['paused', 'failed']) {
+			expect(
+				retryAvailability({ ...base, status, accountUsable: false }),
+			).toEqual({
+				enabled: false,
+				reasonKey: 'posts:publication-retry-disabled-reconnect',
+			});
+		}
+	});
+
+	test('a superseded row cannot be retried', () => {
+		expect(retryAvailability({ ...base, superseded: true })).toEqual({
 			enabled: false,
-			reasonKey: 'posts:publication-retry-disabled-reconnect',
+			reasonKey: 'posts:publication-retry-disabled-superseded',
 		});
+	});
+
+	test('retry-style categories switch to the reconnect action on an unusable account', () => {
 		expect(
-			retryAvailability({ ...base, accountNeedsReconnect: true }).enabled,
-		).toBe(true);
+			publicationFailurePresentation('failed', 'retry_later', false)
+				?.primaryAction,
+		).toBe('reconnect');
+		expect(
+			publicationFailurePresentation('failed', 'fix_content', false)
+				?.primaryAction,
+		).toBe('edit');
 	});
 
 	test('requires publish permissions', () => {

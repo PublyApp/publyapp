@@ -30,8 +30,10 @@ public record PublicationListItem {
 	public string? FailureCategory { get; init; }
 	/// <summary>Delivery attempts since the last retry (#647).</summary>
 	public int Attempts { get; init; }
-	/// <summary>True while the publication's account must be reconnected (#647).</summary>
-	public bool AccountNeedsReconnect { get; init; }
+	/// <summary>True while the publication's account is Active and usable (#647).</summary>
+	public bool AccountUsable { get; init; }
+	/// <summary>True when a newer publication exists for the same post and account (#647).</summary>
+	public bool Superseded { get; init; }
 	/// <summary>Thread segments published so far (0 for a plain post, #2171).</summary>
 	public int SegmentsPublished { get; init; }
 	/// <summary>Total segments of the post (1 for a plain post).</summary>
@@ -114,8 +116,15 @@ public sealed class PublicationListService : IPublicationListService {
 				Publication = publication,
 				PostBody = publication.Post.Body,
 				AccountHandle = publication.SocialAccount.DisplayHandle,
-				AccountNeedsReconnect =
-					publication.SocialAccount.Status == SocialAccountStatus.NeedsReconnect,
+				AccountUsable =
+					publication.SocialAccount.Status == SocialAccountStatus.Active
+					&& !publication.SocialAccount.IsDeleted,
+				Superseded = this._Db.Publication.Any(other =>
+					other.PostId == publication.PostId
+					&& other.SocialAccountId == publication.SocialAccountId
+					&& !other.IsDeleted
+					&& other.Id != publication.Id
+					&& other.CreatedAt > publication.CreatedAt),
 				SegmentsPublished = this._Db.PublicationSegmentResult.Count(result =>
 					result.PublicationId == publication.Id && !result.IsDeleted),
 				FollowUpCount = this._Db.PostSegment.Count(segment =>
@@ -182,7 +191,8 @@ public sealed class PublicationListService : IPublicationListService {
 			LastError = PublicationListService._CauseFor(row.Publication),
 			FailureCategory = PublicationListService._CategoryFor(row.Publication),
 			Attempts = row.Publication.Attempts,
-			AccountNeedsReconnect = row.AccountNeedsReconnect,
+			AccountUsable = row.AccountUsable,
+			Superseded = row.Superseded,
 			UpdatedAt = row.Publication.UpdatedAt,
 			SegmentsPublished = row.SegmentsPublished,
 			SegmentsTotal = row.FollowUpCount + 1,
@@ -191,7 +201,8 @@ public sealed class PublicationListService : IPublicationListService {
 }
 
 internal sealed class PublicationRow {
-	public bool AccountNeedsReconnect { get; init; }
+	public bool AccountUsable { get; init; }
+	public bool Superseded { get; init; }
 	public required Publication Publication { get; init; }
 	public required string PostBody { get; init; }
 	public required string AccountHandle { get; init; }

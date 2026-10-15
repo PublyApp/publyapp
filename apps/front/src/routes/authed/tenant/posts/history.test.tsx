@@ -7,7 +7,6 @@ import {
 	fireEvent,
 	render,
 	screen,
-	within,
 } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -25,7 +24,6 @@ const mocks = vi.hoisted(() => ({
 	language: 'en',
 	invalidateTenantPublications: vi.fn(),
 	retry: vi.fn(),
-	resume: vi.fn(),
 	canPublish: true,
 }));
 
@@ -47,10 +45,6 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
 	useRetryPublicationMutation: () => ({
 		mutate: mocks.retry,
-		isPending: false,
-	}),
-	useResumePausedPublicationsMutation: () => ({
-		mutate: mocks.resume,
 		isPending: false,
 	}),
 }));
@@ -123,11 +117,10 @@ const EN_LABELS: TestLabelMap = {
 	'posts:publication-action-reconnect': 'Reconnect account',
 	'posts:publication-action-edit': 'Edit post',
 	'posts:publication-attempts': 'attempts',
-	'posts:publication-resume-paused': 'Resume paused posts',
-	'posts:publication-resume-paused-hint': 'Paused while reconnecting.',
 	'posts:publication-retry-disabled-reconnect': 'Reconnect the account first.',
 	'posts:publication-retry-disabled-permission': 'Need publish permission.',
 	'posts:publication-retry-disabled-status': 'Only failed or paused.',
+	'posts:publication-retry-disabled-superseded': 'Only the newest publication.',
 	'posts:publish-status-in-progress': 'In progress…',
 	'posts:publish-status-published': 'Published',
 	'posts:publish-status-paused': 'Paused',
@@ -180,7 +173,8 @@ const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	lastError: null,
 	failureCategory: null,
 	attempts: 0,
-	accountNeedsReconnect: false,
+	accountUsable: true,
+	superseded: false,
 	updatedAt: new Date('2026-08-25T10:00:00Z'),
 	segmentsPublished: 0,
 	segmentsTotal: 1,
@@ -394,7 +388,7 @@ describe('TenantPostsHistoryPage', () => {
 				status: 'paused',
 				externalUrl: null,
 				failureCategory: 'reconnect',
-				accountNeedsReconnect: true,
+				accountUsable: false,
 				lastError: 'account disconnected',
 			}),
 		];
@@ -415,40 +409,39 @@ describe('TenantPostsHistoryPage', () => {
 		expect(retry.getAttribute('title')).toBe('Need publish permission.');
 	});
 
-	test('offers one-click resume for paused rows whose account was reconnected', () => {
+	test('Retry is disabled with a tooltip on a row superseded by a newer publication', () => {
 		mocks.rows = [
-			row({ id: 'p1', status: 'paused', externalUrl: null }),
-			row({ id: 'p2', status: 'paused', externalUrl: null }),
 			row({
-				id: 'p3',
-				status: 'paused',
+				status: 'failed',
 				externalUrl: null,
-				accountNeedsReconnect: true,
+				failureCategory: 'retry_later',
+				superseded: true,
 			}),
-			row({ id: 'f1', status: 'failed', externalUrl: null }),
 		];
 		render(<TenantPostsHistoryPage />);
 
-		const banner = screen.getByTestId('tenant-posts-resume-paused');
-		fireEvent.click(within(banner).getByRole('button'));
-
-		expect(mocks.resume).toHaveBeenCalledWith({
-			tenantId: '11111111-1111-1111-1111-111111111111',
-			publicationIds: ['p1', 'p2'],
-		});
+		const retry = screen.getByRole('button', { name: 'Retry' });
+		expect(retry.hasAttribute('disabled')).toBe(true);
+		expect(retry.getAttribute('title')).toBe('Only the newest publication.');
 	});
 
-	test('no resume banner when nothing is resumable', () => {
+	test('a failed retry-later row of an unusable account offers Reconnect, not Retry now', () => {
 		mocks.rows = [
 			row({
-				status: 'paused',
+				status: 'failed',
 				externalUrl: null,
-				accountNeedsReconnect: true,
+				failureCategory: 'retry_later',
+				accountUsable: false,
 			}),
 		];
 		render(<TenantPostsHistoryPage />);
 
-		expect(screen.queryByTestId('tenant-posts-resume-paused')).toBeNull();
+		const action = screen.getByTestId(
+			'tenant-posts-publication-primary-action',
+		);
+		expect(action.textContent).toBe('Reconnect account');
+		const retry = screen.getByRole('button', { name: 'Retry' });
+		expect(retry.hasAttribute('disabled')).toBe(true);
 	});
 
 	test('a plain single-segment post shows no thread progress', () => {
@@ -552,7 +545,7 @@ describe('TenantPostsHistoryPage', () => {
 				status: 'paused',
 				externalUrl: null,
 				failureCategory: 'reconnect',
-				accountNeedsReconnect: true,
+				accountUsable: false,
 				lastError: 'account disconnected',
 			}),
 		];

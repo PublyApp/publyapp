@@ -50,7 +50,10 @@ export type TenantPublicationRow = {
 	/** Failure category wire value on Failed/Paused rows (#647). */
 	failureCategory: string | null;
 	attempts: number;
-	accountNeedsReconnect: boolean;
+	/** The account is Active (not needs-reconnect / revoked / gone). */
+	accountUsable: boolean;
+	/** A newer publication exists for the same post and account. */
+	superseded: boolean;
 	updatedAt: Date | null;
 	/** Thread progress: segments published so far / total segments (1 = plain post). */
 	segmentsPublished: number;
@@ -177,7 +180,8 @@ const toTenantPublicationRow = (
 		lastError: normalizeNullableString(item.lastError),
 		failureCategory: normalizeNullableString(item.failureCategory),
 		attempts: item.attempts ?? 0,
-		accountNeedsReconnect: item.accountNeedsReconnect ?? false,
+		accountUsable: item.accountUsable ?? false,
+		superseded: item.superseded ?? false,
 		updatedAt: normalizeDate(item.updatedAt),
 		segmentsPublished: item.segmentsPublished ?? 0,
 		segmentsTotal: item.segmentsTotal ?? 1,
@@ -274,43 +278,6 @@ export const useRetryPublicationMutation = () => {
 				.retry.post();
 		},
 		onSuccess: async (_data, variables) => {
-			await invalidateTenantPublications(queryClient, variables.tenantId);
-			await invalidateTenantScheduledPublications(
-				queryClient,
-				variables.tenantId,
-			);
-		},
-		meta: { successMessage: 'publication-retry-success' },
-	});
-};
-
-/** "Resume N paused posts" after a reconnect: retries each given paused
- * publication (one request apiece, same endpoint and rules as a single retry)
- * and reports the first failure once every request has settled. */
-export const useResumePausedPublicationsMutation = () => {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationKey: [...TENANT_PUBLICATIONS_QUERY_KEY, 'resume-paused'],
-		mutationFn: async ({
-			tenantId,
-			publicationIds,
-		}: {
-			tenantId: string;
-			publicationIds: string[];
-		}) => {
-			const client = getClientManager().getOrCreateClient(tenantId);
-			const settled = await Promise.allSettled(
-				publicationIds.map((publicationId) =>
-					client.posts.publications.byPublicationId(publicationId).retry.post(),
-				),
-			);
-			const failed = settled.find((result) => result.status === 'rejected');
-			if (failed?.status === 'rejected') {
-				throw failed.reason;
-			}
-		},
-		onSettled: async (_data, _error, variables) => {
 			await invalidateTenantPublications(queryClient, variables.tenantId);
 			await invalidateTenantScheduledPublications(
 				queryClient,

@@ -139,7 +139,7 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldRefuseRetryWhenANewerPublicationHoldsThePair() {
+	public async Task ItShouldRefuseRetryOfASupersededPublicationOfAnyStatus() {
 		var (acmeId, token) = await this._LoginAsAcmeAdminAsync();
 		var failed = await this._SeedAsync(acmeId, PublicationStatus.Failed, PublicationFailureCategory.Unknown);
 		var newer = await this._SeedSiblingAsync(
@@ -149,9 +149,50 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 		using var response = await this._RetryAsync(token, acmeId, failed.PublicationId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-		await RetryPublicationForTenantSpec._AssertProblemKeyAsync(response, "publication-retry-pair-occupied");
+		await RetryPublicationForTenantSpec._AssertProblemKeyAsync(response, "publication-retry-superseded");
 		(await this._LoadAsync(failed.PublicationId)).Status.Should().Be(PublicationStatus.Failed);
 		(await this._LoadAsync(newer)).Status.Should().Be(PublicationStatus.Scheduled);
+		(await this._JobCountAsync(failed.IdempotencyKey)).Should().Be(0);
+	}
+
+	// A fails at segment 3, B inherits A's progress and fails at segment 4: retrying A
+	// would post segment 3 a second time under A's own record keys, so only B retries.
+	[Fact]
+	public async Task ItShouldOnlyRetryTheNewestOfTwoFailedPublicationsOfTheSamePair() {
+		var (acmeId, token) = await this._LoginAsAcmeAdminAsync();
+		var older = await this._SeedAsync(acmeId, PublicationStatus.Failed, PublicationFailureCategory.RetryLater);
+		var newer = await this._SeedSiblingAsync(
+			older.PostId, acmeId, PublicationStatus.Failed, older.SocialAccountId
+		);
+
+		using var olderResponse = await this._RetryAsync(token, acmeId, older.PublicationId);
+		using var newerResponse = await this._RetryAsync(token, acmeId, newer);
+
+		olderResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+		await RetryPublicationForTenantSpec._AssertProblemKeyAsync(olderResponse, "publication-retry-superseded");
+		newerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		(await this._LoadAsync(older.PublicationId)).Status.Should().Be(PublicationStatus.Failed);
+	}
+
+	[Theory]
+	[InlineData(PublicationStatus.Paused, SocialAccountStatus.Revoked)]
+	[InlineData(PublicationStatus.Failed, SocialAccountStatus.Revoked)]
+	[InlineData(PublicationStatus.Failed, SocialAccountStatus.NeedsReconnect)]
+	public async Task ItShouldRefuseRetryWhileTheAccountIsNotActive(
+		PublicationStatus status,
+		SocialAccountStatus accountStatus
+	) {
+		var (acmeId, token) = await this._LoginAsAcmeAdminAsync();
+		var seeded = await this._SeedAsync(
+			acmeId, status, PublicationFailureCategory.Reconnect, accountStatus: accountStatus
+		);
+
+		using var response = await this._RetryAsync(token, acmeId, seeded.PublicationId);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+		await RetryPublicationForTenantSpec._AssertProblemKeyAsync(response, "publication-retry-reconnect-first");
+		(await this._LoadAsync(seeded.PublicationId)).Status.Should().Be(status);
+		(await this._JobCountAsync(seeded.IdempotencyKey)).Should().Be(0);
 	}
 
 	[Fact]

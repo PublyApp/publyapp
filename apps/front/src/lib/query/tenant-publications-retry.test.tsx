@@ -18,10 +18,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
-import {
-	useResumePausedPublicationsMutation,
-	useRetryPublicationMutation,
-} from '~/lib/query/tenant-publications';
+import { useRetryPublicationMutation } from '~/lib/query/tenant-publications';
 
 const tenantId = '11111111-1111-1111-1111-111111111111';
 
@@ -60,24 +57,5 @@ describe('useRetryPublicationMutation', () => {
 		expect(mocks.getOrCreateClient).toHaveBeenCalledWith(tenantId);
 		expect(post).toHaveBeenCalledTimes(1);
 		expect(post).toHaveBeenCalledWith('pub-1');
-	});
-});
-
-describe('useResumePausedPublicationsMutation', () => {
-	test('retries every paused publication and reports a failure after all settle', async () => {
-		const post = vi
-			.fn()
-			.mockResolvedValueOnce({})
-			.mockRejectedValueOnce(new Error('409'))
-			.mockResolvedValueOnce({});
-		stubClient(post);
-		const { result } = renderHook(() => useResumePausedPublicationsMutation(), {
-			wrapper,
-		});
-
-		result.current.mutate({ tenantId, publicationIds: ['a', 'b', 'c'] });
-
-		await waitFor(() => expect(result.current.isError).toBe(true));
-		expect(post.mock.calls.map((call) => call[0])).toEqual(['a', 'b', 'c']);
 	});
 });

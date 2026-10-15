@@ -24,8 +24,14 @@ public abstract record RetryEligibility {
 	/// <summary>Only Failed and Paused publications can be retried.</summary>
 	public sealed record NotRetryable(PublicationStatus Status) : RetryEligibility;
 
-	/// <summary>A Paused publication whose account still needs reconnecting.</summary>
+	/// <summary>The account is not Active (needs reconnect, revoked or gone).</summary>
 	public sealed record ReconnectFirst : RetryEligibility;
+
+	/// <summary>
+	/// A newer publication exists for the same post and account (any status): only
+	/// the newest row per pair is retryable, or a thread's segments could post twice.
+	/// </summary>
+	public sealed record Superseded : RetryEligibility;
 }
 
 /// <summary>
@@ -80,13 +86,26 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 			return new RetryEligibility.NotRetryable(publication.Status);
 		}
 
-		if (publication.Status == PublicationStatus.Paused
-			&& await this._Db.SocialAccount.AsNoTracking().AnyAsync(
-				account => account.Id == publication.SocialAccountId
-					&& account.Status == SocialAccountStatus.NeedsReconnect,
-				cancellationToken
-			)) {
+		var accountIsActive = await this._Db.SocialAccount.AsNoTracking().AnyAsync(
+			account => account.Id == publication.SocialAccountId
+				&& !account.IsDeleted
+				&& account.Status == SocialAccountStatus.Active,
+			cancellationToken
+		);
+		if (!accountIsActive) {
 			return new RetryEligibility.ReconnectFirst();
+		}
+
+		var superseded = await this._Db.Publication.AsNoTracking().AnyAsync(
+			other => other.PostId == publication.PostId
+				&& other.SocialAccountId == publication.SocialAccountId
+				&& !other.IsDeleted
+				&& other.Id != publication.Id
+				&& other.CreatedAt > publication.CreatedAt,
+			cancellationToken
+		);
+		if (superseded) {
+			return new RetryEligibility.Superseded();
 		}
 
 		return new RetryEligibility.Eligible(publication.IdempotencyKey);

@@ -294,6 +294,32 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	[Fact]
+	public async Task ItShouldNeverDowngradeARevokedAccountToNeedsReconnect() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
+		account.Status = SocialAccountStatus.Revoked;
+		await db.SaveChangesAsync();
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, new FakePublishProvider(null), FakeSessions.AccountFailure("no usable stored credential")
+		);
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		await db.Entry(account).ReloadAsync();
+		account.Status.Should().Be(SocialAccountStatus.Revoked, "a chosen disconnect stays disconnected");
+	}
+
+	[Fact]
 	public async Task ItShouldPublishARetriedPublicationAsAlreadyExistsWithoutASecondRecord() {
 		using var db = await this._NewDbAsync();
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);

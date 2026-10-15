@@ -57,13 +57,10 @@ const isFailureCategory = (
 	(PUBLICATION_FAILURE_CATEGORIES as readonly string[]).includes(value);
 
 /** Presentation for a Failed/Paused row; null for every other status. */
-export const publicationFailurePresentation = (
-	status: string | null,
+const baseFailurePresentation = (
+	status: string,
 	category: string | null,
-): PublicationFailurePresentation | null => {
-	if (status !== 'failed' && status !== 'paused') {
-		return null;
-	}
+): PublicationFailurePresentation => {
 	if (category !== null && isFailureCategory(category)) {
 		return FAILURE_PRESENTATION[category];
 	}
@@ -73,19 +70,39 @@ export const publicationFailurePresentation = (
 	return FAILURE_PRESENTATION.unknown;
 };
 
+/** An account that is not Active cannot publish, so a "Retry now" primary
+ * action would only pause the row again: offer the reconnect action instead. */
+export const publicationFailurePresentation = (
+	status: string | null,
+	category: string | null,
+	accountUsable: boolean,
+): PublicationFailurePresentation | null => {
+	if (status !== 'failed' && status !== 'paused') {
+		return null;
+	}
+	const base = baseFailurePresentation(status, category);
+	if (base.primaryAction === 'retry' && !accountUsable) {
+		return { ...base, primaryAction: 'reconnect' };
+	}
+	return base;
+};
+
 export type RetryAvailability =
 	| { enabled: true }
 	| { enabled: false; reasonKey: string };
 
-/** Mirrors the API rules: only Failed/Paused rows retry, a Paused row waits
- * for its account to be reconnected, and the caller needs publish rights. */
+/** Mirrors the API rules: only Failed/Paused rows retry, the account must be
+ * Active, only the newest publication of a post+account pair retries, and the
+ * caller needs publish rights. */
 export const retryAvailability = ({
 	status,
-	accountNeedsReconnect,
+	accountUsable,
+	superseded,
 	canPublish,
 }: {
 	status: string | null;
-	accountNeedsReconnect: boolean;
+	accountUsable: boolean;
+	superseded: boolean;
 	canPublish: boolean;
 }): RetryAvailability => {
 	if (status !== 'failed' && status !== 'paused') {
@@ -100,10 +117,16 @@ export const retryAvailability = ({
 			reasonKey: 'posts:publication-retry-disabled-permission',
 		};
 	}
-	if (status === 'paused' && accountNeedsReconnect) {
+	if (!accountUsable) {
 		return {
 			enabled: false,
 			reasonKey: 'posts:publication-retry-disabled-reconnect',
+		};
+	}
+	if (superseded) {
+		return {
+			enabled: false,
+			reasonKey: 'posts:publication-retry-disabled-superseded',
 		};
 	}
 	return { enabled: true };

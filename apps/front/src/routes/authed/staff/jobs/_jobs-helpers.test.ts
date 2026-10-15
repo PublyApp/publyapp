@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
 import { cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
+import { isVisuallyBlank } from '~/lib/is-visually-blank';
 
-import { formatFailureCause, isVisuallyBlank } from './_jobs-helpers';
+import { formatFailureCause } from './_jobs-helpers';
 
 // Track calls so mutations that hardcode a string (bypassing t()) are caught.
 const tCalls: string[] = [];

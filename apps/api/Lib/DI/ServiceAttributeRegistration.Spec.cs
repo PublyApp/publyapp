@@ -73,6 +73,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IPublicationQueueService), typeof(PublicationQueueService)),
 		// D3: PublicationService is D3-only, so develop's copy of this list never
 		// had it — the rebase must UNION the two sides here, not take develop's.
+		(typeof(IPublicationRetryService), typeof(PublicationRetryService)),
 		(typeof(IPublicationService), typeof(PublicationService)),
 		(typeof(IPublicationStatusTransitionService), typeof(PublicationStatusTransitionService)),
 		(typeof(IPublishNowService), typeof(PublishNowService)),

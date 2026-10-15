@@ -4549,7 +4549,7 @@ export function deserializeIntoProjectListItem(projectListItem: Partial<ProjectL
 export function deserializeIntoPublicationListItem(publicationListItem: Partial<PublicationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountLabel": n => { publicationListItem.accountLabel = n.getStringValue(); },
-        "accountNeedsReconnect": n => { publicationListItem.accountNeedsReconnect = n.getBooleanValue(); },
+        "accountUsable": n => { publicationListItem.accountUsable = n.getBooleanValue(); },
         "attempts": n => { publicationListItem.attempts = n.getNumberValue(); },
         "externalUrl": n => { publicationListItem.externalUrl = n.getStringValue(); },
         "failureCategory": n => { publicationListItem.failureCategory = n.getStringValue(); },
@@ -4561,6 +4561,7 @@ export function deserializeIntoPublicationListItem(publicationListItem: Partial<
         "segmentsTotal": n => { publicationListItem.segmentsTotal = n.getNumberValue(); },
         "socialAccountId": n => { publicationListItem.socialAccountId = n.getGuidValue(); },
         "status": n => { publicationListItem.status = n.getStringValue(); },
+        "superseded": n => { publicationListItem.superseded = n.getBooleanValue(); },
         "updatedAt": n => { publicationListItem.updatedAt = n.getDateValue(); },
     }
 }
@@ -6951,9 +6952,9 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     accountLabel?: string | null;
     /**
-     * True while the publication's account must be reconnected (#647).
+     * True while the publication's account is Active and usable (#647).
      */
-    accountNeedsReconnect?: boolean | null;
+    accountUsable?: boolean | null;
     /**
      * Delivery attempts since the last retry (#647).
      */
@@ -6998,6 +6999,10 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+    /**
+     * True when a newer publication exists for the same post and account (#647).
+     */
+    superseded?: boolean | null;
     /**
      * The updatedAt property
      */
@@ -9102,7 +9107,7 @@ export function serializeProjectListItem(writer: SerializationWriter, projectLis
 export function serializePublicationListItem(writer: SerializationWriter, publicationListItem: Partial<PublicationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!publicationListItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("accountLabel", publicationListItem.accountLabel);
-    writer.writeBooleanValue("accountNeedsReconnect", publicationListItem.accountNeedsReconnect);
+    writer.writeBooleanValue("accountUsable", publicationListItem.accountUsable);
     writer.writeNumberValue("attempts", publicationListItem.attempts);
     writer.writeStringValue("externalUrl", publicationListItem.externalUrl);
     writer.writeStringValue("failureCategory", publicationListItem.failureCategory);
@@ -9114,6 +9119,7 @@ export function serializePublicationListItem(writer: SerializationWriter, public
     writer.writeNumberValue("segmentsTotal", publicationListItem.segmentsTotal);
     writer.writeGuidValue("socialAccountId", publicationListItem.socialAccountId);
     writer.writeStringValue("status", publicationListItem.status);
+    writer.writeBooleanValue("superseded", publicationListItem.superseded);
     writer.writeDateValue("updatedAt", publicationListItem.updatedAt);
     writer.writeAdditionalData(publicationListItem.additionalData);
 }

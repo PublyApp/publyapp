@@ -147,7 +147,8 @@ describe('toTenantPublicationRows', () => {
 					lastError: 'Bluesky refused the credentials',
 					failureCategory: 'fix_content',
 					attempts: 2,
-					accountNeedsReconnect: true,
+					accountUsable: true,
+					superseded: true,
 				},
 			],
 			nextCursor: undefined,
@@ -165,7 +166,8 @@ describe('toTenantPublicationRows', () => {
 			lastError: null,
 			failureCategory: null,
 			attempts: 0,
-			accountNeedsReconnect: false,
+			accountUsable: false,
+			superseded: false,
 			updatedAt,
 			segmentsPublished: 0,
 			segmentsTotal: 1,
@@ -174,7 +176,8 @@ describe('toTenantPublicationRows', () => {
 		expect(rows[1].lastError).toBe('Bluesky refused the credentials');
 		expect(rows[1].failureCategory).toBe('fix_content');
 		expect(rows[1].attempts).toBe(2);
-		expect(rows[1].accountNeedsReconnect).toBe(true);
+		expect(rows[1].accountUsable).toBe(true);
+		expect(rows[1].superseded).toBe(true);
 	});
 
 	test('drops rows without an id and survives an empty payload', () => {

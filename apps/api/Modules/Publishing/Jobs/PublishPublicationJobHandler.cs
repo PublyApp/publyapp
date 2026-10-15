@@ -396,7 +396,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			candidate => candidate.Id == socialAccountId && !candidate.IsDeleted,
 			cancellationToken
 		);
-		if (account is null) {
+		// A disconnect the user chose (Revoked) is never downgraded to NeedsReconnect.
+		if (account is null || account.Status == SocialAccountStatus.Revoked) {
 			return;
 		}
 

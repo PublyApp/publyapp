@@ -23,7 +23,6 @@ import { formatInZone } from '~/utils/format-time';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { PublicationStatusCell } from './_publication-status-cell';
-import { ResumePausedBanner } from './_resume-paused-banner';
 import { useTenantPostList } from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
@@ -146,9 +145,6 @@ const TenantPostsHistoryPage = () => {
 				title={t('posts:history')}
 				description={t('posts:history-description')}
 			/>
-			{canPublish && tenantId ? (
-				<ResumePausedBanner rows={rows} tenantId={tenantId} />
-			) : null}
 			<DataTable
 				testId="tenant-posts-history-table"
 				ariaLabel={t('posts:history')}

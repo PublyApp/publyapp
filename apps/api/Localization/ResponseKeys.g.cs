@@ -380,6 +380,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublicationRetrySuccess = new("publication-retry-success");
 
 	/// <summary>
+	/// A newer publication exists for this post and account; retry that one
+	/// </summary>
+	public static readonly TranslationKey PublicationRetrySuperseded = new("publication-retry-superseded");
+
+	/// <summary>
 	/// This account is not attached to the post&apos;s project. Pick an account visible in the project, or remove the post&apos;s project.
 	/// </summary>
 	public static readonly TranslationKey PublicationScheduleAccountNotInProject = new("publication-schedule-account-not-in-project");
