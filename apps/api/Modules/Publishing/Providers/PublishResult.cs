@@ -26,5 +26,5 @@ public abstract record PublishResult {
 	public sealed record ContentFailure(string Cause) : PublishResult;
 
 	/// <summary>Server or transport trouble: retry later with backoff.</summary>
-	public sealed record TransientFailure(string Cause) : PublishResult;
+	public sealed record TransientFailure(string Cause, TimeSpan? RetryAfter = null) : PublishResult;
 }

@@ -8,6 +8,8 @@ import { ConnectRequestBuilderRequestsMetadata, type ConnectRequestBuilder } fro
 // @ts-ignore
 import { type WithSocialAccountItemRequestBuilder, WithSocialAccountItemRequestBuilderNavigationMetadata } from './item/index.js';
 // @ts-ignore
+import { MastodonRequestBuilderNavigationMetadata, type MastodonRequestBuilder } from './mastodon/index.js';
+// @ts-ignore
 import { NeedsReconnectAccountsRequestBuilderRequestsMetadata, type NeedsReconnectAccountsRequestBuilder } from './needsReconnectAccounts/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -20,6 +22,10 @@ export interface SocialAccountsRequestBuilder extends BaseRequestBuilder<SocialA
      * The connect property
      */
     get connect(): ConnectRequestBuilder;
+    /**
+     * The mastodon property
+     */
+    get mastodon(): MastodonRequestBuilder;
     /**
      * The needsReconnectAccounts property
      */
@@ -81,6 +87,9 @@ export const SocialAccountsRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     connect: {
         requestsMetadata: ConnectRequestBuilderRequestsMetadata,
+    },
+    mastodon: {
+        navigationMetadata: MastodonRequestBuilderNavigationMetadata,
     },
     needsReconnectAccounts: {
         requestsMetadata: NeedsReconnectAccountsRequestBuilderRequestsMetadata,

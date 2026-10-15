@@ -1631,6 +1631,126 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.OAuthAppRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("client_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("host");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("ProtectedClientSecret")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("protected_client_secret");
+
+                    b.Property<string>("RedirectUri")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("redirect_uri");
+
+                    b.Property<string>("Scopes")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("scopes");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Host")
+                        .IsUnique()
+                        .HasDatabaseName("ux_oauth_app_registrations_live_host")
+                        .HasFilter("is_deleted = false");
+
+                    b.ToTable("oauth_app_registrations");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.OAuthState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("InstanceHost")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("instance_host");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("StateHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("state_hash");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StateHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_oauth_states_state_hash");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("oauth_states");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2495,6 +2615,17 @@ namespace PublyApp.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.OAuthState", b =>
+                {
                     b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")

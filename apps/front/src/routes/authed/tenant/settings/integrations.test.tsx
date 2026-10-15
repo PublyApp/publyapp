@@ -98,6 +98,26 @@ vi.mock('./_bluesky-connect-drawer', () => ({
 			? createElement('div', { 'data-testid': `bluesky-${mode}-drawer` })
 			: null,
 }));
+vi.mock('./_mastodon-connect-drawer', () => ({
+	MastodonConnectDrawer: ({
+		open,
+		account,
+	}: {
+		open: boolean;
+		account?: { displayHandle: string };
+	}) =>
+		open
+			? createElement(
+					'div',
+					{ 'data-testid': 'mastodon-drawer-stub' },
+					account?.displayHandle ?? 'connect',
+				)
+			: null,
+}));
+vi.mock('./_use-mastodon-callback', () => ({
+	useMastodonCallback: vi.fn(),
+	validateMastodonCallbackSearch: () => ({}),
+}));
 vi.mock('./_disconnect-dialog', () => ({
 	DisconnectDialog: ({
 		isOpen,
@@ -125,6 +145,8 @@ const EN_LABELS: TestLabelMap = {
 	'integrations-load-failed-description':
 		'The connected accounts list could not be loaded. Try again.',
 	'connect-bluesky': 'Connect Bluesky',
+	'connect-mastodon': 'Connect Mastodon',
+	'provider-mastodon': 'Mastodon',
 	reconnect: 'Reconnect',
 	disconnect: 'Disconnect',
 	'provider-bluesky': 'Bluesky',
@@ -394,5 +416,23 @@ describe('TenantSettingsIntegrationsPage', () => {
 			expect(banners[0].textContent).toContain('@broken.bsky.social');
 			expect(banners[0].textContent).toContain('Bluesky refused');
 		});
+	});
+
+	test('ItShouldOfferConnectMastodonAndListAMastodonAccountAsMastodon', async () => {
+		socialAccountsWire = [
+			{
+				...activeAccount,
+				id: 'm1',
+				provider: 'mastodon',
+				displayHandle: 'me@social.example',
+			},
+		];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.getByText('Mastodon')).toBeTruthy();
+		await userEvent.setup().click(screen.getByText('Connect Mastodon'));
+		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
+			'connect',
+		);
 	});
 });

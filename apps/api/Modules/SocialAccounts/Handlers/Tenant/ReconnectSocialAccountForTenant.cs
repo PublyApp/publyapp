@@ -113,38 +113,9 @@ public sealed class ReconnectSocialAccountForTenant {
 		if (serviceResult is ReconnectSocialAccountResult.Reconnected reconnected) {
 			var item = SocialAccountService.ToListItem(reconnected.Account);
 
-			// C4 resume-on-reconnect: future-instant PAUSED rows return to Scheduled
-			// keeping their original instant; past-due rows stay Paused with a cause
-			// telling the user to pick a new time. Nothing late ever fires. Loop of
-			// single transactions is acceptable at banner scale. Already-Scheduled
-			// rows are left untouched — MarkScheduledAsync is exclusively the resume
-			// move (see PublicationStatusTransitionService).
-			var queueRows = await publicationQueueService.FindNonTerminalForAccountAsync(
-				new FindPublicationsOfAccountArgs(tenantId, accountId),
-				cancellationToken
+			await ReconnectSocialAccountForTenant.ResumeQueueAsync(
+				publicationQueueService, transitions, tenantId, accountId, cancellationToken
 			);
-			foreach (var (publicationId, scheduledAtUtc, status) in queueRows) {
-				if (status == PublicationStatus.Paused && scheduledAtUtc > DateTime.UtcNow) {
-					await transitions.MarkScheduledAsync(
-						new MarkPublicationScheduledArgs(publicationId, tenantId),
-						cancellationToken
-					);
-				} else if (scheduledAtUtc <= DateTime.UtcNow) {
-					// Past due (paused or scheduled): keep it stopped, refresh the
-					// cause so the user knows to pick a new time. Never fires late.
-					await transitions.MarkPausedAsync(
-						new MarkPublicationPausedArgs(
-							publicationId,
-							tenantId,
-							"it was not published at its scheduled time because the account needed "
-								+ "reconnection; retry to publish it now, or choose a new time",
-							PublicationFailureCategory.RetryLater
-						),
-						cancellationToken
-					);
-				}
-				// Future scheduled rows are already correct — untouched.
-			}
 
 			await auditLogService.LogAsync(
 				new CreateAuditLogArgs(
@@ -176,5 +147,49 @@ public sealed class ReconnectSocialAccountForTenant {
 		throw new InvalidOperationException(
 			"Unhandled result type"
 		);
+	}
+
+	/// <summary>
+	/// The resume half of any reconnect (Bluesky app password or Mastodon OAuth).
+	/// </summary>
+	internal static async Task ResumeQueueAsync(
+		IPublicationQueueService publicationQueueService,
+		IPublicationStatusTransitionService transitions,
+		Guid tenantId,
+		Guid accountId,
+		CancellationToken cancellationToken
+	) {
+		// C4 resume-on-reconnect: future-instant PAUSED rows return to Scheduled
+		// keeping their original instant; past-due rows stay Paused with a cause
+		// telling the user to pick a new time. Nothing late ever fires. Loop of
+		// single transactions is acceptable at banner scale. Already-Scheduled
+		// rows are left untouched — MarkScheduledAsync is exclusively the resume
+		// move (see PublicationStatusTransitionService).
+		var queueRows = await publicationQueueService.FindNonTerminalForAccountAsync(
+			new FindPublicationsOfAccountArgs(tenantId, accountId),
+			cancellationToken
+		);
+		foreach (var (publicationId, scheduledAtUtc, status) in queueRows) {
+			if (status == PublicationStatus.Paused && scheduledAtUtc > DateTime.UtcNow) {
+				await transitions.MarkScheduledAsync(
+					new MarkPublicationScheduledArgs(publicationId, tenantId),
+					cancellationToken
+				);
+			} else if (scheduledAtUtc <= DateTime.UtcNow) {
+				// Past due (paused or scheduled): keep it stopped, refresh the
+				// cause so the user knows to pick a new time. Never fires late.
+				await transitions.MarkPausedAsync(
+					new MarkPublicationPausedArgs(
+						publicationId,
+						tenantId,
+						"it was not published at its scheduled time because the account needed "
+							+ "reconnection; retry to publish it now, or choose a new time",
+						PublicationFailureCategory.RetryLater
+					),
+					cancellationToken
+				);
+			}
+			// Future scheduled rows are already correct — untouched.
+		}
 	}
 }

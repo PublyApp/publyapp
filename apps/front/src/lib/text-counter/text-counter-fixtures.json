@@ -96,5 +96,83 @@
 		"serverGraphemes": 2,
 		"browserGraphemes": 1,
 		"bytes": 9
+	},
+	{
+		"name": "mastodon url of 100 characters counts 23",
+		"text": "https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"graphemes": 100,
+		"bytes": 100,
+		"characters": 23
+	},
+	{
+		"name": "mastodon url inside text",
+		"text": "see https://example.com/path?q=1 now",
+		"graphemes": 36,
+		"bytes": 36,
+		"characters": 31
+	},
+	{
+		"name": "mastodon url drops trailing punctuation",
+		"text": "visit https://example.com/a.",
+		"graphemes": 28,
+		"bytes": 28,
+		"characters": 30
+	},
+	{
+		"name": "mastodon remote mention counts the local part",
+		"text": "hi @alice@mastodon.social!",
+		"graphemes": 26,
+		"bytes": 26,
+		"characters": 10
+	},
+	{
+		"name": "mastodon emoji counts code points",
+		"text": "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66",
+		"graphemes": 1,
+		"bytes": 25,
+		"characters": 7
+	},
+	{
+		"name": "mastodon url in angle brackets",
+		"text": "<https://a.b>",
+		"graphemes": 13,
+		"bytes": 13,
+		"characters": 25
+	},
+	{
+		"name": "mastodon custom url weight",
+		"text": "https://example.com",
+		"graphemes": 19,
+		"bytes": 19,
+		"characters": 30,
+		"urlWeight": 30
+	},
+	{
+		"name": "mastodon at-sign inside a url is not a mention",
+		"text": "https://x.com/@a@b.c",
+		"graphemes": 20,
+		"bytes": 20,
+		"characters": 23
+	},
+	{
+		"name": "mastodon two urls",
+		"text": "https://a.io https://b.io",
+		"graphemes": 25,
+		"bytes": 25,
+		"characters": 47
+	},
+	{
+		"name": "mastodon mention then url",
+		"text": "@bob@host.tld https://a.io",
+		"graphemes": 26,
+		"bytes": 26,
+		"characters": 28
+	},
+	{
+		"name": "mastodon trailing whitespace after url",
+		"text": "hi https://e.com   ",
+		"graphemes": 16,
+		"bytes": 16,
+		"characters": 26
 	}
 ]

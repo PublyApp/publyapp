@@ -1,3 +1,5 @@
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Providers;
@@ -22,6 +24,11 @@ public sealed record PublishRequest {
 	public required DateTime ScheduledAtUtc { get; init; }
 
 	public required SocialSession Session { get; init; }
+	// Which delivery handles this request (#2174); Bluesky unless set.
+	public SocialProvider Provider { get; init; } = SocialProvider.Bluesky;
+	// The target account's effective limits (instance overrides applied), for a
+	// provider that fits images to them; null falls back to the provider default.
+	public ProviderCapability? Capability { get; init; }
 
 	// The post's images in publish order (empty for a text-only post).
 	public IReadOnlyList<PublishMedia> Media { get; init; } = [];

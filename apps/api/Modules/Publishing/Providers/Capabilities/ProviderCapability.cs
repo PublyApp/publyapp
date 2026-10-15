@@ -26,5 +26,8 @@ public sealed record CapabilityOverrides(
 	Dictionary<string, int>? TextLimits = null,
 	int? MaxImages = null,
 	long? MaxImageBytes = null,
-	List<string>? AcceptedImageContentTypes = null
+	List<string>? AcceptedImageContentTypes = null,
+	// A URL-weighting counting rule's reserved length (Mastodon's
+	// characters_reserved_per_url).
+	int? UrlLength = null
 );

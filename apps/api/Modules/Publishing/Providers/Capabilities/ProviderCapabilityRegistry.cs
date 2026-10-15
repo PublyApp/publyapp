@@ -22,11 +22,23 @@ public static class ProviderCapabilityRegistry {
 		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"]
 	);
 
+	// Mastodon's stock instance values; an account's overrides replace them with
+	// what its instance advertises (#2174). Images stay the static types the app
+	// can upload.
+	public static readonly ProviderCapability Mastodon = new(
+		SocialProvider.Mastodon,
+		[new TextLimit(MastodonCountingRule.Default, 500)],
+		MaxImages: 4,
+		MaxImageBytes: 16_777_216,
+		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"]
+	);
+
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
 	private static readonly IReadOnlyDictionary<SocialProvider, ProviderCapability> _Defaults =
 		new Dictionary<SocialProvider, ProviderCapability> {
 			[SocialProvider.Bluesky] = ProviderCapabilityRegistry.Bluesky,
+			[SocialProvider.Mastodon] = ProviderCapabilityRegistry.Mastodon,
 		};
 
 	/// <summary>
@@ -89,15 +101,27 @@ public static class ProviderCapabilityRegistry {
 
 		return defaults with {
 			TextLimits = defaults.TextLimits
-				.Select(limit => overrides.TextLimits is not null
-					&& overrides.TextLimits.TryGetValue(limit.Rule.Unit, out var max)
-						? limit with { Max = max }
-						: limit)
+				.Select(limit => ProviderCapabilityRegistry._ApplyOverrides(limit, overrides))
 				.ToList(),
 			MaxImages = overrides.MaxImages ?? defaults.MaxImages,
 			MaxImageBytes = overrides.MaxImageBytes ?? defaults.MaxImageBytes,
 			AcceptedImageContentTypes =
 				overrides.AcceptedImageContentTypes ?? defaults.AcceptedImageContentTypes,
 		};
+	}
+
+	private static TextLimit _ApplyOverrides(TextLimit limit, CapabilityOverrides overrides) {
+		var effective = limit;
+		if (overrides.TextLimits is not null
+			&& overrides.TextLimits.TryGetValue(limit.Rule.Unit, out var max)
+			&& max > 0) {
+			effective = effective with { Max = max };
+		}
+
+		if (effective.Rule is MastodonCountingRule && overrides.UrlLength is > 0) {
+			effective = effective with { Rule = new MastodonCountingRule(overrides.UrlLength.Value) };
+		}
+
+		return effective;
 	}
 }

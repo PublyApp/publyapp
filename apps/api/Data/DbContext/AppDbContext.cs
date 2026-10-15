@@ -159,6 +159,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<Modules.SocialAccounts.Entities.SocialAccount> SocialAccount {
 		get { return this.Set<Modules.SocialAccounts.Entities.SocialAccount>(); }
 	}
+	public DbSet<Modules.SocialAccounts.Entities.OAuthAppRegistration> OAuthAppRegistration {
+		get { return this.Set<Modules.SocialAccounts.Entities.OAuthAppRegistration>(); }
+	}
+	public DbSet<Modules.SocialAccounts.Entities.OAuthState> OAuthState {
+		get { return this.Set<Modules.SocialAccounts.Entities.OAuthState>(); }
+	}
 	public DbSet<Modules.SocialAccounts.Entities.SocialAccountProject> SocialAccountProject {
 		get { return this.Set<Modules.SocialAccounts.Entities.SocialAccountProject>(); }
 	}

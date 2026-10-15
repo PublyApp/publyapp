@@ -84,6 +84,28 @@ configuration or database access. Any other flag value fails loud the same way.
 - The refusal is intentionally independent of every other config value: a misconfigured
   container dies loudly at once instead of producing a clean-looking no-host outage.
 
+## Mastodon connect (#2174)
+
+Mastodon uses per-instance OAuth. There is no new secret and no new environment
+variable: the OAuth redirect URI is `FRONT_URL` + `/tenant/settings/integrations`, so
+**`FRONT_URL` must be the exact public https origin users reach** (Mastodon refuses a
+non-https redirect on a real instance). The instance sends the browser back there with
+`code` and `state`; the page completes the flow with `POST /social-accounts/mastodon/callback`
+under the user's own session, so the single-use `state` is bound to tenant, user and
+instance host (only its SHA-256 is stored, in `oauth_states`).
+
+- PublyApp registers itself once per instance host (`oauth_app_registrations`, shared by
+  tenants; the client secret is encrypted with the Mastodon credential purpose). Changing
+  `FRONT_URL` re-registers on the next connect.
+- The instance host a user types is SSRF-guarded (`MastodonHostGuard`): a plain public
+  DNS name only, https only, every resolved address re-checked at connect time, no
+  redirects followed.
+- Access tokens do not expire; there is no refresh. A 401 at publish pauses the account
+  for reconnect. Disconnect revokes the token best effort, then erases the credentials.
+- On every connect/reconnect the instance's advertised limits are written to
+  `social_accounts.capability_overrides` after validation (non-positive values dropped,
+  absurd values clamped; see `CapabilityOverridesFactory`).
+
 ## Failure playbook
 
 | Log/symptom | Meaning | Action |

@@ -5,13 +5,23 @@
  */
 
 /** Counts by counting-rule unit. The server names the units a destination
- * enforces; a unit this browser cannot count is skipped (the server decides). */
+ * enforces; a unit this browser cannot count is skipped (the server decides).
+ * A URL-weighted unit (Mastodon's `characters`) is counted per destination from
+ * `<unit>-rest` (the text without its URLs) and `urls` (see `unitCount`). */
 export type TextCounts = Record<string, number>;
+
+/** One enforced limit: `urlWeight` is what each URL counts as, for a
+ * URL-weighted unit (Mastodon's `characters_reserved_per_url`). */
+export type TextLimit = {
+	unit: string;
+	max: number;
+	urlWeight?: number | null;
+};
 
 /** One destination's effective capability, as returned by
  * `GET /publishing/publish-targets` (issue #2173): no number lives in the front. */
 export type DestinationLimits = {
-	textLimits: { unit: string; max: number }[];
+	textLimits: TextLimit[];
 	maxImages: number;
 	maxImageBytes: number;
 	acceptedImageContentTypes: string[];
@@ -51,6 +61,14 @@ const normalizeText = (text: string): string => {
 	return lf.slice(0, end);
 };
 
+/** Mirrors `MastodonCountingRule` in Publishing/Providers/Capabilities: a URL is
+ * `http(s)://` plus a run that ends on a non-punctuation character; a remote
+ * mention `@user@host` counts as `@user`. ASCII-only classes keep the .NET and JS
+ * regex engines identical; both run `text-counter-fixtures.json`. */
+const URL_PATTERN = /https?:\/\/[^ \t\r\n<>"]*[^ \t\r\n<>".,;:!?)\]}']/g;
+const MENTION_PATTERN =
+	/(?<![A-Za-z0-9_/=])@([A-Za-z0-9_]+)@[A-Za-z0-9.-]*[A-Za-z0-9]/g;
+
 const segmenter =
 	typeof Intl !== 'undefined' && 'Segmenter' in Intl
 		? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
@@ -60,6 +78,12 @@ const utf8 = new TextEncoder();
 
 export const countText = (text: string) => {
 	const normalized = normalizeText(text);
+	const withoutMentionHosts = normalized.replace(MENTION_PATTERN, '@$1');
+	let urls = 0;
+	const rest = withoutMentionHosts.replace(URL_PATTERN, () => {
+		urls += 1;
+		return '';
+	});
 	let graphemes = 0;
 	if (segmenter) {
 		for (const _segment of segmenter.segment(normalized)) {
@@ -69,7 +93,28 @@ export const countText = (text: string) => {
 		// Code points: the best available approximation without Intl.Segmenter.
 		graphemes = Array.from(normalized).length;
 	}
-	return { graphemes, bytes: utf8.encode(normalized).length };
+	return {
+		graphemes,
+		bytes: utf8.encode(normalized).length,
+		'characters-rest': Array.from(rest).length,
+		urls,
+	};
+};
+
+/** The count of one limit's unit, or undefined when this browser cannot count it. */
+export const unitCount = (
+	counts: TextCounts,
+	{ unit, urlWeight }: TextLimit,
+): number | undefined => {
+	if (urlWeight === undefined || urlWeight === null) {
+		return counts[unit];
+	}
+	const rest = counts[`${unit}-rest`];
+	const urls = counts['urls'];
+	if (rest === undefined || urls === undefined) {
+		return undefined;
+	}
+	return rest + urls * urlWeight;
 };
 
 const toState = (actual: number, limit: number): LimitState => {
@@ -95,12 +140,13 @@ export const tightestLimit = (
 	let tightest: (TightestLimit & { ratio: number }) | null = null;
 
 	for (const destination of destinations) {
-		const candidates = destination.limits.textLimits.flatMap(
-			({ unit, max }) => {
-				const actual = counts[unit];
-				return actual === undefined ? [] : [{ unit, actual, limit: max }];
-			},
-		);
+		const candidates = destination.limits.textLimits.flatMap((textLimit) => {
+			const actual = unitCount(counts, textLimit);
+			if (actual === undefined) {
+				return [];
+			}
+			return [{ unit: textLimit.unit, actual, limit: textLimit.max }];
+		});
 
 		for (const candidate of candidates) {
 			const ratio = candidate.actual / candidate.limit;
