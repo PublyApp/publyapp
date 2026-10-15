@@ -15,6 +15,7 @@ public static partial class Routes {
 			// Epic D publish-now: immediate publishing through the job queue,
 			// hanging off the existing posts resource (D2 plan reconciliation 2).
 			public const string PublishNow = "/{postId}/publish-now";
+			public const string RetryPublication = "/publications/{publicationId}/retry";
 			public const string GetById = "/{postId}";
 			public static string GetByIdFn(string postId) {
 				return $"/{postId}";

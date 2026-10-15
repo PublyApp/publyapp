@@ -651,6 +651,33 @@ const REGISTRY = {
 			]);
 		},
 	},
+	'tenant-publications.ts': {
+		kind: 'list-family',
+		helperName: 'invalidateTenantPublications',
+		run: async () => {
+			const { invalidateTenantPublications, tenantPublicationsQueryOptions } =
+				await import('./tenant-publications');
+			const invalidated = await capturedInvalidationKeys((client) =>
+				invalidateTenantPublications(client, TENANT_ID),
+			);
+			// Retry moves a row Failed/Paused -> Scheduled: the history list must
+			// refetch. No separate detail query exists, so the list family IS the line.
+			expectListCovered(
+				'tenant-publications',
+				'invalidateTenantPublications',
+				invalidated,
+				[
+					[
+						'publications history page',
+						tenantPublicationsQueryOptions.queryKey({
+							tenantId: TENANT_ID,
+							statuses: ['failed'],
+						}),
+					],
+				],
+			);
+		},
+	},
 	'staff-profile-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffProfileUsers',

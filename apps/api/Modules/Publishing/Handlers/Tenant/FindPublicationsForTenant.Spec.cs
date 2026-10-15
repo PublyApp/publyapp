@@ -94,6 +94,10 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			"the sanitised cause is surfaced verbatim"
 		);
 		failed.ExternalUrl.Should().BeNull("a failed row never went out");
+		failed.FailureCategory.Should().Be("unknown", "an unclassified failure reads as unknown");
+		failed.Attempts.Should().Be(1);
+		failed.AccountUsable.Should().BeTrue();
+		failed.Superseded.Should().BeFalse();
 
 		var published = payload.Data.Single(item => item.Status == "published");
 		published.ExternalUrl.Should()

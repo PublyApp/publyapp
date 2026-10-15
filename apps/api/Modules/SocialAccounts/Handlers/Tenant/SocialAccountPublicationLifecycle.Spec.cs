@@ -81,6 +81,7 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 			PublicationStatus.Paused, "a past-due row must never fire late"
 		);
 		pastDue.LastError.Should().Contain("choose a new time");
+		pastDue.FailureCategory.Should().Be(PublicationFailureCategory.RetryLater);
 	}
 
 	[Fact]

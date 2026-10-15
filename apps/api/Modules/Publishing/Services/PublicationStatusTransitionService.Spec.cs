@@ -159,6 +159,66 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		seeded.LastError.Should().BeNull("publishing clears any stale cause");
 	}
 
+	[Theory]
+	[InlineData("")]
+	[InlineData("   ")]
+	[InlineData("\u200B\u2800\u0007")]
+	public async Task ItShouldNeverStoreABlankCauseAndFallBackToTheCategorySentence(string cause) {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var service = PublicationStatusTransitionServiceSpec._NewService(db);
+
+		await service.MarkFailedAsync(
+			new MarkPublicationFailedArgs(
+				seeded.GetRequiredId(), seeded.TenantId, cause, PublicationFailureCategory.RetryLater
+			),
+			CancellationToken.None
+		);
+
+		await db.Entry(seeded).ReloadAsync();
+		seeded.FailureCategory.Should().Be(PublicationFailureCategory.RetryLater);
+		seeded.LastError.Should().Be("the provider could not be reached; try again later");
+	}
+
+	[Fact]
+	public async Task ItShouldRetryFromFailedKeepingTheKeyResettingAttemptsAndClearingTheCauseOnlyWhenTheNextAttemptStarts() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var service = PublicationStatusTransitionServiceSpec._NewService(db);
+		var key = seeded.IdempotencyKey;
+		await service.MarkFailedAsync(
+			new MarkPublicationFailedArgs(
+				seeded.GetRequiredId(), seeded.TenantId, "timeout", PublicationFailureCategory.RetryLater
+			),
+			CancellationToken.None
+		);
+
+		var result = await service.RetryAsync(
+			new RetryPublicationArgs(seeded.GetRequiredId(), seeded.TenantId),
+			CancellationToken.None
+		);
+
+		result.Should().Be(RetryTransitionResult.Retried);
+		await db.Entry(seeded).ReloadAsync();
+		seeded.Status.Should().Be(PublicationStatus.Scheduled);
+		seeded.Attempts.Should().Be(0);
+		seeded.IdempotencyKey.Should().Be(key);
+		seeded.LastError.Should().Be("timeout", "the cause stays until the new attempt starts");
+
+		await service.MarkInProgressAsync(
+			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), seeded.TenantId),
+			CancellationToken.None
+		);
+		await db.Entry(seeded).ReloadAsync();
+		seeded.LastError.Should().BeNull();
+		seeded.FailureCategory.Should().BeNull();
+
+		(await service.RetryAsync(
+			new RetryPublicationArgs(seeded.GetRequiredId(), seeded.TenantId),
+			CancellationToken.None
+		)).Should().Be(RetryTransitionResult.NotRetryable, "an in-progress row is not retryable");
+	}
+
 	[Fact]
 	public async Task ItShouldFailWithASanitisedCause() {
 		using var db = await this._NewDbAsync();

@@ -1,7 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { act, cleanup, render, screen } from '@testing-library/react';
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+} from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantPublicationRow } from '~/lib/query/tenant-publications';
@@ -17,6 +23,8 @@ const mocks = vi.hoisted(() => ({
 	dataUpdatedAt: 0,
 	language: 'en',
 	invalidateTenantPublications: vi.fn(),
+	retry: vi.fn(),
+	canPublish: true,
 }));
 
 vi.mock('~/lib/query/tenant-publications', () => ({
@@ -35,6 +43,19 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 			value,
 		),
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
+	useRetryPublicationMutation: () => ({
+		mutate: mocks.retry,
+		isPending: false,
+	}),
+}));
+
+vi.mock('~/lib/query/tenant-permissions', () => ({
+	POSTS_PUBLISH: 'tenant.posts.publish',
+	SOCIAL_ACCOUNTS_PUBLISH: 'tenant.socialaccounts.publish',
+	useTenantPermissions: () => ({
+		permissions: [],
+		hasPermission: () => mocks.canPublish,
+	}),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -48,8 +69,17 @@ vi.mock('@tanstack/react-router', () => ({
 		useNavigate: () => () => undefined,
 		useSearch: () => ({}),
 	}),
-	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
-		<a href={to} {...props}>
+	Link: ({
+		children,
+		to,
+		params,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		params?: { postId: string };
+	}) => (
+		<a href={to.replace('$postId', params?.postId ?? '')} {...props}>
 			{children}
 		</a>
 	),
@@ -76,8 +106,21 @@ const EN_LABELS: TestLabelMap = {
 	'posts:history-status-label': 'Status',
 	'posts:view-on-bluesky': 'View on Bluesky',
 	'posts:publish-retry': 'Retry',
-	'posts:publish-retry-stub-title':
-		'Retrying a failed publication arrives with scheduling (D4).',
+	'posts:publication-category-reconnect': 'Reconnect',
+	'posts:publication-category-fix-content': 'Fix content',
+	'posts:publication-category-retry-later': 'Retry later',
+	'posts:publication-category-unknown': 'Unknown',
+	'posts:publication-category-message-reconnect': 'Account needs reconnecting.',
+	'posts:publication-category-message-fix-content': 'Provider refused content.',
+	'posts:publication-category-message-retry-later': 'Provider kept failing.',
+	'posts:publication-category-message-unknown': 'Outcome unclassified.',
+	'posts:publication-action-reconnect': 'Reconnect account',
+	'posts:publication-action-edit': 'Edit post',
+	'posts:publication-attempts': 'attempts',
+	'posts:publication-retry-disabled-reconnect': 'Reconnect the account first.',
+	'posts:publication-retry-disabled-permission': 'Need publish permission.',
+	'posts:publication-retry-disabled-status': 'Only failed or paused.',
+	'posts:publication-retry-disabled-superseded': 'Only the newest publication.',
 	'posts:publish-status-in-progress': 'In progress…',
 	'posts:publish-status-published': 'Published',
 	'posts:publish-status-paused': 'Paused',
@@ -96,8 +139,14 @@ const EN_LABELS: TestLabelMap = {
 	'common:updated-at': 'Updated at',
 };
 
-const translate = (key: string, options?: { cause?: string }) => {
+const translate = (
+	key: string,
+	options?: { cause?: string; count?: number },
+) => {
 	const value = EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
+	if (options?.count !== undefined) {
+		return `${options.count} ${value}`;
+	}
 	return options?.cause ? value.replace('{{cause}}', options.cause) : value;
 };
 
@@ -122,6 +171,10 @@ const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	status: 'published',
 	externalUrl: 'https://bsky.app/profile/team.publyapp.dev/post/1',
 	lastError: null,
+	failureCategory: null,
+	attempts: 0,
+	accountUsable: true,
+	superseded: false,
 	updatedAt: new Date('2026-08-25T10:00:00Z'),
 	segmentsPublished: 0,
 	segmentsTotal: 1,
@@ -138,6 +191,7 @@ afterEach(() => {
 	mocks.shouldLogout = false;
 	mocks.dataUpdatedAt = 0;
 	mocks.language = 'en';
+	mocks.canPublish = true;
 });
 
 describe('TenantPostsHistoryPage', () => {
@@ -218,12 +272,14 @@ describe('TenantPostsHistoryPage', () => {
 		expect(link.getAttribute('rel')).toContain('noopener');
 	});
 
-	test('failed row shows its status pill, plain-word cause, and disabled Retry stub', () => {
+	test('failed row shows its category pill, plain-word cause, attempts and an enabled Retry', () => {
 		mocks.rows = [
 			row({
 				id: 'pub-2',
 				status: 'failed',
 				externalUrl: null,
+				failureCategory: 'retry_later',
+				attempts: 3,
 				lastError: 'Bluesky refused the credentials',
 			}),
 		];
@@ -232,11 +288,160 @@ describe('TenantPostsHistoryPage', () => {
 		expect(
 			screen.getByTestId('tenant-posts-publication-cause').textContent,
 		).toBe('Failed: Bluesky refused the credentials');
+		expect(
+			screen.getByTestId('tenant-posts-history-category-pill').textContent,
+		).toBe('Retry later');
+		expect(
+			screen.getByTestId('tenant-posts-publication-attempts').textContent,
+		).toBe('3 attempts');
+		const retry = screen.getByRole('button', { name: 'Retry' });
+		expect(retry.hasAttribute('disabled')).toBe(false);
+		expect(
+			screen.queryByTestId('tenant-posts-publication-primary-action'),
+		).toBeNull();
+	});
+
+	test('clicking Retry fires the retry mutation for that publication only', () => {
+		mocks.rows = [
+			row({ id: 'pub-2', status: 'failed', failureCategory: 'unknown' }),
+			row({ id: 'pub-9', status: 'published' }),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+		expect(mocks.retry).toHaveBeenCalledTimes(1);
+		expect(mocks.retry).toHaveBeenCalledWith({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			publicationId: 'pub-2',
+		});
+	});
+
+	test.each([
+		['reconnect', 'Reconnect account', '/tenant/settings/integrations'],
+		['fix_content', 'Edit post', '/tenant/posts/post-1/edit'],
+	])(
+		'%s category offers exactly one deep-linked primary action',
+		(category, label, href) => {
+			mocks.rows = [
+				row({
+					status: 'failed',
+					externalUrl: null,
+					failureCategory: category,
+					lastError: 'refused',
+				}),
+			];
+			render(<TenantPostsHistoryPage />);
+
+			const action = screen.getByTestId(
+				'tenant-posts-publication-primary-action',
+			);
+			expect(action.textContent).toBe(label);
+			expect(action.getAttribute('href')).toBe(href);
+		},
+	);
+
+	test('a blank or invisible stored cause falls back to the category sentence (#2013)', () => {
+		mocks.rows = [
+			row({
+				status: 'failed',
+				externalUrl: null,
+				failureCategory: 'fix_content',
+				lastError: null,
+			}),
+			row({
+				id: 'pub-blank',
+				status: 'failed',
+				externalUrl: null,
+				failureCategory: 'unknown',
+				lastError: '\u200B\u2800',
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		const causes = screen
+			.getAllByTestId('tenant-posts-publication-cause')
+			.map((node) => node.textContent);
+		expect(causes).toEqual([
+			'Failed: Provider refused content.',
+			'Failed: Outcome unclassified.',
+		]);
+	});
+
+	test('legacy rows without a category read as unknown (failed) or reconnect (paused)', () => {
+		mocks.rows = [
+			row({ id: 'a', status: 'failed', externalUrl: null }),
+			row({ id: 'b', status: 'paused', externalUrl: null }),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen
+				.getAllByTestId('tenant-posts-history-category-pill')
+				.map((node) => node.textContent),
+		).toEqual(['Unknown', 'Reconnect']);
+	});
+
+	test('Retry is disabled with a tooltip for a paused row whose account still needs reconnecting', () => {
+		mocks.rows = [
+			row({
+				status: 'paused',
+				externalUrl: null,
+				failureCategory: 'reconnect',
+				accountUsable: false,
+				lastError: 'account disconnected',
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
 		const retry = screen.getByRole('button', { name: 'Retry' });
 		expect(retry.hasAttribute('disabled')).toBe(true);
-		expect(retry.getAttribute('title')).toBe(
-			'Retrying a failed publication arrives with scheduling (D4).',
+		expect(retry.getAttribute('title')).toBe('Reconnect the account first.');
+	});
+
+	test('Retry is disabled without publish permissions', () => {
+		mocks.canPublish = false;
+		mocks.rows = [row({ status: 'failed', externalUrl: null })];
+		render(<TenantPostsHistoryPage />);
+
+		const retry = screen.getByRole('button', { name: 'Retry' });
+		expect(retry.hasAttribute('disabled')).toBe(true);
+		expect(retry.getAttribute('title')).toBe('Need publish permission.');
+	});
+
+	test('Retry is disabled with a tooltip on a row superseded by a newer publication', () => {
+		mocks.rows = [
+			row({
+				status: 'failed',
+				externalUrl: null,
+				failureCategory: 'retry_later',
+				superseded: true,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		const retry = screen.getByRole('button', { name: 'Retry' });
+		expect(retry.hasAttribute('disabled')).toBe(true);
+		expect(retry.getAttribute('title')).toBe('Only the newest publication.');
+	});
+
+	test('a failed retry-later row of an unusable account offers Reconnect, not Retry now', () => {
+		mocks.rows = [
+			row({
+				status: 'failed',
+				externalUrl: null,
+				failureCategory: 'retry_later',
+				accountUsable: false,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		const action = screen.getByTestId(
+			'tenant-posts-publication-primary-action',
 		);
+		expect(action.textContent).toBe('Reconnect account');
+		const retry = screen.getByRole('button', { name: 'Retry' });
+		expect(retry.hasAttribute('disabled')).toBe(true);
 	});
 
 	test('a plain single-segment post shows no thread progress', () => {
@@ -333,28 +538,25 @@ describe('TenantPostsHistoryPage', () => {
 		expect(pill.textContent).toBe('Paused');
 	});
 
-	test('paused row renders its transparent failure cause and a reconnect next action', () => {
+	test('paused row renders its transparent failure cause and a reconnect primary action', () => {
 		mocks.rows = [
 			row({
 				id: 'pub-paused-cause',
 				status: 'paused',
 				externalUrl: null,
+				failureCategory: 'reconnect',
+				accountUsable: false,
 				lastError: 'account disconnected',
 			}),
 		];
 		render(<TenantPostsHistoryPage />);
 
 		const cause = screen.getByTestId('tenant-posts-publication-cause');
-		expect(cause.textContent).toContain('Paused: account disconnected');
-		expect(cause.getAttribute('title')).toBe(
-			'Reconnect the account in Settings under Integrations to resume.',
+		expect(cause.textContent).toBe('Paused: account disconnected');
+		const action = screen.getByTestId(
+			'tenant-posts-publication-primary-action',
 		);
-		const recoveryLink = screen.getByRole('link', {
-			name: 'Reconnect paused account to resume',
-		});
-		expect(recoveryLink.getAttribute('href')).toBe(
-			'/tenant/settings/integrations',
-		);
+		expect(action.getAttribute('href')).toBe('/tenant/settings/integrations');
 	});
 
 	test('published row keeps the external link AND renders the shared Published pill (success tone)', () => {

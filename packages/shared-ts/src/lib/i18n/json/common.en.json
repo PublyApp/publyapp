@@ -593,6 +593,7 @@
 	"save-as-draft": "Save as draft",
 	"publish-now": "Publish now",
 	"publish-now-success": "Publishing started",
+	"publication-retry-success": "Retry started",
 	"forbidden": "Forbidden",
 	"no-permission": "No permission",
 	"forbidden-description": "The page you're trying to access has restricted access. Please refer to your system administrator.",

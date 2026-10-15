@@ -105,6 +105,8 @@ public sealed partial class PublicationArchitectureSpec {
 		"Modules/Publishing/Handlers/Tenant/FindScheduledPublicationsForTenant.Spec.cs",
 		"Modules/Publishing/Jobs/DispatchDuePosts.Spec.cs",
 		"Modules/Publishing/Jobs/DispatchDuePostsConcurrency.Spec.cs",
+		// #647: retry endpoint spec seeds Failed/Paused/Published rows to retry.
+		"Modules/Publishing/Handlers/Tenant/RetryPublicationForTenant.Spec.cs",
 		// D3 round-3: direct-invocation find-scheduled spec seeds scheduled rows.
 		"Modules/Publishing/Services/PublicationService.FindScheduled.Spec.cs",
 	};

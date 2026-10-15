@@ -360,6 +360,31 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
 
 	/// <summary>
+	/// Only a failed or paused publication can be retried
+	/// </summary>
+	public static readonly TranslationKey PublicationRetryNotAllowed = new("publication-retry-not-allowed");
+
+	/// <summary>
+	/// A newer publication for this post and account is already live
+	/// </summary>
+	public static readonly TranslationKey PublicationRetryPairOccupied = new("publication-retry-pair-occupied");
+
+	/// <summary>
+	/// Reconnect the account first, then retry
+	/// </summary>
+	public static readonly TranslationKey PublicationRetryReconnectFirst = new("publication-retry-reconnect-first");
+
+	/// <summary>
+	/// Retry started
+	/// </summary>
+	public static readonly TranslationKey PublicationRetrySuccess = new("publication-retry-success");
+
+	/// <summary>
+	/// A newer publication exists for this post and account; retry that one
+	/// </summary>
+	public static readonly TranslationKey PublicationRetrySuperseded = new("publication-retry-superseded");
+
+	/// <summary>
 	/// This account is not attached to the post&apos;s project. Pick an account visible in the project, or remove the post&apos;s project.
 	/// </summary>
 	public static readonly TranslationKey PublicationScheduleAccountNotInProject = new("publication-schedule-account-not-in-project");

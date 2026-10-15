@@ -4,12 +4,20 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindScheduledPublicationsResponseFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindScheduledPublicationsResponse, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type WithPublicationItemRequestBuilder, WithPublicationItemRequestBuilderNavigationMetadata } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /posts/publications
  */
 export interface PublicationsRequestBuilder extends BaseRequestBuilder<PublicationsRequestBuilder> {
+    /**
+     * Gets an item from the PublyApp.Api.Client.posts.publications.item collection
+     * @param publicationId Unique identifier of the item
+     * @returns {WithPublicationItemRequestBuilder}
+     */
+     byPublicationId(publicationId: string) : WithPublicationItemRequestBuilder;
     /**
      * Find scheduled publications (queue + calendar)
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -43,6 +51,15 @@ export interface PublicationsRequestBuilderGetQueryParameters {
  * Uri template for the request builder.
  */
 export const PublicationsRequestBuilderUriTemplate = "{+baseurl}/posts/publications{?cursor*,from*,limit*,status*,to*}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const PublicationsRequestBuilderNavigationMetadata: Record<Exclude<keyof PublicationsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byPublicationId: {
+        navigationMetadata: WithPublicationItemRequestBuilderNavigationMetadata,
+        pathParametersMappings: ["publicationId"],
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

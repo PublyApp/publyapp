@@ -145,6 +145,10 @@ describe('toTenantPublicationRows', () => {
 					id: '0198c7a2-0000-7000-8000-000000000004',
 					status: 'failed',
 					lastError: 'Bluesky refused the credentials',
+					failureCategory: 'fix_content',
+					attempts: 2,
+					accountUsable: true,
+					superseded: true,
 				},
 			],
 			nextCursor: undefined,
@@ -160,12 +164,20 @@ describe('toTenantPublicationRows', () => {
 			status: 'published',
 			externalUrl: 'https://bsky.app/profile/team.publyapp.dev/post/1',
 			lastError: null,
+			failureCategory: null,
+			attempts: 0,
+			accountUsable: false,
+			superseded: false,
 			updatedAt,
 			segmentsPublished: 0,
 			segmentsTotal: 1,
 		});
 		expect(rows[1].status).toBe('failed');
 		expect(rows[1].lastError).toBe('Bluesky refused the credentials');
+		expect(rows[1].failureCategory).toBe('fix_content');
+		expect(rows[1].attempts).toBe(2);
+		expect(rows[1].accountUsable).toBe(true);
+		expect(rows[1].superseded).toBe(true);
 	});
 
 	test('drops rows without an id and survives an empty payload', () => {

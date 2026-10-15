@@ -53,6 +53,10 @@ public class Publication : BaseAttributes, ITenantEntity {
 	[Column("last_error")]
 	public string? LastError { get; set; }
 
+	// Why the publication is Failed/Paused (#647); null on every other status.
+	[Column("failure_category")]
+	public PublicationFailureCategory? FailureCategory { get; set; }
+
 	[Column("attempts")]
 	public int Attempts { get; set; }
 

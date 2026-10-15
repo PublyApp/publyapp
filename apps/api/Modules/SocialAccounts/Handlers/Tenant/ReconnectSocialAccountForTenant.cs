@@ -136,8 +136,9 @@ public sealed class ReconnectSocialAccountForTenant {
 						new MarkPublicationPausedArgs(
 							publicationId,
 							tenantId,
-							"its scheduled time passed while the account needed reconnection"
-								+ "; choose a new time to publish it"
+							"it was not published at its scheduled time because the account needed "
+								+ "reconnection; retry to publish it now, or choose a new time",
+							PublicationFailureCategory.RetryLater
 						),
 						cancellationToken
 					);

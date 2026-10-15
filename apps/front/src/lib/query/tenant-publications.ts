@@ -3,8 +3,9 @@ import {
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
@@ -46,6 +47,13 @@ export type TenantPublicationRow = {
 	status: string | null;
 	externalUrl: string | null;
 	lastError: string | null;
+	/** Failure category wire value on Failed/Paused rows (#647). */
+	failureCategory: string | null;
+	attempts: number;
+	/** The account is Active (not needs-reconnect / revoked / gone). */
+	accountUsable: boolean;
+	/** A newer publication exists for the same post and account. */
+	superseded: boolean;
 	updatedAt: Date | null;
 	/** Thread progress: segments published so far / total segments (1 = plain post). */
 	segmentsPublished: number;
@@ -170,6 +178,10 @@ const toTenantPublicationRow = (
 		status: normalizeNullableString(item.status),
 		externalUrl: normalizeNullableString(item.externalUrl),
 		lastError: normalizeNullableString(item.lastError),
+		failureCategory: normalizeNullableString(item.failureCategory),
+		attempts: item.attempts ?? 0,
+		accountUsable: item.accountUsable ?? false,
+		superseded: item.superseded ?? false,
 		updatedAt: normalizeDate(item.updatedAt),
 		segmentsPublished: item.segmentsPublished ?? 0,
 		segmentsTotal: item.segmentsTotal ?? 1,
@@ -243,6 +255,38 @@ export const publishNowMutation = buildTenantMutationOptions<
 	},
 	{ clientAccessor: getClientManager() },
 );
+
+// ── Retry mutation (#647) ──────────────────────────────────────────
+
+/** `POST /posts/publications/{id}/retry`: re-queues a Failed/Paused
+ * publication under its existing idempotency key. */
+export const useRetryPublicationMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: [...TENANT_PUBLICATIONS_QUERY_KEY, 'retry'],
+		mutationFn: async ({
+			tenantId,
+			publicationId,
+		}: {
+			tenantId: string;
+			publicationId: string;
+		}) => {
+			const client = getClientManager().getOrCreateClient(tenantId);
+			await client.posts.publications
+				.byPublicationId(publicationId)
+				.retry.post();
+		},
+		onSuccess: async (_data, variables) => {
+			await invalidateTenantPublications(queryClient, variables.tenantId);
+			await invalidateTenantScheduledPublications(
+				queryClient,
+				variables.tenantId,
+			);
+		},
+		meta: { successMessage: 'publication-retry-success' },
+	});
+};
 
 // ── Invalidation ───────────────────────────────────────────────────
 

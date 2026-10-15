@@ -14699,6 +14699,107 @@
           }
         }
       }
+    },
+    "/posts/publications/{publicationId}/retry": {
+      "post": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Retry a failed or paused publication",
+        "operationId": "RetryPublicationForTenant",
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -17892,6 +17993,27 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "failureCategory": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Failure category wire value on Failed/Paused rows, else null (#647)."
+          },
+          "attempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Delivery attempts since the last retry (#647).",
+            "format": "int32"
+          },
+          "accountUsable": {
+            "type": "boolean",
+            "description": "True while the publication's account is Active and usable (#647)."
+          },
+          "superseded": {
+            "type": "boolean",
+            "description": "True when a newer publication exists for the same post and account (#647)."
           },
           "segmentsPublished": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

@@ -70,6 +70,18 @@ public static class PostPublishingEndpointsForTenant {
 			.WithReqQueryValidation<FindScheduledPublicationsQuery>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
 
+		group.MapPost(
+			Routes.Posts.ForTenant.RetryPublication,
+			RetryPublicationForTenant.Handle
+		)
+			.WithName("RetryPublicationForTenant")
+			.WithSummary("Retry a failed or paused publication")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTenantPermission([
+				AppPermissions.Tenant.Posts.PUBLISH,
+				AppPermissions.Tenant.SocialAccounts.PUBLISH,
+			]);
+
 		return routes;
 	}
 }
