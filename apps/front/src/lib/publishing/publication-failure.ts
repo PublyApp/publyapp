@@ -9,12 +9,13 @@ const PUBLICATION_FAILURE_CATEGORIES = [
 	'fix_content',
 	'retry_later',
 	'unknown',
+	'needs_review',
 ] as const;
 
 type PublicationFailureCategory =
 	(typeof PUBLICATION_FAILURE_CATEGORIES)[number];
 
-type PublicationFailureAction = 'reconnect' | 'edit' | 'retry';
+type PublicationFailureAction = 'reconnect' | 'edit' | 'retry' | 'review';
 
 export type PublicationFailurePresentation = {
 	tone: 'danger' | 'info' | 'neutral' | 'primary' | 'success' | 'warning';
@@ -48,6 +49,14 @@ const FAILURE_PRESENTATION = {
 		pillKey: 'posts:publication-category-unknown',
 		messageKey: 'posts:publication-category-message-unknown',
 		primaryAction: 'retry',
+	},
+	// #2176: an ambiguous write could not be ruled in or out. The user checks the
+	// provider profile, then marks the post published (primary) or retries.
+	needs_review: {
+		tone: 'warning',
+		pillKey: 'posts:publication-category-needs-review',
+		messageKey: 'posts:publication-category-message-needs-review',
+		primaryAction: 'review',
 	},
 } satisfies Record<PublicationFailureCategory, PublicationFailurePresentation>;
 

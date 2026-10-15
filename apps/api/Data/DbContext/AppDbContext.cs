@@ -175,6 +175,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<Modules.Publishing.Entities.PublicationSegmentResult>(); }
 	}
 
+	// Write-attempt journal, committed before each provider write (#2176).
+	public DbSet<Modules.Publishing.Entities.PublishAttempt> PublishAttempt {
+		get { return this.Set<Modules.Publishing.Entities.PublishAttempt>(); }
+	}
+
 	public DbSet<Modules.Publishing.Entities.Publication> Publication {
 		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}

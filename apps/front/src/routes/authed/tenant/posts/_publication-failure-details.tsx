@@ -8,6 +8,7 @@ import {
 	retryAvailability,
 } from '~/lib/publishing/publication-failure';
 import {
+	useMarkPublicationPublishedMutation,
 	useRetryPublicationMutation,
 	type TenantPublicationRow,
 } from '~/lib/query/tenant-publications';
@@ -25,6 +26,7 @@ export const PublicationFailureDetails = ({
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const retry = useRetryPublicationMutation();
+	const markPublished = useMarkPublicationPublishedMutation();
 	const presentation = publicationFailurePresentation(
 		publication.status,
 		publication.failureCategory,
@@ -91,6 +93,21 @@ export const PublicationFailureDetails = ({
 					>
 						{t('posts:publication-action-edit')}
 					</Link>
+				) : null}
+				{presentation.primaryAction === 'review' ? (
+					<Button
+						size="sm"
+						disabled={!canPublish || markPublished.isPending}
+						data-testid="tenant-posts-publication-primary-action"
+						onClick={() =>
+							markPublished.mutate({
+								tenantId,
+								publicationId: publication.id,
+							})
+						}
+					>
+						{t('posts:publication-action-mark-published')}
+					</Button>
 				) : null}
 				<Button
 					variant={

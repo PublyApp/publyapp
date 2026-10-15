@@ -49,6 +49,16 @@ public enum RetryTransitionResult {
 	PairOccupied,
 }
 
+/// <summary>#2176: the user confirmed a needs-review publication is on the provider.</summary>
+public sealed record MarkPublicationReviewedPublishedArgs(Guid PublicationId, Guid TenantId);
+
+public enum ReviewedPublishedResult {
+	Published,
+	NotFound,
+	/// <summary>Not a Paused needs-review publication (already resolved or never ambiguous).</summary>
+	NotNeedsReview,
+}
+
 public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid TenantId);
 
 public sealed record MarkPublicationScheduledArgs(Guid PublicationId, Guid TenantId);
@@ -81,6 +91,11 @@ public interface IPublicationStatusTransitionService {
 
 	public Task<bool> MarkPausedAsync(
 		MarkPublicationPausedArgs args,
+		CancellationToken cancellationToken
+	);
+
+	public Task<ReviewedPublishedResult> MarkReviewedPublishedAsync(
+		MarkPublicationReviewedPublishedArgs args,
 		CancellationToken cancellationToken
 	);
 
@@ -121,7 +136,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 				PublicationStatus.InProgress,
 				PublicationStatus.Paused,
 			],
-			[PublicationStatus.Published] = [PublicationStatus.InProgress],
+			// Paused: the user resolved a needs-review publication as published (#2176).
+			[PublicationStatus.Published] = [PublicationStatus.InProgress, PublicationStatus.Paused],
 			[PublicationStatus.Failed] = [PublicationStatus.InProgress],
 			[PublicationStatus.Paused] = [
 				PublicationStatus.InProgress,
@@ -180,6 +196,29 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
+	}
+
+	public async Task<ReviewedPublishedResult> MarkReviewedPublishedAsync(
+		MarkPublicationReviewedPublishedArgs args,
+		CancellationToken cancellationToken
+	) {
+		var publication = await this._LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		if (publication is null) {
+			return ReviewedPublishedResult.NotFound;
+		}
+
+		if (publication.Status != PublicationStatus.Paused
+			|| publication.FailureCategory != PublicationFailureCategory.NeedsReview) {
+			return ReviewedPublishedResult.NotNeedsReview;
+		}
+
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Published);
+		publication.Status = PublicationStatus.Published;
+		publication.LastError = null;
+		publication.FailureCategory = null;
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
+		return ReviewedPublishedResult.Published;
 	}
 
 	public async Task<bool> MarkFailedAsync(

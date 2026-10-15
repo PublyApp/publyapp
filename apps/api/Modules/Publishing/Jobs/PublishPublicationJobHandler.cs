@@ -30,19 +30,22 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	private readonly IPublishProvider _PublishProvider;
 	private readonly ISocialSessionProvider _SocialSessionProvider;
 	private readonly IPublicationStatusTransitionService _Transitions;
+	private readonly IPublishAttemptJournal _Journal;
 
 	public PublishPublicationJobHandler(
 		AppDbContext db,
 		IFileStorage fileStorage,
 		IPublishProvider publishProvider,
 		ISocialSessionProvider socialSessionProvider,
-		IPublicationStatusTransitionService transitions
+		IPublicationStatusTransitionService transitions,
+		IPublishAttemptJournal journal
 	) {
 		this._Db = db;
 		this._FileStorage = fileStorage;
 		this._PublishProvider = publishProvider;
 		this._SocialSessionProvider = socialSessionProvider;
 		this._Transitions = transitions;
+		this._Journal = journal;
 	}
 
 	public string JobType {
@@ -197,6 +200,49 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			);
 		}
 
+		// A journal row that never resolved means an earlier write may have landed
+		// (timeout, crash, stale-job recovery): look BEFORE writing again (#2176).
+		var unresolved = await this._Journal.FindUnresolvedAsync(publicationId, cancellationToken);
+		if (unresolved is not null) {
+			var reconciled = await this._PublishProvider.ReconcileAsync(
+				new ReconcileRequest {
+					PublicationId = publicationId,
+					IdempotencyKey = unresolved.IdempotencyKey,
+					SegmentPosition = unresolved.SegmentPosition,
+					Session = opened.Session,
+					Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
+					FirstAttemptAtUtc = unresolved.FirstAttemptAtUtc,
+				},
+				cancellationToken
+			);
+			switch (reconciled) {
+				case ReconcileResult.Found found:
+					await this._AdoptFoundSegmentAsync(
+						publication, unresolved.Id, found.Segment, cancellationToken
+					);
+					completedSegments.RemoveAll(segment => segment.Position == found.Segment.Position);
+					completedSegments.Add(found.Segment);
+					break;
+				case ReconcileResult.SafeToResend:
+					await this._Journal.SupersedeUnresolvedAsync(publicationId, cancellationToken);
+					break;
+				case ReconcileResult.NeedsReview review:
+					await this._ParkForReviewAsync(publication, review.Cause, cancellationToken);
+					return JobOutcome.Succeeded;
+				case ReconcileResult.Unavailable unavailable:
+					return await this._RetryUnresolvedAsync(
+						publication, unavailable.Cause, context, cancellationToken, null
+					);
+				default:
+					throw new InvalidOperationException(
+						$"Unhandled ReconcileResult kind '{reconciled.GetType().Name}'."
+					);
+			}
+		}
+
+		var effectiveTexts = new List<string>(followUps.Count + 1) { TextCounter.Normalize(post.Body) };
+		effectiveTexts.AddRange(followUps.Select(TextCounter.Normalize));
+		Guid? openAttempt = null;
 		var result = await this._PublishProvider.PublishAsync(
 			new PublishRequest {
 				PublicationId = publicationId,
@@ -209,6 +255,22 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				Media = media,
 				FollowUpSegments = followUps.Select(TextCounter.Normalize).ToList(),
 				CompletedSegments = completedSegments,
+				OnBeforeWrite = async (position, token) => {
+					openAttempt = await this._Journal.BeginAsync(
+						new BeginPublishAttemptArgs(
+							publication.TenantId,
+							publicationId,
+							position,
+							publication.Attempts,
+							PublishAttemptJournal.Fingerprint(
+								effectiveTexts[position],
+								position == 0 ? assets.Select(asset => asset.GetRequiredId()) : []
+							),
+							publication.IdempotencyKey
+						),
+						token
+					);
+				},
 				OnSegmentCompleted = async (segment, token) => {
 					this._Db.PublicationSegmentResult.Add(new PublicationSegmentResult {
 						TenantId = publication.TenantId,
@@ -220,10 +282,20 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					});
 					await this._Db.SaveChangesAsync(token);
 					publishedNow += 1;
+					if (openAttempt is { } done) {
+						await this._Journal.ResolveAsync(
+							new ResolvePublishAttemptArgs(
+								done, SubmissionState.Accepted, segment.RecordId, segment.RecordUrl
+							),
+							token
+						);
+						openAttempt = null;
+					}
 				},
 			},
 			cancellationToken
 		);
+		await this._ResolveOpenAttemptAsync(openAttempt, result, cancellationToken);
 
 		var progress = PublishPublicationJobHandler._ProgressPrefix(
 			completedSegments.Count + publishedNow, totalSegments
@@ -247,6 +319,10 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			case PublishResult.AccountFailure account:
 				await this._PauseForAccountAsync(publication, progress + account.Cause, cancellationToken);
 				return JobOutcome.Succeeded;
+			case PublishResult.Ambiguous ambiguous:
+				return await this._RetryUnresolvedAsync(
+					publication, progress + ambiguous.Cause, context, cancellationToken, ambiguous.RetryAfter
+				);
 			case PublishResult.TransientFailure transient:
 				return await this._FailTransientAsync(
 					publication, progress + transient.Cause, context, cancellationToken, transient.RetryAfter
@@ -256,6 +332,102 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					$"Unhandled PublishResult kind '{result.GetType().Name}'."
 				);
 		}
+	}
+
+	/// <summary>Records how the write that was just attempted ended, on its journal row.</summary>
+	private async Task _ResolveOpenAttemptAsync(
+		Guid? attemptId,
+		PublishResult result,
+		CancellationToken cancellationToken
+	) {
+		if (attemptId is not { } id) {
+			return;
+		}
+
+		(SubmissionState state, string? recordId, string? recordUrl) = result switch {
+			PublishResult.Published published =>
+				(SubmissionState.Accepted, published.RecordId, published.RecordUrl),
+			PublishResult.AlreadyExistsTreatedAsPublished existing =>
+				(SubmissionState.Accepted, existing.RecordId, existing.RecordUrl),
+			PublishResult.Ambiguous => (SubmissionState.Unknown, null, null),
+			_ => (SubmissionState.Rejected, null, null),
+		};
+		await this._Journal.ResolveAsync(
+			new ResolvePublishAttemptArgs(id, state, recordId, recordUrl), cancellationToken
+		);
+	}
+
+	/// <summary>A reconciled segment the provider already holds: store it and move on after it.</summary>
+	private async Task _AdoptFoundSegmentAsync(
+		Publication publication,
+		Guid attemptId,
+		CompletedSegment segment,
+		CancellationToken cancellationToken
+	) {
+		var publicationId = publication.GetRequiredId();
+		var stored = await this._Db.PublicationSegmentResult.AnyAsync(
+			result => result.PublicationId == publicationId
+				&& result.SegmentPosition == segment.Position
+				&& !result.IsDeleted,
+			cancellationToken
+		);
+		if (!stored) {
+			this._Db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+				TenantId = publication.TenantId,
+				PublicationId = publicationId,
+				SegmentPosition = segment.Position,
+				ExternalRecordId = segment.RecordId,
+				ExternalCid = segment.Cid,
+				ExternalUrl = segment.RecordUrl,
+			});
+		}
+
+		await this._Db.SaveChangesAsync(cancellationToken);
+		await this._Journal.ResolveAsync(
+			new ResolvePublishAttemptArgs(
+				attemptId, SubmissionState.Accepted, segment.RecordId, segment.RecordUrl
+			),
+			cancellationToken
+		);
+	}
+
+	/// <summary>
+	/// An earlier write is still unresolved (ambiguous answer, or the lookup itself
+	/// failed): back off and look again; at the ceiling ask the user — never fail the
+	/// publication, since Failed would free its slot for a second delivery.
+	/// </summary>
+	private async Task<JobOutcome> _RetryUnresolvedAsync(
+		Publication publication,
+		string rawCause,
+		JobContext context,
+		CancellationToken cancellationToken,
+		TimeSpan? retryAfter
+	) {
+		var cause = LastErrorSanitiser.Sanitize(rawCause) ?? rawCause;
+		if (context.Attempts + 1 >= context.MaxAttempts) {
+			await this._ParkForReviewAsync(publication, cause, cancellationToken);
+			return JobOutcome.Succeeded;
+		}
+
+		return new JobOutcome.Retry(DelayOverride: retryAfter, Error: cause);
+	}
+
+	private async Task _ParkForReviewAsync(
+		Publication publication,
+		string rawCause,
+		CancellationToken cancellationToken
+	) {
+		await this._Transitions.MarkPausedAsync(
+			new MarkPublicationPausedArgs(
+				publication.GetRequiredId(),
+				publication.TenantId,
+				"it may already be on the provider, so it was not sent again: "
+					+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}. Check the profile, "
+					+ "then mark it published or retry",
+				PublicationFailureCategory.NeedsReview
+			),
+			cancellationToken
+		);
 	}
 
 	/// <summary>

@@ -156,7 +156,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			storage ?? PublishPublicationJobHandlerSpec._NewStorage(),
 			publishProvider,
 			sessionProvider,
-			new PublicationStatusTransitionService(db)
+			new PublicationStatusTransitionService(db),
+			new PublishAttemptJournal(db)
 		);
 	}
 
@@ -1006,6 +1007,336 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		await db.Entry(publication).ReloadAsync();
 		publication.Status.Should().Be(PublicationStatus.Failed);
 		publication.LastError.Should().Contain("Segment 3").And.Contain("301");
+	}
+
+	// ── Write-attempt journal + reconciliation (#2176) ─────────────────────────
+
+	private sealed class JournalingProvider : IPublishProvider {
+		private readonly Func<JournalingProvider, PublishRequest, CancellationToken, Task<PublishResult>> _Publish;
+		private readonly ReconcileResult? _Reconcile;
+
+		public JournalingProvider(
+			Func<JournalingProvider, PublishRequest, CancellationToken, Task<PublishResult>> publish,
+			ReconcileResult? reconcile = null
+		) {
+			this._Publish = publish;
+			this._Reconcile = reconcile;
+		}
+
+		public List<PublishRequest> Requests { get; } = [];
+
+		public List<ReconcileRequest> Reconciles { get; } = [];
+
+		public int Writes { get; private set; }
+
+		public async Task<PublishResult> PublishAsync(
+			PublishRequest request,
+			CancellationToken cancellationToken
+		) {
+			this.Requests.Add(request);
+			return await this._Publish(this, request, cancellationToken);
+		}
+
+		public Task<ReconcileResult> ReconcileAsync(
+			ReconcileRequest request,
+			CancellationToken cancellationToken
+		) {
+			this.Reconciles.Add(request);
+			if (this._Reconcile is null) {
+				throw new InvalidOperationException("no reconcile configured");
+			}
+
+			return Task.FromResult(this._Reconcile);
+		}
+
+		public static async Task LandAsync(
+			PublishRequest request,
+			CompletedSegment segment,
+			CancellationToken token
+		) {
+			if (request.OnSegmentCompleted is not null) {
+				await request.OnSegmentCompleted(segment, token);
+			}
+		}
+
+		// The write a real provider does: journal first, then the HTTP call.
+		public async Task BeginWriteAsync(PublishRequest request, int position, CancellationToken token) {
+			this.Writes += 1;
+			if (request.OnBeforeWrite is not null) {
+				await request.OnBeforeWrite(position, token);
+			}
+		}
+	}
+
+	private static Task<JobOutcome> _RunAsync(
+		AppDbContext db,
+		IPublishProvider provider,
+		SeededPublication seeded,
+		int attempts = 0,
+		int maxAttempts = 5
+	) {
+		return PublishPublicationJobHandlerSpec._NewHandler(db, provider, FakeSessions.Opened()).HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				PublishPublicationJobHandlerSpec._PayloadOf(seeded), attempts, maxAttempts
+			),
+			CancellationToken.None
+		);
+	}
+
+	private async Task<List<PublishAttempt>> _AttemptsAsync(Guid publicationId) {
+		using var fresh = await this._NewDbAsync();
+		return await fresh.PublishAttempt
+			.AsNoTracking()
+			.Where(attempt => attempt.PublicationId == publicationId)
+			.OrderBy(attempt => attempt.CreatedAt)
+			.ToListAsync();
+	}
+
+	private static async Task<Publication> _ReloadAsync(AppDbContext db, Guid publicationId) {
+		var publication = await db.Publication.SingleAsync(p => p.Id == publicationId);
+		await db.Entry(publication).ReloadAsync();
+		return publication;
+	}
+
+	[Fact]
+	public async Task ItShouldCommitTheJournalRowBeforeTheProviderWriteSoACrashLeavesProofOfTheAttempt() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var provider = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			throw new InvalidOperationException("worker killed mid-call");
+		});
+
+		var act = () => PublishPublicationJobHandlerSpec._RunAsync(db, provider, seeded);
+
+		await act.Should().ThrowAsync<InvalidOperationException>();
+		var rows = await this._AttemptsAsync(seeded.PublicationId);
+		var row = rows.Should().ContainSingle().Subject;
+		row.SubmissionState.Should().Be(SubmissionState.NotSent);
+		row.SegmentPosition.Should().Be(0);
+		row.Operation.Should().Be("create_post");
+		row.IdempotencyKey.Should().Be(seeded.IdempotencyKey);
+		row.ContentFingerprint.Should().MatchRegex("^[0-9a-f]{64}$")
+			.And.NotContain("hello", "the post text is never stored");
+	}
+
+	[Fact]
+	public async Task ItShouldNeverDoubleWriteWhenARecoveredJobFindsTheRecordAfterACrash() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var crashing = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			throw new InvalidOperationException("worker killed mid-call");
+		});
+		await FluentActions.Awaiting(() => PublishPublicationJobHandlerSpec._RunAsync(db, crashing, seeded))
+			.Should().ThrowAsync<InvalidOperationException>();
+
+		var found = new CompletedSegment(0, "at://did:plc:x/app.bsky.feed.post/pub-k", "cid-0", "https://bsky.app/p/k");
+		var recovered = new JournalingProvider(
+			(_, request, _) => Task.FromResult<PublishResult>(new PublishResult.Published(
+				request.CompletedSegments[0].RecordId, request.CompletedSegments[0].RecordUrl
+			)),
+			new ReconcileResult.Found(found)
+		);
+		using var recoveryDb = await this._NewDbAsync();
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(recoveryDb, recovered, seeded, attempts: 1);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		recovered.Writes.Should().Be(0, "the record was found, nothing is created again");
+		recovered.Reconciles.Should().ContainSingle().Which.SegmentPosition.Should().Be(0);
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(recoveryDb, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Published);
+		publication.ExternalRecordId.Should().Be(found.RecordId);
+		(await this._AttemptsAsync(seeded.PublicationId)).Should().ContainSingle()
+			.Which.SubmissionState.Should().Be(SubmissionState.Accepted);
+	}
+
+	[Fact]
+	public async Task ItShouldMarkTheAttemptUnknownAndBackOffOnAnAmbiguousAnswerThenResendOnceWhenConfirmedAbsent() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var first = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("the PDS did not answer in time");
+		});
+
+		var firstOutcome = await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
+
+		firstOutcome.Should().BeOfType<JobOutcome.Retry>().Which.Error.Should().Contain("did not answer");
+		(await this._AttemptsAsync(seeded.PublicationId)).Should().ContainSingle()
+			.Which.SubmissionState.Should().Be(SubmissionState.Unknown);
+
+		var second = new JournalingProvider(
+			async (self, request, token) => {
+				await self.BeginWriteAsync(request, 0, token);
+				return new PublishResult.Published("at://r", "https://r");
+			},
+			new ReconcileResult.SafeToResend()
+		);
+		using var retryDb = await this._NewDbAsync();
+		var secondOutcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
+
+		secondOutcome.Should().BeOfType<JobOutcome.Success>();
+		second.Reconciles.Should().ContainSingle("the lookup runs before the resend");
+		second.Writes.Should().Be(1);
+		var rows = await this._AttemptsAsync(seeded.PublicationId);
+		rows.Select(row => row.SubmissionState).Should().Equal(SubmissionState.Superseded, SubmissionState.Accepted);
+	}
+
+	[Fact]
+	public async Task ItShouldNotWriteAndBackOffWhenTheLookupIsUnavailable() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var first = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("connection reset");
+		});
+		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
+
+		var second = new JournalingProvider(
+			(_, _, _) => throw new InvalidOperationException("no write expected"),
+			new ReconcileResult.Unavailable("the PDS is down")
+		);
+		using var retryDb = await this._NewDbAsync();
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
+
+		outcome.Should().BeOfType<JobOutcome.Retry>().Which.Error.Should().Contain("PDS is down");
+		second.Requests.Should().BeEmpty();
+		(await this._AttemptsAsync(seeded.PublicationId)).Should().ContainSingle()
+			.Which.SubmissionState.Should().Be(SubmissionState.Unknown);
+	}
+
+	[Fact]
+	public async Task ItShouldParkAsNeedsReviewWithoutAnyWriteWhenTheProviderCannotConfirm() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var first = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("502 bad gateway");
+		});
+		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
+
+		var second = new JournalingProvider(
+			(_, _, _) => throw new InvalidOperationException("no write expected"),
+			new ReconcileResult.NeedsReview("Mastodon can no longer confirm whether the post went out")
+		);
+		using var retryDb = await this._NewDbAsync();
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
+
+		outcome.Should().BeOfType<JobOutcome.Success>("zero automatic retries");
+		second.Requests.Should().BeEmpty();
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(retryDb, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Paused);
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.NeedsReview);
+		publication.LastError.Should().Contain("mark it published or retry");
+	}
+
+	[Fact]
+	public async Task ItShouldAskTheUserInsteadOfFailingWhenAnAmbiguousWriteExhaustsItsAttempts() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var provider = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("the instance did not answer in time");
+		});
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, seeded, attempts: 4, maxAttempts: 5);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(db, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Paused, "Failed would free the slot for a second delivery");
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.NeedsReview);
+	}
+
+	[Fact]
+	public async Task ItShouldReconcileTheAmbiguousSegmentOfAThreadAndContinueAfterIt() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var first = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			await JournalingProvider.LandAsync(
+				request,
+				new CompletedSegment(0, "at://r/0", "cid-0", "https://u/0"), token
+			);
+			await self.BeginWriteAsync(request, 1, token);
+			return new PublishResult.Ambiguous("connection reset after send");
+		});
+
+		var firstOutcome = await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
+
+		firstOutcome.Should().BeOfType<JobOutcome.Retry>().Which.Error.Should().Contain("Published 1 of 3 segments");
+		(await this._AttemptsAsync(seeded.PublicationId)).Select(row => (row.SegmentPosition, row.SubmissionState))
+			.Should().Equal((0, SubmissionState.Accepted), (1, SubmissionState.Unknown));
+
+		var second = new JournalingProvider(
+			(_, request, _) => Task.FromResult<PublishResult>(new PublishResult.Published("at://r/0", "https://u/0")),
+			new ReconcileResult.Found(new CompletedSegment(1, "at://r/1", "cid-1", "https://u/1"))
+		);
+		using var retryDb = await this._NewDbAsync();
+		await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
+
+		second.Reconciles.Should().ContainSingle().Which.SegmentPosition.Should().Be(1);
+		second.Requests[0].CompletedSegments.Select(segment => segment.Position).Should().Equal(0, 1);
+		second.Requests[0].CompletedSegments[1].Cid.Should().Be("cid-1");
+		var stored = await retryDb.PublicationSegmentResult
+			.Where(result => result.PublicationId == seeded.PublicationId)
+			.Select(result => result.SegmentPosition)
+			.ToListAsync();
+		stored.Order().Should().Equal(0, 1);
+	}
+
+	[Fact]
+	public async Task ItShouldSkipReconciliationOnceTheUserRetriesANeedsReviewPublication() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var first = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("502");
+		});
+		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded, attempts: 4, maxAttempts: 5);
+
+		using var retryDb = await this._NewDbAsync();
+		await new PublishAttemptJournal(retryDb).SupersedeUnresolvedAsync(seeded.PublicationId, CancellationToken.None);
+		await new PublicationStatusTransitionService(retryDb).RetryAsync(
+			new RetryPublicationArgs(seeded.PublicationId, seeded.TenantId), CancellationToken.None
+		);
+		var second = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Published("at://r", "https://r");
+		});
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		second.Reconciles.Should().BeEmpty("the user already reviewed the profile");
+		second.Writes.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldLetTheUserMarkANeedsReviewPublicationPublishedButNothingElse() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var provider = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("502");
+		});
+		await PublishPublicationJobHandlerSpec._RunAsync(db, provider, seeded, attempts: 4, maxAttempts: 5);
+		var transitions = new PublicationStatusTransitionService(db);
+		var args = new MarkPublicationReviewedPublishedArgs(seeded.PublicationId, seeded.TenantId);
+
+		var foreign = await transitions.MarkReviewedPublishedAsync(
+			new MarkPublicationReviewedPublishedArgs(seeded.PublicationId, Guid.NewGuid()), CancellationToken.None
+		);
+		var done = await transitions.MarkReviewedPublishedAsync(args, CancellationToken.None);
+		var again = await transitions.MarkReviewedPublishedAsync(args, CancellationToken.None);
+
+		foreign.Should().Be(ReviewedPublishedResult.NotFound);
+		done.Should().Be(ReviewedPublishedResult.Published);
+		again.Should().Be(ReviewedPublishedResult.NotNeedsReview);
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(db, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Published);
+		publication.FailureCategory.Should().BeNull();
 	}
 
 	// Lands the first N not-yet-completed segments through the progress callback

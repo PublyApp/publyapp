@@ -133,6 +133,8 @@
 	"publication-retry-reconnect-first": "Reconnect the account first, then retry",
 	"publication-retry-pair-occupied": "A newer publication for this post and account is already live",
 	"publication-retry-superseded": "A newer publication exists for this post and account; retry that one",
+	"publication-mark-published-success": "Marked as published",
+	"publication-mark-published-not-allowed": "Only a publication that needs review can be marked as published",
 	"social-account-mastodon-connected": "Mastodon account connected",
 	"social-account-connected": "Bluesky account connected",
 	"social-account-reconnected": "Bluesky account reconnected",

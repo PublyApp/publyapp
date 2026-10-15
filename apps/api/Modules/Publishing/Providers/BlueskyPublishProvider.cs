@@ -92,6 +92,55 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 	}
 
+	/// <summary>
+	/// Read-only reconciliation (#2176): the record key is deterministic, so
+	/// <c>getRecord</c> says whether the ambiguous write landed.
+	/// </summary>
+	public async Task<ReconcileResult> ReconcileAsync(
+		ReconcileRequest request,
+		CancellationToken cancellationToken
+	) {
+		var client = this._HttpClientFactory.CreateClient(BlueskyPublishProvider.HttpClientName);
+		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, request.SegmentPosition);
+		var session = request.Session;
+		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
+			+ $"?repo={Uri.EscapeDataString(session.Did)}"
+			+ $"&collection={Uri.EscapeDataString(BlueskyPublishProvider._Collection)}"
+			+ $"&rkey={Uri.EscapeDataString(rkey)}";
+
+		try {
+			using var response = await client.GetAsync(url, cancellationToken);
+			if (response.IsSuccessStatusCode) {
+				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
+				var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
+				return new ReconcileResult.Found(new CompletedSegment(
+					request.SegmentPosition, recordId, BlueskyPublishProvider._Cid(payload), webUrl
+				));
+			}
+
+			var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+			if (response.StatusCode == HttpStatusCode.NotFound
+				|| error.Contains("RecordNotFound", StringComparison.OrdinalIgnoreCase)) {
+				return new ReconcileResult.SafeToResend();
+			}
+
+			return new ReconcileResult.Unavailable(BlueskyPublishProvider._Clean(
+				$"the earlier write could not be looked up ({(int)response.StatusCode} {error}: {message})"
+			));
+		} catch (HttpRequestException exception) {
+			return new ReconcileResult.Unavailable(BlueskyPublishProvider._Clean(
+				$"network error looking up the earlier write: {exception.Message}"
+			));
+		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
+			return new ReconcileResult.Unavailable(BlueskyPublishProvider._Clean(
+				$"the PDS did not answer the lookup in time: {exception.Message}"
+			));
+		} catch (JsonException) {
+			return new ReconcileResult.Unavailable("the PDS answered the lookup with an unreadable body");
+		}
+	}
+
 	/// <summary>Record key of a segment: position 0 keeps the legacy single-post key.</summary>
 	internal static string RecordKey(string idempotencyKey, int position) {
 		return position == 0 ? $"pub-{idempotencyKey}" : $"pub-{idempotencyKey}-s{position}";
@@ -122,6 +171,53 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			images = uploaded.Images.ToList();
 		}
 
+		if (request.OnBeforeWrite is not null) {
+			await request.OnBeforeWrite(position, cancellationToken);
+		}
+
+		// From here on a transport failure is AMBIGUOUS: the PDS may have applied it.
+		try {
+			return await BlueskyPublishProvider._WriteSegmentAsync(
+				client, request, rkey, text, position, images, isThread, root, parent, cancellationToken
+			);
+		} catch (HttpRequestException exception) {
+			return new SegmentOutcome(
+				new PublishResult.Ambiguous(BlueskyPublishProvider._Clean(
+					$"network error while writing to the PDS: {exception.Message}"
+				)),
+				null
+			);
+		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
+			return new SegmentOutcome(
+				new PublishResult.Ambiguous(BlueskyPublishProvider._Clean(
+					$"the PDS did not answer in time: {exception.Message}"
+				)),
+				null
+			);
+		} catch (JsonException) {
+			return new SegmentOutcome(
+				new PublishResult.Ambiguous("the PDS answered with an unreadable body"),
+				null
+			);
+		}
+	}
+
+	private static string _Clean(string text) {
+		return LastErrorSanitiser.Sanitize(text) ?? text;
+	}
+
+	private static async Task<SegmentOutcome> _WriteSegmentAsync(
+		HttpClient client,
+		PublishRequest request,
+		string rkey,
+		string text,
+		int position,
+		IReadOnlyList<Dictionary<string, object?>> images,
+		bool isThread,
+		CompletedSegment? root,
+		CompletedSegment? parent,
+		CancellationToken cancellationToken
+	) {
 		using var response = await BlueskyPublishProvider._SendCreateRecordAsync(
 			client, request, rkey, text, position, images, root, parent, cancellationToken
 		);
@@ -132,7 +228,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			var cid = BlueskyPublishProvider._Cid(payload);
 			if (isThread && cid.Length == 0) {
 				return new SegmentOutcome(
-					new PublishResult.TransientFailure(
+					new PublishResult.Ambiguous(
 						$"Bluesky created segment {position + 1} but returned no content id"
 					),
 					null
@@ -167,8 +263,16 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			return readBack;
 		}
 
-		if ((int)response.StatusCode >= 500
-			|| response.StatusCode == HttpStatusCode.TooManyRequests) {
+		// A 5xx on the write may still have been applied: ambiguous, reconciled next.
+		if ((int)response.StatusCode >= 500) {
+			return new SegmentOutcome(
+				new PublishResult.Ambiguous(LastErrorSanitiser.Sanitize(cause) ?? cause),
+				null
+			);
+		}
+
+		// 429 is refused before processing: provably not applied.
+		if (response.StatusCode == HttpStatusCode.TooManyRequests) {
 			return new SegmentOutcome(
 				new PublishResult.TransientFailure(LastErrorSanitiser.Sanitize(cause) ?? cause),
 				null

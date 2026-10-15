@@ -189,6 +189,11 @@ public sealed class ServiceArgsRecordConventionSpec {
 			"FindSystemNoticesArgs",
 			nameof(CancellationToken)
 		);
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublishAttemptJournal>(
+			"ResolveAsync",
+			"ResolvePublishAttemptArgs",
+			nameof(CancellationToken)
+		);
 		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
 			"MarkInProgressAsync",
 			"MarkPublicationInProgressArgs",

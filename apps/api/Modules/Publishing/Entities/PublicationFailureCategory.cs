@@ -19,6 +19,11 @@ public enum PublicationFailureCategory {
 	RetryLater = 3,
 	/// <summary>The outcome could not be classified: retry now.</summary>
 	Unknown = 4,
+	/// <summary>
+	/// An ambiguous write could not be ruled in or out (#2176): the user checks the
+	/// provider profile, then marks the post published or retries.
+	/// </summary>
+	NeedsReview = 5,
 }
 
 public static class PublicationFailureCategoryWire {
@@ -28,6 +33,7 @@ public static class PublicationFailureCategoryWire {
 			PublicationFailureCategory.FixContent => "fix_content",
 			PublicationFailureCategory.RetryLater => "retry_later",
 			PublicationFailureCategory.Unknown => "unknown",
+			PublicationFailureCategory.NeedsReview => "needs_review",
 			_ => throw new ArgumentOutOfRangeException(
 				nameof(category), category, "Unhandled PublicationFailureCategory"
 			),
@@ -48,6 +54,8 @@ public static class PublicationFailureCategoryWire {
 				"the provider could not be reached; try again later",
 			PublicationFailureCategory.Unknown =>
 				"the outcome could not be classified",
+			PublicationFailureCategory.NeedsReview =>
+				"it may already be on the provider; check the profile, then mark it published or retry",
 			_ => throw new ArgumentOutOfRangeException(
 				nameof(category), category, "Unhandled PublicationFailureCategory"
 			),

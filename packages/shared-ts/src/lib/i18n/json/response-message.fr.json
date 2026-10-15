@@ -133,6 +133,8 @@
 	"publication-retry-reconnect-first": "Reconnectez d'abord le compte, puis relancez",
 	"publication-retry-pair-occupied": "Une publication plus récente pour ce post et ce compte est déjà active",
 	"publication-retry-superseded": "Une publication plus récente existe pour ce post et ce compte ; relancez celle-là",
+	"publication-mark-published-success": "Marquée comme publiée",
+	"publication-mark-published-not-allowed": "Seule une publication à vérifier peut être marquée comme publiée",
 	"social-account-mastodon-connected": "Compte Mastodon connecté",
 	"social-account-connected": "Compte Bluesky connecté",
 	"social-account-reconnected": "Compte Bluesky reconnecté",

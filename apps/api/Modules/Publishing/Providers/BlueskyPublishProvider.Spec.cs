@@ -171,12 +171,12 @@ public sealed class BlueskyPublishProviderSpec {
 	}
 
 	[Fact]
-	public async Task ItShouldClassifyServerAndTransportErrorsAsTransient() {
+	public async Task ItShouldClassifyServerAndTransportErrorsOnTheWriteAsAmbiguous() {
 		var (serverResult, _) = await BlueskyPublishProviderSpec._PublishOnceAsync(
 			BlueskyPublishProviderSpec._NewSession(),
 			(_) => BlueskyPublishProviderSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
 		);
-		serverResult.Should().BeOfType<PublishResult.TransientFailure>();
+		serverResult.Should().BeOfType<PublishResult.Ambiguous>("a 5xx write may have been applied");
 
 		var transportHandler = new RecordingHandler(
 			(_) => throw new HttpRequestException("boom")
@@ -186,7 +186,104 @@ public sealed class BlueskyPublishProviderSpec {
 			BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()),
 			CancellationToken.None
 		);
-		transportResult.Should().BeOfType<PublishResult.TransientFailure>();
+		transportResult.Should().BeOfType<PublishResult.Ambiguous>();
+	}
+
+	[Fact]
+	public async Task ItShouldCallOnBeforeWriteImmediatelyBeforeTheCreateRecordRequest() {
+		var order = new List<string>();
+		var handler = new RecordingHandler(request => {
+			order.Add("http " + request.Method);
+			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/r");
+		});
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+			OnBeforeWrite = (position, _) => {
+				order.Add($"journal {position}");
+				return Task.CompletedTask;
+			},
+		};
+
+		await provider.PublishAsync(request, CancellationToken.None);
+
+		order.Should().Equal("journal 0", "http POST");
+	}
+
+	[Fact]
+	public async Task ItShouldReportATimeoutOnTheWriteAsAmbiguous() {
+		var handler = new RecordingHandler(_ => throw new TaskCanceledException("timed out"));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.Ambiguous>();
+	}
+
+	private static ReconcileRequest _ReconcileRequest(int position = 0) {
+		return new ReconcileRequest {
+			PublicationId = BlueskyPublishProviderSpec._PublicationId,
+			IdempotencyKey = BlueskyPublishProviderSpec._IdempotencyKey,
+			SegmentPosition = position,
+			Session = BlueskyPublishProviderSpec._NewSession(),
+			FirstAttemptAtUtc = DateTime.UtcNow,
+		};
+	}
+
+	[Fact]
+	public async Task ItShouldReconcileAsFoundWhenGetRecordFindsTheDeterministicRecordAndNeverWrite() {
+		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/pub-k","cid":"cid-9"}"""
+		));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
+
+		var found = result.Should().BeOfType<ReconcileResult.Found>().Subject;
+		found.Segment.Cid.Should().Be("cid-9");
+		handler.Requests.Should().ContainSingle().Which.Method.Should().Be(HttpMethod.Get);
+		HttpUtility.ParseQueryString(handler.Requests[0].RequestUri.Required().Query)["rkey"]
+			.Should().Be($"pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+	}
+
+	[Fact]
+	public async Task ItShouldUseTheSegmentRkeyAndReportAbsentWhenReconcilingAThreadReply() {
+		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+			400, """{"error":"RecordNotFound","message":"Could not locate record"}"""
+		));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(2), CancellationToken.None);
+
+		result.Should().BeOfType<ReconcileResult.SafeToResend>("the record is confirmed absent");
+		HttpUtility.ParseQueryString(handler.Requests[0].RequestUri.Required().Query)["rkey"]
+			.Should().Be($"pub-{BlueskyPublishProviderSpec._IdempotencyKey}-s2");
+	}
+
+	[Theory]
+	[InlineData(503)]
+	[InlineData(500)]
+	public async Task ItShouldReconcileAsUnavailableWhenTheLookupItselfFails(int status) {
+		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+			status, """{"error":"InternalServerError"}"""
+		));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
+
+		result.Should().BeOfType<ReconcileResult.Unavailable>();
+	}
+
+	[Fact]
+	public async Task ItShouldReconcileAsUnavailableOnATransportError() {
+		var handler = new RecordingHandler(_ => throw new HttpRequestException("reset"));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
+
+		result.Should().BeOfType<ReconcileResult.Unavailable>();
 	}
 
 	[Fact]

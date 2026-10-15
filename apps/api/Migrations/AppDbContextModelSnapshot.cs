@@ -1533,7 +1533,7 @@ namespace PublyApp.Api.Migrations
 
                     b.ToTable("publications", t =>
                         {
-                            t.HasCheckConstraint("CK_Publication_FailureCategory", "failure_category IS NULL OR failure_category IN (1, 2, 3, 4)");
+                            t.HasCheckConstraint("CK_Publication_FailureCategory", "failure_category IS NULL OR failure_category IN (1, 2, 3, 4, 5)");
 
                             t.HasCheckConstraint("CK_Publication_Status", "status IN (10, 20, 30, 40, 50)");
                         });
@@ -1600,6 +1600,89 @@ namespace PublyApp.Api.Migrations
                         .HasFilter("is_deleted = false");
 
                     b.ToTable("publication_segment_results");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.PublishAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_number");
+
+                    b.Property<string>("ContentFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_fingerprint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ExternalRecordId")
+                        .HasColumnType("text")
+                        .HasColumnName("external_record_id");
+
+                    b.Property<string>("ExternalUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("external_url");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("operation");
+
+                    b.Property<Guid>("PublicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("publication_id");
+
+                    b.Property<int>("SegmentPosition")
+                        .HasColumnType("integer")
+                        .HasColumnName("segment_position");
+
+                    b.Property<int>("SubmissionState")
+                        .HasColumnType("integer")
+                        .HasColumnName("submission_state");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("PublicationId", "SegmentPosition")
+                        .HasDatabaseName("ix_publication_publish_attempts_publication_position");
+
+                    b.ToTable("publication_publish_attempts", t =>
+                        {
+                            t.HasCheckConstraint("CK_PublishAttempt_SubmissionState", "submission_state IN (1, 2, 3, 4, 5)");
+                        });
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.RateLimiting.Entities.RateLimitCounter", b =>
@@ -2608,6 +2691,23 @@ namespace PublyApp.Api.Migrations
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.PublicationSegmentResult", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Publishing.Entities.Publication", null)
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.PublishAttempt", b =>
                 {
                     b.HasOne("PublyApp.Api.Modules.Publishing.Entities.Publication", null)
                         .WithMany()

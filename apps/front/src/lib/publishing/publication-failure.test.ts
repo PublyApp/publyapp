@@ -11,6 +11,7 @@ describe('publicationFailurePresentation', () => {
 		['fix_content', 'edit'],
 		['retry_later', 'retry'],
 		['unknown', 'retry'],
+		['needs_review', 'review'],
 	])('%s maps to one primary action (%s)', (category, action) => {
 		expect(
 			publicationFailurePresentation('failed', category, true)?.primaryAction,

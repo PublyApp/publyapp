@@ -245,7 +245,7 @@ public sealed class MastodonPublishProviderSpec {
 		var first = await provider.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
 		var second = await provider.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
 
-		first.Should().BeOfType<PublishResult.TransientFailure>();
+		first.Should().BeOfType<PublishResult.Ambiguous>();
 		second.Should().BeOfType<PublishResult.Published>();
 		handler.Requests.Select(r => r.Headers.GetValues("Idempotency-Key").Single()).Distinct()
 			.Should().Equal(MastodonPublishProviderSpec._Key);
@@ -319,7 +319,7 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	[Fact]
-	public async Task ItShouldTreatAnUnreadableSuccessBodyAsTransientNotAnException() {
+	public async Task ItShouldTreatAnUnreadableSuccessBodyAsAmbiguousNotAnException() {
 		var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) {
 			Content = new StringContent("<html>proxy error</html>", Encoding.UTF8, "text/html"),
 		});
@@ -327,17 +327,103 @@ public sealed class MastodonPublishProviderSpec {
 		var result = await MastodonPublishProviderSpec._Provider(handler)
 			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
 
-		result.Should().BeOfType<PublishResult.TransientFailure>();
+		result.Should().BeOfType<PublishResult.Ambiguous>();
 	}
 
 	[Fact]
-	public async Task ItShouldMapTransportErrorsToTransient() {
+	public async Task ItShouldMapTransportErrorsOnTheWriteToAmbiguous() {
 		var handler = new RecordingHandler(_ => throw new HttpRequestException("connection reset"));
 
 		var result = await MastodonPublishProviderSpec._Provider(handler)
 			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
 
-		result.Should().BeOfType<PublishResult.TransientFailure>();
+		result.Should().BeOfType<PublishResult.Ambiguous>();
+	}
+
+	[Fact]
+	public async Task ItShouldIgnoreTheRateLimitResetOnA5xx() {
+		var handler = new RecordingHandler(_ => {
+			var response = MastodonPublishProviderSpec._Json(503, "{}");
+			response.Headers.Add("X-RateLimit-Reset", DateTimeOffset.UtcNow.AddMinutes(10).ToString("o", System.Globalization.CultureInfo.InvariantCulture));
+			return response;
+		});
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Ambiguous>().Which.RetryAfter
+			.Should().BeNull("X-RateLimit-Reset only describes a 429 window");
+	}
+
+	[Fact]
+	public async Task ItShouldStillHonourRetryAfterOnA5xx() {
+		var handler = new RecordingHandler(_ => {
+			var response = MastodonPublishProviderSpec._Json(503, "{}");
+			response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(30));
+			return response;
+		});
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Ambiguous>().Which.RetryAfter.Should().Be(TimeSpan.FromSeconds(30));
+	}
+
+	[Fact]
+	public async Task ItShouldCallOnBeforeWriteBeforeTheStatusPostAndAfterTheUpload() {
+		var order = new List<string>();
+		var handler = new RecordingHandler(request => {
+			order.Add(request.RequestUri?.AbsolutePath ?? string.Empty);
+			return MastodonPublishProviderSpec._IsStatus(request)
+				? MastodonPublishProviderSpec._Status("1")
+				: MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://x/m1"}""");
+		});
+		var request = MastodonPublishProviderSpec._Request() with {
+			Media = [MastodonPublishProviderSpec._Media(null)],
+			OnBeforeWrite = (position, _) => {
+				order.Add($"journal {position}");
+				return Task.CompletedTask;
+			},
+		};
+
+		await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+
+		order.Should().Equal("/api/v2/media", "journal 0", "/api/v1/statuses");
+	}
+
+	[Fact]
+	public async Task ItShouldReconcileAsSafeToResendWithinTheIdempotencyWindowWithoutAnyHttpCall() {
+		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
+			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(10)), CancellationToken.None
+		);
+
+		result.Should().BeOfType<ReconcileResult.SafeToResend>();
+		handler.Requests.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldReconcileAsNeedsReviewBeyondTheIdempotencyWindowWithoutAnyHttpCall() {
+		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
+			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(61)), CancellationToken.None
+		);
+
+		result.Should().BeOfType<ReconcileResult.NeedsReview>();
+		handler.Requests.Should().BeEmpty();
+	}
+
+	private static ReconcileRequest _Reconcile(TimeSpan age) {
+		return new ReconcileRequest {
+			PublicationId = Guid.NewGuid(),
+			IdempotencyKey = MastodonPublishProviderSpec._Key,
+			SegmentPosition = 0,
+			Provider = SocialProvider.Mastodon,
+			Session = MastodonPublishProviderSpec._Request().Session,
+			FirstAttemptAtUtc = DateTime.UtcNow - age,
+		};
 	}
 
 	private sealed class RecordingHandler : HttpMessageHandler {
