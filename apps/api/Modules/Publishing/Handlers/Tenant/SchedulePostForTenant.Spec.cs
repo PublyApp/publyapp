@@ -70,6 +70,40 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	private const string _FutureZone = "Europe/Paris";
 
 	[Fact]
+	public async Task ItShouldRejectAnOverLimitBodyWith422AndNoPublication() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token, new string('a', 301));
+
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+
+		using var request =
+			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new {
+			accountIds = new[] { accountId.ToString() },
+			scheduledAtLocal = SchedulePostForTenantSpec._FutureInstantJson,
+			timeZone = SchedulePostForTenantSpec._FutureZone,
+		});
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var problem = System.Text.Json.JsonDocument.Parse(
+			await response.Content.ReadAsStringAsync()
+		);
+		problem.RootElement.GetProperty("translationKey").GetString()
+			.Should().Be("publish-content-too-long");
+		problem.RootElement.GetProperty("limit").GetInt32().Should().Be(300);
+		problem.RootElement.GetProperty("actual").GetInt32().Should().Be(301);
+
+		var postIdGuid = Guid.Parse(postId);
+		(await db.Publication.CountAsync(p => p.PostId == postIdGuid))
+			.Should().Be(0);
+	}
+
+	[Fact]
 	public async Task ItShouldScheduleOnePublicationPerAccountWithUtcInstantAndZone() {
 		RecordingPublishProvider.Reset();
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
@@ -467,13 +501,14 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	private async Task<string> _CreatePostAsync(
 		Guid tenantId,
-		string token
+		string token,
+		string? body = null
 	) {
 		using var request = new HttpRequestMessage(HttpMethod.Post, "/posts")
 			.WithSessionToken(token)
 			.WithTenantId(tenantId);
 		request.Content = JsonContent.Create(
-			new { body = "post to schedule " + Guid.NewGuid().ToString("N")[..8] }
+			new { body = body ?? ("post to schedule " + Guid.NewGuid().ToString("N")[..8]) }
 		);
 
 		using var response = await this._Http.SendAsync(request);

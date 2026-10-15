@@ -61,7 +61,9 @@ vi.mock('@tanstack/react-query', () => ({
 // These tests cover the deferred image handoff, not publishing, so a static
 // stub keeps the suite focused (same pattern as the edit page's suite).
 vi.mock('./_publish-on-block', () => ({
-	PublishOnBlock: () => null,
+	PublishOnBlock: ({ body }: { body?: string }) => (
+		<span data-testid="stub-publish-on-body-length">{body?.length ?? 0}</span>
+	),
 }));
 
 vi.mock('~/lib/query/tenant-post-images', () => ({
@@ -322,6 +324,22 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+});
+
+describe('CreatePostDrawer provider limit counter (#2169)', () => {
+	test('feeds the live body to the publish block and keeps Save draft enabled over a provider limit', async () => {
+		// The RHF double is not reactive, so the over-limit body is seeded first.
+		rhf.get('body').value = 'a'.repeat(400);
+		renderDrawer(vi.fn());
+
+		expect(screen.getByTestId('stub-publish-on-body-length').textContent).toBe(
+			'400',
+		);
+		expect(
+			(screen.getByTestId('tenant-posts-create-save') as HTMLButtonElement)
+				.disabled,
+		).toBe(false);
+	});
 });
 
 describe('CreatePostDrawer deferred image handoff', () => {

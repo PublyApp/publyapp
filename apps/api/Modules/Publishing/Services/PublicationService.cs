@@ -59,6 +59,10 @@ public abstract record ScheduleResult {
 	/// <summary>The schedule itself is invalid (past instant, bad zone).</summary>
 	public sealed record InvalidSchedule(string Cause, string ErrorKey)
 		: ScheduleResult;
+
+	/// <summary>The post text is empty or over a target provider's limit (422).</summary>
+	public sealed record ContentInvalid(PublishContentFailure Failure)
+		: ScheduleResult;
 }
 
 /// <summary>Outcome of cancelling a post's schedule (D3 Task 3).</summary>
@@ -168,6 +172,10 @@ public abstract record EditPostScheduleResult {
 	/// <summary>The new schedule is invalid (past instant beyond drift, bad zone).</summary>
 	public sealed record InvalidSchedule(string Cause, string ErrorKey)
 		: EditPostScheduleResult;
+
+	/// <summary>The effective post text is empty or over a target provider's limit (422).</summary>
+	public sealed record ContentInvalid(PublishContentFailure Failure)
+		: EditPostScheduleResult;
 }
 
 public interface IPublicationService {
@@ -270,6 +278,15 @@ public sealed class PublicationService : IPublicationService {
 			if (failure is not null) {
 				return failure;
 			}
+		}
+
+		var contentFailure = PublishValidationService.Validate(
+			post.Body,
+			await this._HasMediaAsync(post.GetRequiredId(), cancellationToken),
+			accounts.Select(account => account.Provider)
+		);
+		if (contentFailure is not null) {
+			return new ScheduleResult.ContentInvalid(contentFailure);
 		}
 
 		// The parsed value is already the exact UTC instant (validator contract):
@@ -390,6 +407,43 @@ public sealed class PublicationService : IPublicationService {
 			);
 		}
 
+		var targets = await (
+			from p in this._DbContext.Publication
+			where p.PostId == postId
+				&& !p.IsDeleted
+				&& (p.Status == PublicationStatus.Scheduled
+					|| p.Status == PublicationStatus.Paused)
+			orderby p.Id
+			select p
+		).ToListAsync(cancellationToken);
+
+		// Validate the effective text against every provider the post is still
+		// queued for BEFORE touching the tracked post (issue #2169): an over-limit
+		// edit must not be saved onto a scheduled post.
+		var targetAccountIds = targets
+			.Select(target => target.SocialAccountId)
+			.Distinct()
+			.ToList();
+		var targetProviders = await (
+			from account in this._DbContext.SocialAccount.AsNoTracking()
+			where account.TenantId == args.TenantId
+				&& account.Id != null
+				&& targetAccountIds.Contains(account.Id.Value)
+			select account.Provider
+		).ToListAsync(cancellationToken);
+		if (targetProviders.Count > 0) {
+			var contentFailure = PublishValidationService.Validate(
+				args.Body.IsPresent && args.Body.Value is not null
+					? args.Body.Value
+					: post.Body,
+				await this._HasMediaAsync(postId, cancellationToken),
+				targetProviders
+			);
+			if (contentFailure is not null) {
+				return new EditPostScheduleResult.ContentInvalid(contentFailure);
+			}
+		}
+
 		if (args.Body.IsPresent && args.Body.Value is not null) {
 			post.Body = args.Body.Value;
 		}
@@ -399,16 +453,6 @@ public sealed class PublicationService : IPublicationService {
 		// order keeps the handler's application deterministic.
 		var reschedules = new List<PendingReschedule>();
 		if (schedule is not null) {
-			var targets = await (
-				from p in this._DbContext.Publication
-				where p.PostId == postId
-					&& !p.IsDeleted
-					&& (p.Status == PublicationStatus.Scheduled
-						|| p.Status == PublicationStatus.Paused)
-				orderby p.Id
-				select p
-			).ToListAsync(cancellationToken);
-
 			reschedules.AddRange(targets.Select(publication =>
 				new PendingReschedule(
 					publication.GetRequiredId(),
@@ -461,6 +505,16 @@ public sealed class PublicationService : IPublicationService {
 				})
 				.ToList();
 		}
+	}
+
+	private Task<bool> _HasMediaAsync(
+		Guid postId,
+		CancellationToken cancellationToken
+	) {
+		return this._DbContext.PostMediaAsset.AnyAsync(
+			media => media.PostId == postId && !media.IsDeleted,
+			cancellationToken
+		);
 	}
 
 	private static ScheduleResult.InvalidAccounts? _ValidateAccount(

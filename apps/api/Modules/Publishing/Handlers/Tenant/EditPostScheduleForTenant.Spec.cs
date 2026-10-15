@@ -361,6 +361,31 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturn422AndKeepTheBodyWhenTheEditExceedsTheProviderLimit() {
+		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
+
+		using var request =
+			new HttpRequestMessage(HttpMethod.Patch, EditPostScheduleForTenantSpec._ScheduleUrl(postId))
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new { body = new string('a', 301) });
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var problem = System.Text.Json.JsonDocument.Parse(
+			await response.Content.ReadAsStringAsync()
+		);
+		problem.RootElement.GetProperty("translationKey").GetString()
+			.Should().Be("publish-content-too-long");
+		problem.RootElement.GetProperty("actual").GetInt32().Should().Be(301);
+
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var post = await db.Post.AsNoTracking().SingleAsync(p => p.Id == Guid.Parse(postId));
+		post.Body.Length.Should().BeLessThan(301, "the over-limit edit was not saved");
+	}
+
+	[Fact]
 	public async Task ItShouldReturn400WhenNoFieldsAreProvided() {
 		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
 

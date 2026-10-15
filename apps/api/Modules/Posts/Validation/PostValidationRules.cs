@@ -8,6 +8,8 @@ namespace PublyApp.Api.Modules.Posts.Validation;
 public static class PostValidationRules {
 	// Long-form social/blog content; consistent with the repo's existing
 	// scale (Message 2000, Description 1024) but generous for article bodies.
+	// Storage guard for the DRAFT body only (#2169): publish/schedule limits are
+	// per provider (Publishing/Providers/ProviderLimits.cs), not this constant.
 	public const int BodyMaxLength = 20_000;
 	public const int SearchMaxLength = 256;
 

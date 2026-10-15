@@ -245,6 +245,63 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		publications[0].Status.Should().Be(PublicationStatus.Scheduled);
 	}
 
+	[Fact]
+	public async Task ItShouldAccept300GraphemesAndRejectThe301stWithATypedProblem() {
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var accountId = await this._SeedAcmeAccountAsync(acmeId);
+
+		var okPostId = await this._SeedAcmePostAsync(new string('a', 300));
+		using var ok = await this._PublishNowAsync(
+			acmeToken, acmeId, okPostId,
+			new { accountIds = new[] { accountId.ToString() } }
+		);
+		ok.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var longPostId = await this._SeedAcmePostAsync(new string('a', 301));
+		var beforePublications = await this._CountPublicationsAsync();
+		using var rejected = await this._PublishNowAsync(
+			acmeToken, acmeId, longPostId,
+			new { accountIds = new[] { accountId.ToString() } }
+		);
+
+		rejected.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var problem = System.Text.Json.JsonDocument.Parse(
+			await rejected.Content.ReadAsStringAsync()
+		);
+		var root = problem.RootElement;
+		root.GetProperty("translationKey").GetString().Should().Be("publish-content-too-long");
+		root.GetProperty("provider").GetString().Should().Be("bluesky");
+		root.GetProperty("limit").GetInt32().Should().Be(300);
+		root.GetProperty("actual").GetInt32().Should().Be(301);
+		root.GetProperty("unit").GetString().Should().Be("graphemes");
+		(await this._CountPublicationsAsync()).Should().Be(
+			beforePublications,
+			"a refused publish writes no publication"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectTextOverTheByteCapEvenWhenGraphemesFit() {
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var accountId = await this._SeedAcmeAccountAsync(acmeId);
+		var family = "\U0001F468\u200D\U0001F469\u200D\U0001F467\u200D\U0001F466";
+		var postId = await this._SeedAcmePostAsync(
+			string.Concat(Enumerable.Repeat(family, 150))
+		);
+
+		using var rejected = await this._PublishNowAsync(
+			acmeToken, acmeId, postId,
+			new { accountIds = new[] { accountId.ToString() } }
+		);
+
+		rejected.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var problem = System.Text.Json.JsonDocument.Parse(
+			await rejected.Content.ReadAsStringAsync()
+		);
+		problem.RootElement.GetProperty("unit").GetString().Should().Be("bytes");
+		problem.RootElement.GetProperty("limit").GetInt32().Should().Be(3000);
+	}
+
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private async Task<HttpResponseMessage> _PublishNowAsync(
@@ -334,7 +391,7 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		return (acmeId, email);
 	}
 
-	private async Task<string> _SeedAcmePostAsync() {
+	private async Task<string> _SeedAcmePostAsync(string? body = null) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var tenant = await db.Tenant
@@ -345,7 +402,7 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 			.SingleAsync();
 		var post = new Post {
 			TenantId = tenant.GetRequiredId(),
-			Body = "publish-now endpoint spec " + Guid.NewGuid().ToString("N"),
+			Body = body ?? ("publish-now endpoint spec " + Guid.NewGuid().ToString("N")),
 			CreatedByUserId = user.GetRequiredId(),
 		};
 		db.Post.Add(post);

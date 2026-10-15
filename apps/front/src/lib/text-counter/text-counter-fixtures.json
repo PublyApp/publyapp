@@ -1,0 +1,100 @@
+[
+	{
+		"name": "ascii",
+		"text": "hello",
+		"graphemes": 5,
+		"bytes": 5
+	},
+	{
+		"name": "empty",
+		"text": "",
+		"graphemes": 0,
+		"bytes": 0
+	},
+	{
+		"name": "precomposed accent",
+		"text": "caf\u00e9",
+		"graphemes": 4,
+		"bytes": 5
+	},
+	{
+		"name": "letter plus combining accent",
+		"text": "cafe\u0301",
+		"graphemes": 4,
+		"bytes": 6
+	},
+	{
+		"name": "zwj family emoji",
+		"text": "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66",
+		"graphemes": 1,
+		"bytes": 25
+	},
+	{
+		"name": "regional indicator flag",
+		"text": "\ud83c\uddf2\ud83c\uddec",
+		"graphemes": 1,
+		"bytes": 8
+	},
+	{
+		"name": "skin tone modifier",
+		"text": "\ud83d\udc4d\ud83c\udffd",
+		"graphemes": 1,
+		"bytes": 8
+	},
+	{
+		"name": "cjk",
+		"text": "\u65e5\u672c\u8a9e",
+		"graphemes": 3,
+		"bytes": 9
+	},
+	{
+		"name": "crlf normalised to lf",
+		"text": "a\r\nb",
+		"graphemes": 3,
+		"bytes": 3
+	},
+	{
+		"name": "trailing whitespace trimmed",
+		"text": "hi   \n\r\n",
+		"graphemes": 2,
+		"bytes": 2
+	},
+	{
+		"name": "inner whitespace kept",
+		"text": "a  b",
+		"graphemes": 4,
+		"bytes": 4
+	},
+	{
+		"name": "url counts in full",
+		"text": "https://example.com/a/b?c=d",
+		"graphemes": 27,
+		"bytes": 27
+	},
+	{
+		"name": "trailing BOM trimmed",
+		"text": "a\ufeff",
+		"graphemes": 1,
+		"bytes": 1
+	},
+	{
+		"name": "trailing NEL trimmed",
+		"text": "a\u0085",
+		"graphemes": 1,
+		"bytes": 1
+	},
+	{
+		"name": "devanagari conjunct (server >= browser: .NET lacks Unicode 15.1 GB9c)",
+		"text": "\u0915\u094d\u0937\u093f",
+		"serverGraphemes": 2,
+		"browserGraphemes": 1,
+		"bytes": 12
+	},
+	{
+		"name": "malayalam conjunct (server >= browser: .NET lacks Unicode 15.1 GB9c)",
+		"text": "\u0d15\u0d4d\u0d37",
+		"serverGraphemes": 2,
+		"browserGraphemes": 1,
+		"bytes": 9
+	}
+]

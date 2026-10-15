@@ -62,8 +62,27 @@ describe('toTenantPublishTargets', () => {
 				id: '01890a5d-ac96-774b-bcce-b302099a8057',
 				label: 'Acme main',
 				provider: 'bluesky',
+				limits: null,
 			},
 		]);
+	});
+
+	test('carries the provider text limits through when the API sends them', () => {
+		const rows = toTenantPublishTargets(
+			asItems([
+				{
+					id: guid(3),
+					label: 'Limited',
+					provider: 'bluesky',
+					limits: { maxTextGraphemes: 300, maxTextBytes: 3000 },
+				},
+			]),
+		);
+
+		expect(rows[0]?.limits).toEqual({
+			maxTextGraphemes: 300,
+			maxTextBytes: 3000,
+		});
 	});
 
 	test('fails closed: drops rows without an id or with an unknown provider', () => {

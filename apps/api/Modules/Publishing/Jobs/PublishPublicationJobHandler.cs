@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -69,6 +70,52 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			return new JobOutcome.Cancelled("publication_not_found");
 		}
 
+		var post = await this._Db.Post.SingleOrDefaultAsync(
+			candidate => candidate.Id == publication.PostId && !candidate.IsDeleted,
+			cancellationToken
+		);
+		if (post is null) {
+			await this._Transitions.MarkFailedAsync(
+				new MarkPublicationFailedArgs(
+					publicationId,
+					publication.TenantId,
+					"the post behind this publication no longer exists"
+				),
+				cancellationToken
+			);
+			return JobOutcome.Succeeded;
+		}
+
+		// Re-validate at dispatch (issue #2169): a body edited after scheduling may
+		// no longer fit the provider. Fails the publication with a plain content
+		// cause BEFORE any session/provider call.
+		var targetProvider = await this._Db.SocialAccount
+			.AsNoTracking()
+			.Where(candidate => candidate.Id == publication.SocialAccountId && !candidate.IsDeleted)
+			.Select(candidate => (SocialProvider?)candidate.Provider)
+			.SingleOrDefaultAsync(cancellationToken);
+		if (targetProvider is SocialProvider provider) {
+			var contentFailure = PublishValidationService.Validate(
+				post.Body,
+				await this._Db.PostMediaAsset.AnyAsync(
+					media => media.PostId == post.Id && !media.IsDeleted,
+					cancellationToken
+				),
+				[provider]
+			);
+			if (contentFailure is not null) {
+				await this._Transitions.MarkFailedAsync(
+					new MarkPublicationFailedArgs(
+						publicationId,
+						publication.TenantId,
+						$"the post text can no longer be published: {contentFailure.Cause}"
+					),
+					cancellationToken
+				);
+				return JobOutcome.Succeeded;
+			}
+		}
+
 		var sessionResult = await this._SocialSessionProvider.OpenSessionAsync(
 			publication.SocialAccountId, cancellationToken
 		);
@@ -89,27 +136,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			);
 		}
 
-		var post = await this._Db.Post.SingleOrDefaultAsync(
-			candidate => candidate.Id == publication.PostId && !candidate.IsDeleted,
-			cancellationToken
-		);
-		if (post is null) {
-			await this._Transitions.MarkFailedAsync(
-				new MarkPublicationFailedArgs(
-					publicationId,
-					publication.TenantId,
-					"the post behind this publication no longer exists"
-				),
-				cancellationToken
-			);
-			return JobOutcome.Succeeded;
-		}
-
 		var result = await this._PublishProvider.PublishAsync(
 			new PublishRequest {
 				PublicationId = publicationId,
 				IdempotencyKey = publication.IdempotencyKey,
-				PostBody = post.Body,
+				PostBody = TextCounter.Normalize(post.Body),
 				ScheduledAtUtc = publication.ScheduledAtUtc,
 				Session = opened.Session,
 			},

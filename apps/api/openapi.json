@@ -17494,7 +17494,8 @@
         "required": [
           "id",
           "label",
-          "provider"
+          "provider",
+          "limits"
         ],
         "type": "object",
         "properties": {
@@ -17507,9 +17508,33 @@
           },
           "provider": {
             "type": "string"
+          },
+          "limits": {
+            "description": "The provider's text limits, so the composer needs no hardcoded numbers\n(issue #2169).",
+            "$ref": "#/components/schemas/PublishTargetLimits"
           }
         },
         "description": "One row of the composer \"Publish on\" block: the target account identity plus\nthe wire values the block renders (plan D2 Task 4 interfaces block)."
+      },
+      "PublishTargetLimits": {
+        "required": [
+          "maxTextGraphemes",
+          "maxTextBytes"
+        ],
+        "type": "object",
+        "properties": {
+          "maxTextGraphemes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxTextBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "The provider's text limits, so the composer needs no hardcoded numbers\n(issue #2169)."
       },
       "ReactivateTenantUserResult": {
         "type": "object",

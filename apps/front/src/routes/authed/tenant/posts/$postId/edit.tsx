@@ -301,7 +301,11 @@ const TenantPostEditPage = () => {
 									tenantId={tenantId ?? ''}
 									existingImage={details.image ?? null}
 								/>
-								<PublishOnBlock projectId={details.projectId} postId={postId} />
+								<PublishOnBlock
+									projectId={details.projectId}
+									postId={postId}
+									body={body}
+								/>
 							</div>
 						</div>
 						{blocker.status === 'blocked' ? (
