@@ -14,7 +14,7 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 /// Mapping guard for the post media asset slice (#639): the entity must be
 /// covered by exactly one configuration whose real content lands in the EF
 /// design-time model — cascade FK to posts, tenant+post lookup index, and the
-/// partial unique index that makes "one live image per post" a database
+/// partial unique (post, position) index that makes the image order a database
 /// invariant rather than a service-layer promise. These assertions mirror the
 /// committed snapshot, so they cannot drift from what migrations apply.
 /// </summary>
@@ -41,7 +41,7 @@ public sealed class PostMediaAssetConfigurationSpec {
 	}
 
 	[Fact]
-	public void ItShouldEnforceOneLiveImagePerPostWithPartialUniqueIndex() {
+	public void ItShouldEnforceUniqueLivePositionPerPostWithPartialUniqueIndex() {
 		using var dbContext = PostMediaAssetConfigurationSpec._CreateDesignTimeDbContext();
 		var entity = dbContext.GetService<IDesignTimeModel>().Model
 			.FindEntityType(typeof(PostMediaAsset));
@@ -49,15 +49,15 @@ public sealed class PostMediaAssetConfigurationSpec {
 
 		var uniqueIndex = entity.Required().GetIndexes().SingleOrDefault(index =>
 			index.IsUnique
-			&& index.GetDatabaseName() == "ux_post_media_assets_live_post_id"
+			&& index.GetDatabaseName() == "ux_post_media_assets_live_post_position"
 		);
 		uniqueIndex.Should().NotBeNull(
-			"one live image per post is enforced by a database constraint, "
-			+ "not by application code"
+			"one live image per position of a post is enforced by a database "
+			+ "constraint, not by application code"
 		);
 		var uniqueIndexValue = uniqueIndex.Required();
 		uniqueIndexValue.Properties.Select(property => property.Name).Should()
-			.Equal("PostId");
+			.Equal("PostId", "Position");
 		uniqueIndexValue.GetFilter().Should().Be(
 			"is_deleted = false",
 			"soft-deleted rows must not block attaching a fresh image"

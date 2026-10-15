@@ -6,6 +6,7 @@ using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
@@ -261,6 +262,236 @@ public sealed class BlueskyPublishProviderSpec {
 		viaAppPassword.Should().BeOfType<PublishResult.Published>();
 	}
 
+	// --- images (#2170) -------------------------------------------------------------
+
+	private static bool _IsUpload(HttpRequestMessage request) {
+		return request.RequestUri.Required().AbsolutePath.EndsWith(
+			"com.atproto.repo.uploadBlob", StringComparison.Ordinal
+		);
+	}
+
+	private static HttpResponseMessage _BlobResponse(int number, string mime = "image/png") {
+		return BlueskyPublishProviderSpec._JsonResponse(
+			200,
+			$$$"""{"blob":{"$type":"blob","ref":{"$link":"bafkrei-{{{number}}}"},"mimeType":"{{{mime}}}","size":{{{number}}}00}}"""
+		);
+	}
+
+	private static PublishMedia _Media(byte[] content, string contentType, string? alt, int width, int height) {
+		return new PublishMedia {
+			Content = content,
+			ContentType = contentType,
+			AltText = alt,
+			WidthPx = width,
+			HeightPx = height,
+		};
+	}
+
+	private static async Task<(PublishResult Result, RecordingHandler Handler)> _PublishImagesAsync(
+		IReadOnlyList<PublishMedia> media,
+		Func<HttpRequestMessage, int, HttpResponseMessage> responder
+	) {
+		var uploads = 0;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+				uploads += 1;
+				return responder(request, uploads);
+			}
+
+			return BlueskyPublishProviderSpec._SuccessResponse(
+				$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+			);
+		});
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+			Media = media,
+		};
+		return (await provider.PublishAsync(request, CancellationToken.None), handler);
+	}
+
+	[Fact]
+	public async Task ItShouldUploadEachImageInOrderThenCreateOneRecordWithTheImagesEmbed() {
+		var first = TestImages.Png(40, 30);
+		var second = TestImages.Jpeg(64, 48);
+		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[
+				BlueskyPublishProviderSpec._Media(first, "image/png", "a red door", 40, 30),
+				BlueskyPublishProviderSpec._Media(second, "image/jpeg", null, 64, 48),
+			],
+			(request, number) => BlueskyPublishProviderSpec._BlobResponse(
+				number, number == 1 ? "image/png" : "image/jpeg"
+			)
+		);
+
+		result.Should().BeOfType<PublishResult.Published>();
+		handler.Requests.Should().HaveCount(3, "two blob uploads then ONE createRecord");
+		BlueskyPublishProviderSpec._IsUpload(handler.Requests[0]).Should().BeTrue();
+		BlueskyPublishProviderSpec._IsUpload(handler.Requests[1]).Should().BeTrue();
+		handler.Requests[2].RequestUri.Required().AbsolutePath
+			.Should().EndWith("com.atproto.repo.createRecord");
+
+		handler.Requests[0].Content.Required().Headers.ContentType.Required().MediaType
+			.Should().Be("image/png");
+		handler.Requests[1].Content.Required().Headers.ContentType.Required().MediaType
+			.Should().Be("image/jpeg");
+		handler.Requests[0].Headers.Authorization.Required().Parameter.Should().Be("jwt-token");
+		handler.RawBodies[0].Should().Equal(first, "an image under the limit is uploaded untouched");
+
+		var embed = JsonDocument.Parse(handler.Bodies[2]).RootElement
+			.GetProperty("record").GetProperty("embed");
+		embed.GetProperty("$type").GetString().Should().Be("app.bsky.embed.images");
+		var images = embed.GetProperty("images").EnumerateArray().ToList();
+		images.Should().HaveCount(2);
+		images[0].GetProperty("alt").GetString().Should().Be("a red door");
+		images[0].GetProperty("image").GetProperty("ref").GetProperty("$link").GetString()
+			.Should().Be("bafkrei-1");
+		images[0].GetProperty("aspectRatio").GetProperty("width").GetInt32().Should().Be(40);
+		images[0].GetProperty("aspectRatio").GetProperty("height").GetInt32().Should().Be(30);
+		images[1].GetProperty("alt").GetString().Should().BeEmpty("empty alt is allowed");
+		images[1].GetProperty("image").GetProperty("ref").GetProperty("$link").GetString()
+			.Should().Be("bafkrei-2");
+	}
+
+	[Fact]
+	public async Task ItShouldNotSendAnEmbedForATextOnlyPost() {
+		var (_, handler) = await BlueskyPublishProviderSpec._PublishOnceAsync(
+			BlueskyPublishProviderSpec._NewSession(),
+			(_) => BlueskyPublishProviderSpec._SuccessResponse("at://did/x")
+		);
+
+		JsonDocument.Parse(handler.Bodies[0]).RootElement.GetProperty("record")
+			.TryGetProperty("embed", out _).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ItShouldReEncodeAnImageOverOneMillionBytesToFit() {
+		var big = TestImages.NoisyJpeg(1600, 1200);
+		big.Length.Should().BeGreaterThan(1_000_000, "the fixture must exceed the blob limit");
+
+		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[BlueskyPublishProviderSpec._Media(big, "image/jpeg", "noise", 1600, 1200)],
+			(request, number) => BlueskyPublishProviderSpec._BlobResponse(number, "image/jpeg")
+		);
+
+		result.Should().BeOfType<PublishResult.Published>();
+		handler.RawBodies[0].Length.Should().BeLessThanOrEqualTo(1_000_000);
+		var aspect = JsonDocument.Parse(handler.Bodies[1]).RootElement
+			.GetProperty("record").GetProperty("embed").GetProperty("images")[0]
+			.GetProperty("aspectRatio");
+		var width = aspect.GetProperty("width").GetInt32();
+		var height = aspect.GetProperty("height").GetInt32();
+		((double)width / height).Should().BeApproximately(1600d / 1200d, 0.02);
+	}
+
+	[Fact]
+	public async Task ItShouldFailWithAContentCauseNamingTheImageWhenOneCannotBeFitted() {
+		var undecodable = new byte[1_500_000];
+		new Random(7).NextBytes(undecodable);
+
+		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[
+				BlueskyPublishProviderSpec._Media(TestImages.Png(20, 20), "image/png", null, 20, 20),
+				BlueskyPublishProviderSpec._Media(undecodable, "image/png", null, 900, 900),
+			],
+			(request, number) => BlueskyPublishProviderSpec._BlobResponse(number)
+		);
+
+		var failure = result.Should().BeOfType<PublishResult.ContentFailure>().Subject;
+		failure.Cause.Should().Contain("image 2");
+		handler.Requests.Should().NotContain(
+			request => request.RequestUri.Required().AbsolutePath.EndsWith("createRecord", StringComparison.Ordinal),
+			"no record is created when an image cannot be published"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseAnImageTypeBlueskyDoesNotAccept() {
+		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[BlueskyPublishProviderSpec._Media([1, 2, 3], "image/gif", null, 1, 1)],
+			(request, number) => BlueskyPublishProviderSpec._BlobResponse(number)
+		);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Subject.Cause
+			.Should().Contain("image 1");
+		handler.Requests.Should().BeEmpty();
+	}
+
+	[Theory]
+	[InlineData(401)]
+	[InlineData(403)]
+	public async Task ItShouldClassifyABlobUpload401Or403AsAccountFailure(int status) {
+		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10)],
+			(request, number) => BlueskyPublishProviderSpec._JsonResponse(
+				status, """{"error":"AuthenticationRequired","message":"bad token"}"""
+			)
+		);
+
+		result.Should().BeOfType<PublishResult.AccountFailure>();
+		handler.Requests.Should().ContainSingle("the record is never created after a refused upload");
+	}
+
+	[Theory]
+	[InlineData(400)]
+	[InlineData(413)]
+	public async Task ItShouldClassifyABlobUpload400Or413AsContentFailureNamingTheImage(int status) {
+		var (result, _) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[
+				BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10),
+				BlueskyPublishProviderSpec._Media(TestImages.Png(11, 11), "image/png", null, 11, 11),
+			],
+			(request, number) => number == 1
+				? BlueskyPublishProviderSpec._BlobResponse(number)
+				: BlueskyPublishProviderSpec._JsonResponse(
+					status, """{"error":"BlobTooLarge","message":"blob too large"}"""
+				)
+		);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Subject.Cause
+			.Should().Contain("image 2");
+	}
+
+	[Fact]
+	public async Task ItShouldClassifyABlobUpload503AsTransient() {
+		var (result, _) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+			[BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10)],
+			(request, number) => BlueskyPublishProviderSpec._JsonResponse(
+				503, """{"error":"TemporarilyUnavailable"}"""
+			)
+		);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>();
+	}
+
+	[Fact]
+	public async Task ItShouldCreateExactlyOneRecordWhenARetryFollowsAFailedUpload() {
+		var creates = 0;
+		var attempt = 0;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+				return attempt == 1
+					? BlueskyPublishProviderSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
+					: BlueskyPublishProviderSpec._BlobResponse(attempt);
+			}
+
+			creates += 1;
+			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
+		});
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+			Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+		};
+
+		attempt = 1;
+		var first = await provider.PublishAsync(request, CancellationToken.None);
+		attempt = 2;
+		var second = await provider.PublishAsync(request, CancellationToken.None);
+
+		first.Should().BeOfType<PublishResult.TransientFailure>();
+		second.Should().BeOfType<PublishResult.Published>();
+		creates.Should().Be(1, "the failed upload never reached createRecord, so the retry creates the only record");
+	}
+
 	private sealed class RecordingHandler
 		: HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;
@@ -273,15 +504,18 @@ public sealed class BlueskyPublishProviderSpec {
 
 		public List<string> Bodies { get; } = [];
 
+		public List<byte[]> RawBodies { get; } = [];
+
 		protected override async Task<HttpResponseMessage> SendAsync(
 			HttpRequestMessage request,
 			CancellationToken cancellationToken
 		) {
-			var body = request.Content is null
-				? string.Empty
-				: await request.Content.ReadAsStringAsync(cancellationToken);
+			var raw = request.Content is null
+				? []
+				: await request.Content.ReadAsByteArrayAsync(cancellationToken);
 			this.Requests.Add(request);
-			this.Bodies.Add(body);
+			this.RawBodies.Add(raw);
+			this.Bodies.Add(Encoding.UTF8.GetString(raw));
 			return this._Responder(request);
 		}
 	}

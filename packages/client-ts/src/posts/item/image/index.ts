@@ -11,7 +11,7 @@ import { MultipartBody, serializeMultipartBody, type BaseRequestBuilder, type Pa
  */
 export interface ImageRequestBuilder extends BaseRequestBuilder<ImageRequestBuilder> {
     /**
-     * Remove a post's attached image
+     * Remove a post's first image (legacy single-image route)
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<ApiResponse>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -23,7 +23,7 @@ export interface ImageRequestBuilder extends BaseRequestBuilder<ImageRequestBuil
      */
      delete(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<ApiResponse | undefined>;
     /**
-     * Attach one image to a post (multipart 'file' field)
+     * Append one image to a post, up to four (multipart 'file' field)
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<PostImageAttached>}
@@ -39,13 +39,13 @@ export interface ImageRequestBuilder extends BaseRequestBuilder<ImageRequestBuil
      */
      post(body: MultipartBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<PostImageAttached | undefined>;
     /**
-     * Remove a post's attached image
+     * Remove a post's first image (legacy single-image route)
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
      toDeleteRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
     /**
-     * Attach one image to a post (multipart 'file' field)
+     * Append one image to a post, up to four (multipart 'file' field)
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}

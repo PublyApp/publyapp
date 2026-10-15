@@ -6,7 +6,6 @@ import { describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
 	const state = {
 		imagePost: vi.fn(),
-		imageDelete: vi.fn(),
 	};
 	return {
 		state,
@@ -15,7 +14,6 @@ const mocks = vi.hoisted(() => {
 				byPostId: (postId: string) => ({
 					image: {
 						post: state.imagePost,
-						delete: state.imageDelete,
 					},
 					__postId: postId,
 				}),
@@ -34,14 +32,16 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 
 import {
 	buildAttachPostImageBody,
-	buildImageAltTextPatch,
+	buildReorderPostImagesBody,
 	toTenantPostImage,
+	toTenantPostImages,
 } from './tenant-post-images';
 
 describe('toTenantPostImage', () => {
 	test('normalizes a full image payload with a resolved /files url', () => {
 		expect(
 			toTenantPostImage({
+				id: 'asset-1',
 				url: '/files/2026/08/abc.png',
 				contentType: 'image/png',
 				widthPx: 32,
@@ -49,6 +49,7 @@ describe('toTenantPostImage', () => {
 				altText: 'logo',
 			}),
 		).toEqual({
+			id: 'asset-1',
 			url: 'https://api.example.test/files/2026/08/abc.png',
 			widthPx: 32,
 			heightPx: 32,
@@ -75,6 +76,7 @@ describe('toTenantPostImage (list projection shape)', () => {
 				altText: 'a gif',
 			}),
 		).toEqual({
+			id: null,
 			url: 'https://api.example.test/files/x.gif',
 			widthPx: 10,
 			heightPx: 4,
@@ -104,14 +106,30 @@ describe('buildAttachPostImageBody', () => {
 	});
 });
 
-describe('buildImageAltTextPatch', () => {
-	test('wraps a string value in an untyped string node', () => {
-		const patch = buildImageAltTextPatch('a logo');
-		expect(patch.imageAltText).toBeDefined();
+describe('toTenantPostImages', () => {
+	test('keeps the wire order and drops entries without a usable url', () => {
+		expect(
+			toTenantPostImages([
+				{ id: 'a', url: '/files/a.png', altText: 'first' },
+				{ id: 'bad', url: '  ' },
+				{ id: 'c', url: '/files/c.png' },
+			]).map((image) => [image.id, image.altText]),
+		).toEqual([
+			['a', 'first'],
+			['c', null],
+		]);
 	});
 
-	test('passes null through to clear the alt text', () => {
-		const patch = buildImageAltTextPatch(null);
-		expect(patch.imageAltText).toBeNull();
+	test('is an empty list for anything that is not an array', () => {
+		expect(toTenantPostImages(null)).toEqual([]);
+		expect(toTenantPostImages(undefined)).toEqual([]);
+		expect(toTenantPostImages({ url: '/files/a.png' })).toEqual([]);
+	});
+});
+
+describe('buildReorderPostImagesBody', () => {
+	test('wraps the ordered ids in an untyped array', () => {
+		const body = buildReorderPostImagesBody(['b', 'a']);
+		expect(body.assetIds).toBeDefined();
 	});
 });

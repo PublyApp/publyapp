@@ -73,11 +73,24 @@ public static class PostWire {
 			return null;
 		}
 		return new PostImageReadModel {
+			Id = asset.GetRequiredId(),
+			Position = asset.Position,
 			Url = $"/files/{asset.RelativePath}",
 			AltText = asset.AltText,
 			WidthPx = asset.WidthPx,
 			HeightPx = asset.HeightPx,
 		};
+	}
+
+	/// <summary>Projects a post's live assets, already in position order.</summary>
+	public static IReadOnlyList<PostImageReadModel> FormatImages(
+		IEnumerable<PostMediaAsset> assets
+	) {
+		return assets
+			.OrderBy(asset => asset.Position)
+			.Select(asset => PostWire.FormatImage(asset))
+			.OfType<PostImageReadModel>()
+			.ToList();
 	}
 
 	public static PostStatus? TryParseStatus(string? raw) {

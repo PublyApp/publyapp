@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
@@ -137,13 +139,21 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		};
 	}
 
+	private static LocalDiskFileStorage _NewStorage() {
+		return new LocalDiskFileStorage(
+			Path.Combine(Path.GetTempPath(), $"publish-job-spec-{Guid.NewGuid():N}")
+		);
+	}
+
 	private static PublishPublicationJobHandler _NewHandler(
 		AppDbContext db,
 		IPublishProvider publishProvider,
-		ISocialSessionProvider sessionProvider
+		ISocialSessionProvider sessionProvider,
+		IFileStorage? storage = null
 	) {
 		return new PublishPublicationJobHandler(
 			db,
+			storage ?? PublishPublicationJobHandlerSpec._NewStorage(),
 			publishProvider,
 			sessionProvider,
 			new PublicationStatusTransitionService(db)
@@ -583,6 +593,147 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	// --- fakes -----------------------------------------------------------------------
+
+	private static async Task<IReadOnlyList<byte[]>> _SeedImagesAsync(
+		AppDbContext db,
+		IFileStorage storage,
+		Guid publicationId,
+		params (string ContentType, string Extension, byte[] Bytes, string? Alt)[] images
+	) {
+		var publication = await db.Publication.SingleAsync(p => p.Id == publicationId);
+		var post = await db.Post.SingleAsync(p => p.Id == publication.PostId);
+		var position = 0;
+		foreach (var image in images) {
+			using var stream = new MemoryStream(image.Bytes);
+			var path = await storage.SaveAsync(stream, image.Extension);
+			db.PostMediaAsset.Add(new PostMediaAsset {
+				TenantId = publication.TenantId,
+				PostId = post.GetRequiredId(),
+				Position = position,
+				RelativePath = path,
+				ContentType = image.ContentType,
+				AltText = image.Alt,
+				WidthPx = 10,
+				HeightPx = 10,
+				SizeBytes = image.Bytes.Length,
+				UploadedByUserId = post.CreatedByUserId,
+			});
+			position += 1;
+		}
+		await db.SaveChangesAsync();
+		return images.Select(image => image.Bytes).ToList();
+	}
+
+	[Fact]
+	public async Task ItShouldHandTheProviderTheImagesInOrderWithTheirBytesAndAlt() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		var bytes = await PublishPublicationJobHandlerSpec._SeedImagesAsync(
+			db,
+			storage,
+			seeded.PublicationId,
+			("image/png", ".png", TestImages.Png(12, 12), "first"),
+			("image/jpeg", ".jpg", TestImages.Jpeg(14, 14), null)
+		);
+		var publishProvider = new FakePublishProvider(
+			new PublishResult.Published("at://did:plc:x/app.bsky.feed.post/k", "https://bsky.app/x")
+		);
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, publishProvider, FakeSessions.Opened(), storage
+		);
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var media = publishProvider.Requests.Should().ContainSingle().Subject.Media;
+		media.Should().HaveCount(2);
+		media[0].AltText.Should().Be("first");
+		media[0].ContentType.Should().Be("image/png");
+		media[0].Content.Should().Equal(bytes[0]);
+		media[1].AltText.Should().BeNull();
+		media[1].Content.Should().Equal(bytes[1]);
+	}
+
+	[Fact]
+	public async Task ItShouldFailWithoutRetryNamingTheImageWhenItsFileIsMissingFromStorage() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		await PublishPublicationJobHandlerSpec._SeedImagesAsync(
+			db,
+			storage,
+			seeded.PublicationId,
+			("image/png", ".png", TestImages.Png(12, 12), null),
+			("image/png", ".png", TestImages.Png(13, 13), null)
+		);
+		var secondPath = await db.PostMediaAsset
+			.Where(media => media.Position == 1 && media.TenantId == seeded.TenantId)
+			.Select(media => media.RelativePath)
+			.SingleAsync();
+		await storage.DeleteAsync(secondPath);
+		var publishProvider = new FakePublishProvider(null);
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, publishProvider, FakeSessions.Opened(), storage
+		);
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>("a content failure is terminal, never retried");
+		publishProvider.Requests.Should().BeEmpty();
+		var publication = await PublishPublicationJobHandlerSpec._FreshPublicationAsync(db, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("image 2 is no longer available");
+	}
+
+	[Fact]
+	public async Task ItShouldFailAtDispatchWhenAnAttachedImageIsOfAnUnacceptedType() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		await PublishPublicationJobHandlerSpec._SeedImagesAsync(
+			db,
+			storage,
+			seeded.PublicationId,
+			("image/gif", ".gif", [1, 2, 3], null)
+		);
+		var publishProvider = new FakePublishProvider(null);
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, publishProvider, FakeSessions.Opened(), storage
+		);
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		publishProvider.Requests.Should().BeEmpty();
+		var publication = await PublishPublicationJobHandlerSpec._FreshPublicationAsync(db, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("Image 1");
+	}
 
 	[Fact]
 	public async Task ItShouldPauseAllOtherScheduledPublicationsOfTheSameAccountOnCredentialFailure() {

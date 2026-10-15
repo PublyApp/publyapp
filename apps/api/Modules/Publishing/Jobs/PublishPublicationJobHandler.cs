@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Providers;
@@ -24,17 +25,20 @@ namespace PublyApp.Api.Modules.Publishing.Jobs;
 /// </summary>
 public sealed class PublishPublicationJobHandler : IJobHandler {
 	private readonly AppDbContext _Db;
+	private readonly IFileStorage _FileStorage;
 	private readonly IPublishProvider _PublishProvider;
 	private readonly ISocialSessionProvider _SocialSessionProvider;
 	private readonly IPublicationStatusTransitionService _Transitions;
 
 	public PublishPublicationJobHandler(
 		AppDbContext db,
+		IFileStorage fileStorage,
 		IPublishProvider publishProvider,
 		ISocialSessionProvider socialSessionProvider,
 		IPublicationStatusTransitionService transitions
 	) {
 		this._Db = db;
+		this._FileStorage = fileStorage;
 		this._PublishProvider = publishProvider;
 		this._SocialSessionProvider = socialSessionProvider;
 		this._Transitions = transitions;
@@ -86,6 +90,12 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			return JobOutcome.Succeeded;
 		}
 
+		var assets = await this._Db.PostMediaAsset
+			.AsNoTracking()
+			.Where(media => media.PostId == post.Id && !media.IsDeleted)
+			.OrderBy(media => media.Position)
+			.ToListAsync(cancellationToken);
+
 		// Re-validate at dispatch (issue #2169): a body edited after scheduling may
 		// no longer fit the provider. Fails the publication with a plain content
 		// cause BEFORE any session/provider call.
@@ -97,10 +107,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		if (targetProvider is SocialProvider provider) {
 			var contentFailure = PublishValidationService.Validate(
 				post.Body,
-				await this._Db.PostMediaAsset.AnyAsync(
-					media => media.PostId == post.Id && !media.IsDeleted,
-					cancellationToken
-				),
+				assets.Select(asset => asset.ContentType).ToList(),
 				[provider]
 			);
 			if (contentFailure is not null) {
@@ -108,12 +115,40 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
-						$"the post text can no longer be published: {contentFailure.Cause}"
+						$"the post can no longer be published: {contentFailure.Cause}"
 					),
 					cancellationToken
 				);
 				return JobOutcome.Succeeded;
 			}
+		}
+
+		// Resolve the image bytes before touching the account: a file gone from
+		// storage is a content failure naming the image, never retried (#2170).
+		var media = new List<PublishMedia>(assets.Count);
+		for (var index = 0; index < assets.Count; index++) {
+			var content = await this._FileStorage.ReadAsync(
+				assets[index].RelativePath, cancellationToken
+			);
+			if (content is null) {
+				await this._Transitions.MarkFailedAsync(
+					new MarkPublicationFailedArgs(
+						publicationId,
+						publication.TenantId,
+						$"image {index + 1} is no longer available"
+					),
+					cancellationToken
+				);
+				return JobOutcome.Succeeded;
+			}
+
+			media.Add(new PublishMedia {
+				Content = content,
+				ContentType = assets[index].ContentType,
+				AltText = assets[index].AltText,
+				WidthPx = assets[index].WidthPx,
+				HeightPx = assets[index].HeightPx,
+			});
 		}
 
 		var sessionResult = await this._SocialSessionProvider.OpenSessionAsync(
@@ -143,6 +178,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				PostBody = TextCounter.Normalize(post.Body),
 				ScheduledAtUtc = publication.ScheduledAtUtc,
 				Session = opened.Session,
+				Media = media,
 			},
 			cancellationToken
 		);

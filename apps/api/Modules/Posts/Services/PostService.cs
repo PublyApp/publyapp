@@ -95,7 +95,9 @@ public record PostListItem {
 	public required Guid CreatedByUserId { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required DateTime UpdatedAt { get; init; }
+	/// <summary>The first image; kept for one release for old clients (use <see cref="Images"/>).</summary>
 	public required PostImageReadModel? Image { get; init; }
+	public required IReadOnlyList<PostImageReadModel> Images { get; init; }
 }
 
 /// <summary>
@@ -104,6 +106,8 @@ public record PostListItem {
 /// CreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.
 /// </summary>
 public record PostImageReadModel {
+	public required Guid Id { get; init; }
+	public required int Position { get; init; }
 	public required string Url { get; init; }
 	public required string? AltText { get; init; }
 	public required int WidthPx { get; init; }
@@ -238,24 +242,23 @@ public class PostService : IPostService {
 			nextCursor = results.Last().GetRequiredId().ToString();
 		}
 
-		// One batched lookup for the page's live image assets; the partial
-		// unique index guarantees at most one live row per post.
+		// One batched lookup for the page's live image assets (up to four per post).
 		var pagePostIds = results
 			.Select(p => p.GetRequiredId())
 			.ToList();
-		var assetsByPost = await (
+		var pageAssets = await (
 			from a in this._DbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& pagePostIds.Contains(a.PostId)
 				&& !a.IsDeleted
+			orderby a.Position
 			select a
-		).ToDictionaryAsync(a => a.PostId, cancellationToken);
+		).ToListAsync(cancellationToken);
+		var assetsByPost = pageAssets.ToLookup(a => a.PostId);
 
 		var items = results.Select(p => PostService.ToListItem(
 			p,
-			assetsByPost.TryGetValue(p.GetRequiredId(), out var asset)
-				? asset
-				: null
+			assetsByPost[p.GetRequiredId()].ToList()
 		)).ToList();
 
 		return new FindPostsResult.Success(
@@ -300,13 +303,15 @@ public class PostService : IPostService {
 		}
 
 		if (args.ImageAltText.IsPresent) {
-			// Alt text belongs to the attached asset row; a patch without an
-			// image is a named validation refusal, not a silent no-op.
+			// Legacy single-image alt-text patch: targets the FIRST image (the
+			// per-image route is PATCH /posts/{id}/images/{assetId}). A patch
+			// without an image is a named validation refusal, not a silent no-op.
 			var asset = await (
 				from a in this._DbContext.PostMediaAsset
 				where a.TenantId == tenantId
 					&& a.PostId == id
 					&& !a.IsDeleted
+				orderby a.Position
 				select a
 			).FirstOrDefaultAsync(cancellationToken);
 			if (asset is null) {
@@ -391,7 +396,7 @@ public class PostService : IPostService {
 		).AnyAsync(cancellationToken);
 	}
 
-	internal static PostListItem ToListItem(Post post, PostMediaAsset? asset) {
+	internal static PostListItem ToListItem(Post post, IReadOnlyList<PostMediaAsset> assets) {
 		return new PostListItem {
 			Id = post.GetRequiredId(),
 			ProjectId = post.ProjectId,
@@ -402,7 +407,8 @@ public class PostService : IPostService {
 			CreatedByUserId = post.CreatedByUserId,
 			CreatedAt = post.CreatedAt,
 			UpdatedAt = post.UpdatedAt,
-			Image = PostWire.FormatImage(asset),
+			Image = PostWire.FormatImage(assets.OrderBy(a => a.Position).FirstOrDefault()),
+			Images = PostWire.FormatImages(assets),
 		};
 	}
 }

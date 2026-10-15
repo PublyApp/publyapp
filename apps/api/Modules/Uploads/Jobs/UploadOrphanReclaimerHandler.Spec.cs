@@ -614,6 +614,13 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 			throw new NotSupportedException("This spec double never saves.");
 		}
 
+		public Task<byte[]?> ReadAsync(
+			string relativePath,
+			CancellationToken cancellationToken = default
+		) {
+			throw new NotSupportedException("This spec double never reads.");
+		}
+
 		public Task<bool> DeleteAsync(
 			string relativePath,
 			CancellationToken cancellationToken = default

@@ -102,6 +102,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		new("/posts/{postId}", "DELETE", IsPublishing: false),
 		new("/posts/{postId}/image", "POST", IsPublishing: false),
 		new("/posts/{postId}/image", "DELETE", IsPublishing: false),
+		new("/posts/{postId}/images/{assetId}", "DELETE", IsPublishing: false),
+		new("/posts/{postId}/images/{assetId}", "PATCH", IsPublishing: false),
+		new("/posts/{postId}/images/order", "PATCH", IsPublishing: false),
 	];
 
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────

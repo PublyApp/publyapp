@@ -22,4 +22,23 @@ public sealed record PublishRequest {
 	public required DateTime ScheduledAtUtc { get; init; }
 
 	public required SocialSession Session { get; init; }
+
+	// The post's images in publish order (empty for a text-only post).
+	public IReadOnlyList<PublishMedia> Media { get; init; } = [];
+}
+
+/// <summary>
+/// One image of the post, already read from storage by the job handler. Width and
+/// height are the intrinsic pixel size of <see cref="Content"/> as stored.
+/// </summary>
+public sealed record PublishMedia {
+	public required byte[] Content { get; init; }
+
+	public required string ContentType { get; init; }
+
+	public string? AltText { get; init; }
+
+	public required int WidthPx { get; init; }
+
+	public required int HeightPx { get; init; }
 }

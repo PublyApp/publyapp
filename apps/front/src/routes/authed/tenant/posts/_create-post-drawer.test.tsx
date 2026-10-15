@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	attachMutateAsync: vi.fn(),
 	removeMutateAsync: vi.fn(),
+	reorderMutateAsync: vi.fn(),
 	altMutateAsync: vi.fn(),
 	invalidatePostImageCaches: vi.fn(),
 	savePost: vi.fn(),
@@ -73,6 +74,10 @@ vi.mock('~/lib/query/tenant-post-images', () => ({
 	}),
 	useRemovePostImageMutation: () => ({
 		mutateAsync: mocks.removeMutateAsync,
+		isPending: false,
+	}),
+	useReorderPostImagesMutation: () => ({
+		mutateAsync: mocks.reorderMutateAsync,
 		isPending: false,
 	}),
 	useUpdatePostImageAltMutation: () => ({
@@ -268,6 +273,14 @@ const PNG_FILE = new File(
 	{ type: 'image/png' },
 );
 
+const SECOND_FILE = new File(
+	[new Uint8Array([0x89, 0x50, 0x4e, 0x47])],
+	'second.png',
+	{
+		type: 'image/png',
+	},
+);
+
 const UNSUPPORTED_TYPE_PROBLEM = {
 	status: 422,
 	body: {
@@ -316,7 +329,7 @@ const fillBodyAndPickImage = async (body: string) => {
 beforeEach(() => {
 	rhf.resetAll();
 	mocks.savePost.mockResolvedValue({ id: 'post-1' });
-	mocks.attachMutateAsync.mockResolvedValue(undefined);
+	mocks.attachMutateAsync.mockResolvedValue({ id: 'asset-1' });
 	mocks.altMutateAsync.mockResolvedValue(undefined);
 	mocks.invalidateTenantPosts.mockResolvedValue(undefined);
 });
@@ -343,7 +356,7 @@ describe('CreatePostDrawer provider limit counter (#2169)', () => {
 });
 
 describe('CreatePostDrawer deferred image handoff', () => {
-	test('attaches the picked image after creation and forwards its alt text through the PATCH', async () => {
+	test('attaches the picked image after creation and forwards its alt text through the per-image PATCH', async () => {
 		const onOpenChange = vi.fn();
 		renderDrawer(onOpenChange);
 
@@ -377,6 +390,7 @@ describe('CreatePostDrawer deferred image handoff', () => {
 			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
 				postId: 'post-1',
 				tenantId: 'tenant-1',
+				assetId: 'asset-1',
 				altText: 'A tiny red square',
 			}),
 		);
@@ -434,7 +448,7 @@ describe('CreatePostDrawer deferred image handoff', () => {
 		const onOpenChange = vi.fn();
 		mocks.attachMutateAsync
 			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
-			.mockResolvedValueOnce(undefined);
+			.mockResolvedValueOnce({ id: 'asset-1' });
 		renderDrawer(onOpenChange);
 
 		await fillBodyAndPickImage('draft body');
@@ -457,6 +471,7 @@ describe('CreatePostDrawer deferred image handoff', () => {
 			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
 				postId: 'post-1',
 				tenantId: 'tenant-1',
+				assetId: 'asset-1',
 				altText: 'A tiny red square',
 			}),
 		);
@@ -483,5 +498,66 @@ describe('CreatePostDrawer deferred image handoff', () => {
 		// the failed attachment is dropped and the drawer closes.
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 		expect(mocks.altMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('attaches several images in the picked order, each followed by its own alt text', async () => {
+		const onOpenChange = vi.fn();
+		mocks.attachMutateAsync
+			.mockResolvedValueOnce({ id: 'asset-a' })
+			.mockResolvedValueOnce({ id: 'asset-b' });
+		renderDrawer(onOpenChange);
+
+		setFieldValue('tenant-posts-create-body', 'two pictures');
+		await userEvent.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			[PNG_FILE, SECOND_FILE],
+		);
+		const alts = screen.getAllByTestId('tenant-posts-create-image-alt');
+		fireEvent.change(alts[0], { target: { value: 'first alt' } });
+		fireEvent.change(alts[1], { target: { value: 'second alt' } });
+		await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+		const attachedNames = mocks.attachMutateAsync.mock.calls.map(
+			(call) => (call[0] as { file: File }).file.name,
+		);
+		expect(attachedNames).toEqual(['logo.png', 'second.png']);
+		expect(mocks.altMutateAsync.mock.calls.map((call) => call[0])).toEqual([
+			expect.objectContaining({ assetId: 'asset-a', altText: 'first alt' }),
+			expect.objectContaining({ assetId: 'asset-b', altText: 'second alt' }),
+		]);
+	});
+
+	test('a failure on the second image keeps it in the handoff and a retry never re-attaches the first', async () => {
+		const onOpenChange = vi.fn();
+		mocks.attachMutateAsync
+			.mockResolvedValueOnce({ id: 'asset-a' })
+			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
+			.mockResolvedValueOnce({ id: 'asset-b' });
+		renderDrawer(onOpenChange);
+
+		setFieldValue('tenant-posts-create-body', 'two pictures');
+		await userEvent.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			[PNG_FILE, SECOND_FILE],
+		);
+		await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-handoff'),
+			).toBeTruthy(),
+		);
+		expect(onOpenChange).not.toHaveBeenCalledWith(false);
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+
+		const attachedNames = mocks.attachMutateAsync.mock.calls.map(
+			(call) => (call[0] as { file: File }).file.name,
+		);
+		expect(attachedNames).toEqual(['logo.png', 'second.png', 'second.png']);
 	});
 });

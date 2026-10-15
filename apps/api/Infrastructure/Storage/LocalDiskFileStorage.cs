@@ -92,6 +92,22 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		return relativePath;
 	}
 
+	public async Task<byte[]?> ReadAsync(
+		string relativePath,
+		CancellationToken cancellationToken = default
+	) {
+		var fullPath = this._ResolveFullPath(relativePath);
+		if (!File.Exists(fullPath)) {
+			return null;
+		}
+
+		try {
+			return await File.ReadAllBytesAsync(fullPath, cancellationToken);
+		} catch (FileNotFoundException) {
+			return null;
+		}
+	}
+
 	public Task<bool> DeleteAsync(
 		string relativePath,
 		CancellationToken cancellationToken = default

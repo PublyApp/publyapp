@@ -13,20 +13,39 @@ public static class PublishContentProblems {
 	public static AppValidationProblemHttpResult ToProblem(
 		PublishContentFailure failure
 	) {
-		var key = failure.Kind == PublishContentFailureKind.Empty
-			? ResponseKeys.PublishContentEmpty
-			: ResponseKeys.PublishContentTooLong;
+		var key = PublishContentProblems._KeyFor(failure.Kind);
+		var extensions = new Dictionary<string, object?> {
+			["provider"] = failure.Provider,
+			["limit"] = failure.Limit,
+			["actual"] = failure.Actual,
+			["unit"] = failure.Unit,
+		};
+		if (failure.ImageIndex > 0) {
+			extensions["imageIndex"] = failure.ImageIndex;
+			extensions["contentType"] = failure.ContentType;
+		}
 
 		return TypedProblems.ValidationProblem(
 			failure.Cause,
 			key,
 			new Dictionary<string, string[]> { ["body"] = [failure.Cause] },
-			new Dictionary<string, object?> {
-				["provider"] = failure.Provider,
-				["limit"] = failure.Limit,
-				["actual"] = failure.Actual,
-				["unit"] = failure.Unit,
-			}
+			extensions
 		);
+	}
+
+	private static TranslationKey _KeyFor(PublishContentFailureKind kind) {
+		if (kind == PublishContentFailureKind.Empty) {
+			return ResponseKeys.PublishContentEmpty;
+		}
+
+		if (kind == PublishContentFailureKind.TooManyImages) {
+			return ResponseKeys.PublishImagesTooMany;
+		}
+
+		if (kind == PublishContentFailureKind.UnsupportedImageType) {
+			return ResponseKeys.PublishImageUnsupportedType;
+		}
+
+		return ResponseKeys.PublishContentTooLong;
 	}
 }

@@ -38,8 +38,15 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		var rkey = $"pub-{request.IdempotencyKey}";
 
 		try {
+			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
+				client, request, cancellationToken
+			);
+			if (uploaded.Failure is not null) {
+				return uploaded.Failure;
+			}
+
 			using var response = await BlueskyPublishProvider._SendCreateRecordAsync(
-				client, request, rkey, cancellationToken
+				client, request, rkey, uploaded.Images, cancellationToken
 			);
 
 			if (response.IsSuccessStatusCode) {
@@ -92,18 +99,27 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		HttpClient client,
 		PublishRequest request,
 		string rkey,
+		IReadOnlyList<Dictionary<string, object?>> images,
 		CancellationToken cancellationToken
 	) {
+		var record = new Dictionary<string, object?> {
+			["$type"] = BlueskyPublishProvider._Collection,
+			["text"] = request.PostBody,
+			["createdAt"] = DateTime.SpecifyKind(request.ScheduledAtUtc, DateTimeKind.Utc)
+				.ToString("o", CultureInfo.InvariantCulture),
+		};
+		if (images.Count > 0) {
+			record["embed"] = new Dictionary<string, object?> {
+				["$type"] = "app.bsky.embed.images",
+				["images"] = images,
+			};
+		}
+
 		var payload = new Dictionary<string, object?> {
 			["repo"] = request.Session.Did,
 			["collection"] = BlueskyPublishProvider._Collection,
 			["rkey"] = rkey,
-			["record"] = new Dictionary<string, object?> {
-				["$type"] = BlueskyPublishProvider._Collection,
-				["text"] = request.PostBody,
-				["createdAt"] = DateTime.SpecifyKind(request.ScheduledAtUtc, DateTimeKind.Utc)
-					.ToString("o", CultureInfo.InvariantCulture),
-			},
+			["record"] = record,
 		};
 
 		using var httpRequest = new HttpRequestMessage(
@@ -121,6 +137,128 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		);
 
 		return await client.SendAsync(httpRequest, cancellationToken);
+	}
+
+	private sealed record UploadedImages(
+		IReadOnlyList<Dictionary<string, object?>> Images,
+		PublishResult? Failure
+	);
+
+	/// <summary>
+	/// Uploads the post's images sequentially, in order, as blobs
+	/// (<c>com.atproto.repo.uploadBlob</c>), fitting each under the provider's
+	/// byte limit first. Blob uploads are not idempotent, but an unreferenced blob
+	/// is garbage-collected by the PDS, so a retry re-uploading is safe. Returns
+	/// the embed entries, or the classified failure naming the image (1-based).
+	/// </summary>
+	private static async Task<UploadedImages> _UploadImagesAsync(
+		HttpClient client,
+		PublishRequest request,
+		CancellationToken cancellationToken
+	) {
+		var limits = ProviderLimits.Bluesky;
+		var entries = new List<Dictionary<string, object?>>();
+		if (request.Media.Count > limits.MaxImages) {
+			return new UploadedImages(
+				entries,
+				new PublishResult.ContentFailure(
+					$"the post has {request.Media.Count} images, Bluesky accepts {limits.MaxImages}"
+				)
+			);
+		}
+
+		for (var index = 0; index < request.Media.Count; index++) {
+			var number = index + 1;
+			var media = request.Media[index];
+			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
+				return new UploadedImages(
+					entries,
+					new PublishResult.ContentFailure(
+						$"image {number} is {media.ContentType}, which Bluesky does not accept"
+					)
+				);
+			}
+
+			var fitted = ImageDerivative.Fit(
+				media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
+			);
+			if (fitted is ImageDerivative.CannotFit cannotFit) {
+				return new UploadedImages(
+					entries,
+					new PublishResult.ContentFailure($"image {number} cannot be published: {cannotFit.Reason}")
+				);
+			}
+
+			var derivative = (ImageDerivative.Fitted)fitted;
+			using var httpRequest = new HttpRequestMessage(
+				HttpMethod.Post,
+				$"{request.Session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.uploadBlob"
+			);
+			httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+				"Bearer",
+				request.Session.AccessJwt
+			);
+			httpRequest.Content = new ByteArrayContent(derivative.Content);
+			httpRequest.Content.Headers.ContentType =
+				new System.Net.Http.Headers.MediaTypeHeaderValue(derivative.ContentType);
+
+			using var response = await client.SendAsync(httpRequest, cancellationToken);
+			if (!response.IsSuccessStatusCode) {
+				var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+				return new UploadedImages(
+					entries,
+					BlueskyPublishProvider._ClassifyUploadFailure(response.StatusCode, number, error, message)
+				);
+			}
+
+			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+			if (!payload.TryGetProperty("blob", out var blob)) {
+				return new UploadedImages(
+					entries,
+					new PublishResult.TransientFailure(
+						$"Bluesky accepted image {number} but returned no blob reference"
+					)
+				);
+			}
+
+			entries.Add(new Dictionary<string, object?> {
+				["alt"] = media.AltText ?? string.Empty,
+				["image"] = blob,
+				["aspectRatio"] = new Dictionary<string, object?> {
+					["width"] = derivative.WidthPx,
+					["height"] = derivative.HeightPx,
+				},
+			});
+		}
+
+		return new UploadedImages(entries, null);
+	}
+
+	private static PublishResult _ClassifyUploadFailure(
+		HttpStatusCode status,
+		int imageNumber,
+		string error,
+		string message
+	) {
+		var cause = $"{(int)status} {error}: {message}";
+		if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) {
+			return new PublishResult.AccountFailure(
+				"Bluesky rejected the stored credential while uploading image "
+					+ $"{imageNumber} ({LastErrorSanitiser.Sanitize(cause) ?? cause})"
+			);
+		}
+
+		if ((int)status >= 500 || status == HttpStatusCode.TooManyRequests) {
+			return new PublishResult.TransientFailure(
+				LastErrorSanitiser.Sanitize($"uploading image {imageNumber} failed: {cause}")
+					?? $"uploading image {imageNumber} failed"
+			);
+		}
+
+		return new PublishResult.ContentFailure(
+			LastErrorSanitiser.Sanitize($"image {imageNumber} was refused: {cause}")
+				?? $"image {imageNumber} was refused"
+		);
 	}
 
 	private static async Task<PublishResult> _ReadExistingBackAsync(

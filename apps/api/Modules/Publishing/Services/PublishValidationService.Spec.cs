@@ -10,8 +10,8 @@ public sealed class PublishValidationServiceSpec {
 	private const string _Family =
 		"\U0001F468‍\U0001F469‍\U0001F467‍\U0001F466";
 
-	private static PublishContentFailure? _Validate(string body, bool hasMedia = false) {
-		return PublishValidationService.Validate(body, hasMedia, [SocialProvider.Bluesky]);
+	private static PublishContentFailure? _Validate(string body, params string[] imageTypes) {
+		return PublishValidationService.Validate(body, imageTypes, [SocialProvider.Bluesky]);
 	}
 
 	[Fact]
@@ -56,6 +56,31 @@ public sealed class PublishValidationServiceSpec {
 		Assert.NotNull(failure);
 		failure.Kind.Should().Be(PublishContentFailureKind.Empty);
 
-		PublishValidationServiceSpec._Validate("  \n ", hasMedia: true).Should().BeNull();
+		PublishValidationServiceSpec._Validate("  \n ", "image/png").Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldAcceptFourImagesAndRejectTheFifth() {
+		PublishValidationServiceSpec._Validate("hi", "image/png", "image/jpeg", "image/webp", "image/png")
+			.Should().BeNull();
+
+		var failure = PublishValidationServiceSpec._Validate(
+			"hi", "image/png", "image/png", "image/png", "image/png", "image/png"
+		);
+		Assert.NotNull(failure);
+		failure.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
+		failure.Limit.Should().Be(4);
+		failure.Actual.Should().Be(5);
+		failure.Unit.Should().Be("images");
+	}
+
+	[Fact]
+	public void ItShouldRejectAnUnsupportedImageTypeNamingTheImage() {
+		var failure = PublishValidationServiceSpec._Validate("hi", "image/png", "image/gif");
+		Assert.NotNull(failure);
+		failure.Kind.Should().Be(PublishContentFailureKind.UnsupportedImageType);
+		failure.ImageIndex.Should().Be(2);
+		failure.ContentType.Should().Be("image/gif");
+		failure.Cause.Should().Contain("Image 2");
 	}
 }

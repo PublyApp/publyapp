@@ -127,10 +127,12 @@ public sealed class PublishNowService : IPublishNowService {
 
 		var contentFailure = PublishValidationService.Validate(
 			post.Body,
-			await this._Db.PostMediaAsset.AnyAsync(
-				media => media.PostId == post.Id && !media.IsDeleted,
-				cancellationToken
-			),
+			await (
+				from media in this._Db.PostMediaAsset.AsNoTracking()
+				where media.PostId == post.Id && !media.IsDeleted
+				orderby media.Position
+				select media.ContentType
+			).ToListAsync(cancellationToken),
 			eligible.Select(account => account.Provider)
 		);
 		if (contentFailure is not null) {

@@ -5,15 +5,14 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 
 public sealed class PostMediaAssetConfiguration : IEntityTypeConfiguration<PostMediaAsset> {
 	public void Configure(EntityTypeBuilder<PostMediaAsset> builder) {
-		// One live image per post (#639): the partial unique index makes the v1
-		// invariant a database constraint. Soft-deleted rows are excluded from the
-		// predicate so a replacement never fights a historical row; relaxing this
-		// predicate is how multiple images per post ship later without a
-		// contracting migration.
+		// Ordered images (#2170): positions are unique per post among live rows,
+		// so two concurrent appends cannot claim the same slot (the loser hits a
+		// unique violation) and the order is never ambiguous. Soft-deleted rows
+		// are excluded so a replacement never fights a historical row.
 		builder
-			.HasIndex(asset => asset.PostId)
+			.HasIndex(asset => new { asset.PostId, asset.Position })
 			.IsUnique()
-			.HasDatabaseName("ux_post_media_assets_live_post_id")
+			.HasDatabaseName("ux_post_media_assets_live_post_position")
 			.HasFilter("is_deleted = false");
 
 		// Attach/remove/read all resolve an asset by its tenant and post.

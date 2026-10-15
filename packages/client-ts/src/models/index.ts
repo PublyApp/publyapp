@@ -1625,6 +1625,15 @@ export function createPostImageReadModelFromDiscriminatorValue(parseNode: ParseN
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostImagesReordered}
+ */
+// @ts-ignore
+export function createPostImagesReorderedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostImagesReordered;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {PostListItem_image}
  */
 // @ts-ignore
@@ -1720,6 +1729,15 @@ export function createReactivateTenantUserResultFromDiscriminatorValue(parseNode
 // @ts-ignore
 export function createReconnectSocialAccountBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoReconnectSocialAccountBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ReorderPostImagesBody}
+ */
+// @ts-ignore
+export function createReorderPostImagesBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoReorderPostImagesBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2444,6 +2462,15 @@ export function createUpdateAccountProfileBodyFromDiscriminatorValue(parseNode: 
 // @ts-ignore
 export function createUpdatePostBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUpdatePostBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdatePostImageBody}
+ */
+// @ts-ignore
+export function createUpdatePostImageBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdatePostImageBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4349,6 +4376,7 @@ export function deserializeIntoPostDetail(postDetail: Partial<PostDetail> | unde
         "createdByUserId": n => { postDetail.createdByUserId = n.getGuidValue(); },
         "id": n => { postDetail.id = n.getGuidValue(); },
         "image": n => { postDetail.image = n.getObjectValue<PostDetail_image>(createPostDetail_imageFromDiscriminatorValue); },
+        "images": n => { postDetail.images = n.getCollectionOfObjectValues<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue); },
         "projectId": n => { postDetail.projectId = n.getGuidValue(); },
         "status": n => { postDetail.status = n.getStringValue(); },
         "tenantId": n => { postDetail.tenantId = n.getGuidValue(); },
@@ -4377,7 +4405,9 @@ export function deserializeIntoPostImageAttached(postImageAttached: Partial<Post
         "altText": n => { postImageAttached.altText = n.getStringValue(); },
         "contentType": n => { postImageAttached.contentType = n.getStringValue(); },
         "heightPx": n => { postImageAttached.heightPx = n.getNumberValue(); },
+        "id": n => { postImageAttached.id = n.getGuidValue(); },
         "path": n => { postImageAttached.path = n.getStringValue(); },
+        "position": n => { postImageAttached.position = n.getNumberValue(); },
         "url": n => { postImageAttached.url = n.getStringValue(); },
         "widthPx": n => { postImageAttached.widthPx = n.getNumberValue(); },
     }
@@ -4392,8 +4422,21 @@ export function deserializeIntoPostImageReadModel(postImageReadModel: Partial<Po
     return {
         "altText": n => { postImageReadModel.altText = n.getStringValue(); },
         "heightPx": n => { postImageReadModel.heightPx = n.getNumberValue(); },
+        "id": n => { postImageReadModel.id = n.getGuidValue(); },
+        "position": n => { postImageReadModel.position = n.getNumberValue(); },
         "url": n => { postImageReadModel.url = n.getStringValue(); },
         "widthPx": n => { postImageReadModel.widthPx = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostImagesReordered The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostImagesReordered(postImagesReordered: Partial<PostImagesReordered> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "images": n => { postImagesReordered.images = n.getCollectionOfObjectValues<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue); },
     }
 }
 /**
@@ -4409,6 +4452,7 @@ export function deserializeIntoPostListItem(postListItem: Partial<PostListItem> 
         "createdByUserId": n => { postListItem.createdByUserId = n.getGuidValue(); },
         "id": n => { postListItem.id = n.getGuidValue(); },
         "image": n => { postListItem.image = n.getObjectValue<PostListItem_image>(createPostListItem_imageFromDiscriminatorValue); },
+        "images": n => { postListItem.images = n.getCollectionOfObjectValues<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue); },
         "projectId": n => { postListItem.projectId = n.getGuidValue(); },
         "status": n => { postListItem.status = n.getStringValue(); },
         "updatedAt": n => { postListItem.updatedAt = n.getDateValue(); },
@@ -4551,6 +4595,17 @@ export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserRe
 export function deserializeIntoReconnectSocialAccountBody(reconnectSocialAccountBody: Partial<ReconnectSocialAccountBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "appPassword": n => { reconnectSocialAccountBody.appPassword = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ReorderPostImagesBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoReorderPostImagesBody(reorderPostImagesBody: Partial<ReorderPostImagesBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "assetIds": n => { reorderPostImagesBody.assetIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -5481,6 +5536,17 @@ export function deserializeIntoUpdatePostBody(updatePostBody: Partial<UpdatePost
         "body": n => { updatePostBody.body = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "imageAltText": n => { updatePostBody.imageAltText = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "projectId": n => { updatePostBody.projectId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdatePostImageBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdatePostImageBody(updatePostImageBody: Partial<UpdatePostImageBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "altText": n => { updatePostImageBody.altText = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6632,6 +6698,10 @@ export interface PostDetail extends AdditionalDataHolder, Parsable {
      */
     image?: PostDetail_image | null;
     /**
+     * The images property
+     */
+    images?: PostImageReadModel[] | null;
+    /**
      * The projectId property
      */
     projectId?: Guid | null;
@@ -6664,9 +6734,17 @@ export interface PostImageAttached extends AdditionalDataHolder, Parsable {
      */
     heightPx?: number | null;
     /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
      * The path property
      */
     path?: string | null;
+    /**
+     * The position property
+     */
+    position?: number | null;
     /**
      * The url property
      */
@@ -6689,6 +6767,14 @@ export interface PostImageReadModel extends AdditionalDataHolder, Parsable {
      */
     heightPx?: number | null;
     /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The position property
+     */
+    position?: number | null;
+    /**
      * The url property
      */
     url?: string | null;
@@ -6696,6 +6782,12 @@ export interface PostImageReadModel extends AdditionalDataHolder, Parsable {
      * The widthPx property
      */
     widthPx?: number | null;
+}
+export interface PostImagesReordered extends AdditionalDataHolder, Parsable {
+    /**
+     * The images property
+     */
+    images?: PostImageReadModel[] | null;
 }
 export interface PostListItem extends AdditionalDataHolder, Parsable {
     /**
@@ -6718,6 +6810,10 @@ export interface PostListItem extends AdditionalDataHolder, Parsable {
      * The image property
      */
     image?: PostListItem_image | null;
+    /**
+     * The images property
+     */
+    images?: PostImageReadModel[] | null;
     /**
      * The projectId property
      */
@@ -6914,6 +7010,12 @@ export interface ReconnectSocialAccountBody extends AdditionalDataHolder, Parsab
      * The appPassword property
      */
     appPassword?: UntypedNode | null;
+}
+export interface ReorderPostImagesBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The assetIds property
+     */
+    assetIds?: UntypedNode | null;
 }
 export interface RequestPasswordResetBody extends AdditionalDataHolder, Parsable {
     /**
@@ -8756,6 +8858,7 @@ export function serializePostDetail(writer: SerializationWriter, postDetail: Par
     writer.writeGuidValue("createdByUserId", postDetail.createdByUserId);
     writer.writeGuidValue("id", postDetail.id);
     writer.writeObjectValue<PostDetail_image>("image", postDetail.image, serializePostDetail_image);
+    writer.writeCollectionOfObjectValues<PostImageReadModel>("images", postDetail.images, serializePostImageReadModel);
     writer.writeGuidValue("projectId", postDetail.projectId);
     writer.writeStringValue("status", postDetail.status);
     writer.writeGuidValue("tenantId", postDetail.tenantId);
@@ -8785,7 +8888,9 @@ export function serializePostImageAttached(writer: SerializationWriter, postImag
     writer.writeStringValue("altText", postImageAttached.altText);
     writer.writeStringValue("contentType", postImageAttached.contentType);
     writer.writeNumberValue("heightPx", postImageAttached.heightPx);
+    writer.writeGuidValue("id", postImageAttached.id);
     writer.writeStringValue("path", postImageAttached.path);
+    writer.writeNumberValue("position", postImageAttached.position);
     writer.writeStringValue("url", postImageAttached.url);
     writer.writeNumberValue("widthPx", postImageAttached.widthPx);
     writer.writeAdditionalData(postImageAttached.additionalData);
@@ -8801,9 +8906,23 @@ export function serializePostImageReadModel(writer: SerializationWriter, postIma
     if (!postImageReadModel || isSerializingDerivedType) { return; }
     writer.writeStringValue("altText", postImageReadModel.altText);
     writer.writeNumberValue("heightPx", postImageReadModel.heightPx);
+    writer.writeGuidValue("id", postImageReadModel.id);
+    writer.writeNumberValue("position", postImageReadModel.position);
     writer.writeStringValue("url", postImageReadModel.url);
     writer.writeNumberValue("widthPx", postImageReadModel.widthPx);
     writer.writeAdditionalData(postImageReadModel.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostImagesReordered The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostImagesReordered(writer: SerializationWriter, postImagesReordered: Partial<PostImagesReordered> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!postImagesReordered || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<PostImageReadModel>("images", postImagesReordered.images, serializePostImageReadModel);
+    writer.writeAdditionalData(postImagesReordered.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8819,6 +8938,7 @@ export function serializePostListItem(writer: SerializationWriter, postListItem:
     writer.writeGuidValue("createdByUserId", postListItem.createdByUserId);
     writer.writeGuidValue("id", postListItem.id);
     writer.writeObjectValue<PostListItem_image>("image", postListItem.image, serializePostListItem_image);
+    writer.writeCollectionOfObjectValues<PostImageReadModel>("images", postListItem.images, serializePostImageReadModel);
     writer.writeGuidValue("projectId", postListItem.projectId);
     writer.writeStringValue("status", postListItem.status);
     writer.writeDateValue("updatedAt", postListItem.updatedAt);
@@ -8971,6 +9091,18 @@ export function serializeReconnectSocialAccountBody(writer: SerializationWriter,
     if (!reconnectSocialAccountBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("appPassword", reconnectSocialAccountBody.appPassword);
     writer.writeAdditionalData(reconnectSocialAccountBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ReorderPostImagesBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeReorderPostImagesBody(writer: SerializationWriter, reorderPostImagesBody: Partial<ReorderPostImagesBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!reorderPostImagesBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("assetIds", reorderPostImagesBody.assetIds);
+    writer.writeAdditionalData(reorderPostImagesBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9965,6 +10097,18 @@ export function serializeUpdatePostBody(writer: SerializationWriter, updatePostB
     writer.writeObjectValue("imageAltText", updatePostBody.imageAltText);
     writer.writeObjectValue("projectId", updatePostBody.projectId);
     writer.writeAdditionalData(updatePostBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdatePostImageBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdatePostImageBody(writer: SerializationWriter, updatePostImageBody: Partial<UpdatePostImageBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updatePostImageBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("altText", updatePostImageBody.altText);
+    writer.writeAdditionalData(updatePostImageBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11316,6 +11460,12 @@ export interface UpdatePostBody extends AdditionalDataHolder, Parsable {
      * The projectId property
      */
     projectId?: UntypedNode | null;
+}
+export interface UpdatePostImageBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The altText property
+     */
+    altText?: UntypedNode | null;
 }
 export interface UpdateStaffProfileBody extends AdditionalDataHolder, Parsable {
     /**

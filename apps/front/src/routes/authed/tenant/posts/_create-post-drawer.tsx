@@ -15,11 +15,6 @@ import {
 	DrawerFooter,
 	DrawerForm,
 } from '~/components/ui/drawer';
-import {
-	useAttachPostImageMutation,
-	useInvalidatePostImageCaches,
-	useUpdatePostImageAltMutation,
-} from '~/lib/query/tenant-post-images';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import {
 	useTenantProjectsQuery,
@@ -32,6 +27,7 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
 import { PublishOnBlock } from './_publish-on-block';
+import { useAttachDeferredImages } from './_use-attach-deferred-images';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -124,16 +120,15 @@ export const CreatePostDrawer = ({
 	// incompatible library for this component and the compiler skips it.
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 
-	const attachImage = useAttachPostImageMutation();
-	const updateImageAlt = useUpdatePostImageAltMutation();
-	const invalidatePostImageCaches = useInvalidatePostImageCaches();
+	const deferredAttach = useAttachDeferredImages(tenantId);
 
 	// Declared before the handlers below so their closures read the same state.
 	// The parent OWNS the deferred selection (the picker reports through
 	// `onSelect`), so the attachment survives the picker's re-renders and the
 	// handoff state can hold it for a retry.
-	const [deferredImage, setDeferredImage] =
-		useState<DeferredImageSelection | null>(null);
+	const [deferredImages, setDeferredImages] = useState<
+		DeferredImageSelection[]
+	>([]);
 
 	// The deferred handoff outcome: once the post EXISTS but its image is not
 	// attached yet, the drawer must NOT close. Closing here would strand a
@@ -142,52 +137,33 @@ export const CreatePostDrawer = ({
 	const [createdPostId, setCreatedPostId] = useState<string | null>(null);
 	const [handoffCause, setHandoffCause] = useState('');
 
-	const handleSelect = (selection: DeferredImageSelection | null) => {
-		setDeferredImage(selection);
+	const handleSelect = (selections: DeferredImageSelection[]) => {
+		setDeferredImages(selections);
 	};
 
 	/**
-	 * Attaches the deferred image (and its alt text) to the created post.
-	 * Resolves true when the handoff completed; false leaves the handoff
-	 * state populated with the surfaced cause so the drawer offers the
+	 * Attaches the deferred images to the created post. Resolves true when the
+	 * handoff completed; false leaves the handoff state holding exactly the
+	 * images still to do with the surfaced cause, so the drawer offers the
 	 * retry/discard actions.
 	 */
 	const tryAttach = async (
 		postId: string,
-		image: DeferredImageSelection,
+		images: DeferredImageSelection[],
 	): Promise<boolean> => {
-		try {
-			await attachImage.mutateAsync({
-				postId,
-				tenantId,
-				file: image.file,
-			});
-			// Alt text lives on the attached asset and travels through the
-			// post PATCH; the attach endpoint carries only the file itself.
-			if (image.altText) {
-				await updateImageAlt.mutateAsync({
-					postId,
-					tenantId,
-					altText: image.altText,
-				});
-			}
-			invalidatePostImageCaches();
+		const outcome = await deferredAttach.attachAll(postId, images);
+		if (outcome.ok) {
 			return true;
-		} catch (error) {
-			const failure = toApiFailure(error);
-			setCreatedPostId(postId);
-			setDeferredImage(image);
-			setHandoffCause(
-				getFailureMessage(failure, {
-					fallback: t('common:an-error-occurred'),
-				}) ?? '',
-			);
-			return false;
 		}
+
+		setCreatedPostId(postId);
+		setDeferredImages(outcome.remaining);
+		setHandoffCause(outcome.cause);
+		return false;
 	};
 
 	const completeAndClose = async () => {
-		setDeferredImage(null);
+		setDeferredImages([]);
 		setCreatedPostId(null);
 		setHandoffCause('');
 		await invalidateTenantPosts(qc, tenantId);
@@ -215,12 +191,13 @@ export const CreatePostDrawer = ({
 
 			// The picker collects a deferred image selection while the post
 			// does not exist yet; it is attached right after creation.
-			if (deferredImage) {
-				const attached = await tryAttach(created.id, deferredImage);
+			if (deferredImages.length > 0) {
+				const attached = await tryAttach(created.id, deferredImages);
 				if (!attached) {
-					// The post was created and stays consistent (no image row,
-					// no alt patch); the drawer stays open on the handoff
-					// surface naming the cause with the retry/discard actions.
+					// The post was created and stays consistent (it keeps the
+					// images that did attach); the drawer stays open on the
+					// handoff surface naming the cause with the retry/discard
+					// actions.
 					return;
 				}
 			}
@@ -254,19 +231,19 @@ export const CreatePostDrawer = ({
 	});
 
 	const handleRetryAttach = async () => {
-		if (!createdPostId || !deferredImage) {
+		if (!createdPostId || deferredImages.length === 0) {
 			return;
 		}
 		setHandoffCause('');
-		const attached = await tryAttach(createdPostId, deferredImage);
+		const attached = await tryAttach(createdPostId, deferredImages);
 		if (attached) {
 			await completeAndClose();
 		}
 	};
 
 	const handleDiscardImage = () => {
-		// The created post is kept — it is consistent without an image; only
-		// the failed attachment attempt is dropped. The list refresh makes the
+		// The created post is kept — it is consistent without the remaining
+		// images; only the failed attachment attempt is dropped. The list refresh makes the
 		// saved draft visible immediately.
 		setHandoffCause('');
 		setCreatedPostId(null);
@@ -279,7 +256,7 @@ export const CreatePostDrawer = ({
 	// with `selection: null` so no preview can outlive the state.
 	const handleOpenChange = (o: boolean) => {
 		if (!o) {
-			setDeferredImage(null);
+			setDeferredImages([]);
 		}
 		onOpenChange(o);
 	};
@@ -334,14 +311,14 @@ export const CreatePostDrawer = ({
 						{isHandoffPending ? (
 							<HandoffPanel
 								cause={handoffCause}
-								busy={attachImage.isPending || updateImageAlt.isPending}
+								busy={deferredAttach.isPending}
 								onRetry={() => void handleRetryAttach()}
 								onDiscard={handleDiscardImage}
 							/>
 						) : (
 							<PostImagePicker
 								onSelect={handleSelect}
-								selection={deferredImage}
+								selections={deferredImages}
 							/>
 						)}
 					</DrawerBody>
@@ -362,6 +339,18 @@ export const CreatePostDrawer = ({
 										projectId: values.projectId ?? null,
 										tenantId,
 									});
+									// Picked images belong on the post BEFORE it is published,
+									// or the publication would go out without them.
+									if (deferredImages.length > 0) {
+										const attached = await tryAttach(
+											details.id,
+											deferredImages,
+										);
+										if (!attached) {
+											return null;
+										}
+										setDeferredImages([]);
+									}
 									await invalidateTenantPosts(qc, tenantId);
 									methods.reset({
 										body: details.body,

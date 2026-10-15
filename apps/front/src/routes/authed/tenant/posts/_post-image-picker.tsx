@@ -1,105 +1,106 @@
-import { IconPhoto, IconX } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { IconPhotoPlus } from '@tabler/icons-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
-import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import {
 	useAttachPostImageMutation,
 	useRemovePostImageMutation,
+	useReorderPostImagesMutation,
 	useUpdatePostImageAltMutation,
 	useInvalidatePostImageCaches,
 } from '~/lib/query/tenant-post-images';
+import type { TenantPostImage } from '~/lib/query/tenant-post-images';
+import { cn } from '~/lib/utils';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-/** Mirrors the server's accepted image types — the server stays
- * authoritative and re-validates by magic-byte sniffing. */
-const ACCEPT_ATTR = 'image/png,image/jpeg,image/webp,image/gif';
+import { PostImageCard } from './_post-image-card';
 
-export type PostImagePickerExisting = {
-	url: string;
-	widthPx: number | null;
-	heightPx: number | null;
-	altText: string | null;
-};
+/** Mirrors the server's accepted image types and per-post cap
+ * (ProviderLimits.Bluesky) — the server stays authoritative and re-validates
+ * by magic-byte sniffing and a typed 422 on the fifth image. GIF is not
+ * offered: Bluesky's images embed has no animated support. */
+const ACCEPT_ATTR = 'image/png,image/jpeg,image/webp';
+const MAX_POST_IMAGES = 4;
 
 export type DeferredImageSelection = {
+	/** Stable key for the card; assigned by the picker. */
+	id: string;
 	file: File;
 	altText: string;
+	/** Set by the parent once the file is attached, so a retry after a failed
+	 * alt-text step resumes instead of attaching the file twice. */
+	attachedAssetId?: string;
+};
+
+let deferredSelectionCounter = 0;
+const nextSelectionId = () => {
+	deferredSelectionCounter += 1;
+	return `deferred-image-${deferredSelectionCounter}`;
+};
+
+const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
+	if (to < 0 || to >= items.length) {
+		return items;
+	}
+
+	const next = [...items];
+	const [moved] = next.splice(from, 1);
+	if (moved === undefined) {
+		return items;
+	}
+	next.splice(to, 0, moved);
+	return next;
 };
 
 /**
- * Single owner of a post's image concerns, with two modes:
+ * Single owner of a post's image concerns (up to four, ordered, each with alt
+ * text), with two modes:
  *
- * - Online (`postId` set): picks attach/remove against the API immediately
- *   and commits alt-text edits on blur through the post PATCH.
- * - Deferred (no `postId`, `onSelect` set — create drawer): reports the
- *   picked file and alt draft to the parent through `onSelect`; the parent
- *   owns the selection and attaches it right after the post exists, so the
- *   composer can offer an image before there is anything to attach to.
+ * - Online (`postId` set): picks attach one by one against the API, alt text
+ *   commits on blur, reorder and remove act immediately; the grid renders the
+ *   server's `existingImages` (the caches refetch after every change).
+ * - Deferred (no `postId`, `onSelect` set — create drawer): the parent owns
+ *   the list of picked files and alt drafts and attaches them right after the
+ *   post exists, so the composer can offer images before there is a post.
  *
- * Every server failure is surfaced inline through `getFailureMessage`
- * (never hand-translated at the call site).
+ * Every server failure is surfaced inline through `getFailureMessage` (never
+ * hand-translated at the call site). A missing alt text is a gentle nudge,
+ * never a block.
  */
 export const PostImagePicker = ({
 	postId,
 	tenantId,
-	existingImage = null,
-	selection = null,
+	existingImages = [],
+	selections = [],
 	onSelect,
 	disabled,
 }: {
 	postId?: string;
 	/** Required for the online mode's tenant-scoped API client. */
 	tenantId?: string;
-	existingImage?: PostImagePickerExisting | null;
-	/** Deferred mode: the parent-owned selection (single source of truth). */
-	selection?: DeferredImageSelection | null;
-	onSelect?: (selection: DeferredImageSelection | null) => void;
+	existingImages?: TenantPostImage[];
+	/** Deferred mode: the parent-owned selections (single source of truth). */
+	selections?: DeferredImageSelection[];
+	onSelect?: (selections: DeferredImageSelection[]) => void;
 	disabled?: boolean;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const isOnline = Boolean(postId);
 	const attachImage = useAttachPostImageMutation();
 	const removeImage = useRemovePostImageMutation();
+	const reorderImages = useReorderPostImagesMutation();
 	const updateAlt = useUpdatePostImageAltMutation();
 	const invalidateCaches = useInvalidatePostImageCaches();
 
-	// Alt text typed before a file is picked (deferred mode). A ref, not
-	// state: the draft is only ever read inside handlers — the visible value
-	// comes from the parent-owned selection once it exists.
-	const altDraftRef = useRef('');
-	const [altOverride, setAltOverride] = useState<string | null>(null);
 	const [failureMessage, setFailureMessage] = useState('');
-
-	// The preview blob URL is derived from one source of truth per mode:
-	// online keeps the last attached file here; deferred previews the
-	// parent-owned selection. One effect owns create/revoke so every URL
-	// dies with the component (or is replaced), never leaking a blob.
-	const [pickedFile, setPickedFile] = useState<File | null>(null);
-	const previewSource: File | null = isOnline
-		? pickedFile
-		: (selection?.file ?? null);
-	const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
-
-	useEffect(() => {
-		if (!previewSource) {
-			setPreviewObjectUrl(null);
-			return;
-		}
-
-		const objectUrl = URL.createObjectURL(previewSource);
-		setPreviewObjectUrl(objectUrl);
-
-		return () => {
-			URL.revokeObjectURL(objectUrl);
-		};
-	}, [previewSource]);
+	const [limitNotice, setLimitNotice] = useState(false);
+	// Online alt drafts by asset id: typed values shown until the refetch
+	// brings the committed text back.
+	const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
 
 	const showFailure = (error: unknown) => {
 		setFailureMessage(
@@ -110,137 +111,223 @@ export const PostImagePicker = ({
 	};
 
 	const isBusy =
-		attachImage.isPending || removeImage.isPending || updateAlt.isPending;
+		attachImage.isPending ||
+		removeImage.isPending ||
+		reorderImages.isPending ||
+		updateAlt.isPending;
 	const isControlDisabled = Boolean(disabled) || isBusy;
 
-	const handleFile = async (file: File) => {
-		setFailureMessage('');
+	const count = isOnline ? existingImages.length : selections.length;
+	const isFull = count >= MAX_POST_IMAGES;
 
-		if (!isOnline) {
-			const next: DeferredImageSelection = {
-				file,
-				altText: altDraftRef.current.trim(),
-			};
-			onSelect?.(next);
+	// Sequential on purpose (each append takes the next position), so it
+	// recurses instead of looping.
+	const attachInOrder = async (files: File[]): Promise<void> => {
+		const [file, ...rest] = files;
+		if (!file) {
 			return;
 		}
 
+		await attachImage.mutateAsync({
+			postId: postId as string,
+			tenantId: tenantId ?? '',
+			file,
+		});
+		await attachInOrder(rest);
+	};
+
+	const attachOnline = async (files: File[]) => {
 		try {
-			await attachImage.mutateAsync({
-				postId: postId as string,
-				tenantId: tenantId ?? '',
-				file,
-			});
-			invalidateCaches();
-			setPickedFile(file);
+			await attachInOrder(files);
 		} catch (error) {
 			showFailure(error);
+		} finally {
+			invalidateCaches();
 		}
 	};
 
-	const handleRemove = async () => {
+	const handleFiles = async (picked: File[]) => {
 		setFailureMessage('');
-
-		if (!isOnline) {
-			altDraftRef.current = '';
-			onSelect?.(null);
+		const room = MAX_POST_IMAGES - count;
+		setLimitNotice(picked.length > room);
+		const accepted = picked.slice(0, Math.max(room, 0));
+		if (accepted.length === 0) {
 			return;
 		}
 
+		if (!isOnline) {
+			onSelect?.([
+				...selections,
+				...accepted.map((file) => ({
+					id: nextSelectionId(),
+					file,
+					altText: '',
+				})),
+			]);
+			return;
+		}
+
+		await attachOnline(accepted);
+	};
+
+	const runOnline = async (action: () => Promise<void>) => {
+		setFailureMessage('');
 		try {
+			await action();
+		} catch (error) {
+			showFailure(error);
+		} finally {
+			invalidateCaches();
+		}
+	};
+
+	const handleRemove = async (index: number) => {
+		setLimitNotice(false);
+		if (!isOnline) {
+			onSelect?.(selections.filter((_, position) => position !== index));
+			return;
+		}
+
+		const assetId = existingImages[index]?.id;
+		if (!assetId) {
+			return;
+		}
+		await runOnline(async () => {
 			await removeImage.mutateAsync({
 				postId: postId as string,
 				tenantId: tenantId ?? '',
+				assetId,
 			});
-			invalidateCaches();
-			setPickedFile(null);
-			setAltOverride(null);
-		} catch (error) {
-			showFailure(error);
+		});
+	};
+
+	const handleMove = async (from: number, to: number) => {
+		if (!isOnline) {
+			onSelect?.(moveItem(selections, from, to));
+			return;
+		}
+
+		const ids = existingImages.flatMap((image) => (image.id ? [image.id] : []));
+		if (ids.length !== existingImages.length) {
+			return;
+		}
+		await runOnline(async () => {
+			await reorderImages.mutateAsync({
+				postId: postId as string,
+				tenantId: tenantId ?? '',
+				assetIds: moveItem(ids, from, to),
+			});
+		});
+	};
+
+	const handleAltChange = (index: number, value: string) => {
+		if (!isOnline) {
+			onSelect?.(
+				selections.map((selection, position) =>
+					position === index ? { ...selection, altText: value } : selection,
+				),
+			);
+			return;
+		}
+
+		const assetId = existingImages[index]?.id;
+		if (assetId) {
+			setAltDrafts((previous) => ({ ...previous, [assetId]: value }));
 		}
 	};
 
-	const commitAlt = async () => {
+	const handleAltCommit = async (index: number) => {
 		if (!isOnline) {
 			return;
 		}
-		// The API rejects alt-text edits without an attached image.
-		if (!existingImage && !previewObjectUrl) {
+
+		const image = existingImages[index];
+		const draft = image?.id ? altDrafts[image.id] : undefined;
+		if (!image?.id || draft === undefined) {
+			return;
+		}
+		if (draft.trim() === (image.altText ?? '')) {
 			return;
 		}
 
-		const next = altOverride?.trim();
-		if (!next) {
-			return;
-		}
-		const previous = existingImage?.altText ?? '';
-		if (next === previous) {
-			return;
-		}
-
-		setFailureMessage('');
-		try {
+		const assetId = image.id;
+		await runOnline(async () => {
 			await updateAlt.mutateAsync({
 				postId: postId as string,
 				tenantId: tenantId ?? '',
-				altText: next,
+				assetId,
+				altText: draft.trim(),
 			});
-			invalidateCaches();
-		} catch (error) {
-			showFailure(error);
-		}
+		});
 	};
 
-	const handleAltChange = (value: string) => {
-		if (isOnline) {
-			setAltOverride(value);
-			return;
-		}
+	const cards = isOnline
+		? existingImages.map((image) => ({
+				key: image.id ?? image.url,
+				url: image.url,
+				file: null,
+				altText:
+					(image.id ? altDrafts[image.id] : undefined) ?? image.altText ?? '',
+			}))
+		: selections.map((selection) => ({
+				key: selection.id,
+				url: null,
+				file: selection.file,
+				altText: selection.altText,
+			}));
 
-		altDraftRef.current = value;
-		if (selection) {
-			onSelect?.({ file: selection.file, altText: value.trim() });
-		}
-	};
-
-	const previewSrc =
-		previewObjectUrl ??
-		(existingImage ? resolveApiFileUrl(existingImage.url) : null);
-	const altValue = isOnline
-		? (altOverride ?? existingImage?.altText ?? '')
-		: (selection?.altText ?? '');
-	// Server-side, alt text only exists on an attached image.
-	const canEditAlt =
-		!isOnline || Boolean(existingImage) || Boolean(previewObjectUrl);
-	const showRemove = Boolean(isOnline ? previewSrc : selection);
+	const inputId = `post-image-input-${postId ?? 'new'}`;
+	const addDisabled = isControlDisabled || isFull;
 
 	return (
-		<div className="space-y-1.5">
-			<Label>{t('posts:image-label')}</Label>
+		<div className="space-y-2">
+			<Label>{t('posts:images-label')}</Label>
+			{cards.length > 0 ? (
+				<ul className="space-y-2">
+					{cards.map((card, index) => (
+						<PostImageCard
+							key={card.key}
+							index={index}
+							count={cards.length}
+							url={card.url}
+							file={card.file}
+							altText={card.altText}
+							disabled={isControlDisabled}
+							onAltChange={(value) => handleAltChange(index, value)}
+							onAltCommit={() => void handleAltCommit(index)}
+							onMoveEarlier={() => void handleMove(index, index - 1)}
+							onMoveLater={() => void handleMove(index, index + 1)}
+							onRemove={() => void handleRemove(index)}
+						/>
+					))}
+				</ul>
+			) : null}
 			<div className="flex items-center gap-3 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-3">
-				{previewSrc !== null ? (
-					<img
-						src={previewSrc}
-						alt={existingImage?.altText ?? t('posts:image-label')}
-						data-testid="tenant-posts-create-image-preview"
-						className="max-h-16 max-w-32 rounded-[10px] object-contain"
-					/>
-				) : (
-					<span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-(--publy-surface-raised) text-muted-foreground">
-						<IconPhoto aria-hidden="true" className="size-5" />
-					</span>
-				)}
+				<span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-(--publy-surface-raised) text-muted-foreground">
+					<IconPhotoPlus aria-hidden="true" className="size-5" />
+				</span>
 				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 					<label
-						htmlFor={`post-image-input-${postId ?? 'new'}`}
-						className={
-							isControlDisabled
+						htmlFor={inputId}
+						className={cn(
+							addDisabled
 								? 'cursor-default text-muted-foreground'
-								: 'cursor-pointer font-medium underline underline-offset-2'
-						}
+								: 'cursor-pointer font-medium underline underline-offset-2',
+						)}
 					>
-						{t('posts:image-help')}
+						{t('posts:image-add')}
 					</label>
+					<p className="publy-type-helper text-muted-foreground">
+						{t('posts:image-help', { max: MAX_POST_IMAGES })}
+					</p>
+					{limitNotice || isFull ? (
+						<p
+							className="publy-type-helper text-muted-foreground"
+							data-testid="tenant-posts-create-image-limit"
+						>
+							{t('posts:image-limit-reached', { max: MAX_POST_IMAGES })}
+						</p>
+					) : null}
 					{failureMessage ? (
 						<p
 							className="publy-type-helper text-[var(--publy-danger)]"
@@ -250,48 +337,22 @@ export const PostImagePicker = ({
 						</p>
 					) : null}
 				</div>
-				{showRemove ? (
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						disabled={isControlDisabled}
-						data-testid="tenant-posts-create-image-remove"
-						onClick={() => void handleRemove()}
-					>
-						<IconX aria-hidden="true" className="size-3.5" />
-						{t('posts:image-remove')}
-					</Button>
-				) : null}
 				<input
-					id={`post-image-input-${postId ?? 'new'}`}
+					id={inputId}
 					type="file"
+					multiple
 					accept={ACCEPT_ATTR}
-					disabled={isControlDisabled}
+					disabled={addDisabled}
 					className="sr-only"
 					data-testid="tenant-posts-create-image-input"
-					aria-label={t('posts:image-label')}
+					aria-label={t('posts:images-label')}
 					onChange={(event) => {
-						const file = event.target.files?.[0];
+						const picked = Array.from(event.target.files ?? []);
 						event.target.value = '';
-						if (file && !isControlDisabled) {
-							void handleFile(file);
+						if (picked.length > 0 && !addDisabled) {
+							void handleFiles(picked);
 						}
 					}}
-				/>
-			</div>
-			<div className="space-y-1">
-				<Label htmlFor={`post-image-alt-${postId ?? 'new'}`}>
-					{t('posts:image-alt-label')}
-				</Label>
-				<Input
-					id={`post-image-alt-${postId ?? 'new'}`}
-					value={altValue}
-					placeholder={t('posts:image-alt-placeholder')}
-					disabled={isControlDisabled || !canEditAlt}
-					data-testid="tenant-posts-create-image-alt"
-					onChange={(event) => handleAltChange(event.target.value)}
-					onBlur={() => void commitAlt()}
 				/>
 			</div>
 		</div>

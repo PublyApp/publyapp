@@ -281,73 +281,144 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReplaceExistingImageWithoutOrphan() {
+	public async Task ItShouldAppendASecondImageAndKeepBothReferences() {
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, token);
 
-		using var firstRequest = new HttpRequestMessage(
-			HttpMethod.Post,
-			AttachPostImageForTenantSpec._AttachImageUrl(postId)
-		)
-			.WithSessionToken(token)
-			.WithTenantId(tenantId);
-		firstRequest.Content =
-			AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 64, height: 32));
-		string firstPath;
-		using (firstRequest) {
-			using var firstResponse = await this._Http.SendAsync(firstRequest);
-			firstResponse.EnsureSuccessStatusCode();
-			var first = await firstResponse.Content
-				.ReadFromJsonAsync<PostImageAttached>();
-			Assert.NotNull(first);
-			firstPath = first.Path;
-		}
+		var first = await this._AttachAsync(tenantId, token, postId, width: 64, height: 32);
+		var second = await this._AttachAsync(tenantId, token, postId, width: 128, height: 64);
+		first.Position.Should().Be(0);
+		second.Position.Should().Be(1);
 
-		using var secondRequest = new HttpRequestMessage(
-			HttpMethod.Post,
-			AttachPostImageForTenantSpec._AttachImageUrl(postId)
-		)
-			.WithSessionToken(token)
-			.WithTenantId(tenantId);
-		secondRequest.Content =
-			AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 128, height: 64));
-		string secondPath;
-		using (secondRequest) {
-			using var secondResponse = await this._Http.SendAsync(secondRequest);
-			secondResponse.EnsureSuccessStatusCode();
-			var second = await secondResponse.Content
-				.ReadFromJsonAsync<PostImageAttached>();
-			Assert.NotNull(second);
-			secondPath = second.Path;
-		}
-
-		// Exactly ONE live asset row remains — the replacement — pointing at
-		// the new blob; the old blob's reference dropped back to zero.
 		var postIdGuid = Guid.Parse(postId);
 		await using var scope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var livePaths = await (
+		var live = await (
 			from a in db.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
+			orderby a.Position
 			select a.RelativePath
 		).ToListAsync();
-		livePaths.Should().BeEquivalentTo([secondPath]);
+		live.Should().Equal(first.Path, second.Path);
 
-		var oldReferenceCount = await (
-			from u in db.UploadAsset.AsNoTracking()
-			where u.RelativePath == firstPath && !u.IsDeleted
-			select (int?)u.ReferenceCount
-		).SingleOrDefaultAsync();
-		oldReferenceCount.Should().Be(0,
-			"a replaced image must release its blob reference — no orphans");
+		foreach (var path in live) {
+			var referenceCount = await (
+				from u in db.UploadAsset.AsNoTracking()
+				where u.RelativePath == path && !u.IsDeleted
+				select (int?)u.ReferenceCount
+			).SingleAsync();
+			referenceCount.Should().BeGreaterThanOrEqualTo(1,
+				"every attached image keeps its blob reference");
+		}
+	}
 
-		var newReferenceCount = await (
-			from u in db.UploadAsset.AsNoTracking()
-			where u.RelativePath == secondPath && !u.IsDeleted
-			select (int?)u.ReferenceCount
-		).SingleAsync();
-		newReferenceCount.Should().BeGreaterThanOrEqualTo(1);
+	[Fact]
+	public async Task ItShouldRejectTheFifthImageWithATyped422AndLeakNoReference() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		for (var index = 0; index < 4; index++) {
+			var attached = await this._AttachAsync(tenantId, token, postId, width: 10 + index, height: 10);
+			attached.Position.Should().Be(index);
+		}
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(
+			AttachPostImageForTenantSpec._PngBytes(width: 99, height: 99)
+		);
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("post-image-limit-reached");
+
+		var postIdGuid = Guid.Parse(postId);
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		(await db.PostMediaAsset.CountAsync(a => a.PostId == postIdGuid && !a.IsDeleted))
+			.Should().Be(4);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAGifWithAClearMessageAndAcceptJpegPngAndWebp() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+
+		using var gifRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		gifRequest.Content = AttachPostImageForTenantSpec._BuildFileContent(
+			[.. "GIF89a"u8, 0x10, 0x00, 0x10, 0x00, 0, 0, 0, 0, 0, 0],
+			contentType: "image/gif",
+			fileName: "anim.gif"
+		);
+		using var gifResponse = await this._Http.SendAsync(gifRequest);
+		gifResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var gifProblem = await gifResponse.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(gifProblem);
+		gifProblem.TranslationKey.Should().Be("post-image-animated-unsupported");
+
+		using var animatedWebp = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		animatedWebp.Content = AttachPostImageForTenantSpec._BuildFileContent(
+			TestImages.AnimatedWebpHeader(),
+			contentType: "image/webp",
+			fileName: "anim.webp"
+		);
+		using var animatedResponse = await this._Http.SendAsync(animatedWebp);
+		animatedResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		foreach (var (bytes, mime, name) in new[] {
+			(TestImages.Jpeg(20, 20), "image/jpeg", "a.jpg"),
+			(TestImages.Png(20, 20), "image/png", "a.png"),
+			(TestImages.Webp(20, 20), "image/webp", "a.webp"),
+		}) {
+			using var ok = new HttpRequestMessage(
+				HttpMethod.Post,
+				AttachPostImageForTenantSpec._AttachImageUrl(postId)
+			)
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+			ok.Content = AttachPostImageForTenantSpec._BuildFileContent(bytes, contentType: mime, fileName: name);
+			using var okResponse = await this._Http.SendAsync(ok);
+			okResponse.StatusCode.Should().Be(HttpStatusCode.Created, mime);
+		}
+	}
+
+	private async Task<PostImageAttached> _AttachAsync(
+		Guid tenantId,
+		string token,
+		string postId,
+		int width,
+		int height
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = AttachPostImageForTenantSpec._BuildFileContent(
+			AttachPostImageForTenantSpec._PngBytes(width, height)
+		);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var attached = await response.Content.ReadFromJsonAsync<PostImageAttached>();
+		Assert.NotNull(attached);
+		return attached;
 	}
 
 	[Fact]
@@ -365,13 +436,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		//
 		// It recreates the loser's exact DATABASE situation: a live asset row that
 		// the handler's purge cannot see, yet the unique index still enforces.
-		// ux_post_media_assets_live_post_id keys on post_id ALONE, while
-		// AttachAsync's purge query is scoped to tenant AND post — so a live row
-		// carrying this post_id under a DIFFERENT tenant is invisible to the purge
-		// and still occupies the post's one live slot. The insert is therefore
-		// rejected exactly as the losing racer's is (whose purge ran before the
-		// winner's row existed), AttachAsync throws, and the blob whose reference
-		// the handler already acquired never becomes the live image. Without the
+		// ux_post_media_assets_live_post_position keys on (post_id, position)
+		// with NO tenant, while AttachAsync's position/count read is scoped to
+		// tenant AND post — so a live row carrying this post_id at position 0
+		// under a DIFFERENT tenant is invisible to that read and still occupies
+		// the slot. The insert is therefore rejected exactly as the losing
+		// racer's is, AttachAsync throws, and the blob whose reference the
+		// handler already acquired never becomes an attached image. Without the
 		// compensating release that reference stays at 1 forever.
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var foreignTenantId = await this._GetTechStartTenantIdAsync();
@@ -544,17 +615,17 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				where a.PostId == postIdGuid && !a.IsDeleted
 				select a
 			).ToListAsync();
-			liveAssets.Should().HaveCount(
-				1,
-				"a post owns at most one live image even under a parallel "
+			liveAssets.Count.Should().BeLessThanOrEqualTo(
+				4,
+				"a post owns at most four live images even under a parallel "
 				+ "attach storm"
 			);
+			liveAssets.Select(a => a.Position).Should().OnlyHaveUniqueItems();
 
-			var survivorPath = liveAssets[0].RelativePath;
-			succeededPaths.Should().Contain(
-				survivorPath,
-				"the surviving live asset must be one of the successfully "
-				+ "attached blobs"
+			var livePaths = liveAssets.Select(a => a.RelativePath).ToList();
+			livePaths.Should().BeEquivalentTo(
+				succeededPaths,
+				"exactly the successfully attached blobs are live"
 			);
 
 			// Every blob THIS race uploaded and did not leave live must have its
@@ -571,14 +642,14 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			var leaked = await (
 				from u in db.UploadAsset.AsNoTracking()
 				where !baselinePaths.Contains(u.RelativePath)
-					&& u.RelativePath != survivorPath
+					&& !livePaths.Contains(u.RelativePath)
 					&& !u.IsDeleted
 					&& u.ReferenceCount > 0
 				select u.RelativePath
 			).ToListAsync();
 			leaked.Should().BeEmpty(
-				"every replaced blob must release its reference — a non-zero "
-				+ "count here is the upload reference leaked by the replace race"
+				"every blob that lost the race or hit the limit must release "
+				+ "its reference — a non-zero count here is a leaked reference"
 			);
 		}
 	}
@@ -658,11 +729,10 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				where a.PostId == postIdGuid && !a.IsDeleted
 				select a.RelativePath
 			).ToListAsync();
-			livePaths.Should().ContainSingle(
-				"concurrent attaches to one post must leave exactly one live image"
+			livePaths.Count.Should().BeInRange(
+				1, 4,
+				"concurrent attaches to one post never exceed four live images"
 			);
-
-			var winnerPath = livePaths[0];
 
 			// (b) every blob that is NOT the live image and was created by this
 			// storm must have its reference released back to zero. Any entry here
@@ -671,7 +741,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				from u in db.UploadAsset.AsNoTracking()
 				where !u.IsDeleted
 					&& u.ReferenceCount > 0
-					&& u.RelativePath != winnerPath
+					&& !livePaths.Contains(u.RelativePath)
 					&& !baselineReferencedPaths.Contains(u.RelativePath)
 				select u.RelativePath
 			).ToListAsync();
@@ -688,7 +758,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// stuck blob reference — covering BOTH the #1617 replace-race and the
 		// #1616 loser-release. N=8 (matching the storm proof) makes the
 		// transactions genuinely overlap so the partial unique index
-		// (ux_post_media_assets_live_post_id) actually arbitrates between them.
+		// (ux_post_media_assets_live_post_position) actually arbitrates between them.
 		//
 		// The hard guarantee asserted below is invariant: exactly one live asset
 		// survives and every other storm blob's reference drops to zero. On the
@@ -774,8 +844,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				where a.PostId == postIdGuid && !a.IsDeleted
 				select a.RelativePath
 			).ToListAsync();
-			livePaths.Should().ContainSingle(
-				"concurrent attaches must leave exactly one live image"
+			livePaths.Count.Should().BeInRange(
+				1, 4,
+				"concurrent attaches never exceed four live images"
 			);
 
 			// (b) no storm blob other than the survivor may be left stuck at
@@ -784,7 +855,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				from u in db.UploadAsset.AsNoTracking()
 				where !u.IsDeleted
 					&& u.ReferenceCount > 0
-					&& u.RelativePath != livePaths[0]
+					&& !livePaths.Contains(u.RelativePath)
 					&& !baselineReferencedPaths.Contains(u.RelativePath)
 				select u.RelativePath
 			).ToListAsync();
@@ -796,84 +867,57 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
-	/// Deterministic proof of the #1616 loser contract: the partial unique index
-	/// arbiter MUST be provoked, not hoped for. The existing storm test
-	/// (<see cref="ItShouldNotLeakReferenceUnderConcurrentPostImageAttach"/>) fires
-	/// N concurrent attaches to an empty post and only checks the
-	/// <c>post-image-conflict</c> key if a conflict happens to occur. This test
-	/// holds the contended row lock in a barrier transaction, waits until both
-	/// contenders are provably parked on it, then releases — so the unique index
-	/// is guaranteed to arbitrate and the 409+key is a REQUIRED assertion.
+	/// Deterministic proof of the #1616 loser contract: the (post, position)
+	/// unique index arbiter MUST be provoked, not hoped for. The storm tests only
+	/// check the <c>post-image-conflict</c> key if a conflict happens to occur.
+	/// This test holds an UNCOMMITTED insert of the post's next position in a
+	/// barrier transaction, waits until both contenders are provably parked on
+	/// that unique-key entry, then rolls it back — so both proceed to insert the
+	/// same position, the database's own unique index admits exactly one and
+	/// rejects the other with a PostgreSQL <c>UniqueViolation</c>, and the 409 +
+	/// key is a REQUIRED assertion.
 	///
-	/// The barrier holds a <c>SELECT ... FOR UPDATE</c> on a pre-existing live asset row.
-	/// Each contender's <c>AttachAsync</c> hard-deletes that row
-	/// (via <c>ForceHardDelete</c>) inside its own <c>SaveChanges</c>, so both transactions
-	/// stall on the row lock. When the barrier commits, both proceed to INSERT their new row;
-	/// the partial unique index <c>ux_post_media_assets_live_post_id</c> admits exactly one
-	/// and rejects the other with a PostgreSQL <c>UniqueViolation</c> on
-	/// <c>post_media_assets</c>. The handler catches that, releases the loser's blob reference,
-	/// and returns 409 with the <c>post-image-conflict</c> translation key.
-	///
-	/// The conflict is produced by the database's own unique index — never stubbed, never
-	/// raised by the test. The barrier only controls scheduling, not the violation.
+	/// The handler catches the violation, releases the loser's blob reference,
+	/// and returns 409 with the <c>post-image-conflict</c> translation key. The
+	/// conflict is never stubbed: the barrier only controls scheduling.
 	/// </summary>
 	[Fact]
-	public async Task ItShouldReturnPostImageConflictFromUniqueIndexWhenConcurrentReplaceRaces() {
+	public async Task ItShouldReturnPostImageConflictFromUniqueIndexWhenConcurrentAppendsRace() {
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, token);
 		var postIdGuid = Guid.Parse(postId);
 
-		// Pre-attach a first image so a live asset row exists for the
-		// contenders to race over. Without a pre-existing row there is nothing
-		// for the barrier to lock and nothing for the index to arbitrate.
-		string seedPath;
-		using (var seedRequest = new HttpRequestMessage(
-			HttpMethod.Post,
-			AttachPostImageForTenantSpec._AttachImageUrl(postId)
-		)
-			.WithSessionToken(token)
-			.WithTenantId(tenantId)) {
-			seedRequest.Content =
-				AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 64, height: 32));
-			using var seedResponse = await this._Http.SendAsync(seedRequest);
-			seedResponse.EnsureSuccessStatusCode();
-			var seed = await seedResponse.Content
-				.ReadFromJsonAsync<PostImageAttached>();
-			Assert.NotNull(seed);
-			seedPath = seed.Path;
-		}
+		// Seed the first image so the contenders both compute position 1.
+		var seed = await this._AttachAsync(tenantId, token, postId, width: 64, height: 32);
 
 		// --- Barrier setup -------------------------------------------------
-		// Hold a SELECT ... FOR UPDATE on the existing live asset row. This
-		// blocks both contenders' AttachAsync from hard-deleting it, parking
-		// them inside their SaveChanges DELETE step — the exact point where
-		// the unique-index INSERT race will fire once the lock releases.
+		// An uncommitted row at position 1: neither contender can see it (so both
+		// compute position 1), and their inserts block on its unique-key entry
+		// until the barrier ends.
 		await using var barrierScope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 		await using var barrierTx = await barrierDb.Database
 			.BeginTransactionAsync();
-
-		_ = await barrierDb.Database.ExecuteSqlAsync(
-			$"""
-			SELECT 1 FROM post_media_assets
-			WHERE post_id = {postIdGuid}
-			  AND tenant_id = {tenantId}
-			  AND is_deleted = false
-			FOR UPDATE
-			"""
-		);
+		barrierDb.PostMediaAsset.Add(new Entities.PostMediaAsset {
+			TenantId = tenantId,
+			PostId = postIdGuid,
+			Position = 1,
+			RelativePath = $"uploads/barrier/{Guid.NewGuid():N}.png",
+			ContentType = "image/png",
+			AltText = null,
+			WidthPx = 8,
+			HeightPx = 8,
+			SizeBytes = 64,
+			UploadedByUserId = await AttachPostImageForTenantSpec._ResolveAcmeAdminUserIdAsync(barrierDb),
+		});
+		await barrierDb.SaveChangesAsync();
 		var barrierPid =
 			await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
-		// --- Fire two concurrent replaces ---------------------------------
-		// Distinct dimensions so each contender uploads a distinct blob.
-		// Capture a baseline of existing live blob paths NOW — before any
-		// contender uploads — so the loser blob can be identified by PATH
-		// identity rather than by elimination. The class shares one database
-		// across 14 tests; without a baseline the query would scan blobs left
-		// live by sibling tests and non-deterministically pick a wrong row.
+		// Baseline of live blobs NOW so the loser blob is identified by path
+		// identity, not by elimination (the class shares one database).
 		List<string> baselinePaths;
 		await using (var baselineScope =
 			this._Fixture.Factory.Services.CreateAsyncScope()) {
@@ -903,30 +947,25 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			contenderTasks.Add(this._Http.SendAsync(request));
 		}
 
-		// --- Wait until BOTH contenders are parked on the barrier's row lock
 		await PostgresLockBarrier.WaitUntilBlockedAsync(
 			this._Fixture.Factory.Services,
 			contenderCount,
 			barrierPid
 		);
 
-		// --- Release the barrier; both proceed to INSERT simultaneously ---
-		await barrierTx.CommitAsync();
+		// Roll the barrier row back: both contenders now race for position 1.
+		await barrierTx.RollbackAsync();
 
 		var responses = await Task.WhenAll(contenderTasks);
 		foreach (var request in contenderRequests) {
 			request.Dispose();
 		}
 
-		// --- Assert the #1616 loser contract: exactly one winner, exactly one loser
 		responses.Count(r => r.StatusCode == HttpStatusCode.Created)
-			.Should().Be(1, "the unique index admits exactly one live image");
+			.Should().Be(1, "the unique index admits exactly one image at position 1");
 		responses.Count(r => r.StatusCode == HttpStatusCode.Conflict)
 			.Should().Be(1, "the loser is rejected by the unique index and gets a 409");
 
-		// The 409 MUST surface the post-image-conflict key — that is the #1616
-		// observable contract. This is a REQUIRED assertion, not best-effort:
-		// the barrier guarantees the conflict occurs, so the key MUST be present.
 		var loser = responses.Single(r =>
 			r.StatusCode == HttpStatusCode.Conflict
 		);
@@ -939,9 +978,6 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			+ "the unique index produces the loser and the handler must name it"
 		);
 
-		// Exactly one live asset row must survive — the winner's. The seed
-		// row was hard-deleted by the winner's AttachAsync, and the loser's
-		// insert was rejected by the unique index.
 		await using var scope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider
@@ -949,14 +985,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		var livePaths = await (
 			from a in db.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
+			orderby a.Position
 			select a.RelativePath
 		).ToListAsync();
-		livePaths.Should().ContainSingle(
-			"concurrent replaces must leave exactly one live image");
+		livePaths.Should().HaveCount(2, "the seed plus the winner");
+		livePaths[0].Should().Be(seed.Path);
+		var winnerPath = livePaths[1];
 
-		// The winner's blob keeps its reference (>= 1); the loser's blob
-		// must have been released back to zero by the handler's catch block.
-		var winnerPath = livePaths[0];
 		var winnerRefCount = await (
 			from u in db.UploadAsset.AsNoTracking()
 			where u.RelativePath == winnerPath && !u.IsDeleted
@@ -966,44 +1001,20 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			1, "the winning blob must keep its reference"
 		);
 
-		// The seed blob (replaced by the winner) must have been released to 0.
-		var seedRefCount = await (
-			from u in db.UploadAsset.AsNoTracking()
-			where u.RelativePath == seedPath && !u.IsDeleted
-			select (int?)u.ReferenceCount
-		).SingleOrDefaultAsync();
-		seedRefCount.Should().Be(0,
-			"the replaced seed blob's reference must be released");
-
-		// The loser's blob must have been released back to zero by the
-		// handler's catch block (#1616). We identify it by PATH IDENTITY — not
-		// by elimination — by intersecting this test's new blobs (those not in
-		// the baseline captured before the race, and not the seed) with the
-		// complement of the winner's path. The baseline gates out every blob
-		// left live by the 13 sibling tests in this class.
-		//
-		// The resulting set MUST be a singleton: exactly two contender blobs
-		// were uploaded, the winner's path is known, the seed is known, so the
-		// sole remaining new blob is the loser. We prove that with SingleAsync
-		// rather than FirstOrDefaultAsync — which would silently pick any
-		// arbitrary row the scheduler handed back.
 		var loserPaths = await (
 			from u in db.UploadAsset.AsNoTracking()
 			where !u.IsDeleted
 				&& !baselinePaths.Contains(u.RelativePath)
-				&& u.RelativePath != seedPath
 				&& u.RelativePath != winnerPath
 			select u.RelativePath
 		).ToListAsync();
 		loserPaths.Should().ContainSingle(
-			"exactly one contender blob was rejected by the unique index "
-			+ "— the set of new non-winner blobs must be a singleton"
+			"exactly one contender blob was rejected by the unique index"
 		);
-		var loserPath = loserPaths[0];
 
 		var loserRefCount = await (
 			from u in db.UploadAsset.AsNoTracking()
-			where u.RelativePath == loserPath && !u.IsDeleted
+			where u.RelativePath == loserPaths[0] && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleAsync();
 		loserRefCount.Should().Be(0,
@@ -1070,12 +1081,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	private static MultipartFormDataContent _BuildFileContent(
 		byte[] bytes,
-		string fileName = "logo.png"
+		string fileName = "logo.png",
+		string contentType = "image/png"
 	) {
 		var content = new MultipartFormDataContent();
 		var fileContent = new ByteArrayContent(bytes);
 		fileContent.Headers.ContentType =
-			new MediaTypeHeaderValue("image/png");
+			new MediaTypeHeaderValue(contentType);
 		content.Add(fileContent, "file", fileName);
 		return content;
 	}
