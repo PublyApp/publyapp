@@ -287,6 +287,7 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 vi.mock('~/lib/query/tenant-publish-targets', () => ({
 	useTenantPublishTargetsQuery: () => ({ data: undefined }),
 	toTenantPublishTargets: () => [],
+	toAttachLimits: () => null,
 }));
 
 vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => {
