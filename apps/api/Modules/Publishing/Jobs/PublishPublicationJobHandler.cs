@@ -204,6 +204,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				PostBody = TextCounter.Normalize(post.Body),
 				ScheduledAtUtc = publication.ScheduledAtUtc,
 				Session = opened.Session,
+				Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
+				Capability = targetAccount is null ? null : ProviderCapabilityRegistry.Resolve(targetAccount),
 				Media = media,
 				FollowUpSegments = followUps.Select(TextCounter.Normalize).ToList(),
 				CompletedSegments = completedSegments,
@@ -236,7 +238,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
-						$"{progress}Bluesky refused the content: {content.Cause}",
+						$"{progress}{PublishPublicationJobHandler._ProviderName(targetAccount)} refused the content: {content.Cause}",
 						PublicationFailureCategory.FixContent
 					),
 					cancellationToken
@@ -246,7 +248,9 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				await this._PauseForAccountAsync(publication, progress + account.Cause, cancellationToken);
 				return JobOutcome.Succeeded;
 			case PublishResult.TransientFailure transient:
-				return await this._FailTransientAsync(publication, progress + transient.Cause, context, cancellationToken);
+				return await this._FailTransientAsync(
+					publication, progress + transient.Cause, context, cancellationToken, transient.RetryAfter
+				);
 			default:
 				throw new InvalidOperationException(
 					$"Unhandled PublishResult kind '{result.GetType().Name}'."
@@ -350,7 +354,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		Publication publication,
 		string rawCause,
 		JobContext context,
-		CancellationToken cancellationToken
+		CancellationToken cancellationToken,
+		TimeSpan? retryAfter = null
 	) {
 		var cause = LastErrorSanitiser.Sanitize(rawCause) ?? rawCause;
 		if (context.Attempts + 1 >= context.MaxAttempts) {
@@ -368,7 +373,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			);
 		}
 
-		return new JobOutcome.Retry(Error: cause);
+		return new JobOutcome.Retry(DelayOverride: retryAfter, Error: cause);
+	}
+
+	private static string _ProviderName(SocialAccount? account) {
+		return account?.Provider == SocialProvider.Mastodon ? "Mastodon" : "Bluesky";
 	}
 
 	private async Task _StampAccountLastSuccessAsync(

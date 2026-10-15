@@ -553,6 +553,16 @@ export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Par
      */
     status?: string | null;
 }
+export interface CompleteMastodonConnectBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The code property
+     */
+    code?: UntypedNode | null;
+    /**
+     * The state property
+     */
+    state?: UntypedNode | null;
+}
 export interface ConnectSocialAccountBody extends AdditionalDataHolder, Parsable {
     /**
      * The appPassword property
@@ -949,6 +959,15 @@ export function createCheckInvitationTokenResultFromDiscriminatorValue(parseNode
 // @ts-ignore
 export function createCheckResetPasswordTokenResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCheckResetPasswordTokenResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CompleteMastodonConnectBody}
+ */
+// @ts-ignore
+export function createCompleteMastodonConnectBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCompleteMastodonConnectBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1534,6 +1553,15 @@ export function createJobQueueListItemFromDiscriminatorValue(parseNode: ParseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {MastodonConnectStarted}
+ */
+// @ts-ignore
+export function createMastodonConnectStartedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoMastodonConnectStarted;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {PasswordLoginBody}
  */
 // @ts-ignore
@@ -2111,6 +2139,15 @@ export function createStaffUserReactivatedResultFromDiscriminatorValue(parseNode
 // @ts-ignore
 export function createStaffUserSuspendedResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffUserSuspendedResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StartMastodonConnectBody}
+ */
+// @ts-ignore
+export function createStartMastodonConnectBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStartMastodonConnectBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3429,6 +3466,18 @@ export function deserializeIntoCheckResetPasswordTokenResult(checkResetPasswordT
 }
 /**
  * The deserialization information for the current model
+ * @param CompleteMastodonConnectBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCompleteMastodonConnectBody(completeMastodonConnectBody: Partial<CompleteMastodonConnectBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "code": n => { completeMastodonConnectBody.code = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "state": n => { completeMastodonConnectBody.state = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ConnectSocialAccountBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4326,6 +4375,17 @@ export function deserializeIntoJobQueueListItem(jobQueueListItem: Partial<JobQue
 }
 /**
  * The deserialization information for the current model
+ * @param MastodonConnectStarted The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoMastodonConnectStarted(mastodonConnectStarted: Partial<MastodonConnectStarted> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "authorizeUrl": n => { mastodonConnectStarted.authorizeUrl = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param PasswordLoginBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4646,6 +4706,7 @@ export function deserializeIntoPublishTargetTextLimit(publishTargetTextLimit: Pa
     return {
         "max": n => { publishTargetTextLimit.max = n.getNumberValue(); },
         "unit": n => { publishTargetTextLimit.unit = n.getStringValue(); },
+        "urlWeight": n => { publishTargetTextLimit.urlWeight = n.getNumberValue(); },
     }
 }
 /**
@@ -5147,6 +5208,17 @@ export function deserializeIntoStaffUserSuspendedResult(staffUserSuspendedResult
     return {
         "status": n => { staffUserSuspendedResult.status = n.getEnumValue<UserStatus>(UserStatusObject); },
         "userId": n => { staffUserSuspendedResult.userId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StartMastodonConnectBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStartMastodonConnectBody(startMastodonConnectBody: Partial<StartMastodonConnectBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "instance": n => { startMastodonConnectBody.instance = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6663,6 +6735,12 @@ export interface JobQueueListItem extends AdditionalDataHolder, Parsable {
      */
     updatedAt?: Date | null;
 }
+export interface MastodonConnectStarted extends AdditionalDataHolder, Parsable {
+    /**
+     * The instance's authorization page: the browser goes there next.
+     */
+    authorizeUrl?: string | null;
+}
 export interface PasswordLoginBody extends AdditionalDataHolder, Parsable {
     /**
      * The email property
@@ -7129,9 +7207,13 @@ export interface PublishTargetTextLimit extends AdditionalDataHolder, Parsable {
      */
     max?: number | null;
     /**
-     * The counting rule's name: "graphemes" or "bytes".
+     * The counting rule's name: "graphemes", "bytes" or "characters".
      */
     unit?: string | null;
+    /**
+     * What each URL counts as, for a URL-weighted unit; null otherwise.
+     */
+    urlWeight?: number | null;
 }
 /**
  * HTTP wire result for the reactivate tenant-user operation; top-level sibling per thehandler file contract, with no Dto suffix on wire types.
@@ -7973,6 +8055,19 @@ export function serializeCheckResetPasswordTokenResult(writer: SerializationWrit
     writer.writeStringValue("email", checkResetPasswordTokenResult.email);
     writer.writeStringValue("status", checkResetPasswordTokenResult.status);
     writer.writeAdditionalData(checkResetPasswordTokenResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CompleteMastodonConnectBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCompleteMastodonConnectBody(writer: SerializationWriter, completeMastodonConnectBody: Partial<CompleteMastodonConnectBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!completeMastodonConnectBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("code", completeMastodonConnectBody.code);
+    writer.writeObjectValue("state", completeMastodonConnectBody.state);
+    writer.writeAdditionalData(completeMastodonConnectBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8937,6 +9032,18 @@ export function serializeJobQueueListItem(writer: SerializationWriter, jobQueueL
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param MastodonConnectStarted The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeMastodonConnectStarted(writer: SerializationWriter, mastodonConnectStarted: Partial<MastodonConnectStarted> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!mastodonConnectStarted || isSerializingDerivedType) { return; }
+    writer.writeStringValue("authorizeUrl", mastodonConnectStarted.authorizeUrl);
+    writer.writeAdditionalData(mastodonConnectStarted.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PasswordLoginBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -9276,6 +9383,7 @@ export function serializePublishTargetTextLimit(writer: SerializationWriter, pub
     if (!publishTargetTextLimit || isSerializingDerivedType) { return; }
     writer.writeNumberValue("max", publishTargetTextLimit.max);
     writer.writeStringValue("unit", publishTargetTextLimit.unit);
+    writer.writeNumberValue("urlWeight", publishTargetTextLimit.urlWeight);
     writer.writeAdditionalData(publishTargetTextLimit.additionalData);
 }
 /**
@@ -9815,6 +9923,18 @@ export function serializeStaffUserSuspendedResult(writer: SerializationWriter, s
     writer.writeEnumValue<UserStatus>("status", staffUserSuspendedResult.status);
     writer.writeGuidValue("userId", staffUserSuspendedResult.userId);
     writer.writeAdditionalData(staffUserSuspendedResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StartMastodonConnectBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStartMastodonConnectBody(writer: SerializationWriter, startMastodonConnectBody: Partial<StartMastodonConnectBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!startMastodonConnectBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("instance", startMastodonConnectBody.instance);
+    writer.writeAdditionalData(startMastodonConnectBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -10934,6 +11054,12 @@ export interface StaffUserSuspendedResult extends AdditionalDataHolder, Parsable
      * The userId property
      */
     userId?: Guid | null;
+}
+export interface StartMastodonConnectBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The instance property
+     */
+    instance?: UntypedNode | null;
 }
 export interface SuspendTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**

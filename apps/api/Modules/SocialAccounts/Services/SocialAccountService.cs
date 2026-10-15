@@ -116,6 +116,7 @@ public static class SocialAccountWire {
 	public static string FormatProvider(SocialProvider provider) {
 		return provider switch {
 			SocialProvider.Bluesky => "bluesky",
+			SocialProvider.Mastodon => "mastodon",
 			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
 		};
 	}
@@ -383,6 +384,12 @@ public sealed class SocialAccountService {
 		// Spec §3: a revoked account cannot be reconnected — connecting a different
 		// account requires reassigning paused posts by hand; surface 404 semantics.
 		if (account.Status == SocialAccountStatus.Revoked) {
+			return new ReconnectSocialAccountResult.NotFound();
+		}
+
+		// An app password only reconnects a Bluesky account; a Mastodon account
+		// reconnects through its OAuth flow (#2174).
+		if (account.Provider != SocialProvider.Bluesky) {
 			return new ReconnectSocialAccountResult.NotFound();
 		}
 

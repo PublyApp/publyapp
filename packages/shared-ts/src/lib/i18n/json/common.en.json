@@ -535,6 +535,7 @@
 	"scheduled-posts": "Scheduled Posts",
 	"published-posts": "Published Posts",
 	"draft-posts": "Draft Posts",
+	"social-account-mastodon-connected": "Mastodon account connected",
 	"social-account-connected": "Bluesky account connected",
 	"social-account-reconnected": "Bluesky account reconnected",
 	"social-account-projects-updated": "Project attachments updated",

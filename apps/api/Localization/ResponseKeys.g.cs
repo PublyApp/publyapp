@@ -210,6 +210,21 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MalformedId = new("malformed-id");
 
 	/// <summary>
+	/// The Mastodon server refused the authorization
+	/// </summary>
+	public static readonly TranslationKey MastodonAuthorizationRefused = new("mastodon-authorization-refused");
+
+	/// <summary>
+	/// Enter the public https address of a Mastodon server
+	/// </summary>
+	public static readonly TranslationKey MastodonInstanceInvalid = new("mastodon-instance-invalid");
+
+	/// <summary>
+	/// This Mastodon authorization link is invalid, expired or already used
+	/// </summary>
+	public static readonly TranslationKey MastodonOauthStateInvalid = new("mastodon-oauth-state-invalid");
+
+	/// <summary>
 	/// Max profiles per user exceeded
 	/// </summary>
 	public static readonly TranslationKey MaxProfilesPerUserExceeded = new("max-profiles-per-user-exceeded");
@@ -463,6 +478,11 @@ public static partial class ResponseKeys {
 	/// Social account disconnected and stored secret erased
 	/// </summary>
 	public static readonly TranslationKey SocialAccountDisconnectedSuccess = new("social-account-disconnected-success");
+
+	/// <summary>
+	/// Mastodon account connected
+	/// </summary>
+	public static readonly TranslationKey SocialAccountMastodonConnected = new("social-account-mastodon-connected");
 
 	/// <summary>
 	/// Social account not found

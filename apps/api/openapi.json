@@ -13742,6 +13742,208 @@
         }
       }
     },
+    "/social-accounts/mastodon/start": {
+      "post": {
+        "tags": [
+          "SocialAccounts"
+        ],
+        "summary": "Start connecting a Mastodon account: returns the instance's authorize URL",
+        "operationId": "StartMastodonConnectForTenant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartMastodonConnectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MastodonConnectStarted"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social-accounts/mastodon/callback": {
+      "post": {
+        "tags": [
+          "SocialAccounts"
+        ],
+        "summary": "Finish connecting a Mastodon account with the code and state the instance returned",
+        "operationId": "CompleteMastodonConnectForTenant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteMastodonConnectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialAccountCreated"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/social-accounts/{socialAccountId}/reconnect": {
       "post": {
         "tags": [
@@ -15654,6 +15856,21 @@
           }
         }
       },
+      "CompleteMastodonConnectBody": {
+        "required": [
+          "code",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "state": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "ConnectSocialAccountBody": {
         "required": [
           "identifier",
@@ -17465,6 +17682,18 @@
         }
       },
       "JsonElement": { },
+      "MastodonConnectStarted": {
+        "required": [
+          "authorizeUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "authorizeUrl": {
+            "type": "string",
+            "description": "The instance's authorization page: the browser goes there next."
+          }
+        }
+      },
       "PasswordLoginBody": {
         "type": "object",
         "properties": {
@@ -18142,11 +18371,17 @@
         "properties": {
           "unit": {
             "type": "string",
-            "description": "The counting rule's name: \"graphemes\" or \"bytes\"."
+            "description": "The counting rule's name: \"graphemes\", \"bytes\" or \"characters\"."
           },
           "max": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
+            "format": "int32"
+          },
+          "urlWeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "What each URL counts as, for a URL-weighted unit; null otherwise.",
             "format": "int32"
           }
         }
@@ -19029,6 +19264,17 @@
           },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
+          }
+        }
+      },
+      "StartMastodonConnectBody": {
+        "required": [
+          "instance"
+        ],
+        "type": "object",
+        "properties": {
+          "instance": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },

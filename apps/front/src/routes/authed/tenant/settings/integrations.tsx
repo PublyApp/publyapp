@@ -38,6 +38,11 @@ import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 import { DisconnectDialog } from './_disconnect-dialog';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
+import { MastodonConnectDrawer } from './_mastodon-connect-drawer';
+import {
+	useMastodonCallback,
+	validateMastodonCallbackSearch,
+} from './_use-mastodon-callback';
 
 // The C2 list endpoint carries no sort/search contract yet: the table renders
 // the full list in one shot with client-side chrome only. Sort stays pinned;
@@ -80,7 +85,12 @@ const buildColumns = (
 			header: t('col-provider'),
 			enableSorting: false,
 			meta: { width: '140px' },
-			cell: () => t('provider-bluesky'),
+			cell: ({ row }) =>
+				t(
+					row.original.provider === 'mastodon'
+						? 'provider-mastodon'
+						: 'provider-bluesky',
+				),
 		},
 		{
 			id: 'status',
@@ -153,6 +163,7 @@ const buildColumns = (
 
 type DrawerUiState = {
 	connectOpen: boolean;
+	mastodonOpen: boolean;
 	/** Non-null while the reconnect drawer targets a specific row. */
 	reconnectAccount: SocialAccountRow | null;
 	disconnectAccount: SocialAccountRow | null;
@@ -160,6 +171,7 @@ type DrawerUiState = {
 
 const IDLE_DRAWER_UI: DrawerUiState = {
 	connectOpen: false,
+	mastodonOpen: false,
 	reconnectAccount: null,
 	disconnectAccount: null,
 };
@@ -211,17 +223,9 @@ const TenantSettingsIntegrationsPage = () => {
 				canManage,
 				projects,
 				onReconnect: (account) =>
-					setDrawerUi({
-						connectOpen: false,
-						reconnectAccount: account,
-						disconnectAccount: null,
-					}),
+					setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account }),
 				onDisconnect: (account) =>
-					setDrawerUi({
-						connectOpen: false,
-						reconnectAccount: null,
-						disconnectAccount: account,
-					}),
+					setDrawerUi({ ...IDLE_DRAWER_UI, disconnectAccount: account }),
 			}),
 		[t, i18n.resolvedLanguage, canManage, projects],
 	);
@@ -231,22 +235,34 @@ const TenantSettingsIntegrationsPage = () => {
 
 	const [drawerUi, setDrawerUi] = useState<DrawerUiState>(IDLE_DRAWER_UI);
 	const closeDrawerUi = () => setDrawerUi(IDLE_DRAWER_UI);
+	const reconnectAccount = drawerUi.reconnectAccount;
+	const isMastodonReconnect = reconnectAccount?.provider === 'mastodon';
+
+	// The instance sends the browser back here with `code` and `state` (#2174).
+	const mastodonDenied = useMastodonCallback(tenantId);
 
 	return (
 		<div className="space-y-5" data-testid="tenant-settings-integrations-page">
 			<WorkspacePageHeader titleKey="integrations" />
 
 			{canManage ? (
-				<div className="flex justify-end">
+				<div className="flex flex-wrap justify-end gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						disabled={tenantId === null}
+						onClick={() =>
+							setDrawerUi({ ...IDLE_DRAWER_UI, mastodonOpen: true })
+						}
+					>
+						<IconPlugConnected aria-hidden="true" className="size-4" />
+						{t('connect-mastodon')}
+					</Button>
 					<Button
 						type="button"
 						disabled={tenantId === null}
 						onClick={() =>
-							setDrawerUi({
-								connectOpen: true,
-								reconnectAccount: null,
-								disconnectAccount: null,
-							})
+							setDrawerUi({ ...IDLE_DRAWER_UI, connectOpen: true })
 						}
 					>
 						<IconPlugConnected aria-hidden="true" className="size-4" />
@@ -255,17 +271,23 @@ const TenantSettingsIntegrationsPage = () => {
 				</div>
 			) : null}
 
+			{mastodonDenied ? (
+				<p
+					role="alert"
+					className="text-destructive text-sm"
+					data-testid="mastodon-authorization-denied"
+				>
+					{t('mastodon-authorization-denied')}
+				</p>
+			) : null}
+
 			<ReconnectBanner
 				accounts={needsReconnectAccounts}
 				hasManagePermission={canManage}
 				onReconnect={(accountId) => {
 					const account = rows.find((row) => row.id === accountId);
 					if (account) {
-						setDrawerUi({
-							connectOpen: false,
-							reconnectAccount: account,
-							disconnectAccount: null,
-						});
+						setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account });
 					}
 				}}
 			/>
@@ -344,16 +366,29 @@ const TenantSettingsIntegrationsPage = () => {
 
 			{tenantId === null ? null : (
 				<>
-					<BlueskyConnectDrawer
-						mode={drawerUi.reconnectAccount ? 'reconnect' : 'connect'}
-						open={drawerUi.connectOpen || drawerUi.reconnectAccount !== null}
+					<MastodonConnectDrawer
+						open={drawerUi.mastodonOpen || isMastodonReconnect}
 						onOpenChange={(open) => {
 							if (!open) {
 								closeDrawerUi();
 							}
 						}}
 						tenantId={tenantId}
-						account={drawerUi.reconnectAccount ?? undefined}
+						account={isMastodonReconnect ? reconnectAccount : undefined}
+					/>
+					<BlueskyConnectDrawer
+						mode={reconnectAccount ? 'reconnect' : 'connect'}
+						open={
+							drawerUi.connectOpen ||
+							(reconnectAccount !== null && !isMastodonReconnect)
+						}
+						onOpenChange={(open) => {
+							if (!open) {
+								closeDrawerUi();
+							}
+						}}
+						tenantId={tenantId}
+						account={reconnectAccount ?? undefined}
 					/>
 					<DisconnectDialog
 						account={drawerUi.disconnectAccount ?? PLACEHOLDER_ACCOUNT}
@@ -381,5 +416,6 @@ export const Route = createFileRoute(
 		],
 		i18nNamespaces: ['settings', 'social-accounts'],
 	},
+	validateSearch: validateMastodonCallbackSearch,
 	component: TenantSettingsIntegrationsPage,
 });

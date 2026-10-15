@@ -2,6 +2,8 @@ using System.Text.Json;
 
 using FluentAssertions;
 
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+
 using Xunit;
 
 namespace PublyApp.Api.Modules.Publishing.Lib;
@@ -9,7 +11,9 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 // Issue #2169: the browser counter (apps/front/src/lib/text-counter) runs the SAME
 // fixture file, so server and browser provably agree on every string.
 public sealed class TextCounterSpec {
-	private sealed record Fixture(string Name, string Text, int Graphemes, int Bytes);
+	private sealed record Fixture(
+		string Name, string Text, int Graphemes, int Bytes, int? Characters, int UrlWeight
+	);
 
 	private static int _ServerGraphemes(JsonElement item) {
 		return item.TryGetProperty("serverGraphemes", out var server)
@@ -30,7 +34,9 @@ public sealed class TextCounterSpec {
 					item.GetProperty("name").GetString() ?? string.Empty,
 					item.GetProperty("text").GetString() ?? string.Empty,
 					TextCounterSpec._ServerGraphemes(item),
-					item.GetProperty("bytes").GetInt32()
+					item.GetProperty("bytes").GetInt32(),
+					item.TryGetProperty("characters", out var characters) ? characters.GetInt32() : null,
+					item.TryGetProperty("urlWeight", out var weight) ? weight.GetInt32() : 23
 				))];
 			}
 
@@ -53,6 +59,19 @@ public sealed class TextCounterSpec {
 			);
 			TextCounter.CountBytes(fixture.Text).Should().Be(
 				fixture.Bytes, $"bytes of '{fixture.Name}'"
+			);
+		}
+	}
+
+	[Fact]
+	public void ItShouldCountMastodonCharactersLikeTheBrowser() {
+		var fixtures = TextCounterSpec._LoadFixtures().Where(f => f.Characters is not null).ToList();
+		fixtures.Should().NotBeEmpty();
+
+		foreach (var fixture in fixtures) {
+			var rule = new MastodonCountingRule(fixture.UrlWeight);
+			rule.Count(TextCounter.Normalize(fixture.Text)).Should().Be(
+				fixture.Characters, $"characters of '{fixture.Name}'"
 			);
 		}
 	}

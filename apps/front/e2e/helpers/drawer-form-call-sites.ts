@@ -52,6 +52,13 @@ export const DRAWER_FORM_CALL_SITES = [
 		sourceFile: 'src/routes/authed/tenant/settings/_bluesky-connect-drawer.tsx',
 		drawerTestId: 'bluesky-connect-drawer',
 	},
+	{
+		id: 'mastodon-connect',
+		name: 'mastodon-connect',
+		sourceFile:
+			'src/routes/authed/tenant/settings/_mastodon-connect-drawer.tsx',
+		drawerTestId: 'mastodon-connect-drawer',
+	},
 ] as const;
 
 export type DrawerFormCallSiteId =

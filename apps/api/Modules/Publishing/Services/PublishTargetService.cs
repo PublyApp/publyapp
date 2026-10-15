@@ -50,9 +50,11 @@ public record PublishTargetAttachLimits {
 }
 
 public record PublishTargetTextLimit {
-	/// <summary>The counting rule's name: "graphemes" or "bytes".</summary>
+	/// <summary>The counting rule's name: "graphemes", "bytes" or "characters".</summary>
 	public required string Unit { get; init; }
 	public required int Max { get; init; }
+	/// <summary>What each URL counts as, for a URL-weighted unit; null otherwise.</summary>
+	public int? UrlWeight { get; init; }
 }
 
 /// <summary>
@@ -113,6 +115,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 							.Select(limit => new PublishTargetTextLimit {
 								Unit = limit.Rule.Unit,
 								Max = limit.Max,
+								UrlWeight = limit.Rule.UrlWeight,
 							})
 							.ToList(),
 						MaxImages = capability.MaxImages,

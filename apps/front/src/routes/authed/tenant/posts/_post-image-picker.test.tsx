@@ -44,6 +44,7 @@ const EN_LABELS: TestLabelMap = {
 	'posts:images-label': 'Images',
 	'posts:image-add': 'Add images',
 	'posts:image-help': 'Help',
+	'posts:image-no-common-type': 'No common image type.',
 	'posts:image-limit-reached': 'You can attach up to 4 images.',
 	'posts:image-alt-nudge': 'Add alt text so everyone can follow your post.',
 	'posts:image-alt-placeholder': 'Describe the image',
@@ -116,6 +117,29 @@ describe('PostImagePicker (advertised limits)', () => {
 				.getAttribute('accept'),
 		).toBe('image/png');
 		expect(screen.getByTestId('tenant-posts-create-image-limit')).toBeTruthy();
+	});
+});
+
+describe('PostImagePicker (no image type shared by the destinations)', () => {
+	test('disables adding and says why instead of offering every file', () => {
+		render(
+			<PostImagePicker
+				postId="post-1"
+				tenantId="tenant-1"
+				limits={{
+					maxImages: 4,
+					maxImageBytes: 1_000_000,
+					acceptedImageContentTypes: [],
+				}}
+			/>,
+		);
+
+		const input = screen.getByTestId('tenant-posts-create-image-input');
+		expect((input as HTMLInputElement).disabled).toBe(true);
+		expect(
+			screen.getByTestId('tenant-posts-create-image-no-common-type'),
+		).toBeTruthy();
+		expect(screen.queryByText(/^Help/)).toBeNull();
 	});
 });
 

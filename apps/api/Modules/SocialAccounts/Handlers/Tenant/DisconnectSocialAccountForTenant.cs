@@ -7,6 +7,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -20,6 +21,7 @@ public sealed class DisconnectSocialAccountForTenant {
 		[FromRoute] string socialAccountId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] SocialAccountService socialAccountService,
+		[FromServices] MastodonOAuthService mastodonOAuthService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IPublicationQueueService publicationQueueService,
 		[FromServices] IPublicationStatusTransitionService transitions,
@@ -46,6 +48,10 @@ public sealed class DisconnectSocialAccountForTenant {
 				ResponseKeys.MalformedId
 			);
 		}
+
+		// Captured while the token still exists; the revoke itself runs AFTER the
+		// local disconnect (below), so a dead instance never blocks it.
+		var revocation = await mastodonOAuthService.PrepareRevocationAsync(tenantId, accountId, cancellationToken);
 
 		var serviceResult = await socialAccountService.DisconnectForTenantAsync(
 			tenantId, accountId, cancellationToken
@@ -76,6 +82,8 @@ public sealed class DisconnectSocialAccountForTenant {
 					cancellationToken
 				);
 			}
+
+			await mastodonOAuthService.RevokeBestEffortAsync(revocation, cancellationToken);
 
 			await auditLogService.LogAsync(
 				new CreateAuditLogArgs(

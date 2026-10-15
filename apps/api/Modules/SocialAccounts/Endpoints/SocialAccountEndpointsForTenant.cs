@@ -53,6 +53,30 @@ public static class SocialAccountEndpointsForTenant {
 			);
 
 		group.MapPost(
+			Routes.SocialAccounts.ForTenant.MastodonStart,
+			StartMastodonConnectForTenant.Handle
+		)
+			.WithName("StartMastodonConnectForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.SocialConnect)
+			.WithSummary("Start connecting a Mastodon account: returns the instance's authorize URL")
+			.WithReqBodyValidation<StartMastodonConnectBody>()
+			.WithTenantPermission(
+				[AppPermissions.Tenant.SocialAccounts.MANAGE]
+			);
+
+		group.MapPost(
+			Routes.SocialAccounts.ForTenant.MastodonCallback,
+			CompleteMastodonConnectForTenant.Handle
+		)
+			.WithName("CompleteMastodonConnectForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.SocialConnect)
+			.WithSummary("Finish connecting a Mastodon account with the code and state the instance returned")
+			.WithReqBodyValidation<CompleteMastodonConnectBody>()
+			.WithTenantPermission(
+				[AppPermissions.Tenant.SocialAccounts.MANAGE]
+			);
+
+		group.MapPost(
 			Routes.SocialAccounts.ForTenant.Reconnect,
 			ReconnectSocialAccountForTenant.Handle
 		)

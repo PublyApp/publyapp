@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { countText, tightestLimit } from './text-counter';
+import { countText, tightestLimit, unitCount } from './text-counter';
 import fixtures from './text-counter-fixtures.json';
 
 const BLUESKY = {
@@ -16,9 +16,50 @@ const BLUESKY = {
 describe('countText', () => {
 	// The API runs the same file (Publishing/Lib/TextCounter.Spec.cs).
 	test.each(fixtures)('$name agrees with the server fixture', (fixture) => {
-		expect(countText(fixture.text)).toEqual({
+		expect(countText(fixture.text)).toMatchObject({
 			graphemes: fixture.browserGraphemes ?? fixture.graphemes,
 			bytes: fixture.bytes,
+		});
+	});
+
+	// Mastodon's URL-weighted unit (#2174): same fixtures as the server.
+	test.each(fixtures.filter((fixture) => fixture.characters !== undefined))(
+		'$name counts the same Mastodon characters as the server',
+		(fixture) => {
+			expect(
+				unitCount(countText(fixture.text), {
+					unit: 'characters',
+					max: 500,
+					urlWeight: fixture.urlWeight ?? 23,
+				}),
+			).toBe(fixture.characters);
+		},
+	);
+});
+
+describe('tightestLimit with a URL-weighted unit', () => {
+	const mastodon = (urlWeight: number) => ({
+		label: '@a@mastodon.social',
+		limits: {
+			textLimits: [{ unit: 'characters', max: 500, urlWeight }],
+			maxImages: 4,
+			maxImageBytes: 16_777_216,
+			acceptedImageContentTypes: ['image/jpeg'],
+		},
+	});
+	const longUrl = `https://example.com/${'a'.repeat(80)}`;
+
+	test('counts a 100-character URL as 23', () => {
+		expect(tightestLimit(countText(longUrl), [mastodon(23)])).toMatchObject({
+			unit: 'characters',
+			actual: 23,
+			limit: 500,
+		});
+	});
+
+	test('follows the instance weight', () => {
+		expect(tightestLimit(countText(longUrl), [mastodon(30)])).toMatchObject({
+			actual: 30,
 		});
 	});
 });

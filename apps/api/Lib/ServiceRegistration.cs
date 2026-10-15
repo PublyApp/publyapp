@@ -17,6 +17,7 @@ using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
+using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Uploads;
 
@@ -184,7 +185,13 @@ public static class ServiceRegistration {
 		// is registered right after it.
 		BlueskyClient.RegisterHttpClient(builder.Services);
 		builder.Services.AddScoped<IBlueskyClient, BlueskyClient>();
-		builder.Services.AddScoped<ISocialSessionProvider, BlueskySessionProvider>();
+		// #2174: one session provider per network behind a routing seam, so the
+		// publish job stays provider-blind.
+		builder.Services.AddScoped<BlueskySessionProvider>();
+		builder.Services.AddScoped<MastodonSessionProvider>();
+		builder.Services.AddScoped<ISocialSessionProvider, RoutingSocialSessionProvider>();
+		builder.Services.AddScoped<IMastodonClient, MastodonClient>();
+		builder.Services.AddScoped<MastodonOAuthService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(
@@ -253,7 +260,17 @@ public static class ServiceRegistration {
 		// carries the pooled handler. Registered here (every role) so the worker's
 		// PublishPublicationJobHandler resolves it without any API-surface coupling.
 		builder.Services.AddHttpClient(BlueskyPublishProvider.HttpClientName);
-		builder.Services.AddSingleton<IPublishProvider, BlueskyPublishProvider>();
+		builder.Services.AddSingleton<BlueskyPublishProvider>();
+		// Mastodon talks to user-entered hosts: every connection goes through the
+		// SSRF-guarded handler (public addresses only, no redirects).
+		builder.Services
+			.AddHttpClient(MastodonHostGuard.HttpClientName, client => {
+				client.Timeout = TimeSpan.FromSeconds(60);
+				client.MaxResponseContentBufferSize = 4 * 1024 * 1024;
+			})
+			.ConfigurePrimaryHttpMessageHandler(() => MastodonHostGuard.CreateHandler());
+		builder.Services.AddSingleton<MastodonPublishProvider>();
+		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
 		// when PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host do BOTH

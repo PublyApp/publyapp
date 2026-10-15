@@ -747,6 +747,13 @@ const REGISTRY = {
 		load: () => import('./tenant-account-profile'),
 		knownListQuery: undefined,
 	},
+	'mastodon-connect.ts': {
+		kind: 'no-list',
+		reason:
+			'owns no list query: start only mints a pending OAuth authorization and returns a URL, and complete invalidates the social-accounts list through invalidateSocialAccounts, which social-accounts.ts owns and this guard already proves.',
+		load: () => import('./mastodon-connect'),
+		knownListQuery: undefined,
+	},
 	'tenant-settings-general.ts': {
 		kind: 'no-list',
 		reason:
