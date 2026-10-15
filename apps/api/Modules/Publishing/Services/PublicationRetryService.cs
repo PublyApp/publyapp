@@ -97,9 +97,12 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 		}
 
 		var superseded = await this._Db.Publication.AsNoTracking().AnyAsync(
-			other => other.PostId == publication.PostId
+			// Soft-deleted rows count too: a cancelled publication that already
+			// published thread segments is soft-deleted (#2171/#2180), and retrying
+			// an older row would repost exactly those segments.
+			other => other.TenantId == publication.TenantId
+				&& other.PostId == publication.PostId
 				&& other.SocialAccountId == publication.SocialAccountId
-				&& !other.IsDeleted
 				&& other.Id != publication.Id
 				&& other.CreatedAt > publication.CreatedAt,
 			cancellationToken

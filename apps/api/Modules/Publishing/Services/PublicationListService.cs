@@ -120,9 +120,9 @@ public sealed class PublicationListService : IPublicationListService {
 					publication.SocialAccount.Status == SocialAccountStatus.Active
 					&& !publication.SocialAccount.IsDeleted,
 				Superseded = this._Db.Publication.Any(other =>
-					other.PostId == publication.PostId
+					other.TenantId == publication.TenantId
+					&& other.PostId == publication.PostId
 					&& other.SocialAccountId == publication.SocialAccountId
-					&& !other.IsDeleted
 					&& other.Id != publication.Id
 					&& other.CreatedAt > publication.CreatedAt),
 				SegmentsPublished = this._Db.PublicationSegmentResult.Count(result =>

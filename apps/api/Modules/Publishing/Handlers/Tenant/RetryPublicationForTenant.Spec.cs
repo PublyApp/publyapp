@@ -164,6 +164,8 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 		var newer = await this._SeedSiblingAsync(
 			older.PostId, acmeId, PublicationStatus.Failed, older.SocialAccountId
 		);
+		await this._AddSegmentResultsAsync(older.PublicationId, acmeId, 2);
+		await this._AddSegmentResultsAsync(newer, acmeId, 3);
 
 		using var olderResponse = await this._RetryAsync(token, acmeId, older.PublicationId);
 		using var newerResponse = await this._RetryAsync(token, acmeId, newer);
@@ -172,6 +174,54 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 		await RetryPublicationForTenantSpec._AssertProblemKeyAsync(olderResponse, "publication-retry-superseded");
 		newerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		(await this._LoadAsync(older.PublicationId)).Status.Should().Be(PublicationStatus.Failed);
+	}
+
+	// #2180: cancelling a Scheduled thread row that already published segments
+	// soft-deletes it, keeping its results. That newer, hidden row holds MORE progress
+	// than the older Failed row, so retrying the older one must still be refused.
+	[Fact]
+	public async Task ItShouldRefuseRetryWhenTheNewerRowWasCancelledButKeepsThreadProgress() {
+		var (acmeId, token) = await this._LoginAsAcmeAdminAsync();
+		var older = await this._SeedAsync(acmeId, PublicationStatus.Failed, PublicationFailureCategory.RetryLater);
+		var cancelled = await this._SeedSiblingAsync(
+			older.PostId, acmeId, PublicationStatus.Scheduled, older.SocialAccountId
+		);
+		await this._AddSegmentResultsAsync(older.PublicationId, acmeId, 2);
+		await this._AddSegmentResultsAsync(cancelled, acmeId, 3);
+		await this._SoftDeleteAsync(cancelled);
+
+		using var response = await this._RetryAsync(token, acmeId, older.PublicationId);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+		await RetryPublicationForTenantSpec._AssertProblemKeyAsync(response, "publication-retry-superseded");
+		(await this._LoadAsync(older.PublicationId)).Status.Should().Be(PublicationStatus.Failed);
+		(await this._JobCountAsync(older.IdempotencyKey)).Should().Be(0);
+	}
+
+	private async Task _AddSegmentResultsAsync(Guid publicationId, Guid tenantId, int count) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		for (var position = 0; position < count; position++) {
+			db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+				TenantId = tenantId,
+				PublicationId = publicationId,
+				SegmentPosition = position,
+				ExternalRecordId = $"at://did:plc:x/app.bsky.feed.post/{publicationId:N}-{position}",
+				ExternalCid = $"cid-{position}",
+				ExternalUrl = $"https://bsky.app/profile/x/post/{publicationId:N}-{position}",
+			});
+		}
+
+		await db.SaveChangesAsync();
+	}
+
+	private async Task _SoftDeleteAsync(Guid publicationId) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var publication = await db.Publication.SingleAsync(p => p.Id == publicationId);
+		publication.IsDeleted = true;
+		publication.DeletedAt = DateTime.UtcNow;
+		await db.SaveChangesAsync();
 	}
 
 	[Theory]
