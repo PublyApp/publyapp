@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+	accountProfileUrl,
 	publicationFailurePresentation,
 	retryAvailability,
 } from './publication-failure';
@@ -93,4 +94,21 @@ describe('retryAvailability', () => {
 			reasonKey: 'posts:publication-retry-disabled-permission',
 		});
 	});
+});
+
+describe('accountProfileUrl', () => {
+	test.each([
+		['@jobspec.bsky.social', 'https://bsky.app/profile/jobspec.bsky.social'],
+		['me@social.example', 'https://social.example/@me'],
+		['@me@social.example', 'https://social.example/@me'],
+	])('derives the profile of %s', (label, url) => {
+		expect(accountProfileUrl(label)).toBe(url);
+	});
+
+	test.each([[null], [''], ['My brand'], ['@nodots']])(
+		'omits the link for %s',
+		(label) => {
+			expect(accountProfileUrl(label)).toBeNull();
+		},
+	);
 });

@@ -140,3 +140,18 @@ export const retryAvailability = ({
 	}
 	return { enabled: true };
 };
+
+/** The account's profile page on its network, derived from the display label
+ * (`@name.bsky.social` for Bluesky, `name@host` for Mastodon); null when the
+ * label does not clearly name one, so the link is simply omitted. */
+export const accountProfileUrl = (label: string | null): string | null => {
+	const handle = (label ?? '').trim().replace(/^@/, '');
+	const mastodon = /^([\w.-]+)@([a-z0-9.-]+\.[a-z]{2,})$/i.exec(handle);
+	if (mastodon) {
+		return `https://${mastodon[2]}/@${mastodon[1]}`;
+	}
+	if (/^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(handle)) {
+		return `https://bsky.app/profile/${handle}`;
+	}
+	return null;
+};

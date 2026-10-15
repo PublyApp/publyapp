@@ -134,6 +134,30 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldExcludeNeedsReviewRowsSoAReconnectNeverResumesOrRelabelsThem() {
+		using var db = await this._NewDbAsync();
+		var (tenantId, accountId, userId) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
+		var pausedId = await PublicationQueueServiceSpec._SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-1)
+		);
+		var reviewId = await PublicationQueueServiceSpec._SeedPublicationAsync(
+			db, tenantId, accountId, userId,
+			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-2)
+		);
+		var review = await db.Publication.SingleAsync(p => p.Id == reviewId);
+		review.FailureCategory = PublicationFailureCategory.NeedsReview;
+		await db.SaveChangesAsync();
+
+		var rows = await PublicationQueueServiceSpec._NewService(db).FindNonTerminalForAccountAsync(
+			new FindPublicationsOfAccountArgs(tenantId, accountId),
+			CancellationToken.None
+		);
+
+		rows.Select(row => row.Id).Should().Equal(pausedId);
+	}
+
+	[Fact]
 	public async Task ItShouldExcludePublishedAndFailedRows() {
 		using var db = await this._NewDbAsync();
 		var (tenantId, accountId, userId) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);

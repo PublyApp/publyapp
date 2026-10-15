@@ -27,7 +27,6 @@ public sealed class RetryPublicationForTenant {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPublicationRetryService retryService,
 		[FromServices] IPublicationStatusTransitionService transitions,
-		[FromServices] IPublishAttemptJournal journal,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -87,7 +86,7 @@ public sealed class RetryPublicationForTenant {
 		}
 
 		var moved = await transitions.RetryAsync(
-			new RetryPublicationArgs(publicationIdGuid, tenantId),
+			new RetryPublicationArgs(publicationIdGuid, tenantId, eligible.WasNeedsReview),
 			cancellationToken
 		);
 
@@ -108,12 +107,6 @@ public sealed class RetryPublicationForTenant {
 				"A newer publication for this post and account is already live",
 				ResponseKeys.PublicationRetryPairOccupied
 			);
-		}
-
-		if (eligible.WasNeedsReview) {
-			// The user reviewed the profile and chose to retry: the unresolved write
-			// no longer blocks the resend (this is the informed override, #2176).
-			await journal.SupersedeUnresolvedAsync(publicationIdGuid, cancellationToken);
 		}
 
 		await retryService.EnqueueAsync(

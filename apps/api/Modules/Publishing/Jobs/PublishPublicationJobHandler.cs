@@ -83,7 +83,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			cancellationToken
 		);
 		if (post is null) {
-			await this._Transitions.MarkFailedAsync(
+			await this._FailOrParkAsync(
 				new MarkPublicationFailedArgs(
 					publicationId,
 					publication.TenantId,
@@ -137,7 +137,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				followUps
 			);
 			if (contentFailure is not null) {
-				await this._Transitions.MarkFailedAsync(
+				await this._FailOrParkAsync(
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
@@ -159,7 +159,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				assets[index].RelativePath, cancellationToken
 			);
 			if (content is null) {
-				await this._Transitions.MarkFailedAsync(
+				await this._FailOrParkAsync(
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
@@ -202,7 +202,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 
 		// A journal row that never resolved means an earlier write may have landed
 		// (timeout, crash, stale-job recovery): look BEFORE writing again (#2176).
-		var unresolved = await this._Journal.FindUnresolvedAsync(publicationId, cancellationToken);
+		var unresolved = await this._FindUnresolvedAsync(publicationId, cancellationToken);
 		if (unresolved is not null) {
 			var reconciled = await this._PublishProvider.ReconcileAsync(
 				new ReconcileRequest {
@@ -227,7 +227,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					await this._Journal.SupersedeUnresolvedAsync(publicationId, cancellationToken);
 					break;
 				case ReconcileResult.NeedsReview review:
-					await this._ParkForReviewAsync(publication, review.Cause, cancellationToken);
+					await this._ParkForReviewAsync(publicationId, publication.TenantId, review.Cause, cancellationToken);
 					return JobOutcome.Succeeded;
 				case ReconcileResult.Unavailable unavailable:
 					return await this._RetryUnresolvedAsync(
@@ -306,7 +306,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			case PublishResult.AlreadyExistsTreatedAsPublished alreadyExists:
 				return await this._SucceedAsync(publication, alreadyExists.RecordId, alreadyExists.RecordUrl, cancellationToken);
 			case PublishResult.ContentFailure content:
-				await this._Transitions.MarkFailedAsync(
+				await this._FailOrParkAsync(
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
@@ -405,7 +405,9 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	) {
 		var cause = LastErrorSanitiser.Sanitize(rawCause) ?? rawCause;
 		if (context.Attempts + 1 >= context.MaxAttempts) {
-			await this._ParkForReviewAsync(publication, cause, cancellationToken);
+			await this._ParkForReviewAsync(
+				publication.GetRequiredId(), publication.TenantId, cause, cancellationToken
+			);
 			return JobOutcome.Succeeded;
 		}
 
@@ -413,14 +415,15 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	}
 
 	private async Task _ParkForReviewAsync(
-		Publication publication,
+		Guid publicationId,
+		Guid tenantId,
 		string rawCause,
 		CancellationToken cancellationToken
 	) {
 		await this._Transitions.MarkPausedAsync(
 			new MarkPublicationPausedArgs(
-				publication.GetRequiredId(),
-				publication.TenantId,
+				publicationId,
+				tenantId,
 				"it may already be on the provider, so it was not sent again: "
 					+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}. Check the profile, "
 					+ "then mark it published or retry",
@@ -428,6 +431,61 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			),
 			cancellationToken
 		);
+	}
+
+	/// <summary>
+	/// The unresolved journal row that still blocks a write, if any. A row whose
+	/// segment already has a stored result was delivered (the worker died between the
+	/// two saves): it is closed as Accepted instead of blocking (#2176 F8).
+	/// </summary>
+	private async Task<UnresolvedAttempt?> _FindUnresolvedAsync(
+		Guid publicationId,
+		CancellationToken cancellationToken
+	) {
+		while (true) {
+			var unresolved = await this._Journal.FindUnresolvedAsync(publicationId, cancellationToken);
+			if (unresolved is null) {
+				return null;
+			}
+
+			var stored = await this._Db.PublicationSegmentResult
+				.AsNoTracking()
+				.Where(result => result.PublicationId == publicationId
+					&& result.SegmentPosition == unresolved.SegmentPosition
+					&& !result.IsDeleted)
+				.FirstOrDefaultAsync(cancellationToken);
+			if (stored is null) {
+				return unresolved;
+			}
+
+			await this._Journal.ResolveAsync(
+				new ResolvePublishAttemptArgs(
+					unresolved.Id, SubmissionState.Accepted, stored.ExternalRecordId, stored.ExternalUrl
+				),
+				cancellationToken
+			);
+		}
+	}
+
+	/// <summary>
+	/// Every Failed move goes through here: Failed frees the (post, account) slot for a
+	/// second delivery, so while a write may have landed the publication is parked as
+	/// needs review instead. Returns true when it was parked.
+	/// </summary>
+	private async Task<bool> _FailOrParkAsync(
+		MarkPublicationFailedArgs args,
+		CancellationToken cancellationToken
+	) {
+		var unresolved = await this._FindUnresolvedAsync(args.PublicationId, cancellationToken);
+		if (unresolved is not null) {
+			await this._ParkForReviewAsync(
+				args.PublicationId, args.TenantId, args.Cause, cancellationToken
+			);
+			return true;
+		}
+
+		await this._Transitions.MarkFailedAsync(args, cancellationToken);
+		return false;
 	}
 
 	/// <summary>
@@ -531,7 +589,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	) {
 		var cause = LastErrorSanitiser.Sanitize(rawCause) ?? rawCause;
 		if (context.Attempts + 1 >= context.MaxAttempts) {
-			await this._Transitions.MarkFailedAsync(
+			var parked = await this._FailOrParkAsync(
 				new MarkPublicationFailedArgs(
 					publication.GetRequiredId(),
 					publication.TenantId,
@@ -540,6 +598,10 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				),
 				cancellationToken
 			);
+			if (parked) {
+				return JobOutcome.Succeeded;
+			}
+
 			return new JobOutcome.PermanentFailure(
 				$"publishing gave up after {context.MaxAttempts} attempts: {cause}"
 			);

@@ -7,6 +7,7 @@ import {
 	fireEvent,
 	render,
 	screen,
+	within,
 } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -117,6 +118,13 @@ const EN_LABELS: TestLabelMap = {
 	'posts:publication-category-unknown': 'Unknown',
 	'posts:publication-category-needs-review': 'Needs review',
 	'posts:publication-action-mark-published': 'Mark as published',
+	'posts:publication-review-open-profile': 'Check your profile',
+	'posts:publication-review-mark-title': 'Mark as published?',
+	'posts:publication-review-mark-description': 'Only confirm if you see it.',
+	'posts:publication-review-retry-title': 'Send it again?',
+	'posts:publication-review-retry-description':
+		'Sending again will post it twice.',
+	'posts:publication-review-retry-confirm': 'Send again',
 	'posts:publication-category-message-reconnect': 'Account needs reconnecting.',
 	'posts:publication-category-message-fix-content': 'Provider refused content.',
 	'posts:publication-category-message-retry-later': 'Provider kept failing.',
@@ -328,10 +336,45 @@ describe('TenantPostsHistoryPage', () => {
 		).toBe(false);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Mark as published' }));
+		expect(mocks.markPublished).not.toHaveBeenCalled();
+		fireEvent.click(
+			within(screen.getByRole('alertdialog')).getByRole('button', {
+				name: 'Mark as published',
+			}),
+		);
 
 		expect(mocks.markPublished).toHaveBeenCalledWith({
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			publicationId: 'pub-7',
+		});
+	});
+
+	test('Retry on a needs-review row asks first, warns about a duplicate and links the profile', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-8',
+				status: 'paused',
+				externalUrl: null,
+				failureCategory: 'needs_review',
+				accountLabel: 'me@social.example',
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen
+				.getByTestId('tenant-posts-publication-profile-link')
+				.getAttribute('href'),
+		).toBe('https://social.example/@me');
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+		expect(mocks.retry).not.toHaveBeenCalled();
+		const dialog = screen.getByRole('alertdialog');
+		expect(dialog.textContent).toContain('post it twice');
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Send again' }));
+
+		expect(mocks.retry).toHaveBeenCalledWith({
+			tenantId: '11111111-1111-1111-1111-111111111111',
+			publicationId: 'pub-8',
 		});
 	});
 
