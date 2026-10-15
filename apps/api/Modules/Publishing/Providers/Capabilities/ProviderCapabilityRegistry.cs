@@ -9,11 +9,9 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 /// provider adds one entry to the defaults table (plus its publish provider
 /// and, if it counts text differently, one <see cref="ITextCountingRule"/>).
 /// <see cref="Resolve"/> overlays the account's cached overrides on the defaults
-/// and ignores them once older than <see cref="OverrideTtl"/>.
+/// and keeps using the last-known values until a reconnect replaces them.
 /// </summary>
 public static class ProviderCapabilityRegistry {
-	public static readonly TimeSpan OverrideTtl = TimeSpan.FromHours(24);
-
 	public static readonly ProviderCapability Bluesky = new(
 		SocialProvider.Bluesky,
 		[new TextLimit(GraphemeCountingRule.Instance, 300), new TextLimit(ByteCountingRule.Instance, 3000)],
@@ -39,6 +37,11 @@ public static class ProviderCapabilityRegistry {
 		get { return ProviderCapabilityRegistry._Defaults.Values.Max(capability => capability.MaxImages); }
 	}
 
+	/// <summary>The largest per-image size any provider accepts.</summary>
+	public static long MaxImageBytes {
+		get { return ProviderCapabilityRegistry._Defaults.Values.Max(capability => capability.MaxImageBytes); }
+	}
+
 	/// <summary>Every image type some provider accepts (attach-time filter).</summary>
 	public static IReadOnlyList<string> AcceptedImageContentTypes {
 		get {
@@ -59,12 +62,14 @@ public static class ProviderCapabilityRegistry {
 		);
 	}
 
-	/// <summary>The effective capability of one account at <paramref name="now"/>.</summary>
-	public static ProviderCapability Resolve(SocialAccount account, DateTime now) {
+	/// <summary>
+	/// The effective capability of one account: defaults overlaid with the last
+	/// known overrides. <c>CapabilityRefreshedAt</c> is informational only, so a
+	/// scheduled post is validated against the same limits at dispatch.
+	/// </summary>
+	public static ProviderCapability Resolve(SocialAccount account) {
 		var defaults = ProviderCapabilityRegistry.For(account.Provider);
-		var isFresh = account.CapabilityRefreshedAt is DateTime refreshedAt
-			&& now - refreshedAt <= ProviderCapabilityRegistry.OverrideTtl;
-		if (!isFresh || string.IsNullOrWhiteSpace(account.CapabilityOverrides)) {
+		if (string.IsNullOrWhiteSpace(account.CapabilityOverrides)) {
 			return defaults;
 		}
 

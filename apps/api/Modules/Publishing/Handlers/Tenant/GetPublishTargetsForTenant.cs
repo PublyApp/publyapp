@@ -10,6 +10,7 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
 public class GetPublishTargetsForTenantResponse {
 	public required IReadOnlyList<PublishTargetItem> Items { get; init; }
+	public required PublishTargetAttachLimits AttachLimits { get; init; }
 }
 
 /// <summary>
@@ -51,6 +52,7 @@ public sealed class GetPublishTargetsForTenant {
 
 		return TypedResults.Ok(new GetPublishTargetsForTenantResponse {
 			Items = items,
+			AttachLimits = PublishTargetAttachLimits.FromRegistry(),
 		});
 	}
 }

@@ -87,11 +87,12 @@ public static class PublishValidationService {
 			return null;
 		}
 
-		if (normalized.Length == 0 && imageContentTypes.Count == 0) {
+		var textRequired = providerList.FirstOrDefault(limits => limits.RequiresText);
+		if (textRequired is not null && normalized.Length == 0 && imageContentTypes.Count == 0) {
 			return new PublishContentFailure(
 				PublishContentFailureKind.Empty,
-				SocialAccountWire.FormatProvider(providerList[0].Provider),
-				providerList[0].TextLimits[0].Rule.Unit,
+				SocialAccountWire.FormatProvider(textRequired.Provider),
+				PublishValidationService._EmptyUnit(textRequired),
 				0,
 				0
 			);
@@ -136,11 +137,11 @@ public static class PublishValidationService {
 			for (var index = 0; index < followUps.Count; index++) {
 				var followUp = TextCounter.Normalize(followUps[index]);
 				var number = index + 2;
-				if (followUp.Length == 0) {
+				if (followUp.Length == 0 && limits.RequiresText) {
 					return new PublishContentFailure(
 						PublishContentFailureKind.Empty,
 						name,
-						limits.TextLimits[0].Rule.Unit,
+						PublishValidationService._EmptyUnit(limits),
 						0,
 						0,
 						SegmentNumber: number
@@ -157,6 +158,13 @@ public static class PublishValidationService {
 		}
 
 		return null;
+	}
+
+	// A provider with no text limit still names a unit on an Empty failure.
+	private static string _EmptyUnit(ProviderCapability capability) {
+		return capability.TextLimits.Count > 0
+			? capability.TextLimits[0].Rule.Unit
+			: GraphemeCountingRule.Instance.Unit;
 	}
 
 	private static PublishContentFailure? _ValidateText(

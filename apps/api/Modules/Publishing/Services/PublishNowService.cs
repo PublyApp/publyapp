@@ -134,7 +134,7 @@ public sealed class PublishNowService : IPublishNowService {
 				orderby media.Position
 				select media.ContentType
 			).ToListAsync(cancellationToken),
-			eligible.Select(account => ProviderCapabilityRegistry.Resolve(account, DateTime.UtcNow)),
+			eligible.Select(account => ProviderCapabilityRegistry.Resolve(account)),
 			await ThreadSegments.FollowUpBodiesAsync(
 				this._Db, post.GetRequiredId(), cancellationToken
 			)

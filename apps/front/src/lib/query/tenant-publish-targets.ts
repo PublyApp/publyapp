@@ -28,6 +28,30 @@ export type TenantPublishTarget = {
 	limits: DestinationLimits | null;
 };
 
+/** The server's attach-time image caps (any destination): the picker's cap
+ * while no destination limits are known. Null when the API sent none. */
+export const toAttachLimits = (
+	data: GetPublishTargetsForTenantResponse | null | undefined,
+): Pick<
+	DestinationLimits,
+	'maxImages' | 'maxImageBytes' | 'acceptedImageContentTypes'
+> | null => {
+	const wire = data?.attachLimits;
+	if (
+		!wire ||
+		typeof wire.maxImages !== 'number' ||
+		typeof wire.maxImageBytes !== 'number' ||
+		!wire.acceptedImageContentTypes
+	) {
+		return null;
+	}
+	return {
+		maxImages: wire.maxImages,
+		maxImageBytes: wire.maxImageBytes,
+		acceptedImageContentTypes: wire.acceptedImageContentTypes,
+	};
+};
+
 /** Wire vocabulary this composer can actually drive. D2 ships Bluesky only;
  * an unknown provider is dropped fail-closed instead of rendering a checkbox
  * whose publish path does not exist yet. */

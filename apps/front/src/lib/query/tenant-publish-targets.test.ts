@@ -19,6 +19,7 @@ import {
 	invalidateTenantPublishTargets,
 	tenantPublishTargetsQueryOptions,
 	TENANT_PUBLISH_TARGETS_QUERY_KEY,
+	toAttachLimits,
 	toTenantPublishTargets,
 	useTenantPublishTargetsQuery,
 } from '~/lib/query/tenant-publish-targets';
@@ -173,5 +174,25 @@ describe('invalidateTenantPublishTargets', () => {
 describe('useTenantPublishTargetsQuery', () => {
 	test('is exported for the composer block', () => {
 		expect(useTenantPublishTargetsQuery).toBeTypeOf('function');
+	});
+});
+
+describe('toAttachLimits', () => {
+	test('maps the server attach-time caps and is null when absent', () => {
+		expect(
+			toAttachLimits({
+				items: [],
+				attachLimits: {
+					maxImages: 4,
+					maxImageBytes: 1_000_000,
+					acceptedImageContentTypes: ['image/png'],
+				},
+			} as GetPublishTargetsForTenantResponse),
+		).toEqual({
+			maxImages: 4,
+			maxImageBytes: 1_000_000,
+			acceptedImageContentTypes: ['image/png'],
+		});
+		expect(toAttachLimits(undefined)).toBeNull();
 	});
 });

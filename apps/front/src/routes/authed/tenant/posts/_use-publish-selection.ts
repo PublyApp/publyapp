@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { TenantPublishTarget } from '~/lib/query/tenant-publish-targets';
 import {
+	toAttachLimits,
 	toTenantPublishTargets,
 	useTenantPublishTargetsQuery,
 } from '~/lib/query/tenant-publish-targets';
@@ -47,7 +48,8 @@ export type PublishSelection = {
 	/** The SELECTED destinations with their limits: what every live counter
 	 * (body, thread segments) measures against. */
 	destinations: LimitedDestination[];
-	/** Image caps shared by the selected destinations; null with none selected. */
+	/** Image caps shared by the selected destinations, else the server's
+	 * attach-time caps; null only before the targets have loaded. */
 	imageLimits: ImageLimits | null;
 };
 
@@ -89,9 +91,15 @@ export const usePublishSelection = (
 				: [],
 		);
 	}, [targets, selectedIds]);
+	const attachLimits = useMemo(
+		() => toAttachLimits(targetsQuery.data),
+		[targetsQuery.data],
+	);
 	const imageLimits = useMemo(
-		() => toImageLimits(destinations.map((destination) => destination.limits)),
-		[destinations],
+		() =>
+			toImageLimits(destinations.map((destination) => destination.limits)) ??
+			attachLimits,
+		[destinations, attachLimits],
 	);
 
 	return { targets, selectedIds, toggle, destinations, imageLimits };

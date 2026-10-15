@@ -12,7 +12,9 @@ public sealed record ProviderCapability(
 	IReadOnlyList<TextLimit> TextLimits,
 	int MaxImages,
 	long MaxImageBytes,
-	IReadOnlyList<string> AcceptedImageContentTypes
+	IReadOnlyList<string> AcceptedImageContentTypes,
+	// False for an image-led provider: an empty body (or segment) is then allowed.
+	bool RequiresText = true
 );
 
 /// <summary>

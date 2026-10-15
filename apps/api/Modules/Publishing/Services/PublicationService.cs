@@ -287,7 +287,7 @@ public sealed class PublicationService : IPublicationService {
 		var contentFailure = PublishValidationService.Validate(
 			post.Body,
 			await this._ImageContentTypesAsync(post.GetRequiredId(), cancellationToken),
-			accounts.Select(account => ProviderCapabilityRegistry.Resolve(account, DateTime.UtcNow)),
+			accounts.Select(account => ProviderCapabilityRegistry.Resolve(account)),
 			await ThreadSegments.FollowUpBodiesAsync(
 				this._DbContext, post.GetRequiredId(), cancellationToken
 			)
@@ -449,7 +449,7 @@ public sealed class PublicationService : IPublicationService {
 				&& targetAccountIds.Contains(account.Id.Value)
 			select account
 		).ToListAsync(cancellationToken))
-			.Select(account => ProviderCapabilityRegistry.Resolve(account, DateTime.UtcNow))
+			.Select(account => ProviderCapabilityRegistry.Resolve(account))
 			.ToList();
 		if (targetCapabilities.Count > 0) {
 			var contentFailure = PublishValidationService.Validate(

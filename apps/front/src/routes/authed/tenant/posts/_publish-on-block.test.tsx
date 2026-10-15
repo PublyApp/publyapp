@@ -33,6 +33,7 @@ vi.mock('~/lib/query/tenant-permissions', () => ({
 
 vi.mock('~/lib/query/tenant-publish-targets', () => ({
 	useTenantPublishTargetsQuery: () => mocks.useTargetsQuery(),
+	toAttachLimits: () => null,
 	toTenantPublishTargets: (data: { items?: unknown[] } | null) =>
 		data?.items ?? [],
 }));

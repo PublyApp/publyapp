@@ -26,9 +26,16 @@ const TARGETS = [
 	},
 ];
 
+const ATTACH = {
+	maxImages: 4,
+	maxImageBytes: 1_000_000,
+	acceptedImageContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
+};
+
 vi.mock('~/lib/query/tenant-publish-targets', () => ({
 	useTenantPublishTargetsQuery: () => ({ data: 'wire' }),
 	toTenantPublishTargets: () => TARGETS,
+	toAttachLimits: () => ATTACH,
 }));
 
 vi.mock('~/lib/query/tenants-for-picker', () => ({
@@ -60,7 +67,8 @@ describe('usePublishSelection', () => {
 
 		act(() => result.current.toggle('a', false));
 
+		// Nothing selected: the picker falls back to the server's attach-time caps.
 		expect(result.current.destinations).toEqual([]);
-		expect(result.current.imageLimits).toBeNull();
+		expect(result.current.imageLimits).toEqual(ATTACH);
 	});
 });

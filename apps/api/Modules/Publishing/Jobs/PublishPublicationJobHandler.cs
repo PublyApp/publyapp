@@ -130,7 +130,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			var contentFailure = PublishValidationService.Validate(
 				post.Body,
 				assets.Select(asset => asset.ContentType).ToList(),
-				[ProviderCapabilityRegistry.Resolve(targetAccount, DateTime.UtcNow)],
+				[ProviderCapabilityRegistry.Resolve(targetAccount)],
 				followUps
 			);
 			if (contentFailure is not null) {

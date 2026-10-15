@@ -31,6 +31,24 @@ public record PublishTargetLimits {
 	public required IReadOnlyList<string> AcceptedImageContentTypes { get; init; }
 }
 
+/// <summary>
+/// What the server accepts when an image is attached to a post, whatever the
+/// destinations: the composer's cap while no destination limits are known.
+/// </summary>
+public record PublishTargetAttachLimits {
+	public required int MaxImages { get; init; }
+	public required long MaxImageBytes { get; init; }
+	public required IReadOnlyList<string> AcceptedImageContentTypes { get; init; }
+
+	public static PublishTargetAttachLimits FromRegistry() {
+		return new PublishTargetAttachLimits {
+			MaxImages = ProviderCapabilityRegistry.MaxImagesPerPost,
+			MaxImageBytes = ProviderCapabilityRegistry.MaxImageBytes,
+			AcceptedImageContentTypes = ProviderCapabilityRegistry.AcceptedImageContentTypes,
+		};
+	}
+}
+
 public record PublishTargetTextLimit {
 	/// <summary>The counting rule's name: "graphemes" or "bytes".</summary>
 	public required string Unit { get; init; }
@@ -81,10 +99,9 @@ public sealed class PublishTargetService : IPublishTargetService {
 				.ToList();
 		}
 
-		var now = DateTime.UtcNow;
 		return accounts
 			.Select(account => {
-				var capability = ProviderCapabilityRegistry.Resolve(account, now);
+				var capability = ProviderCapabilityRegistry.Resolve(account);
 				return new PublishTargetItem {
 					Id = account.GetRequiredId(),
 					Label = account.DisplayHandle,

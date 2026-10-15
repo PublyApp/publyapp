@@ -16706,7 +16706,8 @@
       },
       "GetPublishTargetsForTenantResponse": {
         "required": [
-          "items"
+          "items",
+          "attachLimits"
         ],
         "type": "object",
         "properties": {
@@ -16716,6 +16717,10 @@
               "description": "One row of the composer \"Publish on\" block: the target account identity plus\nthe wire values the block renders (plan D2 Task 4 interfaces block).",
               "$ref": "#/components/schemas/PublishTargetItem"
             }
+          },
+          "attachLimits": {
+            "description": "What the server accepts when an image is attached to a post, whatever the\ndestinations: the composer's cap while no destination limits are known.",
+            "$ref": "#/components/schemas/PublishTargetAttachLimits"
           }
         }
       },
@@ -18040,6 +18045,33 @@
             "$ref": "#/components/schemas/JsonElement"
           }
         }
+      },
+      "PublishTargetAttachLimits": {
+        "required": [
+          "maxImages",
+          "maxImageBytes",
+          "acceptedImageContentTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "maxImages": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxImageBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int64"
+          },
+          "acceptedImageContentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "What the server accepts when an image is attached to a post, whatever the\ndestinations: the composer's cap while no destination limits are known."
       },
       "PublishTargetItem": {
         "required": [

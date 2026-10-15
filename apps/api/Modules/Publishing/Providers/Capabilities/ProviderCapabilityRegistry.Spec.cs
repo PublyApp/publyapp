@@ -45,29 +45,58 @@ public sealed class ProviderCapabilityRegistrySpec {
 	}
 
 	[Fact]
-	public void ItShouldLetAFreshAccountOverrideBeatTheDefault() {
+	public void ItShouldLetAnAccountOverrideBeatTheDefaultHoweverOldItIs() {
 		var account = ProviderCapabilityRegistrySpec._Account(
-			"""{"textLimits":{"graphemes":500},"maxImages":2}""", ProviderCapabilityRegistrySpec._Now.AddHours(-1)
+			"""{"textLimits":{"graphemes":500},"maxImages":2}""",
+			ProviderCapabilityRegistrySpec._Now.AddDays(-90)
 		);
 
-		var capability = ProviderCapabilityRegistry.Resolve(account, ProviderCapabilityRegistrySpec._Now);
+		var capability = ProviderCapabilityRegistry.Resolve(account);
 
 		capability.TextLimits.Single(limit => limit.Rule.Unit == "graphemes").Max.Should().Be(500);
 		capability.TextLimits.Single(limit => limit.Rule.Unit == "bytes").Max.Should().Be(3000);
 		capability.MaxImages.Should().Be(2);
 		capability.MaxImageBytes.Should().Be(1_000_000);
+
+		ProviderCapabilityRegistry.Resolve(
+			ProviderCapabilityRegistrySpec._Account("""{"maxImages":2}""", null)
+		).MaxImages.Should().Be(2);
 	}
 
 	[Fact]
-	public void ItShouldFallBackToDefaultsWhenTheOverrideIsStaleNeverRefreshedOrBroken() {
-		var json = """{"maxImages":2}""";
+	public void ItShouldFallBackToDefaultsWhenThereIsNoOverrideOrItIsBroken() {
+		ProviderCapabilityRegistry.Resolve(ProviderCapabilityRegistrySpec._Account(null, null))
+			.Should().BeSameAs(ProviderCapabilityRegistry.Bluesky);
+		ProviderCapabilityRegistry.Resolve(
+			ProviderCapabilityRegistrySpec._Account("{not json", ProviderCapabilityRegistrySpec._Now)
+		).Should().BeSameAs(ProviderCapabilityRegistry.Bluesky);
+	}
 
-		ProviderCapabilityRegistry.Resolve(ProviderCapabilityRegistrySpec._Account(json, ProviderCapabilityRegistrySpec._Now.AddDays(-2)), ProviderCapabilityRegistrySpec._Now)
-			.Should().BeSameAs(ProviderCapabilityRegistry.Bluesky);
-		ProviderCapabilityRegistry.Resolve(ProviderCapabilityRegistrySpec._Account(json, null), ProviderCapabilityRegistrySpec._Now)
-			.Should().BeSameAs(ProviderCapabilityRegistry.Bluesky);
-		ProviderCapabilityRegistry.Resolve(ProviderCapabilityRegistrySpec._Account("{not json", ProviderCapabilityRegistrySpec._Now), ProviderCapabilityRegistrySpec._Now)
-			.Should().BeSameAs(ProviderCapabilityRegistry.Bluesky);
+	[Fact]
+	public void ItShouldValidateAProviderWithNoTextLimitWithoutIndexing() {
+		var imageOnly = new ProviderCapability(
+			SocialProvider.Bluesky,
+			[],
+			MaxImages: 1,
+			MaxImageBytes: 5,
+			AcceptedImageContentTypes: ["image/png"],
+			RequiresText: false
+		);
+
+		PublishValidationService.Validate("", [], [imageOnly]).Should().BeNull();
+		PublishValidationService.Validate("", ["image/png"], [imageOnly], ["", " "])
+			.Should().BeNull();
+		PublishValidationService.Validate(new string('a', 5000), [], [imageOnly])
+			.Should().BeNull();
+
+		var textRequired = imageOnly with { RequiresText = true };
+		var empty = PublishValidationService.Validate("", [], [textRequired]);
+		Assert.NotNull(empty);
+		empty.Kind.Should().Be(PublishContentFailureKind.Empty);
+		empty.Unit.Should().Be("graphemes");
+		var segment = PublishValidationService.Validate("a", [], [textRequired], [""]);
+		Assert.NotNull(segment);
+		segment.SegmentNumber.Should().Be(2);
 	}
 
 	[Fact]
