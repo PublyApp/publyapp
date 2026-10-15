@@ -70,5 +70,31 @@
 		"text": "https://example.com/a/b?c=d",
 		"graphemes": 27,
 		"bytes": 27
+	},
+	{
+		"name": "trailing BOM trimmed",
+		"text": "a\ufeff",
+		"graphemes": 1,
+		"bytes": 1
+	},
+	{
+		"name": "trailing NEL trimmed",
+		"text": "a\u0085",
+		"graphemes": 1,
+		"bytes": 1
+	},
+	{
+		"name": "devanagari conjunct (server >= browser: .NET lacks Unicode 15.1 GB9c)",
+		"text": "\u0915\u094d\u0937\u093f",
+		"serverGraphemes": 2,
+		"browserGraphemes": 1,
+		"bytes": 12
+	},
+	{
+		"name": "malayalam conjunct (server >= browser: .NET lacks Unicode 15.1 GB9c)",
+		"text": "\u0d15\u0d4d\u0d37",
+		"serverGraphemes": 2,
+		"browserGraphemes": 1,
+		"bytes": 9
 	}
 ]

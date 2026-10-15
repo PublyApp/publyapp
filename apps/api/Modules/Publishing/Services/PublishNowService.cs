@@ -116,6 +116,15 @@ public sealed class PublishNowService : IPublishNowService {
 			.Select(account => account.GetRequiredId())
 			.ToList();
 
+		var liveAccountIds = await this._LivePairAccountIdsAsync(
+			post.GetRequiredId(),
+			eligibleIds,
+			cancellationToken
+		);
+		if (liveAccountIds.Count > 0) {
+			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
+		}
+
 		var contentFailure = PublishValidationService.Validate(
 			post.Body,
 			await this._Db.PostMediaAsset.AnyAsync(
@@ -126,15 +135,6 @@ public sealed class PublishNowService : IPublishNowService {
 		);
 		if (contentFailure is not null) {
 			return new PublishNowResult.ContentInvalid(contentFailure);
-		}
-
-		var liveAccountIds = await this._LivePairAccountIdsAsync(
-			post.GetRequiredId(),
-			eligibleIds,
-			cancellationToken
-		);
-		if (liveAccountIds.Count > 0) {
-			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
 		}
 
 		return await this._CreatePublicationsAndEnqueueAsync(

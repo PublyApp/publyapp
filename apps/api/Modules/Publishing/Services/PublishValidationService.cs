@@ -53,6 +53,9 @@ public static class PublishValidationService {
 	) {
 		var normalized = TextCounter.Normalize(body);
 		var providerList = providers.Distinct().ToList();
+		if (providerList.Count == 0) {
+			return null;
+		}
 
 		if (normalized.Length == 0 && !hasMedia) {
 			var first = providerList.Count > 0

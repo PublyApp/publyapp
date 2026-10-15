@@ -9,7 +9,7 @@ describe('countText', () => {
 	// The API runs the same file (Publishing/Lib/TextCounter.Spec.cs).
 	test.each(fixtures)('$name agrees with the server fixture', (fixture) => {
 		expect(countText(fixture.text)).toEqual({
-			graphemes: fixture.graphemes,
+			graphemes: fixture.browserGraphemes ?? fixture.graphemes,
 			bytes: fixture.bytes,
 		});
 	});

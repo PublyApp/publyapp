@@ -17,16 +17,16 @@ public static class PublishContentProblems {
 			? ResponseKeys.PublishContentEmpty
 			: ResponseKeys.PublishContentTooLong;
 
-		var details = ValidationProblemDetails.Create(
+		return TypedProblems.ValidationProblem(
 			failure.Cause,
 			key,
-			new Dictionary<string, string[]> { ["body"] = [failure.Cause] }
+			new Dictionary<string, string[]> { ["body"] = [failure.Cause] },
+			new Dictionary<string, object?> {
+				["provider"] = failure.Provider,
+				["limit"] = failure.Limit,
+				["actual"] = failure.Actual,
+				["unit"] = failure.Unit,
+			}
 		);
-		details.Extensions["provider"] = failure.Provider;
-		details.Extensions["limit"] = failure.Limit;
-		details.Extensions["actual"] = failure.Actual;
-		details.Extensions["unit"] = failure.Unit;
-
-		return new AppValidationProblemHttpResult(details);
 	}
 }

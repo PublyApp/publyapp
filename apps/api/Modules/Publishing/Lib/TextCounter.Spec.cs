@@ -11,6 +11,12 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 public sealed class TextCounterSpec {
 	private sealed record Fixture(string Name, string Text, int Graphemes, int Bytes);
 
+	private static int _ServerGraphemes(JsonElement item) {
+		return item.TryGetProperty("serverGraphemes", out var server)
+			? server.GetInt32()
+			: item.GetProperty("graphemes").GetInt32();
+	}
+
 	private static List<Fixture> _LoadFixtures() {
 		var relative = new[] {
 			"apps", "front", "src", "lib", "text-counter", "text-counter-fixtures.json",
@@ -23,7 +29,7 @@ public sealed class TextCounterSpec {
 				return [.. document.RootElement.EnumerateArray().Select(item => new Fixture(
 					item.GetProperty("name").GetString() ?? string.Empty,
 					item.GetProperty("text").GetString() ?? string.Empty,
-					item.GetProperty("graphemes").GetInt32(),
+					TextCounterSpec._ServerGraphemes(item),
 					item.GetProperty("bytes").GetInt32()
 				))];
 			}

@@ -26,9 +26,14 @@ export type TightestLimit = {
 /** Warning starts at 90 percent of a limit; the error state is strictly above it. */
 const WARNING_RATIO = 0.9;
 
+/** The ONE explicit trailing-trim set; mirrors `_TrailingTrim` in
+ * Publishing/Lib/TextCounter.cs (not `trimEnd()`, which differs from .NET). */
+const TRAILING_TRIM =
+	/[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$/;
+
 /** CRLF/CR become LF and trailing whitespace is trimmed (counted AND published). */
 export const normalizeText = (text: string): string =>
-	text.replace(/\r\n?/g, '\n').trimEnd();
+	text.replace(/\r\n?/g, '\n').replace(TRAILING_TRIM, '');
 
 const segmenter =
 	typeof Intl !== 'undefined' && 'Segmenter' in Intl

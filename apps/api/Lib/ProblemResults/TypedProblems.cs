@@ -171,12 +171,21 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="errors">Dictionary of field names to error messages</param>
+	/// <param name="extensions">Optional extra top-level problem members</param>
 	public static AppValidationProblemHttpResult ValidationProblem(
 		string detail,
 		TranslationKey translationKey,
-		IDictionary<string, string[]> errors
+		IDictionary<string, string[]> errors,
+		IReadOnlyDictionary<string, object?>? extensions = null
 	) {
-		return new(ValidationProblemDetails.Create(detail, translationKey, errors));
+		var details = ValidationProblemDetails.Create(detail, translationKey, errors);
+		if (extensions is not null) {
+			foreach (var (name, value) in extensions) {
+				details.Extensions[name] = value;
+			}
+		}
+
+		return new(details);
 	}
 
 	/// <summary>

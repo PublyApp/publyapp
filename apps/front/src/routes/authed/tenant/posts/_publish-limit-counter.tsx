@@ -3,7 +3,7 @@ import type { TightestLimit } from '~/lib/text-counter/text-counter';
 
 const STATE_CLASS = {
 	ok: 'text-muted-foreground',
-	warning: 'text-[var(--publy-warning,#b45309)]',
+	warning: 'text-[var(--publy-warning)]',
 	error: 'text-[var(--publy-danger)]',
 } satisfies Record<TightestLimit['state'], string>;
 

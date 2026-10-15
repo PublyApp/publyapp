@@ -15,7 +15,7 @@ public sealed class PublishValidationServiceSpec {
 	}
 
 	[Fact]
-	public void ItShouldAccept300GraphemesAndRejectThe301st() {
+	public void ItShouldAccept300GraphemesAndRejectWith301() {
 		PublishValidationServiceSpec._Validate(new string('a', 300)).Should().BeNull();
 
 		var failure = PublishValidationServiceSpec._Validate(new string('a', 301));
@@ -28,7 +28,7 @@ public sealed class PublishValidationServiceSpec {
 	}
 
 	[Fact]
-	public void ItShouldCapTheSameTextAt3000Bytes() {
+	public void ItShouldRejectTextOver3000BytesWhenGraphemesFit() {
 		// 120 family emoji = 120 graphemes and exactly 3000 bytes: accepted.
 		PublishValidationServiceSpec._Validate(
 			string.Concat(Enumerable.Repeat(PublishValidationServiceSpec._Family, 120))
