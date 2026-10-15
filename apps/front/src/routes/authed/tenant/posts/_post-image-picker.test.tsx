@@ -43,7 +43,7 @@ vi.mock('~/lib/query/tenant-post-images', () => ({
 const EN_LABELS: TestLabelMap = {
 	'posts:images-label': 'Images',
 	'posts:image-add': 'Add images',
-	'posts:image-help': 'PNG, JPEG or WebP. Up to 4 images.',
+	'posts:image-help': 'Help',
 	'posts:image-limit-reached': 'You can attach up to 4 images.',
 	'posts:image-alt-nudge': 'Add alt text so everyone can follow your post.',
 	'posts:image-alt-placeholder': 'Describe the image',
@@ -51,9 +51,10 @@ const EN_LABELS: TestLabelMap = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: { index?: number }) =>
+		t: (key: string, options?: { index?: number; types?: string }) =>
 			(EN_LABELS[key] ?? key) +
-			(options?.index === undefined ? '' : ` ${options.index}`),
+			(options?.index === undefined ? '' : ` ${options.index}`) +
+			(options?.types === undefined ? '' : ` ${JSON.stringify(options)}`),
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -64,6 +65,12 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
+
+const LIMITS = {
+	maxImages: 4,
+	maxImageBytes: 1_000_000,
+	acceptedImageContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
+};
 
 afterEach(() => {
 	cleanup();
@@ -85,12 +92,45 @@ const image = (id: string, altText: string | null = null): TenantPostImage => ({
 
 const THREE = [image('a', 'alpha'), image('b'), image('c', 'gamma')];
 
+describe('PostImagePicker (advertised limits)', () => {
+	test('follows the destination limits: odd cap, size and accept list', () => {
+		render(
+			<PostImagePicker
+				postId="post-1"
+				tenantId="tenant-1"
+				existingImages={[image('a'), image('b')]}
+				limits={{
+					maxImages: 2,
+					maxImageBytes: 500_000,
+					acceptedImageContentTypes: ['image/png'],
+				}}
+			/>,
+		);
+
+		expect(
+			screen.getByText('Help {"types":"PNG","size":"500 KB","max":2}'),
+		).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('tenant-posts-create-image-input')
+				.getAttribute('accept'),
+		).toBe('image/png');
+		expect(screen.getByTestId('tenant-posts-create-image-limit')).toBeTruthy();
+	});
+});
+
 describe('PostImagePicker (online mode)', () => {
 	test('renders the input with the help text and no cards for an empty post', () => {
-		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
 
 		expect(screen.getByTestId('tenant-posts-create-image-input')).toBeTruthy();
-		expect(screen.getByText('PNG, JPEG or WebP. Up to 4 images.')).toBeTruthy();
+		expect(
+			screen.getByText(
+				'Help {"types":"PNG, JPEG, WEBP","size":"1 MB","max":4}',
+			),
+		).toBeTruthy();
 		expect(screen.queryAllByTestId('tenant-posts-create-image-card')).toEqual(
 			[],
 		);
@@ -98,7 +138,9 @@ describe('PostImagePicker (online mode)', () => {
 
 	test('attaches picked files one by one, in order, then refreshes the caches', async () => {
 		const user = userEvent.setup();
-		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
 
 		await user.upload(screen.getByTestId('tenant-posts-create-image-input'), [
 			pngFile('one.png'),
@@ -126,6 +168,7 @@ describe('PostImagePicker (online mode)', () => {
 	test('renders one card per image with its server preview and alt text', () => {
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -144,6 +187,7 @@ describe('PostImagePicker (online mode)', () => {
 	test('nudges for alt text on an image without any, but never blocks', () => {
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -166,6 +210,7 @@ describe('PostImagePicker (online mode)', () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -192,6 +237,7 @@ describe('PostImagePicker (online mode)', () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -209,6 +255,7 @@ describe('PostImagePicker (online mode)', () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -231,6 +278,7 @@ describe('PostImagePicker (online mode)', () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -252,6 +300,7 @@ describe('PostImagePicker (online mode)', () => {
 	test('the first image cannot move earlier and the last cannot move later', () => {
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -273,6 +322,7 @@ describe('PostImagePicker (online mode)', () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -296,6 +346,7 @@ describe('PostImagePicker (online mode)', () => {
 	test('with four images the fifth is blocked: input disabled and the limit named', () => {
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={[...THREE, image('d')]}
@@ -318,6 +369,7 @@ describe('PostImagePicker (online mode)', () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
+				limits={LIMITS}
 				postId="post-1"
 				tenantId="tenant-1"
 				existingImages={THREE}
@@ -347,7 +399,9 @@ describe('PostImagePicker (online mode)', () => {
 			},
 		});
 
-		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
 
 		await user.upload(
 			screen.getByTestId('tenant-posts-create-image-input'),
@@ -370,7 +424,9 @@ describe('PostImagePicker (online mode)', () => {
 				translationKey: 'post-image-limit-reached',
 			},
 		});
-		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
 
 		await user.upload(screen.getByTestId('tenant-posts-create-image-input'), [
 			pngFile('one.png'),
@@ -396,6 +452,7 @@ describe('PostImagePicker (deferred create-drawer mode)', () => {
 		const [selections, setSelections] =
 			useState<DeferredImageSelection[]>(initial);
 		return createElement(PostImagePicker, {
+			limits: LIMITS,
 			selections,
 			onSelect: (next: DeferredImageSelection[]) => {
 				onChange(next);

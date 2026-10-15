@@ -31,6 +31,7 @@ import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
 import { NO_SEGMENTS } from './_segment-draft';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
+import { usePublishSelection } from './_use-publish-selection';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -122,10 +123,12 @@ export const CreatePostDrawer = ({
 		resolver: zodResolver(getSchema(t)),
 		defaultValues: { body: '', projectId: null, segments: [] },
 	});
-	// useWatch subscribes to the field instead of calling `methods.watch()`
-	// during render — the render-time `watch()` read makes React Hook Form an
-	// incompatible library for this component and the compiler skips it.
+	// useWatch, not a render-time `methods.watch()` (which makes React Hook Form
+	// incompatible with the React compiler).
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
+	const selection = usePublishSelection(
+		useWatch({ control: methods.control, name: 'projectId' }) ?? null,
+	);
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
 	const followUps = useMemo(
@@ -298,7 +301,7 @@ export const CreatePostDrawer = ({
 						<PostSegmentsEditor
 							segments={segments}
 							publishedSegmentCount={0}
-							projectId={methods.watch('projectId') ?? null}
+							destinations={selection.destinations}
 							onChange={(next) =>
 								methods.setValue('segments', next, { shouldDirty: true })
 							}
@@ -333,13 +336,14 @@ export const CreatePostDrawer = ({
 							<PostImagePicker
 								onSelect={handleSelect}
 								selections={deferredImages}
+								limits={selection.imageLimits}
 							/>
 						)}
 					</DrawerBody>
 					<DrawerFooter>
 						<div className="w-full space-y-3">
 							<PublishOnBlock
-								projectId={methods.watch('projectId') ?? null}
+								selection={selection}
 								body={body}
 								followUps={followUps}
 								onBeforePublish={async () => {

@@ -6,6 +6,7 @@ using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Providers;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
@@ -121,16 +122,15 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		// Re-validate at dispatch (issue #2169): a body edited after scheduling may
 		// no longer fit the provider. Fails the publication with a plain content
 		// cause BEFORE any session/provider call.
-		var targetProvider = await this._Db.SocialAccount
+		var targetAccount = await this._Db.SocialAccount
 			.AsNoTracking()
 			.Where(candidate => candidate.Id == publication.SocialAccountId && !candidate.IsDeleted)
-			.Select(candidate => (SocialProvider?)candidate.Provider)
 			.SingleOrDefaultAsync(cancellationToken);
-		if (targetProvider is SocialProvider provider) {
+		if (targetAccount is not null) {
 			var contentFailure = PublishValidationService.Validate(
 				post.Body,
 				assets.Select(asset => asset.ContentType).ToList(),
-				[provider],
+				[ProviderCapabilityRegistry.Resolve(targetAccount)],
 				followUps
 			);
 			if (contentFailure is not null) {

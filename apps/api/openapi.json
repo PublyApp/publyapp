@@ -16706,7 +16706,8 @@
       },
       "GetPublishTargetsForTenantResponse": {
         "required": [
-          "items"
+          "items",
+          "attachLimits"
         ],
         "type": "object",
         "properties": {
@@ -16716,6 +16717,10 @@
               "description": "One row of the composer \"Publish on\" block: the target account identity plus\nthe wire values the block renders (plan D2 Task 4 interfaces block).",
               "$ref": "#/components/schemas/PublishTargetItem"
             }
+          },
+          "attachLimits": {
+            "description": "What the server accepts when an image is attached to a post, whatever the\ndestinations: the composer's cap while no destination limits are known.",
+            "$ref": "#/components/schemas/PublishTargetAttachLimits"
           }
         }
       },
@@ -18041,6 +18046,33 @@
           }
         }
       },
+      "PublishTargetAttachLimits": {
+        "required": [
+          "maxImages",
+          "maxImageBytes",
+          "acceptedImageContentTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "maxImages": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxImageBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int64"
+          },
+          "acceptedImageContentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "What the server accepts when an image is attached to a post, whatever the\ndestinations: the composer's cap while no destination limits are known."
+      },
       "PublishTargetItem": {
         "required": [
           "id",
@@ -18061,7 +18093,7 @@
             "type": "string"
           },
           "limits": {
-            "description": "The provider's text limits, so the composer needs no hardcoded numbers\n(issue #2169).",
+            "description": "The account's effective capability, so the composer needs no hardcoded numbers\n(issues #2169, #2173). `TextLimits` are measured by unit.",
             "$ref": "#/components/schemas/PublishTargetLimits"
           }
         },
@@ -18069,23 +18101,55 @@
       },
       "PublishTargetLimits": {
         "required": [
-          "maxTextGraphemes",
-          "maxTextBytes"
+          "textLimits",
+          "maxImages",
+          "maxImageBytes",
+          "acceptedImageContentTypes"
         ],
         "type": "object",
         "properties": {
-          "maxTextGraphemes": {
+          "textLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublishTargetTextLimit"
+            }
+          },
+          "maxImages": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
           },
-          "maxTextBytes": {
+          "maxImageBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int64"
+          },
+          "acceptedImageContentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The account's effective capability, so the composer needs no hardcoded numbers\n(issues #2169, #2173). `TextLimits` are measured by unit."
+      },
+      "PublishTargetTextLimit": {
+        "required": [
+          "unit",
+          "max"
+        ],
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "description": "The counting rule's name: \"graphemes\" or \"bytes\"."
+          },
+          "max": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
           }
-        },
-        "description": "The provider's text limits, so the composer needs no hardcoded numbers\n(issue #2169)."
+        }
       },
       "ReactivateTenantUserResult": {
         "type": "object",

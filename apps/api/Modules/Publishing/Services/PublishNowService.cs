@@ -6,6 +6,7 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Jobs;
 using PublyApp.Api.Modules.Publishing.Lib;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 
@@ -133,7 +134,7 @@ public sealed class PublishNowService : IPublishNowService {
 				orderby media.Position
 				select media.ContentType
 			).ToListAsync(cancellationToken),
-			eligible.Select(account => account.Provider),
+			eligible.Select(account => ProviderCapabilityRegistry.Resolve(account)),
 			await ThreadSegments.FollowUpBodiesAsync(
 				this._Db, post.GetRequiredId(), cancellationToken
 			)

@@ -9,7 +9,7 @@ public static class PostValidationRules {
 	// Long-form social/blog content; consistent with the repo's existing
 	// scale (Message 2000, Description 1024) but generous for article bodies.
 	// Storage guard for the DRAFT body only (#2169): publish/schedule limits are
-	// per provider (Publishing/Providers/ProviderLimits.cs), not this constant.
+	// per provider (Publishing/Providers/Capabilities/ProviderCapabilityRegistry.cs), not this constant.
 	public const int BodyMaxLength = 20_000;
 	// A thread is 1..25 segments: the first is Post.Body, at most 24 follow-ups (#2171).
 	public const int MaxSegments = 25;

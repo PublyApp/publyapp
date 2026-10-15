@@ -15,7 +15,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Publishing.Providers;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
@@ -41,7 +41,7 @@ public sealed class ReorderPostImagesBodyValidator
 			.MustBeRequiredGuidArrayAllowingEmpty(
 				fieldName: "assetIds",
 				itemName: "assetId",
-				maxCount: ProviderLimits.MaxImagesPerPost
+				maxCount: ProviderCapabilityRegistry.MaxImagesPerPost
 			);
 	}
 }

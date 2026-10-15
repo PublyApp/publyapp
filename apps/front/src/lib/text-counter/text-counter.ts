@@ -4,21 +4,28 @@
  * must agree on every fixture string.
  */
 
-export type TextCounts = { graphemes: number; bytes: number };
+/** Counts by counting-rule unit. The server names the units a destination
+ * enforces; a unit this browser cannot count is skipped (the server decides). */
+export type TextCounts = Record<string, number>;
 
-export type TextLimits = { maxTextGraphemes: number; maxTextBytes: number };
-
-type LimitUnit = 'graphemes' | 'bytes';
+/** One destination's effective capability, as returned by
+ * `GET /publishing/publish-targets` (issue #2173): no number lives in the front. */
+export type DestinationLimits = {
+	textLimits: { unit: string; max: number }[];
+	maxImages: number;
+	maxImageBytes: number;
+	acceptedImageContentTypes: string[];
+};
 
 /** One destination's limits, as returned by `GET /publishing/publish-targets`. */
-export type LimitedDestination = { label: string; limits: TextLimits };
+export type LimitedDestination = { label: string; limits: DestinationLimits };
 
 type LimitState = 'ok' | 'warning' | 'error';
 
 export type TightestLimit = {
 	state: LimitState;
 	destination: string;
-	unit: LimitUnit;
+	unit: string;
 	actual: number;
 	limit: number;
 };
@@ -51,7 +58,7 @@ const segmenter =
 
 const utf8 = new TextEncoder();
 
-export const countText = (text: string): TextCounts => {
+export const countText = (text: string) => {
 	const normalized = normalizeText(text);
 	let graphemes = 0;
 	if (segmenter) {
@@ -88,18 +95,12 @@ export const tightestLimit = (
 	let tightest: (TightestLimit & { ratio: number }) | null = null;
 
 	for (const destination of destinations) {
-		const candidates: { unit: LimitUnit; actual: number; limit: number }[] = [
-			{
-				unit: 'graphemes',
-				actual: counts.graphemes,
-				limit: destination.limits.maxTextGraphemes,
+		const candidates = destination.limits.textLimits.flatMap(
+			({ unit, max }) => {
+				const actual = counts[unit];
+				return actual === undefined ? [] : [{ unit, actual, limit: max }];
 			},
-			{
-				unit: 'bytes',
-				actual: counts.bytes,
-				limit: destination.limits.maxTextBytes,
-			},
-		];
+		);
 
 		for (const candidate of candidates) {
 			const ratio = candidate.actual / candidate.limit;

@@ -1639,6 +1639,14 @@ namespace PublyApp.Api.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuidv7()");
 
+                    b.Property<string>("CapabilityOverrides")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("capability_overrides");
+
+                    b.Property<DateTime?>("CapabilityRefreshedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("capability_refreshed_at");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");

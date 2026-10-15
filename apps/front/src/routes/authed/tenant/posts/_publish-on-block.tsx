@@ -13,10 +13,6 @@ import {
 	publishNowMutation,
 	invalidateTenantPublications,
 } from '~/lib/query/tenant-publications';
-import {
-	useTenantPublishTargetsQuery,
-	toTenantPublishTargets,
-} from '~/lib/query/tenant-publish-targets';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { countText, tightestLimit } from '~/lib/text-counter/text-counter';
@@ -26,6 +22,7 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { PublishLimitCounter } from './_publish-limit-counter';
+import type { PublishSelection } from './_use-publish-selection';
 
 const NO_FOLLOW_UPS: string[] = [];
 
@@ -37,13 +34,15 @@ const NO_FOLLOW_UPS: string[] = [];
  * publishing fires `publishNowMutation` with the checked ids then lands on
  * History. */
 export const PublishOnBlock = ({
-	projectId,
+	selection,
 	postId,
 	body = '',
 	followUps = NO_FOLLOW_UPS,
 	onBeforePublish,
 }: {
-	projectId: string | null;
+	/** Which targets are checked (owned by the composer so every counter and
+	 * the image picker follow the same selection). */
+	selection: PublishSelection;
 	/** The text being composed: counted live against the checked destinations. */
 	body?: string;
 	/** Thread follow-up texts: each one is held to the same limits (#2171). */
@@ -60,50 +59,21 @@ export const PublishOnBlock = ({
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
 	const { hasPermission } = useTenantPermissions(tenantId);
-	const targetsQuery = useTenantPublishTargetsQuery({
-		tenantId: tenantId ?? '',
-		projectId,
-	});
-	const targets = toTenantPublishTargets(targetsQuery.data);
-	const [checkedIds, setCheckedIds] = useState<string[] | null>(null);
+	const { targets, selectedIds, toggle, destinations } = selection;
 	const [failureMessage, setFailureMessage] = useState<string | null>(null);
-
-	// Default = every visible target checked; null until targets resolve.
-	const selectedIds = checkedIds ?? targets.map((target) => target.id);
 	const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-
-	const limitedDestinations = useMemo(
-		() =>
-			targets.flatMap((target) =>
-				selectedIdSet.has(target.id) && target.limits
-					? [{ label: target.label ?? target.provider, limits: target.limits }]
-					: [],
-			),
-		[targets, selectedIdSet],
-	);
-	const tightest = useTextCounter(body, limitedDestinations);
+	const tightest = useTextCounter(body, destinations);
 	// The first follow-up over a limit (0-based), or -1: publishing a thread
 	// needs every segment within the limits.
 	const overLimitFollowUp = useMemo(
 		() =>
 			followUps.findIndex(
 				(text) =>
-					tightestLimit(countText(text), limitedDestinations)?.state ===
-					'error',
+					tightestLimit(countText(text), destinations)?.state === 'error',
 			),
-		[followUps, limitedDestinations],
+		[followUps, destinations],
 	);
 	const isOverLimit = tightest?.state === 'error' || overLimitFollowUp >= 0;
-
-	const toggleTarget = (id: string, checked: boolean) => {
-		setCheckedIds((previous) => {
-			const base = previous ?? targets.map((target) => target.id);
-			if (checked) {
-				return [...base, id];
-			}
-			return base.filter((value) => value !== id);
-		});
-	};
 
 	const [isPublishing, setIsPublishing] = useState(false);
 
@@ -187,7 +157,7 @@ export const PublishOnBlock = ({
 									data-testid={`tenant-posts-publish-target-${target.id}`}
 									checked={isChecked}
 									onCheckedChange={(checked) => {
-										toggleTarget(target.id, Boolean(checked));
+										toggle(target.id, Boolean(checked));
 									}}
 								/>
 								<span>{target.label}</span>

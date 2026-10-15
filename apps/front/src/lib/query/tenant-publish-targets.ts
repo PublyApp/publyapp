@@ -1,12 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
-import type { TextLimits } from '~/lib/text-counter/text-counter';
+import type { DestinationLimits } from '~/lib/text-counter/text-counter';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	GetPublishTargetsForTenantResponse,
 	PublishTargetItem,
+	PublishTargetLimits,
 } from '@org/client-ts/models/index';
 import {
 	buildTenantQueryOptions,
@@ -23,8 +24,32 @@ export type TenantPublishTarget = {
 	id: string;
 	label: string | null;
 	provider: string;
-	/** Provider text limits; null when the API sent none. */
-	limits: TextLimits | null;
+	/** Effective capability (text, images); null when the API sent none. */
+	limits: DestinationLimits | null;
+};
+
+/** The server's attach-time image caps (any destination): the picker's cap
+ * while no destination limits are known. Null when the API sent none. */
+export const toAttachLimits = (
+	data: GetPublishTargetsForTenantResponse | null | undefined,
+): Pick<
+	DestinationLimits,
+	'maxImages' | 'maxImageBytes' | 'acceptedImageContentTypes'
+> | null => {
+	const wire = data?.attachLimits;
+	if (
+		!wire ||
+		typeof wire.maxImages !== 'number' ||
+		typeof wire.maxImageBytes !== 'number' ||
+		!wire.acceptedImageContentTypes
+	) {
+		return null;
+	}
+	return {
+		maxImages: wire.maxImages,
+		maxImageBytes: wire.maxImageBytes,
+		acceptedImageContentTypes: wire.acceptedImageContentTypes,
+	};
 };
 
 /** Wire vocabulary this composer can actually drive. D2 ships Bluesky only;
@@ -48,6 +73,31 @@ const normalizeString = (
 	return trimmed;
 };
 
+const toDestinationLimits = (
+	wire: PublishTargetLimits | null | undefined,
+): DestinationLimits | null => {
+	if (
+		!wire ||
+		typeof wire.maxImages !== 'number' ||
+		typeof wire.maxImageBytes !== 'number' ||
+		!wire.textLimits ||
+		!wire.acceptedImageContentTypes
+	) {
+		return null;
+	}
+
+	return {
+		textLimits: wire.textLimits.flatMap((limit) =>
+			limit && typeof limit.unit === 'string' && typeof limit.max === 'number'
+				? [{ unit: limit.unit, max: limit.max }]
+				: [],
+		),
+		maxImages: wire.maxImages,
+		maxImageBytes: wire.maxImageBytes,
+		acceptedImageContentTypes: wire.acceptedImageContentTypes,
+	};
+};
+
 const toTenantPublishTarget = (
 	item: PublishTargetItem,
 ): TenantPublishTarget | null => {
@@ -63,12 +113,7 @@ const toTenantPublishTarget = (
 		return null;
 	}
 
-	const maxTextGraphemes = item.limits?.maxTextGraphemes;
-	const maxTextBytes = item.limits?.maxTextBytes;
-	const limits =
-		typeof maxTextGraphemes === 'number' && typeof maxTextBytes === 'number'
-			? { maxTextGraphemes, maxTextBytes }
-			: null;
+	const limits = toDestinationLimits(item.limits);
 
 	return { id, label: item.label ?? null, provider, limits };
 };

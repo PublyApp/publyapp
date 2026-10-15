@@ -40,6 +40,7 @@ import { PostImagePicker } from '../_post-image-picker';
 import { PostSegmentsEditor } from '../_post-segments-editor';
 import { PublishOnBlock } from '../_publish-on-block';
 import { NO_SEGMENTS, newSegmentDraft } from '../_segment-draft';
+import { usePublishSelection } from '../_use-publish-selection';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -80,15 +81,14 @@ const TenantPostEditPage = () => {
 		() => segments.map((segment) => segment.text),
 		[segments],
 	);
-	// `formState.isSubmitting` covers the whole async handleSubmit callback,
-	// so no manual loading flag is needed here (and a flag reset outside
-	// try/finally trips the loading-flag lint rule).
+	// `formState.isSubmitting` covers the whole async handleSubmit callback.
 	const isSaving = methods.formState.isSubmitting;
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
 	const deleteMutation = useDeleteTenantPostMutation();
 	const storedDetails = toTenantPostDetails(detailsQuery.data);
 	const hasStoredSegments = (storedDetails?.segments.length ?? 0) > 0;
 	const publishedSegmentCount = storedDetails?.publishedSegmentCount ?? 0;
+	const selection = usePublishSelection(storedDetails?.projectId ?? null);
 	// A published thread's published segments, first body included, are read-only.
 	const isBodyLocked = hasStoredSegments && publishedSegmentCount > 0;
 
@@ -261,7 +261,7 @@ const TenantPostEditPage = () => {
 									<PostSegmentsEditor
 										segments={segments}
 										publishedSegmentCount={publishedSegmentCount}
-										projectId={details.projectId}
+										destinations={selection.destinations}
 										onChange={(next) =>
 											methods.setValue('segments', next, { shouldDirty: true })
 										}
@@ -308,14 +308,14 @@ const TenantPostEditPage = () => {
 								className="space-y-4 lg:col-span-4"
 								data-testid="tenant-post-edit-reserved-side-column"
 							>
-								{/* Image since Lane 639; account & schedule follow in Epics C/D */}
 								<PostImagePicker
 									postId={postId}
 									tenantId={tenantId ?? ''}
 									existingImages={details.images}
+									limits={selection.imageLimits}
 								/>
 								<PublishOnBlock
-									projectId={details.projectId}
+									selection={selection}
 									postId={postId}
 									body={body}
 									followUps={followUps}

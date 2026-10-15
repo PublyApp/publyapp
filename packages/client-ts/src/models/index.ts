@@ -1710,6 +1710,15 @@ export function createPublishNowBodyFromDiscriminatorValue(parseNode: ParseNode 
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PublishTargetAttachLimits}
+ */
+// @ts-ignore
+export function createPublishTargetAttachLimitsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPublishTargetAttachLimits;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {PublishTargetItem}
  */
 // @ts-ignore
@@ -1724,6 +1733,15 @@ export function createPublishTargetItemFromDiscriminatorValue(parseNode: ParseNo
 // @ts-ignore
 export function createPublishTargetLimitsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPublishTargetLimits;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PublishTargetTextLimit}
+ */
+// @ts-ignore
+export function createPublishTargetTextLimitFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPublishTargetTextLimit;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3982,6 +4000,7 @@ export function deserializeIntoGetDeadLetterResponse(getDeadLetterResponse: Part
 // @ts-ignore
 export function deserializeIntoGetPublishTargetsForTenantResponse(getPublishTargetsForTenantResponse: Partial<GetPublishTargetsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "attachLimits": n => { getPublishTargetsForTenantResponse.attachLimits = n.getObjectValue<PublishTargetAttachLimits>(createPublishTargetAttachLimitsFromDiscriminatorValue); },
         "items": n => { getPublishTargetsForTenantResponse.items = n.getCollectionOfObjectValues<PublishTargetItem>(createPublishTargetItemFromDiscriminatorValue); },
     }
 }
@@ -4578,6 +4597,19 @@ export function deserializeIntoPublishNowBody(publishNowBody: Partial<PublishNow
 }
 /**
  * The deserialization information for the current model
+ * @param PublishTargetAttachLimits The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPublishTargetAttachLimits(publishTargetAttachLimits: Partial<PublishTargetAttachLimits> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "acceptedImageContentTypes": n => { publishTargetAttachLimits.acceptedImageContentTypes = n.getCollectionOfPrimitiveValues<string>("string"); },
+        "maxImageBytes": n => { publishTargetAttachLimits.maxImageBytes = n.getNumberValue(); },
+        "maxImages": n => { publishTargetAttachLimits.maxImages = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param PublishTargetItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4598,8 +4630,22 @@ export function deserializeIntoPublishTargetItem(publishTargetItem: Partial<Publ
 // @ts-ignore
 export function deserializeIntoPublishTargetLimits(publishTargetLimits: Partial<PublishTargetLimits> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "maxTextBytes": n => { publishTargetLimits.maxTextBytes = n.getNumberValue(); },
-        "maxTextGraphemes": n => { publishTargetLimits.maxTextGraphemes = n.getNumberValue(); },
+        "acceptedImageContentTypes": n => { publishTargetLimits.acceptedImageContentTypes = n.getCollectionOfPrimitiveValues<string>("string"); },
+        "maxImageBytes": n => { publishTargetLimits.maxImageBytes = n.getNumberValue(); },
+        "maxImages": n => { publishTargetLimits.maxImages = n.getNumberValue(); },
+        "textLimits": n => { publishTargetLimits.textLimits = n.getCollectionOfObjectValues<PublishTargetTextLimit>(createPublishTargetTextLimitFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PublishTargetTextLimit The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPublishTargetTextLimit(publishTargetTextLimit: Partial<PublishTargetTextLimit> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "max": n => { publishTargetTextLimit.max = n.getNumberValue(); },
+        "unit": n => { publishTargetTextLimit.unit = n.getStringValue(); },
     }
 }
 /**
@@ -6088,6 +6134,10 @@ export interface GetDeadLetterResponse extends AdditionalDataHolder, Parsable {
 }
 export interface GetPublishTargetsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
+     * What the server accepts when an image is attached to a post, whatever thedestinations: the composer's cap while no destination limits are known.
+     */
+    attachLimits?: PublishTargetAttachLimits | null;
+    /**
      * The items property
      */
     items?: PublishTargetItem[] | null;
@@ -7015,6 +7065,23 @@ export interface PublishNowBody extends AdditionalDataHolder, Parsable {
     accountIds?: UntypedNode | null;
 }
 /**
+ * What the server accepts when an image is attached to a post, whatever thedestinations: the composer's cap while no destination limits are known.
+ */
+export interface PublishTargetAttachLimits extends AdditionalDataHolder, Parsable {
+    /**
+     * The acceptedImageContentTypes property
+     */
+    acceptedImageContentTypes?: string[] | null;
+    /**
+     * The maxImageBytes property
+     */
+    maxImageBytes?: number | null;
+    /**
+     * The maxImages property
+     */
+    maxImages?: number | null;
+}
+/**
  * One row of the composer "Publish on" block: the target account identity plusthe wire values the block renders (plan D2 Task 4 interfaces block).
  */
 export interface PublishTargetItem extends AdditionalDataHolder, Parsable {
@@ -7027,7 +7094,7 @@ export interface PublishTargetItem extends AdditionalDataHolder, Parsable {
      */
     label?: string | null;
     /**
-     * The provider's text limits, so the composer needs no hardcoded numbers(issue #2169).
+     * The account's effective capability, so the composer needs no hardcoded numbers(issues #2169, #2173). `TextLimits` are measured by unit.
      */
     limits?: PublishTargetLimits | null;
     /**
@@ -7036,17 +7103,35 @@ export interface PublishTargetItem extends AdditionalDataHolder, Parsable {
     provider?: string | null;
 }
 /**
- * The provider's text limits, so the composer needs no hardcoded numbers(issue #2169).
+ * The account's effective capability, so the composer needs no hardcoded numbers(issues #2169, #2173). `TextLimits` are measured by unit.
  */
 export interface PublishTargetLimits extends AdditionalDataHolder, Parsable {
     /**
-     * The maxTextBytes property
+     * The acceptedImageContentTypes property
      */
-    maxTextBytes?: number | null;
+    acceptedImageContentTypes?: string[] | null;
     /**
-     * The maxTextGraphemes property
+     * The maxImageBytes property
      */
-    maxTextGraphemes?: number | null;
+    maxImageBytes?: number | null;
+    /**
+     * The maxImages property
+     */
+    maxImages?: number | null;
+    /**
+     * The textLimits property
+     */
+    textLimits?: PublishTargetTextLimit[] | null;
+}
+export interface PublishTargetTextLimit extends AdditionalDataHolder, Parsable {
+    /**
+     * The max property
+     */
+    max?: number | null;
+    /**
+     * The counting rule's name: "graphemes" or "bytes".
+     */
+    unit?: string | null;
 }
 /**
  * HTTP wire result for the reactivate tenant-user operation; top-level sibling per thehandler file contract, with no Dto suffix on wire types.
@@ -8505,6 +8590,7 @@ export function serializeGetDeadLetterResponse(writer: SerializationWriter, getD
 // @ts-ignore
 export function serializeGetPublishTargetsForTenantResponse(writer: SerializationWriter, getPublishTargetsForTenantResponse: Partial<GetPublishTargetsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getPublishTargetsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<PublishTargetAttachLimits>("attachLimits", getPublishTargetsForTenantResponse.attachLimits, serializePublishTargetAttachLimits);
     writer.writeCollectionOfObjectValues<PublishTargetItem>("items", getPublishTargetsForTenantResponse.items, serializePublishTargetItem);
     writer.writeAdditionalData(getPublishTargetsForTenantResponse.additionalData);
 }
@@ -9138,6 +9224,20 @@ export function serializePublishNowBody(writer: SerializationWriter, publishNowB
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PublishTargetAttachLimits The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePublishTargetAttachLimits(writer: SerializationWriter, publishTargetAttachLimits: Partial<PublishTargetAttachLimits> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!publishTargetAttachLimits || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfPrimitiveValues<string>("acceptedImageContentTypes", publishTargetAttachLimits.acceptedImageContentTypes);
+    writer.writeNumberValue("maxImageBytes", publishTargetAttachLimits.maxImageBytes);
+    writer.writeNumberValue("maxImages", publishTargetAttachLimits.maxImages);
+    writer.writeAdditionalData(publishTargetAttachLimits.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PublishTargetItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -9159,9 +9259,24 @@ export function serializePublishTargetItem(writer: SerializationWriter, publishT
 // @ts-ignore
 export function serializePublishTargetLimits(writer: SerializationWriter, publishTargetLimits: Partial<PublishTargetLimits> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!publishTargetLimits || isSerializingDerivedType) { return; }
-    writer.writeNumberValue("maxTextBytes", publishTargetLimits.maxTextBytes);
-    writer.writeNumberValue("maxTextGraphemes", publishTargetLimits.maxTextGraphemes);
+    writer.writeCollectionOfPrimitiveValues<string>("acceptedImageContentTypes", publishTargetLimits.acceptedImageContentTypes);
+    writer.writeNumberValue("maxImageBytes", publishTargetLimits.maxImageBytes);
+    writer.writeNumberValue("maxImages", publishTargetLimits.maxImages);
+    writer.writeCollectionOfObjectValues<PublishTargetTextLimit>("textLimits", publishTargetLimits.textLimits, serializePublishTargetTextLimit);
     writer.writeAdditionalData(publishTargetLimits.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PublishTargetTextLimit The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePublishTargetTextLimit(writer: SerializationWriter, publishTargetTextLimit: Partial<PublishTargetTextLimit> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!publishTargetTextLimit || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("max", publishTargetTextLimit.max);
+    writer.writeStringValue("unit", publishTargetTextLimit.unit);
+    writer.writeAdditionalData(publishTargetTextLimit.additionalData);
 }
 /**
  * Serializes information the current object

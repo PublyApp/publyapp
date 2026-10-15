@@ -1,6 +1,5 @@
 using PublyApp.Api.Modules.Publishing.Lib;
-using PublyApp.Api.Modules.Publishing.Providers;
-using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -73,35 +72,34 @@ public sealed record PublishContentFailure(
 /// target providers are passed in). Drafts are never validated here.
 /// </summary>
 public static class PublishValidationService {
-	public const string GraphemeUnit = "graphemes";
-	public const string ByteUnit = "bytes";
 	public const string ImageUnit = "images";
 
 	public static PublishContentFailure? Validate(
 		string body,
 		IReadOnlyList<string> imageContentTypes,
-		IEnumerable<SocialProvider> providers,
+		IEnumerable<ProviderCapability> capabilities,
 		IReadOnlyList<string>? followUpBodies = null
 	) {
 		var normalized = TextCounter.Normalize(body);
 		IReadOnlyList<string> followUps = followUpBodies ?? [];
-		var providerList = providers.Distinct().ToList();
+		var providerList = capabilities.Distinct().ToList();
 		if (providerList.Count == 0) {
 			return null;
 		}
 
-		if (normalized.Length == 0 && imageContentTypes.Count == 0) {
-			var first = providerList.Count > 0
-				? SocialAccountWire.FormatProvider(providerList[0])
-				: string.Empty;
+		var textRequired = providerList.FirstOrDefault(limits => limits.RequiresText);
+		if (textRequired is not null && normalized.Length == 0 && imageContentTypes.Count == 0) {
 			return new PublishContentFailure(
-				PublishContentFailureKind.Empty, first, PublishValidationService.GraphemeUnit, 0, 0
+				PublishContentFailureKind.Empty,
+				SocialAccountWire.FormatProvider(textRequired.Provider),
+				PublishValidationService._EmptyUnit(textRequired),
+				0,
+				0
 			);
 		}
 
-		foreach (var provider in providerList) {
-			var limits = ProviderLimits.For(provider);
-			var name = SocialAccountWire.FormatProvider(provider);
+		foreach (var limits in providerList) {
+			var name = SocialAccountWire.FormatProvider(limits.Provider);
 
 			if (imageContentTypes.Count > limits.MaxImages) {
 				return new PublishContentFailure(
@@ -139,11 +137,11 @@ public static class PublishValidationService {
 			for (var index = 0; index < followUps.Count; index++) {
 				var followUp = TextCounter.Normalize(followUps[index]);
 				var number = index + 2;
-				if (followUp.Length == 0) {
+				if (followUp.Length == 0 && limits.RequiresText) {
 					return new PublishContentFailure(
 						PublishContentFailureKind.Empty,
 						name,
-						PublishValidationService.GraphemeUnit,
+						PublishValidationService._EmptyUnit(limits),
 						0,
 						0,
 						SegmentNumber: number
@@ -162,34 +160,31 @@ public static class PublishValidationService {
 		return null;
 	}
 
+	// A provider with no text limit still names a unit on an Empty failure.
+	private static string _EmptyUnit(ProviderCapability capability) {
+		return capability.TextLimits.Count > 0
+			? capability.TextLimits[0].Rule.Unit
+			: GraphemeCountingRule.Instance.Unit;
+	}
+
 	private static PublishContentFailure? _ValidateText(
 		string normalized,
-		ProviderLimits limits,
+		ProviderCapability limits,
 		string providerName,
 		int segmentNumber
 	) {
-		var graphemes = TextCounter.CountGraphemes(normalized);
-		if (graphemes > limits.MaxTextGraphemes) {
-			return new PublishContentFailure(
-				PublishContentFailureKind.TooLong,
-				providerName,
-				PublishValidationService.GraphemeUnit,
-				limits.MaxTextGraphemes,
-				graphemes,
-				SegmentNumber: segmentNumber
-			);
-		}
-
-		var bytes = TextCounter.CountBytes(normalized);
-		if (bytes > limits.MaxTextBytes) {
-			return new PublishContentFailure(
-				PublishContentFailureKind.TooLong,
-				providerName,
-				PublishValidationService.ByteUnit,
-				limits.MaxTextBytes,
-				bytes,
-				SegmentNumber: segmentNumber
-			);
+		foreach (var limit in limits.TextLimits) {
+			var actual = limit.Rule.Count(normalized);
+			if (actual > limit.Max) {
+				return new PublishContentFailure(
+					PublishContentFailureKind.TooLong,
+					providerName,
+					limit.Rule.Unit,
+					limit.Max,
+					actual,
+					SegmentNumber: segmentNumber
+				);
+			}
 		}
 
 		return null;

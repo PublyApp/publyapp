@@ -23,7 +23,7 @@
 	"image-alt-placeholder": "Décrivez l’image",
 	"image-discard": "Garder sans l’image",
 	"image-handoff-title": "Votre publication a été enregistrée, mais son image n’a pas été jointe.",
-	"image-help": "PNG, JPEG ou WebP. Jusqu’à {{max}} images.",
+	"image-help": "{{types}}, {{size}} maximum chacune. Jusqu’à {{max}} images.",
 	"image-retry": "Réessayer",
 	"image-add": "Ajouter des images",
 	"image-alt-label-numbered": "Texte alternatif de l’image {{index}}",

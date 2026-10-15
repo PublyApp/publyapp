@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
@@ -255,7 +256,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
-		var limits = ProviderLimits.Bluesky;
+		var limits = ProviderCapabilityRegistry.Bluesky;
 		var entries = new List<Dictionary<string, object?>>();
 		if (request.Media.Count > limits.MaxImages) {
 			return new UploadedImages(
