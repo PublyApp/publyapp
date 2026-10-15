@@ -8,12 +8,12 @@ export type TextCounts = { graphemes: number; bytes: number };
 
 export type TextLimits = { maxTextGraphemes: number; maxTextBytes: number };
 
-export type LimitUnit = 'graphemes' | 'bytes';
+type LimitUnit = 'graphemes' | 'bytes';
 
 /** One destination's limits, as returned by `GET /publishing/publish-targets`. */
 export type LimitedDestination = { label: string; limits: TextLimits };
 
-export type LimitState = 'ok' | 'warning' | 'error';
+type LimitState = 'ok' | 'warning' | 'error';
 
 export type TightestLimit = {
 	state: LimitState;
@@ -28,12 +28,21 @@ const WARNING_RATIO = 0.9;
 
 /** The ONE explicit trailing-trim set; mirrors `_TrailingTrim` in
  * Publishing/Lib/TextCounter.cs (not `trimEnd()`, which differs from .NET). */
-const TRAILING_TRIM =
-	/[\t\n\v\f\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$/;
+const TRAILING_TRIM = new Set(
+	'\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff',
+);
 
-/** CRLF/CR become LF and trailing whitespace is trimmed (counted AND published). */
-export const normalizeText = (text: string): string =>
-	text.replace(/\r\n?/g, '\n').replace(TRAILING_TRIM, '');
+/** CRLF/CR become LF and trailing whitespace is trimmed (counted AND published).
+ * A backwards scan, not a `[...]+$` regex: the regex retries at every space and
+ * goes quadratic on long whitespace runs (~134 ms per keystroke at 20,000). */
+const normalizeText = (text: string): string => {
+	const lf = text.replace(/\r\n?/g, '\n');
+	let end = lf.length;
+	while (end > 0 && TRAILING_TRIM.has(lf[end - 1] ?? '')) {
+		end--;
+	}
+	return lf.slice(0, end);
+};
 
 const segmenter =
 	typeof Intl !== 'undefined' && 'Segmenter' in Intl
