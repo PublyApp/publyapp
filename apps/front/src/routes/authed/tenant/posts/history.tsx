@@ -5,9 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
-import { Button } from '~/components/ui/button';
-import { PageHeader, StatusPill } from '~/components/ui/product-page';
-import { publicationStatusPresentation } from '~/lib/publishing/publication-status';
+import { PageHeader } from '~/components/ui/product-page';
+import {
+	POSTS_PUBLISH,
+	SOCIAL_ACCOUNTS_PUBLISH,
+	useTenantPermissions,
+} from '~/lib/query/tenant-permissions';
 import {
 	invalidateTenantPublications,
 	toTenantPublicationRows,
@@ -19,8 +22,8 @@ import { formatInZone } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { PublicationSegmentProgress } from './_publication-segment-progress';
-import { ScheduledPublicationCause } from './_scheduled-publication-display';
+import { PublicationStatusCell } from './_publication-status-cell';
+import { ResumePausedBanner } from './_resume-paused-banner';
 import { useTenantPostList } from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
@@ -30,101 +33,6 @@ const IN_PROGRESS_POLL_MS = 5_000;
 
 /** Keep polling briefly while publish-now waits for worker pickup. */
 const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
-
-const PublicationStatusCell = ({
-	publication,
-}: {
-	publication: TenantPublicationRow;
-}) => {
-	const { t } = useTranslation(['posts', 'common']);
-
-	const presentation = publicationStatusPresentation(publication.status);
-	if (presentation === null) {
-		return <span className="text-muted-foreground">{'\u2014'}</span>;
-	}
-
-	const pill = (
-		<StatusPill
-			tone={presentation.tone}
-			testId="tenant-posts-history-status-pill"
-		>
-			{t(presentation.labelKey)}
-		</StatusPill>
-	);
-
-	const progress = (
-		<PublicationSegmentProgress
-			status={publication.status}
-			published={publication.segmentsPublished}
-			total={publication.segmentsTotal}
-		/>
-	);
-
-	if (publication.status === 'published' && publication.externalUrl) {
-		return (
-			<div className="flex flex-col items-start gap-1">
-				<div className="flex items-center gap-2">
-					{pill}
-					<a
-						className="publy-record-link"
-						data-testid="tenant-posts-history-link"
-						href={publication.externalUrl}
-						rel="noopener noreferrer"
-						target="_blank"
-					>
-						{t('posts:view-on-bluesky')}
-					</a>
-				</div>
-				{progress}
-			</div>
-		);
-	}
-
-	if (publication.status === 'failed') {
-		return (
-			<div className="flex max-w-xs flex-col items-start gap-1">
-				{pill}
-				{progress}
-				<ScheduledPublicationCause
-					status={publication.status}
-					cause={publication.lastError}
-				/>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled
-					title={t('posts:publish-retry-stub-title')}
-				>
-					{t('posts:publish-retry')}
-				</Button>
-			</div>
-		);
-	}
-
-	if (publication.status === 'paused') {
-		return (
-			<div className="flex flex-col items-start gap-1">
-				{pill}
-				{progress}
-				<ScheduledPublicationCause
-					status={publication.status}
-					cause={publication.lastError}
-				/>
-			</div>
-		);
-	}
-
-	if (publication.segmentsTotal > 1) {
-		return (
-			<div className="flex flex-col items-start gap-1">
-				{pill}
-				{progress}
-			</div>
-		);
-	}
-
-	return pill;
-};
 
 const TenantPostsHistoryPage = () => {
 	const { t, i18n } = useTranslation(['posts', 'common']);
@@ -139,6 +47,9 @@ const TenantPostsHistoryPage = () => {
 		tenantId: tenantId ?? '',
 	});
 	const rows = toTenantPublicationRows(query.data);
+	const { hasPermission } = useTenantPermissions(tenantId);
+	const canPublish =
+		hasPermission(POSTS_PUBLISH) && hasPermission(SOCIAL_ACCOUNTS_PUBLISH);
 	const qc = useQueryClient();
 	const hasInProgress = rows.some(
 		(publication) => publication.status === 'in_progress',
@@ -200,7 +111,13 @@ const TenantPostsHistoryPage = () => {
 				header: t('posts:history-status-label'),
 				enableSorting: false,
 				meta: { width: '240px' },
-				cell: ({ row }) => <PublicationStatusCell publication={row.original} />,
+				cell: ({ row }) => (
+					<PublicationStatusCell
+						publication={row.original}
+						tenantId={tenantId ?? ''}
+						canPublish={canPublish}
+					/>
+				),
 			},
 			{
 				id: 'updated_at',
@@ -213,7 +130,7 @@ const TenantPostsHistoryPage = () => {
 						: '\u2014',
 			},
 		],
-		[t, language],
+		[t, language, tenantId, canPublish],
 	);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
@@ -229,6 +146,9 @@ const TenantPostsHistoryPage = () => {
 				title={t('posts:history')}
 				description={t('posts:history-description')}
 			/>
+			{canPublish && tenantId ? (
+				<ResumePausedBanner rows={rows} tenantId={tenantId} />
+			) : null}
 			<DataTable
 				testId="tenant-posts-history-table"
 				ariaLabel={t('posts:history')}

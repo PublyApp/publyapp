@@ -72,6 +72,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		// handler resolves in PostEndpointsForTenant but its name must be
 		// inventoried here so the route-vs-name cross-check holds.
 		"PublishNowForTenant",
+		// #647: retry of a Failed/Paused publication.
+		"RetryPublicationForTenant",
 	];
 
 	// The explicit, closed inventory of every /posts/* route on the live route map.
@@ -94,6 +96,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		// the existing posts resource (D2 plan reconciliation 2 — the route
 		// landed in #1457 and is a publishing surface).
 		new("/posts/{postId}/publish-now", "POST", IsPublishing: true),
+		new("/posts/publications/{publicationId}/retry", "POST", IsPublishing: true),
 		// ── Non-publishing routes (listed to keep the set closed) ──────────────
 		new("/posts", "POST", IsPublishing: false),
 		new("/posts", "GET", IsPublishing: false),

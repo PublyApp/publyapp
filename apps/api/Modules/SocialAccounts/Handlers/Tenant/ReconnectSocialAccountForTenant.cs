@@ -137,7 +137,8 @@ public sealed class ReconnectSocialAccountForTenant {
 							publicationId,
 							tenantId,
 							"its scheduled time passed while the account needed reconnection"
-								+ "; choose a new time to publish it"
+								+ "; choose a new time to publish it",
+							PublicationFailureCategory.FixContent
 						),
 						cancellationToken
 					);

@@ -1469,6 +1469,10 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("external_url");
 
+                    b.Property<int?>("FailureCategory")
+                        .HasColumnType("integer")
+                        .HasColumnName("failure_category");
+
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1529,6 +1533,8 @@ namespace PublyApp.Api.Migrations
 
                     b.ToTable("publications", t =>
                         {
+                            t.HasCheckConstraint("CK_Publication_FailureCategory", "failure_category IS NULL OR failure_category IN (1, 2, 3, 4)");
+
                             t.HasCheckConstraint("CK_Publication_Status", "status IN (10, 20, 30, 40, 50)");
                         });
                 });

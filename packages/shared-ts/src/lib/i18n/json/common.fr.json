@@ -593,6 +593,7 @@
 	"save-as-draft": "Enregistrer comme brouillon",
 	"publish-now": "Publier maintenant",
 	"publish-now-success": "Publication lancée",
+	"publication-retry-success": "Nouvelle tentative lancée",
 	"forbidden": "Interdit",
 	"no-permission": "Pas de permission",
 	"forbidden-description": "La page à laquelle vous essayez d'accéder a un accès restreint. Veuillez contacter votre administrateur système.",

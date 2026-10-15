@@ -4,6 +4,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
 
@@ -25,6 +26,12 @@ public record PublicationListItem {
 	public string? ExternalUrl { get; init; }
 	public string? LastError { get; init; }
 	public required DateTime UpdatedAt { get; init; }
+	/// <summary>Failure category wire value on Failed/Paused rows, else null (#647).</summary>
+	public string? FailureCategory { get; init; }
+	/// <summary>Delivery attempts since the last retry (#647).</summary>
+	public int Attempts { get; init; }
+	/// <summary>True while the publication's account must be reconnected (#647).</summary>
+	public bool AccountNeedsReconnect { get; init; }
 	/// <summary>Thread segments published so far (0 for a plain post, #2171).</summary>
 	public int SegmentsPublished { get; init; }
 	/// <summary>Total segments of the post (1 for a plain post).</summary>
@@ -107,6 +114,8 @@ public sealed class PublicationListService : IPublicationListService {
 				Publication = publication,
 				PostBody = publication.Post.Body,
 				AccountHandle = publication.SocialAccount.DisplayHandle,
+				AccountNeedsReconnect =
+					publication.SocialAccount.Status == SocialAccountStatus.NeedsReconnect,
 				SegmentsPublished = this._Db.PublicationSegmentResult.Count(result =>
 					result.PublicationId == publication.Id && !result.IsDeleted),
 				FollowUpCount = this._Db.PostSegment.Count(segment =>
@@ -131,6 +140,34 @@ public sealed class PublicationListService : IPublicationListService {
 		);
 	}
 
+	// Rows that failed before categories existed read as Reconnect (Paused) or
+	// Unknown (Failed) (#647).
+	private static PublicationFailureCategory _EffectiveCategory(Publication publication) {
+		return publication.FailureCategory ?? (
+			publication.Status == PublicationStatus.Paused
+				? PublicationFailureCategory.Reconnect
+				: PublicationFailureCategory.Unknown
+		);
+	}
+
+	private static bool _IsFailureStatus(Publication publication) {
+		return publication.Status is PublicationStatus.Failed or PublicationStatus.Paused;
+	}
+
+	private static string? _CategoryFor(Publication publication) {
+		return PublicationListService._IsFailureStatus(publication)
+			? PublicationFailureCategoryWire.Format(PublicationListService._EffectiveCategory(publication))
+			: null;
+	}
+
+	// Failed/Paused rows never show a blank cause (#2013), even legacy ones.
+	private static string? _CauseFor(Publication publication) {
+		return PublicationListService._IsFailureStatus(publication)
+			? PublicationFailureCategoryWire.CauseOrGeneric(
+				publication.LastError, PublicationListService._EffectiveCategory(publication))
+			: publication.LastError;
+	}
+
 	internal static PublicationListItem ToListItem(PublicationRow row) {
 		return new PublicationListItem {
 			Id = row.Publication.GetRequiredId(),
@@ -142,7 +179,10 @@ public sealed class PublicationListService : IPublicationListService {
 			SocialAccountId = row.Publication.SocialAccountId,
 			AccountLabel = row.AccountHandle,
 			ExternalUrl = row.Publication.ExternalUrl,
-			LastError = row.Publication.LastError,
+			LastError = PublicationListService._CauseFor(row.Publication),
+			FailureCategory = PublicationListService._CategoryFor(row.Publication),
+			Attempts = row.Publication.Attempts,
+			AccountNeedsReconnect = row.AccountNeedsReconnect,
 			UpdatedAt = row.Publication.UpdatedAt,
 			SegmentsPublished = row.SegmentsPublished,
 			SegmentsTotal = row.FollowUpCount + 1,
@@ -151,6 +191,7 @@ public sealed class PublicationListService : IPublicationListService {
 }
 
 internal sealed class PublicationRow {
+	public bool AccountNeedsReconnect { get; init; }
 	public required Publication Publication { get; init; }
 	public required string PostBody { get; init; }
 	public required string AccountHandle { get; init; }

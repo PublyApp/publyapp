@@ -83,7 +83,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				new MarkPublicationFailedArgs(
 					publicationId,
 					publication.TenantId,
-					"the post behind this publication no longer exists"
+					"the post behind this publication no longer exists",
+					PublicationFailureCategory.FixContent
 				),
 				cancellationToken
 			);
@@ -137,7 +138,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
-						$"the post can no longer be published: {contentFailure.Cause}"
+						$"the post can no longer be published: {contentFailure.Cause}",
+						PublicationFailureCategory.FixContent
 					),
 					cancellationToken
 				);
@@ -158,7 +160,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
-						$"image {index + 1} is no longer available"
+						$"image {index + 1} is no longer available",
+						PublicationFailureCategory.FixContent
 					),
 					cancellationToken
 				);
@@ -233,7 +236,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					new MarkPublicationFailedArgs(
 						publicationId,
 						publication.TenantId,
-						$"{progress}Bluesky refused the content: {content.Cause}"
+						$"{progress}Bluesky refused the content: {content.Cause}",
+						PublicationFailureCategory.FixContent
 					),
 					cancellationToken
 				);
@@ -354,7 +358,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				new MarkPublicationFailedArgs(
 					publication.GetRequiredId(),
 					publication.TenantId,
-					$"publishing did not succeed after {context.MaxAttempts} attempts: {cause}"
+					$"publishing did not succeed after {context.MaxAttempts} attempts: {cause}",
+					PublicationFailureCategory.RetryLater
 				),
 				cancellationToken
 			);

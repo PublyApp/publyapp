@@ -294,6 +294,55 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	[Fact]
+	public async Task ItShouldPublishARetriedPublicationAsAlreadyExistsWithoutASecondRecord() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var transitions = new PublicationStatusTransitionService(db);
+		_ = await transitions.MarkFailedAsync(
+			new MarkPublicationFailedArgs(
+				seeded.PublicationId,
+				seeded.TenantId,
+				"publishing did not succeed after 3 attempts: timeout",
+				PublicationFailureCategory.RetryLater
+			),
+			CancellationToken.None
+		);
+
+		// Retry keeps the row and its key; the provider already accepted attempt one.
+		_ = await transitions.RetryAsync(
+			new RetryPublicationArgs(seeded.PublicationId, seeded.TenantId),
+			CancellationToken.None
+		);
+		var publishProvider = new FakePublishProvider(
+			new PublishResult.AlreadyExistsTreatedAsPublished(
+				$"at://did:plc:x/app.bsky.feed.post/pub-{seeded.IdempotencyKey}",
+				"https://bsky.app/profile/x/post/existing"
+			)
+		);
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, publishProvider, FakeSessions.Opened());
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Published);
+		publication.LastError.Should().BeNull("the cause clears once the new attempt starts");
+		publication.FailureCategory.Should().BeNull();
+		publication.Attempts.Should().Be(1, "the retry reset the counter before the new attempt");
+		publishProvider.RemoteRecords.Should().HaveCount(1, "no second record");
+		(await db.Publication.CountAsync(p => p.PostId == publication.PostId)).Should().Be(1);
+	}
+
+	[Fact]
 	public async Task ItShouldFailAtDispatchWithoutAProviderCallWhenTheBodyBecameOverLimit() {
 		using var db = await this._NewDbAsync();
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
@@ -352,6 +401,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			"the post body exceeds the 300 grapheme limit",
 			"the persisted cause names what went wrong in plain words"
 		);
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.FixContent);
 
 		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
 		account.Status.Should().NotBe(SocialAccountStatus.NeedsReconnect);
@@ -382,6 +432,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
 		await db.Entry(publication).ReloadAsync();
 		publication.Status.Should().Be(PublicationStatus.Paused);
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.Reconnect);
 		publication.LastError.Should().Contain("needs reconnecting");
 
 		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
@@ -487,6 +538,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		publication.Status.Should().Be(PublicationStatus.Failed);
 		publication.Attempts.Should().Be(3);
 		publication.LastError.Should().Contain("did not succeed after 3 attempts");
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.RetryLater);
 
 		// The engine invokes the terminal hook INSIDE the DLQ transaction; the account
 		// must hear about the exhausted chain while the publication stays Failed.

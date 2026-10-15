@@ -10,6 +10,11 @@ public sealed class PublicationConfiguration : IEntityTypeConfiguration<Publicat
 			"status IN (10, 20, 30, 40, 50)"
 		));
 
+		builder.ToTable(table => table.HasCheckConstraint(
+			"CK_Publication_FailureCategory",
+			"failure_category IS NULL OR failure_category IN (1, 2, 3, 4)"
+		));
+
 		// One ACTIVE delivery per (post, account). Partial so a cancelled-and-recreated
 		// pair is free again (soft-deleted rows leave the constraint), and so a
 		// TERMINAL FAILED row frees the pair for a fresh attempt (round-2 MEDIUM fix:

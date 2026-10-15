@@ -4549,7 +4549,10 @@ export function deserializeIntoProjectListItem(projectListItem: Partial<ProjectL
 export function deserializeIntoPublicationListItem(publicationListItem: Partial<PublicationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountLabel": n => { publicationListItem.accountLabel = n.getStringValue(); },
+        "accountNeedsReconnect": n => { publicationListItem.accountNeedsReconnect = n.getBooleanValue(); },
+        "attempts": n => { publicationListItem.attempts = n.getNumberValue(); },
         "externalUrl": n => { publicationListItem.externalUrl = n.getStringValue(); },
+        "failureCategory": n => { publicationListItem.failureCategory = n.getStringValue(); },
         "id": n => { publicationListItem.id = n.getGuidValue(); },
         "lastError": n => { publicationListItem.lastError = n.getStringValue(); },
         "postExcerpt": n => { publicationListItem.postExcerpt = n.getStringValue(); },
@@ -6948,9 +6951,21 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     accountLabel?: string | null;
     /**
+     * True while the publication's account must be reconnected (#647).
+     */
+    accountNeedsReconnect?: boolean | null;
+    /**
+     * Delivery attempts since the last retry (#647).
+     */
+    attempts?: number | null;
+    /**
      * The externalUrl property
      */
     externalUrl?: string | null;
+    /**
+     * Failure category wire value on Failed/Paused rows, else null (#647).
+     */
+    failureCategory?: string | null;
     /**
      * The id property
      */
@@ -9087,7 +9102,10 @@ export function serializeProjectListItem(writer: SerializationWriter, projectLis
 export function serializePublicationListItem(writer: SerializationWriter, publicationListItem: Partial<PublicationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!publicationListItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("accountLabel", publicationListItem.accountLabel);
+    writer.writeBooleanValue("accountNeedsReconnect", publicationListItem.accountNeedsReconnect);
+    writer.writeNumberValue("attempts", publicationListItem.attempts);
     writer.writeStringValue("externalUrl", publicationListItem.externalUrl);
+    writer.writeStringValue("failureCategory", publicationListItem.failureCategory);
     writer.writeGuidValue("id", publicationListItem.id);
     writer.writeStringValue("lastError", publicationListItem.lastError);
     writer.writeStringValue("postExcerpt", publicationListItem.postExcerpt);

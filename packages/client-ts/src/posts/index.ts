@@ -6,7 +6,7 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindPostsForTenant
 // @ts-ignore
 import { type WithPostItemRequestBuilder, WithPostItemRequestBuilderNavigationMetadata, WithPostItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
-import { PublicationsRequestBuilderRequestsMetadata, type PublicationsRequestBuilder } from './publications/index.js';
+import { PublicationsRequestBuilderNavigationMetadata, PublicationsRequestBuilderRequestsMetadata, type PublicationsRequestBuilder } from './publications/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -95,6 +95,7 @@ export const PostsRequestBuilderNavigationMetadata: Record<Exclude<keyof PostsRe
     },
     publications: {
         requestsMetadata: PublicationsRequestBuilderRequestsMetadata,
+        navigationMetadata: PublicationsRequestBuilderNavigationMetadata,
     },
 };
 /**

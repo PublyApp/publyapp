@@ -4,7 +4,6 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
-using PublyApp.Api.Modules.SocialAccounts.Lib;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
 
@@ -20,13 +19,35 @@ public sealed record MarkPublicationPublishedArgs(
 	string ExternalUrl
 );
 
+/// <summary><paramref name="Category"/> defaults to Unknown when omitted (#647).</summary>
 public sealed record MarkPublicationFailedArgs(
 	Guid PublicationId,
 	Guid TenantId,
-	string Cause
+	string Cause,
+	PublicationFailureCategory? Category = null
 );
 
-public sealed record MarkPublicationPausedArgs(Guid PublicationId, Guid TenantId, string Cause);
+/// <summary><paramref name="Category"/> defaults to Reconnect when omitted (#647).</summary>
+public sealed record MarkPublicationPausedArgs(
+	Guid PublicationId,
+	Guid TenantId,
+	string Cause,
+	PublicationFailureCategory? Category = null
+);
+
+/// <summary>#647: re-queue a Failed/Paused publication under its existing idempotency key.</summary>
+public sealed record RetryPublicationArgs(Guid PublicationId, Guid TenantId);
+
+public enum RetryTransitionResult {
+	/// <summary>Re-queued: Scheduled, due now, attempt counter reset.</summary>
+	Retried,
+	/// <summary>Absent, soft-deleted or in another tenant.</summary>
+	NotFound,
+	/// <summary>Not Failed/Paused (e.g. a concurrent retry already re-queued it).</summary>
+	NotRetryable,
+	/// <summary>A newer live publication already holds the (post, account) pair.</summary>
+	PairOccupied,
+}
 
 public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid TenantId);
 
@@ -70,6 +91,11 @@ public interface IPublicationStatusTransitionService {
 
 	public Task<bool> MarkScheduledAsync(
 		MarkPublicationScheduledArgs args,
+		CancellationToken cancellationToken
+	);
+
+	public Task<RetryTransitionResult> RetryAsync(
+		RetryPublicationArgs args,
 		CancellationToken cancellationToken
 	);
 
@@ -128,6 +154,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.Attempts += 1;
 		publication.Status = PublicationStatus.InProgress;
 		publication.LastError = null;
+		publication.FailureCategory = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
@@ -148,6 +175,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.ExternalRecordId = args.ExternalRecordId;
 		publication.ExternalUrl = args.ExternalUrl;
 		publication.LastError = null;
+		publication.FailureCategory = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
@@ -164,8 +192,10 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		}
 
 		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Failed);
+		var category = args.Category ?? PublicationFailureCategory.Unknown;
 		publication.Status = PublicationStatus.Failed;
-		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
+		publication.FailureCategory = category;
+		publication.LastError = PublicationFailureCategoryWire.CauseOrGeneric(args.Cause, category);
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
@@ -182,8 +212,10 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		}
 
 		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Paused);
+		var category = args.Category ?? PublicationFailureCategory.Reconnect;
 		publication.Status = PublicationStatus.Paused;
-		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
+		publication.FailureCategory = category;
+		publication.LastError = PublicationFailureCategoryWire.CauseOrGeneric(args.Cause, category);
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
@@ -205,6 +237,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.ScheduledAtUtc = scheduledAtUtc;
 		publication.ScheduledTimeZone = scheduledTimeZone;
 		publication.LastError = null;
+		publication.FailureCategory = null;
 		publication.ExternalRecordId = null;
 		publication.ExternalUrl = null;
 	}
@@ -258,10 +291,78 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
 		publication.Status = PublicationStatus.Scheduled;
 		publication.LastError = null;
+		publication.FailureCategory = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
+	}
+
+	/// <summary>
+	/// #647 retry: Failed/Paused → Scheduled due now, attempt counter reset, the
+	/// IdempotencyKey and any stored segment results untouched (a provider that
+	/// already accepted the first attempt dedups instead of double-posting). The
+	/// previous cause and category stay until the new attempt starts
+	/// (<see cref="MarkInProgressAsync"/> clears them). The row is locked FOR UPDATE
+	/// first, so of two concurrent retries exactly one wins and the other reads the
+	/// re-queued status and is refused.
+	/// </summary>
+	public async Task<RetryTransitionResult> RetryAsync(
+		RetryPublicationArgs args,
+		CancellationToken cancellationToken
+	) {
+		await using var transaction =
+			await this._Db.Database.BeginTransactionAsync(cancellationToken);
+		try {
+			var (publicationId, tenantId) = (args.PublicationId, args.TenantId);
+			var locked = await this._Db.Database
+				.SqlQuery<Guid>($"""
+					SELECT id AS "Value" FROM publications
+					WHERE id = {publicationId} AND tenant_id = {tenantId}
+						AND is_deleted = false
+					FOR UPDATE
+					""")
+				.ToListAsync(cancellationToken);
+			if (locked.Count == 0) {
+				await transaction.RollbackAsync(cancellationToken);
+				return RetryTransitionResult.NotFound;
+			}
+
+			var publication = await this._LoadAsync(publicationId, tenantId, cancellationToken);
+			if (publication is null) {
+				await transaction.RollbackAsync(cancellationToken);
+				return RetryTransitionResult.NotFound;
+			}
+
+			if (publication.Status is not (PublicationStatus.Failed or PublicationStatus.Paused)) {
+				await transaction.RollbackAsync(cancellationToken);
+				return RetryTransitionResult.NotRetryable;
+			}
+
+			PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+			publication.Status = PublicationStatus.Scheduled;
+			publication.ScheduledAtUtc = DateTime.UtcNow;
+			publication.Attempts = 0;
+			// #1446: legalise exactly this save's Status writes (one grant, one save).
+			PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+			await this._Db.SaveChangesAsync(cancellationToken);
+			await transaction.CommitAsync(cancellationToken);
+			return RetryTransitionResult.Retried;
+		} catch (DbUpdateException ex) when (
+			ex.InnerException is Npgsql.PostgresException {
+				SqlState: "23505",
+				ConstraintName: "ux_publications_post_account",
+			}
+		) {
+			// A fresh publish-now took the pair while this row sat Failed (Failed
+			// rows release the partial unique index).
+			await transaction.RollbackAsync(cancellationToken);
+			this._Db.ChangeTracker.Clear();
+			return RetryTransitionResult.PairOccupied;
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
 	}
 
 	/// <summary>D3 Task 2: replace the schedule pair on a Scheduled/Paused publication.</summary>
