@@ -19,7 +19,8 @@ public enum PublishContentFailureKind {
 /// <see cref="PublishContentFailureKind.Empty"/>. For the image kinds, Unit is
 /// "images", Limit/Actual are the allowed/actual counts, and
 /// <see cref="ImageIndex"/> (1-based) plus <see cref="ContentType"/> name the
-/// offending image of an unsupported type (#2170).
+/// offending image of an unsupported type (#2170). <see cref="SegmentNumber"/> is
+/// the 1-based thread segment at fault (0 when the post is not a thread, #2171).
 /// </summary>
 public sealed record PublishContentFailure(
 	PublishContentFailureKind Kind,
@@ -28,10 +29,22 @@ public sealed record PublishContentFailure(
 	int Limit,
 	int Actual,
 	int ImageIndex = 0,
-	string? ContentType = null
+	string? ContentType = null,
+	int SegmentNumber = 0
 ) {
 	public string Cause {
 		get {
+			var cause = this._BaseCause;
+			return this.SegmentNumber > 0 ? $"Segment {this.SegmentNumber}: {cause}" : cause;
+		}
+	}
+
+	private string _BaseCause {
+		get {
+			if (this.Kind == PublishContentFailureKind.Empty && this.SegmentNumber > 0) {
+				return "The segment is empty. Write some text or remove it.";
+			}
+
 			if (this.Kind == PublishContentFailureKind.Empty) {
 				return "The post text is empty. Write some text or attach media "
 					+ "before publishing.";
@@ -67,9 +80,11 @@ public static class PublishValidationService {
 	public static PublishContentFailure? Validate(
 		string body,
 		IReadOnlyList<string> imageContentTypes,
-		IEnumerable<SocialProvider> providers
+		IEnumerable<SocialProvider> providers,
+		IReadOnlyList<string>? followUpBodies = null
 	) {
 		var normalized = TextCounter.Normalize(body);
+		IReadOnlyList<string> followUps = followUpBodies ?? [];
 		var providerList = providers.Distinct().ToList();
 		if (providerList.Count == 0) {
 			return null;
@@ -83,9 +98,6 @@ public static class PublishValidationService {
 				PublishContentFailureKind.Empty, first, PublishValidationService.GraphemeUnit, 0, 0
 			);
 		}
-
-		var graphemes = TextCounter.CountGraphemes(normalized);
-		var bytes = TextCounter.CountBytes(normalized);
 
 		foreach (var provider in providerList) {
 			var limits = ProviderLimits.For(provider);
@@ -115,25 +127,69 @@ public static class PublishValidationService {
 				}
 			}
 
-			if (graphemes > limits.MaxTextGraphemes) {
-				return new PublishContentFailure(
-					PublishContentFailureKind.TooLong,
-					name,
-					PublishValidationService.GraphemeUnit,
-					limits.MaxTextGraphemes,
-					graphemes
-				);
+			var isThread = followUps.Count > 0;
+			var textFailure = PublishValidationService._ValidateText(
+				normalized, limits, name, isThread ? 1 : 0
+			);
+			if (textFailure is not null) {
+				return textFailure;
 			}
 
-			if (bytes > limits.MaxTextBytes) {
-				return new PublishContentFailure(
-					PublishContentFailureKind.TooLong,
-					name,
-					PublishValidationService.ByteUnit,
-					limits.MaxTextBytes,
-					bytes
+			// Every follow-up obeys the same per-segment limits (#2171).
+			for (var index = 0; index < followUps.Count; index++) {
+				var followUp = TextCounter.Normalize(followUps[index]);
+				var number = index + 2;
+				if (followUp.Length == 0) {
+					return new PublishContentFailure(
+						PublishContentFailureKind.Empty,
+						name,
+						PublishValidationService.GraphemeUnit,
+						0,
+						0,
+						SegmentNumber: number
+					);
+				}
+
+				var followUpFailure = PublishValidationService._ValidateText(
+					followUp, limits, name, number
 				);
+				if (followUpFailure is not null) {
+					return followUpFailure;
+				}
 			}
+		}
+
+		return null;
+	}
+
+	private static PublishContentFailure? _ValidateText(
+		string normalized,
+		ProviderLimits limits,
+		string providerName,
+		int segmentNumber
+	) {
+		var graphemes = TextCounter.CountGraphemes(normalized);
+		if (graphemes > limits.MaxTextGraphemes) {
+			return new PublishContentFailure(
+				PublishContentFailureKind.TooLong,
+				providerName,
+				PublishValidationService.GraphemeUnit,
+				limits.MaxTextGraphemes,
+				graphemes,
+				SegmentNumber: segmentNumber
+			);
+		}
+
+		var bytes = TextCounter.CountBytes(normalized);
+		if (bytes > limits.MaxTextBytes) {
+			return new PublishContentFailure(
+				PublishContentFailureKind.TooLong,
+				providerName,
+				PublishValidationService.ByteUnit,
+				limits.MaxTextBytes,
+				bytes,
+				SegmentNumber: segmentNumber
+			);
 		}
 
 		return null;

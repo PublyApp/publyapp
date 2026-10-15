@@ -821,6 +821,148 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		account.LastError.Should().NotContain("app-password-hunter2");
 	}
 
+	private static async Task _AddFollowUpsAsync(
+		AppDbContext db,
+		SeededPublication seeded,
+		params string[] bodies
+	) {
+		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
+		for (var index = 0; index < bodies.Length; index++) {
+			db.PostSegment.Add(new PostSegment {
+				TenantId = seeded.TenantId,
+				PostId = postId,
+				Position = index + 1,
+				Body = bodies[index],
+			});
+		}
+
+		await db.SaveChangesAsync();
+	}
+
+	private static PublishPublicationPayload _PayloadOf(SeededPublication seeded) {
+		return new PublishPublicationPayload {
+			PublicationId = seeded.PublicationId,
+			IdempotencyKey = seeded.IdempotencyKey,
+		};
+	}
+
+	[Fact]
+	public async Task ItShouldPersistEachSegmentAsItLandsAndNameTheProgressWhenALaterSegmentFails() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var provider = new ThreadPublishProvider(
+			landBeforeFailing: 2,
+			new PublishResult.ContentFailure("400 InvalidRequest: bad record")
+		);
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, provider, FakeSessions.Opened());
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		provider.Requests.Should().ContainSingle();
+		provider.Requests[0].FollowUpSegments.Should().Equal("two", "three");
+		var stored = await db.PublicationSegmentResult
+			.Where(result => result.PublicationId == seeded.PublicationId)
+			.OrderBy(result => result.SegmentPosition)
+			.ToListAsync();
+		stored.Select(result => result.SegmentPosition).Should().Equal(0, 1);
+		stored[1].ExternalCid.Should().Be("cid-1");
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("Published 2 of 3 segments; segment 3 failed");
+		publication.LastError.Should().Contain("bad record");
+	}
+
+	[Fact]
+	public async Task ItShouldResumeFromTheStoredSegmentsWithoutRepublishingThem() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var first = new ThreadPublishProvider(2, new PublishResult.TransientFailure("503 later"));
+		var firstOutcome = await PublishPublicationJobHandlerSpec._NewHandler(db, first, FakeSessions.Opened())
+			.HandleAsync(
+				PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+				CancellationToken.None
+			);
+		firstOutcome.Should().BeOfType<JobOutcome.Retry>();
+
+		var second = new ThreadPublishProvider(1, new PublishResult.Published("at://root", "https://root"));
+		var secondOutcome = await PublishPublicationJobHandlerSpec._NewHandler(db, second, FakeSessions.Opened())
+			.HandleAsync(
+				PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded), attempts: 1),
+				CancellationToken.None
+			);
+
+		secondOutcome.Should().BeOfType<JobOutcome.Success>();
+		second.Requests[0].CompletedSegments.Select(segment => segment.Position).Should().Equal(0, 1);
+		second.Requests[0].CompletedSegments[1].Cid.Should().Be("cid-1");
+		var stored = await db.PublicationSegmentResult
+			.Where(result => result.PublicationId == seeded.PublicationId)
+			.Select(result => result.SegmentPosition)
+			.ToListAsync();
+		stored.Order().Should().Equal(0, 1, 2);
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Published);
+	}
+
+	[Fact]
+	public async Task ItShouldFailAtDispatchNamingTheSegmentWhenAFollowUpIsOverTheLimit() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "fine", new string('b', 301));
+		var provider = new FakePublishProvider(null);
+
+		await PublishPublicationJobHandlerSpec._NewHandler(db, provider, FakeSessions.Opened()).HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		provider.Requests.Should().BeEmpty();
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("Segment 3").And.Contain("301");
+	}
+
+	// Lands the first N not-yet-completed segments through the progress callback
+	// (like the real provider does), then ends with the configured outcome.
+	private sealed class ThreadPublishProvider : IPublishProvider {
+		private readonly int _LandBeforeFinishing;
+		private readonly PublishResult _Final;
+
+		public ThreadPublishProvider(int landBeforeFailing, PublishResult final) {
+			this._LandBeforeFinishing = landBeforeFailing;
+			this._Final = final;
+		}
+
+		public List<PublishRequest> Requests { get; } = [];
+
+		public async Task<PublishResult> PublishAsync(
+			PublishRequest request,
+			CancellationToken cancellationToken
+		) {
+			this.Requests.Add(request);
+			var next = request.CompletedSegments.Count;
+			for (var landed = 0; landed < this._LandBeforeFinishing; landed++) {
+				var position = next + landed;
+				if (request.OnSegmentCompleted is not null) {
+					await request.OnSegmentCompleted(
+						new CompletedSegment(position, $"at://r/{position}", $"cid-{position}", $"https://u/{position}"),
+						cancellationToken
+					);
+				}
+			}
+
+			return this._Final;
+		}
+	}
+
 	private static class FakeSessions {
 		public static FakeSocialSessionProvider Opened() {
 			return new FakeSocialSessionProvider(

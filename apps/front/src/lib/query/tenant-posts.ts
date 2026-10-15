@@ -1,4 +1,7 @@
-import { createUntypedString } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
@@ -55,12 +58,24 @@ export type TenantPostDetails = {
 	image: TenantPostImage | null;
 	/** The post's images in publish order (up to four). */
 	images: TenantPostImage[];
+	/** Follow-up segments (segments 2..N) of a thread, in order; [] for a plain post. */
+	segments: TenantPostSegment[];
+	/** Leading segments already published: read-only in the editor. */
+	publishedSegmentCount: number;
+};
+
+type TenantPostSegment = {
+	/** 1-based place in the thread (2..N). */
+	number: number;
+	body: string;
 };
 
 export type SavePostInput = {
 	postId?: string;
 	body: string;
 	projectId: string | null;
+	/** Follow-up texts. Undefined leaves the post's segments untouched. */
+	segments?: string[];
 };
 
 // ── Normalization helpers ──────────────────────────────────────────
@@ -170,8 +185,20 @@ export const toTenantPostDetails = (
 		updatedAt: normalizeDate(result?.updatedAt),
 		image: toTenantPostImage(result?.image),
 		images: toTenantPostImages(result?.images),
+		segments: (result?.segments ?? []).flatMap((segment) => {
+			const text = segment.body ?? '';
+			return text ? [{ number: segment.number ?? 0, body: text }] : [];
+		}),
+		publishedSegmentCount: result?.publishedSegmentCount ?? 0,
 	};
 };
+
+/** A blank follow-up carries nothing to publish: it is left out of the save. */
+const withoutBlankSegments = (segments: string[]): string[] =>
+	segments.filter((text) => text.trim() !== '');
+
+const toUntypedSegments = (segments: string[]) =>
+	createUntypedArray(segments.map((text) => createUntypedString(text)));
 
 // ── Query options ──────────────────────────────────────────────────
 
@@ -259,6 +286,12 @@ export const savePost = async (
 			patchBody.projectId = createUntypedString(input.projectId);
 		}
 
+		if (input.segments !== undefined) {
+			patchBody.segments = toUntypedSegments(
+				withoutBlankSegments(input.segments),
+			);
+		}
+
 		const result = await client.posts.byPostId(input.postId).patch(patchBody);
 
 		if (!result) {
@@ -284,6 +317,11 @@ export const savePost = async (
 		createBody.projectId = createUntypedString(input.projectId);
 	}
 
+	const followUps = withoutBlankSegments(input.segments ?? []);
+	if (followUps.length > 0) {
+		createBody.segments = toUntypedSegments(followUps);
+	}
+
 	const result = await client.posts.post(createBody);
 
 	if (!result) {
@@ -299,6 +337,8 @@ export const savePost = async (
 		createdByUserId: null,
 		image: null,
 		images: [],
+		segments: [],
+		publishedSegmentCount: 0,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	};

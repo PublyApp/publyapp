@@ -35,53 +35,48 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		CancellationToken cancellationToken
 	) {
 		var client = this._HttpClientFactory.CreateClient(BlueskyPublishProvider.HttpClientName);
-		var rkey = $"pub-{request.IdempotencyKey}";
 
 		try {
-			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
-				client, request, cancellationToken
-			);
-			if (uploaded.Failure is not null) {
-				return uploaded.Failure;
-			}
+			// Segment 0 is the post body (with the images); 1..N are the thread
+			// follow-ups. Strictly in order: each reply needs the previous uri/cid.
+			var texts = new List<string>(request.FollowUpSegments.Count + 1) { request.PostBody };
+			texts.AddRange(request.FollowUpSegments);
+			var isThread = texts.Count > 1;
+			var done = request.CompletedSegments.ToDictionary(segment => segment.Position);
 
-			using var response = await BlueskyPublishProvider._SendCreateRecordAsync(
-				client, request, rkey, uploaded.Images, cancellationToken
-			);
+			CompletedSegment? root = null;
+			CompletedSegment? parent = null;
+			PublishResult? rootResult = null;
+			for (var position = 0; position < texts.Count; position++) {
+				if (done.TryGetValue(position, out var existing)) {
+					root ??= existing;
+					parent = existing;
+					continue;
+				}
 
-			if (response.IsSuccessStatusCode) {
-				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
-				return new PublishResult.Published(
-					BlueskyPublishProvider._RecordIdentity(payload, request.Session.Did, rkey),
-					BlueskyPublishProvider._WebUrl(BlueskyPublishProvider._RecordIdentity(payload, request.Session.Did, rkey), request.Session.Did, rkey)
+				var outcome = await BlueskyPublishProvider._CreateSegmentAsync(
+					client, request, position, texts[position], isThread, root, parent, cancellationToken
 				);
+				if (outcome.Segment is null) {
+					return outcome.Result;
+				}
+
+				if (isThread && request.OnSegmentCompleted is not null) {
+					await request.OnSegmentCompleted(outcome.Segment, cancellationToken);
+				}
+
+				if (position == 0) {
+					rootResult = outcome.Result;
+				}
+
+				root ??= outcome.Segment;
+				parent = outcome.Segment;
 			}
 
-			var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
-			var cause = $"{(int)response.StatusCode} {error}: {message}";
-
-			if (response.StatusCode is HttpStatusCode.Unauthorized
-				or HttpStatusCode.Forbidden) {
-				return new PublishResult.AccountFailure(
-					"Bluesky rejected the stored credential "
-						+ $"({LastErrorSanitiser.Sanitize(cause) ?? cause})"
-				);
-			}
-
-			if (BlueskyPublishProvider._LooksLikeAlreadyExists(error, message)) {
-				return await BlueskyPublishProvider._ReadExistingBackAsync(client, request.Session, rkey, cancellationToken);
-			}
-
-			if ((int)response.StatusCode >= 500
-				|| response.StatusCode == HttpStatusCode.TooManyRequests) {
-				return new PublishResult.TransientFailure(
-					LastErrorSanitiser.Sanitize(cause) ?? cause
-				);
-			}
-
-			// A 4xx that is neither auth nor a duplicate collision is about the CONTENT.
-			return new PublishResult.ContentFailure(
-				LastErrorSanitiser.Sanitize(cause) ?? cause
+			// A resumed chain whose root was published by an earlier attempt reports
+			// that root's identity, exactly like a freshly created one.
+			return rootResult ?? new PublishResult.Published(
+				root?.RecordId ?? string.Empty, root?.RecordUrl ?? string.Empty
 			);
 		} catch (HttpRequestException exception) {
 			return new PublishResult.TransientFailure(
@@ -96,19 +91,122 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 	}
 
+	/// <summary>Record key of a segment: position 0 keeps the legacy single-post key.</summary>
+	internal static string RecordKey(string idempotencyKey, int position) {
+		return position == 0 ? $"pub-{idempotencyKey}" : $"pub-{idempotencyKey}-s{position}";
+	}
+
+	private sealed record SegmentOutcome(PublishResult Result, CompletedSegment? Segment);
+
+	private static async Task<SegmentOutcome> _CreateSegmentAsync(
+		HttpClient client,
+		PublishRequest request,
+		int position,
+		string text,
+		bool isThread,
+		CompletedSegment? root,
+		CompletedSegment? parent,
+		CancellationToken cancellationToken
+	) {
+		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
+		var images = new List<Dictionary<string, object?>>();
+		if (position == 0) {
+			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
+				client, request, cancellationToken
+			);
+			if (uploaded.Failure is not null) {
+				return new SegmentOutcome(uploaded.Failure, null);
+			}
+
+			images = uploaded.Images.ToList();
+		}
+
+		using var response = await BlueskyPublishProvider._SendCreateRecordAsync(
+			client, request, rkey, text, position, images, root, parent, cancellationToken
+		);
+
+		if (response.IsSuccessStatusCode) {
+			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+			var recordId = BlueskyPublishProvider._RecordIdentity(payload, request.Session.Did, rkey);
+			var cid = BlueskyPublishProvider._Cid(payload);
+			if (isThread && cid.Length == 0) {
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure(
+						$"Bluesky created segment {position + 1} but returned no content id"
+					),
+					null
+				);
+			}
+
+			var url = BlueskyPublishProvider._WebUrl(recordId, request.Session.Did, rkey);
+			return new SegmentOutcome(
+				new PublishResult.Published(recordId, url),
+				new CompletedSegment(position, recordId, cid, url)
+			);
+		}
+
+		var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+		var cause = $"{(int)response.StatusCode} {error}: {message}";
+
+		if (response.StatusCode is HttpStatusCode.Unauthorized
+			or HttpStatusCode.Forbidden) {
+			return new SegmentOutcome(
+				new PublishResult.AccountFailure(
+					"Bluesky rejected the stored credential "
+						+ $"({LastErrorSanitiser.Sanitize(cause) ?? cause})"
+				),
+				null
+			);
+		}
+
+		if (BlueskyPublishProvider._LooksLikeAlreadyExists(error, message)) {
+			var readBack = await BlueskyPublishProvider._ReadExistingBackAsync(
+				client, request.Session, rkey, position, cancellationToken
+			);
+			return readBack;
+		}
+
+		if ((int)response.StatusCode >= 500
+			|| response.StatusCode == HttpStatusCode.TooManyRequests) {
+			return new SegmentOutcome(
+				new PublishResult.TransientFailure(LastErrorSanitiser.Sanitize(cause) ?? cause),
+				null
+			);
+		}
+
+		// A 4xx that is neither auth nor a duplicate collision is about the CONTENT.
+		return new SegmentOutcome(
+			new PublishResult.ContentFailure(LastErrorSanitiser.Sanitize(cause) ?? cause),
+			null
+		);
+	}
+
 	private static async Task<HttpResponseMessage> _SendCreateRecordAsync(
 		HttpClient client,
 		PublishRequest request,
 		string rkey,
+		string text,
+		int position,
 		IReadOnlyList<Dictionary<string, object?>> images,
+		CompletedSegment? root,
+		CompletedSegment? parent,
 		CancellationToken cancellationToken
 	) {
 		var record = new Dictionary<string, object?> {
 			["$type"] = BlueskyPublishProvider._Collection,
-			["text"] = request.PostBody,
+			["text"] = text,
+			// A few milliseconds per segment keeps the thread's order stable.
 			["createdAt"] = DateTime.SpecifyKind(request.ScheduledAtUtc, DateTimeKind.Utc)
+				.AddMilliseconds(position)
 				.ToString("o", CultureInfo.InvariantCulture),
 		};
+		if (position > 0 && root is not null && parent is not null) {
+			record["reply"] = new Dictionary<string, object?> {
+				["root"] = new Dictionary<string, object?> { ["uri"] = root.RecordId, ["cid"] = root.Cid },
+				["parent"] = new Dictionary<string, object?> { ["uri"] = parent.RecordId, ["cid"] = parent.Cid },
+			};
+		}
+
 		if (images.Count > 0) {
 			record["embed"] = new Dictionary<string, object?> {
 				["$type"] = "app.bsky.embed.images",
@@ -262,10 +360,11 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		);
 	}
 
-	private static async Task<PublishResult> _ReadExistingBackAsync(
+	private static async Task<SegmentOutcome> _ReadExistingBackAsync(
 		HttpClient client,
 		SocialSession session,
 		string rkey,
+		int position,
 		CancellationToken cancellationToken
 	) {
 		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
@@ -278,26 +377,41 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			if (response.IsSuccessStatusCode) {
 				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
 				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
-				return new PublishResult.AlreadyExistsTreatedAsPublished(
-					recordId,
-					BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey)
+				var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
+				return new SegmentOutcome(
+					new PublishResult.AlreadyExistsTreatedAsPublished(recordId, webUrl),
+					new CompletedSegment(position, recordId, BlueskyPublishProvider._Cid(payload), webUrl)
 				);
 			}
 
 			var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
-			return new PublishResult.TransientFailure(
-				LastErrorSanitiser.Sanitize(
-					$"an existing record answered already-exists but could not be read back "
-						+ $"({(int)response.StatusCode} {error}: {message})"
-				) ?? "the existing record could not be read back"
+			return new SegmentOutcome(
+				new PublishResult.TransientFailure(
+					LastErrorSanitiser.Sanitize(
+						$"an existing record answered already-exists but could not be read back "
+							+ $"({(int)response.StatusCode} {error}: {message})"
+					) ?? "the existing record could not be read back"
+				),
+				null
 			);
 		} catch (HttpRequestException exception) {
-			return new PublishResult.TransientFailure(
-				LastErrorSanitiser.Sanitize(
-					$"network error reading back the existing record: {exception.Message}"
-				) ?? "network error reading back the existing record"
+			return new SegmentOutcome(
+				new PublishResult.TransientFailure(
+					LastErrorSanitiser.Sanitize(
+						$"network error reading back the existing record: {exception.Message}"
+					) ?? "network error reading back the existing record"
+				),
+				null
 			);
 		}
+	}
+
+	private static string _Cid(JsonElement payload) {
+		if (payload.TryGetProperty("cid", out var cid)) {
+			return cid.GetString() ?? string.Empty;
+		}
+
+		return string.Empty;
 	}
 
 	private static bool _LooksLikeAlreadyExists(string error, string message) {

@@ -47,6 +47,9 @@ export type TenantPublicationRow = {
 	externalUrl: string | null;
 	lastError: string | null;
 	updatedAt: Date | null;
+	/** Thread progress: segments published so far / total segments (1 = plain post). */
+	segmentsPublished: number;
+	segmentsTotal: number;
 };
 
 // ── Status vocabulary guard ────────────────────────────────────────
@@ -168,6 +171,8 @@ const toTenantPublicationRow = (
 		externalUrl: normalizeNullableString(item.externalUrl),
 		lastError: normalizeNullableString(item.lastError),
 		updatedAt: normalizeDate(item.updatedAt),
+		segmentsPublished: item.segmentsPublished ?? 0,
+		segmentsTotal: item.segmentsTotal ?? 1,
 	};
 };
 

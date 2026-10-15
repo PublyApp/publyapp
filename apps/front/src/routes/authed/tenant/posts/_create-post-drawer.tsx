@@ -26,6 +26,7 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
+import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
 
@@ -37,6 +38,8 @@ const getSchema = (t: (k: string) => string) =>
 			.min(1, { message: t('posts:body-required') })
 			.max(20000, { message: t('posts:body-too-long') }),
 		projectId: z.string().nullable().optional(),
+		// Thread follow-ups (segments 2..N); at most 24 after the first body.
+		segments: z.array(z.string().max(20000)).max(24),
 	});
 
 type FormValues = z.infer<ReturnType<typeof getSchema>>;
@@ -113,12 +116,14 @@ export const CreatePostDrawer = ({
 	const projectItems = toTenantProjectItems(projectsQuery.data);
 	const methods = useForm<FormValues>({
 		resolver: zodResolver(getSchema(t)),
-		defaultValues: { body: '', projectId: null },
+		defaultValues: { body: '', projectId: null, segments: [] },
 	});
 	// useWatch subscribes to the field instead of calling `methods.watch()`
 	// during render — the render-time `watch()` read makes React Hook Form an
 	// incompatible library for this component and the compiler skips it.
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
+	const segments =
+		useWatch({ control: methods.control, name: 'segments' }) ?? [];
 
 	const deferredAttach = useAttachDeferredImages(tenantId);
 
@@ -186,6 +191,7 @@ export const CreatePostDrawer = ({
 			const created = await savePost({
 				body: values.body,
 				projectId: values.projectId ?? null,
+				segments: values.segments,
 				tenantId,
 			});
 
@@ -289,6 +295,14 @@ export const CreatePostDrawer = ({
 						>
 							{body.length} / 20000
 						</p>
+						<PostSegmentsEditor
+							segments={segments}
+							publishedSegmentCount={0}
+							projectId={methods.watch('projectId') ?? null}
+							onChange={(next) =>
+								methods.setValue('segments', next, { shouldDirty: true })
+							}
+						/>
 						{methods.formState.errors.root ? (
 							<p className="text-sm text-destructive" role="alert">
 								{methods.formState.errors.root.message}
@@ -327,6 +341,7 @@ export const CreatePostDrawer = ({
 							<PublishOnBlock
 								projectId={methods.watch('projectId') ?? null}
 								body={body}
+								followUps={segments}
 								onBeforePublish={async () => {
 									const values = methods.getValues();
 									await methods.trigger();
@@ -337,6 +352,7 @@ export const CreatePostDrawer = ({
 									const details = await savePost({
 										body: values.body,
 										projectId: values.projectId ?? null,
+										segments: values.segments,
 										tenantId,
 									});
 									// Picked images belong on the post BEFORE it is published,
@@ -355,6 +371,7 @@ export const CreatePostDrawer = ({
 									methods.reset({
 										body: details.body,
 										projectId: details.projectId,
+										segments: values.segments,
 									});
 									return details.id;
 								}}

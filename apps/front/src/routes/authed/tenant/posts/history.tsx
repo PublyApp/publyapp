@@ -19,6 +19,7 @@ import { formatInZone } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { PublicationSegmentProgress } from './_publication-segment-progress';
 import { ScheduledPublicationCause } from './_scheduled-publication-display';
 import { useTenantPostList } from './_use-tenant-post-list';
 
@@ -51,19 +52,30 @@ const PublicationStatusCell = ({
 		</StatusPill>
 	);
 
+	const progress = (
+		<PublicationSegmentProgress
+			status={publication.status}
+			published={publication.segmentsPublished}
+			total={publication.segmentsTotal}
+		/>
+	);
+
 	if (publication.status === 'published' && publication.externalUrl) {
 		return (
-			<div className="flex items-center gap-2">
-				{pill}
-				<a
-					className="publy-record-link"
-					data-testid="tenant-posts-history-link"
-					href={publication.externalUrl}
-					rel="noopener noreferrer"
-					target="_blank"
-				>
-					{t('posts:view-on-bluesky')}
-				</a>
+			<div className="flex flex-col items-start gap-1">
+				<div className="flex items-center gap-2">
+					{pill}
+					<a
+						className="publy-record-link"
+						data-testid="tenant-posts-history-link"
+						href={publication.externalUrl}
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						{t('posts:view-on-bluesky')}
+					</a>
+				</div>
+				{progress}
 			</div>
 		);
 	}
@@ -72,6 +84,7 @@ const PublicationStatusCell = ({
 		return (
 			<div className="flex max-w-xs flex-col items-start gap-1">
 				{pill}
+				{progress}
 				<ScheduledPublicationCause
 					status={publication.status}
 					cause={publication.lastError}
@@ -92,10 +105,20 @@ const PublicationStatusCell = ({
 		return (
 			<div className="flex flex-col items-start gap-1">
 				{pill}
+				{progress}
 				<ScheduledPublicationCause
 					status={publication.status}
 					cause={publication.lastError}
 				/>
+			</div>
+		);
+	}
+
+	if (publication.segmentsTotal > 1) {
+		return (
+			<div className="flex flex-col items-start gap-1">
+				{pill}
+				{progress}
 			</div>
 		);
 	}

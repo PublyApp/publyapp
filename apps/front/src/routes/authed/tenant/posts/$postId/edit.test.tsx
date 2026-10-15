@@ -144,6 +144,9 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 			status: d.status ?? null,
 			createdAt: null,
 			updatedAt: null,
+			images: [],
+			segments: (d.segments as unknown[]) ?? [],
+			publishedSegmentCount: (d.publishedSegmentCount as number) ?? 0,
 		};
 	}),
 	tenantPostCrumbQuery: vi.fn(),
@@ -357,6 +360,8 @@ describe('TenantPostEditPage', () => {
 				tenantId: '11111111-1111-1111-1111-111111111111',
 			}),
 		);
+		// A plain post sends exactly what it always did: no segments field.
+		expect(mocks.savePost.mock.calls[0]?.[0]?.segments).toBeUndefined();
 		expect(mocks.invalidateTenantPosts).toHaveBeenCalledWith(
 			expect.anything(),
 			'11111111-1111-1111-1111-111111111111',

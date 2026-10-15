@@ -128,7 +128,11 @@ const stubLimitedTargets = () => {
 	});
 };
 
-const renderBlock = (props?: { postId?: string; body?: string }) => {
+const renderBlock = (props?: {
+	postId?: string;
+	body?: string;
+	followUps?: string[];
+}) => {
 	const client = new QueryClient();
 
 	return render(
@@ -137,6 +141,7 @@ const renderBlock = (props?: { postId?: string; body?: string }) => {
 				projectId={null}
 				postId={props?.postId ?? POST_ID}
 				body={props?.body}
+				followUps={props?.followUps}
 			/>
 		</QueryClientProvider>,
 	);
@@ -228,6 +233,34 @@ describe('PublishOnBlock', () => {
 				.getByTestId('tenant-posts-limit-counter')
 				.getAttribute('data-state'),
 		).toBe('ok');
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(false);
+	});
+
+	test('blocks Publish now when a thread follow-up is over the limit and names its segment', async () => {
+		allowPermission(true);
+		stubLimitedTargets();
+		const user = userEvent.setup();
+
+		renderBlock({ body: 'short', followUps: ['fine', 'a'.repeat(120)] });
+
+		// The first segment is fine, the third (second follow-up) is not.
+		expect(
+			screen
+				.getByTestId('tenant-posts-limit-counter')
+				.getAttribute('data-state'),
+		).toBe('ok');
+		expect(screen.getByTestId('tenant-posts-segment-limit-error')).toBeTruthy();
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+
+		// Unchecking the strict destination lifts the block for that segment too.
+		await user.click(screen.getByRole('checkbox', { name: 'Strict handle' }));
+		expect(screen.queryByTestId('tenant-posts-segment-limit-error')).toBeNull();
 		expect(
 			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
 				.disabled,

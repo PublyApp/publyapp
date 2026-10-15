@@ -144,6 +144,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<PostMediaAsset>(); }
 	}
 
+	// Follow-up segments of thread posts (#2171); segment 1 stays Post.Body.
+	public DbSet<PostSegment> PostSegment {
+		get { return this.Set<PostSegment>(); }
+	}
+
 	// Data Protection key ring (C1-bis): keys persisted in Postgres, encrypted at rest
 	// with SOCIAL_ACCOUNTS_MASTER_KEY.
 	public DbSet<DataProtectionKey> DataProtectionKeys {
@@ -159,6 +164,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	}
 
 	// Publishing lifecycle (Epic D / D1)
+	// Per-segment outcomes of thread publications (#2171).
+	public DbSet<Modules.Publishing.Entities.PublicationSegmentResult> PublicationSegmentResult {
+		get { return this.Set<Modules.Publishing.Entities.PublicationSegmentResult>(); }
+	}
+
 	public DbSet<Modules.Publishing.Entities.Publication> Publication {
 		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}

@@ -58,6 +58,13 @@ public sealed class GetPostForTenant {
 			tenantId, postIdGuid, cancellationToken
 		);
 
+		var segments = await postService.FindSegmentsAsync(
+			tenantId, postIdGuid, cancellationToken
+		);
+		var publishedSegmentCount = segments.Count > 0
+			? await postService.GetPublishedSegmentCountAsync(postIdGuid, cancellationToken)
+			: 0;
+
 		return TypedResults.Ok(new PostDetail {
 			Id = post.GetRequiredId(),
 			TenantId = post.TenantId,
@@ -69,6 +76,8 @@ public sealed class GetPostForTenant {
 			UpdatedAt = post.UpdatedAt,
 			Image = PostWire.FormatImage(assets.FirstOrDefault()),
 			Images = PostWire.FormatImages(assets),
+			Segments = segments,
+			PublishedSegmentCount = publishedSegmentCount,
 		});
 	}
 }
@@ -85,4 +94,8 @@ public record PostDetail {
 	/// <summary>The first image; kept for one release for old clients (use <see cref="Images"/>).</summary>
 	public required PostImageReadModel? Image { get; init; }
 	public required IReadOnlyList<PostImageReadModel> Images { get; init; }
+	/// <summary>Follow-up segments (segments 2..N) of a thread; empty for a plain post.</summary>
+	public required IReadOnlyList<PostSegmentReadModel> Segments { get; init; }
+	/// <summary>Leading segments already published (read-only); 0 unless a thread went out.</summary>
+	public required int PublishedSegmentCount { get; init; }
 }

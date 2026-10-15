@@ -11,6 +11,9 @@ public static class PostValidationRules {
 	// Storage guard for the DRAFT body only (#2169): publish/schedule limits are
 	// per provider (Publishing/Providers/ProviderLimits.cs), not this constant.
 	public const int BodyMaxLength = 20_000;
+	// A thread is 1..25 segments: the first is Post.Body, at most 24 follow-ups (#2171).
+	public const int MaxSegments = 25;
+	public const int MaxFollowUpSegments = PostValidationRules.MaxSegments - 1;
 	public const int SearchMaxLength = 256;
 
 	// Alt text rides on the attached image row; bounded here like every other

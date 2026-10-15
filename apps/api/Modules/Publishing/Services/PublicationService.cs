@@ -176,6 +176,9 @@ public abstract record EditPostScheduleResult {
 	/// <summary>The effective post text is empty or over a target provider's limit (422).</summary>
 	public sealed record ContentInvalid(PublishContentFailure Failure)
 		: EditPostScheduleResult;
+
+	/// <summary>The edit would change an already-published thread segment (422).</summary>
+	public sealed record SegmentsLocked() : EditPostScheduleResult;
 }
 
 public interface IPublicationService {
@@ -283,7 +286,10 @@ public sealed class PublicationService : IPublicationService {
 		var contentFailure = PublishValidationService.Validate(
 			post.Body,
 			await this._ImageContentTypesAsync(post.GetRequiredId(), cancellationToken),
-			accounts.Select(account => account.Provider)
+			accounts.Select(account => account.Provider),
+			await ThreadSegments.FollowUpBodiesAsync(
+				this._DbContext, post.GetRequiredId(), cancellationToken
+			)
 		);
 		if (contentFailure is not null) {
 			return new ScheduleResult.ContentInvalid(contentFailure);
@@ -306,6 +312,17 @@ public sealed class PublicationService : IPublicationService {
 		this._DbContext.Publication.AddRange(publications);
 		this._AddAuditEntry(args, publications.Count, timeZoneId);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
+
+		// Re-issuing a failed thread continues after its last published segment.
+		await ThreadSegments.CarryOverFailedProgressAsync(
+			this._DbContext,
+			args.TenantId,
+			post.GetRequiredId(),
+			publications
+				.Select(publication => (publication.GetRequiredId(), publication.SocialAccountId))
+				.ToList(),
+			cancellationToken
+		);
 
 		// The key derives deterministically from the DB-generated row id (Epic A §4.1).
 		foreach (var publication in publications) {
@@ -437,11 +454,26 @@ public sealed class PublicationService : IPublicationService {
 					? args.Body.Value
 					: post.Body,
 				await this._ImageContentTypesAsync(postId, cancellationToken),
-				targetProviders
+				targetProviders,
+				await ThreadSegments.FollowUpBodiesAsync(
+					this._DbContext, postId, cancellationToken
+				)
 			);
 			if (contentFailure is not null) {
 				return new EditPostScheduleResult.ContentInvalid(contentFailure);
 			}
+		}
+
+		// A thread whose first segment is already published keeps its text (#2171).
+		if (args.Body.IsPresent && args.Body.Value is not null
+			&& args.Body.Value != post.Body
+			&& await ThreadSegments.PublishedSegmentCountAsync(
+				this._DbContext, postId, cancellationToken
+			) > 0
+			&& (await ThreadSegments.FollowUpBodiesAsync(
+				this._DbContext, postId, cancellationToken
+			)).Count > 0) {
+			return new EditPostScheduleResult.SegmentsLocked();
 		}
 
 		if (args.Body.IsPresent && args.Body.Value is not null) {

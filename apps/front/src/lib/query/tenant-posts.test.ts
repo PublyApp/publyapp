@@ -40,6 +40,7 @@ import {
 	buildFindTenantPostsQueryParameters,
 	toTenantPostRows,
 	toTenantPostDetails,
+	savePost,
 	useSavePostMutation,
 	useDeleteTenantPostMutation,
 } from './tenant-posts';
@@ -178,6 +179,75 @@ describe('tenant-posts helpers', () => {
 		expect(details!.body).toBe('Test body');
 		expect(details!.projectId).toBe('22222222-2222-7222-8222-222222222222');
 		expect(details!.status).toBe('draft');
+	});
+});
+
+describe('thread segments', () => {
+	const POST_ID = '11111111-1111-7111-8111-111111111111';
+	const TENANT_ID = '22222222-2222-7222-8222-222222222222';
+
+	test('toTenantPostDetails maps follow-up segments and the published count', () => {
+		const details = toTenantPostDetails({
+			id: POST_ID,
+			body: 'one',
+			segments: [
+				{ number: 2, body: 'two' },
+				{ number: 3, body: 'three' },
+			],
+			publishedSegmentCount: 2,
+		} as PostDetail);
+
+		expect(details?.segments).toEqual([
+			{ number: 2, body: 'two' },
+			{ number: 3, body: 'three' },
+		]);
+		expect(details?.publishedSegmentCount).toBe(2);
+	});
+
+	test('a plain post maps to no segments and none published', () => {
+		const details = toTenantPostDetails({
+			id: POST_ID,
+			body: 'one',
+		} as PostDetail);
+
+		expect(details?.segments).toEqual([]);
+		expect(details?.publishedSegmentCount).toBe(0);
+	});
+
+	test('savePost leaves segments out of the patch when none are given', async () => {
+		await savePost({
+			postId: POST_ID,
+			body: 'Updated body',
+			projectId: null,
+			tenantId: TENANT_ID,
+		});
+
+		expect(mocks.patch.mock.calls[0]?.[0].segments).toBeUndefined();
+	});
+
+	test('savePost sends the follow-ups without blanks, and [] clears them', async () => {
+		await savePost({
+			postId: POST_ID,
+			body: 'Updated body',
+			projectId: null,
+			segments: ['two', '  ', 'three'],
+			tenantId: TENANT_ID,
+		});
+		await savePost({
+			postId: POST_ID,
+			body: 'Updated body',
+			projectId: null,
+			segments: [],
+			tenantId: TENANT_ID,
+		});
+
+		const sent = mocks.patch.mock.calls[0]?.[0].segments;
+		expect(
+			sent
+				.getValue()
+				.map((node: { getValue: () => string }) => node.getValue()),
+		).toEqual(['two', 'three']);
+		expect(mocks.patch.mock.calls[1]?.[0].segments.getValue()).toEqual([]);
 	});
 });
 

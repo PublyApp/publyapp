@@ -22,9 +22,21 @@ public record UpdatePostBody {
 	public JsonElement? Body { get; init; }
 	public JsonElement ProjectId { get; init; }
 	public JsonElement ImageAltText { get; init; }
+	public JsonElement Segments { get; init; }
 
 	public string? GetBody() {
 		return this.Body.GetValueAsStringOrNull();
+	}
+
+	// Follow-up segments (segments 2..N, #2171); absent = no follow-ups / untouched.
+	public IReadOnlyList<string>? GetSegments() {
+		if (this.Segments.ValueKind != JsonValueKind.Array) {
+			return null;
+		}
+
+		return this.Segments.EnumerateArray()
+			.Select(item => item.GetString() ?? string.Empty)
+			.ToList();
 	}
 
 	public PatchField<Guid?> GetProjectId() {
@@ -95,6 +107,15 @@ public class UpdatePostBodyValidator
 				"ImageAltText",
 				PostValidationRules.ImageAltTextMaxLength
 			);
+
+		this.RuleFor(x => x.Segments)
+			.MustBeRequiredStringArrayAllowingEmpty(
+				"Segments",
+				"segment",
+				PostValidationRules.MaxFollowUpSegments,
+				PostValidationRules.BodyMaxLength
+			)
+			.When(x => x.Segments.ValueKind != JsonValueKind.Undefined);
 	}
 }
 
@@ -148,8 +169,10 @@ public sealed class UpdatePostForTenant {
 		var postBody = body.GetBody();
 		var projectId = body.GetProjectId();
 		var imageAltText = body.GetImageAltText();
+		var segments = body.GetSegments();
 
-		if (postBody is null && !projectId.IsPresent && !imageAltText.IsPresent) {
+		if (postBody is null && !projectId.IsPresent && !imageAltText.IsPresent
+			&& segments is null) {
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -185,7 +208,8 @@ public sealed class UpdatePostForTenant {
 			PostId: postIdGuid,
 			ProjectId: projectId,
 			Body: postBody,
-			ImageAltText: imageAltText
+			ImageAltText: imageAltText,
+			Segments: segments
 		);
 
 		var result = await postService.UpdateForTenantAsync(
@@ -218,6 +242,18 @@ public sealed class UpdatePostForTenant {
 				new Dictionary<string, string[]> {
 					["imageAltText"] = [
 						"Alt text can only be set on an attached image."
+					],
+				}
+			);
+		}
+
+		if (result is UpdatePostResult.SegmentsLocked) {
+			return TypedProblems.ValidationProblem(
+				"Segments that are already published cannot be changed",
+				ResponseKeys.PostSegmentsLocked,
+				new Dictionary<string, string[]> {
+					["segments"] = [
+						"Published segments are read-only: keep their text and order."
 					],
 				}
 			);

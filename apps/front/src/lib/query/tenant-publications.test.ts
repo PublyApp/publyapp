@@ -161,6 +161,8 @@ describe('toTenantPublicationRows', () => {
 			externalUrl: 'https://bsky.app/profile/team.publyapp.dev/post/1',
 			lastError: null,
 			updatedAt,
+			segmentsPublished: 0,
+			segmentsTotal: 1,
 		});
 		expect(rows[1].status).toBe('failed');
 		expect(rows[1].lastError).toBe('Bluesky refused the credentials');

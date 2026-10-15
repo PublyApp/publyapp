@@ -133,7 +133,10 @@ public sealed class PublishNowService : IPublishNowService {
 				orderby media.Position
 				select media.ContentType
 			).ToListAsync(cancellationToken),
-			eligible.Select(account => account.Provider)
+			eligible.Select(account => account.Provider),
+			await ThreadSegments.FollowUpBodiesAsync(
+				this._Db, post.GetRequiredId(), cancellationToken
+			)
 		);
 		if (contentFailure is not null) {
 			return new PublishNowResult.ContentInvalid(contentFailure);
@@ -180,6 +183,16 @@ public sealed class PublishNowService : IPublishNowService {
 				keysByPublicationId.Add((publicationId, idempotencyKey));
 			}
 
+			// Re-issuing a failed thread continues after its last published segment.
+			await ThreadSegments.CarryOverFailedProgressAsync(
+				this._Db,
+				args.TenantId,
+				postId,
+				candidates
+					.Zip(keysByPublicationId, (account, entry) => (entry.PublicationId, account.GetRequiredId()))
+					.ToList(),
+				cancellationToken
+			);
 			await this._Db.SaveChangesAsync(cancellationToken);
 
 			foreach (var (publicationId, key) in keysByPublicationId) {

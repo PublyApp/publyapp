@@ -25,6 +25,10 @@ public static class PublishContentProblems {
 			extensions["contentType"] = failure.ContentType;
 		}
 
+		if (failure.SegmentNumber > 0) {
+			extensions["segmentNumber"] = failure.SegmentNumber;
+		}
+
 		return TypedProblems.ValidationProblem(
 			failure.Cause,
 			key,

@@ -30,7 +30,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 
 	public sealed record RecordedPublish(string IdempotencyKey, IReadOnlyList<RecordedImage> Images);
 
-	public Task<PublishResult> PublishAsync(
+	public async Task<PublishResult> PublishAsync(
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
@@ -42,14 +42,28 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 					.ToList()
 			)
 		);
-		var rkey = $"pub-{request.IdempotencyKey}";
 		var did = request.Session.Did;
-		var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";
-		var url = $"https://bsky.app/profile/{did}/post/{rkey}";
+		var segmentCount = request.FollowUpSegments.Count + 1;
+		var completed = request.CompletedSegments.Select(segment => segment.Position).ToHashSet();
+		PublishResult rootResult = new PublishResult.ContentFailure("no root segment");
+		for (var position = 0; position < segmentCount; position++) {
+			var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
+			var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";
+			var url = $"https://bsky.app/profile/{did}/post/{rkey}";
+			if (position == 0) {
+				rootResult = new PublishResult.Published(recordId, url);
+			}
 
-		return Task.FromResult<PublishResult>(
-			new PublishResult.Published(recordId, url)
-		);
+			if (segmentCount > 1 && !completed.Contains(position)
+				&& request.OnSegmentCompleted is not null) {
+				await request.OnSegmentCompleted(
+					new CompletedSegment(position, recordId, $"fake-cid-{rkey}", url),
+					cancellationToken
+				);
+			}
+		}
+
+		return rootResult;
 	}
 }
 

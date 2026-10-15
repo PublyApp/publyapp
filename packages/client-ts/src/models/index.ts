@@ -1576,6 +1576,10 @@ export interface CreatePostBody extends AdditionalDataHolder, Parsable {
      * The projectId property
      */
     projectId?: UntypedNode | null;
+    /**
+     * The segments property
+     */
+    segments?: UntypedNode | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1648,6 +1652,15 @@ export function createPostListItem_imageFromDiscriminatorValue(parseNode: ParseN
 // @ts-ignore
 export function createPostListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPostListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostSegmentReadModel}
+ */
+// @ts-ignore
+export function createPostSegmentReadModelFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostSegmentReadModel;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3431,6 +3444,7 @@ export function deserializeIntoCreatePostBody(createPostBody: Partial<CreatePost
     return {
         "body": n => { createPostBody.body = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "projectId": n => { createPostBody.projectId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "segments": n => { createPostBody.segments = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4378,6 +4392,8 @@ export function deserializeIntoPostDetail(postDetail: Partial<PostDetail> | unde
         "image": n => { postDetail.image = n.getObjectValue<PostDetail_image>(createPostDetail_imageFromDiscriminatorValue); },
         "images": n => { postDetail.images = n.getCollectionOfObjectValues<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue); },
         "projectId": n => { postDetail.projectId = n.getGuidValue(); },
+        "publishedSegmentCount": n => { postDetail.publishedSegmentCount = n.getNumberValue(); },
+        "segments": n => { postDetail.segments = n.getCollectionOfObjectValues<PostSegmentReadModel>(createPostSegmentReadModelFromDiscriminatorValue); },
         "status": n => { postDetail.status = n.getStringValue(); },
         "tenantId": n => { postDetail.tenantId = n.getGuidValue(); },
         "updatedAt": n => { postDetail.updatedAt = n.getDateValue(); },
@@ -4471,6 +4487,18 @@ export function deserializeIntoPostListItem_image(postListItem_image: Partial<Po
 }
 /**
  * The deserialization information for the current model
+ * @param PostSegmentReadModel The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostSegmentReadModel(postSegmentReadModel: Partial<PostSegmentReadModel> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "body": n => { postSegmentReadModel.body = n.getStringValue(); },
+        "number": n => { postSegmentReadModel.number = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param PostUpdated The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4526,6 +4554,8 @@ export function deserializeIntoPublicationListItem(publicationListItem: Partial<
         "lastError": n => { publicationListItem.lastError = n.getStringValue(); },
         "postExcerpt": n => { publicationListItem.postExcerpt = n.getStringValue(); },
         "postId": n => { publicationListItem.postId = n.getGuidValue(); },
+        "segmentsPublished": n => { publicationListItem.segmentsPublished = n.getNumberValue(); },
+        "segmentsTotal": n => { publicationListItem.segmentsTotal = n.getNumberValue(); },
         "socialAccountId": n => { publicationListItem.socialAccountId = n.getGuidValue(); },
         "status": n => { publicationListItem.status = n.getStringValue(); },
         "updatedAt": n => { publicationListItem.updatedAt = n.getDateValue(); },
@@ -5536,6 +5566,7 @@ export function deserializeIntoUpdatePostBody(updatePostBody: Partial<UpdatePost
         "body": n => { updatePostBody.body = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "imageAltText": n => { updatePostBody.imageAltText = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "projectId": n => { updatePostBody.projectId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "segments": n => { updatePostBody.segments = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6706,6 +6737,14 @@ export interface PostDetail extends AdditionalDataHolder, Parsable {
      */
     projectId?: Guid | null;
     /**
+     * Leading segments already published (read-only); 0 unless a thread went out.
+     */
+    publishedSegmentCount?: number | null;
+    /**
+     * Follow-up segments (segments 2..N) of a thread; empty for a plain post.
+     */
+    segments?: PostSegmentReadModel[] | null;
+    /**
      * The status property
      */
     status?: string | null;
@@ -6829,6 +6868,19 @@ export interface PostListItem extends AdditionalDataHolder, Parsable {
 }
 export interface PostListItem_image extends Parsable, PostImageReadModel {
 }
+/**
+ * One follow-up segment: int PostSegmentReadModel.Number is its 1-based place in the thread (2..N).
+ */
+export interface PostSegmentReadModel extends AdditionalDataHolder, Parsable {
+    /**
+     * The body property
+     */
+    body?: string | null;
+    /**
+     * The number property
+     */
+    number?: number | null;
+}
 export interface PostUpdated extends AdditionalDataHolder, Parsable {
     /**
      * The body property
@@ -6915,6 +6967,14 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      * The postId property
      */
     postId?: Guid | null;
+    /**
+     * Thread segments published so far (0 for a plain post, #2171).
+     */
+    segmentsPublished?: number | null;
+    /**
+     * Total segments of the post (1 for a plain post).
+     */
+    segmentsTotal?: number | null;
     /**
      * The socialAccountId property
      */
@@ -7847,6 +7907,7 @@ export function serializeCreatePostBody(writer: SerializationWriter, createPostB
     if (!createPostBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("body", createPostBody.body);
     writer.writeObjectValue("projectId", createPostBody.projectId);
+    writer.writeObjectValue("segments", createPostBody.segments);
     writer.writeAdditionalData(createPostBody.additionalData);
 }
 /**
@@ -8860,6 +8921,8 @@ export function serializePostDetail(writer: SerializationWriter, postDetail: Par
     writer.writeObjectValue<PostDetail_image>("image", postDetail.image, serializePostDetail_image);
     writer.writeCollectionOfObjectValues<PostImageReadModel>("images", postDetail.images, serializePostImageReadModel);
     writer.writeGuidValue("projectId", postDetail.projectId);
+    writer.writeNumberValue("publishedSegmentCount", postDetail.publishedSegmentCount);
+    writer.writeCollectionOfObjectValues<PostSegmentReadModel>("segments", postDetail.segments, serializePostSegmentReadModel);
     writer.writeStringValue("status", postDetail.status);
     writer.writeGuidValue("tenantId", postDetail.tenantId);
     writer.writeDateValue("updatedAt", postDetail.updatedAt);
@@ -8958,6 +9021,19 @@ export function serializePostListItem_image(writer: SerializationWriter, postLis
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostSegmentReadModel The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostSegmentReadModel(writer: SerializationWriter, postSegmentReadModel: Partial<PostSegmentReadModel> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!postSegmentReadModel || isSerializingDerivedType) { return; }
+    writer.writeStringValue("body", postSegmentReadModel.body);
+    writer.writeNumberValue("number", postSegmentReadModel.number);
+    writer.writeAdditionalData(postSegmentReadModel.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PostUpdated The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -9016,6 +9092,8 @@ export function serializePublicationListItem(writer: SerializationWriter, public
     writer.writeStringValue("lastError", publicationListItem.lastError);
     writer.writeStringValue("postExcerpt", publicationListItem.postExcerpt);
     writer.writeGuidValue("postId", publicationListItem.postId);
+    writer.writeNumberValue("segmentsPublished", publicationListItem.segmentsPublished);
+    writer.writeNumberValue("segmentsTotal", publicationListItem.segmentsTotal);
     writer.writeGuidValue("socialAccountId", publicationListItem.socialAccountId);
     writer.writeStringValue("status", publicationListItem.status);
     writer.writeDateValue("updatedAt", publicationListItem.updatedAt);
@@ -10096,6 +10174,7 @@ export function serializeUpdatePostBody(writer: SerializationWriter, updatePostB
     writer.writeObjectValue("body", updatePostBody.body);
     writer.writeObjectValue("imageAltText", updatePostBody.imageAltText);
     writer.writeObjectValue("projectId", updatePostBody.projectId);
+    writer.writeObjectValue("segments", updatePostBody.segments);
     writer.writeAdditionalData(updatePostBody.additionalData);
 }
 /**
@@ -11460,6 +11539,10 @@ export interface UpdatePostBody extends AdditionalDataHolder, Parsable {
      * The projectId property
      */
     projectId?: UntypedNode | null;
+    /**
+     * The segments property
+     */
+    segments?: UntypedNode | null;
 }
 export interface UpdatePostImageBody extends AdditionalDataHolder, Parsable {
     /**

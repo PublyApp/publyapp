@@ -36,6 +36,7 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { PostImagePicker } from '../_post-image-picker';
+import { PostSegmentsEditor } from '../_post-segments-editor';
 import { PublishOnBlock } from '../_publish-on-block';
 
 const getSchema = (t: (k: string) => string) =>
@@ -46,6 +47,8 @@ const getSchema = (t: (k: string) => string) =>
 			.min(1, { message: t('posts:body-required') })
 			.max(20000, { message: t('posts:body-too-long') }),
 		projectId: z.string().nullable().optional(),
+		// Thread follow-ups (segments 2..N); at most 24 after the first body.
+		segments: z.array(z.string().max(20000)).max(24),
 	});
 
 type Values = z.infer<ReturnType<typeof getSchema>>;
@@ -64,20 +67,32 @@ const TenantPostEditPage = () => {
 	const projectItems = toTenantProjectItems(projectsQuery.data);
 	const methods = useForm<Values>({
 		resolver: zodResolver(getSchema(t)),
-		defaultValues: { body: '', projectId: null },
+		defaultValues: { body: '', projectId: null, segments: [] },
 	});
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
+	const segments =
+		useWatch({ control: methods.control, name: 'segments' }) ?? [];
 	// `formState.isSubmitting` covers the whole async handleSubmit callback,
 	// so no manual loading flag is needed here (and a flag reset outside
 	// try/finally trips the loading-flag lint rule).
 	const isSaving = methods.formState.isSubmitting;
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
 	const deleteMutation = useDeleteTenantPostMutation();
+	const storedDetails = toTenantPostDetails(detailsQuery.data);
+	const hasStoredSegments = (storedDetails?.segments.length ?? 0) > 0;
+	const publishedSegmentCount = storedDetails?.publishedSegmentCount ?? 0;
+	// Once a thread went out, its published segments (the first body included)
+	// can no longer change.
+	const isBodyLocked = hasStoredSegments && publishedSegmentCount > 0;
 
 	useEffect(() => {
 		const d = toTenantPostDetails(detailsQuery.data);
 		if (d) {
-			methods.reset({ body: d.body, projectId: d.projectId });
+			methods.reset({
+				body: d.body,
+				projectId: d.projectId,
+				segments: d.segments.map((segment) => segment.body),
+			});
 		}
 	}, [detailsQuery.data, methods]);
 
@@ -103,6 +118,11 @@ const TenantPostEditPage = () => {
 				postId,
 				body: values.body,
 				projectId: values.projectId ?? null,
+				// Plain posts keep sending exactly what they always did.
+				segments:
+					values.segments.length > 0 || hasStoredSegments
+						? values.segments
+						: undefined,
 				tenantId: tenantId ?? '',
 			});
 			await invalidateTenantPosts(qc, tenantId ?? '');
@@ -226,6 +246,7 @@ const TenantPostEditPage = () => {
 										name="body"
 										label={t('posts:body-label')}
 										rows={10}
+										readOnly={isBodyLocked}
 										placeholder={t('posts:body-placeholder')}
 										data-testid="tenant-post-edit-body"
 									/>
@@ -238,6 +259,14 @@ const TenantPostEditPage = () => {
 									>
 										{body.length} / 20000
 									</p>
+									<PostSegmentsEditor
+										segments={segments}
+										publishedSegmentCount={publishedSegmentCount}
+										projectId={details.projectId}
+										onChange={(next) =>
+											methods.setValue('segments', next, { shouldDirty: true })
+										}
+									/>
 									<Field.Select
 										name="projectId"
 										label={t('posts:project-label')}
@@ -305,6 +334,7 @@ const TenantPostEditPage = () => {
 									projectId={details.projectId}
 									postId={postId}
 									body={body}
+									followUps={segments}
 								/>
 							</div>
 						</div>
