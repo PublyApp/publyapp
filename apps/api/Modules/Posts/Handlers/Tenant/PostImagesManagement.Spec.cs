@@ -158,6 +158,63 @@ public sealed class PostImagesManagementSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldStillAttachWhenPositionsHaveAGap() {
+		var (tenantId, token) = await this._LoginAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		await this._AttachAsync(tenantId, token, postId, 10);
+		await this._AttachAsync(tenantId, token, postId, 20);
+		var third = await this._AttachAsync(tenantId, token, postId, 30);
+
+		// A concurrent remove can leave {0,1,3}; reproduce it directly.
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var thirdId = third.Id;
+			_ = await db.Database.ExecuteSqlAsync(
+				$"UPDATE post_media_assets SET position = 3 WHERE id = {thirdId}"
+			);
+		}
+
+		var next = await this._AttachAsync(tenantId, token, postId, 40);
+
+		next.Position.Should().Be(4, "the next slot is one past the highest live position");
+		var post = await this._GetPostAsync(tenantId, token, postId);
+		post.Images.Select(i => i.Position).Should().Equal(0, 1, 3, 4);
+
+		// The cap still holds on the count, not on position values.
+		using var fifth = await this._SendAsync(
+			tenantId, token, HttpMethod.Post, $"/posts/{postId}/image", PostImagesManagementSpec._FileContent(50)
+		);
+		fifth.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldAttachAfterRemovingAMiddleImage() {
+		var (tenantId, token) = await this._LoginAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		await this._AttachAsync(tenantId, token, postId, 10);
+		var middle = await this._AttachAsync(tenantId, token, postId, 20);
+		await this._AttachAsync(tenantId, token, postId, 30);
+
+		using var delete = await this._SendAsync(
+			tenantId, token, HttpMethod.Delete, $"/posts/{postId}/images/{middle.Id}", null
+		);
+		delete.StatusCode.Should().Be(HttpStatusCode.OK);
+		var added = await this._AttachAsync(tenantId, token, postId, 40);
+
+		added.Position.Should().Be(2);
+		(await this._GetPostAsync(tenantId, token, postId)).Images.Select(i => i.Position)
+			.Should().Equal(0, 1, 2);
+	}
+
+	private static MultipartFormDataContent _FileContent(int width) {
+		var content = new MultipartFormDataContent();
+		var file = new ByteArrayContent(PostImagesManagementSpec._PngBytes(width, 8));
+		file.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+		content.Add(file, "file", "x.png");
+		return content;
+	}
+
+	[Fact]
 	public async Task ItShouldRemoveTheFirstImageThroughTheLegacySingleImageRoute() {
 		var (tenantId, token) = await this._LoginAsync();
 		var postId = await this._CreatePostAsync(tenantId, token);

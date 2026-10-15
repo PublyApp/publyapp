@@ -70,4 +70,34 @@ public sealed class ImageDerivativeSpec {
 
 		outcome.Should().BeOfType<ImageDerivative.CannotFit>();
 	}
+
+	[Fact]
+	public void ItShouldRefuseACanvasOverTheDecodePixelCapWithoutDecodingIt() {
+		// A real PNG whose IHDR claims 9000 x 5000 (45 MP, over the 40 MP cap);
+		// only the header is read to refuse it, and the CRC is recomputed so the
+		// codec accepts the header.
+		var png = TestImages.Png(8, 8);
+		System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(16, 4), 9000);
+		System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(20, 4), 5000);
+		System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(
+			png.AsSpan(29, 4),
+			ImageDerivativeSpec._Crc32(png.AsSpan(12, 17))
+		);
+
+		var outcome = ImageDerivative.Fit(png, "image/png", 9000, 5000, maxBytes: 10);
+
+		outcome.Should().BeOfType<ImageDerivative.CannotFit>().Subject.Reason
+			.Should().Contain("too large");
+	}
+
+	private static uint _Crc32(ReadOnlySpan<byte> data) {
+		var crc = 0xFFFFFFFFu;
+		foreach (var value in data) {
+			crc ^= value;
+			for (var bit = 0; bit < 8; bit++) {
+				crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+			}
+		}
+		return ~crc;
+	}
 }

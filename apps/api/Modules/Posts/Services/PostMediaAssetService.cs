@@ -186,24 +186,28 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var liveCount = await (
+		var livePositions = await (
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == args.TenantId
 				&& a.PostId == args.PostId
 				&& !a.IsDeleted
-			select a.Id
-		).CountAsync(cancellationToken);
+			select a.Position
+		).ToListAsync(cancellationToken);
+		var liveCount = livePositions.Count;
 		if (liveCount >= ProviderLimits.MaxImagesPerPost) {
 			return new AttachPostMediaResult.LimitReached(ProviderLimits.MaxImagesPerPost);
 		}
 
-		// Positions stay contiguous (removal closes the gap), so the next slot is
-		// the live count. Two racing appends compute the same slot; the unique
-		// (post, position) index lets exactly one commit.
+		// The next slot is one past the highest live position, NOT the count: a
+		// concurrent remove can leave a gap (e.g. {0,1,3}) and count would then
+		// point at a taken slot on every retry. The cap is the count check above.
+		// Two racing appends compute the same slot; the unique (post, position)
+		// index lets exactly one commit.
+		var nextPosition = liveCount == 0 ? 0 : livePositions.Max() + 1;
 		var asset = new PostMediaAsset {
 			TenantId = args.TenantId,
 			PostId = args.PostId,
-			Position = liveCount,
+			Position = nextPosition,
 			RelativePath = args.RelativePath,
 			ContentType = args.ContentType,
 			AltText = null,

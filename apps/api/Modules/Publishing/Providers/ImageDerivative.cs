@@ -27,9 +27,11 @@ internal static class ImageDerivative {
 	private static readonly int[] _LongestEdgeSteps = [2048, 1600, 1280, 1024, 768, 512, 384];
 	private static readonly int[] _QualitySteps = [90, 80, 70, 60, 50, 40];
 
-	// Decoding allocates width x height x 4 bytes; refuse absurd canvases rather
-	// than let one image exhaust the worker.
-	private const long _MaxDecodePixels = 80_000_000;
+	// Decoding allocates width x height x 4 bytes. Bluesky never needs more than
+	// 2048 px on the long edge, and phone cameras top out around 50 MP, so 40 MP
+	// (~160 MB per bitmap) is generous for social images while keeping a single
+	// image from exhausting the worker.
+	private const long _MaxDecodePixels = 40_000_000;
 
 	public static Outcome Fit(
 		byte[] source,
@@ -56,7 +58,13 @@ internal static class ImageDerivative {
 			return new CannotFit("the image could not be decoded");
 		}
 
-		using var oriented = ImageDerivative._ApplyOrigin(decoded, codec.EncodedOrigin);
+		// Only build a second bitmap when the orientation actually needs baking in.
+		var needsRotation = codec.EncodedOrigin
+			is not (SKEncodedOrigin.TopLeft or SKEncodedOrigin.Default);
+		using var rotated = needsRotation
+			? ImageDerivative._ApplyOrigin(decoded, codec.EncodedOrigin)
+			: null;
+		var oriented = rotated ?? decoded;
 		var asJpeg = string.Equals(contentType, "image/jpeg", StringComparison.Ordinal);
 		var format = asJpeg ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Webp;
 		var outputType = asJpeg ? "image/jpeg" : "image/webp";
@@ -64,10 +72,10 @@ internal static class ImageDerivative {
 
 		foreach (var edge in ImageDerivative._LongestEdgeSteps) {
 			var target = Math.Min(edge, longest);
-			using var scaled = ImageDerivative._ScaleToLongestEdge(oriented, target);
-			if (scaled is null) {
-				continue;
-			}
+			using var resized = target < longest
+				? ImageDerivative._ScaleToLongestEdge(oriented, target)
+				: null;
+			var scaled = resized ?? oriented;
 
 			foreach (var quality in ImageDerivative._QualitySteps) {
 				using var data = scaled.Encode(format, quality);
@@ -88,10 +96,6 @@ internal static class ImageDerivative {
 
 	private static SKBitmap? _ScaleToLongestEdge(SKBitmap source, int longestEdge) {
 		var current = Math.Max(source.Width, source.Height);
-		if (longestEdge >= current) {
-			return source.Copy();
-		}
-
 		var ratio = (double)longestEdge / current;
 		var width = Math.Max(1, (int)Math.Round(source.Width * ratio));
 		var height = Math.Max(1, (int)Math.Round(source.Height * ratio));
@@ -102,10 +106,6 @@ internal static class ImageDerivative {
 	// Re-encoding drops EXIF, so bake the orientation into the pixels or phone
 	// photos would publish sideways.
 	private static SKBitmap _ApplyOrigin(SKBitmap source, SKEncodedOrigin origin) {
-		if (origin is SKEncodedOrigin.TopLeft or SKEncodedOrigin.Default) {
-			return source.Copy();
-		}
-
 		var swap = origin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop
 			or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
 		var width = swap ? source.Height : source.Width;

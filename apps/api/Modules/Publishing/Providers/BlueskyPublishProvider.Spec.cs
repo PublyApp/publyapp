@@ -189,6 +189,16 @@ public sealed class BlueskyPublishProviderSpec {
 		transportResult.Should().BeOfType<PublishResult.TransientFailure>();
 	}
 
+	[Fact]
+	public async Task ItShouldClassifyCreateRecord429AsTransient() {
+		var (result, _) = await BlueskyPublishProviderSpec._PublishOnceAsync(
+			BlueskyPublishProviderSpec._NewSession(),
+			(_) => BlueskyPublishProviderSpec._JsonResponse(429, """{"error":"RateLimitExceeded"}""")
+		);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>();
+	}
+
 	// Crash-after-create proof, adversarial-mutation target (spec §6 D1): the fake
 	// PDS below STORES records by rkey like a real atproto repo, so a duplicate is
 	// OBSERVABLE. Each simulated run derives its idempotency key FRESH from the

@@ -72,7 +72,8 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				return await BlueskyPublishProvider._ReadExistingBackAsync(client, request.Session, rkey, cancellationToken);
 			}
 
-			if ((int)response.StatusCode >= 500) {
+			if ((int)response.StatusCode >= 500
+				|| response.StatusCode == HttpStatusCode.TooManyRequests) {
 				return new PublishResult.TransientFailure(
 					LastErrorSanitiser.Sanitize(cause) ?? cause
 				);
