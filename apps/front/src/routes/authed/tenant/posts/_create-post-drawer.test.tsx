@@ -137,10 +137,10 @@ vi.mock('react-hook-form', () => {
 				};
 			},
 			handleSubmit:
-				(onValid: (values: Record<string, string>) => void | Promise<void>) =>
+				(onValid: (values: Record<string, unknown>) => void | Promise<void>) =>
 				(event?: Event) => {
 					event?.preventDefault();
-					void onValid(rhf.snapshot());
+					void onValid({ ...rhf.snapshot(), segments: [] });
 				},
 			formState: { errors: rhf.errors, isSubmitting: false },
 			// D2's "Publish on" block receives the selected project through

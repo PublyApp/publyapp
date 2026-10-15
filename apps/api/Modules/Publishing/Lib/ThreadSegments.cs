@@ -27,7 +27,7 @@ public static class ThreadSegments {
 
 	/// <summary>
 	/// How many leading segments of the post are already published by ANY of its
-	/// publications: those are read-only in the editor (the remote records exist).
+	/// publications (cancelled ones included, their records stay live): those are read-only in the editor (the remote records exist).
 	/// </summary>
 	public static async Task<int> PublishedSegmentCountAsync(
 		AppDbContext db,
@@ -39,7 +39,6 @@ public static class ThreadSegments {
 			join publication in db.Publication.AsNoTracking()
 				on result.PublicationId equals publication.Id
 			where publication.PostId == postId
-				&& !publication.IsDeleted
 				&& !result.IsDeleted
 			group result by result.PublicationId into grouped
 			select grouped.Count()
@@ -49,7 +48,7 @@ public static class ThreadSegments {
 
 	/// <summary>
 	/// Stages copies of the already-published segment results of the latest failed
-	/// publication of each (post, account) onto the fresh publications, so
+	/// (or cancelled-with-progress) publication of each (post, account) onto the fresh publications, so
 	/// re-issuing a failed thread continues after the last published segment
 	/// instead of posting it all again. Nothing is saved here.
 	/// </summary>
@@ -67,8 +66,7 @@ public static class ThreadSegments {
 				on result.PublicationId equals publication.Id
 			where publication.PostId == postId
 				&& publication.TenantId == tenantId
-				&& publication.Status == PublicationStatus.Failed
-				&& !publication.IsDeleted
+				&& (publication.Status == PublicationStatus.Failed || publication.IsDeleted)
 				&& !result.IsDeleted
 				&& accountIds.Contains(publication.SocialAccountId)
 			select new { publication.SocialAccountId, publication.Id, Result = result }

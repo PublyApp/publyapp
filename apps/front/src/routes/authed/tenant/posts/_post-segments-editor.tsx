@@ -14,12 +14,18 @@ import type { LimitedDestination } from '~/lib/text-counter/text-counter';
 import { useTextCounter } from '~/lib/text-counter/use-text-counter';
 
 import { PublishLimitCounter } from './_publish-limit-counter';
+import type { SegmentDraft } from './_segment-draft';
+import { newSegmentDraft } from './_segment-draft';
 import { useLimitedDestinations } from './_use-limited-destinations';
 
 /** A thread is at most 25 segments: the first post body plus 24 follow-ups. */
 const MAX_THREAD_SEGMENTS = 25;
 
-const moveItem = (list: string[], from: number, to: number): string[] => {
+const moveItem = (
+	list: SegmentDraft[],
+	from: number,
+	to: number,
+): SegmentDraft[] => {
 	const next = [...list];
 	const [moved] = next.splice(from, 1);
 	if (moved === undefined) {
@@ -132,8 +138,8 @@ const SegmentBlock = ({
 
 export type PostSegmentsEditorProps = {
 	/** The follow-up segments (segments 2..N) in order. */
-	segments: string[];
-	onChange: (next: string[]) => void;
+	segments: SegmentDraft[];
+	onChange: (next: SegmentDraft[]) => void;
 	/** Leading segments (counting the first) already published: read-only. */
 	publishedSegmentCount: number;
 	/** The post's project: decides which destinations (and limits) apply. */
@@ -160,14 +166,12 @@ const SegmentList = ({
 
 	return (
 		<ol className="space-y-3">
-			{segments.map((text, index) => (
+			{segments.map((segment, index) => (
 				<SegmentBlock
-					// Segments are plain strings reordered in place: the position is
-					// the only identity they have.
-					key={index}
+					key={segment.id}
 					index={index}
 					total={total}
-					text={text}
+					text={segment.text}
 					destinations={destinations}
 					isLocked={isLockedAt(index)}
 					canMoveEarlier={index > 0 && !isLockedAt(index - 1)}
@@ -175,7 +179,7 @@ const SegmentList = ({
 					onTextChange={(value) =>
 						onChange(
 							segments.map((current, position) =>
-								position === index ? value : current,
+								position === index ? { ...current, text: value } : current,
 							),
 						)
 					}
@@ -214,7 +218,7 @@ export const PostSegmentsEditor = ({
 	const isFull = total >= MAX_THREAD_SEGMENTS;
 
 	const requestRemove = (index: number) => {
-		const text = segments[index] ?? '';
+		const text = segments[index]?.text ?? '';
 		if (text.trim() === '') {
 			onChange(segments.filter((_, position) => position !== index));
 			return;
@@ -257,7 +261,7 @@ export const PostSegmentsEditor = ({
 				size="sm"
 				disabled={isFull}
 				data-testid="tenant-posts-segment-add"
-				onClick={() => onChange([...segments, ''])}
+				onClick={() => onChange([...segments, newSegmentDraft()])}
 			>
 				<IconPlus aria-hidden="true" className="size-4" />
 				{t('posts:segment-add')}

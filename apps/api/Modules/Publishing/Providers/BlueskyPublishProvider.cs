@@ -161,7 +161,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 
 		if (BlueskyPublishProvider._LooksLikeAlreadyExists(error, message)) {
 			var readBack = await BlueskyPublishProvider._ReadExistingBackAsync(
-				client, request.Session, rkey, position, cancellationToken
+				client, request.Session, rkey, position, isThread, cancellationToken
 			);
 			return readBack;
 		}
@@ -365,6 +365,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		SocialSession session,
 		string rkey,
 		int position,
+		bool isThread,
 		CancellationToken cancellationToken
 	) {
 		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
@@ -377,10 +378,20 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			if (response.IsSuccessStatusCode) {
 				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
 				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
+				var cid = BlueskyPublishProvider._Cid(payload);
+				if (isThread && cid.Length == 0) {
+					return new SegmentOutcome(
+						new PublishResult.TransientFailure(
+							$"Bluesky returned segment {position + 1} without a content id when reading it back"
+						),
+						null
+					);
+				}
+
 				var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
 				return new SegmentOutcome(
 					new PublishResult.AlreadyExistsTreatedAsPublished(recordId, webUrl),
-					new CompletedSegment(position, recordId, BlueskyPublishProvider._Cid(payload), webUrl)
+					new CompletedSegment(position, recordId, cid, webUrl)
 				);
 			}
 

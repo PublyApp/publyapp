@@ -678,6 +678,27 @@ public sealed class BlueskyPublishProviderSpec {
 		recorded[0].Cid.Should().Be("bafy-existing");
 	}
 
+	[Fact]
+	public async Task ItShouldNotContinueAThreadFromAReadBackRecordWithoutACid() {
+		var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
+			? BlueskyPublishProviderSpec._JsonResponse(
+				400, """{"error":"InvalidRequest","message":"record_already_exists"}"""
+			)
+			: BlueskyPublishProviderSpec._JsonResponse(
+				200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
+			));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>();
+		handler.Requests.Count(request => request.Method == HttpMethod.Post)
+			.Should().Be(1, "no reply is sent with an empty parent cid");
+	}
+
 	private sealed class RecordingHandler
 		: HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;

@@ -27,6 +27,8 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 
 import { PublishLimitCounter } from './_publish-limit-counter';
 
+const NO_FOLLOW_UPS: string[] = [];
+
 /** Composer "Publish on" block (Epic D step 6, plan D2 Task 8): the accounts
  * visible in the project per the Epic C rule, shown only with BOTH
  * `tenant.posts.publish` AND `tenant.socialaccounts.publish` (the backend
@@ -38,7 +40,7 @@ export const PublishOnBlock = ({
 	projectId,
 	postId,
 	body = '',
-	followUps = [],
+	followUps = NO_FOLLOW_UPS,
 	onBeforePublish,
 }: {
 	projectId: string | null;

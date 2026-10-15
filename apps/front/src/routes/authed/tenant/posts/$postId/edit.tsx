@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -12,7 +12,6 @@ import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
-import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	useTenantPostDetailsQuery,
@@ -35,9 +34,12 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { PostBodyCounter } from '../_post-body-counter';
+import { PostDangerZone } from '../_post-danger-zone';
 import { PostImagePicker } from '../_post-image-picker';
 import { PostSegmentsEditor } from '../_post-segments-editor';
 import { PublishOnBlock } from '../_publish-on-block';
+import { NO_SEGMENTS, newSegmentDraft } from '../_segment-draft';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -48,7 +50,9 @@ const getSchema = (t: (k: string) => string) =>
 			.max(20000, { message: t('posts:body-too-long') }),
 		projectId: z.string().nullable().optional(),
 		// Thread follow-ups (segments 2..N); at most 24 after the first body.
-		segments: z.array(z.string().max(20000)).max(24),
+		segments: z
+			.array(z.object({ id: z.string(), text: z.string().max(20000) }))
+			.max(24),
 	});
 
 type Values = z.infer<ReturnType<typeof getSchema>>;
@@ -71,7 +75,11 @@ const TenantPostEditPage = () => {
 	});
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 	const segments =
-		useWatch({ control: methods.control, name: 'segments' }) ?? [];
+		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
+	const followUps = useMemo(
+		() => segments.map((segment) => segment.text),
+		[segments],
+	);
 	// `formState.isSubmitting` covers the whole async handleSubmit callback,
 	// so no manual loading flag is needed here (and a flag reset outside
 	// try/finally trips the loading-flag lint rule).
@@ -81,8 +89,7 @@ const TenantPostEditPage = () => {
 	const storedDetails = toTenantPostDetails(detailsQuery.data);
 	const hasStoredSegments = (storedDetails?.segments.length ?? 0) > 0;
 	const publishedSegmentCount = storedDetails?.publishedSegmentCount ?? 0;
-	// Once a thread went out, its published segments (the first body included)
-	// can no longer change.
+	// A published thread's published segments, first body included, are read-only.
 	const isBodyLocked = hasStoredSegments && publishedSegmentCount > 0;
 
 	useEffect(() => {
@@ -91,7 +98,7 @@ const TenantPostEditPage = () => {
 			methods.reset({
 				body: d.body,
 				projectId: d.projectId,
-				segments: d.segments.map((segment) => segment.body),
+				segments: d.segments.map((segment) => newSegmentDraft(segment.body)),
 			});
 		}
 	}, [detailsQuery.data, methods]);
@@ -121,7 +128,7 @@ const TenantPostEditPage = () => {
 				// Plain posts keep sending exactly what they always did.
 				segments:
 					values.segments.length > 0 || hasStoredSegments
-						? values.segments
+						? values.segments.map((segment) => segment.text)
 						: undefined,
 				tenantId: tenantId ?? '',
 			});
@@ -250,15 +257,7 @@ const TenantPostEditPage = () => {
 										placeholder={t('posts:body-placeholder')}
 										data-testid="tenant-post-edit-body"
 									/>
-									<p
-										className={
-											body.length > 20000
-												? 'text-[var(--publy-danger)] text-xs'
-												: 'text-muted-foreground text-xs'
-										}
-									>
-										{body.length} / 20000
-									</p>
+									<PostBodyCounter length={body.length} />
 									<PostSegmentsEditor
 										segments={segments}
 										publishedSegmentCount={publishedSegmentCount}
@@ -301,24 +300,9 @@ const TenantPostEditPage = () => {
 										</Button>
 									</FormActionBar>
 								</Form>
-								<Card className="mt-8 border-[var(--publy-danger)]">
-									<div className="p-4">
-										<p className="text-xs font-semibold tracking-widest text-muted-foreground">
-											{t('posts:danger-zone-title')}
-										</p>
-										<p className="mt-1 text-sm text-muted-foreground">
-											{t('posts:danger-zone-description')}
-										</p>
-										<Button
-											variant="destructive"
-											className="mt-3"
-											data-testid="tenant-post-edit-move-to-bin"
-											onClick={() => setPendingBinId(details.id)}
-										>
-											{t('posts:move-to-bin')}
-										</Button>
-									</div>
-								</Card>
+								<PostDangerZone
+									onMoveToBin={() => setPendingBinId(details.id)}
+								/>
 							</div>
 							<div
 								className="space-y-4 lg:col-span-4"
@@ -334,7 +318,7 @@ const TenantPostEditPage = () => {
 									projectId={details.projectId}
 									postId={postId}
 									body={body}
-									followUps={segments}
+									followUps={followUps}
 								/>
 							</div>
 						</div>

@@ -122,4 +122,80 @@ public sealed class ThreadSegmentsSpec : IClassFixture<ApiFixture> {
 			db, post.GetRequiredId(), CancellationToken.None
 		)).Should().Be(2);
 	}
+
+	[Fact]
+	public async Task ItShouldKeepPublishedSegmentsLockedAndCarriedOverWhenTheScheduleIsCancelled() {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var tenant = new PublyApp.Api.Modules.Tenants.Entities.Tenant {
+			Name = $"thread-{Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = PublyApp.Api.Modules.Tenants.Entities.TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		var user = new User {
+			Email = $"thread-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			IsVerified = true,
+		};
+		db.Tenant.Add(tenant);
+		db.User.Add(user);
+		await db.SaveChangesAsync();
+		var tenantId = tenant.GetRequiredId();
+		var post = new Post { TenantId = tenantId, Body = "root", CreatedByUserId = user.GetRequiredId() };
+		var account = new SocialAccount {
+			TenantId = tenantId,
+			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
+			DisplayHandle = "@thread.spec",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		db.Post.Add(post);
+		db.SocialAccount.Add(account);
+		await db.SaveChangesAsync();
+		db.PostSegment.Add(new PostSegment { TenantId = tenantId, PostId = post.GetRequiredId(), Position = 1, Body = "two" });
+		db.PostSegment.Add(new PostSegment { TenantId = tenantId, PostId = post.GetRequiredId(), Position = 2, Body = "three" });
+
+		// A thread paused after two published segments, rescheduled to the future
+		// (same row, still holding its results), then cancelled.
+		var paused = await ThreadSegmentsSpec._AddPublicationAsync(
+			db, tenantId, post.GetRequiredId(), account.GetRequiredId()
+		);
+		for (var position = 0; position < 2; position++) {
+			db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+				TenantId = tenantId,
+				PublicationId = paused.GetRequiredId(),
+				SegmentPosition = position,
+				ExternalRecordId = $"at://did:plc:x/app.bsky.feed.post/r{position}",
+				ExternalCid = $"cid-{position}",
+				ExternalUrl = $"https://bsky.app/r{position}",
+			});
+		}
+
+		await db.SaveChangesAsync();
+
+		var cancelled = await scope.ServiceProvider.GetRequiredService<IPublicationService>()
+			.CancelScheduleAsync(
+				new CancelPostScheduleArgs(tenantId, post.GetRequiredId(), user.GetRequiredId())
+			);
+		Assert.NotNull(cancelled);
+		cancelled.DeletedCount.Should().Be(1);
+
+		(await ThreadSegments.PublishedSegmentCountAsync(
+			db, post.GetRequiredId(), CancellationToken.None
+		)).Should().Be(2, "the live segments stay locked after the cancel");
+
+		var created = await scope.ServiceProvider.GetRequiredService<IPublishNowService>()
+			.PublishNowAsync(
+				new PublishNowArgs(tenantId, post.GetRequiredId(), user.GetRequiredId(), [account.GetRequiredId()]),
+				CancellationToken.None
+			);
+		var fresh = created.Should().BeOfType<PublishNowResult.Created>().Subject;
+		var carried = await db.PublicationSegmentResult
+			.AsNoTracking()
+			.Where(result => result.PublicationId == fresh.PublicationIds[0])
+			.OrderBy(result => result.SegmentPosition)
+			.Select(result => result.ExternalCid)
+			.ToListAsync();
+		carried.Should().Equal("cid-0", "cid-1");
+	}
 }

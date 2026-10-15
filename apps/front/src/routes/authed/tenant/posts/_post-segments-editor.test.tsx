@@ -25,6 +25,8 @@ vi.mock('./_use-limited-destinations', () => ({
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { PostSegmentsEditor } from './_post-segments-editor';
+import type { SegmentDraft } from './_segment-draft';
+import { newSegmentDraft } from './_segment-draft';
 
 const Harness = ({
 	initial = [],
@@ -35,7 +37,9 @@ const Harness = ({
 	published?: number;
 	onChange?: (next: string[]) => void;
 }) => {
-	const [segments, setSegments] = useState<string[]>(initial);
+	const [segments, setSegments] = useState<SegmentDraft[]>(() =>
+		initial.map((text) => newSegmentDraft(text)),
+	);
 	return (
 		<PostSegmentsEditor
 			segments={segments}
@@ -43,7 +47,7 @@ const Harness = ({
 			projectId={null}
 			onChange={(next) => {
 				setSegments(next);
-				onChange?.(next);
+				onChange?.(next.map((segment) => segment.text));
 			}}
 		/>
 	);

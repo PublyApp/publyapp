@@ -640,9 +640,30 @@ public sealed class PublicationService : IPublicationService {
 			return null;
 		}
 
-		// SQL DELETE, not a status transition: cancelled publications leave no
-		// history row (the audit entry below carries the durable record).
-		var deletedCount = await (
+		// A publication that already published thread segments is soft-deleted, not
+		// removed: its results must outlive the cancel so the segments stay locked
+		// and a later publish continues after them instead of posting them twice
+		// (#2171). Everything else is a SQL DELETE, not a status transition:
+		// cancelled publications leave no history row (the audit entry below carries
+		// the durable record).
+		var now = DateTime.UtcNow;
+		var withProgressCount = await (
+			from p in this._DbContext.Publication
+			where p.PostId == postId
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+				&& p.Status == PublicationStatus.Scheduled
+				&& this._DbContext.PublicationSegmentResult.Any(result =>
+					result.PublicationId == p.Id && !result.IsDeleted)
+			select p
+		).ExecuteUpdateAsync(
+			setters => setters
+				.SetProperty(p => p.IsDeleted, true)
+				.SetProperty(p => p.DeletedAt, now)
+				.SetProperty(p => p.UpdatedAt, now),
+			cancellationToken
+		);
+		var deletedCount = withProgressCount + await (
 			from p in this._DbContext.Publication
 			where p.PostId == postId
 				&& p.TenantId == tenantId

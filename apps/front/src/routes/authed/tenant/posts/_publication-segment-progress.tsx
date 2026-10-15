@@ -65,10 +65,11 @@ export const PublicationSegmentProgress = ({
 							data-state={state}
 							data-testid="tenant-posts-history-segment"
 							className={cn(
-								'flex size-5 items-center justify-center rounded-full text-[10px] font-medium',
+								'flex size-5 items-center justify-center rounded-[var(--publy-radius-chip)] text-[10px] font-medium',
 								state === 'published' &&
 									'bg-(--publy-surface-raised) text-foreground',
-								state === 'failed' && 'bg-[var(--publy-danger)] text-white',
+								state === 'failed' &&
+									'border border-(--publy-danger) bg-(--publy-danger-soft) text-(--publy-danger)',
 								state === 'pending' &&
 									'border border-border text-muted-foreground',
 							)}
