@@ -3,7 +3,15 @@ import { describe, expect, test } from 'vitest';
 import { countText, tightestLimit } from './text-counter';
 import fixtures from './text-counter-fixtures.json';
 
-const BLUESKY = { maxTextGraphemes: 300, maxTextBytes: 3000 };
+const BLUESKY = {
+	textLimits: [
+		{ unit: 'graphemes', max: 300 },
+		{ unit: 'bytes', max: 3000 },
+	],
+	maxImages: 4,
+	maxImageBytes: 1_000_000,
+	acceptedImageContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+};
 
 describe('countText', () => {
 	// The API runs the same file (Publishing/Lib/TextCounter.Spec.cs).
@@ -60,7 +68,15 @@ describe('tightestLimit', () => {
 	test('names the tightest destination', () => {
 		const strict = {
 			label: '@strict',
-			limits: { maxTextGraphemes: 100, maxTextBytes: 1000 },
+			limits: {
+				textLimits: [
+					{ unit: 'graphemes', max: 100 },
+					{ unit: 'bytes', max: 1000 },
+				],
+				maxImages: 4,
+				maxImageBytes: 1_000_000,
+				acceptedImageContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+			},
 		};
 		expect(
 			tightestLimit(countText('a'.repeat(120)), [bluesky, strict]),

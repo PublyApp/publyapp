@@ -14,19 +14,25 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-vi.mock('./_use-limited-destinations', () => ({
-	useLimitedDestinations: () => [
-		{
-			label: 'Bluesky',
-			limits: { maxTextGraphemes: 300, maxTextBytes: 3000 },
-		},
-	],
-}));
-
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { PostSegmentsEditor } from './_post-segments-editor';
 import type { SegmentDraft } from './_segment-draft';
 import { newSegmentDraft } from './_segment-draft';
+
+const DESTINATIONS = [
+	{
+		label: 'Bluesky',
+		limits: {
+			textLimits: [
+				{ unit: 'graphemes', max: 300 },
+				{ unit: 'bytes', max: 3000 },
+			],
+			maxImages: 4,
+			maxImageBytes: 1_000_000,
+			acceptedImageContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+		},
+	},
+];
 
 const Harness = ({
 	initial = [],
@@ -44,7 +50,7 @@ const Harness = ({
 		<PostSegmentsEditor
 			segments={segments}
 			publishedSegmentCount={published}
-			projectId={null}
+			destinations={DESTINATIONS}
 			onChange={(next) => {
 				setSegments(next);
 				onChange?.(next.map((segment) => segment.text));

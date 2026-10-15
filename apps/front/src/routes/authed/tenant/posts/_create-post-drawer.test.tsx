@@ -67,6 +67,16 @@ vi.mock('./_publish-on-block', () => ({
 	),
 }));
 
+vi.mock('./_use-publish-selection', () => ({
+	usePublishSelection: () => ({
+		targets: [],
+		selectedIds: [],
+		toggle: () => undefined,
+		destinations: [],
+		imageLimits: null,
+	}),
+}));
+
 vi.mock('~/lib/query/tenant-post-images', () => ({
 	useAttachPostImageMutation: () => ({
 		mutateAsync: mocks.attachMutateAsync,

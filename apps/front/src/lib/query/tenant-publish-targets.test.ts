@@ -74,14 +74,21 @@ describe('toTenantPublishTargets', () => {
 					id: guid(3),
 					label: 'Limited',
 					provider: 'bluesky',
-					limits: { maxTextGraphemes: 300, maxTextBytes: 3000 },
+					limits: {
+						textLimits: [{ unit: 'graphemes', max: 300 }],
+						maxImages: 4,
+						maxImageBytes: 1_000_000,
+						acceptedImageContentTypes: ['image/png'],
+					},
 				},
 			]),
 		);
 
 		expect(rows[0]?.limits).toEqual({
-			maxTextGraphemes: 300,
-			maxTextBytes: 3000,
+			textLimits: [{ unit: 'graphemes', max: 300 }],
+			maxImages: 4,
+			maxImageBytes: 1_000_000,
+			acceptedImageContentTypes: ['image/png'],
 		});
 	});
 

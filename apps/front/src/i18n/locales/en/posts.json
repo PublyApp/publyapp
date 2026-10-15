@@ -23,7 +23,7 @@
 	"image-alt-placeholder": "Describe the image",
 	"image-discard": "Keep without the image",
 	"image-handoff-title": "Your post was saved, but its image was not attached.",
-	"image-help": "PNG, JPEG or WebP. Up to {{max}} images.",
+	"image-help": "{{types}}, up to {{size}} each. Up to {{max}} images.",
 	"image-retry": "Try again",
 	"image-add": "Add images",
 	"image-alt-label-numbered": "Alt text for image {{index}}",

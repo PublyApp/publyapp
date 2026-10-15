@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Posts.Entities;
-using PublyApp.Api.Modules.Publishing.Providers;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 namespace PublyApp.Api.Modules.Posts.Services;
 
@@ -194,8 +194,8 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			select a.Position
 		).ToListAsync(cancellationToken);
 		var liveCount = livePositions.Count;
-		if (liveCount >= ProviderLimits.MaxImagesPerPost) {
-			return new AttachPostMediaResult.LimitReached(ProviderLimits.MaxImagesPerPost);
+		if (liveCount >= ProviderCapabilityRegistry.MaxImagesPerPost) {
+			return new AttachPostMediaResult.LimitReached(ProviderCapabilityRegistry.MaxImagesPerPost);
 		}
 
 		// The next slot is one past the highest live position, NOT the count: a

@@ -10,7 +10,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Publishing.Providers;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Uploads.Services;
 
@@ -85,7 +85,7 @@ public sealed class AttachPostImageForTenant {
 		var existingImages = await assetService.ListByPostAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
-		if (existingImages.Count >= ProviderLimits.MaxImagesPerPost) {
+		if (existingImages.Count >= ProviderCapabilityRegistry.MaxImagesPerPost) {
 			return AttachPostImageForTenant._LimitReached();
 		}
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
@@ -118,10 +118,10 @@ public sealed class AttachPostImageForTenant {
 		var inspected =
 			(ImageInspector.Inspected)inspection;
 
-		// Publishing carries static JPEG/PNG/WebP only (ProviderLimits): refuse
+		// Publishing carries static JPEG/PNG/WebP only (ProviderCapabilityRegistry): refuse
 		// GIF and animated WebP here with a clear message instead of failing
 		// at publish time.
-		if (!ProviderLimits.Bluesky.AcceptedImageContentTypes.Contains(inspected.ContentType)
+		if (!ProviderCapabilityRegistry.AcceptedImageContentTypes.Contains(inspected.ContentType)
 			|| AttachPostImageForTenant._IsAnimatedWebP(uploadStream, inspected)) {
 			return AttachPostImageForTenant._ValidationFailure(
 				"Animated and GIF images are not supported; use a JPEG, PNG, or static WebP image",
@@ -307,7 +307,7 @@ public sealed class AttachPostImageForTenant {
 	}
 
 	private static AppValidationProblemHttpResult _LimitReached() {
-		var message = $"A post can have at most {ProviderLimits.MaxImagesPerPost} images";
+		var message = $"A post can have at most {ProviderCapabilityRegistry.MaxImagesPerPost} images";
 		return TypedProblems.ValidationProblem(
 			message,
 			ResponseKeys.PostImageLimitReached,
@@ -315,7 +315,7 @@ public sealed class AttachPostImageForTenant {
 				{ "file", [message] }
 			},
 			new Dictionary<string, object?> {
-				["limit"] = ProviderLimits.MaxImagesPerPost,
+				["limit"] = ProviderCapabilityRegistry.MaxImagesPerPost,
 			}
 		);
 	}

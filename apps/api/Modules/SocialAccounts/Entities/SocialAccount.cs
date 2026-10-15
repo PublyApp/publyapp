@@ -44,6 +44,14 @@ public class SocialAccount : BaseAttributes, ITenantEntity {
 	[Column("last_error")]
 	public string? LastError { get; set; }
 
+	// Instance-specific limits discovered at connect time (CapabilityOverrides JSON),
+	// overlaid on the provider defaults while fresh (#2173). Null = defaults only.
+	[Column("capability_overrides", TypeName = "jsonb")]
+	public string? CapabilityOverrides { get; set; }
+
+	[Column("capability_refreshed_at")]
+	public DateTime? CapabilityRefreshedAt { get; set; }
+
 	// Populated by the service from SocialAccountProject rows; not mapped to a column.
 	// VisibleIn (Task 6) reads this to decide per-project visibility.
 	[NotMapped]

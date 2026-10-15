@@ -1,6 +1,6 @@
 using FluentAssertions;
 
-using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 using Xunit;
 
@@ -11,7 +11,7 @@ public sealed class PublishValidationServiceSpec {
 		"\U0001F468‍\U0001F469‍\U0001F467‍\U0001F466";
 
 	private static PublishContentFailure? _Validate(string body, params string[] imageTypes) {
-		return PublishValidationService.Validate(body, imageTypes, [SocialProvider.Bluesky]);
+		return PublishValidationService.Validate(body, imageTypes, [ProviderCapabilityRegistry.Bluesky]);
 	}
 
 	[Fact]
@@ -19,7 +19,7 @@ public sealed class PublishValidationServiceSpec {
 		string[] followUps = ["fine", new string('b', 301), ""];
 
 		var tooLong = PublishValidationService.Validate(
-			"first", [], [SocialProvider.Bluesky], followUps
+			"first", [], [ProviderCapabilityRegistry.Bluesky], followUps
 		);
 
 		Assert.NotNull(tooLong);
@@ -28,21 +28,21 @@ public sealed class PublishValidationServiceSpec {
 		tooLong.Cause.Should().StartWith("Segment 3:");
 
 		var empty = PublishValidationService.Validate(
-			"first", [], [SocialProvider.Bluesky], ["fine", "  "]
+			"first", [], [ProviderCapabilityRegistry.Bluesky], ["fine", "  "]
 		);
 		Assert.NotNull(empty);
 		empty.Kind.Should().Be(PublishContentFailureKind.Empty);
 		empty.SegmentNumber.Should().Be(3);
 
 		PublishValidationService.Validate(
-			"first", [], [SocialProvider.Bluesky], ["fine", new string('c', 300)]
+			"first", [], [ProviderCapabilityRegistry.Bluesky], ["fine", new string('c', 300)]
 		).Should().BeNull();
 	}
 
 	[Fact]
 	public void ItShouldCountTheFirstSegmentOfAThreadLikeAnyOther() {
 		var failure = PublishValidationService.Validate(
-			new string('a', 301), [], [SocialProvider.Bluesky], ["fine"]
+			new string('a', 301), [], [ProviderCapabilityRegistry.Bluesky], ["fine"]
 		);
 
 		Assert.NotNull(failure);

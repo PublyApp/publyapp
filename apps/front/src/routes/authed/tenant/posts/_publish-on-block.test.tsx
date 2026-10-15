@@ -66,6 +66,7 @@ vi.mock('react-i18next', () => ({
 
 // eslint-disable-next-line import/first
 import { PublishOnBlock } from './_publish-on-block';
+import { usePublishSelection } from './_use-publish-selection';
 
 const allowPermission = (allowed: boolean) => {
 	mocks.useTenantPermissions.mockReturnValue({
@@ -107,7 +108,15 @@ const stubTargets = () => {
 };
 
 const stubLimitedTargets = () => {
-	const limits = { maxTextGraphemes: 300, maxTextBytes: 3000 };
+	const limits = {
+		textLimits: [
+			{ unit: 'graphemes', max: 300 },
+			{ unit: 'bytes', max: 3000 },
+		],
+		maxImages: 4,
+		maxImageBytes: 1_000_000,
+		acceptedImageContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+	};
 	mocks.useTargetsQuery.mockReturnValue({
 		data: {
 			items: [
@@ -116,7 +125,19 @@ const stubLimitedTargets = () => {
 					id: TARGET_B,
 					label: 'Strict handle',
 					provider: 'bluesky',
-					limits: { maxTextGraphemes: 100, maxTextBytes: 3000 },
+					limits: {
+						textLimits: [
+							{ unit: 'graphemes', max: 100 },
+							{ unit: 'bytes', max: 3000 },
+						],
+						maxImages: 4,
+						maxImageBytes: 1_000_000,
+						acceptedImageContentTypes: [
+							'image/jpeg',
+							'image/png',
+							'image/webp',
+						],
+					},
 				},
 			],
 		},
@@ -128,21 +149,26 @@ const stubLimitedTargets = () => {
 	});
 };
 
-const renderBlock = (props?: {
-	postId?: string;
-	body?: string;
-	followUps?: string[];
-}) => {
+type BlockProps = { postId?: string; body?: string; followUps?: string[] };
+
+const BlockHarness = ({ postId, body, followUps }: BlockProps) => {
+	const selection = usePublishSelection(null);
+	return (
+		<PublishOnBlock
+			selection={selection}
+			postId={postId ?? POST_ID}
+			body={body}
+			followUps={followUps}
+		/>
+	);
+};
+
+const renderBlock = (props?: BlockProps) => {
 	const client = new QueryClient();
 
 	return render(
 		<QueryClientProvider client={client}>
-			<PublishOnBlock
-				projectId={null}
-				postId={props?.postId ?? POST_ID}
-				body={props?.body}
-				followUps={props?.followUps}
-			/>
+			<BlockHarness {...props} />
 		</QueryClientProvider>,
 	);
 };

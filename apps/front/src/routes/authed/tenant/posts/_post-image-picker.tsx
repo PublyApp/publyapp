@@ -18,13 +18,21 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { PostImageCard } from './_post-image-card';
+import type { ImageLimits } from './_use-publish-selection';
 
-/** Mirrors the server's accepted image types and per-post cap
- * (ProviderLimits.Bluesky) — the server stays authoritative and re-validates
- * by magic-byte sniffing and a typed 422 on the fifth image. GIF is not
- * offered: Bluesky's images embed has no animated support. */
-const ACCEPT_ATTR = 'image/png,image/jpeg,image/webp';
-const MAX_POST_IMAGES = 4;
+/** Image caps come from the selected destinations' advertised capability
+ * (`GET /publishing/publish-targets`); the server stays authoritative and
+ * re-validates by magic-byte sniffing and a typed 422 on the excess image.
+ * With no destination selected there is nothing to cap against yet. */
+const FALLBACK_ACCEPT_ATTR = 'image/*';
+
+const formatBytes = (bytes: number): string =>
+	bytes >= 1_000_000
+		? `${Number((bytes / 1_000_000).toFixed(1))} MB`
+		: `${Math.ceil(bytes / 1000)} KB`;
+
+const formatTypes = (types: string[]): string =>
+	types.map((type) => type.replace('image/', '').toUpperCase()).join(', ');
 
 export type DeferredImageSelection = {
 	/** Stable key for the card; assigned by the picker. */
@@ -78,6 +86,7 @@ export const PostImagePicker = ({
 	selections = [],
 	onSelect,
 	disabled,
+	limits = null,
 }: {
 	postId?: string;
 	/** Required for the online mode's tenant-scoped API client. */
@@ -87,8 +96,11 @@ export const PostImagePicker = ({
 	selections?: DeferredImageSelection[];
 	onSelect?: (selections: DeferredImageSelection[]) => void;
 	disabled?: boolean;
+	/** Caps shared by the selected destinations; null = no cap known yet. */
+	limits?: ImageLimits | null;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
+	const maxImages = limits?.maxImages ?? Number.POSITIVE_INFINITY;
 	const isOnline = Boolean(postId);
 	const attachImage = useAttachPostImageMutation();
 	const removeImage = useRemovePostImageMutation();
@@ -118,7 +130,7 @@ export const PostImagePicker = ({
 	const isControlDisabled = Boolean(disabled) || isBusy;
 
 	const count = isOnline ? existingImages.length : selections.length;
-	const isFull = count >= MAX_POST_IMAGES;
+	const isFull = count >= maxImages;
 
 	// Sequential on purpose (each append takes the next position), so it
 	// recurses instead of looping.
@@ -148,7 +160,7 @@ export const PostImagePicker = ({
 
 	const handleFiles = async (picked: File[]) => {
 		setFailureMessage('');
-		const room = MAX_POST_IMAGES - count;
+		const room = maxImages - count;
 		setLimitNotice(picked.length > room);
 		const accepted = picked.slice(0, Math.max(room, 0));
 		if (accepted.length === 0) {
@@ -317,15 +329,21 @@ export const PostImagePicker = ({
 					>
 						{t('posts:image-add')}
 					</label>
-					<p className="publy-type-helper text-muted-foreground">
-						{t('posts:image-help', { max: MAX_POST_IMAGES })}
-					</p>
-					{limitNotice || isFull ? (
+					{limits ? (
+						<p className="publy-type-helper text-muted-foreground">
+							{t('posts:image-help', {
+								types: formatTypes(limits.acceptedImageContentTypes),
+								size: formatBytes(limits.maxImageBytes),
+								max: limits.maxImages,
+							})}
+						</p>
+					) : null}
+					{limits && (limitNotice || isFull) ? (
 						<p
 							className="publy-type-helper text-muted-foreground"
 							data-testid="tenant-posts-create-image-limit"
 						>
-							{t('posts:image-limit-reached', { max: MAX_POST_IMAGES })}
+							{t('posts:image-limit-reached', { max: limits.maxImages })}
 						</p>
 					) : null}
 					{failureMessage ? (
@@ -341,7 +359,9 @@ export const PostImagePicker = ({
 					id={inputId}
 					type="file"
 					multiple
-					accept={ACCEPT_ATTR}
+					accept={
+						limits?.acceptedImageContentTypes.join(',') ?? FALLBACK_ACCEPT_ATTR
+					}
 					disabled={addDisabled}
 					className="sr-only"
 					data-testid="tenant-posts-create-image-input"

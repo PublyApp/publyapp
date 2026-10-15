@@ -16,7 +16,6 @@ import { useTextCounter } from '~/lib/text-counter/use-text-counter';
 import { PublishLimitCounter } from './_publish-limit-counter';
 import type { SegmentDraft } from './_segment-draft';
 import { newSegmentDraft } from './_segment-draft';
-import { useLimitedDestinations } from './_use-limited-destinations';
 
 /** A thread is at most 25 segments: the first post body plus 24 follow-ups. */
 const MAX_THREAD_SEGMENTS = 25;
@@ -142,18 +141,17 @@ export type PostSegmentsEditorProps = {
 	onChange: (next: SegmentDraft[]) => void;
 	/** Leading segments (counting the first) already published: read-only. */
 	publishedSegmentCount: number;
-	/** The post's project: decides which destinations (and limits) apply. */
-	projectId: string | null;
+	/** The SELECTED publish destinations: every segment counter measures
+	 * against their limits, like the Publish button does. */
+	destinations: readonly LimitedDestination[];
 };
 
-type SegmentListProps = Omit<PostSegmentsEditorProps, 'projectId'> & {
-	destinations: readonly LimitedDestination[];
+type SegmentListProps = PostSegmentsEditorProps & {
 	total: number;
 	onRequestRemove: (index: number) => void;
 };
 
-/** The follow-up blocks. A separate component so the destination limits are
- * only looked up once the post is actually a thread. */
+/** The follow-up blocks. */
 const SegmentList = ({
 	segments,
 	onChange,
@@ -192,15 +190,6 @@ const SegmentList = ({
 	);
 };
 
-const ThreadSegments = (
-	props: Omit<SegmentListProps, 'destinations'> & { projectId: string | null },
-) => {
-	const { projectId, ...rest } = props;
-	const destinations = useLimitedDestinations(projectId);
-
-	return <SegmentList {...rest} destinations={destinations} />;
-};
-
 /** Thread follow-ups under the post body: add, remove (confirming a
  * non-empty one), reorder with the arrows, one live counter per segment.
  * Already-published segments stay visible but read-only. */
@@ -208,7 +197,7 @@ export const PostSegmentsEditor = ({
 	segments,
 	onChange,
 	publishedSegmentCount,
-	projectId,
+	destinations,
 }: PostSegmentsEditorProps) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(
@@ -246,11 +235,11 @@ export const PostSegmentsEditor = ({
 				</p>
 			) : null}
 			{segments.length > 0 ? (
-				<ThreadSegments
+				<SegmentList
 					segments={segments}
 					onChange={onChange}
 					publishedSegmentCount={publishedSegmentCount}
-					projectId={projectId}
+					destinations={destinations}
 					total={total}
 					onRequestRemove={requestRemove}
 				/>

@@ -171,6 +171,16 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 
+vi.mock('../_use-publish-selection', () => ({
+	usePublishSelection: () => ({
+		targets: [],
+		selectedIds: [],
+		toggle: () => undefined,
+		destinations: [],
+		imageLimits: null,
+	}),
+}));
+
 vi.mock('../_publish-on-block', () => ({
 	PublishOnBlock: () => <div data-testid="publish-on-block-stub" />,
 }));

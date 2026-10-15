@@ -9,6 +9,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 
@@ -286,7 +287,7 @@ public sealed class PublicationService : IPublicationService {
 		var contentFailure = PublishValidationService.Validate(
 			post.Body,
 			await this._ImageContentTypesAsync(post.GetRequiredId(), cancellationToken),
-			accounts.Select(account => account.Provider),
+			accounts.Select(account => ProviderCapabilityRegistry.Resolve(account, DateTime.UtcNow)),
 			await ThreadSegments.FollowUpBodiesAsync(
 				this._DbContext, post.GetRequiredId(), cancellationToken
 			)
@@ -441,20 +442,22 @@ public sealed class PublicationService : IPublicationService {
 			.Select(target => target.SocialAccountId)
 			.Distinct()
 			.ToList();
-		var targetProviders = await (
+		var targetCapabilities = (await (
 			from account in this._DbContext.SocialAccount.AsNoTracking()
 			where account.TenantId == args.TenantId
 				&& account.Id != null
 				&& targetAccountIds.Contains(account.Id.Value)
-			select account.Provider
-		).ToListAsync(cancellationToken);
-		if (targetProviders.Count > 0) {
+			select account
+		).ToListAsync(cancellationToken))
+			.Select(account => ProviderCapabilityRegistry.Resolve(account, DateTime.UtcNow))
+			.ToList();
+		if (targetCapabilities.Count > 0) {
 			var contentFailure = PublishValidationService.Validate(
 				args.Body.IsPresent && args.Body.Value is not null
 					? args.Body.Value
 					: post.Body,
 				await this._ImageContentTypesAsync(postId, cancellationToken),
-				targetProviders,
+				targetCapabilities,
 				await ThreadSegments.FollowUpBodiesAsync(
 					this._DbContext, postId, cancellationToken
 				)

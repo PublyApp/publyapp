@@ -9,7 +9,15 @@ import { useTextCounter } from './use-text-counter';
 const destinations = [
 	{
 		label: '@a.bsky.social',
-		limits: { maxTextGraphemes: 300, maxTextBytes: 3000 },
+		limits: {
+			textLimits: [
+				{ unit: 'graphemes', max: 300 },
+				{ unit: 'bytes', max: 3000 },
+			],
+			maxImages: 4,
+			maxImageBytes: 1_000_000,
+			acceptedImageContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+		},
 	},
 ];
 

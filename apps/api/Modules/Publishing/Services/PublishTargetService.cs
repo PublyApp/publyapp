@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
-using PublyApp.Api.Modules.Publishing.Providers;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
@@ -21,12 +21,20 @@ public record PublishTargetItem {
 }
 
 /// <summary>
-/// The provider's text limits, so the composer needs no hardcoded numbers
-/// (issue #2169).
+/// The account's effective capability, so the composer needs no hardcoded numbers
+/// (issues #2169, #2173). <c>TextLimits</c> are measured by unit.
 /// </summary>
 public record PublishTargetLimits {
-	public required int MaxTextGraphemes { get; init; }
-	public required int MaxTextBytes { get; init; }
+	public required IReadOnlyList<PublishTargetTextLimit> TextLimits { get; init; }
+	public required int MaxImages { get; init; }
+	public required long MaxImageBytes { get; init; }
+	public required IReadOnlyList<string> AcceptedImageContentTypes { get; init; }
+}
+
+public record PublishTargetTextLimit {
+	/// <summary>The counting rule's name: "graphemes" or "bytes".</summary>
+	public required string Unit { get; init; }
+	public required int Max { get; init; }
 }
 
 /// <summary>
@@ -73,22 +81,28 @@ public sealed class PublishTargetService : IPublishTargetService {
 				.ToList();
 		}
 
+		var now = DateTime.UtcNow;
 		return accounts
-			.Select(account => new PublishTargetItem {
-				Id = account.GetRequiredId(),
-				Label = account.DisplayHandle,
-				// The single source really is called now (#1443). The literal that
-				// stood here made this comment false: every target reported
-				// "bluesky" regardless of account.Provider, so the first non-Bluesky
-				// provider would have been mislabelled on the wire with nothing
-				// failing — FormatProvider throws on an unhandled value, a literal
-				// cannot.
-				Provider = SocialAccountWire.FormatProvider(account.Provider),
-				Limits = new PublishTargetLimits {
-					MaxTextGraphemes =
-						ProviderLimits.For(account.Provider).MaxTextGraphemes,
-					MaxTextBytes = ProviderLimits.For(account.Provider).MaxTextBytes,
-				},
+			.Select(account => {
+				var capability = ProviderCapabilityRegistry.Resolve(account, now);
+				return new PublishTargetItem {
+					Id = account.GetRequiredId(),
+					Label = account.DisplayHandle,
+					// FormatProvider throws on an unhandled value; a literal
+					// would silently mislabel the first non-Bluesky provider.
+					Provider = SocialAccountWire.FormatProvider(account.Provider),
+					Limits = new PublishTargetLimits {
+						TextLimits = capability.TextLimits
+							.Select(limit => new PublishTargetTextLimit {
+								Unit = limit.Rule.Unit,
+								Max = limit.Max,
+							})
+							.ToList(),
+						MaxImages = capability.MaxImages,
+						MaxImageBytes = capability.MaxImageBytes,
+						AcceptedImageContentTypes = capability.AcceptedImageContentTypes,
+					},
+				};
 			})
 			.ToList();
 	}
