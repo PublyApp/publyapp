@@ -126,6 +126,8 @@
 	"social-account-projects-updated": "Project attachments updated",
 	"publication-schedule-account-not-in-project": "This account is not attached to the post's project. Pick an account visible in the project, or remove the post's project.",
 	"publication-schedule-in-progress": "A publication for this post is being published right now",
+	"publish-content-too-long": "The post text is too long for this destination",
+	"publish-content-empty": "The post has no text to publish",
 	"post-schedule-cancelled-success": "Schedule cancelled — the post is back in drafts",
 	"post-schedule-cancel-noop": "Nothing scheduled to cancel",
 	"job-queue-item-not-found": "Job queue item not found",

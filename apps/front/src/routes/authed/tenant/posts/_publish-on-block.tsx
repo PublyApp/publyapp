@@ -19,9 +19,12 @@ import {
 } from '~/lib/query/tenant-publish-targets';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { useTextCounter } from '~/lib/text-counter/use-text-counter';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import { PublishLimitCounter } from './_publish-limit-counter';
 
 /** Composer "Publish on" block (Epic D step 6, plan D2 Task 8): the accounts
  * visible in the project per the Epic C rule, shown only with BOTH
@@ -33,9 +36,12 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 export const PublishOnBlock = ({
 	projectId,
 	postId,
+	body = '',
 	onBeforePublish,
 }: {
 	projectId: string | null;
+	/** The text being composed: counted live against the checked destinations. */
+	body?: string;
 	/** Present once the post exists (edit page). */
 	postId?: string | null;
 	/** In the creation drawer the
@@ -59,6 +65,18 @@ export const PublishOnBlock = ({
 	// Default = every visible target checked; null until targets resolve.
 	const selectedIds = checkedIds ?? targets.map((target) => target.id);
 	const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+	const limitedDestinations = useMemo(
+		() =>
+			targets.flatMap((target) =>
+				selectedIdSet.has(target.id) && target.limits
+					? [{ label: target.label ?? target.provider, limits: target.limits }]
+					: [],
+			),
+		[targets, selectedIdSet],
+	);
+	const tightest = useTextCounter(body, limitedDestinations);
+	const isOverLimit = tightest?.state === 'error';
 
 	const toggleTarget = (id: string, checked: boolean) => {
 		setCheckedIds((previous) => {
@@ -161,6 +179,7 @@ export const PublishOnBlock = ({
 					})}
 				</div>
 			)}
+			<PublishLimitCounter tightest={tightest} />
 			{isPublishing ? (
 				<span
 					data-testid="tenant-posts-publish-in-progress"
@@ -172,7 +191,7 @@ export const PublishOnBlock = ({
 			<Button
 				type="button"
 				variant="default"
-				disabled={selectedIds.length === 0 || isPublishing}
+				disabled={selectedIds.length === 0 || isPublishing || isOverLimit}
 				onClick={() => void handlePublishNow()}
 				data-testid="tenant-posts-publish-now"
 			>

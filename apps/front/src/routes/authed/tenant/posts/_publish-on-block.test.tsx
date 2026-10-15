@@ -106,12 +106,38 @@ const stubTargets = () => {
 	});
 };
 
-const renderBlock = (props?: { postId?: string }) => {
+const stubLimitedTargets = () => {
+	const limits = { maxTextGraphemes: 300, maxTextBytes: 3000 };
+	mocks.useTargetsQuery.mockReturnValue({
+		data: {
+			items: [
+				{ id: TARGET_A, label: 'Acme main', provider: 'bluesky', limits },
+				{
+					id: TARGET_B,
+					label: 'Strict handle',
+					provider: 'bluesky',
+					limits: { maxTextGraphemes: 100, maxTextBytes: 3000 },
+				},
+			],
+		},
+		isPending: false,
+		isError: false,
+		error: null,
+		refetch: vi.fn(),
+		isFetching: false,
+	});
+};
+
+const renderBlock = (props?: { postId?: string; body?: string }) => {
 	const client = new QueryClient();
 
 	return render(
 		<QueryClientProvider client={client}>
-			<PublishOnBlock projectId={null} postId={props?.postId ?? POST_ID} />
+			<PublishOnBlock
+				projectId={null}
+				postId={props?.postId ?? POST_ID}
+				body={props?.body}
+			/>
 		</QueryClientProvider>,
 	);
 };
@@ -178,6 +204,51 @@ describe('PublishOnBlock', () => {
 			const box = screen.getByRole('checkbox', { name });
 			expect(box.getAttribute('aria-checked')).toBe('true');
 		}
+	});
+
+	test('shows the tightest destination counter and blocks Publish now over the limit', async () => {
+		allowPermission(true);
+		stubLimitedTargets();
+		const user = userEvent.setup();
+
+		renderBlock({ body: 'a'.repeat(120) });
+
+		const counter = screen.getByTestId('tenant-posts-limit-counter');
+		expect(counter.getAttribute('data-state')).toBe('error');
+		expect(counter.textContent).toContain('120 / 100');
+		expect(counter.textContent).toContain('Strict handle');
+		expect(screen.getByTestId('tenant-posts-limit-error')).toBeTruthy();
+		const button = screen.getByTestId('tenant-posts-publish-now');
+		expect((button as HTMLButtonElement).disabled).toBe(true);
+
+		// Unchecking the strict destination lifts the block: 120 / 300 is fine.
+		await user.click(screen.getByRole('checkbox', { name: 'Strict handle' }));
+		expect(
+			screen
+				.getByTestId('tenant-posts-limit-counter')
+				.getAttribute('data-state'),
+		).toBe('ok');
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(false);
+	});
+
+	test('warns from 90 percent of the limit', () => {
+		allowPermission(true);
+		stubLimitedTargets();
+
+		renderBlock({ body: 'a'.repeat(90) });
+
+		expect(
+			screen
+				.getByTestId('tenant-posts-limit-counter')
+				.getAttribute('data-state'),
+		).toBe('warning');
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(false);
 	});
 
 	test('disables Publish now after unchecking every target', async () => {

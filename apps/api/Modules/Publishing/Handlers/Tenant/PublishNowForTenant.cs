@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
@@ -120,6 +121,10 @@ public sealed class PublishNowForTenant {
 					["accountIds"] = [.. unknownAccounts.AccountIds.Select(id => id.ToString())],
 				}
 			);
+		}
+
+		if (result is PublishNowResult.ContentInvalid contentInvalid) {
+			return PublishContentProblems.ToProblem(contentInvalid.Failure);
 		}
 
 		if (result is not PublishNowResult.Created created) {

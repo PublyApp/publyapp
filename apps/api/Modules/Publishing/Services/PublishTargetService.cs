@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
@@ -16,6 +17,16 @@ public record PublishTargetItem {
 	public required Guid Id { get; init; }
 	public required string Label { get; init; }
 	public required string Provider { get; init; }
+	public required PublishTargetLimits Limits { get; init; }
+}
+
+/// <summary>
+/// The provider's text limits, so the composer needs no hardcoded numbers
+/// (issue #2169).
+/// </summary>
+public record PublishTargetLimits {
+	public required int MaxTextGraphemes { get; init; }
+	public required int MaxTextBytes { get; init; }
 }
 
 /// <summary>
@@ -73,6 +84,11 @@ public sealed class PublishTargetService : IPublishTargetService {
 				// failing — FormatProvider throws on an unhandled value, a literal
 				// cannot.
 				Provider = SocialAccountWire.FormatProvider(account.Provider),
+				Limits = new PublishTargetLimits {
+					MaxTextGraphemes =
+						ProviderLimits.For(account.Provider).MaxTextGraphemes,
+					MaxTextBytes = ProviderLimits.For(account.Provider).MaxTextBytes,
+				},
 			})
 			.ToList();
 	}

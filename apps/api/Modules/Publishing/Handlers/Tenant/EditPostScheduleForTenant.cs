@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Validation;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 
@@ -193,6 +194,8 @@ public sealed class EditPostScheduleForTenant {
 						[invalidSchedule.ErrorKey] = [invalidSchedule.Cause],
 					}
 				),
+			EditPostScheduleResult.ContentInvalid contentInvalid =>
+				PublishContentProblems.ToProblem(contentInvalid.Failure),
 			EditPostScheduleResult.Success success => await EditPostScheduleForTenant._ApplyReschedulesAsync(
 				success.Reschedules,
 				postIdGuid,

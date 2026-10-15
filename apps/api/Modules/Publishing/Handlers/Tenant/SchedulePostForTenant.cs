@@ -12,6 +12,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
@@ -145,6 +146,8 @@ public sealed class SchedulePostForTenant {
 						[invalidSchedule.ErrorKey] = [invalidSchedule.Cause],
 					}
 				),
+			ScheduleResult.ContentInvalid contentInvalid =>
+				PublishContentProblems.ToProblem(contentInvalid.Failure),
 			ScheduleResult.Scheduled scheduled =>
 				TypedResults.Created(
 					(string?)null,

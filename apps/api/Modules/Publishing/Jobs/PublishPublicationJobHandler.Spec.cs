@@ -284,6 +284,36 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	[Fact]
+	public async Task ItShouldFailAtDispatchWithoutAProviderCallWhenTheBodyBecameOverLimit() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
+		var post = await db.Post.SingleAsync(p => p.Id == postId);
+		post.Body = new string('a', 301);
+		await db.SaveChangesAsync();
+		var publishProvider = new FakePublishProvider(null);
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, publishProvider, FakeSessions.Opened());
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		publishProvider.Requests.Should().BeEmpty("no provider call for an invalid body");
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("too long", "the cause names the content problem");
+		publication.LastError.Should().Contain("301");
+	}
+
+	[Fact]
 	public async Task ItShouldFailWithoutRetryWhenBlueskyRefusesTheContent() {
 		using var db = await this._NewDbAsync();
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);

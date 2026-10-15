@@ -349,6 +349,7 @@ export const CreatePostDrawer = ({
 						<div className="w-full space-y-3">
 							<PublishOnBlock
 								projectId={methods.watch('projectId') ?? null}
+								body={body}
 								onBeforePublish={async () => {
 									const values = methods.getValues();
 									await methods.trigger();

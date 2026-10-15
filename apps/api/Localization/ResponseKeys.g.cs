@@ -350,6 +350,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublicationScheduleInProgress = new("publication-schedule-in-progress");
 
 	/// <summary>
+	/// The post has no text to publish
+	/// </summary>
+	public static readonly TranslationKey PublishContentEmpty = new("publish-content-empty");
+
+	/// <summary>
+	/// The post text is too long for this destination
+	/// </summary>
+	public static readonly TranslationKey PublishContentTooLong = new("publish-content-too-long");
+
+	/// <summary>
 	/// Publishing started
 	/// </summary>
 	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");

@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import type { TextLimits } from '~/lib/text-counter/text-counter';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
@@ -22,6 +23,8 @@ export type TenantPublishTarget = {
 	id: string;
 	label: string | null;
 	provider: string;
+	/** Provider text limits; null when the API sent none. */
+	limits: TextLimits | null;
 };
 
 /** Wire vocabulary this composer can actually drive. D2 ships Bluesky only;
@@ -60,7 +63,14 @@ const toTenantPublishTarget = (
 		return null;
 	}
 
-	return { id, label: item.label ?? null, provider };
+	const maxTextGraphemes = item.limits?.maxTextGraphemes;
+	const maxTextBytes = item.limits?.maxTextBytes;
+	const limits =
+		typeof maxTextGraphemes === 'number' && typeof maxTextBytes === 'number'
+			? { maxTextGraphemes, maxTextBytes }
+			: null;
+
+	return { id, label: item.label ?? null, provider, limits };
 };
 
 /** Fail-closed row mapper for `GET /publishing/publish-targets`: a target

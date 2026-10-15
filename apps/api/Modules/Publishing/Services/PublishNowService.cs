@@ -37,6 +37,11 @@ public abstract record PublishNowResult {
 
 	public sealed record AccountsNotFound(IReadOnlyList<Guid> AccountIds)
 		: PublishNowResult;
+
+	// The post text cannot be published to the chosen providers (empty or over a
+	// provider limit, issue #2169). 422 upstream; nothing was written.
+	public sealed record ContentInvalid(PublishContentFailure Failure)
+		: PublishNowResult;
 }
 
 /// <summary>
@@ -110,6 +115,18 @@ public sealed class PublishNowService : IPublishNowService {
 		var eligibleIds = eligible
 			.Select(account => account.GetRequiredId())
 			.ToList();
+
+		var contentFailure = PublishValidationService.Validate(
+			post.Body,
+			await this._Db.PostMediaAsset.AnyAsync(
+				media => media.PostId == post.Id && !media.IsDeleted,
+				cancellationToken
+			),
+			eligible.Select(account => account.Provider)
+		);
+		if (contentFailure is not null) {
+			return new PublishNowResult.ContentInvalid(contentFailure);
+		}
 
 		var liveAccountIds = await this._LivePairAccountIdsAsync(
 			post.GetRequiredId(),
