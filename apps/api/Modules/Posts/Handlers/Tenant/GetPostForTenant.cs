@@ -54,7 +54,7 @@ public sealed class GetPostForTenant {
 			);
 		}
 
-		var asset = await assetService.FindByPostAsync(
+		var assets = await assetService.ListByPostAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
 
@@ -67,7 +67,8 @@ public sealed class GetPostForTenant {
 			CreatedByUserId = post.CreatedByUserId,
 			CreatedAt = post.CreatedAt,
 			UpdatedAt = post.UpdatedAt,
-			Image = PostWire.FormatImage(asset),
+			Image = PostWire.FormatImage(assets.FirstOrDefault()),
+			Images = PostWire.FormatImages(assets),
 		});
 	}
 }
@@ -81,5 +82,7 @@ public record PostDetail {
 	public required Guid CreatedByUserId { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required DateTime UpdatedAt { get; init; }
+	/// <summary>The first image; kept for one release for old clients (use <see cref="Images"/>).</summary>
 	public required PostImageReadModel? Image { get; init; }
+	public required IReadOnlyList<PostImageReadModel> Images { get; init; }
 }

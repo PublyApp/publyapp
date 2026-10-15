@@ -11,6 +11,11 @@ using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
+/// <summary>
+/// Legacy single-image removal (<c>DELETE /posts/{id}/image</c>), kept for one
+/// release for old clients: removes the post's FIRST image. The per-image route
+/// is <see cref="RemovePostImageByIdForTenant"/>, which shares this logic.
+/// </summary>
 public sealed class RemovePostImageForTenant {
 	public static async Task<Results<
 		Ok<ApiResponse>,
@@ -23,6 +28,30 @@ public sealed class RemovePostImageForTenant {
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
+	) {
+		return await RemovePostImageForTenant.RemoveAsync(
+			postId,
+			assetId: null,
+			authContext,
+			assetService,
+			uploadReferences,
+			auditLogService,
+			cancellationToken
+		);
+	}
+
+	internal static async Task<Results<
+		Ok<ApiResponse>,
+		AppBadRequestHttpResult,
+		AppNotFoundHttpResult
+	>> RemoveAsync(
+		string postId,
+		Guid? assetId,
+		IRequestAuthContext authContext,
+		IPostMediaAssetService assetService,
+		IUploadAssetReferenceService uploadReferences,
+		IAuditLogService auditLogService,
+		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
 			throw new InvalidOperationException(
@@ -62,7 +91,7 @@ public sealed class RemovePostImageForTenant {
 		// releases the blob's reference only AFTER that commit. Physical deletion
 		// stays exclusively sweeper's.
 		var removedPath = await assetService.RemoveAsync(
-			tenantId, postIdGuid, cancellationToken
+			new RemovePostMediaArgs(tenantId, postIdGuid, assetId), cancellationToken
 		);
 		if (removedPath is null) {
 			return TypedProblems.NotFound(
@@ -83,6 +112,7 @@ public sealed class RemovePostImageForTenant {
 				Details: new {
 					TenantId = tenantId,
 					ImageRemoved = true,
+					ImageId = assetId,
 				}
 			),
 			cancellationToken

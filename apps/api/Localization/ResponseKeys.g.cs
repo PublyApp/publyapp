@@ -255,6 +255,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostDeletedSuccess = new("post-deleted-success");
 
 	/// <summary>
+	/// Animated and GIF images are not supported; use a JPEG, PNG, or static WebP image
+	/// </summary>
+	public static readonly TranslationKey PostImageAnimatedUnsupported = new("post-image-animated-unsupported");
+
+	/// <summary>
 	/// Post image attached successfully
 	/// </summary>
 	public static readonly TranslationKey PostImageAttachedSuccess = new("post-image-attached-success");
@@ -268,6 +273,11 @@ public static partial class ResponseKeys {
 	/// Image dimensions are invalid
 	/// </summary>
 	public static readonly TranslationKey PostImageDimensionsInvalid = new("post-image-dimensions-invalid");
+
+	/// <summary>
+	/// A post can have at most 4 images
+	/// </summary>
+	public static readonly TranslationKey PostImageLimitReached = new("post-image-limit-reached");
 
 	/// <summary>
 	/// No image is attached to this post
@@ -290,9 +300,14 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostImageTooLarge = new("post-image-too-large");
 
 	/// <summary>
-	/// Image must be a PNG, JPEG, WEBP, or GIF
+	/// Image must be a PNG, JPEG, or WEBP
 	/// </summary>
 	public static readonly TranslationKey PostImageUnsupportedType = new("post-image-unsupported-type");
+
+	/// <summary>
+	/// The image order must list every image of the post exactly once
+	/// </summary>
+	public static readonly TranslationKey PostImagesOrderMismatch = new("post-images-order-mismatch");
 
 	/// <summary>
 	/// Post not found
@@ -358,6 +373,16 @@ public static partial class ResponseKeys {
 	/// The post text is too long for this destination
 	/// </summary>
 	public static readonly TranslationKey PublishContentTooLong = new("publish-content-too-long");
+
+	/// <summary>
+	/// An image of the post is not a type this destination accepts
+	/// </summary>
+	public static readonly TranslationKey PublishImageUnsupportedType = new("publish-image-unsupported-type");
+
+	/// <summary>
+	/// The post has more images than this destination accepts
+	/// </summary>
+	public static readonly TranslationKey PublishImagesTooMany = new("publish-images-too-many");
 
 	/// <summary>
 	/// Publishing started

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Posts.Entities;
+using PublyApp.Api.Modules.Publishing.Providers;
 
 namespace PublyApp.Api.Modules.Posts.Services;
 
@@ -17,6 +18,41 @@ public record AttachPostMediaArgs(
 	Guid UploadedByUserId
 );
 
+public record RemovePostMediaArgs(
+	Guid TenantId,
+	Guid PostId,
+	Guid? AssetId
+);
+
+public record ReorderPostMediaArgs(
+	Guid TenantId,
+	Guid PostId,
+	IReadOnlyList<Guid> OrderedAssetIds
+);
+
+public record SetPostMediaAltTextArgs(
+	Guid TenantId,
+	Guid PostId,
+	Guid AssetId,
+	string? AltText
+);
+
+public abstract record AttachPostMediaResult {
+	/// <summary>The image was appended at the end of the post's list.</summary>
+	public sealed record Attached(PostMediaAsset Asset) : AttachPostMediaResult;
+
+	/// <summary>The post already holds the maximum number of images.</summary>
+	public sealed record LimitReached(int MaxImages) : AttachPostMediaResult;
+}
+
+public abstract record ReorderPostMediaResult {
+	public sealed record Reordered(IReadOnlyList<PostMediaAsset> Assets)
+		: ReorderPostMediaResult;
+
+	/// <summary>The submitted ids are not exactly the post's live image ids.</summary>
+	public sealed record IdsMismatch : ReorderPostMediaResult;
+}
+
 public interface IPostMediaAssetService {
 	/// <summary>
 	/// The tenant-scoped ownership read every attach/remove decision goes
@@ -29,39 +65,60 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>The live asset row for a post, or null when the post has none.</summary>
+	/// <summary>The first live asset row of a post (position 0), or null when it has none.</summary>
 	Task<PostMediaAsset?> FindByPostAsync(
 		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
 	);
 
+	/// <summary>The post's live asset rows in publish order.</summary>
+	Task<IReadOnlyList<PostMediaAsset>> ListByPostAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default
+	);
+
 	/// <summary>
-	/// Persists the new asset row in ONE unit of work: hard-deletes the stale
-	/// live row(s) a replacement purges, inserts the new row, and saves. Returns
-	/// the blob paths it DISPLACED (inside this same transaction, the moment the
-	/// replacement's row is hard-deleted) so the CALLING HANDLER can release those
-	/// asset references AFTER this method's commit. The handler MUST acquire the
-	/// NEW blob's reference before calling (so the URL can never commit at zero
-	/// references) and release the RETURNED displaced paths after. Capturing the
-	/// replaced path in the handler before this call races the purge and leaks the
-	/// predecessor's blob reference (#1617) — that responsibility lives here, not
-	/// in the handler. Physical deletion stays exclusively the sweeper's.	/// </summary>
-	Task<IReadOnlyList<string>> AttachAsync(
+	/// Appends the new asset row at the end of the post's list in ONE unit of
+	/// work, refusing a fifth image (the max-images invariant lives here; the
+	/// unique (post, position) index backs it under concurrency — a racing
+	/// loser surfaces as a unique violation the handler turns into a 409). The
+	/// handler MUST acquire the blob's reference before calling (so the URL can
+	/// never commit at zero references) and release it itself if this throws.
+	/// Physical deletion stays exclusively the sweeper's.
+	/// </summary>
+	Task<AttachPostMediaResult> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	);
 
-	/// Removes a post's image: hard-deletes the asset row in its own unit of
-	/// work (one unit of work). Returns null when no live asset exists for the
-	/// post; otherwise returns the removed blob's relative path so the CALLING
-	/// HANDLER can release its asset reference AFTER the commit (#807 F5;
-	/// #1461 moved the release out of the service). Physical deletion stays
-	/// exclusively the sweeper's.
+	/// <summary>
+	/// Removes one of a post's images (the first when
+	/// <c>AssetId</c> is null — the legacy single-image route):
+	/// hard-deletes the row and closes the position gap in its own unit of
+	/// work. Returns null when no such live asset exists; otherwise returns the
+	/// removed blob's relative path so the CALLING HANDLER can release its asset
+	/// reference AFTER the commit (#807 F5; #1461 moved the release out of the
+	/// service). Physical deletion stays exclusively the sweeper's.
 	/// </summary>
 	Task<string?> RemoveAsync(
-		Guid tenantId,
-		Guid postId,
+		RemovePostMediaArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	/// <summary>
+	/// Rewrites positions to match <c>OrderedAssetIds</c>, which must
+	/// be exactly the post's live image ids.
+	/// </summary>
+	Task<ReorderPostMediaResult> ReorderAsync(
+		ReorderPostMediaArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	/// <summary>Sets one image's alt text; null when the asset is not a live image of the post.</summary>
+	Task<PostMediaAsset?> SetAltTextAsync(
+		SetPostMediaAltTextArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -105,45 +162,52 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			where a.TenantId == tenantId
 				&& a.PostId == postId
 				&& !a.IsDeleted
+			orderby a.Position
 			select a;
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task<IReadOnlyList<string>> AttachAsync(
+	public async Task<IReadOnlyList<PostMediaAsset>> ListByPostAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default
+	) {
+		var query =
+			from a in dbContext.PostMediaAsset.AsNoTracking()
+			where a.TenantId == tenantId
+				&& a.PostId == postId
+				&& !a.IsDeleted
+			orderby a.Position
+			select a;
+		return await query.ToListAsync(cancellationToken);
+	}
+
+	public async Task<AttachPostMediaResult> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		// A post owns at most ONE live image (partial unique index): replacing
-		// means hard-deleting the stale live row(s) in THIS unit of work —
-		// otherwise the insert violates ux_post_media_assets_live_post_id.
-		// The replaced paths are read from the SAME query that feeds the purge, so
-		// the capture and the hard-delete are one atomic step: a concurrent
-		// attach that commits first changes the rows this SELECT sees, and the
-		// returned paths always reflect exactly what THIS commit removed — no
-		// blob reference can be left acquired-and-unreleased under contention
-		// (#1616).
-		var replacedAssets = await (
+		var livePositions = await (
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == args.TenantId
 				&& a.PostId == args.PostId
 				&& !a.IsDeleted
-			select a
+			select a.Position
 		).ToListAsync(cancellationToken);
-		var replacedPaths = replacedAssets
-			.Select(static a => a.RelativePath)
-			.ToList();
+		var liveCount = livePositions.Count;
+		if (liveCount >= ProviderLimits.MaxImagesPerPost) {
+			return new AttachPostMediaResult.LimitReached(ProviderLimits.MaxImagesPerPost);
+		}
 
-		// Capture the displaced blob paths NOW, inside this tracked query's scope,
-		// so the handler releases exactly the rows this commit is about to purge.
-		// Doing this in the handler before the call races concurrent purges and
-		// leaks the predecessor's reference (#1617).
-		var displacedPaths = replacedAssets
-			.Select(a => a.RelativePath)
-			.ToList();
-
+		// The next slot is one past the highest live position, NOT the count: a
+		// concurrent remove can leave a gap (e.g. {0,1,3}) and count would then
+		// point at a taken slot on every retry. The cap is the count check above.
+		// Two racing appends compute the same slot; the unique (post, position)
+		// index lets exactly one commit.
+		var nextPosition = liveCount == 0 ? 0 : livePositions.Max() + 1;
 		var asset = new PostMediaAsset {
 			TenantId = args.TenantId,
 			PostId = args.PostId,
+			Position = nextPosition,
 			RelativePath = args.RelativePath,
 			ContentType = args.ContentType,
 			AltText = null,
@@ -153,28 +217,114 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			UploadedByUserId = args.UploadedByUserId,
 		};
 		await dbContext.PostMediaAsset.AddAsync(asset, cancellationToken);
-
-		foreach (var replaced in replacedAssets) {
-			dbContext.ForceHardDelete(replaced);
-		}
-
-		// One commit: the insert and the replacement's purge land atomically
-		// (EF Core issues same-table deletes before inserts in the batch).
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		// The CALLING HANDLER acquired the new blob's reference before this call
-		// and now releases the displaced paths returned here after the commit
-		// (#807 F5); physical deletion stays exclusively sweeper's.
-		return displacedPaths;	}
+		return new AttachPostMediaResult.Attached(asset);
+	}
 
 	public async Task<string?> RemoveAsync(
-		Guid tenantId,
-		Guid postId,
+		RemovePostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var asset = await (
+		var tenantId = args.TenantId;
+		var postId = args.PostId;
+		var assetId = args.AssetId;
+		await using var transaction = await dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+		var assets = await (
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == tenantId
+				&& a.PostId == postId
+				&& !a.IsDeleted
+			orderby a.Position
+			select a
+		).ToListAsync(cancellationToken);
+		var target = assetId is null
+			? assets.FirstOrDefault()
+			: assets.FirstOrDefault(a => a.Id == assetId.Value);
+		if (target is null) {
+			return null;
+		}
+
+		dbContext.ForceHardDelete(target);
+		await dbContext.SaveChangesAsync(cancellationToken);
+
+		// Close the gap so positions stay contiguous: shifting each survivor down
+		// one slot never collides because the vacated slot is already free and the
+		// survivors move in ascending order, one row per statement.
+		var survivors = assets.Where(a => a.Id != target.Id).ToList();
+		for (var index = 0; index < survivors.Count; index++) {
+			if (survivors[index].Position == index) {
+				continue;
+			}
+
+			survivors[index].Position = index;
+			survivors[index].UpdatedAt = DateTime.UtcNow;
+			await dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		await transaction.CommitAsync(cancellationToken);
+		// The CALLING handler releases this reference after the commit above
+		// (#807 F5 / #1461).
+		return target.RelativePath;
+	}
+
+	public async Task<ReorderPostMediaResult> ReorderAsync(
+		ReorderPostMediaArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var tenantId = args.TenantId;
+		var postId = args.PostId;
+		var orderedAssetIds = args.OrderedAssetIds;
+		await using var transaction = await dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+		var assets = await (
+			from a in dbContext.PostMediaAsset
+			where a.TenantId == tenantId
+				&& a.PostId == postId
+				&& !a.IsDeleted
+			select a
+		).ToListAsync(cancellationToken);
+
+		var wanted = orderedAssetIds.ToHashSet();
+		if (wanted.Count != orderedAssetIds.Count
+			|| wanted.Count != assets.Count
+			|| !assets.All(a => wanted.Contains(a.GetRequiredId()))) {
+			return new ReorderPostMediaResult.IdsMismatch();
+		}
+
+		// Two phases because the unique (post, position) index is checked per
+		// row: park every row on a negative slot, then assign the final slots.
+		for (var index = 0; index < assets.Count; index++) {
+			assets[index].Position = -(index + 1);
+		}
+		await dbContext.SaveChangesAsync(cancellationToken);
+
+		var ordered = new List<PostMediaAsset>(orderedAssetIds.Count);
+		for (var index = 0; index < orderedAssetIds.Count; index++) {
+			var asset = assets.First(a => a.Id == orderedAssetIds[index]);
+			asset.Position = index;
+			asset.UpdatedAt = DateTime.UtcNow;
+			ordered.Add(asset);
+		}
+		await dbContext.SaveChangesAsync(cancellationToken);
+		await transaction.CommitAsync(cancellationToken);
+
+		return new ReorderPostMediaResult.Reordered(ordered);
+	}
+
+	public async Task<PostMediaAsset?> SetAltTextAsync(
+		SetPostMediaAltTextArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var tenantId = args.TenantId;
+		var postId = args.PostId;
+		var assetId = args.AssetId;
+		var altText = args.AltText;
+		var asset = await (
+			from a in dbContext.PostMediaAsset
+			where a.Id == assetId
+				&& a.TenantId == tenantId
 				&& a.PostId == postId
 				&& !a.IsDeleted
 			select a
@@ -183,11 +333,10 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			return null;
 		}
 
-		dbContext.ForceHardDelete(asset);
+		asset.AltText = altText;
+		asset.UpdatedAt = DateTime.UtcNow;
 		await dbContext.SaveChangesAsync(cancellationToken);
-		// The CALLING handler releases this reference after the commit above
-		// (#807 F5 / #1461).
-		return asset.RelativePath;
+		return asset;
 	}
 
 	public async Task<IReadOnlyList<string>> StagePurgeOnPostDeleteAsync(

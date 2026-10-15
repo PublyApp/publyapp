@@ -19,6 +19,14 @@ public interface IFileStorage {
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
+	/// Reads the whole file at <paramref name="relativePath"/>, or returns null
+	/// when it does not exist. Used by publishing to resolve stored image bytes.
+	/// </summary>
+	Task<byte[]?> ReadAsync(
+		string relativePath,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
 	/// Deletes the file at <paramref name="relativePath"/> if it exists; a no-op
 	/// otherwise. Used to remove a previously-served upload blob when it is
 	/// replaced or its owning entity is deleted.

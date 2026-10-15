@@ -299,7 +299,7 @@ const TenantPostEditPage = () => {
 								<PostImagePicker
 									postId={postId}
 									tenantId={tenantId ?? ''}
-									existingImage={details.image ?? null}
+									existingImages={details.images}
 								/>
 								<PublishOnBlock
 									projectId={details.projectId}

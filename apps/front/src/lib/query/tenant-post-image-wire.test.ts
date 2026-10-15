@@ -57,4 +57,59 @@ describe('PostDetail wire deserialization', () => {
 		expect(image?.heightPx).toBe(1);
 		expect(Object.keys(image?.additionalData ?? {})).toEqual([]);
 	});
+
+	it('ItShouldKeepTheOrderedImagesListWithIdsAndPositions', () => {
+		const payload = {
+			id: '0b8e6e70-0000-0000-0000-000000000001',
+			tenantId: '0b8e6e70-0000-0000-0000-000000000002',
+			projectId: null,
+			status: 'draft',
+			body: 'probe',
+			createdByUserId: '0b8e6e70-0000-0000-0000-000000000003',
+			createdAt: '2026-08-25T23:00:00Z',
+			updatedAt: '2026-08-25T23:00:00Z',
+			image: null,
+			images: [
+				{
+					id: '0b8e6e70-0000-0000-0000-0000000000a1',
+					position: 0,
+					url: '/files/uploads/a.png',
+					altText: 'first',
+					widthPx: 2,
+					heightPx: 2,
+				},
+				{
+					id: '0b8e6e70-0000-0000-0000-0000000000a2',
+					position: 1,
+					url: '/files/uploads/b.png',
+					altText: null,
+					widthPx: 3,
+					heightPx: 3,
+				},
+			],
+		};
+
+		const bytes = new TextEncoder().encode(JSON.stringify(payload));
+		const arrayBuffer = bytes.buffer.slice(
+			bytes.byteOffset,
+			bytes.byteOffset + bytes.byteLength,
+		);
+		const node = new JsonParseNodeFactory().getRootParseNode(
+			'application/json',
+			arrayBuffer,
+		);
+		const detail = node.getObjectValue<PostDetail>(
+			createPostDetailFromDiscriminatorValue,
+		);
+
+		expect(detail?.images?.map((image) => image.url)).toEqual([
+			'/files/uploads/a.png',
+			'/files/uploads/b.png',
+		]);
+		expect(detail?.images?.[0]?.id?.toString()).toBe(
+			'0b8e6e70-0000-0000-0000-0000000000a1',
+		);
+		expect(detail?.images?.map((image) => image.position)).toEqual([0, 1]);
+		expect(Object.keys(detail?.images?.[0]?.additionalData ?? {})).toEqual([]);
+	});
 });

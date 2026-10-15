@@ -12824,7 +12824,7 @@
         "tags": [
           "Posts"
         ],
-        "summary": "Attach one image to a post (multipart 'file' field)",
+        "summary": "Append one image to a post, up to four (multipart 'file' field)",
         "operationId": "AttachPostImageForTenant",
         "parameters": [
           {
@@ -12958,7 +12958,7 @@
         "tags": [
           "Posts"
         ],
-        "summary": "Remove a post's attached image",
+        "summary": "Remove a post's first image (legacy single-image route)",
         "operationId": "RemovePostImageForTenant",
         "parameters": [
           {
@@ -13037,6 +13037,333 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/posts/{postId}/images/{assetId}": {
+      "delete": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Remove one image of a post by id",
+        "operationId": "RemovePostImageByIdForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Set the alt text of one image of a post",
+        "operationId": "UpdatePostImageForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePostImageBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostImageReadModel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/posts/{postId}/images/order": {
+      "patch": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Reorder a post's images",
+        "operationId": "ReorderPostImagesForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderPostImagesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostImagesReordered"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -17170,7 +17497,8 @@
           "createdByUserId",
           "createdAt",
           "updatedAt",
-          "image"
+          "image",
+          "images"
         ],
         "type": "object",
         "properties": {
@@ -17214,15 +17542,24 @@
             ],
             "allOf": [
               {
-                "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+                "description": "The first image; kept for one release for old clients (use IReadOnlyList&lt;PostImageReadModel&gt; PostDetail.Images).",
                 "$ref": "#/components/schemas/PostImageReadModel"
               }
             ]
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+              "$ref": "#/components/schemas/PostImageReadModel"
+            }
           }
         }
       },
       "PostImageAttached": {
         "required": [
+          "id",
+          "position",
           "url",
           "path",
           "contentType",
@@ -17231,6 +17568,15 @@
         ],
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
           "url": {
             "type": "string"
           },
@@ -17260,6 +17606,8 @@
       },
       "PostImageReadModel": {
         "required": [
+          "id",
+          "position",
           "url",
           "altText",
           "widthPx",
@@ -17267,6 +17615,15 @@
         ],
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
           "url": {
             "type": "string"
           },
@@ -17289,6 +17646,21 @@
         },
         "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry."
       },
+      "PostImagesReordered": {
+        "required": [
+          "images"
+        ],
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+              "$ref": "#/components/schemas/PostImageReadModel"
+            }
+          }
+        }
+      },
       "PostListItem": {
         "required": [
           "id",
@@ -17298,7 +17670,8 @@
           "createdByUserId",
           "createdAt",
           "updatedAt",
-          "image"
+          "image",
+          "images"
         ],
         "type": "object",
         "properties": {
@@ -17338,10 +17711,17 @@
             ],
             "allOf": [
               {
-                "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+                "description": "The first image; kept for one release for old clients (use IReadOnlyList&lt;PostImageReadModel&gt; PostListItem.Images).",
                 "$ref": "#/components/schemas/PostImageReadModel"
               }
             ]
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+              "$ref": "#/components/schemas/PostImageReadModel"
+            }
           }
         }
       },
@@ -17587,6 +17967,17 @@
         "type": "object",
         "properties": {
           "appPassword": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "ReorderPostImagesBody": {
+        "required": [
+          "assetIds"
+        ],
+        "type": "object",
+        "properties": {
+          "assetIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -19395,6 +19786,18 @@
           },
           "imageAltText": {
             "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "UpdatePostImageBody": {
+        "type": "object",
+        "properties": {
+          "altText": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },

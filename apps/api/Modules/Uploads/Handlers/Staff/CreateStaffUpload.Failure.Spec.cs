@@ -304,6 +304,13 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 			return Task.FromResult(this.SavedPath);
 		}
 
+		public Task<byte[]?> ReadAsync(
+			string relativePath,
+			CancellationToken cancellationToken = default
+		) {
+			throw new NotSupportedException("This spec double never reads.");
+		}
+
 		public Task<bool> DeleteAsync(
 			string relativePath,
 			CancellationToken cancellationToken = default

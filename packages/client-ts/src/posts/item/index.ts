@@ -6,6 +6,8 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { ImageRequestBuilderRequestsMetadata, type ImageRequestBuilder } from './image/index.js';
 // @ts-ignore
+import { ImagesRequestBuilderNavigationMetadata, type ImagesRequestBuilder } from './images/index.js';
+// @ts-ignore
 import { PublishNowRequestBuilderRequestsMetadata, type PublishNowRequestBuilder } from './publishNow/index.js';
 // @ts-ignore
 import { ScheduleRequestBuilderRequestsMetadata, type ScheduleRequestBuilder } from './schedule/index.js';
@@ -20,6 +22,10 @@ export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostI
      * The image property
      */
     get image(): ImageRequestBuilder;
+    /**
+     * The images property
+     */
+    get images(): ImagesRequestBuilder;
     /**
      * The publishNow property
      */
@@ -96,6 +102,9 @@ export const WithPostItemRequestBuilderUriTemplate = "{+baseurl}/posts/{postId}"
 export const WithPostItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithPostItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     image: {
         requestsMetadata: ImageRequestBuilderRequestsMetadata,
+    },
+    images: {
+        navigationMetadata: ImagesRequestBuilderNavigationMetadata,
     },
     publishNow: {
         requestsMetadata: PublishNowRequestBuilderRequestsMetadata,

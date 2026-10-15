@@ -9,25 +9,42 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 public enum PublishContentFailureKind {
 	Empty,
 	TooLong,
+	TooManyImages,
+	UnsupportedImageType,
 }
 
 /// <summary>
 /// One refusal: <see cref="Provider"/> is the wire provider name, <see cref="Unit"/>
 /// is "graphemes" or "bytes". <see cref="Limit"/>/<see cref="Actual"/> are 0 for
-/// <see cref="PublishContentFailureKind.Empty"/>.
+/// <see cref="PublishContentFailureKind.Empty"/>. For the image kinds, Unit is
+/// "images", Limit/Actual are the allowed/actual counts, and
+/// <see cref="ImageIndex"/> (1-based) plus <see cref="ContentType"/> name the
+/// offending image of an unsupported type (#2170).
 /// </summary>
 public sealed record PublishContentFailure(
 	PublishContentFailureKind Kind,
 	string Provider,
 	string Unit,
 	int Limit,
-	int Actual
+	int Actual,
+	int ImageIndex = 0,
+	string? ContentType = null
 ) {
 	public string Cause {
 		get {
 			if (this.Kind == PublishContentFailureKind.Empty) {
 				return "The post text is empty. Write some text or attach media "
 					+ "before publishing.";
+			}
+
+			if (this.Kind == PublishContentFailureKind.TooManyImages) {
+				return $"The post has too many images for {this.Provider}: "
+					+ $"{this.Actual} images, the limit is {this.Limit}.";
+			}
+
+			if (this.Kind == PublishContentFailureKind.UnsupportedImageType) {
+				return $"Image {this.ImageIndex} ({this.ContentType}) is not a type "
+					+ $"{this.Provider} accepts. Use a JPEG, PNG or static WebP image.";
 			}
 
 			return $"The post text is too long for {this.Provider}: {this.Actual} "
@@ -45,10 +62,11 @@ public sealed record PublishContentFailure(
 public static class PublishValidationService {
 	public const string GraphemeUnit = "graphemes";
 	public const string ByteUnit = "bytes";
+	public const string ImageUnit = "images";
 
 	public static PublishContentFailure? Validate(
 		string body,
-		bool hasMedia,
+		IReadOnlyList<string> imageContentTypes,
 		IEnumerable<SocialProvider> providers
 	) {
 		var normalized = TextCounter.Normalize(body);
@@ -57,7 +75,7 @@ public static class PublishValidationService {
 			return null;
 		}
 
-		if (normalized.Length == 0 && !hasMedia) {
+		if (normalized.Length == 0 && imageContentTypes.Count == 0) {
 			var first = providerList.Count > 0
 				? SocialAccountWire.FormatProvider(providerList[0])
 				: string.Empty;
@@ -72,6 +90,30 @@ public static class PublishValidationService {
 		foreach (var provider in providerList) {
 			var limits = ProviderLimits.For(provider);
 			var name = SocialAccountWire.FormatProvider(provider);
+
+			if (imageContentTypes.Count > limits.MaxImages) {
+				return new PublishContentFailure(
+					PublishContentFailureKind.TooManyImages,
+					name,
+					PublishValidationService.ImageUnit,
+					limits.MaxImages,
+					imageContentTypes.Count
+				);
+			}
+
+			for (var index = 0; index < imageContentTypes.Count; index++) {
+				if (!limits.AcceptedImageContentTypes.Contains(imageContentTypes[index])) {
+					return new PublishContentFailure(
+						PublishContentFailureKind.UnsupportedImageType,
+						name,
+						PublishValidationService.ImageUnit,
+						limits.AcceptedImageContentTypes.Count,
+						imageContentTypes.Count,
+						index + 1,
+						imageContentTypes[index]
+					);
+				}
+			}
 
 			if (graphemes > limits.MaxTextGraphemes) {
 				return new PublishContentFailure(

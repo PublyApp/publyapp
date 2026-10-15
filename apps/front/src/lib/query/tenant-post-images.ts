@@ -1,5 +1,6 @@
 import {
 	MultipartBody,
+	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -7,6 +8,7 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
+import type { PostImageAttached } from '@org/client-ts/models/index';
 import {
 	buildTenantMutationOptions,
 	scopedKey,
@@ -18,6 +20,8 @@ const TENANT_POST_IMAGE_MUTATION_KEY = ['tenant-posts', 'image'] as const;
  * models. `url` is resolved against the API origin so `<img src>` never falls
  * back to the front origin (see {@link resolveApiFileUrl}). */
 export type TenantPostImage = {
+	/** Asset id: the key for per-image alt text, remove and reorder. */
+	id: string | null;
 	url: string;
 	widthPx: number | null;
 	heightPx: number | null;
@@ -42,11 +46,25 @@ export const toTenantPostImage = (raw: unknown): TenantPostImage | null => {
 	}
 
 	return {
+		id: isNonEmptyString(record.id) ? record.id : null,
 		url: resolveApiFileUrl(url.trim()),
 		widthPx: typeof record.widthPx === 'number' ? record.widthPx : null,
 		heightPx: typeof record.heightPx === 'number' ? record.heightPx : null,
 		altText: isNonEmptyString(record.altText) ? record.altText : null,
 	};
+};
+
+/** Normalizes the read model's ordered `images` list; entries without a
+ * usable url are dropped. */
+export const toTenantPostImages = (raw: unknown): TenantPostImage[] => {
+	if (!Array.isArray(raw)) {
+		return [];
+	}
+
+	return raw.flatMap((entry) => {
+		const image = toTenantPostImage(entry);
+		return image ? [image] : [];
+	});
 };
 
 // ── Attach (multipart POST) ────────────────────────────────────────
@@ -86,7 +104,7 @@ export const buildAttachPostImageBody = async (
 
 const attachPostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
-	unknown,
+	PostImageAttached | undefined,
 	{ postId: string; tenantId: string; file: File }
 >(
 	{
@@ -106,17 +124,20 @@ const attachPostImageMutationOptions = buildTenantMutationOptions<
 export const useAttachPostImageMutation = () =>
 	useMutation(attachPostImageMutationOptions);
 
-// ── Remove (DELETE) ────────────────────────────────────────────────
+// ── Remove one image (DELETE by asset id) ──────────────────────────
 
 const removePostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; tenantId: string }
+	{ postId: string; tenantId: string; assetId: string }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'remove'],
 		mutationFn: async (client, variables) =>
-			client.posts.byPostId(variables.postId).image.delete(),
+			client.posts
+				.byPostId(variables.postId)
+				.images.byAssetId(variables.assetId)
+				.delete(),
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
@@ -125,33 +146,20 @@ const removePostImageMutationOptions = buildTenantMutationOptions<
 export const useRemovePostImageMutation = () =>
 	useMutation(removePostImageMutationOptions);
 
-// ── Alt text (PATCH imageAltText on the post) ──────────────────────
-
-export type ImageAltTextPatch = {
-	imageAltText?: ReturnType<typeof createUntypedString> | null;
-};
-
-/**
- * Builds the `imageAltText` PATCH fragment for the post update endpoint.
- * A string wraps in an untyped string node; `null` clears the alt text.
- */
-export const buildImageAltTextPatch = (
-	value: string | null,
-): ImageAltTextPatch => ({
-	imageAltText: value === null ? null : createUntypedString(value),
-});
+// ── Alt text (PATCH one image by asset id) ─────────────────────────
 
 const updatePostImageAltMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; tenantId: string; altText: string }
+	{ postId: string; tenantId: string; assetId: string; altText: string }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'alt'],
 		mutationFn: async (client, variables) =>
 			client.posts
 				.byPostId(variables.postId)
-				.patch(buildImageAltTextPatch(variables.altText)),
+				.images.byAssetId(variables.assetId)
+				.patch({ altText: createUntypedString(variables.altText) }),
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
@@ -159,6 +167,32 @@ const updatePostImageAltMutationOptions = buildTenantMutationOptions<
 
 export const useUpdatePostImageAltMutation = () =>
 	useMutation(updatePostImageAltMutationOptions);
+
+// ── Reorder (PATCH the full id list in the wanted order) ───────────
+
+/** Builds the reorder body: every image id of the post, in the new order. */
+export const buildReorderPostImagesBody = (assetIds: string[]) => ({
+	assetIds: createUntypedArray(assetIds.map((id) => createUntypedString(id))),
+});
+
+const reorderPostImagesMutationOptions = buildTenantMutationOptions<
+	ApiClient,
+	unknown,
+	{ postId: string; tenantId: string; assetIds: string[] }
+>(
+	{
+		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'reorder'],
+		mutationFn: async (client, variables) =>
+			client.posts
+				.byPostId(variables.postId)
+				.images.order.patch(buildReorderPostImagesBody(variables.assetIds)),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useReorderPostImagesMutation = () =>
+	useMutation(reorderPostImagesMutationOptions);
 
 // ── Invalidation ───────────────────────────────────────────────────
 

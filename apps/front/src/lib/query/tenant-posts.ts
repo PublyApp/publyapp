@@ -2,7 +2,10 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
-import { toTenantPostImage } from '~/lib/query/tenant-post-images';
+import {
+	toTenantPostImage,
+	toTenantPostImages,
+} from '~/lib/query/tenant-post-images';
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
@@ -50,6 +53,8 @@ export type TenantPostDetails = {
 	createdAt: Date | null;
 	updatedAt: Date | null;
 	image: TenantPostImage | null;
+	/** The post's images in publish order (up to four). */
+	images: TenantPostImage[];
 };
 
 export type SavePostInput = {
@@ -164,6 +169,7 @@ export const toTenantPostDetails = (
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
 		image: toTenantPostImage(result?.image),
+		images: toTenantPostImages(result?.images),
 	};
 };
 
@@ -292,6 +298,7 @@ export const savePost = async (
 		status: 'draft',
 		createdByUserId: null,
 		image: null,
+		images: [],
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	};

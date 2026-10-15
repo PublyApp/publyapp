@@ -93,7 +93,7 @@ public static class PostEndpointsForTenant {
 			.RequireRateLimiting(
 				ApiRateLimitPolicies.Upload
 			)
-			.WithSummary("Attach one image to a post (multipart 'file' field)")
+			.WithSummary("Append one image to a post, up to four (multipart 'file' field)")
 			// The handler returns IResult because it has 7 distinct statuses
 			// (201/400/422/404/413/429/409), exceeding Results<>'s 6-member cap.
 			// Swashbuckle only infers the generic problem responses (400/401/403/
@@ -121,7 +121,33 @@ public static class PostEndpointsForTenant {
 			RemovePostImageForTenant.Handle
 		)
 			.WithName("RemovePostImageForTenant")
-			.WithSummary("Remove a post's attached image")
+			.WithSummary("Remove a post's first image (legacy single-image route)")
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
+
+		group.MapDelete(
+			Routes.Posts.ForTenant.ImageById,
+			RemovePostImageByIdForTenant.Handle
+		)
+			.WithName("RemovePostImageByIdForTenant")
+			.WithSummary("Remove one image of a post by id")
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
+
+		group.MapPatch(
+			Routes.Posts.ForTenant.ImagesOrder,
+			ReorderPostImagesForTenant.Handle
+		)
+			.WithName("ReorderPostImagesForTenant")
+			.WithSummary("Reorder a post's images")
+			.WithReqBodyValidation<ReorderPostImagesBody>()
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
+
+		group.MapPatch(
+			Routes.Posts.ForTenant.ImageById,
+			UpdatePostImageForTenant.Handle
+		)
+			.WithName("UpdatePostImageForTenant")
+			.WithSummary("Set the alt text of one image of a post")
+			.WithReqBodyValidation<UpdatePostImageBody>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
 
 		return routes;

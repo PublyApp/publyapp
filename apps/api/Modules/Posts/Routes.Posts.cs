@@ -34,6 +34,18 @@ public static partial class Routes {
 			public static string AttachImageFn(string postId) {
 				return $"/{postId}/image";
 			}
+
+			// Per-image routes (#2170): DELETE/PATCH one image by asset id, and
+			// the order endpoint (static segment wins over the {assetId} one).
+			public const string ImageById = "/{postId}/images/{assetId}";
+			public static string ImageByIdFn(string postId, string assetId) {
+				return $"/{postId}/images/{assetId}";
+			}
+
+			public const string ImagesOrder = "/{postId}/images/order";
+			public static string ImagesOrderFn(string postId) {
+				return $"/{postId}/images/order";
+			}
 		}
 	}
 }

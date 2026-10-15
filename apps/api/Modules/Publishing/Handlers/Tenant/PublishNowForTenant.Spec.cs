@@ -302,7 +302,63 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		problem.RootElement.GetProperty("limit").GetInt32().Should().Be(3000);
 	}
 
+	[Fact]
+	public async Task ItShouldRejectAGifOrMoreThanFourImagesWithATypedProblemNamingTheCause() {
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var accountId = await this._SeedAcmeAccountAsync(acmeId);
+
+		var gifPostId = await this._SeedAcmePostWithImagesAsync("image/png", "image/gif");
+		var before = await this._CountPublicationsAsync();
+		using var gif = await this._PublishNowAsync(
+			acmeToken, acmeId, gifPostId,
+			new { accountIds = new[] { accountId.ToString() } }
+		);
+		gif.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var gifProblem = System.Text.Json.JsonDocument.Parse(await gif.Content.ReadAsStringAsync());
+		gifProblem.RootElement.GetProperty("translationKey").GetString()
+			.Should().Be("publish-image-unsupported-type");
+		gifProblem.RootElement.GetProperty("imageIndex").GetInt32().Should().Be(2);
+
+		var manyPostId = await this._SeedAcmePostWithImagesAsync(
+			"image/png", "image/png", "image/png", "image/png", "image/png"
+		);
+		using var many = await this._PublishNowAsync(
+			acmeToken, acmeId, manyPostId,
+			new { accountIds = new[] { accountId.ToString() } }
+		);
+		many.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var manyProblem = System.Text.Json.JsonDocument.Parse(await many.Content.ReadAsStringAsync());
+		manyProblem.RootElement.GetProperty("translationKey").GetString()
+			.Should().Be("publish-images-too-many");
+		manyProblem.RootElement.GetProperty("limit").GetInt32().Should().Be(4);
+		manyProblem.RootElement.GetProperty("actual").GetInt32().Should().Be(5);
+
+		(await this._CountPublicationsAsync()).Should().Be(before, "refused publishes write nothing");
+	}
+
 	// ── helpers ────────────────────────────────────────────────────────
+
+	private async Task<string> _SeedAcmePostWithImagesAsync(params string[] contentTypes) {
+		var postId = await this._SeedAcmePostAsync("");
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var post = await db.Post.SingleAsync(p => p.Id == Guid.Parse(postId));
+		for (var index = 0; index < contentTypes.Length; index++) {
+			db.PostMediaAsset.Add(new PostMediaAsset {
+				TenantId = post.TenantId,
+				PostId = post.GetRequiredId(),
+				Position = index,
+				RelativePath = $"uploads/spec/{Guid.NewGuid():N}.bin",
+				ContentType = contentTypes[index],
+				WidthPx = 8,
+				HeightPx = 8,
+				SizeBytes = 64,
+				UploadedByUserId = post.CreatedByUserId,
+			});
+		}
+		await db.SaveChangesAsync();
+		return postId;
+	}
 
 	private async Task<HttpResponseMessage> _PublishNowAsync(
 		string token,

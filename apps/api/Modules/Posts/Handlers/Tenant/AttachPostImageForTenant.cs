@@ -10,20 +10,20 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
 /// <summary>
-/// Attaches ONE image to a post (multipart <c>file</c> field). Type and
+/// Appends ONE image to a post's ordered list (multipart <c>file</c> field; at
+/// most four, a fifth is a typed 422; GIF and animated images are refused). Type and
 /// dimensions come from server-side header parsing (never client claims);
 /// bytes pass the durable upload-admission pipeline (#807 F1). The blob
-/// reference is acquired HERE before the post-owned asset row commits, and a
-/// replaced image's reference is released HERE after that commit (#807 F5) —
-/// the handler owns the coordination, the service only persists rows.
-/// Replacing an existing image releases the old reference in the same unit of
-/// work — no orphans. A post owns at most one live image (partial unique index).
+/// reference is acquired HERE before the post-owned asset row commits and
+/// released HERE if the row never lands (#807 F5) — the handler owns the
+/// coordination, the service only persists rows.
 /// </summary>
 public sealed class AttachPostImageForTenant {
 	public static async Task<IResult> Handle(
@@ -79,6 +79,15 @@ public sealed class AttachPostImageForTenant {
 				ResponseKeys.PostImageRequired
 			);
 		}
+
+		// Cheap early refusal so a fifth image never reaches storage; the asset
+		// service re-checks authoritatively at insert time.
+		var existingImages = await assetService.ListByPostAsync(
+			tenantId, postIdGuid, cancellationToken
+		);
+		if (existingImages.Count >= ProviderLimits.MaxImagesPerPost) {
+			return AttachPostImageForTenant._LimitReached();
+		}
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
 			return TypedProblems.PayloadTooLarge(
@@ -94,7 +103,7 @@ public sealed class AttachPostImageForTenant {
 		var inspection = ImageInspector.Inspect(uploadStream);
 		if (inspection is ImageInspector.UnknownType) {
 			return AttachPostImageForTenant._ValidationFailure(
-				"File must be a PNG, JPEG, WEBP, or GIF image",
+				"File must be a PNG, JPEG, or WEBP image",
 				ResponseKeys.PostImageUnsupportedType
 			);
 		}
@@ -108,6 +117,17 @@ public sealed class AttachPostImageForTenant {
 		}
 		var inspected =
 			(ImageInspector.Inspected)inspection;
+
+		// Publishing carries static JPEG/PNG/WebP only (ProviderLimits): refuse
+		// GIF and animated WebP here with a clear message instead of failing
+		// at publish time.
+		if (!ProviderLimits.Bluesky.AcceptedImageContentTypes.Contains(inspected.ContentType)
+			|| AttachPostImageForTenant._IsAnimatedWebP(uploadStream, inspected)) {
+			return AttachPostImageForTenant._ValidationFailure(
+				"Animated and GIF images are not supported; use a JPEG, PNG, or static WebP image",
+				ResponseKeys.PostImageAnimatedUnsupported
+			);
+		}
 		uploadStream.Position = 0;
 
 		// Durable admission (#807 F1): reserve bytes and create the Reserved
@@ -203,30 +223,23 @@ public sealed class AttachPostImageForTenant {
 
 		// #807 F5 reference discipline, owned by this HANDLER (#1461): acquire the
 		// NEW blob's reference BEFORE the entity write so the URL can never commit
-		// while its asset still reads zero references. The REPLACED image's path is
-		// captured INSIDE AttachAsync, atomically with the row purge it hard-deletes
-		// — capturing it here first would race concurrent purges and leak the
-		// predecessor's blob reference (#1617, closed by #1653). The handler releases
-		// the returned displaced paths AFTER AttachAsync commits. Physical deletion
-		// stays exclusively sweeper's.
-		//
-		// The partial unique index (ux_post_media_assets_live_post_id) admits exactly
-		// one live image per post, so concurrent attaches race the insert: the winner
-		// commits, the losers hit a unique violation. The loser has ALREADY acquired
-		// the new blob's reference above, so BOTH compensation paths below must
-		// release it, or its blob leaks forever (#1616, this branch).
+		// while its asset still reads zero references. If the row never lands
+		// (limit reached, lost append race, any failure) the reference is released
+		// below, or the blob leaks forever (#1616). Physical deletion stays
+		// exclusively sweeper's.
 		await uploadReferences.TryAddReferenceAsync(
 			relativePath, cancellationToken
 		);
 
 		// The try covers ONLY the entity write, on purpose: its failure is the one
-		// event that means "this blob never became the live image". The inner catch
-		// handles the known 409 loser race deterministically; the outer catch covers
-		// any other AttachAsync failure (connection loss, cancellation observed after
-		// the command was sent, constraint the unique-index filter did not match) via
-		// a database re-check rather than an assumption about what committed.
+		// event that means "this blob never became one of the post's images". The
+		// inner catch handles the known 409 loser race (two appends claiming the
+		// same position) deterministically; the outer catch covers any other
+		// AttachAsync failure via a database re-check rather than an assumption
+		// about what committed.
+		AttachPostMediaResult attachResult;
 		try {
-			var displacedPaths = await assetService.AttachAsync(
+			attachResult = await assetService.AttachAsync(
 				new AttachPostMediaArgs(
 					TenantId: tenantId,
 					PostId: postIdGuid,
@@ -239,37 +252,25 @@ public sealed class AttachPostImageForTenant {
 				),
 				cancellationToken
 			);
-
-			// Reached ONLY when AttachAsync returned: the row is committed and this
-			// blob IS the post's live image, so its own reference stays acquired and
-			// only the paths this commit actually removed are released.
-			foreach (var displacedPath in displacedPaths) {
-				await uploadReferences.TryReleaseReferenceAsync(
-					displacedPath,
-					cancellationToken
-				);
-			}
 		} catch (DbUpdateException ex) when (AttachPostImageForTenant._IsPostImageUniqueViolation(ex)) {
-			// Loser of the concurrent-attach race (#1653 contract): another attach
-			// for this post just won. Release the reference we acquired so its blob is
-			// not left stuck at reference_count = 1 (#1616), and tell the client to
-			// retry against the winner's image instead of silently dropping its bytes.
+			// Loser of the concurrent-append race: another attach just took this
+			// position. Release the reference we acquired so its blob is not left
+			// stuck at reference_count = 1 (#1616), and tell the client to retry.
 			await uploadReferences.TryReleaseReferenceAsync(
 				relativePath,
 				cancellationToken
 			);
 			return TypedProblems.Conflict(
-				"Another image attach for this post just won the one-image slot; "
+				"Another image attach for this post just took the next image slot; "
 				+ "no row was written for this request. Re-fetch the post to see "
-				+ "the winning image, then retry if you mean to replace it.",
+				+ "its images, then retry.",
 				ResponseKeys.PostImageConflict
 			);
 		} catch {
-			// Any other failure of the entity write: this blob never became the
-			// post's live image, so its acquired reference must be released or it
+			// Any other failure of the entity write: this blob never became one of
+			// the post's images, so its acquired reference must be released or it
 			// leaks (#1616). The compensation asks the database whether our blob is
-			// now the live image (rather than assuming the write landed or not), so
-			// it never double-releases a row a later attach will release for us.
+			// now attached (rather than assuming the write landed or not).
 			await AttachPostImageForTenant._ReleaseUnattachedReferenceAsync(
 				assetService,
 				uploadReferences,
@@ -281,9 +282,20 @@ public sealed class AttachPostImageForTenant {
 			throw;
 		}
 
+		if (attachResult is AttachPostMediaResult.LimitReached) {
+			await uploadReferences.TryReleaseReferenceAsync(
+				relativePath,
+				cancellationToken
+			);
+			return AttachPostImageForTenant._LimitReached();
+		}
+
+		var attached = ((AttachPostMediaResult.Attached)attachResult).Asset;
 		return TypedResults.Created(
 			(string?)null,
 			new PostImageAttached {
+				Id = attached.GetRequiredId(),
+				Position = attached.Position,
 				Url = $"/files/{relativePath}",
 				Path = relativePath,
 				ContentType = inspected.ContentType,
@@ -292,6 +304,36 @@ public sealed class AttachPostImageForTenant {
 				AltText = null,
 			}
 		);
+	}
+
+	private static AppValidationProblemHttpResult _LimitReached() {
+		var message = $"A post can have at most {ProviderLimits.MaxImagesPerPost} images";
+		return TypedProblems.ValidationProblem(
+			message,
+			ResponseKeys.PostImageLimitReached,
+			new Dictionary<string, string[]> {
+				{ "file", [message] }
+			},
+			new Dictionary<string, object?> {
+				["limit"] = ProviderLimits.MaxImagesPerPost,
+			}
+		);
+	}
+
+	// WebP animation flag: RIFF....WEBP then a VP8X chunk whose flags byte
+	// (offset 20) carries the animation bit 0x02. Leaves the stream position
+	// unspecified; the caller rewinds.
+	private static bool _IsAnimatedWebP(Stream stream, ImageInspector.Inspected inspected) {
+		if (inspected.ContentType != "image/webp") {
+			return false;
+		}
+
+		stream.Position = 0;
+		Span<byte> header = stackalloc byte[21];
+		var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
+		return read == header.Length
+			&& header[12..16].SequenceEqual("VP8X"u8)
+			&& (header[20] & 0x02) != 0;
 	}
 
 	private static string? _RelativePathOrNull(string? candidate) {
@@ -325,15 +367,14 @@ public sealed class AttachPostImageForTenant {
 			// Releasing on that ambiguity would strip the LIVE image's only
 			// reference and hand a displayed blob to the sweeper — the exact
 			// inverse bug. A live row holding OUR path therefore means "keep it";
-			// whenever a later attach replaces that row, THAT attach releases this
-			// reference from its own replacedPaths, so releasing here as well
-			// would double-release.
-			var liveAsset = await assetService.FindByPostAsync(
+			// removing that row later releases this reference, so releasing here
+			// as well would double-release.
+			var liveAssets = await assetService.ListByPostAsync(
 				tenantId, postId, CancellationToken.None
 			);
-			if (liveAsset is not null && string.Equals(
+			if (liveAssets.Any(liveAsset => string.Equals(
 				liveAsset.RelativePath, relativePath, StringComparison.Ordinal
-			)) {
+			))) {
 				return;
 			}
 
@@ -384,9 +425,10 @@ public sealed class AttachPostImageForTenant {
 
 	/// <summary>
 	/// True when the failure is a unique-constraint violation on the
-	/// post_media_assets one-live-image index. Concurrent attaches to the same
-	/// post insert simultaneously and the loser(s) hit this — they must release
-	/// the blob reference they already acquired instead of leaking it (#1616).
+	/// post_media_assets (post, position) index. Concurrent attaches to the same
+	/// post claim the same next position and the loser(s) hit this — they must
+	/// release the blob reference they already acquired instead of leaking it
+	/// (#1616).
 	/// </summary>
 	private static bool _IsPostImageUniqueViolation(DbUpdateException ex) {
 		if (ex.InnerException is not PostgresException pgEx) {
@@ -402,6 +444,8 @@ public sealed class AttachPostImageForTenant {
 }
 
 public record PostImageAttached {
+	public required Guid Id { get; init; }
+	public required int Position { get; init; }
 	public required string Url { get; init; }
 	public required string Path { get; init; }
 	public required string ContentType { get; init; }

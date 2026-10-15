@@ -282,7 +282,7 @@ public sealed class PublicationService : IPublicationService {
 
 		var contentFailure = PublishValidationService.Validate(
 			post.Body,
-			await this._HasMediaAsync(post.GetRequiredId(), cancellationToken),
+			await this._ImageContentTypesAsync(post.GetRequiredId(), cancellationToken),
 			accounts.Select(account => account.Provider)
 		);
 		if (contentFailure is not null) {
@@ -436,7 +436,7 @@ public sealed class PublicationService : IPublicationService {
 				args.Body.IsPresent && args.Body.Value is not null
 					? args.Body.Value
 					: post.Body,
-				await this._HasMediaAsync(postId, cancellationToken),
+				await this._ImageContentTypesAsync(postId, cancellationToken),
 				targetProviders
 			);
 			if (contentFailure is not null) {
@@ -507,14 +507,16 @@ public sealed class PublicationService : IPublicationService {
 		}
 	}
 
-	private Task<bool> _HasMediaAsync(
+	private async Task<IReadOnlyList<string>> _ImageContentTypesAsync(
 		Guid postId,
 		CancellationToken cancellationToken
 	) {
-		return this._DbContext.PostMediaAsset.AnyAsync(
-			media => media.PostId == postId && !media.IsDeleted,
-			cancellationToken
-		);
+		return await (
+			from media in this._DbContext.PostMediaAsset.AsNoTracking()
+			where media.PostId == postId && !media.IsDeleted
+			orderby media.Position
+			select media.ContentType
+		).ToListAsync(cancellationToken);
 	}
 
 	private static ScheduleResult.InvalidAccounts? _ValidateAccount(

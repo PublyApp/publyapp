@@ -1171,6 +1171,10 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
                     b.Property<Guid>("PostId")
                         .HasColumnType("uuid")
                         .HasColumnName("post_id");
@@ -1202,9 +1206,9 @@ namespace PublyApp.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PostId")
+                    b.HasIndex("PostId", "Position")
                         .IsUnique()
-                        .HasDatabaseName("ux_post_media_assets_live_post_id")
+                        .HasDatabaseName("ux_post_media_assets_live_post_position")
                         .HasFilter("is_deleted = false");
 
                     b.HasIndex("TenantId", "PostId")

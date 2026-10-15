@@ -15,10 +15,33 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 	// fake has no dependency on the real client's HTTP surface.
 	private const string _Collection = "app.bsky.feed.post";
 
+	private static readonly System.Collections.Concurrent.ConcurrentQueue<RecordedPublish> _Recorded = new();
+
+	/// <summary>Every publish the fake received, oldest first (images in order).</summary>
+	public static IReadOnlyList<RecordedPublish> Recorded {
+		get { return FakeBlueskyPublishProvider._Recorded.ToArray(); }
+	}
+
+	public static void ClearRecorded() {
+		FakeBlueskyPublishProvider._Recorded.Clear();
+	}
+
+	public sealed record RecordedImage(string ContentType, string? AltText, int SizeBytes);
+
+	public sealed record RecordedPublish(string IdempotencyKey, IReadOnlyList<RecordedImage> Images);
+
 	public Task<PublishResult> PublishAsync(
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
+		FakeBlueskyPublishProvider._Recorded.Enqueue(
+			new RecordedPublish(
+				request.IdempotencyKey,
+				request.Media
+					.Select(media => new RecordedImage(media.ContentType, media.AltText, media.Content.Length))
+					.ToList()
+			)
+		);
 		var rkey = $"pub-{request.IdempotencyKey}";
 		var did = request.Session.Did;
 		var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";

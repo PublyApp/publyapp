@@ -7,13 +7,11 @@ using PublyApp.Api.Modules.Tenants.Entities;
 namespace PublyApp.Api.Modules.Posts.Entities;
 
 /// <summary>
-/// One image attached to a Post (lane 639, epic #629 wave B3). Version 1 allows
-/// exactly ONE live image per post; the partial unique index on
-/// <c>post_id</c> (WHERE is_deleted = false, see
-/// <see cref="PostMediaAssetConfiguration"/>) enforces that invariant in the
-/// database while leaving room for multiple images later without a contracting
-/// migration — future images relax the index predicate instead of reshaping
-/// this table.
+/// One image attached to a Post (lane 639, epic #629 wave B3; widened to an
+/// ordered list of up to four by #2170). Order is <see cref="Position"/>
+/// (0-based, contiguous among live rows); the partial unique index on
+/// (<c>post_id</c>, <c>position</c>) WHERE is_deleted = false (see
+/// <see cref="PostMediaAssetConfiguration"/>) keeps it unambiguous.
 ///
 /// The blob itself lives in the shared uploads pipeline: <see cref="RelativePath"/>
 /// points at an <c>UploadAsset</c>-managed file served under <c>/files</c>, and
@@ -41,6 +39,10 @@ public class PostMediaAsset : BaseAttributes, ITenantEntity {
 		set { this._Post = value; }
 	}
 	private Post? _Post;
+
+	/// <summary>0-based display/publish order among the post's live images.</summary>
+	[Column("position")]
+	public int Position { get; set; }
 
 	/// <summary>Storage-relative path owned by the uploads pipeline (blob referenced, never copied).</summary>
 	[Column("relative_path")]
