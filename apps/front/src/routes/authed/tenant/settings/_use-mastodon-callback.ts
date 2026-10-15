@@ -1,5 +1,5 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCompleteMastodonConnectMutation } from '~/lib/query/mastodon-connect';
 
 /** What the instance appends when it sends the browser back (RFC 6749). */
@@ -20,16 +20,18 @@ export const validateMastodonCallbackSearch = (
 	error: typeof search['error'] === 'string' ? search['error'] : undefined,
 });
 
-/** Finishes a Mastodon connect once: the instance redirected back with `code`
+/** Returns true when the user declined on the instance.
+ * Finishes a Mastodon connect once: the instance redirected back with `code`
  * and `state` (or an `error` when the user declined). The query string is
  * cleared either way, so a reload never replays the single-use state. */
-export const useMastodonCallback = (tenantId: string | null): void => {
+export const useMastodonCallback = (tenantId: string | null): boolean => {
 	const { code, state, error } = validateMastodonCallbackSearch(
 		useSearch({ strict: false }),
 	);
 	const complete = useCompleteMastodonConnectMutation();
 	const navigate = useNavigate();
 	const handled = useRef(false);
+	const [denied, setDenied] = useState(false);
 	const { mutateAsync } = complete;
 
 	useEffect(() => {
@@ -42,6 +44,8 @@ export const useMastodonCallback = (tenantId: string | null): void => {
 		const clear = () =>
 			navigate({ to: INTEGRATIONS_PATH, search: {}, replace: true });
 		if (!code || !state) {
+			// The user declined on the instance: say so instead of clearing silently.
+			setDenied(Boolean(error));
 			void clear();
 			return;
 		}
@@ -49,4 +53,6 @@ export const useMastodonCallback = (tenantId: string | null): void => {
 			.catch(() => undefined)
 			.finally(() => void clear());
 	}, [tenantId, code, state, error, mutateAsync, navigate]);
+
+	return denied;
 };

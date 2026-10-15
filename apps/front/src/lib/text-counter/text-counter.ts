@@ -62,10 +62,12 @@ const normalizeText = (text: string): string => {
 };
 
 /** Mirrors `MastodonCountingRule` in Publishing/Providers/Capabilities: a URL is
- * `http(s)://` plus a run that ends on a non-punctuation character; a remote
+ * `http(s)://` plus a run of ASCII RFC 3986 URL characters that ends on a
+ * non-punctuation character (any whitespace or non-ASCII character ends it); a remote
  * mention `@user@host` counts as `@user`. ASCII-only classes keep the .NET and JS
  * regex engines identical; both run `text-counter-fixtures.json`. */
-const URL_PATTERN = /https?:\/\/[^ \t\r\n<>"]*[^ \t\r\n<>".,;:!?)\]}']/g;
+const URL_PATTERN =
+	/https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]*[A-Za-z0-9\-_~/#@$&*+=%([]/g;
 const MENTION_PATTERN =
 	/(?<![A-Za-z0-9_/=])@([A-Za-z0-9_]+)@[A-Za-z0-9.-]*[A-Za-z0-9]/g;
 

@@ -174,5 +174,33 @@
 		"graphemes": 16,
 		"bytes": 16,
 		"characters": 26
+	},
+	{
+		"name": "mastodon url ends at a no-break space",
+		"text": "https://example.com/a\u00a0tail",
+		"graphemes": 26,
+		"bytes": 27,
+		"characters": 28
+	},
+	{
+		"name": "mastodon url ends at an ideographic space",
+		"text": "https://example.jp\u3000\u65e5\u672c\u8a9e",
+		"graphemes": 22,
+		"bytes": 30,
+		"characters": 27
+	},
+	{
+		"name": "mastodon url ends where CJK is glued on",
+		"text": "https://example.jp\u65e5\u672c\u8a9e",
+		"graphemes": 21,
+		"bytes": 27,
+		"characters": 26
+	},
+	{
+		"name": "mastodon url ends before a CJK path",
+		"text": "https://example.com/\u65e5\u672c\u8a9e",
+		"graphemes": 23,
+		"bytes": 29,
+		"characters": 26
 	}
 ]

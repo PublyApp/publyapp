@@ -252,9 +252,27 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		await using var _ = scope;
 		var connected = await MastodonOAuthServiceSpec._ConnectAsync(h, "revoke.example");
 
-		await h.Service.RevokeBestEffortAsync(h.TenantId, connected.Account.GetRequiredId(), default);
+		var revocation = await h.Service.PrepareRevocationAsync(h.TenantId, connected.Account.GetRequiredId(), default);
+		// The local disconnect erases the credentials FIRST; the prepared revoke still works.
+		connected.Account.ProtectedCredentials = string.Empty;
+		await h.Db.SaveChangesAsync();
+		await h.Service.RevokeBestEffortAsync(revocation, default);
 
 		h.Client.Calls.Should().Contain("revoke revoke.example access-token-1 client-secret");
+		(await h.Service.PrepareRevocationAsync(h.TenantId, connected.Account.GetRequiredId(), default)).Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldNeverFailADisconnectBecauseTheInstanceIsDown() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var connected = await MastodonOAuthServiceSpec._ConnectAsync(h, "down.example");
+		var revocation = await h.Service.PrepareRevocationAsync(h.TenantId, connected.Account.GetRequiredId(), default);
+		h.Client.RevokeFailure = new HttpRequestException("down");
+
+		var act = () => h.Service.RevokeBestEffortAsync(revocation, default);
+
+		await act.Should().NotThrowAsync();
 	}
 
 	[Fact]
@@ -318,7 +336,13 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 			return Task.FromResult(this.Limits);
 		}
 
+		public Exception? RevokeFailure { get; set; }
+
 		public Task RevokeAsync(string host, MastodonApp app, string accessToken, CancellationToken cancellationToken) {
+			if (this.RevokeFailure is not null) {
+				throw this.RevokeFailure;
+			}
+
 			this.Calls.Add($"revoke {host} {accessToken} {app.ClientSecret}");
 			return Task.CompletedTask;
 		}

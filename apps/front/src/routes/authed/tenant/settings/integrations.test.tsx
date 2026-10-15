@@ -15,6 +15,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
+	mastodonDenied: false,
 	needsReconnectAccounts: [] as Array<{
 		id: string;
 		displayHandle: string;
@@ -115,7 +116,7 @@ vi.mock('./_mastodon-connect-drawer', () => ({
 			: null,
 }));
 vi.mock('./_use-mastodon-callback', () => ({
-	useMastodonCallback: vi.fn(),
+	useMastodonCallback: () => mocks.mastodonDenied,
 	validateMastodonCallbackSearch: () => ({}),
 }));
 vi.mock('./_disconnect-dialog', () => ({
@@ -146,6 +147,7 @@ const EN_LABELS: TestLabelMap = {
 		'The connected accounts list could not be loaded. Try again.',
 	'connect-bluesky': 'Connect Bluesky',
 	'connect-mastodon': 'Connect Mastodon',
+	'mastodon-authorization-denied': 'Mastodon authorization was cancelled.',
 	'provider-mastodon': 'Mastodon',
 	reconnect: 'Reconnect',
 	disconnect: 'Disconnect',
@@ -434,5 +436,15 @@ describe('TenantSettingsIntegrationsPage', () => {
 		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
 			'connect',
 		);
+	});
+
+	test('ItShouldExplainWhenTheUserDeniedTheMastodonAuthorization', () => {
+		mocks.mastodonDenied = true;
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(
+			screen.getByTestId('mastodon-authorization-denied').textContent,
+		).toBe('Mastodon authorization was cancelled.');
+		mocks.mastodonDenied = false;
 	});
 });

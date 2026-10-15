@@ -239,7 +239,7 @@ const TenantSettingsIntegrationsPage = () => {
 	const isMastodonReconnect = reconnectAccount?.provider === 'mastodon';
 
 	// The instance sends the browser back here with `code` and `state` (#2174).
-	useMastodonCallback(tenantId);
+	const mastodonDenied = useMastodonCallback(tenantId);
 
 	return (
 		<div className="space-y-5" data-testid="tenant-settings-integrations-page">
@@ -269,6 +269,16 @@ const TenantSettingsIntegrationsPage = () => {
 						{t('connect-bluesky')}
 					</Button>
 				</div>
+			) : null}
+
+			{mastodonDenied ? (
+				<p
+					role="alert"
+					className="text-destructive text-sm"
+					data-testid="mastodon-authorization-denied"
+				>
+					{t('mastodon-authorization-denied')}
+				</p>
 			) : null}
 
 			<ReconnectBanner

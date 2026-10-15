@@ -58,6 +58,7 @@
 	"integrations-empty-description": "Connectez un compte Bluesky pour commencer à publier depuis vos projets.",
 	"integrations-load-failed": "Impossible de charger les comptes connectés",
 	"integrations-load-failed-description": "La liste des comptes connectés n'a pas pu être chargée. Réessayez.",
+	"mastodon-authorization-denied": "L'autorisation Mastodon a été annulée. Rien n'a été connecté.",
 	"connect-mastodon": "Connecter Mastodon",
 	"provider-mastodon": "Mastodon",
 	"mastodon-connect-title": "Connecter Mastodon",

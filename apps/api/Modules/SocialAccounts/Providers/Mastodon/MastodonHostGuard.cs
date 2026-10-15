@@ -104,7 +104,11 @@ public static partial class MastodonHostGuard {
 			|| candidate.IsIPv6Multicast
 			|| (bytes[0] & 0xFE) == 0xFC
 			|| (bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0D && bytes[3] == 0xB8)
-			|| (bytes[0] == 0x00 && bytes[1] == 0x64 && bytes[2] == 0xFF && bytes[3] == 0x9B));
+			// NAT64 (64:ff9b::/32 covers the /96 and the local 64:ff9b:1::/48), 6to4
+			// (2002::/16) and Teredo (2001::/32) embed an arbitrary IPv4 address.
+			|| (bytes[0] == 0x00 && bytes[1] == 0x64 && bytes[2] == 0xFF && bytes[3] == 0x9B)
+			|| (bytes[0] == 0x20 && bytes[1] == 0x02)
+			|| (bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x00 && bytes[3] == 0x00));
 	}
 
 	/// <summary>

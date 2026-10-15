@@ -66,6 +66,11 @@ public sealed class MastodonHostGuardSpec {
 	[InlineData("fc00::1", false)]
 	[InlineData("fd12:3456::1", false)]
 	[InlineData("ff02::1", false)]
+	[InlineData("2002:0a00:0001::1", false)]
+	[InlineData("2002:c0a8:0101::", false)]
+	[InlineData("2001:0:4136:e378:8000:63bf:3fff:fdd2", false)]
+	[InlineData("64:ff9b::a00:1", false)]
+	[InlineData("64:ff9b:1::a00:1", false)]
 	[InlineData("::ffff:10.0.0.1", false)]
 	[InlineData("::ffff:8.8.8.8", true)]
 	public void ItShouldOnlyAcceptGloballyRoutableAddresses(string address, bool expected) {

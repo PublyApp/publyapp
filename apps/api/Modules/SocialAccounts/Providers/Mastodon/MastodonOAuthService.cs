@@ -11,6 +11,13 @@ using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
+/// <summary>A token revoke prepared while the credentials still exist.</summary>
+public sealed record MastodonRevocation(string Host, MastodonApp App, string AccessToken) {
+	public sealed override string ToString() {
+		return $"MastodonRevocation {{ Host = {this.Host} }}";
+	}
+}
+
 public abstract record StartMastodonConnectResult {
 	public sealed record Started(string AuthorizeUrl) : StartMastodonConnectResult;
 
@@ -191,8 +198,11 @@ public sealed class MastodonOAuthService {
 		);
 	}
 
-	/// <summary>Revokes the token on the instance, best effort; never throws for a remote failure.</summary>
-	public async Task RevokeBestEffortAsync(
+	/// <summary>
+	/// Everything a revoke needs, captured BEFORE the stored credentials are erased
+	/// (null when the account is not a usable Mastodon account).
+	/// </summary>
+	public async Task<MastodonRevocation?> PrepareRevocationAsync(
 		Guid tenantId,
 		Guid socialAccountId,
 		CancellationToken cancellationToken
@@ -207,7 +217,7 @@ public sealed class MastodonOAuthService {
 			.FirstOrDefaultAsync(cancellationToken);
 		var credentials = MastodonCredentials.Unprotect(this._Protector, stored);
 		if (credentials is null) {
-			return;
+			return null;
 		}
 
 		var registration = await this._Db.OAuthAppRegistration
@@ -215,15 +225,32 @@ public sealed class MastodonOAuthService {
 			.FirstOrDefaultAsync(row => row.Host == credentials.Host && !row.IsDeleted, cancellationToken);
 		var secret = this._ClientSecret(registration?.ProtectedClientSecret);
 		if (registration is null || secret is null) {
+			return null;
+		}
+
+		return new MastodonRevocation(
+			credentials.Host, new MastodonApp(registration.ClientId, secret), credentials.AccessToken
+		);
+	}
+
+	/// <summary>
+	/// Revokes the token on the instance, best effort and bounded (5 s): a dead
+	/// instance never delays or fails a disconnect.
+	/// </summary>
+	public async Task RevokeBestEffortAsync(MastodonRevocation? revocation, CancellationToken cancellationToken) {
+		if (revocation is null) {
 			return;
 		}
 
-		await this._Client.RevokeAsync(
-			credentials.Host,
-			new MastodonApp(registration.ClientId, secret),
-			credentials.AccessToken,
-			cancellationToken
-		);
+		using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		timeout.CancelAfter(TimeSpan.FromSeconds(5));
+		try {
+			await this._Client.RevokeAsync(revocation.Host, revocation.App, revocation.AccessToken, timeout.Token);
+		} catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+			// Timed out: the account is already disconnected locally.
+		} catch (HttpRequestException) {
+			// Unreachable instance: nothing more to do.
+		}
 	}
 
 	private async Task<MastodonResult<MastodonApp>> _FindOrRegisterAppAsync(

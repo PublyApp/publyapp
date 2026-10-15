@@ -289,6 +289,48 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldReadTheMastodonRateLimitResetWhenThereIsNoRetryAfter() {
+		var reset = DateTimeOffset.UtcNow.AddMinutes(10).ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+		var handler = new RecordingHandler(_ => {
+			var response = MastodonPublishProviderSpec._Json(429, """{"error":"Throttled"}""");
+			response.Headers.Add("X-RateLimit-Reset", reset);
+			return response;
+		});
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		var delay = result.Should().BeOfType<PublishResult.TransientFailure>().Subject.RetryAfter;
+		delay.Should().BeGreaterThan(TimeSpan.FromMinutes(9)).And.BeLessThanOrEqualTo(TimeSpan.FromMinutes(10));
+	}
+
+	[Fact]
+	public async Task ItShouldCapAFarAwayRateLimitReset() {
+		var handler = new RecordingHandler(_ => {
+			var response = MastodonPublishProviderSpec._Json(429, "{}");
+			response.Headers.Add("X-RateLimit-Reset", DateTimeOffset.UtcNow.AddDays(2).ToString("o", System.Globalization.CultureInfo.InvariantCulture));
+			return response;
+		});
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>().Which.RetryAfter.Should().Be(TimeSpan.FromHours(1));
+	}
+
+	[Fact]
+	public async Task ItShouldTreatAnUnreadableSuccessBodyAsTransientNotAnException() {
+		var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) {
+			Content = new StringContent("<html>proxy error</html>", Encoding.UTF8, "text/html"),
+		});
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>();
+	}
+
+	[Fact]
 	public async Task ItShouldMapTransportErrorsToTransient() {
 		var handler = new RecordingHandler(_ => throw new HttpRequestException("connection reset"));
 

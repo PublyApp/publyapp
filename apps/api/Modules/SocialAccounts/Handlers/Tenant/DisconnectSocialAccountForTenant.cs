@@ -49,9 +49,9 @@ public sealed class DisconnectSocialAccountForTenant {
 			);
 		}
 
-		// Best effort, BEFORE the stored token is erased: a Mastodon token is revoked
-		// on its instance (a no-op for any other provider).
-		await mastodonOAuthService.RevokeBestEffortAsync(tenantId, accountId, cancellationToken);
+		// Captured while the token still exists; the revoke itself runs AFTER the
+		// local disconnect (below), so a dead instance never blocks it.
+		var revocation = await mastodonOAuthService.PrepareRevocationAsync(tenantId, accountId, cancellationToken);
 
 		var serviceResult = await socialAccountService.DisconnectForTenantAsync(
 			tenantId, accountId, cancellationToken
@@ -82,6 +82,8 @@ public sealed class DisconnectSocialAccountForTenant {
 					cancellationToken
 				);
 			}
+
+			await mastodonOAuthService.RevokeBestEffortAsync(revocation, cancellationToken);
 
 			await auditLogService.LogAsync(
 				new CreateAuditLogArgs(

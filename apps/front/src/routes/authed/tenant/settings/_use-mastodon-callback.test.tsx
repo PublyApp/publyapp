@@ -63,10 +63,11 @@ describe('useMastodonCallback', () => {
 	test('ItShouldOnlyClearWhenTheUserDeclinedOnTheInstance', async () => {
 		mocks.search = { error: 'access_denied', state: 's1' };
 
-		renderHook(() => useMastodonCallback('t1'));
+		const { result } = renderHook(() => useMastodonCallback('t1'));
 
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
 		expect(mocks.complete).not.toHaveBeenCalled();
+		await waitFor(() => expect(result.current).toBe(true));
 	});
 
 	test('ItShouldDoNothingWithoutACallbackOrBeforeTheTenantResolves', () => {

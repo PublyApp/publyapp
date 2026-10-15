@@ -692,7 +692,11 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
  * storageState; a tenant login must start from a clean context or the
  * authed staff surface redirects `/login` away before the form renders
  * (same reason tenant-posts-drafts.spec.ts clears its storageState). */
-const openBlueskyConnectDrawer = async (page: Page): Promise<void> => {
+const openConnectDrawer = async (
+	page: Page,
+	button: string,
+	drawerTestId: string,
+): Promise<void> => {
 	await page.context().clearCookies();
 	// Integrations is manage-gated: the Member seed never sees the Connect
 	// trigger, so this opens as the seeded tenant Admin.
@@ -701,11 +705,16 @@ const openBlueskyConnectDrawer = async (page: Page): Promise<void> => {
 	await expect(
 		page.getByTestId('tenant-settings-integrations-page'),
 	).toBeVisible({ timeout: 10_000 });
-	await page.getByRole('button', { name: 'Connect Bluesky' }).click();
-	await expect(page.getByTestId('bluesky-connect-drawer')).toBeVisible({
+	await page.getByRole('button', { name: button }).click();
+	await expect(page.getByTestId(drawerTestId)).toBeVisible({
 		timeout: 10_000,
 	});
 };
+
+const openBlueskyConnectDrawer = (page: Page) =>
+	openConnectDrawer(page, 'Connect Bluesky', 'bluesky-connect-drawer');
+const openMastodonConnectDrawer = (page: Page) =>
+	openConnectDrawer(page, 'Connect Mastodon', 'mastodon-connect-drawer');
 
 const openDrawerByCallSiteId = {
 	'profile-create': openProfileCreateDrawer,
@@ -716,6 +725,7 @@ const openDrawerByCallSiteId = {
 	'tenant-user-link-companies': openLinkCompaniesDrawer,
 	'staff-profile-edit': openStaffProfileEditDrawer,
 	'bluesky-connect': openBlueskyConnectDrawer,
+	'mastodon-connect': openMastodonConnectDrawer,
 } satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 
 test.describe(

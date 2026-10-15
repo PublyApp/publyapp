@@ -83,6 +83,10 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			return rootResult ?? new PublishResult.Published(
 				root?.RecordId ?? string.Empty, root?.RecordUrl ?? string.Empty
 			);
+		} catch (JsonException) {
+			// A 2xx whose body is not JSON (a proxy's HTML page): ambiguous, so retry;
+			// the Idempotency-Key keeps a repeat from double-posting.
+			return new PublishResult.TransientFailure("the instance answered with an unreadable body");
 		} catch (HttpRequestException exception) {
 			return new PublishResult.TransientFailure(MastodonPublishProvider._Clean(
 				$"network error reaching the instance: {exception.Message}"
@@ -301,11 +305,23 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		return new PublishResult.ContentFailure(cause);
 	}
 
-	// Retry-After as seconds or an HTTP date, capped at one hour; null when absent.
+	// Retry-After (seconds or an HTTP date), else Mastodon's X-RateLimit-Reset (an
+	// ISO 8601 instant), capped at one hour; null when neither is usable.
 	private static TimeSpan? _RetryAfter(HttpResponseMessage response) {
 		var header = response.Headers.RetryAfter;
 		var delay = header?.Delta
 			?? (header?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
+		if (delay is null
+			&& response.Headers.TryGetValues("X-RateLimit-Reset", out var values)
+			&& DateTimeOffset.TryParse(
+				values.FirstOrDefault(),
+				System.Globalization.CultureInfo.InvariantCulture,
+				System.Globalization.DateTimeStyles.AssumeUniversal,
+				out var reset
+			)) {
+			delay = reset - DateTimeOffset.UtcNow;
+		}
+
 		if (delay is null || delay.Value <= TimeSpan.Zero) {
 			return null;
 		}

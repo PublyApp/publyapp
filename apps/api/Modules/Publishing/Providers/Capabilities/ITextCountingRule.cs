@@ -92,10 +92,11 @@ public sealed partial class MastodonCountingRule : ITextCountingRule {
 		return rest.EnumerateRunes().Count() + (urls * this.UrlLength);
 	}
 
-	// http(s):// then any run of characters other than space, tab, newline, angle
-	// brackets and the double quote, ending on a character that is not trailing
-	// punctuation.
-	[GeneratedRegex("https?://[^ \\t\\r\\n<>\"]*[^ \\t\\r\\n<>\".,;:!?)\\]}']")]
+	// http(s):// then a run of RFC 3986 URL characters (ASCII only), ending on a
+	// character that is not trailing punctuation. Any whitespace (NBSP, U+3000
+	// included), CJK or other non-URL character ends the URL, so text glued to a
+	// URL is counted as text, never absorbed into the 23.
+	[GeneratedRegex("https?://[A-Za-z0-9\\-._~:/?#\\[\\]@!$&'()*+,;=%]*[A-Za-z0-9\\-_~/#@$&*+=%(\\[]")]
 	private static partial Regex _UrlPattern();
 
 	[GeneratedRegex("(?<![A-Za-z0-9_/=])@([A-Za-z0-9_]+)@[A-Za-z0-9.-]*[A-Za-z0-9]")]
