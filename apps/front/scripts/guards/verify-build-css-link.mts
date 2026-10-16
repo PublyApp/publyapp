@@ -96,6 +96,27 @@ const emittedBundles = emittedBundleRoots.flatMap(([label, directory]) =>
 const { scannedFileCount } =
 	assertEmittedBundlesFreeOfSearchCancel(emittedBundles);
 
+// AUTHORITY 3 — every CSS asset the SSR bundle links must exist in dist/client.
+// The server bakes in the `app.css?url` hash from its own build; if it hashes
+// different CSS than the client build, the SSR HTML links a stylesheet that
+// 404s (#2192).
+const clientCssFileSet = new Set(clientCssFiles);
+const missingLinkedCss = emittedBundles
+	.filter(({ sourceName }) => sourceName.startsWith('dist/server/'))
+	.flatMap(({ source, sourceName }) =>
+		[...source.matchAll(/["'`]\/(assets\/[\w.-]+\.css)["'`]/g)]
+			.map(([, asset]) => asset as string)
+			.filter((asset) => !clientCssFileSet.has(asset))
+			.map((asset) => `${asset} (referenced by ${sourceName})`),
+	);
+
+if (missingLinkedCss.length > 0) {
+	console.error(
+		`SSR bundle links CSS missing from dist/client: ${missingLinkedCss.join(', ')}`,
+	);
+	process.exit(1);
+}
+
 // SECONDARY NET — the source scan, which reports a file and a line.
 const { inventoriedMentionCount, inventorySize, sourceFileCount } =
 	assertShippedSourceSearchCancelCss(fileURLToPath(workspaceRoot));
