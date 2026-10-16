@@ -36,7 +36,16 @@ public sealed record MarkPublicationPausedArgs(
 );
 
 /// <summary>#647: re-queue a Failed/Paused publication under its existing idempotency key.</summary>
-public sealed record RetryPublicationArgs(Guid PublicationId, Guid TenantId);
+/// <param name="SupersedeUnresolvedAttempts">
+/// The user reviewed a needs-review publication and chose to retry (#2176): the
+/// unresolved journal rows are closed in the SAME transaction as the move to Scheduled,
+/// so no job can see the row re-queued while the journal still blocks it.
+/// </param>
+public sealed record RetryPublicationArgs(
+	Guid PublicationId,
+	Guid TenantId,
+	bool SupersedeUnresolvedAttempts = false
+);
 
 public enum RetryTransitionResult {
 	/// <summary>Re-queued: Scheduled, due now, attempt counter reset.</summary>
@@ -47,6 +56,16 @@ public enum RetryTransitionResult {
 	NotRetryable,
 	/// <summary>A newer live publication already holds the (post, account) pair.</summary>
 	PairOccupied,
+}
+
+/// <summary>#2176: the user confirmed a needs-review publication is on the provider.</summary>
+public sealed record MarkPublicationReviewedPublishedArgs(Guid PublicationId, Guid TenantId);
+
+public enum ReviewedPublishedResult {
+	Published,
+	NotFound,
+	/// <summary>Not a Paused needs-review publication (already resolved or never ambiguous).</summary>
+	NotNeedsReview,
 }
 
 public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid TenantId);
@@ -81,6 +100,11 @@ public interface IPublicationStatusTransitionService {
 
 	public Task<bool> MarkPausedAsync(
 		MarkPublicationPausedArgs args,
+		CancellationToken cancellationToken
+	);
+
+	public Task<ReviewedPublishedResult> MarkReviewedPublishedAsync(
+		MarkPublicationReviewedPublishedArgs args,
 		CancellationToken cancellationToken
 	);
 
@@ -121,7 +145,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 				PublicationStatus.InProgress,
 				PublicationStatus.Paused,
 			],
-			[PublicationStatus.Published] = [PublicationStatus.InProgress],
+			// Paused: the user resolved a needs-review publication as published (#2176).
+			[PublicationStatus.Published] = [PublicationStatus.InProgress, PublicationStatus.Paused],
 			[PublicationStatus.Failed] = [PublicationStatus.InProgress],
 			[PublicationStatus.Paused] = [
 				PublicationStatus.InProgress,
@@ -180,6 +205,68 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 		await this._Db.SaveChangesAsync(cancellationToken);
 		return true;
+	}
+
+	public async Task<ReviewedPublishedResult> MarkReviewedPublishedAsync(
+		MarkPublicationReviewedPublishedArgs args,
+		CancellationToken cancellationToken
+	) {
+		// Locked FOR UPDATE like retry: of a concurrent Retry and Mark exactly one wins.
+		await using var transaction =
+			await this._Db.Database.BeginTransactionAsync(cancellationToken);
+		var (publicationId, tenantId) = (args.PublicationId, args.TenantId);
+		var locked = await this._Db.Database
+			.SqlQuery<Guid>($"""
+				SELECT id AS "Value" FROM publications
+				WHERE id = {publicationId} AND tenant_id = {tenantId}
+					AND is_deleted = false
+				FOR UPDATE
+				""")
+			.ToListAsync(cancellationToken);
+		var publication = locked.Count == 0
+			? null
+			: await this._LoadAsync(publicationId, tenantId, cancellationToken);
+		if (publication is null) {
+			await transaction.RollbackAsync(cancellationToken);
+			return ReviewedPublishedResult.NotFound;
+		}
+
+		if (publication.Status != PublicationStatus.Paused
+			|| publication.FailureCategory != PublicationFailureCategory.NeedsReview) {
+			await transaction.RollbackAsync(cancellationToken);
+			return ReviewedPublishedResult.NotNeedsReview;
+		}
+
+		PublicationStatusTransitionService._TransitionOrThrow(publication.Status, PublicationStatus.Published);
+		publication.Status = PublicationStatus.Published;
+		publication.LastError = null;
+		publication.FailureCategory = null;
+		// The user confirmed the write landed: the journal rows are delivered.
+		await PublicationStatusTransitionService._CloseOpenAttemptsAsync(
+			this._Db, publicationId, SubmissionState.Accepted, cancellationToken
+		);
+		PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
+		await this._Db.SaveChangesAsync(cancellationToken);
+		await transaction.CommitAsync(cancellationToken);
+		return ReviewedPublishedResult.Published;
+	}
+
+	// Stages (does not save) the resolution of every unresolved journal row.
+	private static async Task _CloseOpenAttemptsAsync(
+		AppDbContext db,
+		Guid publicationId,
+		SubmissionState state,
+		CancellationToken cancellationToken
+	) {
+		var open = await db.PublishAttempt
+			.Where(attempt => attempt.PublicationId == publicationId
+				&& !attempt.IsDeleted
+				&& (attempt.SubmissionState == SubmissionState.NotSent
+					|| attempt.SubmissionState == SubmissionState.Unknown))
+			.ToListAsync(cancellationToken);
+		foreach (var attempt in open) {
+			attempt.SubmissionState = state;
+		}
 	}
 
 	public async Task<bool> MarkFailedAsync(
@@ -343,6 +430,12 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			publication.Status = PublicationStatus.Scheduled;
 			publication.ScheduledAtUtc = DateTime.UtcNow;
 			publication.Attempts = 0;
+			if (args.SupersedeUnresolvedAttempts) {
+				await PublicationStatusTransitionService._CloseOpenAttemptsAsync(
+					this._Db, publicationId, SubmissionState.Superseded, cancellationToken
+				);
+			}
+
 			// #1446: legalise exactly this save's Status writes (one grant, one save).
 			PublicationStatusWriteGuard.StampForStatusWrite(this._Db);
 			await this._Db.SaveChangesAsync(cancellationToken);

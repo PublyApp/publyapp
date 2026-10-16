@@ -40,7 +40,9 @@ public sealed class PublicationQueueService(AppDbContext db) : IPublicationQueue
 				&& p.SocialAccountId == args.SocialAccountId
 				&& !p.IsDeleted
 				&& (p.Status == PublicationStatus.Scheduled
-					|| p.Status == PublicationStatus.Paused))
+					|| p.Status == PublicationStatus.Paused)
+				// A needs-review row waits for the user, never for a reconnect sweep (#2176).
+				&& p.FailureCategory != PublicationFailureCategory.NeedsReview)
 			.OrderBy(p => p.ScheduledAtUtc)
 			.ToListAsync(cancellationToken);
 

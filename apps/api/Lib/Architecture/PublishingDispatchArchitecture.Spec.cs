@@ -74,6 +74,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		"PublishNowForTenant",
 		// #647: retry of a Failed/Paused publication.
 		"RetryPublicationForTenant",
+		// #2176: the user resolves a needs-review publication as published.
+		"MarkPublicationPublishedForTenant",
 	];
 
 	// The explicit, closed inventory of every /posts/* route on the live route map.
@@ -97,6 +99,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		// landed in #1457 and is a publishing surface).
 		new("/posts/{postId}/publish-now", "POST", IsPublishing: true),
 		new("/posts/publications/{publicationId}/retry", "POST", IsPublishing: true),
+		new("/posts/publications/{publicationId}/mark-published", "POST", IsPublishing: true),
 		// ── Non-publishing routes (listed to keep the set closed) ──────────────
 		new("/posts", "POST", IsPublishing: false),
 		new("/posts", "GET", IsPublishing: false),

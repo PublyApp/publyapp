@@ -12,7 +12,7 @@ public sealed class PublicationConfiguration : IEntityTypeConfiguration<Publicat
 
 		builder.ToTable(table => table.HasCheckConstraint(
 			"CK_Publication_FailureCategory",
-			"failure_category IS NULL OR failure_category IN (1, 2, 3, 4)"
+			"failure_category IS NULL OR failure_category IN (1, 2, 3, 4, 5)"
 		));
 
 		// One ACTIVE delivery per (post, account). Partial so a cancelled-and-recreated

@@ -41,6 +41,10 @@ public sealed record PublishRequest {
 	// uri/cid the chain continues from. They are never published again.
 	public IReadOnlyList<CompletedSegment> CompletedSegments { get; init; } = [];
 
+	// Called immediately BEFORE each externally visible write (the createRecord /
+	// status POST of one segment): the job commits a journal row there (#2176).
+	public Func<int, CancellationToken, Task>? OnBeforeWrite { get; init; }
+
 	// Called right after EACH newly created (or read back) segment of a thread, so
 	// progress is persisted before the next segment is attempted.
 	public Func<CompletedSegment, CancellationToken, Task>? OnSegmentCompleted { get; init; }

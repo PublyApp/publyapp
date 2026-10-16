@@ -86,7 +86,7 @@ public sealed class RetryPublicationForTenant {
 		}
 
 		var moved = await transitions.RetryAsync(
-			new RetryPublicationArgs(publicationIdGuid, tenantId),
+			new RetryPublicationArgs(publicationIdGuid, tenantId, eligible.WasNeedsReview),
 			cancellationToken
 		);
 

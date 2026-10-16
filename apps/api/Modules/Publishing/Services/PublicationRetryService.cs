@@ -17,7 +17,8 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 /// </summary>
 public abstract record RetryEligibility {
 	/// <summary>Carries the row's idempotency key for the dedup-keyed enqueue.</summary>
-	public sealed record Eligible(string IdempotencyKey) : RetryEligibility;
+	public sealed record Eligible(string IdempotencyKey, bool WasNeedsReview = false)
+		: RetryEligibility;
 
 	public sealed record NotFound : RetryEligibility;
 
@@ -111,7 +112,10 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 			return new RetryEligibility.Superseded();
 		}
 
-		return new RetryEligibility.Eligible(publication.IdempotencyKey);
+		return new RetryEligibility.Eligible(
+			publication.IdempotencyKey,
+			publication.FailureCategory == PublicationFailureCategory.NeedsReview
+		);
 	}
 
 	public async Task EnqueueAsync(

@@ -98,6 +98,27 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		}
 	}
 
+	/// <summary>
+	/// Mastodon has no lookup by idempotency key (#2176). Inside the instance's dedupe
+	/// window a resend with the SAME key is answered with the original status, so it
+	/// cannot duplicate; beyond it nothing protects a resend, so the user is asked.
+	/// </summary>
+	public Task<ReconcileResult> ReconcileAsync(
+		ReconcileRequest request,
+		CancellationToken cancellationToken
+	) {
+		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
+		ReconcileResult result = age <= MastodonPublishProvider.IdempotencyWindow
+			? new ReconcileResult.SafeToResend()
+			: new ReconcileResult.NeedsReview(
+				"Mastodon can no longer confirm whether the post went out; check your profile"
+			);
+		return Task.FromResult(result);
+	}
+
+	// Mastodon keeps an Idempotency-Key for about an hour; stay well inside it.
+	internal static readonly TimeSpan IdempotencyWindow = TimeSpan.FromMinutes(50);
+
 	private sealed record Outcome(PublishResult Result, CompletedSegment? Segment);
 
 	private async Task<Outcome> _CreateSegmentAsync(
@@ -140,16 +161,51 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			JsonSerializer.Serialize(payload, MastodonPublishProvider._Json), Encoding.UTF8, "application/json"
 		);
 
+		if (request.OnBeforeWrite is not null) {
+			await request.OnBeforeWrite(position, cancellationToken);
+		}
+
+		// From here on a transport failure is AMBIGUOUS: the instance may have applied it.
+		try {
+			return await MastodonPublishProvider._SendStatusAsync(client, httpRequest, position, cancellationToken);
+		} catch (JsonException) {
+			return new Outcome(
+				new PublishResult.Ambiguous("the instance answered with an unreadable body"), null
+			);
+		} catch (HttpRequestException exception) {
+			return new Outcome(new PublishResult.Ambiguous(MastodonPublishProvider._Clean(
+				$"network error while writing to the instance: {exception.Message}"
+			)), null);
+		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
+			return new Outcome(new PublishResult.Ambiguous(MastodonPublishProvider._Clean(
+				$"the instance did not answer in time: {exception.Message}"
+			)), null);
+		}
+	}
+
+	private static async Task<Outcome> _SendStatusAsync(
+		HttpClient client,
+		HttpRequestMessage httpRequest,
+		int position,
+		CancellationToken cancellationToken
+	) {
 		using var response = await client.SendAsync(httpRequest, cancellationToken);
 		if (!response.IsSuccessStatusCode) {
-			return new Outcome(await MastodonPublishProvider._ClassifyAsync(response, "publishing", cancellationToken), null);
+			var failure = await MastodonPublishProvider._ClassifyAsync(response, "publishing", cancellationToken);
+			// A 5xx on the write may have been applied; 429 and 4xx provably were not.
+			return new Outcome(
+				failure is PublishResult.TransientFailure transient && (int)response.StatusCode >= 500
+					? new PublishResult.Ambiguous(transient.Cause, transient.RetryAfter)
+					: failure,
+				null
+			);
 		}
 
 		var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
 		var id = MastodonPublishProvider._String(body, "id");
 		if (id is null) {
 			return new Outcome(
-				new PublishResult.TransientFailure("Mastodon accepted the status but returned no id"),
+				new PublishResult.Ambiguous("Mastodon accepted the status but returned no id"),
 				null
 			);
 		}
@@ -311,7 +367,10 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		var header = response.Headers.RetryAfter;
 		var delay = header?.Delta
 			?? (header?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
+		// X-RateLimit-Reset describes the rate-limit window: it only means something
+		// on a 429, never on a 5xx (#2186 L9).
 		if (delay is null
+			&& response.StatusCode == HttpStatusCode.TooManyRequests
 			&& response.Headers.TryGetValues("X-RateLimit-Reset", out var values)
 			&& DateTimeOffset.TryParse(
 				values.FirstOrDefault(),
@@ -364,6 +423,15 @@ public sealed class RoutingPublishProvider : IPublishProvider {
 	public RoutingPublishProvider(BlueskyPublishProvider bluesky, MastodonPublishProvider mastodon) {
 		this._Bluesky = bluesky;
 		this._Mastodon = mastodon;
+	}
+
+	public Task<ReconcileResult> ReconcileAsync(
+		ReconcileRequest request,
+		CancellationToken cancellationToken
+	) {
+		return request.Provider == SocialAccounts.Entities.SocialProvider.Mastodon
+			? this._Mastodon.ReconcileAsync(request, cancellationToken)
+			: this._Bluesky.ReconcileAsync(request, cancellationToken);
 	}
 
 	public Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken) {

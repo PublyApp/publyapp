@@ -375,6 +375,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
 
 	/// <summary>
+	/// Only a publication that needs review can be marked as published
+	/// </summary>
+	public static readonly TranslationKey PublicationMarkPublishedNotAllowed = new("publication-mark-published-not-allowed");
+
+	/// <summary>
+	/// Marked as published
+	/// </summary>
+	public static readonly TranslationKey PublicationMarkPublishedSuccess = new("publication-mark-published-success");
+
+	/// <summary>
 	/// Only a failed or paused publication can be retried
 	/// </summary>
 	public static readonly TranslationKey PublicationRetryNotAllowed = new("publication-retry-not-allowed");

@@ -82,6 +82,18 @@ public static class PostPublishingEndpointsForTenant {
 				AppPermissions.Tenant.SocialAccounts.PUBLISH,
 			]);
 
+		group.MapPost(
+			Routes.Posts.ForTenant.MarkPublicationPublished,
+			MarkPublicationPublishedForTenant.Handle
+		)
+			.WithName("MarkPublicationPublishedForTenant")
+			.WithSummary("Mark a needs-review publication as published")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTenantPermission([
+				AppPermissions.Tenant.Posts.PUBLISH,
+				AppPermissions.Tenant.SocialAccounts.PUBLISH,
+			]);
+
 		return routes;
 	}
 }

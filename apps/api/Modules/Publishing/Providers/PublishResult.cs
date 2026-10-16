@@ -25,6 +25,16 @@ public abstract record PublishResult {
 	/// <summary>The content itself was refused (e.g. too long): retrying cannot help.</summary>
 	public sealed record ContentFailure(string Cause) : PublishResult;
 
-	/// <summary>Server or transport trouble: retry later with backoff.</summary>
+	/// <summary>
+	/// The write may or may not have been applied (timeout, connection reset, 5xx,
+	/// unreadable answer AFTER the request could have been accepted, #2176): never
+	/// blindly re-sent — the next attempt reconciles first.
+	/// </summary>
+	public sealed record Ambiguous(string Cause, TimeSpan? RetryAfter = null) : PublishResult;
+
+	/// <summary>
+	/// Server or transport trouble where the write was provably NOT applied (429,
+	/// connection refused, upload phase): retry later with backoff.
+	/// </summary>
 	public sealed record TransientFailure(string Cause, TimeSpan? RetryAfter = null) : PublishResult;
 }

@@ -155,6 +155,9 @@ public static class AuditActions {
 	// #647: the actor re-queued a Failed/Paused publication — ids only.
 	public const string PublicationRetried = "publication.retried";
 
+	// #2176: the actor confirmed a needs-review publication is on the provider — ids only.
+	public const string PublicationMarkedPublished = "publication.marked-published";
+
 	// Social-account lifecycle (Epic C): connect/reconnect never log the app
 	// password — details carry handle/DID/project ids only.
 	public const string SocialAccountConnected = "socialaccount.connected";

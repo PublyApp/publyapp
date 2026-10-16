@@ -288,6 +288,34 @@ export const useRetryPublicationMutation = () => {
 	});
 };
 
+// ── Mark-as-published mutation (#2176) ─────────────────────────────
+
+/** `POST /posts/publications/{id}/mark-published`: the user confirmed a
+ * needs-review publication is on the provider. */
+export const useMarkPublicationPublishedMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: [...TENANT_PUBLICATIONS_QUERY_KEY, 'mark-published'],
+		mutationFn: async ({
+			tenantId,
+			publicationId,
+		}: {
+			tenantId: string;
+			publicationId: string;
+		}) => {
+			const client = getClientManager().getOrCreateClient(tenantId);
+			await client.posts.publications
+				.byPublicationId(publicationId)
+				.markPublished.post();
+		},
+		onSuccess: async (_data, variables) => {
+			await invalidateTenantPublications(queryClient, variables.tenantId);
+		},
+		meta: { successMessage: 'publication-mark-published-success' },
+	});
+};
+
 // ── Invalidation ───────────────────────────────────────────────────
 
 export const invalidateTenantPublications = (
