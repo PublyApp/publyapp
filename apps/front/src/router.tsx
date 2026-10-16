@@ -155,6 +155,8 @@ export const handleMutationSuccess = (
 	displayNonSilentMutationIntent(intent);
 };
 
+// Must stay per-request: server.ts throws when the router carries no CSP nonce,
+// so caching one router would 500 every page.
 export const getRouter = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
