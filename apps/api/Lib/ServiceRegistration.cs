@@ -17,6 +17,7 @@ using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
+using PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Uploads;
@@ -192,6 +193,9 @@ public static class ServiceRegistration {
 		builder.Services.AddScoped<ISocialSessionProvider, RoutingSocialSessionProvider>();
 		builder.Services.AddScoped<IMastodonClient, MastodonClient>();
 		builder.Services.AddScoped<MastodonOAuthService>();
+		builder.Services.AddScoped<DiscordWebhookSessionProvider>();
+		builder.Services.AddScoped<DiscordWebhookClient>();
+		builder.Services.AddScoped<DiscordWebhookConnectService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(
@@ -270,6 +274,15 @@ public static class ServiceRegistration {
 			})
 			.ConfigurePrimaryHttpMessageHandler(() => MastodonHostGuard.CreateHandler());
 		builder.Services.AddSingleton<MastodonPublishProvider>();
+		// Discord webhooks: the URL is validated against a host allowlist, and the
+		// same guarded handler still refuses non-public addresses and redirects.
+		builder.Services
+			.AddHttpClient(DiscordWebhookClient.HttpClientName, client => {
+				client.Timeout = TimeSpan.FromSeconds(60);
+				client.MaxResponseContentBufferSize = 1024 * 1024;
+			})
+			.ConfigurePrimaryHttpMessageHandler(() => MastodonHostGuard.CreateHandler());
+		builder.Services.AddSingleton<DiscordWebhookPublishProvider>();
 		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY

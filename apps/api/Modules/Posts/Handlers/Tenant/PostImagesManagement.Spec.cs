@@ -12,6 +12,7 @@ using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 using Xunit;
 
@@ -180,11 +181,16 @@ public sealed class PostImagesManagementSpec : IClassFixture<ApiFixture> {
 		var post = await this._GetPostAsync(tenantId, token, postId);
 		post.Images.Select(i => i.Position).Should().Equal(0, 1, 3, 4);
 
-		// The cap still holds on the count, not on position values.
-		using var fifth = await this._SendAsync(
-			tenantId, token, HttpMethod.Post, $"/posts/{postId}/image", PostImagesManagementSpec._FileContent(50)
+		// The cap still holds on the count, not on position values: fill the
+		// remaining slots, then one more is refused.
+		for (var filler = 4; filler < ProviderCapabilityRegistry.MaxImagesPerPost; filler++) {
+			await this._AttachAsync(tenantId, token, postId, 50 + filler);
+		}
+
+		using var overCap = await this._SendAsync(
+			tenantId, token, HttpMethod.Post, $"/posts/{postId}/image", PostImagesManagementSpec._FileContent(90)
 		);
-		fifth.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		overCap.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Fact]

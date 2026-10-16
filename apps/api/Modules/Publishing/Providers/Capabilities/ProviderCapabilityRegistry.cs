@@ -33,12 +33,39 @@ public static class ProviderCapabilityRegistry {
 		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"]
 	);
 
+	// Pixelfed (#2175): photo-first, so an image is required and a caption is not.
+	// Stock values are the conservative fallback (4 images, 500 characters, JPEG/PNG)
+	// when an instance advertises nothing; threads stay off (replies are comments).
+	public static readonly ProviderCapability Pixelfed = new(
+		SocialProvider.Pixelfed,
+		[new TextLimit(Utf16CountingRule.Instance, 500)],
+		MaxImages: 4,
+		MaxImageBytes: 15_000_000,
+		AcceptedImageContentTypes: ["image/jpeg", "image/png"],
+		RequiresText: false,
+		RequiresMedia: true,
+		SupportsThreads: false
+	);
+
+	// Discord incoming webhook (#2175): 2000 characters, at most 10 attachments, a
+	// conservative 8 MiB per file (the real cap depends on the server's tier).
+	public static readonly ProviderCapability DiscordWebhook = new(
+		SocialProvider.DiscordWebhook,
+		[new TextLimit(Utf16CountingRule.Instance, 2000)],
+		MaxImages: 10,
+		MaxImageBytes: 8_388_608,
+		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"],
+		SupportsThreads: false
+	);
+
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
 	private static readonly IReadOnlyDictionary<SocialProvider, ProviderCapability> _Defaults =
 		new Dictionary<SocialProvider, ProviderCapability> {
 			[SocialProvider.Bluesky] = ProviderCapabilityRegistry.Bluesky,
 			[SocialProvider.Mastodon] = ProviderCapabilityRegistry.Mastodon,
+			[SocialProvider.Pixelfed] = ProviderCapabilityRegistry.Pixelfed,
+			[SocialProvider.DiscordWebhook] = ProviderCapabilityRegistry.DiscordWebhook,
 		};
 
 	/// <summary>

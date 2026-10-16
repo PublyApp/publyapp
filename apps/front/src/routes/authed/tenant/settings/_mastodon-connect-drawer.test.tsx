@@ -18,11 +18,15 @@ vi.mock('~/lib/query/mastodon-connect', () => ({
 }));
 
 const EN_LABELS = {
-	'mastodon-connect-title': 'Connect Mastodon',
-	'mastodon-reconnect-title': 'Reconnect Mastodon',
-	'mastodon-instance-label': 'Mastodon server',
-	'mastodon-instance-help': 'Enter your server address',
-	'mastodon-submit': 'Continue to Mastodon',
+	'settings:mastodon-connect-title': 'Connect Mastodon',
+	'settings:mastodon-reconnect-title': 'Reconnect Mastodon',
+	'settings:mastodon-instance-label': 'Mastodon server',
+	'settings:mastodon-instance-help': 'Enter your server address',
+	'settings:mastodon-submit': 'Continue to Mastodon',
+	'settings:pixelfed-connect-title': 'Connect Pixelfed',
+	'settings:pixelfed-instance-label': 'Pixelfed server',
+	'settings:pixelfed-instance-help': 'Enter your Pixelfed address',
+	'settings:pixelfed-submit': 'Continue to Pixelfed',
 	'common:an-error-occurred': 'Something went wrong',
 } as const satisfies Record<string, string>;
 
@@ -71,6 +75,41 @@ describe('mastodon connect drawer', () => {
 		expect(startImpl).toHaveBeenCalledWith({
 			tenantId: 't1',
 			instance: 'social.example',
+			provider: 'mastodon',
+		});
+	});
+
+	test('ItShouldStartAPixelfedFlowWithItsOwnCopyAndProvider', async () => {
+		stubLocation();
+		startImpl = vi
+			.fn()
+			.mockResolvedValue('https://pix.example/oauth/authorize?state=s2');
+
+		render(
+			<MastodonConnectDrawer
+				open
+				onOpenChange={vi.fn()}
+				tenantId="t1"
+				provider="pixelfed"
+			/>,
+		);
+		expect(screen.getByTestId('pixelfed-connect-drawer')).toBeTruthy();
+		await userEvent
+			.setup()
+			.type(screen.getByTestId('mastodon-instance'), 'pix.example');
+		await userEvent
+			.setup()
+			.click(screen.getByRole('button', { name: /continue to pixelfed/i }));
+
+		await waitFor(() =>
+			expect(assign).toHaveBeenCalledWith(
+				'https://pix.example/oauth/authorize?state=s2',
+			),
+		);
+		expect(startImpl).toHaveBeenCalledWith({
+			tenantId: 't1',
+			instance: 'pix.example',
+			provider: 'pixelfed',
 		});
 	});
 

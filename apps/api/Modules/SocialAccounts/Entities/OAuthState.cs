@@ -31,6 +31,10 @@ public class OAuthState : BaseAttributes, ITenantEntity {
 	[Column("state_hash")]
 	public required string StateHash { get; set; }
 
+	// Which fediverse network this flow connects (Mastodon or Pixelfed, #2175).
+	[Column("provider")]
+	public SocialProvider Provider { get; set; } = SocialProvider.Mastodon;
+
 	[Column("instance_host")]
 	public required string InstanceHost { get; set; }
 
@@ -47,6 +51,11 @@ public sealed class OAuthStateConfiguration : IEntityTypeConfiguration<OAuthStat
 			.HasIndex(state => state.StateHash)
 			.IsUnique()
 			.HasDatabaseName("ux_oauth_states_state_hash");
+
+		builder
+			.Property(state => state.Provider)
+			.HasDefaultValue(SocialProvider.Mastodon)
+			.HasSentinel(SocialProvider.Mastodon);
 
 		builder
 			.HasOne(state => state.Tenant)

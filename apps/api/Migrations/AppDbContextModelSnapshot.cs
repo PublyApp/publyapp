@@ -1806,6 +1806,12 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
+                    b.Property<int>("Provider")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("provider");
+
                     b.Property<string>("StateHash")
                         .IsRequired()
                         .HasColumnType("text")

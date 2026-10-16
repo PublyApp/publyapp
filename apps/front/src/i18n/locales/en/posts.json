@@ -39,6 +39,7 @@
 	"limit-unit-bytes": "bytes",
 	"limit-unit-characters": "characters",
 	"limit-unit-graphemes": "characters",
+	"limit-unit-utf16": "characters",
 	"move-to-bin": "Move to bin",
 	"move-to-bin-confirm": "Move this post to the bin? You can restore it later.",
 	"new-post": "New post",

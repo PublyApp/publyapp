@@ -90,7 +90,67 @@ describe('toTenantPublishTargets', () => {
 			maxImages: 4,
 			maxImageBytes: 1_000_000,
 			acceptedImageContentTypes: ['image/png'],
+			requiresMedia: false,
+			supportsThreads: true,
 		});
+	});
+
+	test('keeps the new providers with their media and thread capability and a URL weight', () => {
+		const rows = toTenantPublishTargets(
+			asItems([
+				{
+					id: guid(4),
+					label: 'me@pix.example',
+					provider: 'pixelfed',
+					limits: {
+						textLimits: [{ unit: 'utf16', max: 500 }],
+						maxImages: 4,
+						maxImageBytes: 15_000_000,
+						acceptedImageContentTypes: ['image/jpeg'],
+						requiresMedia: true,
+						supportsThreads: false,
+					},
+				},
+				{
+					id: guid(5),
+					label: 'Release notes',
+					provider: 'discord_webhook',
+					limits: {
+						textLimits: [{ unit: 'utf16', max: 2000 }],
+						maxImages: 10,
+						maxImageBytes: 8_388_608,
+						acceptedImageContentTypes: ['image/png'],
+						requiresMedia: false,
+						supportsThreads: false,
+					},
+				},
+				{
+					id: guid(6),
+					label: 'me@social.example',
+					provider: 'mastodon',
+					limits: {
+						textLimits: [{ unit: 'characters', max: 500, urlWeight: 23 }],
+						maxImages: 4,
+						maxImageBytes: 16_777_216,
+						acceptedImageContentTypes: ['image/png'],
+					},
+				},
+			]),
+		);
+
+		expect(rows.map((row) => row.provider)).toEqual([
+			'pixelfed',
+			'discord_webhook',
+			'mastodon',
+		]);
+		expect(rows[0]?.limits).toMatchObject({
+			requiresMedia: true,
+			supportsThreads: false,
+		});
+		expect(rows[1]?.limits?.supportsThreads).toBe(false);
+		expect(rows[2]?.limits?.textLimits).toEqual([
+			{ unit: 'characters', max: 500, urlWeight: 23 },
+		]);
 	});
 
 	test('fails closed: drops rows without an id or with an unknown provider', () => {

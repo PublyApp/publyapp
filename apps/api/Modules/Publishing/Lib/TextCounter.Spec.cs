@@ -12,7 +12,7 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 // fixture file, so server and browser provably agree on every string.
 public sealed class TextCounterSpec {
 	private sealed record Fixture(
-		string Name, string Text, int Graphemes, int Bytes, int? Characters, int UrlWeight
+		string Name, string Text, int Graphemes, int Bytes, int? Characters, int UrlWeight, int Utf16
 	);
 
 	private static int _ServerGraphemes(JsonElement item) {
@@ -36,7 +36,8 @@ public sealed class TextCounterSpec {
 					TextCounterSpec._ServerGraphemes(item),
 					item.GetProperty("bytes").GetInt32(),
 					item.TryGetProperty("characters", out var characters) ? characters.GetInt32() : null,
-					item.TryGetProperty("urlWeight", out var weight) ? weight.GetInt32() : 23
+					item.TryGetProperty("urlWeight", out var weight) ? weight.GetInt32() : 23,
+					item.GetProperty("utf16").GetInt32()
 				))];
 			}
 
@@ -59,6 +60,15 @@ public sealed class TextCounterSpec {
 			);
 			TextCounter.CountBytes(fixture.Text).Should().Be(
 				fixture.Bytes, $"bytes of '{fixture.Name}'"
+			);
+		}
+	}
+
+	[Fact]
+	public void ItShouldCountUtf16CodeUnitsLikeTheBrowser() {
+		foreach (var fixture in TextCounterSpec._LoadFixtures()) {
+			Utf16CountingRule.Instance.Count(TextCounter.Normalize(fixture.Text)).Should().Be(
+				fixture.Utf16, $"utf16 of '{fixture.Name}'"
 			);
 		}
 	}

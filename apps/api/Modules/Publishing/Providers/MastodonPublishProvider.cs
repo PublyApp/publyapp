@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
@@ -18,6 +19,9 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 /// the instance. A thread is an <c>in_reply_to_id</c> chain: each segment replies
 /// to the previous status, and finished segments are reported through
 /// <see cref="PublishRequest.OnSegmentCompleted"/> and skipped on resume.
+/// Pixelfed (#2175) shares this delivery: media goes through the universally
+/// supported <c>/api/v1/media</c>, an image is required, and because Pixelfed does
+/// not honour the Idempotency-Key an ambiguous write is never silently resent.
 /// Failures: 401/403 → account, 422 → content, 429/5xx/transport → transient
 /// (honoring <c>Retry-After</c>). Tokens live only in the Authorization header.
 /// </summary>
@@ -44,6 +48,12 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	}
 
 	public async Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken) {
+		if (request.Provider == SocialProvider.Pixelfed
+			&& request.Media.Count == 0
+			&& request.CompletedSegments.All(segment => segment.Position != 0)) {
+			return new PublishResult.ContentFailure("Pixelfed posts need at least one image");
+		}
+
 		var client = this._HttpClientFactory.CreateClient(MastodonHostGuard.HttpClientName);
 		var texts = new List<string>(request.FollowUpSegments.Count + 1) { request.PostBody };
 		texts.AddRange(request.FollowUpSegments);
@@ -107,6 +117,12 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		ReconcileRequest request,
 		CancellationToken cancellationToken
 	) {
+		if (request.Provider == SocialProvider.Pixelfed) {
+			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
+				"Pixelfed cannot confirm whether the post went out; check your profile"
+			));
+		}
+
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
 		ReconcileResult result = age <= MastodonPublishProvider.IdempotencyWindow
 			? new ReconcileResult.SafeToResend()
@@ -139,10 +155,12 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			mediaIds = uploaded.Ids;
 		}
 
-		var payload = new Dictionary<string, object?> {
-			["status"] = text,
-			["visibility"] = "public",
-		};
+		var payload = new Dictionary<string, object?> { ["visibility"] = "public" };
+		// An image-only post (Pixelfed) sends no status rather than an empty one.
+		if (text.Length > 0 || mediaIds.Count == 0) {
+			payload["status"] = text;
+		}
+
 		if (mediaIds.Count > 0) {
 			payload["media_ids"] = mediaIds;
 		}
@@ -167,7 +185,9 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 		// From here on a transport failure is AMBIGUOUS: the instance may have applied it.
 		try {
-			return await MastodonPublishProvider._SendStatusAsync(client, httpRequest, position, cancellationToken);
+			return await MastodonPublishProvider._SendStatusAsync(
+				client, httpRequest, position, MastodonPublishProvider._Network(request), cancellationToken
+			);
 		} catch (JsonException) {
 			return new Outcome(
 				new PublishResult.Ambiguous("the instance answered with an unreadable body"), null
@@ -187,11 +207,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		HttpClient client,
 		HttpRequestMessage httpRequest,
 		int position,
+		string network,
 		CancellationToken cancellationToken
 	) {
 		using var response = await client.SendAsync(httpRequest, cancellationToken);
 		if (!response.IsSuccessStatusCode) {
-			var failure = await MastodonPublishProvider._ClassifyAsync(response, "publishing", cancellationToken);
+			var failure = await MastodonPublishProvider._ClassifyAsync(
+				response, "publishing", network, cancellationToken
+			);
 			// A 5xx on the write may have been applied; 429 and 4xx provably were not.
 			return new Outcome(
 				failure is PublishResult.TransientFailure transient && (int)response.StatusCode >= 500
@@ -205,7 +228,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		var id = MastodonPublishProvider._String(body, "id");
 		if (id is null) {
 			return new Outcome(
-				new PublishResult.Ambiguous("Mastodon accepted the status but returned no id"),
+				new PublishResult.Ambiguous($"{network} accepted the status but returned no id"),
 				null
 			);
 		}
@@ -223,7 +246,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
-		var limits = request.Capability ?? ProviderCapabilityRegistry.Mastodon;
+		var limits = request.Capability ?? ProviderCapabilityRegistry.For(request.Provider);
 		var ids = new List<string>();
 		if (request.Media.Count > limits.MaxImages) {
 			return new Uploaded(ids, new PublishResult.ContentFailure(
@@ -258,12 +281,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 				form.Add(new StringContent(media.AltText), "description");
 			}
 
-			using var upload = MastodonPublishProvider._Request(HttpMethod.Post, request, "/api/v2/media");
+			using var upload = MastodonPublishProvider._Request(
+				HttpMethod.Post, request, request.Provider == SocialProvider.Pixelfed ? "/api/v1/media" : "/api/v2/media"
+			);
 			upload.Content = form;
 			using var response = await client.SendAsync(upload, cancellationToken);
 			if (!response.IsSuccessStatusCode) {
 				return new Uploaded(ids, await MastodonPublishProvider._ClassifyAsync(
-					response, $"uploading image {number}", cancellationToken
+					response, $"uploading image {number}", MastodonPublishProvider._Network(request), cancellationToken
 				));
 			}
 
@@ -271,7 +296,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			var id = MastodonPublishProvider._String(body, "id");
 			if (id is null) {
 				return new Uploaded(ids, new PublishResult.TransientFailure(
-					$"Mastodon accepted image {number} but returned no media id"
+					$"{MastodonPublishProvider._Network(request)} accepted image {number} but returned no media id"
 				));
 			}
 
@@ -309,7 +334,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 			if (!response.IsSuccessStatusCode) {
 				return await MastodonPublishProvider._ClassifyAsync(
-					response, $"processing image {number}", cancellationToken
+					response, $"processing image {number}", MastodonPublishProvider._Network(request), cancellationToken
 				);
 			}
 
@@ -320,8 +345,12 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		}
 
 		return new PublishResult.TransientFailure(
-			$"Mastodon was still processing image {number} after {this._MaxPolls} checks"
+			$"{MastodonPublishProvider._Network(request)} was still processing image {number} after {this._MaxPolls} checks"
 		);
+	}
+
+	private static string _Network(PublishRequest request) {
+		return request.Provider == SocialProvider.Pixelfed ? "Pixelfed" : "Mastodon";
 	}
 
 	private static HttpRequestMessage _Request(HttpMethod method, PublishRequest request, string path) {
@@ -333,6 +362,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	private static async Task<PublishResult> _ClassifyAsync(
 		HttpResponseMessage response,
 		string action,
+		string network,
 		CancellationToken cancellationToken
 	) {
 		var error = "the instance returned an error without a parsable body";
@@ -346,7 +376,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		var status = (int)response.StatusCode;
 		var cause = MastodonPublishProvider._Clean($"{action} failed: {status} {error}");
 		if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) {
-			return new PublishResult.AccountFailure("Mastodon rejected the stored credential (" + cause + ")");
+			return new PublishResult.AccountFailure(network + " rejected the stored credential (" + cause + ")");
 		}
 
 		if (response.StatusCode == HttpStatusCode.UnprocessableEntity) {
@@ -413,30 +443,41 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 /// <summary>
 /// The registered <see cref="IPublishProvider"/>: one delivery per
-/// <see cref="PublishRequest.Provider"/> (#2174), so the publish job and every
-/// existing registration stay provider-blind.
+/// <see cref="PublishRequest.Provider"/> (#2174, #2175), so the publish job and every
+/// existing registration stay provider-blind. Pixelfed rides the Mastodon delivery.
 /// </summary>
 public sealed class RoutingPublishProvider : IPublishProvider {
 	private readonly BlueskyPublishProvider _Bluesky;
 	private readonly MastodonPublishProvider _Mastodon;
+	private readonly DiscordWebhookPublishProvider _Discord;
 
-	public RoutingPublishProvider(BlueskyPublishProvider bluesky, MastodonPublishProvider mastodon) {
+	public RoutingPublishProvider(
+		BlueskyPublishProvider bluesky,
+		MastodonPublishProvider mastodon,
+		DiscordWebhookPublishProvider discord
+	) {
 		this._Bluesky = bluesky;
 		this._Mastodon = mastodon;
+		this._Discord = discord;
+	}
+
+	private IPublishProvider _For(SocialProvider provider) {
+		return provider switch {
+			SocialProvider.Bluesky => this._Bluesky,
+			SocialProvider.Mastodon or SocialProvider.Pixelfed => this._Mastodon,
+			SocialProvider.DiscordWebhook => this._Discord,
+			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
+		};
 	}
 
 	public Task<ReconcileResult> ReconcileAsync(
 		ReconcileRequest request,
 		CancellationToken cancellationToken
 	) {
-		return request.Provider == SocialAccounts.Entities.SocialProvider.Mastodon
-			? this._Mastodon.ReconcileAsync(request, cancellationToken)
-			: this._Bluesky.ReconcileAsync(request, cancellationToken);
+		return this._For(request.Provider).ReconcileAsync(request, cancellationToken);
 	}
 
 	public Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken) {
-		return request.Provider == SocialAccounts.Entities.SocialProvider.Mastodon
-			? this._Mastodon.PublishAsync(request, cancellationToken)
-			: this._Bluesky.PublishAsync(request, cancellationToken);
+		return this._For(request.Provider).PublishAsync(request, cancellationToken);
 	}
 }

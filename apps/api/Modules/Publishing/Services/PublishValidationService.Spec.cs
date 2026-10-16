@@ -10,6 +10,11 @@ public sealed class PublishValidationServiceSpec {
 	private const string _Family =
 		"\U0001F468‍\U0001F469‍\U0001F467‍\U0001F466";
 
+	private static PublishContentFailure _Failure(PublishContentFailure? failure) {
+		Assert.NotNull(failure);
+		return failure;
+	}
+
 	private static PublishContentFailure? _Validate(string body, params string[] imageTypes) {
 		return PublishValidationService.Validate(body, imageTypes, [ProviderCapabilityRegistry.Bluesky]);
 	}
@@ -117,5 +122,60 @@ public sealed class PublishValidationServiceSpec {
 		failure.ImageIndex.Should().Be(2);
 		failure.ContentType.Should().Be("image/gif");
 		failure.Cause.Should().Contain("Image 2");
+	}
+
+	[Fact]
+	public void ItShouldRefuseAPostWithoutAnImageForAPhotoNetwork() {
+		var failure = PublishValidationService.Validate("caption", [], [ProviderCapabilityRegistry.Pixelfed]);
+
+		Assert.NotNull(failure);
+		failure.Kind.Should().Be(PublishContentFailureKind.MediaRequired);
+		failure.Provider.Should().Be("pixelfed");
+		failure.Cause.Should().Contain("at least one image");
+		PublishValidationService.Validate("", ["image/png"], [ProviderCapabilityRegistry.Pixelfed]).Should().BeNull();
+		PublishValidationService.Validate("caption", ["image/png"], [ProviderCapabilityRegistry.Pixelfed]).Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldJudgeEachDestinationOfAMixedPostOnItsOwn() {
+		ProviderCapability[] all = [
+			ProviderCapabilityRegistry.Bluesky,
+			ProviderCapabilityRegistry.Pixelfed,
+			ProviderCapabilityRegistry.DiscordWebhook,
+		];
+
+		// Text only: Pixelfed (needs an image) is the one that fails, not Bluesky or Discord.
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hello", [], all)).Provider.Should().Be("pixelfed");
+		// 301 characters: only Bluesky's 300 trips; Pixelfed and Discord take it.
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate(new string('a', 301), ["image/png"], all)).Provider.Should().Be("bluesky");
+		// 501 characters: Pixelfed's caption limit.
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			new string('a', 501), ["image/png"], [ProviderCapabilityRegistry.Pixelfed, ProviderCapabilityRegistry.DiscordWebhook]
+		)).Provider.Should().Be("pixelfed");
+		// 2001: Discord's limit.
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			new string('a', 2001), [], [ProviderCapabilityRegistry.DiscordWebhook]
+		)).Provider.Should().Be("discord_webhook");
+	}
+
+	[Fact]
+	public void ItShouldAcceptTenImagesForDiscordAndRefuseElevenOrAThreadFollowUp() {
+		var ten = Enumerable.Repeat("image/png", 10).ToList();
+
+		PublishValidationService.Validate("hi", ten, [ProviderCapabilityRegistry.DiscordWebhook]).Should().BeNull();
+		var eleven = PublishValidationService.Validate(
+			"hi", [.. ten, "image/png"], [ProviderCapabilityRegistry.DiscordWebhook]
+		);
+		Assert.NotNull(eleven);
+		eleven.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
+		var thread = PublishValidationService.Validate(
+			"hi", [], [ProviderCapabilityRegistry.DiscordWebhook], ["second"]
+		);
+		Assert.NotNull(thread);
+		thread.Kind.Should().Be(PublishContentFailureKind.ThreadsUnsupported);
+		thread.Cause.Should().Contain("cannot publish a thread");
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			"hi", ["image/png"], [ProviderCapabilityRegistry.Pixelfed], ["second"]
+		)).Kind.Should().Be(PublishContentFailureKind.ThreadsUnsupported);
 	}
 }

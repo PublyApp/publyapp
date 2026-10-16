@@ -103,6 +103,24 @@ vi.mock('./_mastodon-connect-drawer', () => ({
 	MastodonConnectDrawer: ({
 		open,
 		account,
+		provider,
+	}: {
+		open: boolean;
+		account?: { displayHandle: string };
+		provider?: string;
+	}) =>
+		open
+			? createElement(
+					'div',
+					{ 'data-testid': 'mastodon-drawer-stub' },
+					`${provider ?? 'mastodon'}:${account?.displayHandle ?? 'connect'}`,
+				)
+			: null,
+}));
+vi.mock('./_discord-connect-drawer', () => ({
+	DiscordConnectDrawer: ({
+		open,
+		account,
 	}: {
 		open: boolean;
 		account?: { displayHandle: string };
@@ -110,7 +128,7 @@ vi.mock('./_mastodon-connect-drawer', () => ({
 		open
 			? createElement(
 					'div',
-					{ 'data-testid': 'mastodon-drawer-stub' },
+					{ 'data-testid': 'discord-drawer-stub' },
 					account?.displayHandle ?? 'connect',
 				)
 			: null,
@@ -147,6 +165,10 @@ const EN_LABELS: TestLabelMap = {
 		'The connected accounts list could not be loaded. Try again.',
 	'connect-bluesky': 'Connect Bluesky',
 	'connect-mastodon': 'Connect Mastodon',
+	'connect-pixelfed': 'Connect Pixelfed',
+	'connect-discord': 'Connect Discord',
+	'provider-pixelfed': 'Pixelfed',
+	'provider-discord': 'Discord',
 	'mastodon-authorization-denied': 'Mastodon authorization was cancelled.',
 	'provider-mastodon': 'Mastodon',
 	reconnect: 'Reconnect',
@@ -434,8 +456,77 @@ describe('TenantSettingsIntegrationsPage', () => {
 		expect(screen.getByText('Mastodon')).toBeTruthy();
 		await userEvent.setup().click(screen.getByText('Connect Mastodon'));
 		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
+			'mastodon:connect',
+		);
+	});
+
+	test('ItShouldOpenTheSharedFediverseDrawerForPixelfedAndLabelItsRows', async () => {
+		socialAccountsWire = [
+			{
+				...activeAccount,
+				id: 'p9',
+				provider: 'pixelfed',
+				displayHandle: 'me@pix.example',
+			},
+		];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.getByText('Pixelfed')).toBeTruthy();
+		await userEvent.setup().click(screen.getByText('Connect Pixelfed'));
+		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
+			'pixelfed:connect',
+		);
+	});
+
+	test('ItShouldOpenTheDiscordDrawerAndLabelAWebhookRow', async () => {
+		socialAccountsWire = [
+			{
+				...activeAccount,
+				id: 'd1',
+				provider: 'discord_webhook',
+				displayHandle: 'Release notes',
+			},
+		];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.getByText('Discord')).toBeTruthy();
+		await userEvent.setup().click(screen.getByText('Connect Discord'));
+		expect(screen.getByTestId('discord-drawer-stub').textContent).toBe(
 			'connect',
 		);
+	});
+
+	test('ItShouldReconnectEachNetworkInItsOwnDrawer', async () => {
+		const user = userEvent.setup();
+		socialAccountsWire = [
+			{
+				...activeAccount,
+				id: 'p1',
+				provider: 'pixelfed',
+				displayHandle: 'pix',
+			},
+			{
+				...activeAccount,
+				id: 'd1',
+				provider: 'discord_webhook',
+				displayHandle: 'hook',
+			},
+		];
+		render(<TenantSettingsIntegrationsPage />);
+
+		await user.click(screen.getByTestId('social-account-actions-p1'));
+		await user.click(await screen.findByText('Reconnect'));
+		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
+			'pixelfed:pix',
+		);
+		expect(screen.queryByTestId('bluesky-reconnect-drawer')).toBeNull();
+		cleanup();
+
+		render(<TenantSettingsIntegrationsPage />);
+		await user.click(screen.getByTestId('social-account-actions-d1'));
+		await user.click(await screen.findByText('Reconnect'));
+		expect(screen.getByTestId('discord-drawer-stub').textContent).toBe('hook');
+		expect(screen.queryByTestId('bluesky-reconnect-drawer')).toBeNull();
 	});
 
 	test('ItShouldExplainWhenTheUserDeniedTheMastodonAuthorization', () => {

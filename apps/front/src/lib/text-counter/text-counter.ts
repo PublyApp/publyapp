@@ -25,6 +25,10 @@ export type DestinationLimits = {
 	maxImages: number;
 	maxImageBytes: number;
 	acceptedImageContentTypes: string[];
+	/** True for a photo network (Pixelfed): a post needs at least one image. */
+	requiresMedia?: boolean;
+	/** False when follow-up segments cannot be published there (Pixelfed, Discord). */
+	supportsThreads?: boolean;
 };
 
 /** One destination's limits, as returned by `GET /publishing/publish-targets`. */
@@ -98,6 +102,8 @@ export const countText = (text: string) => {
 	return {
 		graphemes,
 		bytes: utf8.encode(normalized).length,
+		// UTF-16 code units, unweighted: Pixelfed and Discord caps (#2175).
+		utf16: normalized.length,
 		'characters-rest': Array.from(rest).length,
 		urls,
 	};

@@ -10,6 +10,7 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -17,14 +18,25 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 public record StartMastodonConnectBody {
 	public required JsonElement Instance { get; init; }
 
+	/// <summary>"pixelfed" connects a Pixelfed server; anything else, Mastodon (#2175).</summary>
+	public JsonElement? Provider { get; init; }
+
 	public string GetInstance() {
 		return this.Instance.GetValueAsString();
+	}
+
+	public SocialProvider GetProvider() {
+		return this.Provider is { ValueKind: JsonValueKind.String } provider
+			&& string.Equals(provider.GetString(), "pixelfed", StringComparison.OrdinalIgnoreCase)
+				? SocialProvider.Pixelfed
+				: SocialProvider.Mastodon;
 	}
 }
 
 public class StartMastodonConnectBodyValidator : AbstractValidator<StartMastodonConnectBody> {
 	public StartMastodonConnectBodyValidator() {
 		this.RuleFor(x => x.Instance).MustBeRequiredStringWithLength("Instance", 1, 300);
+		this.RuleFor(x => x.Provider).MustBeNullableNonEmptyString("Provider");
 	}
 }
 
@@ -56,10 +68,14 @@ public sealed class StartMastodonConnectForTenant {
 		}
 
 		var instance = body.GetInstance();
-		var result = await oauthService.StartAsync(tenantId, account.UserId, instance, cancellationToken);
+		var provider = body.GetProvider();
+		var network = provider == SocialProvider.Pixelfed ? "Pixelfed" : "Mastodon";
+		var result = await oauthService.StartAsync(
+			tenantId, account.UserId, instance, cancellationToken, provider
+		);
 
 		if (result is StartMastodonConnectResult.InvalidInstance) {
-			const string reason = "Enter the public https address of a Mastodon server, such as mastodon.social.";
+			var reason = $"Enter the public https address of a {network} server.";
 			return TypedProblems.ValidationProblem(
 				reason,
 				ResponseKeys.MastodonInstanceInvalid,
@@ -80,7 +96,7 @@ public sealed class StartMastodonConnectForTenant {
 		}
 
 		return TypedProblems.ProviderUnavailable(
-			"That Mastodon server could not be reached. Nothing was stored; try again shortly.",
+			$"That {network} server could not be reached. Nothing was stored; try again shortly.",
 			ResponseKeys.ProviderUnreachable
 		);
 	}

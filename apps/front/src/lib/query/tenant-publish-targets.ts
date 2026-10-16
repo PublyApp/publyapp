@@ -1,7 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
-import type { DestinationLimits } from '~/lib/text-counter/text-counter';
+import type {
+	DestinationLimits,
+	TextLimit,
+} from '~/lib/text-counter/text-counter';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
@@ -52,10 +55,15 @@ export const toAttachLimits = (
 	};
 };
 
-/** Wire vocabulary this composer can actually drive. D2 ships Bluesky only;
- * an unknown provider is dropped fail-closed instead of rendering a checkbox
- * whose publish path does not exist yet. */
-const SUPPORTED_PROVIDERS = new Set(['bluesky']);
+/** Wire vocabulary this composer can actually drive (Pixelfed and Discord:
+ * #2175). An unknown provider is dropped fail-closed instead of rendering a
+ * checkbox whose publish path does not exist. */
+const SUPPORTED_PROVIDERS = new Set([
+	'bluesky',
+	'mastodon',
+	'pixelfed',
+	'discord_webhook',
+]);
 
 // ── Row mapper ─────────────────────────────────────────────────────
 
@@ -71,6 +79,19 @@ const normalizeString = (
 		return undefined;
 	}
 	return trimmed;
+};
+
+/** A URL-weighted unit (Mastodon) is uncountable without its weight. */
+const toTextLimit = (
+	unit: string,
+	max: number,
+	urlWeight: number | null | undefined,
+): TextLimit => {
+	const textLimit: TextLimit = { unit, max };
+	if (typeof urlWeight === 'number') {
+		textLimit.urlWeight = urlWeight;
+	}
+	return textLimit;
 };
 
 const toDestinationLimits = (
@@ -89,12 +110,14 @@ const toDestinationLimits = (
 	return {
 		textLimits: wire.textLimits.flatMap((limit) =>
 			limit && typeof limit.unit === 'string' && typeof limit.max === 'number'
-				? [{ unit: limit.unit, max: limit.max }]
+				? [toTextLimit(limit.unit, limit.max, limit.urlWeight)]
 				: [],
 		),
 		maxImages: wire.maxImages,
 		maxImageBytes: wire.maxImageBytes,
 		acceptedImageContentTypes: wire.acceptedImageContentTypes,
+		requiresMedia: wire.requiresMedia === true,
+		supportsThreads: wire.supportsThreads !== false,
 	};
 };
 

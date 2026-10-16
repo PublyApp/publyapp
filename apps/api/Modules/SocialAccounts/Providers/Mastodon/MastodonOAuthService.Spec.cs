@@ -247,6 +247,36 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldConnectPixelfedWithItsOwnScopesPurposeAndCaptionUnit() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var host = $"pix-{Guid.NewGuid():N}.example";
+		h.Client.Limits = new MastodonInstanceLimits(1000, 6, null, 8_000_000, ["image/png"]);
+
+		var started = await h.Service.StartAsync(h.TenantId, h.UserId, host, default, SocialProvider.Pixelfed);
+		var query = System.Web.HttpUtility.ParseQueryString(
+			new Uri(started.Should().BeOfType<StartMastodonConnectResult.Started>().Subject.AuthorizeUrl).Query
+		);
+		query["scope"].Should().Be("read write");
+		(await h.Db.OAuthState.AsNoTracking().SingleAsync(s => s.TenantId == h.TenantId)).Provider.Should().Be(SocialProvider.Pixelfed);
+
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", query["state"] ?? string.Empty, default);
+
+		var account = result.Should().BeOfType<CompleteMastodonConnectResult.Connected>().Subject.Account;
+		account.Provider.Should().Be(SocialProvider.Pixelfed);
+		var capability = Publishing.Providers.Capabilities.ProviderCapabilityRegistry.Resolve(account);
+		capability.TextLimits.Single().Rule.Unit.Should().Be("utf16");
+		capability.TextLimits.Single().Max.Should().Be(1000);
+		capability.MaxImages.Should().Be(6);
+		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials, SocialProvider.Pixelfed)
+			.Should().Be(new MastodonCredentials(host, "access-token-1"));
+		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials).Should().BeNull();
+		var session = await new MastodonSessionProvider(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
+		session.Should().BeOfType<SocialSessionResult.Opened>().Which.Session.AccessJwt.Should().Be("access-token-1");
+		(await h.Service.PrepareRevocationAsync(h.TenantId, account.GetRequiredId(), default)).Should().NotBeNull();
+	}
+
+	[Fact]
 	public async Task ItShouldRevokeTheTokenBestEffortWithTheStoredAppSecret() {
 		var (h, scope) = await this._NewAsync();
 		await using var _ = scope;

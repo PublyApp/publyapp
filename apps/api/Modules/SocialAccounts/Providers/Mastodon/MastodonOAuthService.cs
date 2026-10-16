@@ -51,6 +51,8 @@ public abstract record CompleteMastodonConnectResult {
 /// </summary>
 public sealed class MastodonOAuthService {
 	public const string Scopes = "read:accounts write:statuses write:media";
+	// Pixelfed only knows the coarse OAuth scopes.
+	public const string PixelfedScopes = "read write";
 	public const string CallbackPath = "/tenant/settings/integrations";
 
 	private static readonly TimeSpan _StateLifetime = TimeSpan.FromMinutes(10);
@@ -75,18 +77,26 @@ public sealed class MastodonOAuthService {
 		get { return this._FrontUrl + MastodonOAuthService.CallbackPath; }
 	}
 
+	private static string _ScopesFor(SocialProvider provider) {
+		return provider == SocialProvider.Pixelfed
+			? MastodonOAuthService.PixelfedScopes
+			: MastodonOAuthService.Scopes;
+	}
+
 	public async Task<StartMastodonConnectResult> StartAsync(
 		Guid tenantId,
 		Guid userId,
 		string rawInstance,
-		CancellationToken cancellationToken
+		CancellationToken cancellationToken,
+		SocialProvider provider = SocialProvider.Mastodon
 	) {
 		var host = MastodonHostGuard.NormalizeHost(rawInstance);
 		if (host is null) {
 			return new StartMastodonConnectResult.InvalidInstance();
 		}
 
-		var app = await this._FindOrRegisterAppAsync(host, cancellationToken);
+		var scopes = MastodonOAuthService._ScopesFor(provider);
+		var app = await this._FindOrRegisterAppAsync(host, scopes, cancellationToken);
 		if (app is MastodonResult<MastodonApp>.Refused refused) {
 			return new StartMastodonConnectResult.Refused(refused.Reason);
 		}
@@ -106,6 +116,7 @@ public sealed class MastodonOAuthService {
 			TenantId = tenantId,
 			UserId = userId,
 			StateHash = MastodonOAuthService.Hash(state),
+			Provider = provider,
 			InstanceHost = host,
 			ExpiresAt = DateTime.UtcNow.Add(MastodonOAuthService._StateLifetime),
 		}, cancellationToken);
@@ -115,7 +126,7 @@ public sealed class MastodonOAuthService {
 			["response_type"] = "code",
 			["client_id"] = registered.Value.ClientId,
 			["redirect_uri"] = this.RedirectUri,
-			["scope"] = MastodonOAuthService.Scopes,
+			["scope"] = scopes,
 			["state"] = state,
 		}.Select(pair => $"{pair.Key}={Uri.EscapeDataString(pair.Value)}"));
 		return new StartMastodonConnectResult.Started($"https://{host}/oauth/authorize?{query}");
@@ -137,7 +148,7 @@ public sealed class MastodonOAuthService {
 				&& row.UserId == userId
 				&& row.ConsumedAt == null
 				&& row.ExpiresAt > now)
-			.Select(row => new { row.Id, row.InstanceHost })
+			.Select(row => new { row.Id, row.InstanceHost, row.Provider })
 			.FirstOrDefaultAsync(cancellationToken);
 		if (pending is null) {
 			return new CompleteMastodonConnectResult.InvalidState();
@@ -190,11 +201,12 @@ public sealed class MastodonOAuthService {
 				limits.MaxMediaAttachments,
 				limits.CharactersReservedPerUrl,
 				limits.ImageSizeLimit,
-				limits.SupportedMimeTypes
+				limits.SupportedMimeTypes,
+				pending.Provider
 			);
 
 		return await this._StoreAccountAsync(
-			tenantId, host, account.Value, accessToken.Value, overrides, cancellationToken
+			tenantId, pending.Provider, host, account.Value, accessToken.Value, overrides, cancellationToken
 		);
 	}
 
@@ -211,11 +223,15 @@ public sealed class MastodonOAuthService {
 			.AsNoTracking()
 			.Where(account => account.Id == socialAccountId
 				&& account.TenantId == tenantId
-				&& account.Provider == SocialProvider.Mastodon
+				&& (account.Provider == SocialProvider.Mastodon || account.Provider == SocialProvider.Pixelfed)
 				&& !account.IsDeleted)
-			.Select(account => account.ProtectedCredentials)
+			.Select(account => new { account.Provider, account.ProtectedCredentials })
 			.FirstOrDefaultAsync(cancellationToken);
-		var credentials = MastodonCredentials.Unprotect(this._Protector, stored);
+		if (stored is null) {
+			return null;
+		}
+
+		var credentials = MastodonCredentials.Unprotect(this._Protector, stored.ProtectedCredentials, stored.Provider);
 		if (credentials is null) {
 			return null;
 		}
@@ -255,11 +271,12 @@ public sealed class MastodonOAuthService {
 
 	private async Task<MastodonResult<MastodonApp>> _FindOrRegisterAppAsync(
 		string host,
+		string scopes,
 		CancellationToken cancellationToken
 	) {
 		var existing = await this._Db.OAuthAppRegistration
 			.FirstOrDefaultAsync(row => row.Host == host && !row.IsDeleted, cancellationToken);
-		if (existing is not null && existing.RedirectUri == this.RedirectUri && existing.Scopes == MastodonOAuthService.Scopes) {
+		if (existing is not null && existing.RedirectUri == this.RedirectUri && existing.Scopes == scopes) {
 			var secret = this._Protector.Unprotect(existing.ProtectedClientSecret, SocialProvider.Mastodon);
 			if (secret.Plaintext is not null) {
 				return new MastodonResult<MastodonApp>.Ok(new MastodonApp(existing.ClientId, secret.Plaintext));
@@ -267,7 +284,7 @@ public sealed class MastodonOAuthService {
 		}
 
 		var registered = await this._Client.RegisterAppAsync(
-			host, this.RedirectUri, MastodonOAuthService.Scopes, cancellationToken
+			host, this.RedirectUri, scopes, cancellationToken
 		);
 		if (registered is not MastodonResult<MastodonApp>.Ok ok) {
 			return registered;
@@ -279,13 +296,13 @@ public sealed class MastodonOAuthService {
 			existing.ClientId = ok.Value.ClientId;
 			existing.ProtectedClientSecret = protectedSecret;
 			existing.RedirectUri = this.RedirectUri;
-			existing.Scopes = MastodonOAuthService.Scopes;
+			existing.Scopes = scopes;
 		} else {
 			await this._Db.OAuthAppRegistration.AddAsync(new OAuthAppRegistration {
 				Host = host,
 				ClientId = ok.Value.ClientId,
 				ProtectedClientSecret = protectedSecret,
-				Scopes = MastodonOAuthService.Scopes,
+				Scopes = scopes,
 				RedirectUri = this.RedirectUri,
 			}, cancellationToken);
 		}
@@ -311,6 +328,7 @@ public sealed class MastodonOAuthService {
 
 	private async Task<CompleteMastodonConnectResult> _StoreAccountAsync(
 		Guid tenantId,
+		SocialProvider provider,
 		string host,
 		MastodonAccountInfo identity,
 		string accessToken,
@@ -319,10 +337,10 @@ public sealed class MastodonOAuthService {
 	) {
 		var externalId = $"{identity.Id}@{host}";
 		var handle = $"{identity.Acct}@{host}";
-		var protectedCredentials = new MastodonCredentials(host, accessToken).Protect(this._Protector);
+		var protectedCredentials = new MastodonCredentials(host, accessToken).Protect(this._Protector, provider);
 		var existing = await this._Db.SocialAccount.FirstOrDefaultAsync(
 			account => account.TenantId == tenantId
-				&& account.Provider == SocialProvider.Mastodon
+				&& account.Provider == provider
 				&& account.ExternalAccountId == externalId
 				&& !account.IsDeleted,
 			cancellationToken
@@ -330,7 +348,7 @@ public sealed class MastodonOAuthService {
 
 		var account = existing ?? new SocialAccount {
 			TenantId = tenantId,
-			Provider = SocialProvider.Mastodon,
+			Provider = provider,
 			ExternalAccountId = externalId,
 			DisplayHandle = handle,
 			ProtectedCredentials = protectedCredentials,

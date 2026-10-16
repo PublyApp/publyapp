@@ -109,6 +109,7 @@ public static class SocialAccountWire {
 		return type switch {
 			SocialCredentialType.AppPassword => "app_password",
 			SocialCredentialType.OAuth => "oauth",
+			SocialCredentialType.WebhookUrl => "webhook_url",
 			_ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unhandled SocialCredentialType"),
 		};
 	}
@@ -117,6 +118,8 @@ public static class SocialAccountWire {
 		return provider switch {
 			SocialProvider.Bluesky => "bluesky",
 			SocialProvider.Mastodon => "mastodon",
+			SocialProvider.Pixelfed => "pixelfed",
+			SocialProvider.DiscordWebhook => "discord_webhook",
 			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
 		};
 	}

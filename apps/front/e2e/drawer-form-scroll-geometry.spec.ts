@@ -715,6 +715,8 @@ const openBlueskyConnectDrawer = (page: Page) =>
 	openConnectDrawer(page, 'Connect Bluesky', 'bluesky-connect-drawer');
 const openMastodonConnectDrawer = (page: Page) =>
 	openConnectDrawer(page, 'Connect Mastodon', 'mastodon-connect-drawer');
+const openDiscordConnectDrawer = (page: Page) =>
+	openConnectDrawer(page, 'Connect Discord', 'discord-connect-drawer');
 
 const openDrawerByCallSiteId = {
 	'profile-create': openProfileCreateDrawer,
@@ -726,6 +728,7 @@ const openDrawerByCallSiteId = {
 	'staff-profile-edit': openStaffProfileEditDrawer,
 	'bluesky-connect': openBlueskyConnectDrawer,
 	'mastodon-connect': openMastodonConnectDrawer,
+	'discord-connect': openDiscordConnectDrawer,
 } satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 
 test.describe(

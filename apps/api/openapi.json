@@ -13944,6 +13944,107 @@
         }
       }
     },
+    "/social-accounts/discord-webhook": {
+      "post": {
+        "tags": [
+          "SocialAccounts"
+        ],
+        "summary": "Connect a Discord webhook: verifies the pasted URL and stores it encrypted",
+        "operationId": "ConnectDiscordWebhookForTenant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectDiscordWebhookBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialAccountCreated"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/social-accounts/{socialAccountId}/reconnect": {
       "post": {
         "tags": [
@@ -15968,6 +16069,17 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "state": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "ConnectDiscordWebhookBody": {
+        "required": [
+          "webhookUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "webhookUrl": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -18434,7 +18546,9 @@
           "textLimits",
           "maxImages",
           "maxImageBytes",
-          "acceptedImageContentTypes"
+          "acceptedImageContentTypes",
+          "requiresMedia",
+          "supportsThreads"
         ],
         "type": "object",
         "properties": {
@@ -18459,6 +18573,14 @@
             "items": {
               "type": "string"
             }
+          },
+          "requiresMedia": {
+            "type": "boolean",
+            "description": "True for a photo network: a post without an image is refused."
+          },
+          "supportsThreads": {
+            "type": "boolean",
+            "description": "False when follow-up segments cannot be published to this destination."
           }
         },
         "description": "The account's effective capability, so the composer needs no hardcoded numbers\n(issues #2169, #2173). `TextLimits` are measured by unit."
@@ -19376,6 +19498,14 @@
         "properties": {
           "instance": {
             "$ref": "#/components/schemas/JsonElement"
+          },
+          "provider": {
+            "allOf": [
+              {
+                "description": "\"pixelfed\" connects a Pixelfed server; anything else, Mastodon (#2175).",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },

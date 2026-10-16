@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
+import type { FediverseProvider } from '~/lib/query/mastodon-connect';
 import {
 	toNeedsReconnectAccounts,
 	useNeedsReconnectAccountsQuery,
@@ -36,6 +37,7 @@ import { formatDateTime } from '~/utils/format-time';
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 import { DisconnectDialog } from './_disconnect-dialog';
+import { DiscordConnectDrawer } from './_discord-connect-drawer';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
 import { MastodonConnectDrawer } from './_mastodon-connect-drawer';
@@ -49,6 +51,20 @@ import {
 // size is the parity-contract default.
 const DEFAULT_SORT = { id: 'handle', order: 'asc' as const };
 const DEFAULT_SIZE = 100;
+
+/** Wire provider -> label key; an unknown wire value falls back to Bluesky. */
+const providerLabelKey = (provider: string): string => {
+	switch (provider) {
+		case 'mastodon':
+			return 'provider-mastodon';
+		case 'pixelfed':
+			return 'provider-pixelfed';
+		case 'discord_webhook':
+			return 'provider-discord';
+		default:
+			return 'provider-bluesky';
+	}
+};
 
 type IntegrationsColumnContext = {
 	t: (key: string, options?: Record<string, unknown>) => string;
@@ -85,12 +101,7 @@ const buildColumns = (
 			header: t('col-provider'),
 			enableSorting: false,
 			meta: { width: '140px' },
-			cell: ({ row }) =>
-				t(
-					row.original.provider === 'mastodon'
-						? 'provider-mastodon'
-						: 'provider-bluesky',
-				),
+			cell: ({ row }) => t(providerLabelKey(row.original.provider)),
 		},
 		{
 			id: 'status',
@@ -164,6 +175,8 @@ const buildColumns = (
 type DrawerUiState = {
 	connectOpen: boolean;
 	mastodonOpen: boolean;
+	pixelfedOpen: boolean;
+	discordOpen: boolean;
 	/** Non-null while the reconnect drawer targets a specific row. */
 	reconnectAccount: SocialAccountRow | null;
 	disconnectAccount: SocialAccountRow | null;
@@ -172,8 +185,25 @@ type DrawerUiState = {
 const IDLE_DRAWER_UI: DrawerUiState = {
 	connectOpen: false,
 	mastodonOpen: false,
+	pixelfedOpen: false,
+	discordOpen: false,
 	reconnectAccount: null,
 	disconnectAccount: null,
+};
+
+/** Which fediverse network the shared drawer targets: the reconnecting row's
+ * network, else the connect button that opened it, else none. */
+const fediverseProviderOf = (
+	ui: DrawerUiState,
+	reconnectProvider: string | undefined,
+): FediverseProvider | null => {
+	if (reconnectProvider === 'mastodon' || reconnectProvider === 'pixelfed') {
+		return reconnectProvider;
+	}
+	if (ui.pixelfedOpen) {
+		return 'pixelfed';
+	}
+	return ui.mastodonOpen ? 'mastodon' : null;
 };
 
 /** ConfirmDialog requires a non-null account even when closed; this inert
@@ -236,7 +266,15 @@ const TenantSettingsIntegrationsPage = () => {
 	const [drawerUi, setDrawerUi] = useState<DrawerUiState>(IDLE_DRAWER_UI);
 	const closeDrawerUi = () => setDrawerUi(IDLE_DRAWER_UI);
 	const reconnectAccount = drawerUi.reconnectAccount;
-	const isMastodonReconnect = reconnectAccount?.provider === 'mastodon';
+	const fediverseProvider = fediverseProviderOf(
+		drawerUi,
+		reconnectAccount?.provider,
+	);
+	const isDiscordReconnect = reconnectAccount?.provider === 'discord_webhook';
+	const isFediverseReconnect =
+		reconnectAccount !== null && fediverseProvider !== null;
+	const isBlueskyReconnect =
+		reconnectAccount !== null && !isFediverseReconnect && !isDiscordReconnect;
 
 	// The instance sends the browser back here with `code` and `state` (#2174).
 	const mastodonDenied = useMastodonCallback(tenantId);
@@ -257,6 +295,28 @@ const TenantSettingsIntegrationsPage = () => {
 					>
 						<IconPlugConnected aria-hidden="true" className="size-4" />
 						{t('connect-mastodon')}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={tenantId === null}
+						onClick={() =>
+							setDrawerUi({ ...IDLE_DRAWER_UI, pixelfedOpen: true })
+						}
+					>
+						<IconPlugConnected aria-hidden="true" className="size-4" />
+						{t('connect-pixelfed')}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={tenantId === null}
+						onClick={() =>
+							setDrawerUi({ ...IDLE_DRAWER_UI, discordOpen: true })
+						}
+					>
+						<IconPlugConnected aria-hidden="true" className="size-4" />
+						{t('connect-discord')}
 					</Button>
 					<Button
 						type="button"
@@ -367,21 +427,29 @@ const TenantSettingsIntegrationsPage = () => {
 			{tenantId === null ? null : (
 				<>
 					<MastodonConnectDrawer
-						open={drawerUi.mastodonOpen || isMastodonReconnect}
+						open={fediverseProvider !== null}
 						onOpenChange={(open) => {
 							if (!open) {
 								closeDrawerUi();
 							}
 						}}
 						tenantId={tenantId}
-						account={isMastodonReconnect ? reconnectAccount : undefined}
+						account={isFediverseReconnect ? reconnectAccount : undefined}
+						provider={fediverseProvider ?? 'mastodon'}
+					/>
+					<DiscordConnectDrawer
+						open={drawerUi.discordOpen || isDiscordReconnect}
+						onOpenChange={(open) => {
+							if (!open) {
+								closeDrawerUi();
+							}
+						}}
+						tenantId={tenantId}
+						account={isDiscordReconnect ? reconnectAccount : undefined}
 					/>
 					<BlueskyConnectDrawer
 						mode={reconnectAccount ? 'reconnect' : 'connect'}
-						open={
-							drawerUi.connectOpen ||
-							(reconnectAccount !== null && !isMastodonReconnect)
-						}
+						open={drawerUi.connectOpen || isBlueskyReconnect}
 						onOpenChange={(open) => {
 							if (!open) {
 								closeDrawerUi();
