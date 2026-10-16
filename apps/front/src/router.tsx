@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
+import { mintCspNonce } from '~/lib/csp-nonce';
 import { displayMutationFeedback } from '~/lib/mutation-feedback/mutation-toast';
 import { triggerSessionInvalidated } from '~/lib/session/session-invalidation-channel';
 
@@ -174,6 +175,11 @@ export const getRouter = () => {
 		routeTree,
 		context: { queryClient },
 		defaultPreload: 'intent',
+		// TanStack Start reads `ssr.nonce` once, while it creates the router
+		// (before the request handler runs), to stamp its hydration/stream
+		// scripts. The per-request nonce must therefore exist here; server.ts
+		// reads it back from `router.options.ssr.nonce` for the CSP header.
+		ssr: import.meta.env.SSR ? { nonce: mintCspNonce() } : undefined,
 	});
 
 	setupRouterSsrQueryIntegration({
