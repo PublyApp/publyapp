@@ -106,6 +106,32 @@ const HandoffPanel = ({
 	);
 };
 
+const CreatePostActions = ({
+	isSubmitting,
+	onCancel,
+}: {
+	isSubmitting: boolean;
+	onCancel: () => void;
+}) => {
+	const { t } = useTranslation(['posts', 'common']);
+
+	return (
+		<div className="flex justify-end gap-2">
+			<Button type="button" variant="outline" onClick={onCancel}>
+				{t('common:cancel')}
+			</Button>
+			<Button
+				type="submit"
+				variant="default"
+				disabled={isSubmitting}
+				data-testid="tenant-posts-create-save"
+			>
+				{isSubmitting ? t('posts:saving') : t('posts:save')}
+			</Button>
+		</div>
+	);
+};
+
 export const CreatePostDrawer = ({
 	open,
 	onOpenChange,
@@ -381,25 +407,10 @@ export const CreatePostDrawer = ({
 									return details.id;
 								}}
 							/>
-							<div className="flex justify-end gap-2">
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => onOpenChange(false)}
-								>
-									{t('common:cancel')}
-								</Button>
-								<Button
-									type="submit"
-									variant="default"
-									disabled={methods.formState.isSubmitting}
-									data-testid="tenant-posts-create-save"
-								>
-									{methods.formState.isSubmitting
-										? t('posts:saving')
-										: t('posts:save')}
-								</Button>
-							</div>
+							<CreatePostActions
+								isSubmitting={methods.formState.isSubmitting}
+								onCancel={() => onOpenChange(false)}
+							/>
 						</div>
 					</DrawerFooter>
 				</DrawerForm>
