@@ -281,6 +281,8 @@ public static class ServiceRegistration {
 				client.Timeout = TimeSpan.FromSeconds(60);
 				client.MaxResponseContentBufferSize = 1024 * 1024;
 			})
+			// The webhook token is in the URL path: no request/response log lines for it.
+			.RemoveAllLoggers()
 			.ConfigurePrimaryHttpMessageHandler(() => MastodonHostGuard.CreateHandler());
 		builder.Services.AddSingleton<DiscordWebhookPublishProvider>();
 		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();

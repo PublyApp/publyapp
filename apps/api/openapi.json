@@ -14022,6 +14022,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Service Unavailable",
             "content": {
@@ -16081,6 +16091,14 @@
         "properties": {
           "webhookUrl": {
             "$ref": "#/components/schemas/JsonElement"
+          },
+          "socialAccountId": {
+            "allOf": [
+              {
+                "description": "Set by a reconnect: the account that takes the pasted webhook.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },

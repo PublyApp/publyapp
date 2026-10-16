@@ -113,6 +113,8 @@
 	"segment-remove-confirm": "Remove segment",
 	"segment-limit-reached": "A thread can have up to {{max}} segments.",
 	"segment-over-limit": "Segment {{index}} is too long to publish. Shorten it, or save a draft.",
+	"publish-blocked-media-required": "{{destination}} needs at least one image. Attach one, or deselect it.",
+	"publish-blocked-threads-unsupported": "{{destination}} cannot publish a thread. Remove the extra segments, or deselect it.",
 	"history-segments-progress": "Published {{published}} of {{total}} segments",
 	"history-segments-total": "{{total}} segments",
 	"history-segment-failed": "Segment {{index}} failed",

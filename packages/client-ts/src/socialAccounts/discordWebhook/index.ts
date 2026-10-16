@@ -18,6 +18,7 @@ export interface DiscordWebhookRequestBuilder extends BaseRequestBuilder<Discord
      * @throws {AppProblemDetails} error when the service returns a 400 status code
      * @throws {AppProblemDetails} error when the service returns a 401 status code
      * @throws {AppProblemDetails} error when the service returns a 403 status code
+     * @throws {AppProblemDetails} error when the service returns a 404 status code
      * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
@@ -47,6 +48,7 @@ export const DiscordWebhookRequestBuilderRequestsMetadata: RequestsMetadata = {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             403: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,

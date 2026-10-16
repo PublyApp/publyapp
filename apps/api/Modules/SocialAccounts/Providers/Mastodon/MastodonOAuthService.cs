@@ -96,7 +96,7 @@ public sealed class MastodonOAuthService {
 		}
 
 		var scopes = MastodonOAuthService._ScopesFor(provider);
-		var app = await this._FindOrRegisterAppAsync(host, scopes, cancellationToken);
+		var app = await this._FindOrRegisterAppAsync(host, provider, scopes, cancellationToken);
 		if (app is MastodonResult<MastodonApp>.Refused refused) {
 			return new StartMastodonConnectResult.Refused(refused.Reason);
 		}
@@ -168,7 +168,10 @@ public sealed class MastodonOAuthService {
 		var host = pending.InstanceHost;
 		var registration = await this._Db.OAuthAppRegistration
 			.AsNoTracking()
-			.FirstOrDefaultAsync(row => row.Host == host && !row.IsDeleted, cancellationToken);
+			.FirstOrDefaultAsync(
+				row => row.Host == host && row.Provider == pending.Provider && !row.IsDeleted,
+				cancellationToken
+			);
 		var secret = this._ClientSecret(registration?.ProtectedClientSecret);
 		if (registration is null || secret is null) {
 			return new CompleteMastodonConnectResult.InvalidState();
@@ -238,7 +241,10 @@ public sealed class MastodonOAuthService {
 
 		var registration = await this._Db.OAuthAppRegistration
 			.AsNoTracking()
-			.FirstOrDefaultAsync(row => row.Host == credentials.Host && !row.IsDeleted, cancellationToken);
+			.FirstOrDefaultAsync(
+				row => row.Host == credentials.Host && row.Provider == stored.Provider && !row.IsDeleted,
+				cancellationToken
+			);
 		var secret = this._ClientSecret(registration?.ProtectedClientSecret);
 		if (registration is null || secret is null) {
 			return null;
@@ -271,11 +277,15 @@ public sealed class MastodonOAuthService {
 
 	private async Task<MastodonResult<MastodonApp>> _FindOrRegisterAppAsync(
 		string host,
+		SocialProvider provider,
 		string scopes,
 		CancellationToken cancellationToken
 	) {
 		var existing = await this._Db.OAuthAppRegistration
-			.FirstOrDefaultAsync(row => row.Host == host && !row.IsDeleted, cancellationToken);
+			.FirstOrDefaultAsync(
+				row => row.Host == host && row.Provider == provider && !row.IsDeleted,
+				cancellationToken
+			);
 		if (existing is not null && existing.RedirectUri == this.RedirectUri && existing.Scopes == scopes) {
 			var secret = this._Protector.Unprotect(existing.ProtectedClientSecret, SocialProvider.Mastodon);
 			if (secret.Plaintext is not null) {
@@ -300,6 +310,7 @@ public sealed class MastodonOAuthService {
 		} else {
 			await this._Db.OAuthAppRegistration.AddAsync(new OAuthAppRegistration {
 				Host = host,
+				Provider = provider,
 				ClientId = ok.Value.ClientId,
 				ProtectedClientSecret = protectedSecret,
 				Scopes = scopes,
@@ -314,7 +325,10 @@ public sealed class MastodonOAuthService {
 			this._Db.ChangeTracker.Clear();
 			var winner = await this._Db.OAuthAppRegistration
 				.AsNoTracking()
-				.FirstOrDefaultAsync(row => row.Host == host && !row.IsDeleted, cancellationToken);
+				.FirstOrDefaultAsync(
+					row => row.Host == host && row.Provider == provider && !row.IsDeleted,
+					cancellationToken
+				);
 			var winnerSecret = this._ClientSecret(winner?.ProtectedClientSecret);
 			if (winner is null || winnerSecret is null) {
 				return new MastodonResult<MastodonApp>.Unreachable();

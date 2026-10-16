@@ -63,7 +63,44 @@ describe('discord connect drawer', () => {
 		expect(connectImpl).toHaveBeenCalledWith({
 			tenantId: 't1',
 			webhookUrl: WEBHOOK,
+			socialAccountId: undefined,
 		});
+	});
+
+	test('ItShouldSendTheAccountIdWhenReconnecting', async () => {
+		connectImpl = vi.fn().mockResolvedValue(undefined);
+
+		render(
+			<DiscordConnectDrawer
+				open
+				onOpenChange={vi.fn()}
+				tenantId="t1"
+				account={{
+					id: 'a1',
+					provider: 'discord_webhook',
+					displayHandle: 'Release notes',
+					statusWire: 'needs_reconnect',
+					tone: 'warning',
+					statusLabelKey: 'settings:status-needs-reconnect',
+					lastSuccessAt: null,
+					projectIds: [],
+				}}
+			/>,
+		);
+		await userEvent
+			.setup()
+			.type(screen.getByTestId('discord-webhook-url'), WEBHOOK);
+		await userEvent
+			.setup()
+			.click(screen.getByRole('button', { name: /connect webhook/i }));
+
+		await waitFor(() =>
+			expect(connectImpl).toHaveBeenCalledWith({
+				tenantId: 't1',
+				webhookUrl: WEBHOOK,
+				socialAccountId: 'a1',
+			}),
+		);
 	});
 
 	test('ItShouldKeepTheUrlMaskedAsAPasswordField', () => {

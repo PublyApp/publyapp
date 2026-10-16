@@ -1749,6 +1749,12 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("protected_client_secret");
 
+                    b.Property<int>("Provider")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("provider");
+
                     b.Property<string>("RedirectUri")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1765,7 +1771,7 @@ namespace PublyApp.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Host")
+                    b.HasIndex("Host", "Provider")
                         .IsUnique()
                         .HasDatabaseName("ux_oauth_app_registrations_live_host")
                         .HasFilter("is_deleted = false");

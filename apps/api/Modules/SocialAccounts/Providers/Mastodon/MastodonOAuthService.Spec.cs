@@ -277,6 +277,31 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldKeepSeparateAppRegistrationsForMastodonAndPixelfedOnTheSameHost() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.UniqueClients = true;
+		var host = $"both-{Guid.NewGuid():N}.example";
+
+		var mastodon = await h.Service.StartAsync(h.TenantId, h.UserId, host, default);
+		await h.Service.StartAsync(h.TenantId, h.UserId, host, default, SocialProvider.Pixelfed);
+		var again = await h.Service.StartAsync(h.TenantId, h.UserId, host, default);
+		var result = await h.Service.CompleteAsync(
+			h.TenantId, h.UserId, "the-code", MastodonOAuthServiceSpec._StateOf(mastodon), default
+		);
+
+		result.Should().BeOfType<CompleteMastodonConnectResult.Connected>();
+		again.Should().BeOfType<StartMastodonConnectResult.Started>();
+		h.Client.Calls.Count(c => c == $"register {host}").Should().Be(2, "one registration per network, no churn");
+		var rows = await h.Db.OAuthAppRegistration.AsNoTracking().Where(r => r.Host == host).ToListAsync();
+		rows.Select(r => (r.Provider, r.Scopes)).Should().BeEquivalentTo([
+			(SocialProvider.Mastodon, MastodonOAuthService.Scopes),
+			(SocialProvider.Pixelfed, MastodonOAuthService.PixelfedScopes),
+		]);
+		h.Client.LastExchangeClientId.Should().Be("client-read:accounts-write:statuses-write:media");
+	}
+
+	[Fact]
 	public async Task ItShouldRevokeTheTokenBestEffortWithTheStoredAppSecret() {
 		var (h, scope) = await this._NewAsync();
 		await using var _ = scope;
@@ -346,13 +371,20 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 
 		public MastodonResult<string>? TokenResult { get; set; }
 
+		// When set, each registration gets its own client id (to tell two apps apart).
+		public bool UniqueClients { get; set; }
+
+		public string? LastExchangeClientId { get; private set; }
+
 		public Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
 			this.Calls.Add($"register {host}");
-			return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp("client-id", "client-secret")));
+			var clientId = this.UniqueClients ? $"client-{scopes.Replace(' ', '-')}" : "client-id";
+			return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp(clientId, "client-secret")));
 		}
 
 		public Task<MastodonResult<string>> ExchangeCodeAsync(string host, MastodonApp app, string redirectUri, string code, CancellationToken cancellationToken) {
 			this.Calls.Add($"exchange {host}");
+			this.LastExchangeClientId = app.ClientId;
 			return Task.FromResult(this.TokenResult ?? new MastodonResult<string>.Ok(this.Token));
 		}
 

@@ -12,6 +12,12 @@ public abstract record ConnectDiscordWebhookResult {
 
 	public sealed record InvalidUrl() : ConnectDiscordWebhookResult;
 
+	/// <summary>The account to replace does not exist (or is revoked) in this tenant.</summary>
+	public sealed record AccountNotFound() : ConnectDiscordWebhookResult;
+
+	/// <summary>The pasted webhook is already another account of this tenant.</summary>
+	public sealed record AlreadyConnected() : ConnectDiscordWebhookResult;
+
 	/// <summary>Discord does not know this webhook (deleted, or a wrong token).</summary>
 	public sealed record Refused() : ConnectDiscordWebhookResult;
 
@@ -39,10 +45,16 @@ public sealed class DiscordWebhookConnectService {
 		this._Client = client;
 	}
 
+	/// <summary>
+	/// <paramref name="replaceAccountId"/> set = a reconnect of THAT account: a deleted
+	/// webhook cannot be revived, so the account keeps its row (and its paused queue)
+	/// and takes the new webhook's id, name and URL.
+	/// </summary>
 	public async Task<ConnectDiscordWebhookResult> ConnectAsync(
 		Guid tenantId,
 		string rawUrl,
-		CancellationToken cancellationToken
+		CancellationToken cancellationToken,
+		Guid? replaceAccountId = null
 	) {
 		var webhook = DiscordWebhookUrl.Parse(rawUrl);
 		if (webhook is null) {
@@ -61,13 +73,31 @@ public sealed class DiscordWebhookConnectService {
 		var protectedCredentials = new DiscordWebhookCredentials(webhook.Full, ok.Info.GuildId)
 			.Protect(this._Protector);
 		var handle = ok.Info.Name.Length > 100 ? ok.Info.Name[..100] : ok.Info.Name;
-		var existing = await this._Db.SocialAccount.FirstOrDefaultAsync(
+		var sameWebhook = await this._Db.SocialAccount.FirstOrDefaultAsync(
 			account => account.TenantId == tenantId
 				&& account.Provider == SocialProvider.DiscordWebhook
 				&& account.ExternalAccountId == webhook.Id
 				&& !account.IsDeleted,
 			cancellationToken
 		);
+		var existing = sameWebhook;
+		if (replaceAccountId is { } replaceId) {
+			existing = await this._Db.SocialAccount.FirstOrDefaultAsync(
+				account => account.Id == replaceId
+					&& account.TenantId == tenantId
+					&& account.Provider == SocialProvider.DiscordWebhook
+					&& account.Status != SocialAccountStatus.Revoked
+					&& !account.IsDeleted,
+				cancellationToken
+			);
+			if (existing is null) {
+				return new ConnectDiscordWebhookResult.AccountNotFound();
+			}
+
+			if (sameWebhook is not null && sameWebhook.Id != replaceId) {
+				return new ConnectDiscordWebhookResult.AlreadyConnected();
+			}
+		}
 
 		var account = existing ?? new SocialAccount {
 			TenantId = tenantId,
@@ -77,6 +107,7 @@ public sealed class DiscordWebhookConnectService {
 			ProtectedCredentials = protectedCredentials,
 		};
 		account.DisplayHandle = handle;
+		account.ExternalAccountId = webhook.Id;
 		account.CredentialType = SocialCredentialType.WebhookUrl;
 		account.ProtectedCredentials = protectedCredentials;
 		account.Status = SocialAccountStatus.Active;

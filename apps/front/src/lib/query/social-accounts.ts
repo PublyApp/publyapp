@@ -182,13 +182,20 @@ export const useConnectDiscordWebhookMutation = () => {
 		mutationFn: async ({
 			tenantId,
 			webhookUrl,
+			socialAccountId,
 		}: {
 			tenantId: string;
 			webhookUrl: string;
+			/** Set when reconnecting: that account takes the pasted webhook. */
+			socialAccountId?: string;
 		}) => {
 			const client = getClientManager().getOrCreateClient(tenantId);
 			await client.socialAccounts.discordWebhook.post({
 				webhookUrl: createUntypedString(webhookUrl),
+				socialAccountId:
+					socialAccountId === undefined
+						? undefined
+						: createUntypedString(socialAccountId),
 			});
 		},
 		onSuccess: (_data, variables) =>

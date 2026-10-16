@@ -60,6 +60,7 @@ export const DiscordConnectDrawer = ({
 			await connectMutation.mutateAsync({
 				tenantId,
 				webhookUrl: values.webhookUrl,
+				socialAccountId: account?.id,
 			});
 			methods.reset();
 			onOpenChange(false);

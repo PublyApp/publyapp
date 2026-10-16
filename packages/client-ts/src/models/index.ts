@@ -565,6 +565,10 @@ export interface CompleteMastodonConnectBody extends AdditionalDataHolder, Parsa
 }
 export interface ConnectDiscordWebhookBody extends AdditionalDataHolder, Parsable {
     /**
+     * The socialAccountId property
+     */
+    socialAccountId?: UntypedNode | null;
+    /**
      * The webhookUrl property
      */
     webhookUrl?: UntypedNode | null;
@@ -3499,6 +3503,7 @@ export function deserializeIntoCompleteMastodonConnectBody(completeMastodonConne
 // @ts-ignore
 export function deserializeIntoConnectDiscordWebhookBody(connectDiscordWebhookBody: Partial<ConnectDiscordWebhookBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "socialAccountId": n => { connectDiscordWebhookBody.socialAccountId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "webhookUrl": n => { connectDiscordWebhookBody.webhookUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -8115,6 +8120,7 @@ export function serializeCompleteMastodonConnectBody(writer: SerializationWriter
 // @ts-ignore
 export function serializeConnectDiscordWebhookBody(writer: SerializationWriter, connectDiscordWebhookBody: Partial<ConnectDiscordWebhookBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!connectDiscordWebhookBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("socialAccountId", connectDiscordWebhookBody.socialAccountId);
     writer.writeObjectValue("webhookUrl", connectDiscordWebhookBody.webhookUrl);
     writer.writeAdditionalData(connectDiscordWebhookBody.additionalData);
 }

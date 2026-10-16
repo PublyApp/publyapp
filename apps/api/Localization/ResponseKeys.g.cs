@@ -85,6 +85,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey DeleteItem = new("delete-item");
 
 	/// <summary>
+	/// This webhook is already connected as another account
+	/// </summary>
+	public static readonly TranslationKey DiscordWebhookAlreadyConnected = new("discord-webhook-already-connected");
+
+	/// <summary>
 	/// Paste a Discord webhook URL (https://discord.com/api/webhooks/...)
 	/// </summary>
 	public static readonly TranslationKey DiscordWebhookInvalid = new("discord-webhook-invalid");

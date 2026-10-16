@@ -21,6 +21,13 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 public record ConnectDiscordWebhookBody {
 	public required JsonElement WebhookUrl { get; init; }
 
+	/// <summary>Set by a reconnect: the account that takes the pasted webhook.</summary>
+	public JsonElement? SocialAccountId { get; init; }
+
+	public string? GetSocialAccountId() {
+		return this.SocialAccountId is { ValueKind: JsonValueKind.String } id ? id.GetString() : null;
+	}
+
 	public string GetWebhookUrl() {
 		return this.WebhookUrl.GetValueAsString();
 	}
@@ -30,6 +37,7 @@ public class ConnectDiscordWebhookBodyValidator : AbstractValidator<ConnectDisco
 	public ConnectDiscordWebhookBodyValidator() {
 		this.RuleFor(x => x.WebhookUrl)
 			.MustBeRequiredStringWithLength("WebhookUrl", 1, DiscordWebhookUrl.MaxLength);
+		this.RuleFor(x => x.SocialAccountId).MustBeNullableNonEmptyString("SocialAccountId");
 	}
 }
 
@@ -41,6 +49,8 @@ public class ConnectDiscordWebhookBodyValidator : AbstractValidator<ConnectDisco
 public sealed class ConnectDiscordWebhookForTenant {
 	public static async Task<Results<
 		Ok<SocialAccountCreated>,
+		AppBadRequestHttpResult,
+		AppNotFoundHttpResult,
 		AppProviderUnavailableHttpResult,
 		AppValidationProblemHttpResult
 	>> Handle(
@@ -63,7 +73,32 @@ public sealed class ConnectDiscordWebhookForTenant {
 			);
 		}
 
-		var result = await connectService.ConnectAsync(tenantId, body.GetWebhookUrl(), cancellationToken);
+		Guid? replaceAccountId = null;
+		var rawAccountId = body.GetSocialAccountId();
+		if (rawAccountId is not null) {
+			if (!Guid.TryParse(rawAccountId, out var parsedAccountId)) {
+				return TypedProblems.BadRequest("Invalid socialAccountId", ResponseKeys.MalformedId);
+			}
+
+			replaceAccountId = parsedAccountId;
+		}
+
+		var result = await connectService.ConnectAsync(
+			tenantId, body.GetWebhookUrl(), cancellationToken, replaceAccountId
+		);
+
+		if (result is ConnectDiscordWebhookResult.AccountNotFound) {
+			return TypedProblems.NotFound("Social account not found", ResponseKeys.SocialAccountNotFound);
+		}
+
+		if (result is ConnectDiscordWebhookResult.AlreadyConnected) {
+			const string reason = "This webhook is already connected as another account.";
+			return TypedProblems.ValidationProblem(
+				reason,
+				ResponseKeys.DiscordWebhookAlreadyConnected,
+				new Dictionary<string, string[]> { ["webhookUrl"] = [reason] }
+			);
+		}
 
 		if (result is ConnectDiscordWebhookResult.InvalidUrl) {
 			const string reason = "Paste a Discord webhook URL, like https://discord.com/api/webhooks/123/abc.";

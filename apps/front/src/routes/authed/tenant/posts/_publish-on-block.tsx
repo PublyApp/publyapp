@@ -16,6 +16,7 @@ import {
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { countText, tightestLimit } from '~/lib/text-counter/text-counter';
+import type { LimitedDestination } from '~/lib/text-counter/text-counter';
 import { useTextCounter } from '~/lib/text-counter/use-text-counter';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -25,6 +26,38 @@ import { PublishLimitCounter } from './_publish-limit-counter';
 import type { PublishSelection } from './_use-publish-selection';
 
 const NO_FOLLOW_UPS: string[] = [];
+
+type DestinationBlock = {
+	key:
+		| 'posts:publish-blocked-media-required'
+		| 'posts:publish-blocked-threads-unsupported';
+	destination: string;
+};
+
+/** The first selected destination that cannot take this post as composed: a
+ * photo network with no image, or a thread aimed at a network without threads
+ * (the server refuses both, this says so before the click). */
+const findDestinationBlock = (
+	destinations: readonly LimitedDestination[],
+	imageCount: number,
+	followUpCount: number,
+): DestinationBlock | null => {
+	for (const { label, limits } of destinations) {
+		if (limits.requiresMedia === true && imageCount === 0) {
+			return {
+				key: 'posts:publish-blocked-media-required',
+				destination: label,
+			};
+		}
+		if (limits.supportsThreads === false && followUpCount > 0) {
+			return {
+				key: 'posts:publish-blocked-threads-unsupported',
+				destination: label,
+			};
+		}
+	}
+	return null;
+};
 
 /** Composer "Publish on" block (Epic D step 6, plan D2 Task 8): the accounts
  * visible in the project per the Epic C rule, shown only with BOTH
@@ -38,6 +71,7 @@ export const PublishOnBlock = ({
 	postId,
 	body = '',
 	followUps = NO_FOLLOW_UPS,
+	imageCount = 0,
 	onBeforePublish,
 }: {
 	/** Which targets are checked (owned by the composer so every counter and
@@ -47,6 +81,8 @@ export const PublishOnBlock = ({
 	body?: string;
 	/** Thread follow-up texts: each one is held to the same limits (#2171). */
 	followUps?: string[];
+	/** Images on the post (attached or picked): a photo network needs one. */
+	imageCount?: number;
 	/** Present once the post exists (edit page). */
 	postId?: string | null;
 	/** In the creation drawer the
@@ -73,7 +109,15 @@ export const PublishOnBlock = ({
 			),
 		[followUps, destinations],
 	);
-	const isOverLimit = tightest?.state === 'error' || overLimitFollowUp >= 0;
+	const destinationBlock = findDestinationBlock(
+		destinations,
+		imageCount,
+		followUps.length,
+	);
+	const isOverLimit =
+		tightest?.state === 'error' ||
+		overLimitFollowUp >= 0 ||
+		destinationBlock !== null;
 
 	const [isPublishing, setIsPublishing] = useState(false);
 
@@ -174,6 +218,17 @@ export const PublishOnBlock = ({
 					data-testid="tenant-posts-segment-limit-error"
 				>
 					{t('posts:segment-over-limit', { index: overLimitFollowUp + 2 })}
+				</p>
+			) : null}
+			{destinationBlock ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-publish-blocked"
+				>
+					{t(destinationBlock.key, {
+						destination: destinationBlock.destination,
+					})}
 				</p>
 			) : null}
 			{isPublishing ? (

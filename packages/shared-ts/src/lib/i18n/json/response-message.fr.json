@@ -125,6 +125,7 @@
 	"provider-unreachable": "Le fournisseur est injoignable ; rien n'a été stocké",
 	"mastodon-instance-invalid": "Saisissez l'adresse https publique d'un serveur Mastodon ou Pixelfed",
 	"discord-webhook-invalid": "Collez une URL de webhook Discord (https://discord.com/api/webhooks/...)",
+	"discord-webhook-already-connected": "Ce webhook est déjà connecté comme autre compte",
 	"discord-webhook-refused": "Discord a refusé ce webhook ; il a peut-être été supprimé",
 	"mastodon-oauth-state-invalid": "Ce lien d'autorisation Mastodon est invalide, expiré ou déjà utilisé",
 	"mastodon-authorization-refused": "Le serveur Mastodon a refusé l'autorisation",

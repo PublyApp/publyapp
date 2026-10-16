@@ -346,6 +346,7 @@ export const CreatePostDrawer = ({
 								selection={selection}
 								body={body}
 								followUps={followUps}
+								imageCount={deferredImages.length}
 								onBeforePublish={async () => {
 									const values = methods.getValues();
 									await methods.trigger();
