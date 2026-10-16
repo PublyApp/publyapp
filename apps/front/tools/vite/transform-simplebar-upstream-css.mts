@@ -455,9 +455,10 @@ const materialiseTransformedUpstream = (
  * transformed copy of the upstream CSS into a per-install cache file under
  * `node_modules/.cache/publy/` and returns that path.
  *
- * The hooks are restored to their previous values in `buildEnd` so the
- * plugin does not leak across unrelated test workers or future build runs
- * that re-use the same Node process.
+ * The hooks are installed in `buildStart` and restored to their previous values
+ * in `buildEnd` (once per environment build), or when the dev server closes, so
+ * the plugin does not leak across unrelated test workers or later builds that
+ * re-use the same Node process.
  *
  * The `name` is namespaced under `publy:` so it does not collide with
  * user plugins. The plugin is opt-in: it intercepts ONLY the exact
@@ -513,7 +514,11 @@ export const transformSimplebarUpstreamCssPlugin = ({
 
 	return {
 		name: 'publy:transform-simplebar-upstream-css',
-		configResolved() {
+		// Per environment: `vite build` runs the client and ssr builds back to back
+		// in one process, each with its own buildStart/buildEnd. Installing here
+		// (not in configResolved) keeps the hook live for every environment's
+		// build instead of leaving the later ones with the raw upstream CSS (#2192).
+		buildStart() {
 			installHooks();
 		},
 		buildEnd() {

@@ -38,6 +38,7 @@ const retryDelayMs = 1000;
 const shutdownGraceMs = 5000;
 
 const stylesheetPattern = /rel="stylesheet"[^>]*href="[^"]+\.css"/;
+const stylesheetHrefPattern = /<link\b[^>]*rel="stylesheet"[^>]*>/g;
 
 /**
  * Asks the OS for a free port by binding to :0 and releasing it. There is a
@@ -159,6 +160,25 @@ if (!stylesheetPattern.test(html)) {
 	await fail('front production HTML does not contain a stylesheet link');
 }
 
+// The linked CSS must actually be served (#2192: the SSR bundle linked a hash
+// the client build never emitted, so the stylesheet 404ed as text/html).
+const hrefs = [...html.matchAll(stylesheetHrefPattern)].flatMap(
+	([tag]) => /href="([^"]+\.css)"/.exec(tag)?.[1] ?? [],
+);
+
+for (const href of hrefs) {
+	const css = await fetch(new URL(href, origin), {
+		signal: AbortSignal.timeout(5000),
+	});
+	const type = css.headers.get('content-type') ?? '';
+
+	if (css.status !== 200 || !type.startsWith('text/css')) {
+		await fail(
+			`front stylesheet ${href} returned ${css.status} ${type}, expected 200 text/css`,
+		);
+	}
+}
+
 // Hydration under CSP: TanStack Start stamps its hydration/stream scripts with
 // the nonce it captured when the router was created. If that nonce is missing
 // or differs from the header's, the browser blocks them and the page never
@@ -185,3 +205,6 @@ console.log(
 	`front smoke start: ${scriptTags.length} <script> tags all carry the CSP header nonce [OK]`,
 );
 console.log('front smoke start: server served HTML linking a CSS asset [OK]');
+console.log(
+	`front smoke start: ${hrefs.length} linked stylesheet(s) returned 200 text/css [OK]`,
+);

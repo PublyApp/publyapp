@@ -155,6 +155,9 @@ export const handleMutationSuccess = (
 	displayNonSilentMutationIntent(intent);
 };
 
+// Must stay per-request: a cached router would reuse one CSP nonce across
+// responses (server.ts throws when the router has none) and share one
+// QueryClient between users.
 export const getRouter = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
