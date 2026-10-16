@@ -14,7 +14,12 @@ public sealed record ProviderCapability(
 	long MaxImageBytes,
 	IReadOnlyList<string> AcceptedImageContentTypes,
 	// False for an image-led provider: an empty body (or segment) is then allowed.
-	bool RequiresText = true
+	bool RequiresText = true,
+	// True for a photo network (Pixelfed): a post with no image is refused.
+	bool RequiresMedia = false,
+	// False when the destination cannot publish follow-up segments (Pixelfed,
+	// Discord): a thread aimed at it is refused, never silently cut.
+	bool SupportsThreads = true
 );
 
 /// <summary>

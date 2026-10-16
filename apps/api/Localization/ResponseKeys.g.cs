@@ -85,6 +85,21 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey DeleteItem = new("delete-item");
 
 	/// <summary>
+	/// This webhook is already connected as another account
+	/// </summary>
+	public static readonly TranslationKey DiscordWebhookAlreadyConnected = new("discord-webhook-already-connected");
+
+	/// <summary>
+	/// Paste a Discord webhook URL (https://discord.com/api/webhooks/...)
+	/// </summary>
+	public static readonly TranslationKey DiscordWebhookInvalid = new("discord-webhook-invalid");
+
+	/// <summary>
+	/// Discord refused this webhook; it may have been deleted
+	/// </summary>
+	public static readonly TranslationKey DiscordWebhookRefused = new("discord-webhook-refused");
+
+	/// <summary>
 	/// Email is already in use
 	/// </summary>
 	public static readonly TranslationKey EmailAlreadyInUse = new("email-already-in-use");
@@ -215,7 +230,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MastodonAuthorizationRefused = new("mastodon-authorization-refused");
 
 	/// <summary>
-	/// Enter the public https address of a Mastodon server
+	/// Enter the public https address of a Mastodon or Pixelfed server
 	/// </summary>
 	public static readonly TranslationKey MastodonInstanceInvalid = new("mastodon-instance-invalid");
 
@@ -440,9 +455,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublishImagesTooMany = new("publish-images-too-many");
 
 	/// <summary>
+	/// This destination needs at least one image
+	/// </summary>
+	public static readonly TranslationKey PublishMediaRequired = new("publish-media-required");
+
+	/// <summary>
 	/// Publishing started
 	/// </summary>
 	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");
+
+	/// <summary>
+	/// This destination cannot publish a thread
+	/// </summary>
+	public static readonly TranslationKey PublishThreadsUnsupported = new("publish-threads-unsupported");
 
 	/// <summary>
 	/// Query parameter missing
@@ -490,9 +515,14 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey SocialAccountDisconnectedSuccess = new("social-account-disconnected-success");
 
 	/// <summary>
-	/// Mastodon account connected
+	/// Discord webhook connected
 	/// </summary>
-	public static readonly TranslationKey SocialAccountMastodonConnected = new("social-account-mastodon-connected");
+	public static readonly TranslationKey SocialAccountDiscordWebhookConnected = new("social-account-discord-webhook-connected");
+
+	/// <summary>
+	/// Account connected
+	/// </summary>
+	public static readonly TranslationKey SocialAccountFediverseConnected = new("social-account-fediverse-connected");
 
 	/// <summary>
 	/// Social account not found

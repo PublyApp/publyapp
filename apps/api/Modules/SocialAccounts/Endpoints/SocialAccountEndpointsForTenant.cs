@@ -77,6 +77,18 @@ public static class SocialAccountEndpointsForTenant {
 			);
 
 		group.MapPost(
+			Routes.SocialAccounts.ForTenant.DiscordWebhook,
+			ConnectDiscordWebhookForTenant.Handle
+		)
+			.WithName("ConnectDiscordWebhookForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.SocialConnect)
+			.WithSummary("Connect a Discord webhook: verifies the pasted URL and stores it encrypted")
+			.WithReqBodyValidation<ConnectDiscordWebhookBody>()
+			.WithTenantPermission(
+				[AppPermissions.Tenant.SocialAccounts.MANAGE]
+			);
+
+		group.MapPost(
 			Routes.SocialAccounts.ForTenant.Reconnect,
 			ReconnectSocialAccountForTenant.Handle
 		)

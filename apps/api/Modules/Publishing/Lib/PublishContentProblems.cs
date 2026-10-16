@@ -42,6 +42,14 @@ public static class PublishContentProblems {
 			return ResponseKeys.PublishContentEmpty;
 		}
 
+		if (kind == PublishContentFailureKind.MediaRequired) {
+			return ResponseKeys.PublishMediaRequired;
+		}
+
+		if (kind == PublishContentFailureKind.ThreadsUnsupported) {
+			return ResponseKeys.PublishThreadsUnsupported;
+		}
+
 		if (kind == PublishContentFailureKind.TooManyImages) {
 			return ResponseKeys.PublishImagesTooMany;
 		}

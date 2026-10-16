@@ -6,6 +6,8 @@ import { createAppProblemDetailsFromDiscriminatorValue, createFindSocialAccounts
 // @ts-ignore
 import { ConnectRequestBuilderRequestsMetadata, type ConnectRequestBuilder } from './connect/index.js';
 // @ts-ignore
+import { DiscordWebhookRequestBuilderRequestsMetadata, type DiscordWebhookRequestBuilder } from './discordWebhook/index.js';
+// @ts-ignore
 import { type WithSocialAccountItemRequestBuilder, WithSocialAccountItemRequestBuilderNavigationMetadata } from './item/index.js';
 // @ts-ignore
 import { MastodonRequestBuilderNavigationMetadata, type MastodonRequestBuilder } from './mastodon/index.js';
@@ -22,6 +24,10 @@ export interface SocialAccountsRequestBuilder extends BaseRequestBuilder<SocialA
      * The connect property
      */
     get connect(): ConnectRequestBuilder;
+    /**
+     * The discordWebhook property
+     */
+    get discordWebhook(): DiscordWebhookRequestBuilder;
     /**
      * The mastodon property
      */
@@ -87,6 +93,9 @@ export const SocialAccountsRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     connect: {
         requestsMetadata: ConnectRequestBuilderRequestsMetadata,
+    },
+    discordWebhook: {
+        requestsMetadata: DiscordWebhookRequestBuilderRequestsMetadata,
     },
     mastodon: {
         navigationMetadata: MastodonRequestBuilderNavigationMetadata,

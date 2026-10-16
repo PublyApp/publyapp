@@ -172,6 +172,41 @@ export type ConnectSocialAccountInput = {
 	appPassword: string;
 };
 
+/** Discord has no OAuth: the pasted webhook URL is verified and stored by the
+ * API in one call. The URL is a secret; it only ever lives in the form state. */
+export const useConnectDiscordWebhookMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: [...SOCIAL_ACCOUNTS_QUERY_KEY, 'discord-webhook'],
+		mutationFn: async ({
+			tenantId,
+			webhookUrl,
+			socialAccountId,
+		}: {
+			tenantId: string;
+			webhookUrl: string;
+			/** Set when reconnecting: that account takes the pasted webhook. */
+			socialAccountId?: string;
+		}) => {
+			const client = getClientManager().getOrCreateClient(tenantId);
+			await client.socialAccounts.discordWebhook.post({
+				webhookUrl: createUntypedString(webhookUrl),
+				socialAccountId:
+					socialAccountId === undefined
+						? undefined
+						: createUntypedString(socialAccountId),
+			});
+		},
+		onSuccess: (_data, variables) =>
+			invalidateSocialAccounts(queryClient, variables.tenantId),
+		meta: {
+			successMessage: 'social-account-discord-webhook-connected',
+			validationHandledByForm: true,
+		},
+	});
+};
+
 export const useConnectSocialAccountMutation = () => {
 	const queryClient = useQueryClient();
 

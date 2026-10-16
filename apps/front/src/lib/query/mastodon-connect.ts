@@ -5,8 +5,11 @@ import { invalidateSocialAccounts } from '~/lib/query/social-accounts';
 
 const MASTODON_CONNECT_KEY = ['tenant-social-accounts', 'mastodon'] as const;
 
-/** First leg of the Mastodon OAuth connect: the API registers PublyApp on the
- * instance (once per host) and returns the instance's authorize URL. */
+/** The fediverse networks that share this OAuth flow (Pixelfed, #2175). */
+export type FediverseProvider = 'mastodon' | 'pixelfed';
+
+/** First leg of the Mastodon/Pixelfed OAuth connect: the API registers PublyApp
+ * on the instance (once per host) and returns the instance's authorize URL. */
 export const useStartMastodonConnectMutation = () =>
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- start only mints a pending authorization on the server and returns a URL; no cached query changes until the callback completes (which invalidates the list).
 	useMutation({
@@ -14,13 +17,16 @@ export const useStartMastodonConnectMutation = () =>
 		mutationFn: async ({
 			tenantId,
 			instance,
+			provider,
 		}: {
 			tenantId: string;
 			instance: string;
+			provider: FediverseProvider;
 		}) => {
 			const client = getClientManager().getOrCreateClient(tenantId);
 			const result = await client.socialAccounts.mastodon.start.post({
 				instance: createUntypedString(instance),
+				provider: createUntypedString(provider),
 			});
 			if (!result?.authorizeUrl) {
 				throw new Error('mastodon authorize url was empty');
@@ -54,6 +60,6 @@ export const useCompleteMastodonConnectMutation = () => {
 		},
 		onSuccess: (_data, variables) =>
 			invalidateSocialAccounts(queryClient, variables.tenantId),
-		meta: { successMessage: 'social-account-mastodon-connected' },
+		meta: { successMessage: 'social-account-fediverse-connected' },
 	});
 };

@@ -319,6 +319,7 @@ const TenantPostEditPage = () => {
 									postId={postId}
 									body={body}
 									followUps={followUps}
+									imageCount={details.images.length}
 								/>
 							</div>
 						</div>

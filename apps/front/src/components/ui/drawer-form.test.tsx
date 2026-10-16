@@ -433,6 +433,7 @@ import {
 } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-schema';
 import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
 import { BlueskyConnectDrawer } from '../../routes/authed/tenant/settings/_bluesky-connect-drawer';
+import { DiscordConnectDrawer } from '../../routes/authed/tenant/settings/_discord-connect-drawer';
 import { MastodonConnectDrawer } from '../../routes/authed/tenant/settings/_mastodon-connect-drawer';
 
 const noop = () => undefined;
@@ -9610,6 +9611,11 @@ const renderDrawerByCallSiteId = {
 	'mastodon-connect': () => {
 		render(
 			<MastodonConnectDrawer open tenantId="tenant-1" onOpenChange={noop} />,
+		);
+	},
+	'discord-connect': () => {
+		render(
+			<DiscordConnectDrawer open tenantId="tenant-1" onOpenChange={noop} />,
 		);
 	},
 } satisfies Record<DrawerFormCallSiteId, () => void>;

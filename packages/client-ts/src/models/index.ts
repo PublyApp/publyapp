@@ -563,6 +563,16 @@ export interface CompleteMastodonConnectBody extends AdditionalDataHolder, Parsa
      */
     state?: UntypedNode | null;
 }
+export interface ConnectDiscordWebhookBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The socialAccountId property
+     */
+    socialAccountId?: UntypedNode | null;
+    /**
+     * The webhookUrl property
+     */
+    webhookUrl?: UntypedNode | null;
+}
 export interface ConnectSocialAccountBody extends AdditionalDataHolder, Parsable {
     /**
      * The appPassword property
@@ -968,6 +978,15 @@ export function createCheckResetPasswordTokenResultFromDiscriminatorValue(parseN
 // @ts-ignore
 export function createCompleteMastodonConnectBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCompleteMastodonConnectBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ConnectDiscordWebhookBody}
+ */
+// @ts-ignore
+export function createConnectDiscordWebhookBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoConnectDiscordWebhookBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3478,6 +3497,18 @@ export function deserializeIntoCompleteMastodonConnectBody(completeMastodonConne
 }
 /**
  * The deserialization information for the current model
+ * @param ConnectDiscordWebhookBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoConnectDiscordWebhookBody(connectDiscordWebhookBody: Partial<ConnectDiscordWebhookBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "socialAccountId": n => { connectDiscordWebhookBody.socialAccountId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "webhookUrl": n => { connectDiscordWebhookBody.webhookUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ConnectSocialAccountBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4693,6 +4724,8 @@ export function deserializeIntoPublishTargetLimits(publishTargetLimits: Partial<
         "acceptedImageContentTypes": n => { publishTargetLimits.acceptedImageContentTypes = n.getCollectionOfPrimitiveValues<string>("string"); },
         "maxImageBytes": n => { publishTargetLimits.maxImageBytes = n.getNumberValue(); },
         "maxImages": n => { publishTargetLimits.maxImages = n.getNumberValue(); },
+        "requiresMedia": n => { publishTargetLimits.requiresMedia = n.getBooleanValue(); },
+        "supportsThreads": n => { publishTargetLimits.supportsThreads = n.getBooleanValue(); },
         "textLimits": n => { publishTargetLimits.textLimits = n.getCollectionOfObjectValues<PublishTargetTextLimit>(createPublishTargetTextLimitFromDiscriminatorValue); },
     }
 }
@@ -5219,6 +5252,7 @@ export function deserializeIntoStaffUserSuspendedResult(staffUserSuspendedResult
 export function deserializeIntoStartMastodonConnectBody(startMastodonConnectBody: Partial<StartMastodonConnectBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "instance": n => { startMastodonConnectBody.instance = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "provider": n => { startMastodonConnectBody.provider = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -7197,6 +7231,14 @@ export interface PublishTargetLimits extends AdditionalDataHolder, Parsable {
      */
     maxImages?: number | null;
     /**
+     * True for a photo network: a post without an image is refused.
+     */
+    requiresMedia?: boolean | null;
+    /**
+     * False when follow-up segments cannot be published to this destination.
+     */
+    supportsThreads?: boolean | null;
+    /**
      * The textLimits property
      */
     textLimits?: PublishTargetTextLimit[] | null;
@@ -8068,6 +8110,19 @@ export function serializeCompleteMastodonConnectBody(writer: SerializationWriter
     writer.writeObjectValue("code", completeMastodonConnectBody.code);
     writer.writeObjectValue("state", completeMastodonConnectBody.state);
     writer.writeAdditionalData(completeMastodonConnectBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param ConnectDiscordWebhookBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeConnectDiscordWebhookBody(writer: SerializationWriter, connectDiscordWebhookBody: Partial<ConnectDiscordWebhookBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!connectDiscordWebhookBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("socialAccountId", connectDiscordWebhookBody.socialAccountId);
+    writer.writeObjectValue("webhookUrl", connectDiscordWebhookBody.webhookUrl);
+    writer.writeAdditionalData(connectDiscordWebhookBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9369,6 +9424,8 @@ export function serializePublishTargetLimits(writer: SerializationWriter, publis
     writer.writeCollectionOfPrimitiveValues<string>("acceptedImageContentTypes", publishTargetLimits.acceptedImageContentTypes);
     writer.writeNumberValue("maxImageBytes", publishTargetLimits.maxImageBytes);
     writer.writeNumberValue("maxImages", publishTargetLimits.maxImages);
+    writer.writeBooleanValue("requiresMedia", publishTargetLimits.requiresMedia);
+    writer.writeBooleanValue("supportsThreads", publishTargetLimits.supportsThreads);
     writer.writeCollectionOfObjectValues<PublishTargetTextLimit>("textLimits", publishTargetLimits.textLimits, serializePublishTargetTextLimit);
     writer.writeAdditionalData(publishTargetLimits.additionalData);
 }
@@ -9934,6 +9991,7 @@ export function serializeStaffUserSuspendedResult(writer: SerializationWriter, s
 export function serializeStartMastodonConnectBody(writer: SerializationWriter, startMastodonConnectBody: Partial<StartMastodonConnectBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!startMastodonConnectBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("instance", startMastodonConnectBody.instance);
+    writer.writeObjectValue("provider", startMastodonConnectBody.provider);
     writer.writeAdditionalData(startMastodonConnectBody.additionalData);
 }
 /**
@@ -11060,6 +11118,10 @@ export interface StartMastodonConnectBody extends AdditionalDataHolder, Parsable
      * The instance property
      */
     instance?: UntypedNode | null;
+    /**
+     * The provider property
+     */
+    provider?: UntypedNode | null;
 }
 export interface SuspendTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**

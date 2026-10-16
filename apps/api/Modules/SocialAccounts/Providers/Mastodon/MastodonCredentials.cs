@@ -18,13 +18,18 @@ public sealed record MastodonCredentials(string Host, string AccessToken) {
 		return $"MastodonCredentials {{ Host = {this.Host}, AccessToken = [REDACTED] }}";
 	}
 
-	public string Protect(ICredentialProtector protector) {
-		return protector.Protect(JsonSerializer.Serialize(this, MastodonCredentials._Json), SocialProvider.Mastodon);
+	// Pixelfed shares this shape (#2175) but is sealed under its own purpose.
+	public string Protect(ICredentialProtector protector, SocialProvider provider = SocialProvider.Mastodon) {
+		return protector.Protect(JsonSerializer.Serialize(this, MastodonCredentials._Json), provider);
 	}
 
 	/// <summary>Null when nothing usable is stored (absent, tampered or malformed).</summary>
-	public static MastodonCredentials? Unprotect(ICredentialProtector protector, string? protectedText) {
-		var result = protector.Unprotect(protectedText, SocialProvider.Mastodon);
+	public static MastodonCredentials? Unprotect(
+		ICredentialProtector protector,
+		string? protectedText,
+		SocialProvider provider = SocialProvider.Mastodon
+	) {
+		var result = protector.Unprotect(protectedText, provider);
 		if (result.Outcome != UnprotectOutcome.Ok || result.Plaintext is null) {
 			return null;
 		}

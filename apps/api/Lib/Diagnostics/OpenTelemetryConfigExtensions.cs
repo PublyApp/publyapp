@@ -63,7 +63,10 @@ public static class OpenTelemetryConfigExtensions {
 			.WithTracing(tracing => tracing
 				.AddSource(OpenTelemetryConfigExtensions._CustomActivitySourcePattern)
 				.AddAspNetCoreInstrumentation()
-				.AddHttpClientInstrumentation()
+				// A Discord webhook URL carries its secret token in the path, and
+				// url.full would export it: no span at all for those requests (#2175).
+				.AddHttpClientInstrumentation(options => options.FilterHttpRequestMessage =
+					request => request.RequestUri?.AbsolutePath.Contains("/api/webhooks/", StringComparison.Ordinal) != true)
 				.AddOtlpExporter()
 			)
 			.WithMetrics(metrics => metrics

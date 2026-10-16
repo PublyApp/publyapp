@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+
 namespace PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 /// <summary>
@@ -17,7 +19,7 @@ public static class CapabilityOverridesFactory {
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
 	/// <summary>
-	/// The overrides JSON for a Mastodon instance, or null when nothing usable was
+	/// The overrides JSON for a Mastodon or Pixelfed instance, or null when nothing usable was
 	/// advertised (the provider defaults then apply). Image types are intersected
 	/// with the types the app can upload.
 	/// </summary>
@@ -26,16 +28,19 @@ public static class CapabilityOverridesFactory {
 		long? maxMediaAttachments,
 		long? urlLength,
 		long? imageSizeLimit,
-		IEnumerable<string>? supportedMimeTypes
+		IEnumerable<string>? supportedMimeTypes,
+		SocialProvider provider = SocialProvider.Mastodon
 	) {
 		var overrides = new CapabilityOverrides(
 			TextLimits: CapabilityOverridesFactory._Positive(maxCharacters, CapabilityOverridesFactory.MaxTextLimit) is { } characters
-				? new Dictionary<string, int> { [MastodonCountingRule.Default.Unit] = characters }
+				? new Dictionary<string, int> { [CapabilityOverridesFactory._Unit(provider)] = characters }
 				: null,
 			MaxImages: CapabilityOverridesFactory._Positive(maxMediaAttachments, CapabilityOverridesFactory.MaxImagesLimit),
 			MaxImageBytes: CapabilityOverridesFactory._PositiveLong(imageSizeLimit, CapabilityOverridesFactory.MaxImageBytesLimit),
 			AcceptedImageContentTypes: CapabilityOverridesFactory._ImageTypes(supportedMimeTypes),
-			UrlLength: CapabilityOverridesFactory._Positive(urlLength, CapabilityOverridesFactory.MaxUrlLength)
+			UrlLength: provider == SocialProvider.Pixelfed
+				? null
+				: CapabilityOverridesFactory._Positive(urlLength, CapabilityOverridesFactory.MaxUrlLength)
 		);
 		if (overrides.TextLimits is null && overrides.MaxImages is null
 			&& overrides.MaxImageBytes is null && overrides.AcceptedImageContentTypes is null
@@ -44,6 +49,13 @@ public static class CapabilityOverridesFactory {
 		}
 
 		return JsonSerializer.Serialize(overrides, CapabilityOverridesFactory._Json);
+	}
+
+	// Pixelfed counts its caption unweighted; Mastodon weights URLs.
+	private static string _Unit(SocialProvider provider) {
+		return provider == SocialProvider.Pixelfed
+			? Utf16CountingRule.Instance.Unit
+			: MastodonCountingRule.Default.Unit;
 	}
 
 	private static int? _Positive(long? value, int ceiling) {

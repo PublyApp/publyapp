@@ -19,6 +19,7 @@ describe('countText', () => {
 		expect(countText(fixture.text)).toMatchObject({
 			graphemes: fixture.browserGraphemes ?? fixture.graphemes,
 			bytes: fixture.bytes,
+			utf16: fixture.utf16,
 		});
 	});
 
@@ -35,6 +36,33 @@ describe('countText', () => {
 			).toBe(fixture.characters);
 		},
 	);
+});
+
+describe('tightestLimit with the unweighted utf16 unit (Pixelfed, Discord)', () => {
+	const discord = {
+		label: 'Release notes',
+		limits: {
+			textLimits: [{ unit: 'utf16', max: 2000 }],
+			maxImages: 10,
+			maxImageBytes: 8_388_608,
+			acceptedImageContentTypes: ['image/png'],
+		},
+	};
+
+	test('counts a URL at its full length', () => {
+		const url = `https://example.com/${'a'.repeat(80)}`;
+		expect(tightestLimit(countText(url), [discord])).toMatchObject({
+			unit: 'utf16',
+			actual: url.length,
+			limit: 2000,
+		});
+	});
+
+	test('flags the message over 2000 code units', () => {
+		expect(tightestLimit(countText('a'.repeat(2001)), [discord])?.state).toBe(
+			'error',
+		);
+	});
 });
 
 describe('tightestLimit with a URL-weighted unit', () => {

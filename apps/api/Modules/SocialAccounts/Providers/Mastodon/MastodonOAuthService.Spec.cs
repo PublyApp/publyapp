@@ -247,6 +247,61 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldConnectPixelfedWithItsOwnScopesPurposeAndCaptionUnit() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var host = $"pix-{Guid.NewGuid():N}.example";
+		h.Client.Limits = new MastodonInstanceLimits(1000, 6, null, 8_000_000, ["image/png"]);
+
+		var started = await h.Service.StartAsync(h.TenantId, h.UserId, host, default, SocialProvider.Pixelfed);
+		var query = System.Web.HttpUtility.ParseQueryString(
+			new Uri(started.Should().BeOfType<StartMastodonConnectResult.Started>().Subject.AuthorizeUrl).Query
+		);
+		query["scope"].Should().Be("read write");
+		(await h.Db.OAuthState.AsNoTracking().SingleAsync(s => s.TenantId == h.TenantId)).Provider.Should().Be(SocialProvider.Pixelfed);
+
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", query["state"] ?? string.Empty, default);
+
+		var account = result.Should().BeOfType<CompleteMastodonConnectResult.Connected>().Subject.Account;
+		account.Provider.Should().Be(SocialProvider.Pixelfed);
+		var capability = Publishing.Providers.Capabilities.ProviderCapabilityRegistry.Resolve(account);
+		capability.TextLimits.Single().Rule.Unit.Should().Be("utf16");
+		capability.TextLimits.Single().Max.Should().Be(1000);
+		capability.MaxImages.Should().Be(6);
+		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials, SocialProvider.Pixelfed)
+			.Should().Be(new MastodonCredentials(host, "access-token-1"));
+		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials).Should().BeNull();
+		var session = await new MastodonSessionProvider(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
+		session.Should().BeOfType<SocialSessionResult.Opened>().Which.Session.AccessJwt.Should().Be("access-token-1");
+		(await h.Service.PrepareRevocationAsync(h.TenantId, account.GetRequiredId(), default)).Should().NotBeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldKeepSeparateAppRegistrationsForMastodonAndPixelfedOnTheSameHost() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.UniqueClients = true;
+		var host = $"both-{Guid.NewGuid():N}.example";
+
+		var mastodon = await h.Service.StartAsync(h.TenantId, h.UserId, host, default);
+		await h.Service.StartAsync(h.TenantId, h.UserId, host, default, SocialProvider.Pixelfed);
+		var again = await h.Service.StartAsync(h.TenantId, h.UserId, host, default);
+		var result = await h.Service.CompleteAsync(
+			h.TenantId, h.UserId, "the-code", MastodonOAuthServiceSpec._StateOf(mastodon), default
+		);
+
+		result.Should().BeOfType<CompleteMastodonConnectResult.Connected>();
+		again.Should().BeOfType<StartMastodonConnectResult.Started>();
+		h.Client.Calls.Count(c => c == $"register {host}").Should().Be(2, "one registration per network, no churn");
+		var rows = await h.Db.OAuthAppRegistration.AsNoTracking().Where(r => r.Host == host).ToListAsync();
+		rows.Select(r => (r.Provider, r.Scopes)).Should().BeEquivalentTo([
+			(SocialProvider.Mastodon, MastodonOAuthService.Scopes),
+			(SocialProvider.Pixelfed, MastodonOAuthService.PixelfedScopes),
+		]);
+		h.Client.LastExchangeClientId.Should().Be("client-read:accounts-write:statuses-write:media");
+	}
+
+	[Fact]
 	public async Task ItShouldRevokeTheTokenBestEffortWithTheStoredAppSecret() {
 		var (h, scope) = await this._NewAsync();
 		await using var _ = scope;
@@ -316,13 +371,20 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 
 		public MastodonResult<string>? TokenResult { get; set; }
 
+		// When set, each registration gets its own client id (to tell two apps apart).
+		public bool UniqueClients { get; set; }
+
+		public string? LastExchangeClientId { get; private set; }
+
 		public Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
 			this.Calls.Add($"register {host}");
-			return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp("client-id", "client-secret")));
+			var clientId = this.UniqueClients ? $"client-{scopes.Replace(' ', '-')}" : "client-id";
+			return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp(clientId, "client-secret")));
 		}
 
 		public Task<MastodonResult<string>> ExchangeCodeAsync(string host, MastodonApp app, string redirectUri, string code, CancellationToken cancellationToken) {
 			this.Calls.Add($"exchange {host}");
+			this.LastExchangeClientId = app.ClientId;
 			return Task.FromResult(this.TokenResult ?? new MastodonResult<string>.Ok(this.Token));
 		}
 

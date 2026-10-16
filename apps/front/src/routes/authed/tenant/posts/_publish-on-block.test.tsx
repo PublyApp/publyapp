@@ -56,11 +56,17 @@ const EN_LABELS: TestLabelMap = {
 	'posts:publish-on-empty': 'No connected profile to publish to yet.',
 	'common:publish-now': 'Publish now',
 	'common:an-error-occurred': 'An error occurred',
+	'posts:publish-blocked-media-required': '{{destination}} needs an image',
+	'posts:publish-blocked-threads-unsupported': '{{destination}} has no threads',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string, options?: Record<string, string>) =>
+			(EN_LABELS[key] ?? key).replace(
+				/\{\{(\w+)\}\}/g,
+				(_match, name: string) => options?.[name] ?? '',
+			),
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -98,6 +104,32 @@ const stubTargets = () => {
 			items: [
 				{ id: TARGET_A, label: 'Acme main', provider: 'bluesky' },
 				{ id: TARGET_B, label: 'Second handle', provider: 'bluesky' },
+			],
+		},
+		isPending: false,
+		isError: false,
+		error: null,
+		refetch: vi.fn(),
+		isFetching: false,
+	});
+};
+
+const stubFediverseTargets = () => {
+	const base = {
+		textLimits: [{ unit: 'utf16', max: 500 }],
+		maxImages: 4,
+		maxImageBytes: 1_000_000,
+		acceptedImageContentTypes: ['image/png'],
+	};
+	mocks.useTargetsQuery.mockReturnValue({
+		data: {
+			items: [
+				{
+					id: TARGET_A,
+					label: 'Photos',
+					provider: 'pixelfed',
+					limits: { ...base, requiresMedia: true, supportsThreads: false },
+				},
 			],
 		},
 		isPending: false,
@@ -150,9 +182,14 @@ const stubLimitedTargets = () => {
 	});
 };
 
-type BlockProps = { postId?: string; body?: string; followUps?: string[] };
+type BlockProps = {
+	postId?: string;
+	body?: string;
+	followUps?: string[];
+	imageCount?: number;
+};
 
-const BlockHarness = ({ postId, body, followUps }: BlockProps) => {
+const BlockHarness = ({ postId, body, followUps, imageCount }: BlockProps) => {
 	const selection = usePublishSelection(null);
 	return (
 		<PublishOnBlock
@@ -160,6 +197,7 @@ const BlockHarness = ({ postId, body, followUps }: BlockProps) => {
 			postId={postId ?? POST_ID}
 			body={body}
 			followUps={followUps}
+			imageCount={imageCount}
 		/>
 	);
 };
@@ -393,5 +431,42 @@ describe('PublishOnBlock', () => {
 		const alert = await screen.findByRole('alert');
 		expect(alert.textContent?.length ?? 0).toBeGreaterThan(0);
 		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('blocks Publish with an inline message when a photo network has no image', () => {
+		allowPermission(true);
+		stubFediverseTargets();
+
+		renderBlock({ body: 'caption', imageCount: 0 });
+
+		expect(screen.getByTestId('tenant-posts-publish-blocked').textContent).toBe(
+			'Photos needs an image',
+		);
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+	});
+
+	test('lets a photo post through and blocks a thread aimed at a network without threads', () => {
+		allowPermission(true);
+		stubFediverseTargets();
+
+		renderBlock({ body: 'caption', imageCount: 1 });
+		expect(screen.queryByTestId('tenant-posts-publish-blocked')).toBeNull();
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(false);
+		cleanup();
+
+		renderBlock({ body: 'caption', imageCount: 1, followUps: ['second'] });
+		expect(screen.getByTestId('tenant-posts-publish-blocked').textContent).toBe(
+			'Photos has no threads',
+		);
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
 	});
 });

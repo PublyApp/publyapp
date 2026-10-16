@@ -90,4 +90,39 @@ public sealed class CapabilityOverridesFactorySpec {
 		rule.Count("https://example.com/" + new string('a', 80)).Should().Be(23);
 		rule.Count("@alice@mastodon.social hi").Should().Be("@alice hi".Length);
 	}
+
+	[Fact]
+	public void ItShouldKeyAPixelfedCaptionLimitToTheUnweightedUnitAndIgnoreTheUrlLength() {
+		var json = CapabilityOverridesFactory.ForMastodon(
+			1000, 6, 23, 8_000_000, ["image/png"], SocialProvider.Pixelfed
+		);
+		var account = new SocialAccount {
+			TenantId = Guid.NewGuid(),
+			Provider = SocialProvider.Pixelfed,
+			ExternalAccountId = "1@x.example",
+			DisplayHandle = "me@x.example",
+			ProtectedCredentials = "x",
+			CapabilityOverrides = json,
+		};
+
+		var capability = ProviderCapabilityRegistry.Resolve(account);
+
+		json.Should().Contain("\"urlLength\":null");
+		capability.TextLimits.Select(limit => (limit.Rule.Unit, limit.Max)).Should().Equal(("utf16", 1000));
+		capability.MaxImages.Should().Be(6);
+		capability.MaxImageBytes.Should().Be(8_000_000);
+		capability.AcceptedImageContentTypes.Should().Equal("image/png");
+		capability.RequiresMedia.Should().BeTrue();
+		capability.SupportsThreads.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFallBackToTheConservativePixelfedDefaultsWhenNothingIsAdvertised() {
+		CapabilityOverridesFactory.ForMastodon(null, null, null, null, null, SocialProvider.Pixelfed).Should().BeNull();
+		var capability = ProviderCapabilityRegistry.For(SocialProvider.Pixelfed);
+
+		capability.TextLimits.Select(limit => (limit.Rule.Unit, limit.Max)).Should().Equal(("utf16", 500));
+		capability.MaxImages.Should().Be(4);
+		capability.RequiresText.Should().BeFalse();
+	}
 }

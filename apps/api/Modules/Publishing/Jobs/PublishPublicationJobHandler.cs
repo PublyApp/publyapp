@@ -611,7 +611,13 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	}
 
 	private static string _ProviderName(SocialAccount? account) {
-		return account?.Provider == SocialProvider.Mastodon ? "Mastodon" : "Bluesky";
+		return account?.Provider switch {
+			null or SocialProvider.Bluesky => "Bluesky",
+			SocialProvider.Mastodon => "Mastodon",
+			SocialProvider.Pixelfed => "Pixelfed",
+			SocialProvider.DiscordWebhook => "Discord",
+			_ => throw new ArgumentOutOfRangeException(nameof(account), "Unhandled SocialProvider"),
+		};
 	}
 
 	private async Task _StampAccountLastSuccessAsync(

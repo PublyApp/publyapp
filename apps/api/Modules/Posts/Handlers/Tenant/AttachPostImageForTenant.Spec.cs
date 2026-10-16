@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 using Xunit;
 
@@ -314,10 +315,10 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldRejectTheFifthImageWithATyped422AndLeakNoReference() {
+	public async Task ItShouldRejectTheImageBeyondThePerPostCapWithATyped422AndLeakNoReference() {
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, token);
-		for (var index = 0; index < 4; index++) {
+		for (var index = 0; index < ProviderCapabilityRegistry.MaxImagesPerPost; index++) {
 			var attached = await this._AttachAsync(tenantId, token, postId, width: 10 + index, height: 10);
 			attached.Position.Should().Be(index);
 		}
@@ -342,7 +343,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		(await db.PostMediaAsset.CountAsync(a => a.PostId == postIdGuid && !a.IsDeleted))
-			.Should().Be(4);
+			.Should().Be(ProviderCapabilityRegistry.MaxImagesPerPost);
 	}
 
 	[Fact]
@@ -616,8 +617,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				select a
 			).ToListAsync();
 			liveAssets.Count.Should().BeLessThanOrEqualTo(
-				4,
-				"a post owns at most four live images even under a parallel "
+				ProviderCapabilityRegistry.MaxImagesPerPost,
+				"a post owns at most the per-post cap of live images even under a parallel "
 				+ "attach storm"
 			);
 			liveAssets.Select(a => a.Position).Should().OnlyHaveUniqueItems();
@@ -730,8 +731,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				select a.RelativePath
 			).ToListAsync();
 			livePaths.Count.Should().BeInRange(
-				1, 4,
-				"concurrent attaches to one post never exceed four live images"
+				1, ProviderCapabilityRegistry.MaxImagesPerPost,
+				"concurrent attaches to one post never exceed the per-post cap"
 			);
 
 			// (b) every blob that is NOT the live image and was created by this
@@ -845,8 +846,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 				select a.RelativePath
 			).ToListAsync();
 			livePaths.Count.Should().BeInRange(
-				1, 4,
-				"concurrent attaches never exceed four live images"
+				1, ProviderCapabilityRegistry.MaxImagesPerPost,
+				"concurrent attaches never exceed the per-post cap"
 			);
 
 			// (b) no storm blob other than the survivor may be left stuck at

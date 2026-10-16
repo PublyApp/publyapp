@@ -55,6 +55,23 @@ public sealed class ByteCountingRule : ITextCountingRule {
 }
 
 /// <summary>
+/// UTF-16 code units, unweighted: what Pixelfed and Discord cap a caption or message
+/// in. Counting code units is never looser than counting code points, so a text
+/// that passes here fits however the destination counts (issue #2175).
+/// </summary>
+public sealed class Utf16CountingRule : ITextCountingRule {
+	public static readonly Utf16CountingRule Instance = new();
+
+	public string Unit {
+		get { return "utf16"; }
+	}
+
+	public int Count(string normalized) {
+		return normalized.Length;
+	}
+}
+
+/// <summary>
 /// Mastodon's visible limit (issue #2174): Unicode code points where every URL
 /// counts as <see cref="UrlLength"/> (the instance's
 /// <c>characters_reserved_per_url</c>, 23 by default) however long it is, and a

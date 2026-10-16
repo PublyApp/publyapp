@@ -29,6 +29,10 @@ public record PublishTargetLimits {
 	public required int MaxImages { get; init; }
 	public required long MaxImageBytes { get; init; }
 	public required IReadOnlyList<string> AcceptedImageContentTypes { get; init; }
+	/// <summary>True for a photo network: a post without an image is refused.</summary>
+	public required bool RequiresMedia { get; init; }
+	/// <summary>False when follow-up segments cannot be published to this destination.</summary>
+	public required bool SupportsThreads { get; init; }
 }
 
 /// <summary>
@@ -121,6 +125,8 @@ public sealed class PublishTargetService : IPublishTargetService {
 						MaxImages = capability.MaxImages,
 						MaxImageBytes = capability.MaxImageBytes,
 						AcceptedImageContentTypes = capability.AcceptedImageContentTypes,
+						RequiresMedia = capability.RequiresMedia,
+						SupportsThreads = capability.SupportsThreads,
 					},
 				};
 			})

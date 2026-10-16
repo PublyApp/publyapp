@@ -59,6 +59,12 @@ export const DRAWER_FORM_CALL_SITES = [
 			'src/routes/authed/tenant/settings/_mastodon-connect-drawer.tsx',
 		drawerTestId: 'mastodon-connect-drawer',
 	},
+	{
+		id: 'discord-connect',
+		name: 'discord-connect',
+		sourceFile: 'src/routes/authed/tenant/settings/_discord-connect-drawer.tsx',
+		drawerTestId: 'discord-connect-drawer',
+	},
 ] as const;
 
 export type DrawerFormCallSiteId =

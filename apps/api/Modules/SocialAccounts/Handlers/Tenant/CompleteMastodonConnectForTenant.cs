@@ -123,7 +123,7 @@ public sealed class CompleteMastodonConnectForTenant {
 		}
 
 		return TypedProblems.ProviderUnavailable(
-			"That Mastodon server could not be reached. Nothing was stored; try again shortly.",
+			"That server could not be reached. Nothing was stored; try again shortly.",
 			ResponseKeys.ProviderUnreachable
 		);
 	}

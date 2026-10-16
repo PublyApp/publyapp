@@ -10,6 +10,10 @@ public enum PublishContentFailureKind {
 	TooLong,
 	TooManyImages,
 	UnsupportedImageType,
+	// A photo network (Pixelfed) was selected and the post has no image (#2175).
+	MediaRequired,
+	// A thread was aimed at a destination that cannot publish follow-ups (#2175).
+	ThreadsUnsupported,
 }
 
 /// <summary>
@@ -47,6 +51,16 @@ public sealed record PublishContentFailure(
 			if (this.Kind == PublishContentFailureKind.Empty) {
 				return "The post text is empty. Write some text or attach media "
 					+ "before publishing.";
+			}
+
+			if (this.Kind == PublishContentFailureKind.MediaRequired) {
+				return $"{this.Provider} posts need at least one image. Attach an image "
+					+ "or deselect it.";
+			}
+
+			if (this.Kind == PublishContentFailureKind.ThreadsUnsupported) {
+				return $"{this.Provider} cannot publish a thread. Remove the extra "
+					+ "segments or deselect it.";
 			}
 
 			if (this.Kind == PublishContentFailureKind.TooManyImages) {
@@ -100,6 +114,26 @@ public static class PublishValidationService {
 
 		foreach (var limits in providerList) {
 			var name = SocialAccountWire.FormatProvider(limits.Provider);
+
+			if (limits.RequiresMedia && imageContentTypes.Count == 0) {
+				return new PublishContentFailure(
+					PublishContentFailureKind.MediaRequired,
+					name,
+					PublishValidationService.ImageUnit,
+					1,
+					0
+				);
+			}
+
+			if (followUps.Count > 0 && !limits.SupportsThreads) {
+				return new PublishContentFailure(
+					PublishContentFailureKind.ThreadsUnsupported,
+					name,
+					"segments",
+					1,
+					followUps.Count + 1
+				);
+			}
 
 			if (imageContentTypes.Count > limits.MaxImages) {
 				return new PublishContentFailure(

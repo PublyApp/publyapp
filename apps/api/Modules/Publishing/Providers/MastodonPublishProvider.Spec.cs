@@ -415,6 +415,62 @@ public sealed class MastodonPublishProviderSpec {
 		handler.Requests.Should().BeEmpty();
 	}
 
+	private static PublishRequest _PixelfedRequest() {
+		return MastodonPublishProviderSpec._Request() with {
+			Provider = SocialProvider.Pixelfed,
+			PostBody = string.Empty,
+			Media = [MastodonPublishProviderSpec._Media("a sunset")],
+		};
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseATextOnlyPixelfedPostWithoutAnyCall() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("1"));
+		var request = MastodonPublishProviderSpec._PixelfedRequest() with { PostBody = "caption", Media = [] };
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("at least one image");
+		handler.Requests.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldPublishAPixelfedPhotoThroughTheV1MediaEndpointWithAltAndNoEmptyCaption() {
+		var handler = new RecordingHandler(request => request.RequestUri?.AbsolutePath == "/api/v1/media"
+			? MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://cdn/m1.png"}""")
+			: MastodonPublishProviderSpec._Status("111"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._PixelfedRequest(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Published>();
+		handler.Requests.Select(r => r.RequestUri?.AbsolutePath).Should().Equal("/api/v1/media", "/api/v1/statuses");
+		handler.Bodies[0].Should().Contain("a sunset");
+		var body = MastodonPublishProviderSpec._Body(handler, 1);
+		body.TryGetProperty("status", out _).Should().BeFalse();
+		body.GetProperty("media_ids").EnumerateArray().Select(id => id.GetString()).Should().Equal("m1");
+	}
+
+	[Fact]
+	public async Task ItShouldNameTheNetworkInAPixelfedAuthFailure() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(401, """{"error":"invalid token"}"""));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._PixelfedRequest(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.AccountFailure>().Which.Cause.Should().StartWith("Pixelfed rejected");
+	}
+
+	[Fact]
+	public async Task ItShouldNeverAssumeAPixelfedResendIsDeduplicated() {
+		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
+		var request = MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(1)) with { Provider = SocialProvider.Pixelfed };
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<ReconcileResult.NeedsReview>();
+	}
+
 	private static ReconcileRequest _Reconcile(TimeSpan age) {
 		return new ReconcileRequest {
 			PublicationId = Guid.NewGuid(),
