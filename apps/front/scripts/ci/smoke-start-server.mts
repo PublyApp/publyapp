@@ -66,7 +66,11 @@ const getFreePort = async (): Promise<number> => {
  * Polls the server until it answers, mirroring the workflow's retry loop.
  * Returns the response body, or null when the server never came up.
  */
-const fetchHomeWithRetry = async (origin: string): Promise<string | null> => {
+type HomeResponse = { body: string; csp: string | null };
+
+const fetchHomeWithRetry = async (
+	origin: string,
+): Promise<HomeResponse | null> => {
 	for (let attempt = 1; attempt <= attempts; attempt += 1) {
 		try {
 			const response = await fetch(origin, {
@@ -74,7 +78,10 @@ const fetchHomeWithRetry = async (origin: string): Promise<string | null> => {
 			});
 
 			if (response.ok) {
-				return await response.text();
+				return {
+					body: await response.text(),
+					csp: response.headers.get('content-security-policy'),
+				};
 			}
 		} catch {
 			// Server not listening yet; fall through to the retry delay.
@@ -142,16 +149,39 @@ const fail = async (message: string): Promise<never> => {
 	process.exit(1);
 };
 
-const html = await fetchHomeWithRetry(origin);
+const home =
+	(await fetchHomeWithRetry(origin)) ??
+	(await fail(`front standalone server failed to return HTML from ${origin}`));
 
-if (html === null) {
-	await fail(`front standalone server failed to return HTML from ${origin}`);
+const html = home.body;
+
+if (!stylesheetPattern.test(html)) {
+	await fail('front production HTML does not contain a stylesheet link');
 }
 
-if (!stylesheetPattern.test(html ?? '')) {
-	await fail('front production HTML does not contain a stylesheet link');
+// Hydration under CSP: TanStack Start stamps its hydration/stream scripts with
+// the nonce it captured when the router was created. If that nonce is missing
+// or differs from the header's, the browser blocks them and the page never
+// hydrates (build, typecheck and this script's CSS check all stay green).
+const headerNonce = /'nonce-([^']+)'/.exec(home.csp ?? '')?.[1];
+const scriptTags = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0]);
+const badScripts = scriptTags.filter(
+	(tag) => !tag.includes(`nonce="${headerNonce}"`),
+);
+
+if (headerNonce === undefined) {
+	await fail('front CSP header carries no script nonce');
+} else if (scriptTags.length === 0) {
+	await fail('front home HTML contains no <script> tags to check');
+} else if (badScripts.length > 0) {
+	await fail(
+		`front HTML has ${badScripts.length} <script> tag(s) without the CSP header nonce: ${badScripts.slice(0, 3).join(' ')}`,
+	);
 }
 
 await stopServer();
 
+console.log(
+	`front smoke start: ${scriptTags.length} <script> tags all carry the CSP header nonce [OK]`,
+);
 console.log('front smoke start: server served HTML linking a CSS asset [OK]');
