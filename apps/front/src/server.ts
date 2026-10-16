@@ -15,7 +15,7 @@ import { createBackendI18n, loadNamespacesStrict } from './lib/i18n/backend';
 import { GLOBAL_I18N_NAMESPACES } from './lib/i18n/namespaces';
 import { resolveLocaleFromCookie } from './lib/i18n/server';
 import type { SupportedLanguage } from './lib/i18n/shared';
-import { mintCspNonce, applyCspHeaders } from './server/csp';
+import { applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
 
 type StreamHandlerContext = Parameters<typeof defaultStreamHandler>[0];
@@ -46,16 +46,6 @@ export const escapeHtml = (value: string): string =>
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&#39;');
-
-const setRouterNonce = (ctx: StreamHandlerContext, nonce: string): void => {
-	ctx.router.options = {
-		...ctx.router.options,
-		ssr: {
-			...ctx.router.options?.ssr,
-			nonce,
-		},
-	};
-};
 
 const renderMetaTag = (tag: {
 	name?: string;
@@ -231,10 +221,14 @@ export const resolveOrigin = (request: Request): string => {
 export default {
 	fetch: createStartHandler(
 		defineHandlerCallback(async (ctx: StreamHandlerContext) => {
-			const nonce = mintCspNonce();
+			const nonce = ctx.router.options.ssr?.nonce;
+			if (nonce === undefined || nonce === '') {
+				throw new Error(
+					'router was created without ssr.nonce; getRouter() must mint the CSP nonce',
+				);
+			}
 			const locale = resolveLocaleFromRequest(ctx.request);
 
-			setRouterNonce(ctx, nonce);
 			applyCspHeaders(ctx.responseHeaders, nonce, isDevelopmentRuntime());
 
 			const handlerResult = await defaultStreamHandler(ctx);

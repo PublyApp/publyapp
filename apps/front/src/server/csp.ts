@@ -1,8 +1,9 @@
-import { randomBytes } from 'node:crypto';
-
 import { createCSPHeader } from '@org/shared-ts/lib/csp';
 
+import { mintCspNonce } from '../lib/csp-nonce';
 import { getPublicEnv } from '../lib/env';
+
+export { mintCspNonce };
 
 const getPublicApiOrigin = (): string | undefined => {
 	const publicApiBaseUrl = getPublicEnv().apiBaseUrl;
@@ -17,8 +18,6 @@ const getPublicApiOrigin = (): string | undefined => {
 		return undefined;
 	}
 };
-
-export const mintCspNonce = (): string => randomBytes(16).toString('base64url');
 
 export const applyCspHeaders = (
 	headers: Headers,
