@@ -32,7 +32,7 @@ public abstract record RenditionResult {
 
 	// Published, or parked for review because a write may already be on the provider:
 	// the content is read-only. Cause is plain words for the problem response.
-	public sealed record Locked(string Cause) : RenditionResult;
+	public sealed record Locked(string Cause, bool NeedsReview = false) : RenditionResult;
 
 	public sealed record InProgress : RenditionResult;
 
@@ -49,7 +49,7 @@ public abstract record RenditionResult {
 /// Editable while the publication is Scheduled, Paused or Failed (a failed one is fixed
 /// by customizing it, then retried); Published is locked and InProgress is refused.
 /// Segments the publication already published are locked: their overrides, the media
-/// override and the settings must stay exactly as stored. Nothing here writes status.
+/// override must stay exactly as stored. Nothing here writes status.
 /// </summary>
 public interface IRenditionService {
 	Task<RenditionResult> GetAsync(GetRenditionArgs args, CancellationToken cancellationToken);
@@ -127,7 +127,10 @@ public sealed class RenditionService : IRenditionService {
 			candidate => candidate.PublicationId == args.PublicationId, cancellationToken
 		);
 		var current = row is null ? RenditionOverrides.None : RenditionOverrides.FromRow(row);
-		if (await this._ChangesPublishedSegmentsAsync(args.PublicationId, current, args.Overrides, cancellationToken)) {
+		var published = await RenditionService._PublishedCountAsync(
+			this._Db, args.PublicationId, cancellationToken
+		);
+		if (current.ChangesPublishedSegments(args.Overrides, published)) {
 			return new RenditionResult.SegmentsLocked();
 		}
 
@@ -146,7 +149,19 @@ public sealed class RenditionService : IRenditionService {
 		}
 
 		args.Overrides.WriteTo(row);
-		await this._Db.SaveChangesAsync(cancellationToken);
+		try {
+			await this._Db.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex) when (
+			ex.InnerException is Npgsql.PostgresException {
+				SqlState: "23505",
+				ConstraintName: "ux_renditions_publication_id",
+			}
+		) {
+			// A concurrent first PUT inserted the row: retry once, now as an update.
+			this._Db.ChangeTracker.Clear();
+			return await this.SetAsync(args, cancellationToken);
+		}
+
 		return await this._FoundAsync(publication, args.Overrides, cancellationToken);
 	}
 
@@ -154,28 +169,11 @@ public sealed class RenditionService : IRenditionService {
 		ResetRenditionArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await this._LoadAsync(args.TenantId, args.PublicationId, cancellationToken);
-		if (publication is null) {
-			return new RenditionResult.NotFound();
-		}
-
-		var blocked = RenditionService._Blocked(publication);
-		if (blocked is not null) {
-			return blocked;
-		}
-
-		var current = await RenditionResolver.LoadOverridesAsync(
-			this._Db, args.TenantId, args.PublicationId, cancellationToken
+		// Same checks as a PUT of nothing: the shared content must still fit the destination.
+		return await this.SetAsync(
+			new SetRenditionArgs(args.TenantId, args.PublicationId, RenditionOverrides.None),
+			cancellationToken
 		);
-		if (current is not null
-			&& await this._ChangesPublishedSegmentsAsync(
-				args.PublicationId, current, RenditionOverrides.None, cancellationToken
-			)) {
-			return new RenditionResult.SegmentsLocked();
-		}
-
-		_ = await this._DeleteRowAsync(args.TenantId, args.PublicationId, cancellationToken);
-		return await this._FoundAsync(publication, null, cancellationToken);
 	}
 
 	private async Task<Publication?> _LoadAsync(
@@ -197,7 +195,8 @@ public sealed class RenditionService : IRenditionService {
 		if (publication.FailureCategory == PublicationFailureCategory.NeedsReview) {
 			return new RenditionResult.Locked(
 				"This publication may already be on the provider, so its content cannot "
-				+ "change. Check the profile, then mark it published or retry."
+				+ "change. Check the profile, then mark it published or retry.",
+				NeedsReview: true
 			);
 		}
 
@@ -224,44 +223,15 @@ public sealed class RenditionService : IRenditionService {
 			.ExecuteDeleteAsync(cancellationToken);
 	}
 
-	// True when the change would alter what an already published segment of THIS
-	// publication was sent with: any text override at a published position, or the
-	// media / settings overrides once the root segment is published.
-	private async Task<bool> _ChangesPublishedSegmentsAsync(
+	private static async Task<int> _PublishedCountAsync(
+		AppDbContext db,
 		Guid publicationId,
-		RenditionOverrides current,
-		RenditionOverrides next,
 		CancellationToken cancellationToken
 	) {
-		var published = await this._Db.PublicationSegmentResult.CountAsync(
+		return await db.PublicationSegmentResult.CountAsync(
 			result => result.PublicationId == publicationId && !result.IsDeleted,
 			cancellationToken
 		);
-		if (published == 0) {
-			return false;
-		}
-
-		for (var position = 0; position < published; position++) {
-			var hadText = current.Texts.TryGetValue(position, out var before);
-			var hasText = next.Texts.TryGetValue(position, out var after);
-			if (hadText != hasText || before != after) {
-				return true;
-			}
-		}
-
-		return !RenditionService._SameMedia(current.Media, next.Media)
-			|| current.Settings != next.Settings;
-	}
-
-	private static bool _SameMedia(RenditionMediaOverride? left, RenditionMediaOverride? right) {
-		if (left is null || right is null) {
-			return left is null && right is null;
-		}
-
-		return (left.AssetIds ?? []).SequenceEqual(right.AssetIds ?? [])
-			&& left.AltTexts.Count == right.AltTexts.Count
-			&& left.AltTexts.All(entry => right.AltTexts.TryGetValue(entry.Key, out var other)
-				&& other == entry.Value);
 	}
 
 	private async Task<RenditionResult> _FoundAsync(

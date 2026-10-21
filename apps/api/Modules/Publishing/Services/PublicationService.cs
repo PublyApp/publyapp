@@ -76,6 +76,9 @@ public abstract record ScheduleResult {
 	/// <summary>A destination's overrides are structurally unusable (422).</summary>
 	public sealed record OverridesInvalid(RenditionOverrideFailure Failure)
 		: ScheduleResult;
+
+	/// <summary>Overrides would change segments a failed publication already sent (422).</summary>
+	public sealed record SegmentsLocked() : ScheduleResult;
 }
 
 /// <summary>Outcome of cancelling a post's schedule (D3 Task 3).</summary>
@@ -352,19 +355,9 @@ public sealed class PublicationService : IPublicationService {
 			.ToList();
 
 		this._DbContext.Publication.AddRange(publications);
-		foreach (var (publication, destination) in publications.Zip(args.Destinations)) {
-			if (destination.Overrides is { IsEmpty: false } overrides) {
-				var rendition = new Rendition {
-					TenantId = args.TenantId,
-					PublicationId = publication.GetRequiredId(),
-				};
-				overrides.WriteTo(rendition);
-				this._DbContext.Rendition.Add(rendition);
-			}
-		}
 
 		// Re-issuing a failed thread continues after its last published segment.
-		await ThreadSegments.CarryOverFailedProgressAsync(
+		var carried = await ThreadSegments.CarryOverFailedProgressAsync(
 			this._DbContext,
 			args.TenantId,
 			post.GetRequiredId(),
@@ -373,6 +366,18 @@ public sealed class PublicationService : IPublicationService {
 				.ToList(),
 			cancellationToken
 		);
+
+		if (!await RenditionResolver.StageRenditionsAsync(
+			this._DbContext,
+			args.TenantId,
+			publications
+				.Zip(args.Destinations, (publication, destination) => (publication.GetRequiredId(), destination.Overrides))
+				.ToList(),
+			carried,
+			cancellationToken
+		)) {
+			return new ScheduleResult.SegmentsLocked();
+		}
 
 		this._AddAuditEntry(args);
 		await this._DbContext.SaveChangesAsync(cancellationToken);

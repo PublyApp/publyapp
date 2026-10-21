@@ -16,11 +16,6 @@ public sealed record RenditionMediaOverride(
 	IReadOnlyDictionary<Guid, string> AltTexts
 );
 
-/// <summary>Provider settings of one destination: stored only, nothing consumes them yet.</summary>
-public sealed record RenditionSettings(string? Visibility) {
-	public const int VisibilityMaxLength = 32;
-}
-
 /// <summary>
 /// The typed view of a <see cref="Rendition"/> row: ONLY what a destination
 /// overrides. Segment positions are 0-based (0 = the root segment), the same
@@ -28,24 +23,54 @@ public sealed record RenditionSettings(string? Visibility) {
 /// </summary>
 public sealed record RenditionOverrides(
 	IReadOnlyDictionary<int, string> Texts,
-	RenditionMediaOverride? Media,
-	RenditionSettings? Settings
+	RenditionMediaOverride? Media
 ) {
 	public static readonly RenditionOverrides None = new(
-		new Dictionary<int, string>(), null, null
+		new Dictionary<int, string>(), null
 	);
 
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
 	public bool IsEmpty {
-		get { return this.Texts.Count == 0 && this.Media is null && this.Settings is null; }
+		get { return this.Texts.Count == 0 && this.Media is null; }
+	}
+
+	/// <summary>
+	/// True when moving from this set to <paramref name="next"/> would alter what the
+	/// first <paramref name="published"/> segments were sent with: any text override at
+	/// a published position, or the media override once the root segment is published.
+	/// </summary>
+	public bool ChangesPublishedSegments(RenditionOverrides next, int published) {
+		if (published == 0) {
+			return false;
+		}
+
+		for (var position = 0; position < published; position++) {
+			var hadText = this.Texts.TryGetValue(position, out var before);
+			var hasText = next.Texts.TryGetValue(position, out var after);
+			if (hadText != hasText || before != after) {
+				return true;
+			}
+		}
+
+		return !RenditionOverrides._SameMedia(this.Media, next.Media);
+	}
+
+	private static bool _SameMedia(RenditionMediaOverride? left, RenditionMediaOverride? right) {
+		if (left is null || right is null) {
+			return left is null && right is null;
+		}
+
+		return (left.AssetIds ?? []).SequenceEqual(right.AssetIds ?? [])
+			&& left.AltTexts.Count == right.AltTexts.Count
+			&& left.AltTexts.All(entry => right.AltTexts.TryGetValue(entry.Key, out var other)
+				&& other == entry.Value);
 	}
 
 	public static RenditionOverrides FromRow(Rendition row) {
 		return new RenditionOverrides(
 			RenditionOverrides.ReadTexts(row.TextOverrides),
-			RenditionOverrides._ReadMedia(row.MediaOverride),
-			RenditionOverrides._ReadSettings(row.Settings)
+			RenditionOverrides._ReadMedia(row.MediaOverride)
 		);
 	}
 
@@ -67,12 +92,6 @@ public sealed record RenditionOverrides(
 				new MediaJson { AssetIds = this.Media.AssetIds?.ToList(), AltTexts = this.Media.AltTexts.ToDictionary() },
 				RenditionOverrides._Json
 			);
-		row.Settings = this.Settings is null
-			? "{}"
-			: JsonSerializer.Serialize(
-				new SettingsJson { Visibility = this.Settings.Visibility },
-				RenditionOverrides._Json
-			);
 	}
 
 	private static RenditionMediaOverride? _ReadMedia(string? json) {
@@ -86,26 +105,12 @@ public sealed record RenditionOverrides(
 			: new RenditionMediaOverride(media.AssetIds, media.AltTexts ?? []);
 	}
 
-	private static RenditionSettings? _ReadSettings(string? json) {
-		if (string.IsNullOrWhiteSpace(json)) {
-			return null;
-		}
-
-		var settings = JsonSerializer.Deserialize<SettingsJson>(json, RenditionOverrides._Json);
-		return settings?.Visibility is null ? null : new RenditionSettings(settings.Visibility);
-	}
-
 	private sealed class MediaJson {
 		[JsonPropertyName("assetIds")]
 		public List<Guid>? AssetIds { get; set; }
 
 		[JsonPropertyName("altTexts")]
 		public Dictionary<Guid, string>? AltTexts { get; set; }
-	}
-
-	private sealed class SettingsJson {
-		[JsonPropertyName("visibility")]
-		public string? Visibility { get; set; }
 	}
 }
 
@@ -138,6 +143,9 @@ public sealed record RenditionOverrideFailure(
 public static class RenditionWire {
 	public const int MaxDestinations = 50;
 
+	// Same cap as the accountIds shape of publish-now.
+	public const int PublishNowMaxDestinations = 20;
+
 	/// <summary>One parsed destination of a multi-destination request.</summary>
 	public sealed record Destination(
 		Guid SocialAccountId,
@@ -149,7 +157,8 @@ public static class RenditionWire {
 		JsonElement element,
 		bool allowSchedule,
 		out List<Destination> destinations,
-		out string error
+		out string error,
+		int maxDestinations = RenditionWire.MaxDestinations
 	) {
 		destinations = [];
 		error = string.Empty;
@@ -158,8 +167,8 @@ public static class RenditionWire {
 			return false;
 		}
 
-		if (element.GetArrayLength() is 0 or > RenditionWire.MaxDestinations) {
-			error = $"destinations must hold 1 to {RenditionWire.MaxDestinations} items";
+		if (element.GetArrayLength() < 1 || element.GetArrayLength() > maxDestinations) {
+			error = $"destinations must hold 1 to {maxDestinations} items";
 			return false;
 		}
 
@@ -229,18 +238,16 @@ public static class RenditionWire {
 
 		element.TryGetProperty("segments", out var segments);
 		element.TryGetProperty("media", out var media);
-		element.TryGetProperty("settings", out var settings);
-		return RenditionWire.TryParseOverrides(segments, media, settings, out overrides, out error);
+		return RenditionWire.TryParseOverrides(segments, media, out overrides, out error);
 	}
 
 	/// <summary>
-	/// Parses the three override parts (each may be Undefined/null = not overridden).
+	/// Parses the two override parts (each may be Undefined/null = not overridden).
 	/// Shared by the nested <c>overrides</c> object and the rendition PUT body.
 	/// </summary>
 	public static bool TryParseOverrides(
 		JsonElement segments,
 		JsonElement mediaElement,
-		JsonElement settingsElement,
 		out RenditionOverrides overrides,
 		out string error
 	) {
@@ -273,29 +280,7 @@ public static class RenditionWire {
 			return false;
 		}
 
-		RenditionSettings? settings = null;
-		if (settingsElement.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null)) {
-			if (settingsElement.ValueKind != JsonValueKind.Object) {
-				error = "settings must be an object";
-				return false;
-			}
-
-			if (settingsElement.TryGetProperty("visibility", out var visibility)
-				&& visibility.ValueKind != JsonValueKind.Null) {
-				var visibilityValue = visibility.ValueKind == JsonValueKind.String
-					? visibility.GetString()
-					: null;
-				if (string.IsNullOrWhiteSpace(visibilityValue)
-					|| visibilityValue.Length > RenditionSettings.VisibilityMaxLength) {
-					error = $"settings.visibility must be 1 to {RenditionSettings.VisibilityMaxLength} characters";
-					return false;
-				}
-
-				settings = new RenditionSettings(visibilityValue);
-			}
-		}
-
-		overrides = new RenditionOverrides(texts, media, settings);
+		overrides = new RenditionOverrides(texts, media);
 		return true;
 	}
 

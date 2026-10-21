@@ -19098,7 +19098,6 @@
           "customized",
           "segments",
           "media",
-          "settings",
           "effective"
         ],
         "type": "object",
@@ -19127,17 +19126,6 @@
               }
             ]
           },
-          "settings": {
-            "type": [
-              "null",
-              "object"
-            ],
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RenditionSettingsItem"
-              }
-            ]
-          },
           "effective": {
             "description": "What the destination will publish: the post overlaid with its overrides.",
             "$ref": "#/components/schemas/RenditionEffectiveItem"
@@ -19158,20 +19146,6 @@
           },
           "text": {
             "type": "string"
-          }
-        }
-      },
-      "RenditionSettingsItem": {
-        "required": [
-          "visibility"
-        ],
-        "type": "object",
-        "properties": {
-          "visibility": {
-            "type": [
-              "null",
-              "string"
-            ]
           }
         }
       },
@@ -19514,12 +19488,9 @@
           },
           "media": {
             "$ref": "#/components/schemas/JsonElement"
-          },
-          "settings": {
-            "$ref": "#/components/schemas/JsonElement"
           }
         },
-        "description": "Replaces ALL of a destination's overrides (PUT semantics): `segments`\n`[{position, text}]` (0-based, texts only: the segment count never changes),\n`media` `{assetIds?, altTexts?: [{assetId, altText}]}` and\n`settings` `{visibility?}`. An empty body resets to the shared post."
+        "description": "Replaces ALL of a destination's overrides (PUT semantics): `segments`\n`[{position, text}]` (0-based, texts only: the segment count never changes),\nand `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post."
       },
       "SetSocialAccountProjectsBody": {
         "required": [

@@ -212,6 +212,8 @@ public sealed class SchedulePostForTenant {
 				PublishContentProblems.ToProblem(contentInvalid.Failure),
 			ScheduleResult.OverridesInvalid overridesInvalid =>
 				PublishContentProblems.ToProblem(overridesInvalid.Failure),
+			ScheduleResult.SegmentsLocked =>
+				SetPublicationRenditionForTenant.SegmentsLockedProblem(),
 			ScheduleResult.Scheduled scheduled =>
 				TypedResults.Created(
 					(string?)null,

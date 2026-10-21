@@ -48,6 +48,9 @@ public abstract record PublishNowResult {
 	// A destination's overrides are structurally unusable (422); nothing was written.
 	public sealed record OverridesInvalid(RenditionOverrideFailure Failure)
 		: PublishNowResult;
+
+	// Overrides would change segments a failed publication already sent (422).
+	public sealed record SegmentsLocked : PublishNowResult;
 }
 
 /// <summary>
@@ -192,18 +195,11 @@ public sealed class PublishNowService : IPublishNowService {
 				};
 				publication.Id = publicationId;
 				this._Db.Publication.Add(publication);
-				if (args.Overrides?.TryGetValue(account.GetRequiredId(), out var overrides) == true
-					&& !overrides.IsEmpty) {
-					var rendition = new Rendition { TenantId = args.TenantId, PublicationId = publicationId };
-					overrides.WriteTo(rendition);
-					this._Db.Rendition.Add(rendition);
-				}
-
 				keysByPublicationId.Add((publicationId, idempotencyKey));
 			}
 
 			// Re-issuing a failed thread continues after its last published segment.
-			await ThreadSegments.CarryOverFailedProgressAsync(
+			var carried = await ThreadSegments.CarryOverFailedProgressAsync(
 				this._Db,
 				args.TenantId,
 				postId,
@@ -212,6 +208,22 @@ public sealed class PublishNowService : IPublishNowService {
 					.ToList(),
 				cancellationToken
 			);
+			if (!await RenditionResolver.StageRenditionsAsync(
+				this._Db,
+				args.TenantId,
+				candidates
+					.Zip(keysByPublicationId, (account, entry) => (
+						entry.PublicationId,
+						args.Overrides?.GetValueOrDefault(account.GetRequiredId())
+					))
+					.ToList(),
+				carried,
+				cancellationToken
+			)) {
+				await transaction.RollbackAsync(cancellationToken);
+				return new PublishNowResult.SegmentsLocked();
+			}
+
 			await this._Db.SaveChangesAsync(cancellationToken);
 
 			foreach (var (publicationId, key) in keysByPublicationId) {

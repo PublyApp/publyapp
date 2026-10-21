@@ -169,7 +169,6 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 
 		using var put = await this._SendAsync(HttpMethod.Put, url, token, tenantId, new {
 			segments = new[] { new { position = 0, text = "text for this destination" } },
-			settings = new { visibility = "unlisted" },
 		});
 		put.StatusCode.Should().Be(HttpStatusCode.OK);
 		using var putBody = JsonDocument.Parse(await put.Content.ReadAsStringAsync());
@@ -180,8 +179,6 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 
 		using var get = await this._SendAsync(HttpMethod.Get, url, token, tenantId, null);
 		get.StatusCode.Should().Be(HttpStatusCode.OK);
-		using var getBody = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
-		getBody.RootElement.GetProperty("settings").GetProperty("visibility").GetString().Should().Be("unlisted");
 
 		using var delete = await this._SendAsync(HttpMethod.Delete, url, token, tenantId, null);
 		delete.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -214,6 +211,60 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("publish-content-too-long");
 		problem.RootElement.GetProperty("socialAccountId").GetGuid().Should().Be(seeded.SocialAccountId);
 		(await this._RenditionsAsync([seeded.PublicationId])).Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseAResetWhenTheSharedContentNoLongerFitsTheDestination() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var seeded = await this._SeedPublicationAsync(
+			tenantId, PublicationStatus.Scheduled, new string('s', 450)
+		);
+		var url = $"/posts/publications/{seeded.PublicationId}/rendition";
+		using var put = await this._SendAsync(HttpMethod.Put, url, token, tenantId, new {
+			segments = new[] { new { position = 0, text = "short enough for Bluesky" } },
+		});
+		put.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		using var delete = await this._SendAsync(HttpMethod.Delete, url, token, tenantId, null);
+
+		delete.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		(await this._RenditionsAsync([seeded.PublicationId])).Should().ContainSingle("the reset was refused");
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAnotherTenantsAssetIdInTheMediaOverride() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var foreignAssetId = await this._SeedForeignAssetAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+		var account = await this._SeedAccountAsync(tenantId);
+
+		using var response = await this._SendAsync(HttpMethod.Post, $"/posts/{postId}/schedule", token, tenantId, new {
+			timeZone = "Etc/UTC",
+			scheduledAtLocal = PublicationRenditionSpec._InstantA,
+			destinations = new object[] {
+				new {
+					socialAccountId = account,
+					overrides = new { media = new { assetIds = new[] { foreignAssetId } } },
+				},
+			},
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		(await this._PublicationsOfAsync(Guid.Parse(postId))).Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldCapPublishNowDestinationsAtTwenty() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._CreatePostAsync(tenantId, token);
+
+		using var response = await this._SendAsync(HttpMethod.Post, $"/posts/{postId}/publish-now", token, tenantId, new {
+			destinations = Enumerable.Range(0, 21)
+				.Select(_ => new { socialAccountId = Guid.NewGuid() })
+				.ToArray(),
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	[Theory]
@@ -511,6 +562,26 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			ExternalUrl = $"https://u/{position}",
 		});
 		await db.SaveChangesAsync();
+	}
+
+	private async Task<Guid> _SeedForeignAssetAsync() {
+		var publicationId = await this._SeedForeignPublicationAsync();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var publication = await db.Publication.IgnoreQueryFilters().SingleAsync(p => p.Id == publicationId);
+		var asset = new PostMediaAsset {
+			TenantId = publication.TenantId,
+			PostId = publication.PostId,
+			RelativePath = "foreign/asset.png",
+			ContentType = "image/png",
+			UploadedByUserId = await db.Post.IgnoreQueryFilters()
+				.Where(post => post.Id == publication.PostId)
+				.Select(post => post.CreatedByUserId)
+				.SingleAsync(),
+		};
+		db.PostMediaAsset.Add(asset);
+		await db.SaveChangesAsync();
+		return asset.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedForeignPublicationAsync() {

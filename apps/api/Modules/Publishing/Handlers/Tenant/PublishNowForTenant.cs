@@ -52,7 +52,9 @@ public sealed class PublishNowBody {
 	}
 
 	private List<RenditionWire.Destination> _ParseDestinations() {
-		if (!RenditionWire.TryParseDestinations(this.Destinations, false, out var parsed, out var error)) {
+		if (!RenditionWire.TryParseDestinations(
+				this.Destinations, false, out var parsed, out var error,
+				RenditionWire.PublishNowMaxDestinations)) {
 			throw new InvalidOperationException(error);
 		}
 
@@ -81,7 +83,9 @@ public sealed class PublishNowBodyValidator
 						return;
 					}
 
-					if (!RenditionWire.TryParseDestinations(destinations, false, out _, out var error)) {
+					if (!RenditionWire.TryParseDestinations(
+							destinations, false, out _, out var error,
+							RenditionWire.PublishNowMaxDestinations)) {
 						context.AddFailure(error);
 					}
 				});
@@ -170,6 +174,10 @@ public sealed class PublishNowForTenant {
 
 		if (result is PublishNowResult.ContentInvalid contentInvalid) {
 			return PublishContentProblems.ToProblem(contentInvalid.Failure);
+		}
+
+		if (result is PublishNowResult.SegmentsLocked) {
+			return SetPublicationRenditionForTenant.SegmentsLockedProblem();
 		}
 
 		if (result is PublishNowResult.OverridesInvalid overridesInvalid) {

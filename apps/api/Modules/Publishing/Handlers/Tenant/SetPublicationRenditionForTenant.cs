@@ -18,17 +18,15 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 /// <summary>
 /// Replaces ALL of a destination's overrides (PUT semantics): <c>segments</c>
 /// <c>[{position, text}]</c> (0-based, texts only: the segment count never changes),
-/// <c>media</c> <c>{assetIds?, altTexts?: [{assetId, altText}]}</c> and
-/// <c>settings</c> <c>{visibility?}</c>. An empty body resets to the shared post.
+/// and <c>media</c> <c>{assetIds?, altTexts?: [{assetId, altText}]}</c>. An empty body resets to the shared post.
 /// </summary>
 public record SetPublicationRenditionBody {
 	public JsonElement Segments { get; init; }
 	public JsonElement Media { get; init; }
-	public JsonElement Settings { get; init; }
 
 	public RenditionOverrides GetOverrides() {
 		if (!RenditionWire.TryParseOverrides(
-				this.Segments, this.Media, this.Settings, out var overrides, out var error)) {
+				this.Segments, this.Media, out var overrides, out var error)) {
 			throw new InvalidOperationException(error);
 		}
 
@@ -43,7 +41,7 @@ public sealed class SetPublicationRenditionBodyValidator
 			.Custom((segments, context) => {
 				var body = context.InstanceToValidate;
 				if (!RenditionWire.TryParseOverrides(
-						segments, body.Media, body.Settings, out _, out var error)) {
+						segments, body.Media, out _, out var error)) {
 					context.AddFailure(error);
 				}
 			});
@@ -101,7 +99,12 @@ public sealed class SetPublicationRenditionForTenant {
 		}
 
 		if (result is RenditionResult.Locked locked) {
-			return TypedProblems.Conflict(locked.Cause, ResponseKeys.PublicationRenditionLocked);
+			return TypedProblems.Conflict(
+				locked.Cause,
+				locked.NeedsReview
+					? ResponseKeys.PublicationRenditionNeedsReview
+					: ResponseKeys.PublicationRenditionLocked
+			);
 		}
 
 		if (result is RenditionResult.InProgress) {

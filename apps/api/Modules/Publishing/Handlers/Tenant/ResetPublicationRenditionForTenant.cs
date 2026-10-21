@@ -6,6 +6,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
@@ -14,7 +15,7 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 /// Resets a destination to the shared post (#2172): deletes its rendition row. Idempotent
 /// (200 when nothing was customized). 404 absent/foreign; 409 when published, parked for
 /// review or being published right now; 422 when a segment it already published was
-/// customized (that text is locked).
+/// customized (that text is locked) or the shared content no longer fits the destination.
 /// </summary>
 public sealed class ResetPublicationRenditionForTenant {
 	public static async Task<Results<
@@ -60,7 +61,12 @@ public sealed class ResetPublicationRenditionForTenant {
 		}
 
 		if (result is RenditionResult.Locked locked) {
-			return TypedProblems.Conflict(locked.Cause, ResponseKeys.PublicationRenditionLocked);
+			return TypedProblems.Conflict(
+				locked.Cause,
+				locked.NeedsReview
+					? ResponseKeys.PublicationRenditionNeedsReview
+					: ResponseKeys.PublicationRenditionLocked
+			);
 		}
 
 		if (result is RenditionResult.InProgress) {
@@ -73,6 +79,10 @@ public sealed class ResetPublicationRenditionForTenant {
 
 		if (result is RenditionResult.SegmentsLocked) {
 			return SetPublicationRenditionForTenant.SegmentsLockedProblem();
+		}
+
+		if (result is RenditionResult.ContentInvalid contentInvalid) {
+			return PublishContentProblems.ToProblem(contentInvalid.Failure);
 		}
 
 		if (result is not RenditionResult.Found) {

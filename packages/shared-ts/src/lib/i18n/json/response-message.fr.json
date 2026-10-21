@@ -153,6 +153,7 @@
 	"publish-threads-unsupported": "Cette destination ne peut pas publier un fil",
 	"publish-rendition-invalid": "Le contenu personnalisé de cette destination n'est pas valide",
 	"publication-rendition-locked": "Cette publication est déjà publiée ; son contenu ne peut plus être personnalisé",
+	"publication-rendition-needs-review": "Cette publication est peut-être déjà chez le fournisseur ; son contenu ne peut pas changer avant vérification",
 	"publication-rendition-reset-success": "Contenu réinitialisé sur le billet partagé",
 	"post-schedule-cancelled-success": "Planification annulée — le billet est de retour dans les brouillons",
 	"post-schedule-cancel-noop": "Aucune planification à annuler",

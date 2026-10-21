@@ -1713,11 +1713,6 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("publication_id");
 
-                    b.Property<string>("Settings")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("settings");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");

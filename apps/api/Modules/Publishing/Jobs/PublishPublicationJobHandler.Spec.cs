@@ -676,7 +676,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	private static async Task<Guid> _AddDestinationAsync(
 		AppDbContext db,
 		SeededPublication seeded,
-		RenditionOverrides? overrides
+		RenditionOverrides? overrides,
+		PublicationStatus status = PublicationStatus.Scheduled
 	) {
 		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
 		var accountId = await PublishPublicationJobHandlerSpec._SeedSecondAccountAsync(db, seeded.TenantId);
@@ -685,7 +686,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			TenantId = seeded.TenantId,
 			PostId = postId,
 			SocialAccountId = accountId,
-			Status = PublicationStatus.Scheduled,
+			Status = status,
 			ScheduledAtUtc = DateTime.UtcNow.AddHours(1),
 			ScheduledTimeZone = "Etc/UTC",
 			IdempotencyKey = PublicationIdempotencyKey.For(id),
@@ -724,7 +725,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	private static RenditionOverrides _TextOverrides(params (int Position, string Text)[] texts) {
 		return new RenditionOverrides(
-			texts.ToDictionary(entry => entry.Position, entry => entry.Text), null, null
+			texts.ToDictionary(entry => entry.Position, entry => entry.Text), null
 		);
 	}
 
@@ -756,8 +757,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			new RenditionMediaOverride(
 				[assetIds[1], assetIds[0]],
 				new Dictionary<Guid, string> { [assetIds[1]] = "b alt" }
-			),
-			null
+			)
 		);
 		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
 			db, seeded, overridesForB
@@ -831,6 +831,108 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var request = provider.Requests.Should().ContainSingle().Subject;
 		request.CompletedSegments.Select(segment => segment.Position).Should().Equal(0);
 		request.FollowUpSegments.Should().Equal("two for B", "three for B");
+	}
+
+	[Fact]
+	public async Task ItShouldKeepTheCustomTextOfAFailedThreadWhenItIsReissuedWithoutOverrides() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var failed = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, PublishPublicationJobHandlerSpec._TextOverrides((0, "B-root"), (1, "B-1")),
+			PublicationStatus.Failed
+		);
+		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			TenantId = seeded.TenantId,
+			PublicationId = failed,
+			SegmentPosition = 0,
+			ExternalRecordId = "at://r/0",
+			ExternalCid = "cid-0",
+			ExternalUrl = "https://u/0",
+		});
+		await db.SaveChangesAsync();
+		var source = await db.Publication.AsNoTracking().SingleAsync(p => p.Id == failed);
+
+		// Re-issue of the same pair: no overrides in the request.
+		var freshId = Guid.CreateVersion7();
+		db.Publication.Add(new Publication {
+			Id = freshId,
+			TenantId = seeded.TenantId,
+			PostId = source.PostId,
+			SocialAccountId = source.SocialAccountId,
+			Status = PublicationStatus.Scheduled,
+			ScheduledAtUtc = DateTime.UtcNow.AddHours(1),
+			ScheduledTimeZone = "Etc/UTC",
+			IdempotencyKey = PublicationIdempotencyKey.For(freshId),
+		});
+		var carried = await ThreadSegments.CarryOverFailedProgressAsync(
+			db, seeded.TenantId, source.PostId, [(freshId, source.SocialAccountId)], CancellationToken.None
+		);
+		(await RenditionResolver.StageRenditionsAsync(
+			db, seeded.TenantId, [(freshId, null)], carried, CancellationToken.None
+		)).Should().BeTrue();
+		await db.SaveChangesAsync();
+		var provider = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+
+		await PublishPublicationJobHandlerSpec._RunAsync(db, freshId, provider);
+
+		var request = provider.Requests.Should().ContainSingle().Subject;
+		request.CompletedSegments.Select(segment => segment.Position).Should().Equal(0);
+		request.FollowUpSegments.Should().Equal("B-1", "three");
+	}
+
+	[Fact]
+	public async Task ItShouldPruneTextOverridesAtPositionsAShrunkenThreadNoLongerHas() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var destination = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, PublishPublicationJobHandlerSpec._TextOverrides((0, "root B"), (2, "three B"))
+		);
+		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
+
+		await ThreadSegments.PruneTextOverridesAsync(db, postId, 2, CancellationToken.None);
+		await db.SaveChangesAsync();
+
+		var overrides = await RenditionResolver.LoadOverridesAsync(
+			db, seeded.TenantId, destination, CancellationToken.None
+		);
+		overrides.Should().NotBeNull();
+		overrides?.Texts.Should().Equal(new Dictionary<int, string> { [0] = "root B" });
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseNewOverridesAtSegmentsAReissuedThreadAlreadyCarried() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two");
+		var failed = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, null, PublicationStatus.Failed
+		);
+		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			TenantId = seeded.TenantId,
+			PublicationId = failed,
+			SegmentPosition = 0,
+			ExternalRecordId = "at://r/0",
+			ExternalCid = "cid-0",
+			ExternalUrl = "https://u/0",
+		});
+		await db.SaveChangesAsync();
+		var freshId = Guid.CreateVersion7();
+		var carried = new Dictionary<Guid, (Guid SourcePublicationId, int Carried)> {
+			[freshId] = (failed, 1),
+		};
+
+		(await RenditionResolver.StageRenditionsAsync(
+			db, seeded.TenantId,
+			[(freshId, PublishPublicationJobHandlerSpec._TextOverrides((0, "new root")))],
+			carried, CancellationToken.None
+		)).Should().BeFalse("the root segment is already on the provider");
+		(await RenditionResolver.StageRenditionsAsync(
+			db, seeded.TenantId,
+			[(freshId, PublishPublicationJobHandlerSpec._TextOverrides((1, "new two")))],
+			carried, CancellationToken.None
+		)).Should().BeTrue("segment 2 is not published yet");
 	}
 
 	[Fact]

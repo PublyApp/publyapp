@@ -7,8 +7,7 @@ namespace PublyApp.Api.Modules.Publishing.Entities;
 
 /// <summary>
 /// The per-destination content view of ONE publication (#2172). It stores ONLY
-/// overrides: a missing row, an empty text map, a null media override and empty
-/// settings all mean "inherit everything from the post". The effective content is
+/// overrides: a missing row, an empty text map, and a null media override all mean "inherit everything from the post". The effective content is
 /// always computed by <c>RenditionResolver</c>; nothing else may overlay these
 /// columns onto a post. The JSON columns are opaque strings here and typed by
 /// <c>RenditionOverrides</c>, so the schema stays permissive while the contract is
@@ -37,8 +36,4 @@ public class Rendition : BaseAttributes, ITenantEntity {
 	// {"assetIds": [...]|null, "altTexts": {"<assetId>": "<alt>"}}; null = no media override.
 	[Column("media_override", TypeName = "jsonb")]
 	public string? MediaOverride { get; set; }
-
-	// {"visibility": "<value>"}: stored for provider settings; nothing consumes it yet.
-	[Column("settings", TypeName = "jsonb")]
-	public string Settings { get; set; } = "{}";
 }

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Modules.Posts.Entities;
+using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -30,8 +31,7 @@ public sealed record SourceContent(
 /// </summary>
 public sealed record EffectiveContent(
 	IReadOnlyList<string> Texts,
-	IReadOnlyList<ContentAsset> Images,
-	RenditionSettings? Settings
+	IReadOnlyList<ContentAsset> Images
 ) {
 	public string Body {
 		get { return this.Texts[0]; }
@@ -60,7 +60,7 @@ public static class RenditionResolver {
 		texts.AddRange(source.FollowUps);
 		var images = source.Assets;
 		if (overrides is null) {
-			return new EffectiveContent(texts, images, null);
+			return new EffectiveContent(texts, images);
 		}
 
 		foreach (var (position, text) in overrides.Texts) {
@@ -85,7 +85,7 @@ public static class RenditionResolver {
 				.ToList();
 		}
 
-		return new EffectiveContent(texts, images, overrides.Settings);
+		return new EffectiveContent(texts, images);
 	}
 
 	/// <summary>The effective root text, for previews that only show the first segment.</summary>
@@ -154,6 +154,49 @@ public static class RenditionResolver {
 				&& publicationIds.Contains(candidate.PublicationId))
 			.ToListAsync(cancellationToken);
 		return rows.ToDictionary(row => row.PublicationId, RenditionOverrides.FromRow);
+	}
+
+	/// <summary>
+	/// Stages the rendition rows of freshly created publications. A fresh publication that
+	/// carried published segments over from a failed one (<paramref name="carried"/>)
+	/// inherits that publication's rendition when it has no overrides of its own, and its
+	/// own overrides may not change what those segments were sent with. Returns false
+	/// (nothing staged for the rejected one, caller must not save) in that locked case.
+	/// </summary>
+	public static async Task<bool> StageRenditionsAsync(
+		AppDbContext db,
+		Guid tenantId,
+		IReadOnlyList<(Guid PublicationId, RenditionOverrides? Requested)> fresh,
+		IReadOnlyDictionary<Guid, (Guid SourcePublicationId, int Carried)> carried,
+		CancellationToken cancellationToken
+	) {
+		var previous = await RenditionResolver.LoadOverridesAsync(
+			db,
+			tenantId,
+			carried.Values.Select(entry => entry.SourcePublicationId).ToList(),
+			cancellationToken
+		);
+		foreach (var (publicationId, requested) in fresh) {
+			var overrides = requested is { IsEmpty: false } ? requested : null;
+			if (carried.TryGetValue(publicationId, out var from)) {
+				var before = previous.GetValueOrDefault(from.SourcePublicationId) ?? RenditionOverrides.None;
+				if (overrides is null) {
+					overrides = before.IsEmpty ? null : before;
+				} else if (before.ChangesPublishedSegments(overrides, from.Carried)) {
+					return false;
+				}
+			}
+
+			if (overrides is null) {
+				continue;
+			}
+
+			var rendition = new Rendition { TenantId = tenantId, PublicationId = publicationId };
+			overrides.WriteTo(rendition);
+			db.Rendition.Add(rendition);
+		}
+
+		return true;
 	}
 
 	/// <summary>The effective content of an existing publication: post + its rendition, now.</summary>

@@ -24,10 +24,6 @@ public record RenditionMediaItem {
 	public required IReadOnlyList<RenditionAltTextItem> AltTexts { get; init; }
 }
 
-public record RenditionSettingsItem {
-	public required string? Visibility { get; init; }
-}
-
 public record RenditionEffectiveImageItem {
 	public required Guid AssetId { get; init; }
 	public required string ContentType { get; init; }
@@ -48,7 +44,6 @@ public record RenditionResponse {
 	// Only the overrides, as stored.
 	public required IReadOnlyList<RenditionSegmentItem> Segments { get; init; }
 	public required RenditionMediaItem? Media { get; init; }
-	public required RenditionSettingsItem? Settings { get; init; }
 	public required RenditionEffectiveItem Effective { get; init; }
 }
 
@@ -70,9 +65,6 @@ public static class RenditionResponseMapper {
 						.Select(entry => new RenditionAltTextItem { AssetId = entry.Key, AltText = entry.Value })
 						.ToList(),
 				},
-			Settings = overrides.Settings is null
-				? null
-				: new RenditionSettingsItem { Visibility = overrides.Settings.Visibility },
 			Effective = new RenditionEffectiveItem {
 				Texts = view.Effective.Texts,
 				Images = view.Effective.Images

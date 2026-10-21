@@ -112,7 +112,7 @@ public sealed class AddRenditionsSpec : IAsyncLifetime {
 		effective.Texts.Should().Equal("legacy post");
 
 		var rendition = new Rendition { TenantId = tenantId, PublicationId = publicationId };
-		new RenditionOverrides(new Dictionary<int, string> { [0] = "customized" }, null, null).WriteTo(rendition);
+		new RenditionOverrides(new Dictionary<int, string> { [0] = "customized" }, null).WriteTo(rendition);
 		db.Rendition.Add(rendition);
 		await db.SaveChangesAsync();
 		var duplicate = new Rendition { TenantId = tenantId, PublicationId = publicationId };

@@ -1856,15 +1856,6 @@ export function createRenditionResponse_mediaFromDiscriminatorValue(parseNode: P
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {RenditionResponse_settings}
- */
-// @ts-ignore
-export function createRenditionResponse_settingsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoRenditionResponse_settings;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {RenditionResponse}
  */
 // @ts-ignore
@@ -1879,15 +1870,6 @@ export function createRenditionResponseFromDiscriminatorValue(parseNode: ParseNo
 // @ts-ignore
 export function createRenditionSegmentItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoRenditionSegmentItem;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {RenditionSettingsItem}
- */
-// @ts-ignore
-export function createRenditionSettingsItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoRenditionSettingsItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4925,7 +4907,6 @@ export function deserializeIntoRenditionResponse(renditionResponse: Partial<Rend
         "media": n => { renditionResponse.media = n.getObjectValue<RenditionResponse_media>(createRenditionResponse_mediaFromDiscriminatorValue); },
         "publicationId": n => { renditionResponse.publicationId = n.getGuidValue(); },
         "segments": n => { renditionResponse.segments = n.getCollectionOfObjectValues<RenditionSegmentItem>(createRenditionSegmentItemFromDiscriminatorValue); },
-        "settings": n => { renditionResponse.settings = n.getObjectValue<RenditionResponse_settings>(createRenditionResponse_settingsFromDiscriminatorValue); },
     }
 }
 /**
@@ -4941,17 +4922,6 @@ export function deserializeIntoRenditionResponse_media(renditionResponse_media: 
 }
 /**
  * The deserialization information for the current model
- * @param RenditionResponse_settings The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoRenditionResponse_settings(renditionResponse_settings: Partial<RenditionResponse_settings> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        ...deserializeIntoRenditionSettingsItem(renditionResponse_settings),
-    }
-}
-/**
- * The deserialization information for the current model
  * @param RenditionSegmentItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4960,17 +4930,6 @@ export function deserializeIntoRenditionSegmentItem(renditionSegmentItem: Partia
     return {
         "position": n => { renditionSegmentItem.position = n.getNumberValue(); },
         "text": n => { renditionSegmentItem.text = n.getStringValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param RenditionSettingsItem The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoRenditionSettingsItem(renditionSettingsItem: Partial<RenditionSettingsItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "visibility": n => { renditionSettingsItem.visibility = n.getStringValue(); },
     }
 }
 /**
@@ -5227,7 +5186,6 @@ export function deserializeIntoSetPublicationRenditionBody(setPublicationRenditi
     return {
         "media": n => { setPublicationRenditionBody.media = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "segments": n => { setPublicationRenditionBody.segments = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
-        "settings": n => { setPublicationRenditionBody.settings = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -7596,14 +7554,8 @@ export interface RenditionResponse extends AdditionalDataHolder, Parsable {
      * The segments property
      */
     segments?: RenditionSegmentItem[] | null;
-    /**
-     * The settings property
-     */
-    settings?: RenditionResponse_settings | null;
 }
 export interface RenditionResponse_media extends Parsable, RenditionMediaItem {
-}
-export interface RenditionResponse_settings extends Parsable, RenditionSettingsItem {
 }
 export interface RenditionSegmentItem extends AdditionalDataHolder, Parsable {
     /**
@@ -7614,12 +7566,6 @@ export interface RenditionSegmentItem extends AdditionalDataHolder, Parsable {
      * The text property
      */
     text?: string | null;
-}
-export interface RenditionSettingsItem extends AdditionalDataHolder, Parsable {
-    /**
-     * The visibility property
-     */
-    visibility?: string | null;
 }
 export interface ReorderPostImagesBody extends AdditionalDataHolder, Parsable {
     /**
@@ -9875,7 +9821,6 @@ export function serializeRenditionResponse(writer: SerializationWriter, renditio
     writer.writeObjectValue<RenditionResponse_media>("media", renditionResponse.media, serializeRenditionResponse_media);
     writer.writeGuidValue("publicationId", renditionResponse.publicationId);
     writer.writeCollectionOfObjectValues<RenditionSegmentItem>("segments", renditionResponse.segments, serializeRenditionSegmentItem);
-    writer.writeObjectValue<RenditionResponse_settings>("settings", renditionResponse.settings, serializeRenditionResponse_settings);
     writer.writeAdditionalData(renditionResponse.additionalData);
 }
 /**
@@ -9892,17 +9837,6 @@ export function serializeRenditionResponse_media(writer: SerializationWriter, re
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param RenditionResponse_settings The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeRenditionResponse_settings(writer: SerializationWriter, renditionResponse_settings: Partial<RenditionResponse_settings> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!renditionResponse_settings || isSerializingDerivedType) { return; }
-    serializeRenditionSettingsItem(writer, renditionResponse_settings, isSerializingDerivedType)
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param RenditionSegmentItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -9912,18 +9846,6 @@ export function serializeRenditionSegmentItem(writer: SerializationWriter, rendi
     writer.writeNumberValue("position", renditionSegmentItem.position);
     writer.writeStringValue("text", renditionSegmentItem.text);
     writer.writeAdditionalData(renditionSegmentItem.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param RenditionSettingsItem The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeRenditionSettingsItem(writer: SerializationWriter, renditionSettingsItem: Partial<RenditionSettingsItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!renditionSettingsItem || isSerializingDerivedType) { return; }
-    writer.writeStringValue("visibility", renditionSettingsItem.visibility);
-    writer.writeAdditionalData(renditionSettingsItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -10200,7 +10122,6 @@ export function serializeSetPublicationRenditionBody(writer: SerializationWriter
     if (!setPublicationRenditionBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("media", setPublicationRenditionBody.media);
     writer.writeObjectValue("segments", setPublicationRenditionBody.segments);
-    writer.writeObjectValue("settings", setPublicationRenditionBody.settings);
     writer.writeAdditionalData(setPublicationRenditionBody.additionalData);
 }
 /**
@@ -11231,7 +11152,7 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
 }
 /**
- * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),`media` `{assetIds?, altTexts?: [{assetId, altText}]}` and`settings` `{visibility?}`. An empty body resets to the shared post.
+ * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post.
  */
 export interface SetPublicationRenditionBody extends AdditionalDataHolder, Parsable {
     /**
@@ -11242,10 +11163,6 @@ export interface SetPublicationRenditionBody extends AdditionalDataHolder, Parsa
      * The segments property
      */
     segments?: UntypedNode | null;
-    /**
-     * The settings property
-     */
-    settings?: UntypedNode | null;
 }
 export interface SetSocialAccountProjectsBody extends AdditionalDataHolder, Parsable {
     /**

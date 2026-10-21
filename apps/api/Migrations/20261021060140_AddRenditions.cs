@@ -20,7 +20,6 @@ namespace PublyApp.Api.Migrations
                     publication_id = table.Column<Guid>(type: "uuid", nullable: false),
                     text_overrides = table.Column<string>(type: "jsonb", nullable: false),
                     media_override = table.Column<string>(type: "jsonb", nullable: true),
-                    settings = table.Column<string>(type: "jsonb", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     is_deleted = table.Column<bool>(type: "boolean", nullable: false),

@@ -405,6 +405,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublicationRenditionLocked = new("publication-rendition-locked");
 
 	/// <summary>
+	/// This publication may already be on the provider, so its content cannot change until it is reviewed
+	/// </summary>
+	public static readonly TranslationKey PublicationRenditionNeedsReview = new("publication-rendition-needs-review");
+
+	/// <summary>
 	/// Content reset to the shared post
 	/// </summary>
 	public static readonly TranslationKey PublicationRenditionResetSuccess = new("publication-rendition-reset-success");
