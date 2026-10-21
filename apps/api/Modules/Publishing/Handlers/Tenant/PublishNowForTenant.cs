@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 using FluentValidation;
@@ -18,11 +17,23 @@ using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
+/// <summary>
+/// Publish-now body. Two shapes: <c>accountIds</c>, or <c>destinations</c> (#2172):
+/// <c>[{socialAccountId, overrides?}]</c> (no per-destination time: it publishes now).
+/// </summary>
 public sealed class PublishNowBody {
-	[Required]
 	public JsonElement AccountIds { get; init; }
+	public JsonElement Destinations { get; init; }
+
+	public bool HasDestinations() {
+		return this.Destinations.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
+	}
 
 	public List<Guid> GetAccountIds() {
+		if (this.HasDestinations()) {
+			return this._ParseDestinations().Select(item => item.SocialAccountId).Distinct().ToList();
+		}
+
 		var accountIds = new List<Guid>();
 
 		foreach (var accountIdElement in this.AccountIds.EnumerateArray()) {
@@ -31,17 +42,54 @@ public sealed class PublishNowBody {
 
 		return accountIds;
 	}
+
+	public IReadOnlyDictionary<Guid, RenditionOverrides> GetOverrides() {
+		return this.HasDestinations()
+			? this._ParseDestinations()
+				.Where(item => item.Overrides is not null)
+				.ToDictionary(item => item.SocialAccountId, item => item.Overrides ?? RenditionOverrides.None)
+			: new Dictionary<Guid, RenditionOverrides>();
+	}
+
+	private List<RenditionWire.Destination> _ParseDestinations() {
+		if (!RenditionWire.TryParseDestinations(
+				this.Destinations, false, out var parsed, out var error,
+				RenditionWire.PublishNowMaxDestinations)) {
+			throw new InvalidOperationException(error);
+		}
+
+		return parsed;
+	}
 }
 
 public sealed class PublishNowBodyValidator
 	: AbstractValidator<PublishNowBody> {
 	public PublishNowBodyValidator() {
-		this.RuleFor(x => x.AccountIds)
-			.MustBeRequiredGuidArray(
-				fieldName: "accountIds",
-				itemName: "accountId",
-				maxCount: 20
-			);
+		this.When(x => !x.HasDestinations(), () => {
+			this.RuleFor(x => x.AccountIds)
+				.MustBeRequiredGuidArray(
+					fieldName: "accountIds",
+					itemName: "accountId",
+					maxCount: 20
+				);
+		});
+
+		this.When(x => x.HasDestinations(), () => {
+			this.RuleFor(x => x.Destinations)
+				.Custom((destinations, context) => {
+					if (context.InstanceToValidate.AccountIds.ValueKind
+						is not (JsonValueKind.Undefined or JsonValueKind.Null)) {
+						context.AddFailure("Send either accountIds or destinations, not both.");
+						return;
+					}
+
+					if (!RenditionWire.TryParseDestinations(
+							destinations, false, out _, out var error,
+							RenditionWire.PublishNowMaxDestinations)) {
+						context.AddFailure(error);
+					}
+				});
+		});
 	}
 }
 
@@ -94,7 +142,8 @@ public sealed class PublishNowForTenant {
 				TenantId: tenantId,
 				PostId: postIdGuid,
 				ActorUserId: account.UserId,
-				SocialAccountIds: requestedAccountIds
+				SocialAccountIds: requestedAccountIds,
+				Overrides: body.GetOverrides()
 			),
 			cancellationToken
 		);
@@ -125,6 +174,14 @@ public sealed class PublishNowForTenant {
 
 		if (result is PublishNowResult.ContentInvalid contentInvalid) {
 			return PublishContentProblems.ToProblem(contentInvalid.Failure);
+		}
+
+		if (result is PublishNowResult.SegmentsLocked) {
+			return SetPublicationRenditionForTenant.SegmentsLockedProblem();
+		}
+
+		if (result is PublishNowResult.OverridesInvalid overridesInvalid) {
+			return PublishContentProblems.ToProblem(overridesInvalid.Failure);
 		}
 
 		if (result is not PublishNowResult.Created created) {

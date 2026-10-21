@@ -76,6 +76,10 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		"RetryPublicationForTenant",
 		// #2176: the user resolves a needs-review publication as published.
 		"MarkPublicationPublishedForTenant",
+		// #2172: per-destination content overrides.
+		"GetPublicationRenditionForTenant",
+		"SetPublicationRenditionForTenant",
+		"ResetPublicationRenditionForTenant",
 	];
 
 	// The explicit, closed inventory of every /posts/* route on the live route map.
@@ -100,6 +104,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		new("/posts/{postId}/publish-now", "POST", IsPublishing: true),
 		new("/posts/publications/{publicationId}/retry", "POST", IsPublishing: true),
 		new("/posts/publications/{publicationId}/mark-published", "POST", IsPublishing: true),
+		new("/posts/publications/{publicationId}/rendition", "GET", IsPublishing: true),
+		new("/posts/publications/{publicationId}/rendition", "PUT", IsPublishing: true),
+		new("/posts/publications/{publicationId}/rendition", "DELETE", IsPublishing: true),
 		// ── Non-publishing routes (listed to keep the set closed) ──────────────
 		new("/posts", "POST", IsPublishing: false),
 		new("/posts", "GET", IsPublishing: false),

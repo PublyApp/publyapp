@@ -79,6 +79,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IPublicationStatusTransitionService), typeof(PublicationStatusTransitionService)),
 		(typeof(IPublishNowService), typeof(PublishNowService)),
 		(typeof(IPublishTargetService), typeof(PublishTargetService)),
+		(typeof(IRenditionService), typeof(RenditionService)),
 		(typeof(ISessionService), typeof(SessionService)),
 		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
 		(typeof(IStaffUserLifecycleService), typeof(StaffUserLifecycleService)),

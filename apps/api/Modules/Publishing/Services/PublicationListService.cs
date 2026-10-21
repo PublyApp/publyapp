@@ -38,6 +38,8 @@ public record PublicationListItem {
 	public int SegmentsPublished { get; init; }
 	/// <summary>Total segments of the post (1 for a plain post).</summary>
 	public int SegmentsTotal { get; init; } = 1;
+	/// <summary>True when this destination overrides part of the post's content (#2172).</summary>
+	public bool Customized { get; init; }
 }
 
 public abstract record FindPublicationsResult {
@@ -115,6 +117,11 @@ public sealed class PublicationListService : IPublicationListService {
 			.Select(publication => new PublicationRow {
 				Publication = publication,
 				PostBody = publication.Post.Body,
+				RenditionTexts = this._Db.Rendition
+					.Where(rendition => rendition.PublicationId == publication.Id)
+					.Select(rendition => rendition.TextOverrides)
+					.FirstOrDefault(),
+				Customized = this._Db.Rendition.Any(rendition => rendition.PublicationId == publication.Id),
 				AccountHandle = publication.SocialAccount.DisplayHandle,
 				AccountUsable =
 					publication.SocialAccount.Status == SocialAccountStatus.Active
@@ -178,12 +185,14 @@ public sealed class PublicationListService : IPublicationListService {
 	}
 
 	internal static PublicationListItem ToListItem(PublicationRow row) {
+		// The excerpt shows what this destination publishes: post + its rendition.
+		var postBody = RenditionResolver.EffectiveRootText(row.PostBody, row.RenditionTexts);
 		return new PublicationListItem {
 			Id = row.Publication.GetRequiredId(),
 			PostId = row.Publication.PostId,
-			PostExcerpt = row.PostBody.Length <= PublicationListService._ExcerptLength
-				? row.PostBody
-				: row.PostBody[..PublicationListService._ExcerptLength],
+			PostExcerpt = postBody.Length <= PublicationListService._ExcerptLength
+				? postBody
+				: postBody[..PublicationListService._ExcerptLength],
 			Status = PublicationWire.FormatStatus(row.Publication.Status),
 			SocialAccountId = row.Publication.SocialAccountId,
 			AccountLabel = row.AccountHandle,
@@ -196,6 +205,7 @@ public sealed class PublicationListService : IPublicationListService {
 			UpdatedAt = row.Publication.UpdatedAt,
 			SegmentsPublished = row.SegmentsPublished,
 			SegmentsTotal = row.FollowUpCount + 1,
+			Customized = row.Customized,
 		};
 	}
 }
@@ -205,6 +215,8 @@ internal sealed class PublicationRow {
 	public bool Superseded { get; init; }
 	public required Publication Publication { get; init; }
 	public required string PostBody { get; init; }
+	public string? RenditionTexts { get; init; }
+	public bool Customized { get; init; }
 	public required string AccountHandle { get; init; }
 	public int SegmentsPublished { get; init; }
 	public int FollowUpCount { get; init; }

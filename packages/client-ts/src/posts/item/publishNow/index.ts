@@ -12,7 +12,7 @@ import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type Requ
 export interface PublishNowRequestBuilder extends BaseRequestBuilder<PublishNowRequestBuilder> {
     /**
      * Publish a post now through the chosen connected accounts
-     * @param body The request body
+     * @param body Publish-now body. Two shapes: `accountIds`, or `destinations` (#2172):`[{socialAccountId, overrides?}]` (no per-destination time: it publishes now).
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<ApiResponse>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -26,7 +26,7 @@ export interface PublishNowRequestBuilder extends BaseRequestBuilder<PublishNowR
      post(body: PublishNowBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<ApiResponse | undefined>;
     /**
      * Publish a post now through the chosen connected accounts
-     * @param body The request body
+     * @param body Publish-now body. Two shapes: `accountIds`, or `destinations` (#2172):`[{socialAccountId, overrides?}]` (no per-destination time: it publishes now).
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */

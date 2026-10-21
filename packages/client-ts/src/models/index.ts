@@ -1811,6 +1811,69 @@ export function createReconnectSocialAccountBodyFromDiscriminatorValue(parseNode
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionAltTextItem}
+ */
+// @ts-ignore
+export function createRenditionAltTextItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionAltTextItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionEffectiveImageItem}
+ */
+// @ts-ignore
+export function createRenditionEffectiveImageItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionEffectiveImageItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionEffectiveItem}
+ */
+// @ts-ignore
+export function createRenditionEffectiveItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionEffectiveItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionMediaItem}
+ */
+// @ts-ignore
+export function createRenditionMediaItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionMediaItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionResponse_media}
+ */
+// @ts-ignore
+export function createRenditionResponse_mediaFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionResponse_media;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionResponse}
+ */
+// @ts-ignore
+export function createRenditionResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {RenditionSegmentItem}
+ */
+// @ts-ignore
+export function createRenditionSegmentItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoRenditionSegmentItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ReorderPostImagesBody}
  */
 // @ts-ignore
@@ -1987,6 +2050,15 @@ export function createSchedulePostCreatedItemFromDiscriminatorValue(parseNode: P
 // @ts-ignore
 export function createSchedulePostResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoSchedulePostResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SetPublicationRenditionBody}
+ */
+// @ts-ignore
+export function createSetPublicationRenditionBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSetPublicationRenditionBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4661,6 +4733,7 @@ export function deserializeIntoPublicationListItem(publicationListItem: Partial<
         "accountLabel": n => { publicationListItem.accountLabel = n.getStringValue(); },
         "accountUsable": n => { publicationListItem.accountUsable = n.getBooleanValue(); },
         "attempts": n => { publicationListItem.attempts = n.getNumberValue(); },
+        "customized": n => { publicationListItem.customized = n.getBooleanValue(); },
         "externalUrl": n => { publicationListItem.externalUrl = n.getStringValue(); },
         "failureCategory": n => { publicationListItem.failureCategory = n.getStringValue(); },
         "id": n => { publicationListItem.id = n.getGuidValue(); },
@@ -4684,6 +4757,7 @@ export function deserializeIntoPublicationListItem(publicationListItem: Partial<
 export function deserializeIntoPublishNowBody(publishNowBody: Partial<PublishNowBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountIds": n => { publishNowBody.accountIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "destinations": n => { publishNowBody.destinations = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4769,6 +4843,93 @@ export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserRe
 export function deserializeIntoReconnectSocialAccountBody(reconnectSocialAccountBody: Partial<ReconnectSocialAccountBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "appPassword": n => { reconnectSocialAccountBody.appPassword = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionAltTextItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionAltTextItem(renditionAltTextItem: Partial<RenditionAltTextItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "altText": n => { renditionAltTextItem.altText = n.getStringValue(); },
+        "assetId": n => { renditionAltTextItem.assetId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionEffectiveImageItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionEffectiveImageItem(renditionEffectiveImageItem: Partial<RenditionEffectiveImageItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "altText": n => { renditionEffectiveImageItem.altText = n.getStringValue(); },
+        "assetId": n => { renditionEffectiveImageItem.assetId = n.getGuidValue(); },
+        "contentType": n => { renditionEffectiveImageItem.contentType = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionEffectiveItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionEffectiveItem(renditionEffectiveItem: Partial<RenditionEffectiveItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "images": n => { renditionEffectiveItem.images = n.getCollectionOfObjectValues<RenditionEffectiveImageItem>(createRenditionEffectiveImageItemFromDiscriminatorValue); },
+        "texts": n => { renditionEffectiveItem.texts = n.getCollectionOfPrimitiveValues<string>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionMediaItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionMediaItem(renditionMediaItem: Partial<RenditionMediaItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "altTexts": n => { renditionMediaItem.altTexts = n.getCollectionOfObjectValues<RenditionAltTextItem>(createRenditionAltTextItemFromDiscriminatorValue); },
+        "assetIds": n => { renditionMediaItem.assetIds = n.getCollectionOfPrimitiveValues<Guid>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionResponse(renditionResponse: Partial<RenditionResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "customized": n => { renditionResponse.customized = n.getBooleanValue(); },
+        "effective": n => { renditionResponse.effective = n.getObjectValue<RenditionEffectiveItem>(createRenditionEffectiveItemFromDiscriminatorValue); },
+        "media": n => { renditionResponse.media = n.getObjectValue<RenditionResponse_media>(createRenditionResponse_mediaFromDiscriminatorValue); },
+        "publicationId": n => { renditionResponse.publicationId = n.getGuidValue(); },
+        "segments": n => { renditionResponse.segments = n.getCollectionOfObjectValues<RenditionSegmentItem>(createRenditionSegmentItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionResponse_media The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionResponse_media(renditionResponse_media: Partial<RenditionResponse_media> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoRenditionMediaItem(renditionResponse_media),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param RenditionSegmentItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoRenditionSegmentItem(renditionSegmentItem: Partial<RenditionSegmentItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "position": n => { renditionSegmentItem.position = n.getNumberValue(); },
+        "text": n => { renditionSegmentItem.text = n.getStringValue(); },
     }
 }
 /**
@@ -4963,6 +5124,7 @@ export function deserializeIntoResolveTenantProfileUserAssignmentsAsStaffResult(
 export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem: Partial<ScheduledPublicationItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountDisplayHandle": n => { scheduledPublicationItem.accountDisplayHandle = n.getStringValue(); },
+        "customized": n => { scheduledPublicationItem.customized = n.getBooleanValue(); },
         "lastError": n => { scheduledPublicationItem.lastError = n.getStringValue(); },
         "postBodyPreview": n => { scheduledPublicationItem.postBodyPreview = n.getStringValue(); },
         "postId": n => { scheduledPublicationItem.postId = n.getGuidValue(); },
@@ -4984,6 +5146,7 @@ export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem
 export function deserializeIntoSchedulePostBody(schedulePostBody: Partial<SchedulePostBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountIds": n => { schedulePostBody.accountIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "destinations": n => { schedulePostBody.destinations = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "scheduledAtLocal": n => { schedulePostBody.scheduledAtLocal = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "timeZone": n => { schedulePostBody.timeZone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
@@ -5011,6 +5174,18 @@ export function deserializeIntoSchedulePostResponse(schedulePostResponse: Partia
     return {
         "postId": n => { schedulePostResponse.postId = n.getGuidValue(); },
         "publications": n => { schedulePostResponse.publications = n.getCollectionOfObjectValues<SchedulePostCreatedItem>(createSchedulePostCreatedItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SetPublicationRenditionBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSetPublicationRenditionBody(setPublicationRenditionBody: Partial<SetPublicationRenditionBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "media": n => { setPublicationRenditionBody.media = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "segments": n => { setPublicationRenditionBody.segments = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -7122,6 +7297,10 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     attempts?: number | null;
     /**
+     * True when this destination overrides part of the post's content (#2172).
+     */
+    customized?: boolean | null;
+    /**
      * The externalUrl property
      */
     externalUrl?: string | null;
@@ -7170,11 +7349,18 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     updatedAt?: Date | null;
 }
+/**
+ * Publish-now body. Two shapes: `accountIds`, or `destinations` (#2172):`[{socialAccountId, overrides?}]` (no per-destination time: it publishes now).
+ */
 export interface PublishNowBody extends AdditionalDataHolder, Parsable {
     /**
      * The accountIds property
      */
     accountIds?: UntypedNode | null;
+    /**
+     * The destinations property
+     */
+    destinations?: UntypedNode | null;
 }
 /**
  * What the server accepts when an image is attached to a post, whatever thedestinations: the composer's cap while no destination limits are known.
@@ -7299,6 +7485,87 @@ export interface ReconnectSocialAccountBody extends AdditionalDataHolder, Parsab
      * The appPassword property
      */
     appPassword?: UntypedNode | null;
+}
+export interface RenditionAltTextItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The altText property
+     */
+    altText?: string | null;
+    /**
+     * The assetId property
+     */
+    assetId?: Guid | null;
+}
+export interface RenditionEffectiveImageItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The altText property
+     */
+    altText?: string | null;
+    /**
+     * The assetId property
+     */
+    assetId?: Guid | null;
+    /**
+     * The contentType property
+     */
+    contentType?: string | null;
+}
+/**
+ * What the destination will publish: the post overlaid with its overrides.
+ */
+export interface RenditionEffectiveItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The images property
+     */
+    images?: RenditionEffectiveImageItem[] | null;
+    /**
+     * The texts property
+     */
+    texts?: string[] | null;
+}
+export interface RenditionMediaItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The altTexts property
+     */
+    altTexts?: RenditionAltTextItem[] | null;
+    /**
+     * The assetIds property
+     */
+    assetIds?: Guid[] | null;
+}
+export interface RenditionResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The customized property
+     */
+    customized?: boolean | null;
+    /**
+     * What the destination will publish: the post overlaid with its overrides.
+     */
+    effective?: RenditionEffectiveItem | null;
+    /**
+     * The media property
+     */
+    media?: RenditionResponse_media | null;
+    /**
+     * The publicationId property
+     */
+    publicationId?: Guid | null;
+    /**
+     * The segments property
+     */
+    segments?: RenditionSegmentItem[] | null;
+}
+export interface RenditionResponse_media extends Parsable, RenditionMediaItem {
+}
+export interface RenditionSegmentItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The position property
+     */
+    position?: number | null;
+    /**
+     * The text property
+     */
+    text?: string | null;
 }
 export interface ReorderPostImagesBody extends AdditionalDataHolder, Parsable {
     /**
@@ -7433,6 +7700,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     accountDisplayHandle?: string | null;
     /**
+     * The customized property
+     */
+    customized?: boolean | null;
+    /**
      * Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.Surfaces verbatim through the wire so the queue/calendar/history UI canshow a plain-words reason plus a truthful next action (transparentfailure cause). Null on every other status — the entity invariantclears the stored LastError on every non-failure transition. Alreadysanitised by LastErrorSanitiser before storage.
      */
     lastError?: string | null;
@@ -7473,11 +7744,18 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     timeZone?: string | null;
 }
+/**
+ * Schedules a post. Two shapes: the original `accountIds` + `scheduledAtLocal`(one instant for every account), or `destinations` (#2172):`[{socialAccountId, scheduledAt?, overrides?}]`, where a destination without`scheduledAt` takes the top-level `scheduledAtLocal` ("same time for all").
+ */
 export interface SchedulePostBody extends AdditionalDataHolder, Parsable {
     /**
      * The accountIds property
      */
     accountIds?: UntypedNode | null;
+    /**
+     * The destinations property
+     */
+    destinations?: UntypedNode | null;
     /**
      * The scheduledAtLocal property
      */
@@ -9357,6 +9635,7 @@ export function serializePublicationListItem(writer: SerializationWriter, public
     writer.writeStringValue("accountLabel", publicationListItem.accountLabel);
     writer.writeBooleanValue("accountUsable", publicationListItem.accountUsable);
     writer.writeNumberValue("attempts", publicationListItem.attempts);
+    writer.writeBooleanValue("customized", publicationListItem.customized);
     writer.writeStringValue("externalUrl", publicationListItem.externalUrl);
     writer.writeStringValue("failureCategory", publicationListItem.failureCategory);
     writer.writeGuidValue("id", publicationListItem.id);
@@ -9381,6 +9660,7 @@ export function serializePublicationListItem(writer: SerializationWriter, public
 export function serializePublishNowBody(writer: SerializationWriter, publishNowBody: Partial<PublishNowBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!publishNowBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("accountIds", publishNowBody.accountIds);
+    writer.writeObjectValue("destinations", publishNowBody.destinations);
     writer.writeAdditionalData(publishNowBody.additionalData);
 }
 /**
@@ -9473,6 +9753,99 @@ export function serializeReconnectSocialAccountBody(writer: SerializationWriter,
     if (!reconnectSocialAccountBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("appPassword", reconnectSocialAccountBody.appPassword);
     writer.writeAdditionalData(reconnectSocialAccountBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionAltTextItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionAltTextItem(writer: SerializationWriter, renditionAltTextItem: Partial<RenditionAltTextItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionAltTextItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("altText", renditionAltTextItem.altText);
+    writer.writeGuidValue("assetId", renditionAltTextItem.assetId);
+    writer.writeAdditionalData(renditionAltTextItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionEffectiveImageItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionEffectiveImageItem(writer: SerializationWriter, renditionEffectiveImageItem: Partial<RenditionEffectiveImageItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionEffectiveImageItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("altText", renditionEffectiveImageItem.altText);
+    writer.writeGuidValue("assetId", renditionEffectiveImageItem.assetId);
+    writer.writeStringValue("contentType", renditionEffectiveImageItem.contentType);
+    writer.writeAdditionalData(renditionEffectiveImageItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionEffectiveItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionEffectiveItem(writer: SerializationWriter, renditionEffectiveItem: Partial<RenditionEffectiveItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionEffectiveItem || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<RenditionEffectiveImageItem>("images", renditionEffectiveItem.images, serializeRenditionEffectiveImageItem);
+    writer.writeCollectionOfPrimitiveValues<string>("texts", renditionEffectiveItem.texts);
+    writer.writeAdditionalData(renditionEffectiveItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionMediaItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionMediaItem(writer: SerializationWriter, renditionMediaItem: Partial<RenditionMediaItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionMediaItem || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<RenditionAltTextItem>("altTexts", renditionMediaItem.altTexts, serializeRenditionAltTextItem);
+    writer.writeCollectionOfPrimitiveValues<Guid>("assetIds", renditionMediaItem.assetIds);
+    writer.writeAdditionalData(renditionMediaItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionResponse(writer: SerializationWriter, renditionResponse: Partial<RenditionResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionResponse || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("customized", renditionResponse.customized);
+    writer.writeObjectValue<RenditionEffectiveItem>("effective", renditionResponse.effective, serializeRenditionEffectiveItem);
+    writer.writeObjectValue<RenditionResponse_media>("media", renditionResponse.media, serializeRenditionResponse_media);
+    writer.writeGuidValue("publicationId", renditionResponse.publicationId);
+    writer.writeCollectionOfObjectValues<RenditionSegmentItem>("segments", renditionResponse.segments, serializeRenditionSegmentItem);
+    writer.writeAdditionalData(renditionResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionResponse_media The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionResponse_media(writer: SerializationWriter, renditionResponse_media: Partial<RenditionResponse_media> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionResponse_media || isSerializingDerivedType) { return; }
+    serializeRenditionMediaItem(writer, renditionResponse_media, isSerializingDerivedType)
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param RenditionSegmentItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeRenditionSegmentItem(writer: SerializationWriter, renditionSegmentItem: Partial<RenditionSegmentItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!renditionSegmentItem || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("position", renditionSegmentItem.position);
+    writer.writeStringValue("text", renditionSegmentItem.text);
+    writer.writeAdditionalData(renditionSegmentItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9683,6 +10056,7 @@ export function serializeResolveTenantProfileUserAssignmentsAsStaffResult(writer
 export function serializeScheduledPublicationItem(writer: SerializationWriter, scheduledPublicationItem: Partial<ScheduledPublicationItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!scheduledPublicationItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("accountDisplayHandle", scheduledPublicationItem.accountDisplayHandle);
+    writer.writeBooleanValue("customized", scheduledPublicationItem.customized);
     writer.writeStringValue("lastError", scheduledPublicationItem.lastError);
     writer.writeStringValue("postBodyPreview", scheduledPublicationItem.postBodyPreview);
     writer.writeGuidValue("postId", scheduledPublicationItem.postId);
@@ -9705,6 +10079,7 @@ export function serializeScheduledPublicationItem(writer: SerializationWriter, s
 export function serializeSchedulePostBody(writer: SerializationWriter, schedulePostBody: Partial<SchedulePostBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!schedulePostBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("accountIds", schedulePostBody.accountIds);
+    writer.writeObjectValue("destinations", schedulePostBody.destinations);
     writer.writeObjectValue("scheduledAtLocal", schedulePostBody.scheduledAtLocal);
     writer.writeObjectValue("timeZone", schedulePostBody.timeZone);
     writer.writeAdditionalData(schedulePostBody.additionalData);
@@ -9735,6 +10110,19 @@ export function serializeSchedulePostResponse(writer: SerializationWriter, sched
     writer.writeGuidValue("postId", schedulePostResponse.postId);
     writer.writeCollectionOfObjectValues<SchedulePostCreatedItem>("publications", schedulePostResponse.publications, serializeSchedulePostCreatedItem);
     writer.writeAdditionalData(schedulePostResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SetPublicationRenditionBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSetPublicationRenditionBody(writer: SerializationWriter, setPublicationRenditionBody: Partial<SetPublicationRenditionBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!setPublicationRenditionBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("media", setPublicationRenditionBody.media);
+    writer.writeObjectValue("segments", setPublicationRenditionBody.segments);
+    writer.writeAdditionalData(setPublicationRenditionBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -10762,6 +11150,19 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     if (!verifyEmailRequestResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", verifyEmailRequestResult.status);
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
+}
+/**
+ * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post.
+ */
+export interface SetPublicationRenditionBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The media property
+     */
+    media?: UntypedNode | null;
+    /**
+     * The segments property
+     */
+    segments?: UntypedNode | null;
 }
 export interface SetSocialAccountProjectsBody extends AdditionalDataHolder, Parsable {
     /**

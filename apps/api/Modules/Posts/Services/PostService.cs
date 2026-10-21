@@ -460,6 +460,10 @@ public class PostService : IPostService {
 			this._DbContext.PostSegment.Remove(surplus);
 		}
 
+		await ThreadSegments.PruneTextOverridesAsync(
+			this._DbContext, postId, args.Segments.Count + 1, cancellationToken
+		);
+
 		return false;
 	}
 

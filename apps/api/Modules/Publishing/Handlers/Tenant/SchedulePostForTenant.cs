@@ -17,18 +17,50 @@ using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
+/// <summary>
+/// Schedules a post. Two shapes: the original <c>accountIds</c> + <c>scheduledAtLocal</c>
+/// (one instant for every account), or <c>destinations</c> (#2172):
+/// <c>[{socialAccountId, scheduledAt?, overrides?}]</c>, where a destination without
+/// <c>scheduledAt</c> takes the top-level <c>scheduledAtLocal</c> ("same time for all").
+/// </summary>
 public record SchedulePostBody {
-	public required JsonElement AccountIds { get; init; }
-	public required JsonElement ScheduledAtLocal { get; init; }
+	public JsonElement AccountIds { get; init; }
+	public JsonElement Destinations { get; init; }
+	public JsonElement ScheduledAtLocal { get; init; }
 	public required JsonElement TimeZone { get; init; }
 
-	public List<Guid> GetAccountIds() {
-		return this.AccountIds.EnumerateArray()
-			.Select(item => item.GetGuid())
+	public bool HasDestinations() {
+		return this.Destinations.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
+	}
+
+	public IReadOnlyList<ScheduleDestination> GetDestinations() {
+		var defaultAt = this.GetScheduledAtLocal();
+		if (!this.HasDestinations()) {
+			return this.AccountIds.EnumerateArray()
+				.Select(item => item.GetGuid())
+				.Distinct()
+				.Select(id => new ScheduleDestination(id, defaultAt ?? DateTime.MinValue, null))
+				.ToList();
+		}
+
+		if (!RenditionWire.TryParseDestinations(this.Destinations, true, out var parsed, out var error)) {
+			throw new InvalidOperationException(error);
+		}
+
+		return parsed
+			.Select(item => new ScheduleDestination(
+				item.SocialAccountId,
+				item.ScheduledAtUtc ?? defaultAt ?? DateTime.MinValue,
+				item.Overrides
+			))
 			.ToList();
 	}
 
-	public DateTime GetScheduledAtLocal() {
+	public DateTime? GetScheduledAtLocal() {
+		if (this.ScheduledAtLocal.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
+			return null;
+		}
+
 		var raw = this.ScheduledAtLocal.GetValueAsString();
 		if (DateUtils.TryParseIsoUtc(raw, out var utc)) {
 			return utc;
@@ -47,17 +79,48 @@ public record SchedulePostBody {
 public sealed class SchedulePostBodyValidator
 	: AbstractValidator<SchedulePostBody> {
 	public SchedulePostBodyValidator() {
-		this.RuleFor(x => x.AccountIds)
-			.MustBeRequiredGuidArray("AccountIds", "social account ID", 50);
-
-		this.RuleFor(x => x.ScheduledAtLocal)
-			.MustBeRequiredIsoDateTime("ScheduledAtLocal");
-
 		this.RuleFor(x => x.TimeZone)
 			.MustBeRequiredTimezone(
 				"TimeZone",
 				PublicationSchedule.MaxTimeZoneLength
 			);
+
+		this.When(x => !x.HasDestinations(), () => {
+			this.RuleFor(x => x.AccountIds)
+				.MustBeRequiredGuidArray("AccountIds", "social account ID", 50);
+
+			this.RuleFor(x => x.ScheduledAtLocal)
+				.MustBeRequiredIsoDateTime("ScheduledAtLocal");
+		});
+
+		this.When(x => x.HasDestinations(), () => {
+			this.RuleFor(x => x.ScheduledAtLocal)
+				.MustBePatchFieldIsoDateTime("ScheduledAtLocal");
+
+			this.RuleFor(x => x.Destinations)
+				.Custom((destinations, context) => {
+					var body = context.InstanceToValidate;
+					if (body.AccountIds.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null)) {
+						context.AddFailure("Send either accountIds or destinations, not both.");
+						return;
+					}
+
+					if (!RenditionWire.TryParseDestinations(
+							destinations, true, out var parsed, out var error)) {
+						context.AddFailure(error);
+						return;
+					}
+
+					var hasDefault = body.ScheduledAtLocal.ValueKind
+						is not (JsonValueKind.Undefined or JsonValueKind.Null);
+					if (!hasDefault && parsed.Any(item => item.ScheduledAtUtc is null)) {
+						context.AddFailure(
+							"Every destination needs a scheduledAt, or send a top-level "
+							+ "scheduledAtLocal as the default."
+						);
+					}
+				});
+		});
 	}
 }
 
@@ -113,8 +176,7 @@ public sealed class SchedulePostForTenant {
 			new SchedulePublicationArgs(
 				TenantId: tenantId,
 				PostId: postIdGuid,
-				AccountIds: body.GetAccountIds(),
-				ScheduledAtLocal: body.GetScheduledAtLocal(),
+				Destinations: body.GetDestinations(),
 				TimeZone: body.GetTimeZone(),
 				ActorUserId: account.UserId
 			),
@@ -148,6 +210,10 @@ public sealed class SchedulePostForTenant {
 				),
 			ScheduleResult.ContentInvalid contentInvalid =>
 				PublishContentProblems.ToProblem(contentInvalid.Failure),
+			ScheduleResult.OverridesInvalid overridesInvalid =>
+				PublishContentProblems.ToProblem(overridesInvalid.Failure),
+			ScheduleResult.SegmentsLocked =>
+				SetPublicationRenditionForTenant.SegmentsLockedProblem(),
 			ScheduleResult.Scheduled scheduled =>
 				TypedResults.Created(
 					(string?)null,

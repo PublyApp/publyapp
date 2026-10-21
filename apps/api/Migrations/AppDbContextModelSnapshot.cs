@@ -1685,6 +1685,58 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.Rendition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("MediaOverride")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("media_override");
+
+                    b.Property<Guid>("PublicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("publication_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TextOverrides")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("text_overrides");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_renditions_publication_id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("renditions");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.RateLimiting.Entities.RateLimitCounter", b =>
                 {
                     b.Property<string>("PolicyName")
@@ -2720,6 +2772,23 @@ namespace PublyApp.Api.Migrations
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.PublishAttempt", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Publishing.Entities.Publication", null)
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.Rendition", b =>
                 {
                     b.HasOne("PublyApp.Api.Modules.Publishing.Entities.Publication", null)
                         .WithMany()

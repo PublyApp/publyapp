@@ -15214,6 +15214,325 @@
           }
         }
       }
+    },
+    "/posts/publications/{publicationId}/rendition": {
+      "get": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Get a publication's content overrides and effective content",
+        "operationId": "GetPublicationRenditionForTenant",
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenditionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Set a publication's per-destination content overrides",
+        "operationId": "SetPublicationRenditionForTenant",
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPublicationRenditionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenditionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Reset a publication to the shared post content",
+        "operationId": "ResetPublicationRenditionForTenant",
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -18491,20 +18810,25 @@
             "type": "integer",
             "description": "Total segments of the post (1 for a plain post).",
             "format": "int32"
+          },
+          "customized": {
+            "type": "boolean",
+            "description": "True when this destination overrides part of the post's content (#2172)."
           }
         },
         "description": "History row: one publication with the context History renders."
       },
       "PublishNowBody": {
-        "required": [
-          "accountIds"
-        ],
         "type": "object",
         "properties": {
           "accountIds": {
             "$ref": "#/components/schemas/JsonElement"
+          },
+          "destinations": {
+            "$ref": "#/components/schemas/JsonElement"
           }
-        }
+        },
+        "description": "Publish-now body. Two shapes: `accountIds`, or `destinations` (#2172):\n`[{socialAccountId, overrides?}]` (no per-destination time: it publishes now)."
       },
       "PublishTargetAttachLimits": {
         "required": [
@@ -18679,6 +19003,149 @@
         "properties": {
           "appPassword": {
             "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "RenditionAltTextItem": {
+        "required": [
+          "assetId",
+          "altText"
+        ],
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "altText": {
+            "type": "string"
+          }
+        }
+      },
+      "RenditionEffectiveImageItem": {
+        "required": [
+          "assetId",
+          "contentType",
+          "altText"
+        ],
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "altText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RenditionEffectiveItem": {
+        "required": [
+          "texts",
+          "images"
+        ],
+        "type": "object",
+        "properties": {
+          "texts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RenditionEffectiveImageItem"
+            }
+          }
+        },
+        "description": "What the destination will publish: the post overlaid with its overrides."
+      },
+      "RenditionMediaItem": {
+        "required": [
+          "assetIds",
+          "altTexts"
+        ],
+        "type": "object",
+        "properties": {
+          "assetIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "altTexts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RenditionAltTextItem"
+            }
+          }
+        }
+      },
+      "RenditionResponse": {
+        "required": [
+          "publicationId",
+          "customized",
+          "segments",
+          "media",
+          "effective"
+        ],
+        "type": "object",
+        "properties": {
+          "publicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customized": {
+            "type": "boolean"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RenditionSegmentItem"
+            }
+          },
+          "media": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RenditionMediaItem"
+              }
+            ]
+          },
+          "effective": {
+            "description": "What the destination will publish: the post overlaid with its overrides.",
+            "$ref": "#/components/schemas/RenditionEffectiveItem"
+          }
+        }
+      },
+      "RenditionSegmentItem": {
+        "required": [
+          "position",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -18895,6 +19362,7 @@
           "postId",
           "postBodyPreview",
           "postStatus",
+          "customized",
           "socialAccountId",
           "accountDisplayHandle",
           "scheduledAtUtc",
@@ -18917,6 +19385,9 @@
           },
           "postStatus": {
             "type": "string"
+          },
+          "customized": {
+            "type": "boolean"
           },
           "socialAccountId": {
             "type": "string",
@@ -18950,13 +19421,14 @@
       },
       "SchedulePostBody": {
         "required": [
-          "accountIds",
-          "scheduledAtLocal",
           "timeZone"
         ],
         "type": "object",
         "properties": {
           "accountIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "destinations": {
             "$ref": "#/components/schemas/JsonElement"
           },
           "scheduledAtLocal": {
@@ -18965,7 +19437,8 @@
           "timeZone": {
             "$ref": "#/components/schemas/JsonElement"
           }
-        }
+        },
+        "description": "Schedules a post. Two shapes: the original `accountIds` + `scheduledAtLocal`\n(one instant for every account), or `destinations` (#2172):\n`[{socialAccountId, scheduledAt?, overrides?}]`, where a destination without\n`scheduledAt` takes the top-level `scheduledAtLocal` (\"same time for all\")."
       },
       "SchedulePostCreatedItem": {
         "required": [
@@ -19006,6 +19479,18 @@
             }
           }
         }
+      },
+      "SetPublicationRenditionBody": {
+        "type": "object",
+        "properties": {
+          "segments": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "media": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "description": "Replaces ALL of a destination's overrides (PUT semantics): `segments`\n`[{position, text}]` (0-based, texts only: the segment count never changes),\nand `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post."
       },
       "SetSocialAccountProjectsBody": {
         "required": [

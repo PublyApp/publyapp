@@ -9,7 +9,6 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
-using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 
@@ -17,17 +16,26 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 
 /// <summary>
 /// Arguments for scheduling a post onto one or more social accounts (D3 Task 1).
-/// <see cref="ScheduledAtLocal"/> carries an ISO 8601 UTC instant (the wire
-/// validator guarantees the Z/offset designator); <see cref="TimeZone"/> is the
-/// IANA zone every screen shows the schedule in.
+/// Each destination carries its own ISO 8601 UTC instant (the wire validator
+/// guarantees the Z/offset designator); <see cref="TimeZone"/> is the IANA zone
+/// every screen shows the schedule in.
 /// </summary>
 public record SchedulePublicationArgs(
 	Guid TenantId,
 	Guid PostId,
-	List<Guid> AccountIds,
-	DateTime ScheduledAtLocal,
+	IReadOnlyList<ScheduleDestination> Destinations,
 	string TimeZone,
 	Guid ActorUserId
+);
+
+/// <summary>
+/// One destination of a schedule request (#2172): the account, its own instant (UTC) and
+/// the content it overrides, if any. A destination without overrides inherits the post.
+/// </summary>
+public sealed record ScheduleDestination(
+	Guid SocialAccountId,
+	DateTime ScheduledAtUtc,
+	RenditionOverrides? Overrides
 );
 
 /// <summary>
@@ -64,6 +72,13 @@ public abstract record ScheduleResult {
 	/// <summary>The post text is empty or over a target provider's limit (422).</summary>
 	public sealed record ContentInvalid(PublishContentFailure Failure)
 		: ScheduleResult;
+
+	/// <summary>A destination's overrides are structurally unusable (422).</summary>
+	public sealed record OverridesInvalid(RenditionOverrideFailure Failure)
+		: ScheduleResult;
+
+	/// <summary>Overrides would change segments a failed publication already sent (422).</summary>
+	public sealed record SegmentsLocked() : ScheduleResult;
 }
 
 /// <summary>Outcome of cancelling a post's schedule (D3 Task 3).</summary>
@@ -78,6 +93,8 @@ public sealed class ScheduledPublicationItem {
 	public required Guid PostId { get; init; }
 	public required string PostBodyPreview { get; init; }
 	public required string PostStatus { get; init; }
+	// True when this destination overrides part of the post's content (#2172).
+	public required bool Customized { get; init; }
 	public required Guid SocialAccountId { get; init; }
 	public required string AccountDisplayHandle { get; init; }
 	public required DateTime ScheduledAtUtc { get; init; }
@@ -247,8 +264,8 @@ public sealed class PublicationService : IPublicationService {
 
 		_ = zone; // kept for symmetry with later wall-clock conversion needs
 
-		if (args.ScheduledAtLocal
-			< DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds)) {
+		var earliestAllowed = DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds);
+		if (args.Destinations.Any(destination => destination.ScheduledAtUtc < earliestAllowed)) {
 			return new ScheduleResult.InvalidSchedule(
 				"The requested date is already in the past. Pick a future date and time.",
 				"scheduledAtLocal"
@@ -264,7 +281,15 @@ public sealed class PublicationService : IPublicationService {
 			return new ScheduleResult.NotFound();
 		}
 
-		var accountIds = args.AccountIds.Distinct().ToList();
+		var accountIds = args.Destinations
+			.Select(destination => destination.SocialAccountId)
+			.ToList();
+		if (accountIds.Distinct().Count() != accountIds.Count) {
+			return new ScheduleResult.InvalidAccounts(
+				"An account can be listed only once per request.",
+				"accountIds"
+			);
+		}
 
 		var accounts = await (
 			from account in this._DbContext.SocialAccount
@@ -284,38 +309,55 @@ public sealed class PublicationService : IPublicationService {
 			}
 		}
 
-		var contentFailure = PublishValidationService.Validate(
-			post.Body,
-			await this._ImageContentTypesAsync(post.GetRequiredId(), cancellationToken),
-			accounts.Select(account => ProviderCapabilityRegistry.Resolve(account)),
-			await ThreadSegments.FollowUpBodiesAsync(
-				this._DbContext, post.GetRequiredId(), cancellationToken
-			)
+		// Each destination is validated on its EFFECTIVE content (post + its overrides),
+		// so a failure names the destination (and the segment of a thread).
+		var source = await RenditionResolver.LoadSourceAsync(
+			this._DbContext, post, cancellationToken
 		);
-		if (contentFailure is not null) {
-			return new ScheduleResult.ContentInvalid(contentFailure);
+		foreach (var destination in args.Destinations) {
+			var account = accounts.Single(candidate => candidate.GetRequiredId() == destination.SocialAccountId);
+			if (destination.Overrides is { } overrides) {
+				var overrideFailure = RenditionWire.Validate(source, overrides);
+				if (overrideFailure is not null) {
+					return new ScheduleResult.OverridesInvalid(overrideFailure with {
+						Destination = account.DisplayHandle,
+						SocialAccountId = destination.SocialAccountId,
+					});
+				}
+			}
+
+			var contentFailure = PublishValidationService.ValidateDestination(
+				RenditionResolver.Resolve(source, destination.Overrides), account
+			);
+			if (contentFailure is not null) {
+				return new ScheduleResult.ContentInvalid(contentFailure);
+			}
 		}
 
 		// The parsed value is already the exact UTC instant (validator contract):
 		// no conversion here. Rows default to Scheduled on insert — no transition.
-		var publications = accountIds
-			.Select(accountId => new Publication {
-				TenantId = args.TenantId,
-				PostId = post.GetRequiredId(),
-				SocialAccountId = accountId,
-				Status = PublicationStatus.Scheduled,
-				ScheduledAtUtc = args.ScheduledAtLocal,
-				ScheduledTimeZone = timeZoneId,
-				IdempotencyKey = "pending",
+		// The row id is minted up front so the deterministic key and the rendition's
+		// foreign key are known before the single SaveChanges (Epic A §4.1).
+		var publications = args.Destinations
+			.Select(destination => {
+				var publicationId = Guid.CreateVersion7();
+				return new Publication {
+					Id = publicationId,
+					TenantId = args.TenantId,
+					PostId = post.GetRequiredId(),
+					SocialAccountId = destination.SocialAccountId,
+					Status = PublicationStatus.Scheduled,
+					ScheduledAtUtc = destination.ScheduledAtUtc,
+					ScheduledTimeZone = timeZoneId,
+					IdempotencyKey = PublicationIdempotencyKey.For(publicationId),
+				};
 			})
 			.ToList();
 
 		this._DbContext.Publication.AddRange(publications);
-		this._AddAuditEntry(args, publications.Count, timeZoneId);
-		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		// Re-issuing a failed thread continues after its last published segment.
-		await ThreadSegments.CarryOverFailedProgressAsync(
+		var carried = await ThreadSegments.CarryOverFailedProgressAsync(
 			this._DbContext,
 			args.TenantId,
 			post.GetRequiredId(),
@@ -325,11 +367,19 @@ public sealed class PublicationService : IPublicationService {
 			cancellationToken
 		);
 
-		// The key derives deterministically from the DB-generated row id (Epic A §4.1).
-		foreach (var publication in publications) {
-			publication.IdempotencyKey =
-				PublicationIdempotencyKey.For(publication.GetRequiredId());
+		if (!await RenditionResolver.StageRenditionsAsync(
+			this._DbContext,
+			args.TenantId,
+			publications
+				.Zip(args.Destinations, (publication, destination) => (publication.GetRequiredId(), destination.Overrides))
+				.ToList(),
+			carried,
+			cancellationToken
+		)) {
+			return new ScheduleResult.SegmentsLocked();
 		}
+
+		this._AddAuditEntry(args);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return new ScheduleResult.Scheduled(publications);
@@ -435,32 +485,44 @@ public sealed class PublicationService : IPublicationService {
 			select p
 		).ToListAsync(cancellationToken);
 
-		// Validate the effective text against every provider the post is still
-		// queued for BEFORE touching the tracked post (issue #2169): an over-limit
-		// edit must not be saved onto a scheduled post.
+		// Validate each target's EFFECTIVE content (the edited shared text overlaid with
+		// that destination's overrides) BEFORE touching the tracked post (issue #2169):
+		// an over-limit edit must not be saved onto a scheduled post.
+		var source = await RenditionResolver.LoadSourceAsync(
+			this._DbContext, post, cancellationToken
+		);
+		var editedSource = args.Body.IsPresent && args.Body.Value is not null
+			? source with { Body = args.Body.Value }
+			: source;
+		var targetIds = targets.Select(target => target.GetRequiredId()).ToList();
+		var renditions = await RenditionResolver.LoadOverridesAsync(
+			this._DbContext, args.TenantId, targetIds, cancellationToken
+		);
 		var targetAccountIds = targets
 			.Select(target => target.SocialAccountId)
 			.Distinct()
 			.ToList();
-		var targetCapabilities = (await (
+		var targetAccounts = await (
 			from account in this._DbContext.SocialAccount.AsNoTracking()
 			where account.TenantId == args.TenantId
 				&& account.Id != null
 				&& targetAccountIds.Contains(account.Id.Value)
 			select account
-		).ToListAsync(cancellationToken))
-			.Select(account => ProviderCapabilityRegistry.Resolve(account))
-			.ToList();
-		if (targetCapabilities.Count > 0) {
-			var contentFailure = PublishValidationService.Validate(
-				args.Body.IsPresent && args.Body.Value is not null
-					? args.Body.Value
-					: post.Body,
-				await this._ImageContentTypesAsync(postId, cancellationToken),
-				targetCapabilities,
-				await ThreadSegments.FollowUpBodiesAsync(
-					this._DbContext, postId, cancellationToken
-				)
+		).ToListAsync(cancellationToken);
+		foreach (var target in targets) {
+			var account = targetAccounts.FirstOrDefault(
+				candidate => candidate.GetRequiredId() == target.SocialAccountId
+			);
+			if (account is null) {
+				continue;
+			}
+
+			var contentFailure = PublishValidationService.ValidateDestination(
+				RenditionResolver.Resolve(
+					editedSource,
+					renditions.TryGetValue(target.GetRequiredId(), out var overrides) ? overrides : null
+				),
+				account
 			);
 			if (contentFailure is not null) {
 				return new EditPostScheduleResult.ContentInvalid(contentFailure);
@@ -470,12 +532,10 @@ public sealed class PublicationService : IPublicationService {
 		// A thread whose first segment is already published keeps its text (#2171).
 		if (args.Body.IsPresent && args.Body.Value is not null
 			&& args.Body.Value != post.Body
+			&& source.FollowUps.Count > 0
 			&& await ThreadSegments.PublishedSegmentCountAsync(
 				this._DbContext, postId, cancellationToken
-			) > 0
-			&& (await ThreadSegments.FollowUpBodiesAsync(
-				this._DbContext, postId, cancellationToken
-			)).Count > 0) {
+			) > 0) {
 			return new EditPostScheduleResult.SegmentsLocked();
 		}
 
@@ -542,18 +602,6 @@ public sealed class PublicationService : IPublicationService {
 		}
 	}
 
-	private async Task<IReadOnlyList<string>> _ImageContentTypesAsync(
-		Guid postId,
-		CancellationToken cancellationToken
-	) {
-		return await (
-			from media in this._DbContext.PostMediaAsset.AsNoTracking()
-			where media.PostId == postId && !media.IsDeleted
-			orderby media.Position
-			select media.ContentType
-		).ToListAsync(cancellationToken);
-	}
-
 	private static ScheduleResult.InvalidAccounts? _ValidateAccount(
 		List<SocialAccount> accounts,
 		Guid accountId,
@@ -593,17 +641,7 @@ public sealed class PublicationService : IPublicationService {
 		return null;
 	}
 
-	/// <summary>
-	/// Adds the audit entry to the current change tracker so it is flushed by the
-	/// same SaveChanges — and therefore the same transaction — as the publication
-	/// inserts. Deliberately not IAuditLogService (same-transaction precedent,
-	/// TenantProfileAsStaffService._AddAuditEntry).
-	/// </summary>
-	private void _AddAuditEntry(
-		SchedulePublicationArgs args,
-		int count,
-		string timeZoneId
-	) {
+	private void _AddAuditEntry(SchedulePublicationArgs args) {
 		this._AddAuditEntry(
 			args.ActorUserId,
 			AuditActions.PublicationScheduled,
@@ -611,9 +649,14 @@ public sealed class PublicationService : IPublicationService {
 			new {
 				args.TenantId,
 				args.PostId,
-				Count = count,
-				ScheduledAtUtc = args.ScheduledAtLocal.ToString("o"),
-				ScheduledTimeZone = timeZoneId,
+				Count = args.Destinations.Count,
+				ScheduledAtUtc = args.Destinations.Min(destination => destination.ScheduledAtUtc).ToString("o"),
+				ScheduledTimeZone = args.TimeZone.Trim(),
+				Destinations = args.Destinations.Select(destination => new {
+					destination.SocialAccountId,
+					ScheduledAtUtc = destination.ScheduledAtUtc.ToString("o"),
+					Customized = destination.Overrides is { IsEmpty: false },
+				}),
 			}
 		);
 	}
@@ -818,6 +861,18 @@ public sealed class PublicationService : IPublicationService {
 			}
 		}
 
+		// The preview shows what each destination will publish (post + rendition).
+		var pagePublicationIds = rows.Select(row => row.Publication.GetRequiredId()).ToList();
+		var renditionTexts = await this._DbContext.Rendition
+			.AsNoTracking()
+			.Where(rendition => rendition.TenantId == args.TenantId
+				&& pagePublicationIds.Contains(rendition.PublicationId))
+			.ToDictionaryAsync(
+				rendition => rendition.PublicationId,
+				rendition => rendition.TextOverrides,
+				cancellationToken
+			);
+
 		var postStatuses = await (
 			from p in this._DbContext.Publication.AsNoTracking()
 			where postIds.Contains(p.PostId) && !p.IsDeleted
@@ -828,9 +883,11 @@ public sealed class PublicationService : IPublicationService {
 		foreach (var row in rows) {
 			var publication = row.Publication;
 			var postId = publication.PostId;
-			var body = postInfos.TryGetValue(postId, out var value)
+			var sourceBody = postInfos.TryGetValue(postId, out var value)
 				? value ?? string.Empty
 				: string.Empty;
+			var hasRendition = renditionTexts.TryGetValue(publication.GetRequiredId(), out var textsJson);
+			var body = RenditionResolver.EffectiveRootText(sourceBody, textsJson);
 			var derived = PostStatusDerivation.Derive(
 				postStatuses
 					.Where(s => s.PostId == postId)
@@ -844,6 +901,7 @@ public sealed class PublicationService : IPublicationService {
 					? body
 					: body[..PublicationService._BodyPreviewMaxLength],
 				PostStatus = PostStatusDerivation.FormatPostStatus(derived),
+				Customized = hasRendition,
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = row.AccountHandle ?? string.Empty,
 				ScheduledAtUtc = publication.ScheduledAtUtc,

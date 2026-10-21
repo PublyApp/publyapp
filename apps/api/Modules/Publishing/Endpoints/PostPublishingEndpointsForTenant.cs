@@ -94,6 +94,34 @@ public static class PostPublishingEndpointsForTenant {
 				AppPermissions.Tenant.SocialAccounts.PUBLISH,
 			]);
 
+		group.MapGet(
+			Routes.Posts.ForTenant.PublicationRendition,
+			GetPublicationRenditionForTenant.Handle
+		)
+			.WithName("GetPublicationRenditionForTenant")
+			.WithSummary("Get a publication's content overrides and effective content")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
+
+		group.MapPut(
+			Routes.Posts.ForTenant.PublicationRendition,
+			SetPublicationRenditionForTenant.Handle
+		)
+			.WithName("SetPublicationRenditionForTenant")
+			.WithSummary("Set a publication's per-destination content overrides")
+			.WithReqBodyValidation<SetPublicationRenditionBody>()
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
+
+		group.MapDelete(
+			Routes.Posts.ForTenant.PublicationRendition,
+			ResetPublicationRenditionForTenant.Handle
+		)
+			.WithName("ResetPublicationRenditionForTenant")
+			.WithSummary("Reset a publication to the shared post content")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
+
 		return routes;
 	}
 }

@@ -47,18 +47,55 @@ public static class ThreadSegments {
 	}
 
 	/// <summary>
+	/// Stages the removal of per-destination text overrides at positions the post no
+	/// longer has, so a thread that shrinks and grows again never revives them (#2172).
+	/// </summary>
+	public static async Task PruneTextOverridesAsync(
+		AppDbContext db,
+		Guid postId,
+		int segmentCount,
+		CancellationToken cancellationToken
+	) {
+		var rows = await (
+			from rendition in db.Rendition
+				// Tracked on purpose: AsNoTracking anywhere in the query would detach the rows.
+			join publication in db.Publication
+				on rendition.PublicationId equals publication.Id
+			where publication.PostId == postId
+			select rendition
+		).ToListAsync(cancellationToken);
+		foreach (var row in rows) {
+			var overrides = RenditionOverrides.FromRow(row);
+			if (overrides.Texts.Keys.All(position => position < segmentCount)) {
+				continue;
+			}
+
+			new RenditionOverrides(
+				overrides.Texts
+					.Where(entry => entry.Key < segmentCount)
+					.ToDictionary(entry => entry.Key, entry => entry.Value),
+				overrides.Media
+			).WriteTo(row);
+		}
+	}
+
+	/// <summary>
 	/// Stages copies of the already-published segment results of the latest failed
 	/// (or cancelled-with-progress) publication of each (post, account) onto the fresh publications, so
 	/// re-issuing a failed thread continues after the last published segment
-	/// instead of posting it all again. Nothing is saved here.
+	/// instead of posting it all again. Nothing is saved here. Returns, per fresh
+	/// publication that carried progress, the publication it copied from and how many
+	/// segments it carried.
 	/// </summary>
-	public static async Task CarryOverFailedProgressAsync(
+	public static async Task<IReadOnlyDictionary<Guid, (Guid SourcePublicationId, int Carried)>>
+		CarryOverFailedProgressAsync(
 		AppDbContext db,
 		Guid tenantId,
 		Guid postId,
 		IReadOnlyList<(Guid PublicationId, Guid SocialAccountId)> fresh,
 		CancellationToken cancellationToken
 	) {
+		var carried = new Dictionary<Guid, (Guid SourcePublicationId, int Carried)>();
 		var accountIds = fresh.Select(entry => entry.SocialAccountId).ToList();
 		var previous = await (
 			from result in db.PublicationSegmentResult.AsNoTracking()
@@ -83,6 +120,7 @@ public static class ThreadSegments {
 				continue;
 			}
 
+			carried[entry.PublicationId] = (best.Key.GetValueOrDefault(), best.Count());
 			foreach (var row in best.OrderBy(item => item.Result.SegmentPosition)) {
 				db.PublicationSegmentResult.Add(new PublicationSegmentResult {
 					TenantId = tenantId,
@@ -94,5 +132,7 @@ public static class ThreadSegments {
 				});
 			}
 		}
+
+		return carried;
 	}
 }

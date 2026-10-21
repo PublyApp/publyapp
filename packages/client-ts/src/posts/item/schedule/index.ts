@@ -39,7 +39,7 @@ export interface ScheduleRequestBuilder extends BaseRequestBuilder<ScheduleReque
      patch(body: EditPostScheduleBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<EditPostScheduleResponse | undefined>;
     /**
      * Schedule a post for future publication
-     * @param body The request body
+     * @param body Schedules a post. Two shapes: the original `accountIds` + `scheduledAtLocal`(one instant for every account), or `destinations` (#2172):`[{socialAccountId, scheduledAt?, overrides?}]`, where a destination without`scheduledAt` takes the top-level `scheduledAtLocal` ("same time for all").
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<SchedulePostResponse>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -66,7 +66,7 @@ export interface ScheduleRequestBuilder extends BaseRequestBuilder<ScheduleReque
      toPatchRequestInformation(body: EditPostScheduleBody, requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
     /**
      * Schedule a post for future publication
-     * @param body The request body
+     * @param body Schedules a post. Two shapes: the original `accountIds` + `scheduledAtLocal`(one instant for every account), or `destinations` (#2172):`[{socialAccountId, scheduledAt?, overrides?}]`, where a destination without`scheduledAt` takes the top-level `scheduledAtLocal` ("same time for all").
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */

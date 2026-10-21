@@ -1,5 +1,6 @@
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -33,12 +34,17 @@ public sealed record PublishContentFailure(
 	int Actual,
 	int ImageIndex = 0,
 	string? ContentType = null,
-	int SegmentNumber = 0
+	int SegmentNumber = 0,
+	// The destination (account handle and id) the failure is about, once the content was
+	// resolved per destination (#2172); null on provider-level callers.
+	string? Destination = null,
+	Guid? SocialAccountId = null
 ) {
 	public string Cause {
 		get {
 			var cause = this._BaseCause;
-			return this.SegmentNumber > 0 ? $"Segment {this.SegmentNumber}: {cause}" : cause;
+			cause = this.SegmentNumber > 0 ? $"Segment {this.SegmentNumber}: {cause}" : cause;
+			return this.Destination is null ? cause : $"{this.Destination}: {cause}";
 		}
 	}
 
@@ -87,6 +93,28 @@ public sealed record PublishContentFailure(
 /// </summary>
 public static class PublishValidationService {
 	public const string ImageUnit = "images";
+
+	/// <summary>
+	/// Validates the EFFECTIVE content of one destination against that account's
+	/// capability and names the destination on any refusal (#2172).
+	/// </summary>
+	public static PublishContentFailure? ValidateDestination(
+		EffectiveContent content,
+		SocialAccount account
+	) {
+		var failure = PublishValidationService.Validate(
+			content.Body,
+			content.ImageContentTypes,
+			[ProviderCapabilityRegistry.Resolve(account)],
+			content.FollowUps
+		);
+		return failure is null
+			? null
+			: failure with {
+				Destination = account.DisplayHandle,
+				SocialAccountId = account.GetRequiredId(),
+			};
+	}
 
 	public static PublishContentFailure? Validate(
 		string body,
