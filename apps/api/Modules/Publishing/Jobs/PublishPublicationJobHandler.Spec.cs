@@ -671,6 +671,191 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		}
 	}
 
+	// --- renditions (#2172): every destination publishes its EFFECTIVE content ---------
+
+	private static async Task<Guid> _AddDestinationAsync(
+		AppDbContext db,
+		SeededPublication seeded,
+		RenditionOverrides? overrides
+	) {
+		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
+		var accountId = await PublishPublicationJobHandlerSpec._SeedSecondAccountAsync(db, seeded.TenantId);
+		var id = Guid.CreateVersion7();
+		var publication = new Publication {
+			TenantId = seeded.TenantId,
+			PostId = postId,
+			SocialAccountId = accountId,
+			Status = PublicationStatus.Scheduled,
+			ScheduledAtUtc = DateTime.UtcNow.AddHours(1),
+			ScheduledTimeZone = "Etc/UTC",
+			IdempotencyKey = PublicationIdempotencyKey.For(id),
+		};
+		publication.Id = id;
+		db.Publication.Add(publication);
+		if (overrides is not null) {
+			var rendition = new Rendition { TenantId = seeded.TenantId, PublicationId = id };
+			overrides.WriteTo(rendition);
+			db.Rendition.Add(rendition);
+		}
+
+		await db.SaveChangesAsync();
+		return id;
+	}
+
+	private static async Task<JobOutcome> _RunAsync(
+		AppDbContext db,
+		Guid publicationId,
+		IPublishProvider provider,
+		IFileStorage? storage = null
+	) {
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, provider, FakeSessions.Opened(), storage
+		);
+		return await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = publicationId,
+					IdempotencyKey = PublicationIdempotencyKey.For(publicationId),
+				}
+			),
+			CancellationToken.None
+		);
+	}
+
+	private static RenditionOverrides _TextOverrides(params (int Position, string Text)[] texts) {
+		return new RenditionOverrides(
+			texts.ToDictionary(entry => entry.Position, entry => entry.Text), null, null
+		);
+	}
+
+	private static PublishResult _Published() {
+		return new PublishResult.Published("at://did:plc:x/app.bsky.feed.post/k", "https://bsky.app/x");
+	}
+
+	[Fact]
+	public async Task ItShouldHandEachDestinationItsEffectiveTextImagesAndAltFromTheResolver() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		var bytes = await PublishPublicationJobHandlerSpec._SeedImagesAsync(
+			db, storage, seeded.PublicationId,
+			("image/png", ".png", TestImages.Png(12, 12), "first"),
+			("image/jpeg", ".jpg", TestImages.Jpeg(14, 14), null)
+		);
+		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
+		var assetIds = (await db.PostMediaAsset
+			.Where(media => media.PostId == postId)
+			.OrderBy(media => media.Position)
+			.Select(media => media.Id)
+			.ToListAsync())
+			.Select(id => id.GetValueOrDefault())
+			.ToList();
+		// B: its own root text, the images reversed, and its own alt on the jpeg.
+		var overridesForB = new RenditionOverrides(
+			new Dictionary<int, string> { [0] = "override for B" },
+			new RenditionMediaOverride(
+				[assetIds[1], assetIds[0]],
+				new Dictionary<Guid, string> { [assetIds[1]] = "b alt" }
+			),
+			null
+		);
+		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, overridesForB
+		);
+		var providerA = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+		var providerB = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+
+		await PublishPublicationJobHandlerSpec._RunAsync(db, seeded.PublicationId, providerA, storage);
+		await PublishPublicationJobHandlerSpec._RunAsync(db, destinationB, providerB, storage);
+
+		var requestA = providerA.Requests.Should().ContainSingle().Subject;
+		requestA.PostBody.Should().Be("hello from the publish job spec", "no rendition row = no overrides");
+		requestA.Media.Select(media => media.AltText).Should().Equal("first", null);
+		requestA.Media[0].Content.Should().Equal(bytes[0]);
+		var requestB = providerB.Requests.Should().ContainSingle().Subject;
+		requestB.PostBody.Should().Be("override for B");
+		requestB.Media.Should().HaveCount(2);
+		requestB.Media[0].Content.Should().Equal(bytes[1]);
+		requestB.Media[0].AltText.Should().Be("b alt");
+		requestB.Media[1].Content.Should().Equal(bytes[0]);
+		requestB.Media[1].AltText.Should().Be("first", "an image with no alt override inherits the post's");
+	}
+
+	[Fact]
+	public async Task ItShouldFlowASharedTextEditIntoNonOverriddenSegmentsOnly() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, PublishPublicationJobHandlerSpec._TextOverrides((1, "two for B"))
+		);
+		// The shared text is edited AFTER both destinations were scheduled.
+		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
+		(await db.Post.SingleAsync(p => p.Id == postId)).Body = "edited shared";
+		(await db.PostSegment.SingleAsync(segment => segment.PostId == postId && segment.Position == 2)).Body =
+			"three edited";
+		await db.SaveChangesAsync();
+		var providerA = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+		var providerB = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+
+		await PublishPublicationJobHandlerSpec._RunAsync(db, seeded.PublicationId, providerA);
+		await PublishPublicationJobHandlerSpec._RunAsync(db, destinationB, providerB);
+
+		providerA.Requests.Single().PostBody.Should().Be("edited shared");
+		providerA.Requests.Single().FollowUpSegments.Should().Equal("two", "three edited");
+		providerB.Requests.Single().PostBody.Should().Be("edited shared");
+		providerB.Requests.Single().FollowUpSegments.Should().Equal("two for B", "three edited");
+	}
+
+	[Fact]
+	public async Task ItShouldResumeAThreadAfterTheLastPublishedSegmentWithTheEffectiveTexts() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, PublishPublicationJobHandlerSpec._TextOverrides((1, "two for B"), (2, "three for B"))
+		);
+		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			TenantId = seeded.TenantId,
+			PublicationId = destinationB,
+			SegmentPosition = 0,
+			ExternalRecordId = "at://r/0",
+			ExternalCid = "cid-0",
+			ExternalUrl = "https://u/0",
+		});
+		await db.SaveChangesAsync();
+		var provider = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+
+		await PublishPublicationJobHandlerSpec._RunAsync(db, destinationB, provider);
+
+		var request = provider.Requests.Should().ContainSingle().Subject;
+		request.CompletedSegments.Select(segment => segment.Position).Should().Equal(0);
+		request.FollowUpSegments.Should().Equal("two for B", "three for B");
+	}
+
+	[Fact]
+	public async Task ItShouldFailOnlyTheDestinationWhoseOverrideBreaksItsLimitAndDeriveFailedForTheMix() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
+			db, seeded, PublishPublicationJobHandlerSpec._TextOverrides((0, new string('x', 301)))
+		);
+		var providerA = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+		var providerB = new FakePublishProvider(null);
+
+		await PublishPublicationJobHandlerSpec._RunAsync(db, seeded.PublicationId, providerA);
+		await PublishPublicationJobHandlerSpec._RunAsync(db, destinationB, providerB);
+
+		providerB.Requests.Should().BeEmpty("the over-limit override is refused before any provider call");
+		var a = await PublishPublicationJobHandlerSpec._FreshPublicationAsync(db, seeded.PublicationId);
+		var b = await PublishPublicationJobHandlerSpec._FreshPublicationAsync(db, destinationB);
+		a.Status.Should().Be(PublicationStatus.Published);
+		b.Status.Should().Be(PublicationStatus.Failed);
+		b.FailureCategory.Should().Be(PublicationFailureCategory.FixContent);
+		b.LastError.Should().Contain("too long").And.Contain("301");
+		PostStatusDerivation.Derive([a, b]).Should().Be(DerivedPostStatus.Failed);
+	}
+
 	// --- fakes -----------------------------------------------------------------------
 
 	private static async Task<IReadOnlyList<byte[]>> _SeedImagesAsync(

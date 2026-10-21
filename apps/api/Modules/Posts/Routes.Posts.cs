@@ -17,6 +17,8 @@ public static partial class Routes {
 			public const string PublishNow = "/{postId}/publish-now";
 			public const string RetryPublication = "/publications/{publicationId}/retry";
 			public const string MarkPublicationPublished = "/publications/{publicationId}/mark-published";
+			// #2172: per-destination content overrides of one publication.
+			public const string PublicationRendition = "/publications/{publicationId}/rendition";
 			public const string GetById = "/{postId}";
 			public static string GetByIdFn(string postId) {
 				return $"/{postId}";

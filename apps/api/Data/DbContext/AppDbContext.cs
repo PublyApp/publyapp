@@ -180,6 +180,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<Modules.Publishing.Entities.PublishAttempt>(); }
 	}
 
+	// Per-destination overrides of a publication's content (#2172).
+	public DbSet<Modules.Publishing.Entities.Rendition> Rendition {
+		get { return this.Set<Modules.Publishing.Entities.Rendition>(); }
+	}
+
 	public DbSet<Modules.Publishing.Entities.Publication> Publication {
 		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}

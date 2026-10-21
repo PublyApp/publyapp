@@ -6,7 +6,6 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Jobs;
 using PublyApp.Api.Modules.Publishing.Lib;
-using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 
@@ -16,7 +15,9 @@ public sealed record PublishNowArgs(
 	Guid TenantId,
 	Guid PostId,
 	Guid ActorUserId,
-	IReadOnlyList<Guid> SocialAccountIds
+	IReadOnlyList<Guid> SocialAccountIds,
+	// Per-destination content overrides by account id (#2172); absent = inherit the post.
+	IReadOnlyDictionary<Guid, RenditionOverrides>? Overrides = null
 );
 
 /// <summary>
@@ -42,6 +43,10 @@ public abstract record PublishNowResult {
 	// The post text cannot be published to the chosen providers (empty or over a
 	// provider limit, issue #2169). 422 upstream; nothing was written.
 	public sealed record ContentInvalid(PublishContentFailure Failure)
+		: PublishNowResult;
+
+	// A destination's overrides are structurally unusable (422); nothing was written.
+	public sealed record OverridesInvalid(RenditionOverrideFailure Failure)
 		: PublishNowResult;
 }
 
@@ -126,21 +131,27 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
 		}
 
-		var contentFailure = PublishValidationService.Validate(
-			post.Body,
-			await (
-				from media in this._Db.PostMediaAsset.AsNoTracking()
-				where media.PostId == post.Id && !media.IsDeleted
-				orderby media.Position
-				select media.ContentType
-			).ToListAsync(cancellationToken),
-			eligible.Select(account => ProviderCapabilityRegistry.Resolve(account)),
-			await ThreadSegments.FollowUpBodiesAsync(
-				this._Db, post.GetRequiredId(), cancellationToken
-			)
-		);
-		if (contentFailure is not null) {
-			return new PublishNowResult.ContentInvalid(contentFailure);
+		// Each destination is validated on its EFFECTIVE content (post + its overrides).
+		var source = await RenditionResolver.LoadSourceAsync(this._Db, post, cancellationToken);
+		foreach (var account in eligible) {
+			RenditionOverrides? overrides = null;
+			if (args.Overrides?.TryGetValue(account.GetRequiredId(), out var found) == true) {
+				overrides = found;
+				var overrideFailure = RenditionWire.Validate(source, found);
+				if (overrideFailure is not null) {
+					return new PublishNowResult.OverridesInvalid(overrideFailure with {
+						Destination = account.DisplayHandle,
+						SocialAccountId = account.GetRequiredId(),
+					});
+				}
+			}
+
+			var contentFailure = PublishValidationService.ValidateDestination(
+				RenditionResolver.Resolve(source, overrides), account
+			);
+			if (contentFailure is not null) {
+				return new PublishNowResult.ContentInvalid(contentFailure);
+			}
 		}
 
 		return await this._CreatePublicationsAndEnqueueAsync(
@@ -181,6 +192,13 @@ public sealed class PublishNowService : IPublishNowService {
 				};
 				publication.Id = publicationId;
 				this._Db.Publication.Add(publication);
+				if (args.Overrides?.TryGetValue(account.GetRequiredId(), out var overrides) == true
+					&& !overrides.IsEmpty) {
+					var rendition = new Rendition { TenantId = args.TenantId, PublicationId = publicationId };
+					overrides.WriteTo(rendition);
+					this._Db.Rendition.Add(rendition);
+				}
+
 				keysByPublicationId.Add((publicationId, idempotencyKey));
 			}
 

@@ -4,6 +4,8 @@
 // @ts-ignore
 import { MarkPublishedRequestBuilderRequestsMetadata, type MarkPublishedRequestBuilder } from './markPublished/index.js';
 // @ts-ignore
+import { RenditionRequestBuilderRequestsMetadata, type RenditionRequestBuilder } from './rendition/index.js';
+// @ts-ignore
 import { RetryRequestBuilderRequestsMetadata, type RetryRequestBuilder } from './retry/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
@@ -16,6 +18,10 @@ export interface WithPublicationItemRequestBuilder extends BaseRequestBuilder<Wi
      * The markPublished property
      */
     get markPublished(): MarkPublishedRequestBuilder;
+    /**
+     * The rendition property
+     */
+    get rendition(): RenditionRequestBuilder;
     /**
      * The retry property
      */
@@ -31,6 +37,9 @@ export const WithPublicationItemRequestBuilderUriTemplate = "{+baseurl}/posts/pu
 export const WithPublicationItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithPublicationItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     markPublished: {
         requestsMetadata: MarkPublishedRequestBuilderRequestsMetadata,
+    },
+    rendition: {
+        requestsMetadata: RenditionRequestBuilderRequestsMetadata,
     },
     retry: {
         requestsMetadata: RetryRequestBuilderRequestsMetadata,

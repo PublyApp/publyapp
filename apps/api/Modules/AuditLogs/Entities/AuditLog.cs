@@ -154,6 +154,9 @@ public static class AuditActions {
 
 	// #647: the actor re-queued a Failed/Paused publication — ids only.
 	public const string PublicationRetried = "publication.retried";
+	// #2172: per-destination content overrides set / reset on a publication.
+	public const string RenditionUpdated = "publication.rendition_updated";
+	public const string RenditionReset = "publication.rendition_reset";
 
 	// #2176: the actor confirmed a needs-review publication is on the provider — ids only.
 	public const string PublicationMarkedPublished = "publication.marked-published";

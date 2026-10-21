@@ -400,6 +400,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublicationMarkPublishedSuccess = new("publication-mark-published-success");
 
 	/// <summary>
+	/// This publication is already published; its content can no longer be customized
+	/// </summary>
+	public static readonly TranslationKey PublicationRenditionLocked = new("publication-rendition-locked");
+
+	/// <summary>
+	/// Content reset to the shared post
+	/// </summary>
+	public static readonly TranslationKey PublicationRenditionResetSuccess = new("publication-rendition-reset-success");
+
+	/// <summary>
 	/// Only a failed or paused publication can be retried
 	/// </summary>
 	public static readonly TranslationKey PublicationRetryNotAllowed = new("publication-retry-not-allowed");
@@ -463,6 +473,11 @@ public static partial class ResponseKeys {
 	/// Publishing started
 	/// </summary>
 	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");
+
+	/// <summary>
+	/// The customized content of this destination is not valid
+	/// </summary>
+	public static readonly TranslationKey PublishRenditionInvalid = new("publish-rendition-invalid");
 
 	/// <summary>
 	/// This destination cannot publish a thread

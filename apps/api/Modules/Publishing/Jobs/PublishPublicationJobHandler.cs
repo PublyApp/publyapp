@@ -95,17 +95,13 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			return JobOutcome.Succeeded;
 		}
 
-		var assets = await this._Db.PostMediaAsset
-			.AsNoTracking()
-			.Where(media => media.PostId == post.Id && !media.IsDeleted)
-			.OrderBy(media => media.Position)
-			.ToListAsync(cancellationToken);
-
-		// Thread follow-ups and the segments an earlier attempt already published
-		// (#2171): the chain resumes after the last stored one, never republishing.
-		var followUps = await ThreadSegments.FollowUpBodiesAsync(
-			this._Db, post.GetRequiredId(), cancellationToken
+		// The EFFECTIVE content of this destination (post + its rendition, #2172): every
+		// text, image and alt text below comes from here, never from the post directly.
+		var effective = await RenditionResolver.ResolveForPublicationAsync(
+			this._Db, publication.TenantId, publicationId, post, cancellationToken
 		);
+		var assets = effective.Images;
+		var followUps = effective.FollowUps;
 		var storedResults = await this._Db.PublicationSegmentResult
 			.AsNoTracking()
 			.Where(result => result.PublicationId == publicationId && !result.IsDeleted)
@@ -131,8 +127,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			.SingleOrDefaultAsync(cancellationToken);
 		if (targetAccount is not null) {
 			var contentFailure = PublishValidationService.Validate(
-				post.Body,
-				assets.Select(asset => asset.ContentType).ToList(),
+				effective.Body,
+				effective.ImageContentTypes,
 				[ProviderCapabilityRegistry.Resolve(targetAccount)],
 				followUps
 			);
@@ -240,20 +236,19 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			}
 		}
 
-		var effectiveTexts = new List<string>(followUps.Count + 1) { TextCounter.Normalize(post.Body) };
-		effectiveTexts.AddRange(followUps.Select(TextCounter.Normalize));
+		var effectiveTexts = effective.Texts.Select(TextCounter.Normalize).ToList();
 		Guid? openAttempt = null;
 		var result = await this._PublishProvider.PublishAsync(
 			new PublishRequest {
 				PublicationId = publicationId,
 				IdempotencyKey = publication.IdempotencyKey,
-				PostBody = TextCounter.Normalize(post.Body),
+				PostBody = effectiveTexts[0],
 				ScheduledAtUtc = publication.ScheduledAtUtc,
 				Session = opened.Session,
 				Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
 				Capability = targetAccount is null ? null : ProviderCapabilityRegistry.Resolve(targetAccount),
 				Media = media,
-				FollowUpSegments = followUps.Select(TextCounter.Normalize).ToList(),
+				FollowUpSegments = effectiveTexts.Skip(1).ToList(),
 				CompletedSegments = completedSegments,
 				OnBeforeWrite = async (position, token) => {
 					openAttempt = await this._Journal.BeginAsync(
@@ -264,7 +259,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 							publication.Attempts,
 							PublishAttemptJournal.Fingerprint(
 								effectiveTexts[position],
-								position == 0 ? assets.Select(asset => asset.GetRequiredId()) : []
+								position == 0 ? assets.Select(asset => asset.Id) : []
 							),
 							publication.IdempotencyKey
 						),

@@ -25,6 +25,11 @@ public static class PublishContentProblems {
 			extensions["contentType"] = failure.ContentType;
 		}
 
+		if (failure.Destination is not null) {
+			extensions["destination"] = failure.Destination;
+			extensions["socialAccountId"] = failure.SocialAccountId;
+		}
+
 		if (failure.SegmentNumber > 0) {
 			extensions["segmentNumber"] = failure.SegmentNumber;
 		}
@@ -33,6 +38,32 @@ public static class PublishContentProblems {
 			failure.Cause,
 			key,
 			new Dictionary<string, string[]> { ["body"] = [failure.Cause] },
+			extensions
+		);
+	}
+
+	public static AppValidationProblemHttpResult ToProblem(
+		RenditionOverrideFailure failure
+	) {
+		var cause = failure.Destination is null
+			? failure.Cause
+			: $"{failure.Destination}: {failure.Cause}";
+		var extensions = new Dictionary<string, object?> {
+			["reason"] = failure.Kind.ToString(),
+		};
+		if (failure.SegmentNumber > 0) {
+			extensions["segmentNumber"] = failure.SegmentNumber;
+		}
+
+		if (failure.Destination is not null) {
+			extensions["destination"] = failure.Destination;
+			extensions["socialAccountId"] = failure.SocialAccountId;
+		}
+
+		return TypedProblems.ValidationProblem(
+			cause,
+			ResponseKeys.PublishRenditionInvalid,
+			new Dictionary<string, string[]> { ["overrides"] = [cause] },
 			extensions
 		);
 	}
