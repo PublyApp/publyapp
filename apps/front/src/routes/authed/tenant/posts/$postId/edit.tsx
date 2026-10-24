@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -42,6 +42,7 @@ import { PostSegmentsEditor } from '../_post-segments-editor';
 import { NO_SEGMENTS, newSegmentDraft } from '../_segment-draft';
 import { useDestinationOverrides } from '../_use-destination-overrides';
 import { usePublishSelection } from '../_use-publish-selection';
+import { useUnsavedWorkGuard } from '../_use-unsaved-work-guard';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -114,20 +115,7 @@ const TenantPostEditPage = () => {
 		(methods.formState.isDirty ||
 			Object.keys(destinationOverrides.overrides).length > 0);
 
-	useEffect(() => {
-		const handler = (e: BeforeUnloadEvent) => {
-			if (hasUnsavedWork) {
-				e.preventDefault();
-			}
-		};
-		window.addEventListener('beforeunload', handler);
-		return () => window.removeEventListener('beforeunload', handler);
-	}, [hasUnsavedWork]);
-
-	const blocker = useBlocker({
-		shouldBlockFn: () => hasUnsavedWork,
-		withResolver: true,
-	});
+	const blocker = useUnsavedWorkGuard(hasUnsavedWork);
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		try {

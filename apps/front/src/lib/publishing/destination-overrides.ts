@@ -89,7 +89,8 @@ export const effectiveImageCount = (
 	if (own === null || own === undefined) {
 		return imageKeys.length;
 	}
-	return own.filter((key) => imageKeys.includes(key)).length;
+	const present = new Set(imageKeys);
+	return own.filter((key) => present.has(key)).length;
 };
 
 /**
@@ -123,12 +124,14 @@ export const toWireOverrides = (
 		const present = new Set(imageKeys);
 		const { imageKeys: own, altTexts } = override.media;
 		wire.media = {
-			altTexts: Object.entries(altTexts)
-				.filter(([key]) => present.has(key))
-				.map(([key, altText]) => ({ assetId: assetOf(key), altText })),
+			altTexts: Object.entries(altTexts).flatMap(([key, altText]) =>
+				present.has(key) ? [{ assetId: assetOf(key), altText }] : [],
+			),
 		};
 		if (own !== null) {
-			wire.media.assetIds = own.filter((key) => present.has(key)).map(assetOf);
+			wire.media.assetIds = own.flatMap((key) =>
+				present.has(key) ? [assetOf(key)] : [],
+			);
 		}
 	}
 
