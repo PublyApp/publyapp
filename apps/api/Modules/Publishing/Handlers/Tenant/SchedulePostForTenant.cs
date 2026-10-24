@@ -51,7 +51,8 @@ public record SchedulePostBody {
 			.Select(item => new ScheduleDestination(
 				item.SocialAccountId,
 				item.ScheduledAtUtc ?? defaultAt ?? DateTime.MinValue,
-				item.Overrides
+				item.Overrides,
+				item.ScheduledAtUtc is not null
 			))
 			.ToList();
 	}

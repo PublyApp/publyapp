@@ -134,32 +134,14 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
 		}
 
-		// Each destination is validated on its EFFECTIVE content (post + its overrides).
+		// Each destination's EFFECTIVE content (post + sent or inherited overrides) is
+		// validated once, in StageRenditionsAsync, inside the batch transaction.
 		var source = await RenditionResolver.LoadSourceAsync(this._Db, post, cancellationToken);
-		foreach (var account in eligible) {
-			RenditionOverrides? overrides = null;
-			if (args.Overrides?.TryGetValue(account.GetRequiredId(), out var found) == true) {
-				overrides = found;
-				var overrideFailure = RenditionWire.Validate(source, found);
-				if (overrideFailure is not null) {
-					return new PublishNowResult.OverridesInvalid(overrideFailure with {
-						Destination = account.DisplayHandle,
-						SocialAccountId = account.GetRequiredId(),
-					});
-				}
-			}
-
-			var contentFailure = PublishValidationService.ValidateDestination(
-				RenditionResolver.Resolve(source, overrides), account
-			);
-			if (contentFailure is not null) {
-				return new PublishNowResult.ContentInvalid(contentFailure);
-			}
-		}
 
 		return await this._CreatePublicationsAndEnqueueAsync(
 			args,
 			post.GetRequiredId(),
+			source,
 			eligible,
 			cancellationToken
 		);
@@ -171,6 +153,7 @@ public sealed class PublishNowService : IPublishNowService {
 	private async Task<PublishNowResult> _CreatePublicationsAndEnqueueAsync(
 		PublishNowArgs args,
 		Guid postId,
+		SourceContent source,
 		List<SocialAccount> candidates,
 		CancellationToken cancellationToken
 	) {
@@ -208,19 +191,33 @@ public sealed class PublishNowService : IPublishNowService {
 					.ToList(),
 				cancellationToken
 			);
-			if (!await RenditionResolver.StageRenditionsAsync(
+			var staged = await RenditionResolver.StageRenditionsAsync(
 				this._Db,
 				args.TenantId,
+				source,
 				candidates
 					.Zip(keysByPublicationId, (account, entry) => (
 						entry.PublicationId,
-						args.Overrides?.GetValueOrDefault(account.GetRequiredId())
+						args.Overrides?.GetValueOrDefault(account.GetRequiredId()),
+						account
 					))
 					.ToList(),
 				carried,
 				cancellationToken
-			)) {
+			);
+			if (staged is not StageRenditionsResult.Staged) {
 				await transaction.RollbackAsync(cancellationToken);
+				// The rolled-back Added rows are still tracked: drop them (mirrors the
+				// 23505 branch below).
+				this._Db.ChangeTracker.Clear();
+				if (staged is StageRenditionsResult.OverridesInvalid overridesInvalid) {
+					return new PublishNowResult.OverridesInvalid(overridesInvalid.Failure);
+				}
+
+				if (staged is StageRenditionsResult.ContentInvalid contentInvalid) {
+					return new PublishNowResult.ContentInvalid(contentInvalid.Failure);
+				}
+
 				return new PublishNowResult.SegmentsLocked();
 			}
 

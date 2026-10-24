@@ -400,6 +400,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublicationMarkPublishedSuccess = new("publication-mark-published-success");
 
 	/// <summary>
+	/// This publication&apos;s content was changed at the same time; reload it and try again
+	/// </summary>
+	public static readonly TranslationKey PublicationRenditionConflict = new("publication-rendition-conflict");
+
+	/// <summary>
 	/// This publication is already published; its content can no longer be customized
 	/// </summary>
 	public static readonly TranslationKey PublicationRenditionLocked = new("publication-rendition-locked");
@@ -413,6 +418,11 @@ public static partial class ResponseKeys {
 	/// Content reset to the shared post
 	/// </summary>
 	public static readonly TranslationKey PublicationRenditionResetSuccess = new("publication-rendition-reset-success");
+
+	/// <summary>
+	/// A newer publication replaced this one for the same post and account; customize the newer one
+	/// </summary>
+	public static readonly TranslationKey PublicationRenditionSuperseded = new("publication-rendition-superseded");
 
 	/// <summary>
 	/// Only a failed or paused publication can be retried

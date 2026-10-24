@@ -5125,15 +5125,18 @@ export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem
     return {
         "accountDisplayHandle": n => { scheduledPublicationItem.accountDisplayHandle = n.getStringValue(); },
         "customized": n => { scheduledPublicationItem.customized = n.getBooleanValue(); },
+        "destinationCount": n => { scheduledPublicationItem.destinationCount = n.getNumberValue(); },
         "lastError": n => { scheduledPublicationItem.lastError = n.getStringValue(); },
         "postBodyPreview": n => { scheduledPublicationItem.postBodyPreview = n.getStringValue(); },
         "postId": n => { scheduledPublicationItem.postId = n.getGuidValue(); },
         "postStatus": n => { scheduledPublicationItem.postStatus = n.getStringValue(); },
         "publicationId": n => { scheduledPublicationItem.publicationId = n.getGuidValue(); },
+        "publishedCount": n => { scheduledPublicationItem.publishedCount = n.getNumberValue(); },
         "scheduledAtLocal": n => { scheduledPublicationItem.scheduledAtLocal = n.getStringValue(); },
         "scheduledAtUtc": n => { scheduledPublicationItem.scheduledAtUtc = n.getDateValue(); },
         "socialAccountId": n => { scheduledPublicationItem.socialAccountId = n.getGuidValue(); },
         "status": n => { scheduledPublicationItem.status = n.getStringValue(); },
+        "superseded": n => { scheduledPublicationItem.superseded = n.getBooleanValue(); },
         "timeZone": n => { scheduledPublicationItem.timeZone = n.getStringValue(); },
     }
 }
@@ -7704,6 +7707,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     customized?: boolean | null;
     /**
+     * Destinations of the post: its live (not soft-deleted) publications, excluding Failedones a newer publication of the same account replaced. A re-issued pair counts once,as its newest row; if that newest row was cancelled (soft-deleted) the pair counts zero.
+     */
+    destinationCount?: number | null;
+    /**
      * Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.Surfaces verbatim through the wire so the queue/calendar/history UI canshow a plain-words reason plus a truthful next action (transparentfailure cause). Null on every other status — the entity invariantclears the stored LastError on every non-failure transition. Alreadysanitised by LastErrorSanitiser before storage.
      */
     lastError?: string | null;
@@ -7724,6 +7731,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     publicationId?: Guid | null;
     /**
+     * Destinations of the post that are published. Counted over the post's destinations:its live (not soft-deleted) publications, excluding Failed ones a newer publicationof the same account replaced. The post status stays `failed` when onedestination failed and another published; this count carries the detail.
+     */
+    publishedCount?: number | null;
+    /**
      * The scheduledAtLocal property
      */
     scheduledAtLocal?: string | null;
@@ -7739,6 +7750,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      * The status property
      */
     status?: string | null;
+    /**
+     * True when a newer publication (even a cancelled one) exists for the same post andaccount: this row is history and is not counted as a destination. Same rule as thepublications list (PublicationSupersession); the row is still listed.
+     */
+    superseded?: boolean | null;
     /**
      * The timeZone property
      */
@@ -10057,15 +10072,18 @@ export function serializeScheduledPublicationItem(writer: SerializationWriter, s
     if (!scheduledPublicationItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("accountDisplayHandle", scheduledPublicationItem.accountDisplayHandle);
     writer.writeBooleanValue("customized", scheduledPublicationItem.customized);
+    writer.writeNumberValue("destinationCount", scheduledPublicationItem.destinationCount);
     writer.writeStringValue("lastError", scheduledPublicationItem.lastError);
     writer.writeStringValue("postBodyPreview", scheduledPublicationItem.postBodyPreview);
     writer.writeGuidValue("postId", scheduledPublicationItem.postId);
     writer.writeStringValue("postStatus", scheduledPublicationItem.postStatus);
     writer.writeGuidValue("publicationId", scheduledPublicationItem.publicationId);
+    writer.writeNumberValue("publishedCount", scheduledPublicationItem.publishedCount);
     writer.writeStringValue("scheduledAtLocal", scheduledPublicationItem.scheduledAtLocal);
     writer.writeDateValue("scheduledAtUtc", scheduledPublicationItem.scheduledAtUtc);
     writer.writeGuidValue("socialAccountId", scheduledPublicationItem.socialAccountId);
     writer.writeStringValue("status", scheduledPublicationItem.status);
+    writer.writeBooleanValue("superseded", scheduledPublicationItem.superseded);
     writer.writeStringValue("timeZone", scheduledPublicationItem.timeZone);
     writer.writeAdditionalData(scheduledPublicationItem.additionalData);
 }
@@ -11152,7 +11170,7 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
 }
 /**
- * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post.
+ * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resetsto the shared post.
  */
 export interface SetPublicationRenditionBody extends AdditionalDataHolder, Parsable {
     /**

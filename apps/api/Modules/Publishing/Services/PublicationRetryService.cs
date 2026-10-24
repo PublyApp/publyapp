@@ -5,6 +5,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Jobs;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -97,15 +98,9 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 			return new RetryEligibility.ReconnectFirst();
 		}
 
+		// Soft-deleted rows count too (see PublicationSupersession).
 		var superseded = await this._Db.Publication.AsNoTracking().AnyAsync(
-			// Soft-deleted rows count too: a cancelled publication that already
-			// published thread segments is soft-deleted (#2171/#2180), and retrying
-			// an older row would repost exactly those segments.
-			other => other.TenantId == publication.TenantId
-				&& other.PostId == publication.PostId
-				&& other.SocialAccountId == publication.SocialAccountId
-				&& other.Id != publication.Id
-				&& other.CreatedAt > publication.CreatedAt,
+			PublicationSupersession.Supersedes(publication),
 			cancellationToken
 		);
 		if (superseded) {

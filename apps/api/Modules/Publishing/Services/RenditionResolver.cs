@@ -4,6 +4,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
 
@@ -44,6 +45,20 @@ public sealed record EffectiveContent(
 	public IReadOnlyList<string> ImageContentTypes {
 		get { return this.Images.Select(image => image.ContentType).ToList(); }
 	}
+}
+
+/// <summary>Outcome of <see cref="RenditionResolver.StageRenditionsAsync"/>.</summary>
+public abstract record StageRenditionsResult {
+	public sealed record Staged : StageRenditionsResult;
+
+	// A request override would change a segment the failed publication already sent.
+	public sealed record SegmentsLocked : StageRenditionsResult;
+
+	// A destination's overrides (sent or inherited) no longer fit the post (e.g. a removed image).
+	public sealed record OverridesInvalid(RenditionOverrideFailure Failure) : StageRenditionsResult;
+
+	// The content a destination would publish breaks its provider limits.
+	public sealed record ContentInvalid(PublishContentFailure Failure) : StageRenditionsResult;
 }
 
 /// <summary>
@@ -157,34 +172,60 @@ public static class RenditionResolver {
 	}
 
 	/// <summary>
-	/// Stages the rendition rows of freshly created publications. A fresh publication that
-	/// carried published segments over from a failed one (<paramref name="carried"/>)
-	/// inherits that publication's rendition when it has no overrides of its own, and its
-	/// own overrides may not change what those segments were sent with. Returns false
-	/// (nothing staged for the rejected one, caller must not save) in that locked case.
+	/// Resolves what each freshly created publication will REALLY publish and stages its
+	/// rendition row. A fresh publication that carried published segments over from a
+	/// failed one (<paramref name="carried"/>) inherits that publication's rendition when it
+	/// has no overrides of its own, and its own overrides may not change what those segments
+	/// were sent with. Every destination's effective content (request overrides, else the
+	/// inherited rendition, else the shared post) is validated here exactly once — structure
+	/// first, then the destination's limits — so a refusal always names the content that
+	/// would actually go out. The carried source rows are locked <c>FOR SHARE</c> first, so
+	/// a concurrent edit of a source rendition either lands before this read or waits and
+	/// then finds the publication superseded; this must run inside the caller's transaction.
+	/// Anything but <see cref="StageRenditionsResult.Staged"/> means the caller must not
+	/// save (and must clear the tracker: rows may already be staged).
 	/// </summary>
-	public static async Task<bool> StageRenditionsAsync(
+	public static async Task<StageRenditionsResult> StageRenditionsAsync(
 		AppDbContext db,
 		Guid tenantId,
-		IReadOnlyList<(Guid PublicationId, RenditionOverrides? Requested)> fresh,
+		SourceContent source,
+		IReadOnlyList<(Guid PublicationId, RenditionOverrides? Requested, SocialAccount Account)> fresh,
 		IReadOnlyDictionary<Guid, (Guid SourcePublicationId, int Carried)> carried,
 		CancellationToken cancellationToken
 	) {
+		var sourceIds = carried.Values
+			.Select(entry => entry.SourcePublicationId)
+			.Distinct()
+			.ToList();
+		if (sourceIds.Count > 0) {
+			// Ordered by id so two re-issues locking the same rows cannot deadlock.
+			_ = await db.Database
+				.SqlQuery<Guid>($"""
+					SELECT id AS "Value" FROM publications
+					WHERE id = ANY({sourceIds}) AND tenant_id = {tenantId}
+					ORDER BY id
+					FOR SHARE
+					""")
+				.ToListAsync(cancellationToken);
+		}
+
 		var previous = await RenditionResolver.LoadOverridesAsync(
-			db,
-			tenantId,
-			carried.Values.Select(entry => entry.SourcePublicationId).ToList(),
-			cancellationToken
+			db, tenantId, sourceIds, cancellationToken
 		);
-		foreach (var (publicationId, requested) in fresh) {
+		foreach (var (publicationId, requested, account) in fresh) {
 			var overrides = requested is { IsEmpty: false } ? requested : null;
 			if (carried.TryGetValue(publicationId, out var from)) {
 				var before = previous.GetValueOrDefault(from.SourcePublicationId) ?? RenditionOverrides.None;
 				if (overrides is null) {
 					overrides = before.IsEmpty ? null : before;
 				} else if (before.ChangesPublishedSegments(overrides, from.Carried)) {
-					return false;
+					return new StageRenditionsResult.SegmentsLocked();
 				}
+			}
+
+			var invalid = RenditionResolver._Validate(source, overrides, account);
+			if (invalid is not null) {
+				return invalid;
 			}
 
 			if (overrides is null) {
@@ -196,7 +237,30 @@ public static class RenditionResolver {
 			db.Rendition.Add(rendition);
 		}
 
-		return true;
+		return new StageRenditionsResult.Staged();
+	}
+
+	private static StageRenditionsResult? _Validate(
+		SourceContent source,
+		RenditionOverrides? overrides,
+		SocialAccount account
+	) {
+		if (overrides is not null) {
+			var overrideFailure = RenditionWire.Validate(source, overrides);
+			if (overrideFailure is not null) {
+				return new StageRenditionsResult.OverridesInvalid(overrideFailure with {
+					Destination = account.DisplayHandle,
+					SocialAccountId = account.GetRequiredId(),
+				});
+			}
+		}
+
+		var contentFailure = PublishValidationService.ValidateDestination(
+			RenditionResolver.Resolve(source, overrides), account
+		);
+		return contentFailure is null
+			? null
+			: new StageRenditionsResult.ContentInvalid(contentFailure);
 	}
 
 	/// <summary>The effective content of an existing publication: post + its rendition, now.</summary>

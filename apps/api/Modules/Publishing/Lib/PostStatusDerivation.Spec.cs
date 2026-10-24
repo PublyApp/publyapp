@@ -67,6 +67,100 @@ public sealed class PostStatusDerivationSpec {
 		PostStatusDerivation.Derive(publications).Should().Be(DerivedPostStatus.Partial);
 	}
 
+	private static readonly Guid _TenantId = Guid.NewGuid();
+	private static readonly Guid _PostId = Guid.NewGuid();
+	private static readonly DateTime _Start = new(2026, 9, 1, 8, 0, 0, DateTimeKind.Utc);
+
+	// One row of THE post, created `minute` minutes after the start.
+	private static Publication _Row(
+		PublicationStatus status,
+		Guid accountId,
+		int minute,
+		bool isDeleted = false
+	) {
+		return new Publication {
+			Id = Guid.CreateVersion7(),
+			TenantId = PostStatusDerivationSpec._TenantId,
+			PostId = PostStatusDerivationSpec._PostId,
+			SocialAccountId = accountId,
+			Status = status,
+			ScheduledAtUtc = PostStatusDerivationSpec._Start,
+			ScheduledTimeZone = "Etc/UTC",
+			IdempotencyKey = "x",
+			CreatedAt = PostStatusDerivationSpec._Start.AddMinutes(minute),
+			IsDeleted = isDeleted,
+		};
+	}
+
+	[Fact]
+	public void ItShouldKeepFailedAndCountOnePublishedOfTwoDestinations() {
+		var rows = new[] {
+			PostStatusDerivationSpec._Row(PublicationStatus.Published, Guid.NewGuid(), 0),
+			PostStatusDerivationSpec._Row(PublicationStatus.Failed, Guid.NewGuid(), 0),
+		};
+
+		var summary = PostStatusDerivation.Summarize(rows);
+
+		summary.Status.Should().Be(DerivedPostStatus.Failed);
+		summary.PublishedCount.Should().Be(1);
+		summary.DestinationCount.Should().Be(2);
+	}
+
+	[Fact]
+	public void ItShouldIgnoreAFailedPublicationANewerOneReplaced() {
+		var account = Guid.NewGuid();
+		var rows = new[] {
+			PostStatusDerivationSpec._Row(PublicationStatus.Failed, account, 0),
+			PostStatusDerivationSpec._Row(PublicationStatus.Published, account, 5),
+		};
+
+		var summary = PostStatusDerivation.Summarize(rows);
+
+		summary.Status.Should().Be(DerivedPostStatus.Published);
+		summary.PublishedCount.Should().Be(1);
+		summary.DestinationCount.Should().Be(1);
+	}
+
+	[Fact]
+	public void ItShouldStillCountAFailedPublicationNothingReplaced() {
+		var account = Guid.NewGuid();
+		var rows = new[] {
+			PostStatusDerivationSpec._Row(PublicationStatus.Failed, account, 5),
+			// Older than the failure: it does not replace it.
+			PostStatusDerivationSpec._Row(PublicationStatus.Published, account, 0),
+		};
+
+		var summary = PostStatusDerivation.Summarize(rows);
+
+		summary.Status.Should().Be(DerivedPostStatus.Failed);
+		summary.DestinationCount.Should().Be(2);
+	}
+
+	[Fact]
+	public void ItShouldLetASoftDeletedNewerRowReplaceAFailureWithoutCountingItself() {
+		var account = Guid.NewGuid();
+		var rows = new[] {
+			PostStatusDerivationSpec._Row(PublicationStatus.Failed, account, 0),
+			PostStatusDerivationSpec._Row(PublicationStatus.Scheduled, account, 5, isDeleted: true),
+			PostStatusDerivationSpec._Row(PublicationStatus.Published, Guid.NewGuid(), 0),
+		};
+
+		var summary = PostStatusDerivation.Summarize(rows);
+
+		summary.Status.Should().Be(DerivedPostStatus.Published);
+		summary.PublishedCount.Should().Be(1);
+		summary.DestinationCount.Should().Be(1);
+	}
+
+	[Fact]
+	public void ItShouldSummarizeAPostWithoutPublicationsAsAnEmptyDraft() {
+		var summary = PostStatusDerivation.Summarize([]);
+
+		summary.Status.Should().Be(DerivedPostStatus.Draft);
+		summary.PublishedCount.Should().Be(0);
+		summary.DestinationCount.Should().Be(0);
+	}
+
 	[Theory]
 	[InlineData(DerivedPostStatus.Draft, "draft")]
 	[InlineData(DerivedPostStatus.Scheduled, "scheduled")]

@@ -13,9 +13,10 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
 /// <summary>
 /// Resets a destination to the shared post (#2172): deletes its rendition row. Idempotent
-/// (200 when nothing was customized). 404 absent/foreign; 409 when published, parked for
-/// review or being published right now; 422 when a segment it already published was
-/// customized (that text is locked) or the shared content no longer fits the destination.
+/// (200 when nothing was customized, and then no audit row). 404 absent/foreign; 409 when
+/// published, parked for review, replaced by a newer publication or being published right
+/// now; 422 when a segment it already published was customized (that text is locked) or
+/// the shared content no longer fits the destination.
 /// </summary>
 public sealed class ResetPublicationRenditionForTenant {
 	public static async Task<Results<
@@ -77,6 +78,21 @@ public sealed class ResetPublicationRenditionForTenant {
 			);
 		}
 
+		if (result is RenditionResult.Superseded) {
+			return TypedProblems.Conflict(
+				"A newer publication replaced this one for the same post and account. "
+					+ "Customize the newer publication instead.",
+				ResponseKeys.PublicationRenditionSuperseded
+			);
+		}
+
+		if (result is RenditionResult.ConcurrentUpdate) {
+			return TypedProblems.Conflict(
+				"This publication's content was changed at the same time. Reload it and try again.",
+				ResponseKeys.PublicationRenditionConflict
+			);
+		}
+
 		if (result is RenditionResult.SegmentsLocked) {
 			return SetPublicationRenditionForTenant.SegmentsLockedProblem();
 		}
@@ -85,19 +101,23 @@ public sealed class ResetPublicationRenditionForTenant {
 			return PublishContentProblems.ToProblem(contentInvalid.Failure);
 		}
 
-		if (result is not RenditionResult.Found) {
+		if (result is not RenditionResult.Found found) {
 			throw new InvalidOperationException("Unexpected rendition result kind");
 		}
 
-		await auditLogService.LogAsync(
-			new CreateAuditLogArgs(
-				UserId: account.UserId,
-				Action: AuditActions.RenditionReset,
-				TargetId: publicationIdGuid,
-				Details: new { TenantId = tenantId, PublicationId = publicationIdGuid }
-			),
-			cancellationToken
-		);
+		// Idempotent: resetting a destination that was never customized changed nothing,
+		// so it leaves no audit row.
+		if (found.WasCustomized) {
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.RenditionReset,
+					TargetId: publicationIdGuid,
+					Details: new { TenantId = tenantId, PublicationId = publicationIdGuid }
+				),
+				cancellationToken
+			);
+		}
 
 		return TypedResults.Ok(
 			ApiResponse.Create(

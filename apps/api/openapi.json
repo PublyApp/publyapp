@@ -19362,6 +19362,9 @@
           "postId",
           "postBodyPreview",
           "postStatus",
+          "publishedCount",
+          "destinationCount",
+          "superseded",
           "customized",
           "socialAccountId",
           "accountDisplayHandle",
@@ -19385,6 +19388,22 @@
           },
           "postStatus": {
             "type": "string"
+          },
+          "publishedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Destinations of the post that are published. Counted over the post's destinations:\nits live (not soft-deleted) publications, excluding Failed ones a newer publication\nof the same account replaced. The post status stays `failed` when one\ndestination failed and another published; this count carries the detail.",
+            "format": "int32"
+          },
+          "destinationCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Destinations of the post: its live (not soft-deleted) publications, excluding Failed\nones a newer publication of the same account replaced. A re-issued pair counts once,\nas its newest row; if that newest row was cancelled (soft-deleted) the pair counts zero.",
+            "format": "int32"
+          },
+          "superseded": {
+            "type": "boolean",
+            "description": "True when a newer publication (even a cancelled one) exists for the same post and\naccount: this row is history and is not counted as a destination. Same rule as the\npublications list (PublicationSupersession); the row is still listed."
           },
           "customized": {
             "type": "boolean"
@@ -19490,7 +19509,7 @@
             "$ref": "#/components/schemas/JsonElement"
           }
         },
-        "description": "Replaces ALL of a destination's overrides (PUT semantics): `segments`\n`[{position, text}]` (0-based, texts only: the segment count never changes),\nand `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post."
+        "description": "Replaces ALL of a destination's overrides (PUT semantics): `segments`\n`[{position, text}]` (0-based, texts only: the segment count never changes),\nand `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets\nto the shared post."
       },
       "SetSocialAccountProjectsBody": {
         "required": [

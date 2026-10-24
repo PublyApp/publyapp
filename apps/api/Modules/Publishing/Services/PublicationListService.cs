@@ -126,6 +126,8 @@ public sealed class PublicationListService : IPublicationListService {
 				AccountUsable =
 					publication.SocialAccount.Status == SocialAccountStatus.Active
 					&& !publication.SocialAccount.IsDeleted,
+				// Correlated form of PublicationSupersession.Supersedes (an EF subquery over
+				// the range variable cannot call it); keep the two in step.
 				Superseded = this._Db.Publication.Any(other =>
 					other.TenantId == publication.TenantId
 					&& other.PostId == publication.PostId
