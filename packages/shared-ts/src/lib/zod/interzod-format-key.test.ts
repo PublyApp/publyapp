@@ -82,7 +82,7 @@ describe('InterZod invalid_format format-key mapping (#1535)', () => {
 			'Invalid string: must start with X-',
 		);
 		expect(renderInvalidFormat('fr', startsWithValidator, 'plain')).toBe(
-			'Chaîne invalide : doit commencer par X-',
+			'Chaîne de caractères invalide : doit commencer par X-',
 		);
 	});
 
@@ -91,7 +91,7 @@ describe('InterZod invalid_format format-key mapping (#1535)', () => {
 			'Invalid string: must end with @publyapp.com',
 		);
 		expect(renderInvalidFormat('fr', endsWithValidator, 'user@gmail.com')).toBe(
-			'Chaîne invalide : doit se terminer par @publyapp.com',
+			'Chaîne de caractères invalide : doit se terminer par @publyapp.com',
 		);
 	});
 });
