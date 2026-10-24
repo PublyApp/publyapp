@@ -28,7 +28,7 @@ export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 	const { t } = useTranslation('posts');
 	const presentation = publicationStatusPresentation(row.status);
 
-	if (row.superseded) {
+	if (row.superseded && row.status !== 'published') {
 		return (
 			<StatusPill tone="neutral" testId="tenant-posts-superseded-label">
 				{t('posts:publication-superseded')}

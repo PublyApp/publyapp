@@ -191,6 +191,26 @@ describe('useSavePublicationRenditionMutation', () => {
 		);
 	});
 
+	test('a media override without an image list sends alt texts only (the destination keeps inheriting the images)', async () => {
+		const put = vi.fn().mockResolvedValue({});
+		stubClient({ put });
+		const { result } = renderWithClient(() =>
+			useSavePublicationRenditionMutation(),
+		);
+
+		result.current.mutate({
+			tenantId,
+			publicationId: 'pub-1',
+			overrides: { media: { altTexts: [{ assetId: 'a1', altText: 'One' }] } },
+		});
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		const body = put.mock.calls[0]?.[1] as SetPublicationRenditionBody;
+		expect(untypedNodeToJson(body.media)).toEqual({
+			altTexts: [{ assetId: 'a1', altText: 'One' }],
+		});
+	});
+
 	test('no overrides at all is an empty PUT body (the destination follows the shared post)', async () => {
 		const put = vi.fn().mockResolvedValue({});
 		stubClient({ put });

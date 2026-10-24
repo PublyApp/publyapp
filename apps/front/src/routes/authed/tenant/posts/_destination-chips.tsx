@@ -69,9 +69,13 @@ export const DestinationChips = ({
 										checked={isChecked}
 										onCheckedChange={(checked) => {
 											toggle(target.id, Boolean(checked));
+											// A deselected destination publishes nothing: its tab closes.
+											if (!checked && overrides.activeId === target.id) {
+												overrides.close();
+											}
 										}}
 									/>
-									<span>{target.label}</span>
+									<span>{label}</span>
 									{isCustomized ? (
 										<span
 											role="img"
@@ -90,9 +94,18 @@ export const DestinationChips = ({
 										aria-label={t('posts:destination-customize-aria', {
 											destination: label,
 										})}
-										aria-pressed={overrides.activeId === target.id}
+										aria-expanded={overrides.activeId === target.id}
+										aria-controls={
+											overrides.activeId === target.id
+												? `destination-${target.id}-panel`
+												: undefined
+										}
 										data-testid={`tenant-posts-destination-customize-${target.id}`}
-										onClick={() => overrides.open(target.id)}
+										onClick={() =>
+											overrides.activeId === target.id
+												? overrides.close()
+												: overrides.open(target.id)
+										}
 									>
 										<IconAdjustmentsHorizontal
 											aria-hidden="true"

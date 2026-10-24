@@ -516,6 +516,19 @@ describe('TenantPostsHistoryPage', () => {
 		).toBeGreaterThan(0);
 	});
 
+	test('a replaced row that did publish keeps its status and its link: the post is still on the provider', () => {
+		mocks.rows = [row({ status: 'published', superseded: true })];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen.queryByTestId('tenant-posts-history-superseded-label'),
+		).toBeNull();
+		expect(screen.getByTestId('tenant-posts-history-link')).toBeTruthy();
+		expect(
+			screen.getByTestId('tenant-posts-history-status-pill').textContent,
+		).toBe('Published');
+	});
+
 	test('a customized destination carries a Customized badge; a plain one does not', () => {
 		mocks.rows = [
 			row({ id: 'pub-custom', customized: true }),

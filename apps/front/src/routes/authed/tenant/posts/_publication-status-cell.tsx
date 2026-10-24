@@ -25,7 +25,9 @@ export const PublicationStatusCell = ({
 	// A newer publication replaced this row for the same post and account
 	// (owner decision, 2026-10-24): it is history, not a live status. Muted,
 	// labelled "Replaced", and never offered the failure details or a retry.
-	if (publication.superseded) {
+	// A replaced row that did publish keeps its status and its link: the post
+	// is still on the provider.
+	if (publication.superseded && publication.status !== 'published') {
 		return (
 			<div
 				className="flex max-w-xs flex-col items-start gap-1 opacity-60"

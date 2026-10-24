@@ -10,12 +10,17 @@ import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Label } from '~/components/ui/label';
 import { Textarea } from '~/components/ui/textarea';
+import type { DestinationOverrides } from '~/lib/publishing/destination-overrides';
 import type { LimitedDestination } from '~/lib/text-counter/text-counter';
 import { useTextCounter } from '~/lib/text-counter/use-text-counter';
 
 import { PublishLimitCounter } from './_publish-limit-counter';
+import { inheritingDestinations } from './_publish-validation';
 import type { SegmentDraft } from './_segment-draft';
 import { newSegmentDraft } from './_segment-draft';
+import type { SelectedDestination } from './_use-publish-selection';
+
+const NO_OVERRIDES: DestinationOverrides = {};
 
 /** A thread is at most 25 segments: the first post body plus 24 follow-ups. */
 const MAX_THREAD_SEGMENTS = 25;
@@ -142,8 +147,12 @@ export type PostSegmentsEditorProps = {
 	/** Leading segments (counting the first) already published: read-only. */
 	publishedSegmentCount: number;
 	/** The SELECTED publish destinations: every segment counter measures
-	 * against their limits, like the Publish button does. */
-	destinations: readonly LimitedDestination[];
+	 * against the limits of those that INHERIT the segment, like the Publish
+	 * button does. */
+	destinations: readonly SelectedDestination[];
+	/** What each destination customizes: a destination with its own text for a
+	 * segment is not counted against the shared one. */
+	overrides?: DestinationOverrides;
 };
 
 type SegmentListProps = PostSegmentsEditorProps & {
@@ -157,6 +166,7 @@ const SegmentList = ({
 	onChange,
 	publishedSegmentCount,
 	destinations,
+	overrides = NO_OVERRIDES,
 	total,
 	onRequestRemove,
 }: SegmentListProps) => {
@@ -170,7 +180,11 @@ const SegmentList = ({
 					index={index}
 					total={total}
 					text={segment.text}
-					destinations={destinations}
+					destinations={inheritingDestinations(
+						destinations,
+						overrides,
+						segment.id,
+					)}
 					isLocked={isLockedAt(index)}
 					canMoveEarlier={index > 0 && !isLockedAt(index - 1)}
 					canMoveLater={index < segments.length - 1}
@@ -198,6 +212,7 @@ export const PostSegmentsEditor = ({
 	onChange,
 	publishedSegmentCount,
 	destinations,
+	overrides,
 }: PostSegmentsEditorProps) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(
@@ -240,6 +255,7 @@ export const PostSegmentsEditor = ({
 					onChange={onChange}
 					publishedSegmentCount={publishedSegmentCount}
 					destinations={destinations}
+					overrides={overrides}
 					total={total}
 					onRequestRemove={requestRemove}
 				/>

@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Button } from '~/components/ui/button';
+import { Skeleton } from '~/components/ui/skeleton';
+import {
+	POSTS_PUBLISH,
+	useTenantPermissions,
+} from '~/lib/query/tenant-permissions';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 
+import { TenantReadOnlyCardError } from '../_read-only-query-slots';
 import type { ComposerImage } from './_destination-media-field';
 import {
 	ScheduledPublicationCustomized,
@@ -23,7 +30,9 @@ const SCHEDULED_PAGE_SIZE = 100;
 
 /** The destinations this post is already scheduled to (one row each, a
  * replaced publication left out): each can be customized after scheduling.
- * Renders nothing while the post has none. */
+ * Hidden without `tenant.posts.publish` (the rendition PUT/DELETE require it)
+ * and while the post has none; a failed load shows its failure instead of
+ * silently hiding the block. */
 export const ScheduledRenditionsBlock = ({
 	postId,
 	tenantId,
@@ -42,20 +51,49 @@ export const ScheduledRenditionsBlock = ({
 	isPostDirty: boolean;
 }) => {
 	const { t } = useTranslation(['posts']);
-	const [window] = useState(() => buildUpcomingPublicationWindow(new Date()));
+	const { hasPermission } = useTenantPermissions(tenantId);
+	const [scheduleWindow] = useState(() =>
+		buildUpcomingPublicationWindow(new Date()),
+	);
 	const [openId, setOpenId] = useState<string | null>(null);
-	const { rows } = useScheduledPublicationAllPages({
-		tenantId,
-		window,
-		initialSize: SCHEDULED_PAGE_SIZE,
-		statuses: CUSTOMIZABLE_STATUSES,
-	});
+	const { rows, isAggregating, shouldLogout, error, restart } =
+		useScheduledPublicationAllPages({
+			tenantId,
+			window: scheduleWindow,
+			initialSize: SCHEDULED_PAGE_SIZE,
+			statuses: CUSTOMIZABLE_STATUSES,
+		});
 	const own = rows.filter(
 		(row: ScheduledPublicationRow) => row.postId === postId && !row.superseded,
 	);
 
-	if (own.length === 0) {
+	if (!hasPermission(POSTS_PUBLISH)) {
 		return null;
+	}
+	if (shouldLogout) {
+		return <LogoutRedirect />;
+	}
+	if (error !== null) {
+		return (
+			<TenantReadOnlyCardError
+				onRetry={restart}
+				titleKey="common:list-unavailable-title"
+				descriptionKey="common:list-error-default-description"
+				error={error}
+				testId="tenant-posts-scheduled-destinations-error"
+			/>
+		);
+	}
+	if (own.length === 0) {
+		if (!isAggregating) {
+			return null;
+		}
+		return (
+			<Skeleton
+				className="h-9 w-full"
+				data-testid="tenant-posts-scheduled-destinations-loading"
+			/>
+		);
 	}
 
 	return (

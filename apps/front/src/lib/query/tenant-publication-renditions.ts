@@ -143,7 +143,8 @@ export const useSavePublicationRenditionMutation = () => {
 	});
 };
 
-/** `DELETE /posts/publications/{id}/rendition`: "Reset to shared". */
+/** `DELETE /posts/publications/{id}/rendition`: "Reset to shared". Like Save,
+ * the editor owns the feedback (inline note or failure). */
 export const useResetPublicationRenditionMutation = () => {
 	const queryClient = useQueryClient();
 
@@ -163,9 +164,6 @@ export const useResetPublicationRenditionMutation = () => {
 		},
 		onSuccess: (_data, variables) =>
 			invalidateTenantPublicationRenditions(queryClient, variables.tenantId),
-		meta: {
-			successMessage: 'publication-rendition-reset-success',
-			skipGlobalErrorHandler: true,
-		},
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	});
 };

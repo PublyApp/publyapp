@@ -24,6 +24,13 @@ const ACCOUNT_B = '01890a5d-ac96-774b-bcce-b302099a8058';
 
 const mocks = vi.hoisted(() => ({
 	rows: [] as unknown[],
+	canPublish: true,
+	walk: {
+		isAggregating: false,
+		shouldLogout: false,
+		error: null as Error | null,
+		restart: vi.fn(),
+	},
 	rendition: vi.fn(),
 	save: vi.fn(),
 	reset: vi.fn(),
@@ -39,13 +46,19 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 vi.mock('./_use-scheduled-publication-all-pages', () => ({
-	useScheduledPublicationAllPages: () => ({
-		rows: mocks.rows,
-		isAggregating: false,
-		shouldLogout: false,
-		error: null,
-		restart: vi.fn(),
+	useScheduledPublicationAllPages: () => ({ rows: mocks.rows, ...mocks.walk }),
+}));
+
+vi.mock('~/lib/query/tenant-permissions', () => ({
+	POSTS_PUBLISH: 'tenant.posts.publish',
+	useTenantPermissions: () => ({
+		permissions: [],
+		hasPermission: () => mocks.canPublish,
 	}),
+}));
+
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect" />,
 }));
 
 vi.mock('~/lib/query/tenant-publication-renditions', async (importActual) => ({
@@ -70,9 +83,11 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+import type { ComposerImage } from './_destination-media-field';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { ScheduledRenditionsBlock } from './_scheduled-renditions-block';
 import { newSegmentDraft } from './_segment-draft';
+import type { SegmentDraft } from './_segment-draft';
 import type { PublishSelection } from './_use-publish-selection';
 
 const LIMITS = {
@@ -138,18 +153,34 @@ const loaded = (rendition: {
 
 const SEGMENTS = [newSegmentDraft('A follow-up')];
 
-const renderBlock = (props: { isPostDirty?: boolean } = {}) =>
-	render(
-		<ScheduledRenditionsBlock
-			postId={POST_ID}
-			tenantId={TENANT_ID}
-			selection={SELECTION}
-			body="The shared body"
-			segments={SEGMENTS}
-			images={[]}
-			isPostDirty={props.isPostDirty ?? false}
-		/>,
-	);
+const IMAGES: ComposerImage[] = [
+	{ key: 'img-1', url: null, altText: '' },
+	{ key: 'img-2', url: null, altText: '' },
+];
+
+type BlockProps = {
+	isPostDirty?: boolean;
+	segments?: SegmentDraft[];
+	images?: ComposerImage[];
+};
+
+const blockOf = ({
+	isPostDirty = false,
+	segments = SEGMENTS,
+	images = [],
+}: BlockProps) => (
+	<ScheduledRenditionsBlock
+		postId={POST_ID}
+		tenantId={TENANT_ID}
+		selection={SELECTION}
+		body="The shared body"
+		segments={segments}
+		images={images}
+		isPostDirty={isPostDirty}
+	/>
+);
+
+const renderBlock = (props: BlockProps = {}) => render(blockOf(props));
 
 const openEditor = async (user: ReturnType<typeof userEvent.setup>) => {
 	await user.click(screen.getByTestId('tenant-posts-scheduled-customize'));
@@ -157,6 +188,10 @@ const openEditor = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 beforeEach(() => {
+	mocks.canPublish = true;
+	mocks.walk.isAggregating = false;
+	mocks.walk.shouldLogout = false;
+	mocks.walk.error = null;
 	mocks.rows = [rowOf('pub-a')];
 	mocks.save.mockResolvedValue(undefined);
 	mocks.reset.mockResolvedValue(undefined);
@@ -166,6 +201,95 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+});
+
+describe('ScheduledRenditionsBlock gating and load states', () => {
+	test('is hidden without tenant.posts.publish (the PUT/DELETE require it)', () => {
+		mocks.canPublish = false;
+		const { container } = renderBlock();
+
+		expect(container.innerHTML).toBe('');
+	});
+
+	test('a failed load shows its failure with a retry instead of hiding the block', async () => {
+		const user = userEvent.setup();
+		mocks.rows = [];
+		mocks.walk.error = new Error('request failed');
+		renderBlock();
+
+		expect(
+			screen.getByTestId('tenant-posts-scheduled-destinations-error'),
+		).toBeTruthy();
+		await user.click(screen.getByRole('button', { name: 'Retry' }));
+		expect(mocks.walk.restart).toHaveBeenCalledTimes(1);
+	});
+
+	test('an expired session logs out instead of rendering', () => {
+		mocks.walk.shouldLogout = true;
+		renderBlock();
+
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('shows a skeleton while the first rows are still loading', () => {
+		mocks.rows = [];
+		mocks.walk.isAggregating = true;
+		renderBlock();
+
+		expect(
+			screen.getByTestId('tenant-posts-scheduled-destinations-loading'),
+		).toBeTruthy();
+	});
+});
+
+describe('ScheduledRenditionsBlock stored overrides survive a round trip', () => {
+	test('a media override that inherits the post images is saved back without an explicit image list', async () => {
+		const user = userEvent.setup();
+		loaded({
+			customized: true,
+			segments: [],
+			media: {
+				assetIds: null,
+				altTexts: [{ assetId: 'img-1', altText: 'Described' }],
+			},
+		});
+		renderBlock({ images: IMAGES });
+		await openEditor(user);
+
+		await user.click(screen.getByTestId('tenant-posts-rendition-save'));
+
+		await waitFor(() => {
+			expect(mocks.save).toHaveBeenCalledTimes(1);
+		});
+		const { overrides } = mocks.save.mock.calls[0]?.[0];
+		// Later images keep flowing, and a text-only save never rewrites the media.
+		expect(overrides).toEqual({
+			media: { altTexts: [{ assetId: 'img-1', altText: 'Described' }] },
+		});
+		expect(overrides.media).not.toHaveProperty('assetIds');
+	});
+
+	test('a refetch that re-keys the shared segments keeps the stored follow-up override, and it is still sent', async () => {
+		const user = userEvent.setup();
+		loaded({
+			customized: true,
+			segments: [{ position: 1, text: 'Follow-up written for A' }],
+			media: null,
+		});
+		const view = renderBlock();
+		await openEditor(user);
+
+		// The shared segments come back with new ids (e.g. after a refetch).
+		view.rerender(blockOf({ segments: [newSegmentDraft('A follow-up')] }));
+		await user.click(screen.getByTestId('tenant-posts-rendition-save'));
+
+		await waitFor(() => {
+			expect(mocks.save).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.save.mock.calls[0]?.[0].overrides).toEqual({
+			segments: [{ position: 1, text: 'Follow-up written for A' }],
+		});
+	});
 });
 
 describe('ScheduledRenditionsBlock', () => {

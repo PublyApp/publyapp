@@ -74,6 +74,7 @@ const EN_LABELS: TestLabelMap = {
 	'publish-status-in-progress': 'In progress…',
 	'publish-status-paused': 'Paused',
 	'publish-status-failed': 'Failed',
+	'publish-status-published': 'Published',
 	'publish-status-failed-partial': 'Failed · {{published}}/{{total}} published',
 	'publication-superseded': 'Replaced',
 	'publication-customized': 'Customized',
@@ -590,6 +591,34 @@ describe('TenantPostsQueuePage', () => {
 		expect(
 			document.querySelectorAll('[data-superseded="true"]').length,
 		).toBeGreaterThan(0);
+	});
+
+	test('a replaced row that did publish keeps its own status instead of reading Replaced', async () => {
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-old-published',
+					postId: 'post-reissued',
+					postBodyPreview: 'Published then re-issued',
+					accountDisplayHandle: '@reissued.example',
+					status: 'published',
+					postStatus: 'scheduled',
+					publishedCount: 1,
+					destinationCount: 1,
+					superseded: true,
+					customized: false,
+					scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+					scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+
+		const [pill] = await screen.findAllByTestId('tenant-posts-status-pill');
+		expect(pill?.textContent).toBe('Published');
+		expect(screen.queryByTestId('tenant-posts-superseded-label')).toBeNull();
 	});
 
 	test('a customized destination row carries the Customized badge', async () => {
