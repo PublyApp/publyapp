@@ -39,6 +39,16 @@ describe('reconcileSegmentDrafts', () => {
 		);
 	});
 
+	test('prefers the draft at the same index when its text matches, then the first match', () => {
+		const previous = drafts(['p0', 'same'], ['p1', 'same']);
+
+		const [first, second] = reconcileSegmentDrafts(previous, ['z', 'same']);
+
+		expect(first?.text).toBe('z');
+		// Index 1 keeps its own draft, not the earlier identical one.
+		expect(second).toEqual({ id: 'p1', text: 'same' });
+	});
+
 	test('a first load (no previous drafts) gives every segment a fresh id', () => {
 		const [one, two] = reconcileSegmentDrafts([], ['A', 'B']);
 

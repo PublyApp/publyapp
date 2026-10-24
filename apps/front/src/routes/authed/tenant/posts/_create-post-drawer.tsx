@@ -101,7 +101,7 @@ export const CreatePostDrawer = ({
 	/**
 	 * Attaches the deferred images to the created post. Resolves the asset id
 	 * of each image (by its local id) when the handoff completed; null leaves
-	 * the handoff state holding exactly the images still to do with the
+	 * the handoff state holding the images (the attached ones marked) with the
 	 * surfaced cause, so the drawer offers the retry/discard actions.
 	 */
 	const tryAttach = async (
@@ -114,7 +114,16 @@ export const CreatePostDrawer = ({
 		}
 
 		setCreatedPostId(postId);
-		setDeferredImages(outcome.remaining);
+		// Every image stays in the list, the attached ones marked: a retry
+		// uploads only the rest, and a reorder or an image override still sees
+		// all of them.
+		setDeferredImages(
+			images.map((image) => ({
+				...image,
+				attachedAssetId:
+					outcome.assetIds.get(image.id) ?? image.attachedAssetId,
+			})),
+		);
 		setHandoffCause(outcome.cause);
 		return null;
 	};

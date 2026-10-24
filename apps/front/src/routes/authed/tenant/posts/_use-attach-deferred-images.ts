@@ -24,6 +24,8 @@ export type AttachDeferredImagesOutcome =
 			/** Exactly the images still to do; an attached image whose alt step
 			 * failed keeps its asset id so a retry never attaches it twice. */
 			remaining: DeferredImageSelection[];
+			/** Asset id by local id of every image attached before the failure. */
+			assetIds: ReadonlyMap<string, string>;
 			/** Plain-words cause (the server's problem detail when it sent one). */
 			cause: string;
 	  };
@@ -70,7 +72,9 @@ export const useAttachDeferredImages = (tenantId: string) => {
 			progress.assetIds.set(image.id, assetId);
 		}
 
-		if (image.altText.trim() && assetId) {
+		// An image attached earlier whose alt text was cleared since needs the
+		// empty alt sent too, or the server keeps the old one.
+		if (assetId && (image.altText.trim() || image.attachedAssetId)) {
 			await updateImageAlt.mutateAsync({
 				postId,
 				tenantId,
@@ -100,6 +104,7 @@ export const useAttachDeferredImages = (tenantId: string) => {
 			return {
 				ok: false,
 				remaining: progress.remaining,
+				assetIds: progress.assetIds,
 				cause:
 					getFailureMessage(toApiFailure(error), {
 						fallback: t('common:an-error-occurred'),

@@ -7,9 +7,16 @@ import {
 } from '~/lib/query/tenant-post-images';
 import { invalidateTenantPosts, savePost } from '~/lib/query/tenant-posts';
 
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
 import type { DeferredImageSelection } from './_post-image-picker';
 import type { SegmentDraft } from './_segment-draft';
 import type { PreparedPost } from './_use-publish-submit';
+
+const isNotFound = (error: unknown): boolean => {
+	const failure = toApiFailure(error);
+	return failure.kind === 'problem' && failure.status === 404;
+};
 
 type PostFormValues = {
 	body: string;
@@ -56,6 +63,40 @@ export const usePreparePublish = ({
 	// Attached images the user took out of the picker since: deleted from the
 	// created post on the next try.
 	const [removedAssetIds, setRemovedAssetIds] = useState<string[]>([]);
+	// The picker keys in the order the created post holds its images, or null
+	// when that is not known (an upload attempt failed part-way).
+	const [serverKeys, setServerKeys] = useState<string[] | null>(null);
+
+	/** A retry re-sends the picker order, but only when the post's own order
+	 * differs (or is unknown) and the list covers every attached image. */
+	const reorderIfNeeded = async (
+		postId: string,
+		keys: string[],
+		attached: ReadonlyMap<string, string>,
+	) => {
+		if (createdPostId === null || keys.length < 2) {
+			return;
+		}
+		// New images are appended by the upload, after the ones already there.
+		const expected =
+			serverKeys === null
+				? null
+				: [
+						...serverKeys.filter((key) => keys.includes(key)),
+						...keys.filter((key) => !serverKeys.includes(key)),
+					];
+		if (expected !== null && expected.join('|') === keys.join('|')) {
+			return;
+		}
+		const assetIds = keys.flatMap((key) => {
+			const assetId = attached.get(key);
+			return assetId === undefined ? [] : [assetId];
+		});
+		if (assetIds.length !== keys.length) {
+			return;
+		}
+		await reorderImages.mutateAsync({ postId, tenantId, assetIds });
+	};
 
 	/**
 	 * Brings the created post's images in line with the picker: deletes the
@@ -67,30 +108,35 @@ export const usePreparePublish = ({
 	const syncImages = async (
 		postId: string,
 	): Promise<ReadonlyMap<string, string> | null> => {
-		await Promise.all(
+		const deletions = await Promise.allSettled(
 			removedAssetIds.map((assetId) =>
 				removeImage.mutateAsync({ postId, tenantId, assetId }),
 			),
 		);
-		setRemovedAssetIds([]);
+		// Each id leaves the list as soon as its delete went through; a 404 means
+		// it is already gone. Only the failed ones are tried again.
+		const failed = deletions.flatMap((deletion, index) =>
+			deletion.status === 'rejected' && !isNotFound(deletion.reason)
+				? [{ assetId: removedAssetIds[index] ?? '', reason: deletion.reason }]
+				: [],
+		);
+		setRemovedAssetIds(failed.map((entry) => entry.assetId));
+		if (failed[0] !== undefined) {
+			throw failed[0].reason;
+		}
 		if (deferredImages.length === 0) {
+			setServerKeys([]);
 			return new Map();
 		}
 
 		const attached = await tryAttach(postId, deferredImages);
 		if (attached === null) {
+			setServerKeys(null);
 			return null;
 		}
-		if (createdPostId !== null && deferredImages.length > 1) {
-			await reorderImages.mutateAsync({
-				postId,
-				tenantId,
-				assetIds: deferredImages.flatMap((image) => {
-					const assetId = attached.get(image.id);
-					return assetId === undefined ? [] : [assetId];
-				}),
-			});
-		}
+		const keys = deferredImages.map((image) => image.id);
+		await reorderIfNeeded(postId, keys, attached);
+		setServerKeys(keys);
 		setDeferredImages(
 			deferredImages.map((image) => ({
 				...image,
@@ -154,6 +200,7 @@ export const usePreparePublish = ({
 		forget: () => {
 			setCreatedPostId(null);
 			setRemovedAssetIds([]);
+			setServerKeys(null);
 		},
 	};
 };

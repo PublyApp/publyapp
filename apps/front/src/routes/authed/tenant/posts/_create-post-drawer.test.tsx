@@ -331,6 +331,10 @@ const SECOND_FILE = new File(
 	},
 );
 
+const THIRD_FILE = new File([new Uint8Array([0x89, 0x50])], 'third.png', {
+	type: 'image/png',
+});
+
 const UNSUPPORTED_TYPE_PROBLEM = {
 	status: 422,
 	body: {
@@ -540,6 +544,117 @@ describe('CreatePostDrawer publish preparation (#2172)', () => {
 			});
 			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
 			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		});
+
+		test('clearing the alt text of an attached image clears it on the server too', async () => {
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+			mocks.altMutateAsync.mockClear();
+
+			setFieldValue('tenant-posts-create-image-alt', '');
+			await waitFor(() =>
+				expect(
+					(
+						screen.getByTestId(
+							'tenant-posts-create-image-alt',
+						) as HTMLInputElement
+					).value,
+				).toBe(''),
+			);
+			await prepareAgain();
+
+			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetId: 'asset-1',
+				altText: '',
+			});
+		});
+
+		test('a delete that failed is retried alone: ids already deleted (or already gone, 404) are not deleted again', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockResolvedValueOnce({ id: 'asset-2' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				SECOND_FILE,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+			);
+			await prepareAgain();
+
+			for (const button of screen.getAllByTestId(
+				'tenant-posts-create-image-remove',
+			)) {
+				await userEvent.click(button);
+			}
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toEqual([]),
+			);
+			// asset-1 deletes, asset-2 fails with a server error.
+			mocks.removeMutateAsync
+				.mockResolvedValueOnce(undefined)
+				.mockRejectedValueOnce({
+					responseStatusCode: 500,
+					body: { status: 500 },
+				});
+			await expect(prepareAgain()).rejects.toBeDefined();
+			expect(mocks.removeMutateAsync).toHaveBeenCalledTimes(2);
+			// Let the drawer commit the shortened list before the retry.
+			await act(async () => undefined);
+
+			// The retry deletes only the one that failed; a 404 counts as done.
+			mocks.removeMutateAsync.mockRejectedValueOnce({
+				responseStatusCode: 404,
+				body: { status: 404 },
+			});
+			const retried = await prepareAgain();
+
+			expect(mocks.removeMutateAsync).toHaveBeenCalledTimes(3);
+			expect(mocks.removeMutateAsync.mock.calls[2]?.[0].assetId).toBe(
+				'asset-2',
+			);
+			expect(retried?.postId).toBe('post-1');
+			// Nothing left to delete on the next try.
+			await prepareAgain();
+			expect(mocks.removeMutateAsync).toHaveBeenCalledTimes(3);
+		});
+
+		test('three images, the second upload fails: the retry keeps all three and reorders with every asset id', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM)
+				.mockResolvedValueOnce({ id: 'asset-2' })
+				.mockResolvedValueOnce({ id: 'asset-3' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				[SECOND_FILE, THIRD_FILE],
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(3),
+			);
+
+			expect(await prepareAgain()).toBeNull();
+			// The attached first image did not leave the list.
+			expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(3);
+			expect(mocks.reorderMutateAsync).not.toHaveBeenCalled();
+
+			const retried = await prepareAgain();
+
+			expect(retried?.assetIdByKey?.size).toBe(3);
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(4);
+			expect(mocks.reorderMutateAsync).toHaveBeenCalledTimes(1);
+			expect(mocks.reorderMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetIds: ['asset-1', 'asset-2', 'asset-3'],
+			});
 		});
 
 		test('a reorder keeps the post and sends the picker order', async () => {
