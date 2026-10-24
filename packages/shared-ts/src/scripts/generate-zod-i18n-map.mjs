@@ -113,6 +113,8 @@ for (const language of supportedLanguages) {
 			commonPrefixLength(sExpB, sExpC),
 		);
 		const fullTailLength = commonSuffixLength(sExpA, sExpB);
+		// Exact invariant tail every probed sentence must end with.
+		const expectedTail = sExpA.slice(sExpA.length - fullTailLength);
 		// The extracted tokens are the LOCALE-TRANSLATED type names, so they
 		// cannot be compared to the English sentinels. Validate structurally:
 		// three distinct, plausible type names (fr: "chaîne de caractères" is
@@ -125,6 +127,7 @@ for (const language of supportedLanguages) {
 		if (
 			expStart <= 0 ||
 			fullTailLength <= 0 ||
+			!sExpC.endsWith(expectedTail) ||
 			expTokens.some((t) => t.length < 2 || t.includes(',')) ||
 			new Set(expTokens).size !== 3
 		) {
@@ -202,12 +205,19 @@ for (const language of supportedLanguages) {
 		// the connector, the received word, and any trailing text.
 		const types = {};
 		for (const name of TYPE_NAMES) {
+			let tailMisaligned = false;
 			try {
 				const sentence = messageFor({
 					code: 'invalid_type',
 					expected: name,
 					input: 42,
 				});
+				if (!sentence.endsWith(expectedTail)) {
+					tailMisaligned = true;
+					throw new TypeError(
+						`${language}: types.${name} sentence does not end with the shared tail`,
+					);
+				}
 				const token = sentence.slice(
 					expStart,
 					sentence.length - fullTailLength,
@@ -216,7 +226,10 @@ for (const language of supportedLanguages) {
 					throw new TypeError(`implausible token "${token}"`);
 				}
 				types[name] = token;
-			} catch {
+			} catch (error) {
+				if (tailMisaligned) {
+					throw error;
+				}
 				console.warn(
 					`  ! types.${name}: skipped (${name} not translatable here)`,
 				);

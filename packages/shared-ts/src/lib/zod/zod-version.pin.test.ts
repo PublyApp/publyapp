@@ -22,15 +22,11 @@ describe('zod major version pin (#155)', () => {
 	});
 
 	test('reports string-format failures with the v4 issue code', () => {
-		// The deprecated chain method still exists under v4; the probe pins its
-		// RUNTIME behaviour instead of the compile-time-only `[Deprecated]`
-		// JSDoc marker (v3 emitted `invalid_string`, v4 emits `invalid_format`).
-		// Bracket access on an instance keeps the deprecated member out of this
-		// file's typed property-access positions (v4 installs chain methods as
-		// own instance properties).
-		// ZodString instances carry the chain methods (own properties up to
-		// zod 4.4, prototype methods since 4.6) even though the class type does not expose them; resolve the method at
-		// runtime instead of naming the deprecated member statically.
+		// The deprecated chain method still exists under v4; pin its RUNTIME behaviour
+		// instead of the compile-time-only `[Deprecated]` JSDoc marker (v3 emitted
+		// `invalid_string`, v4 emits `invalid_format`). ZodString instances carry the
+		// chain methods (own properties up to zod 4.4, prototype methods since 4.6)
+		// though the class type does not expose them, so read it through a loose view.
 		const probeInstance = z.string();
 		const chainView: { email?: unknown } = probeInstance;
 		const legacyChainMethod = chainView.email;
