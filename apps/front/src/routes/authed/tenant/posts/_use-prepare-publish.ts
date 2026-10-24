@@ -78,12 +78,14 @@ export const usePreparePublish = ({
 			return;
 		}
 		// New images are appended by the upload, after the ones already there.
+		const current = new Set(keys);
+		const known = new Set(serverKeys);
 		const expected =
 			serverKeys === null
 				? null
 				: [
-						...serverKeys.filter((key) => keys.includes(key)),
-						...keys.filter((key) => !serverKeys.includes(key)),
+						...serverKeys.filter((key) => current.has(key)),
+						...keys.filter((key) => !known.has(key)),
 					];
 		if (expected !== null && expected.join('|') === keys.join('|')) {
 			return;
