@@ -115,7 +115,8 @@ for (const language of supportedLanguages) {
 		const fullTailLength = commonSuffixLength(sExpA, sExpB);
 		// The extracted tokens are the LOCALE-TRANSLATED type names, so they
 		// cannot be compared to the English sentinels. Validate structurally:
-		// three distinct, plausible words at identical offsets.
+		// three distinct, plausible type names (fr: "chaîne de caractères" is
+		// multi-word since zod 4.6) at identical offsets.
 		const expTokens = [
 			sExpA.slice(expStart, sExpA.length - fullTailLength),
 			sExpB.slice(expStart, sExpB.length - fullTailLength),
@@ -124,9 +125,7 @@ for (const language of supportedLanguages) {
 		if (
 			expStart <= 0 ||
 			fullTailLength <= 0 ||
-			expTokens.some(
-				(t) => t.length < 2 || t.includes(',') || t.includes(' '),
-			) ||
+			expTokens.some((t) => t.length < 2 || t.includes(',')) ||
 			new Set(expTokens).size !== 3
 		) {
 			throw new TypeError(`${language}: expected-token probe misaligned`);

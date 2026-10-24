@@ -28,15 +28,12 @@ describe('zod major version pin (#155)', () => {
 		// Bracket access on an instance keeps the deprecated member out of this
 		// file's typed property-access positions (v4 installs chain methods as
 		// own instance properties).
-		const deprecatedFormatKey = ['e', 'mail'].join('');
-		// ZodString instances carry the chain methods as own properties even
-		// though the class type does not expose them; resolve the method at
+		// ZodString instances carry the chain methods (own properties up to
+		// zod 4.4, prototype methods since 4.6) even though the class type does not expose them; resolve the method at
 		// runtime instead of naming the deprecated member statically.
 		const probeInstance = z.string();
-		const legacyChainMethod = Object.getOwnPropertyDescriptor(
-			probeInstance,
-			deprecatedFormatKey,
-		)?.value;
+		const chainView: { email?: unknown } = probeInstance;
+		const legacyChainMethod = chainView.email;
 		if (!(legacyChainMethod instanceof Function)) {
 			throw new Error('chain-style string-format method is gone');
 		}
