@@ -5125,11 +5125,13 @@ export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem
     return {
         "accountDisplayHandle": n => { scheduledPublicationItem.accountDisplayHandle = n.getStringValue(); },
         "customized": n => { scheduledPublicationItem.customized = n.getBooleanValue(); },
+        "destinationCount": n => { scheduledPublicationItem.destinationCount = n.getNumberValue(); },
         "lastError": n => { scheduledPublicationItem.lastError = n.getStringValue(); },
         "postBodyPreview": n => { scheduledPublicationItem.postBodyPreview = n.getStringValue(); },
         "postId": n => { scheduledPublicationItem.postId = n.getGuidValue(); },
         "postStatus": n => { scheduledPublicationItem.postStatus = n.getStringValue(); },
         "publicationId": n => { scheduledPublicationItem.publicationId = n.getGuidValue(); },
+        "publishedCount": n => { scheduledPublicationItem.publishedCount = n.getNumberValue(); },
         "scheduledAtLocal": n => { scheduledPublicationItem.scheduledAtLocal = n.getStringValue(); },
         "scheduledAtUtc": n => { scheduledPublicationItem.scheduledAtUtc = n.getDateValue(); },
         "socialAccountId": n => { scheduledPublicationItem.socialAccountId = n.getGuidValue(); },
@@ -7704,6 +7706,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     customized?: boolean | null;
     /**
+     * Destinations of the post: its live (not soft-deleted) publications, excluding Failedones a newer publication of the same account replaced (a re-issued pair counts once).
+     */
+    destinationCount?: number | null;
+    /**
      * Sanitised, ≤ 2 KB, human-readable failure cause for Failed/Paused rows.Surfaces verbatim through the wire so the queue/calendar/history UI canshow a plain-words reason plus a truthful next action (transparentfailure cause). Null on every other status — the entity invariantclears the stored LastError on every non-failure transition. Alreadysanitised by LastErrorSanitiser before storage.
      */
     lastError?: string | null;
@@ -7723,6 +7729,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      * The publicationId property
      */
     publicationId?: Guid | null;
+    /**
+     * Destinations of the post that are published. Counted over the post's destinations:its live (not soft-deleted) publications, excluding Failed ones a newer publicationof the same account replaced. The post status stays `failed` when onedestination failed and another published; this count carries the detail.
+     */
+    publishedCount?: number | null;
     /**
      * The scheduledAtLocal property
      */
@@ -10057,11 +10067,13 @@ export function serializeScheduledPublicationItem(writer: SerializationWriter, s
     if (!scheduledPublicationItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("accountDisplayHandle", scheduledPublicationItem.accountDisplayHandle);
     writer.writeBooleanValue("customized", scheduledPublicationItem.customized);
+    writer.writeNumberValue("destinationCount", scheduledPublicationItem.destinationCount);
     writer.writeStringValue("lastError", scheduledPublicationItem.lastError);
     writer.writeStringValue("postBodyPreview", scheduledPublicationItem.postBodyPreview);
     writer.writeGuidValue("postId", scheduledPublicationItem.postId);
     writer.writeStringValue("postStatus", scheduledPublicationItem.postStatus);
     writer.writeGuidValue("publicationId", scheduledPublicationItem.publicationId);
+    writer.writeNumberValue("publishedCount", scheduledPublicationItem.publishedCount);
     writer.writeStringValue("scheduledAtLocal", scheduledPublicationItem.scheduledAtLocal);
     writer.writeDateValue("scheduledAtUtc", scheduledPublicationItem.scheduledAtUtc);
     writer.writeGuidValue("socialAccountId", scheduledPublicationItem.socialAccountId);

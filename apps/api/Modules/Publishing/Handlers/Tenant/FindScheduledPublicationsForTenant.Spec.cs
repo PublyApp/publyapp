@@ -134,6 +134,147 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		return doc.RootElement.Clone();
 	}
 
+	// Adds one more destination row to an existing post (a new account unless one is
+	// given), with an explicit CreatedAt so "newer replaces older" is deterministic.
+	private async Task<(Guid PublicationId, Guid AccountId)> _AddDestinationRowAsync(
+		Guid tenantId,
+		Guid postId,
+		PublicationStatus status,
+		DateTime scheduledAtUtc,
+		DateTime createdAtUtc,
+		Guid? accountId = null
+	) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var resolvedAccountId = accountId;
+		if (resolvedAccountId is null) {
+			var account = new SocialAccount {
+				TenantId = tenantId,
+				ExternalAccountId = "did:plc:" + Guid.NewGuid().ToString("N"),
+				DisplayHandle = "@dest." + Guid.NewGuid().ToString("N")[..5] + ".bsky.social",
+				ProtectedCredentials = "enc-spec-blob",
+			};
+			db.SocialAccount.Add(account);
+			await db.SaveChangesAsync();
+			resolvedAccountId = account.GetRequiredId();
+		}
+
+		var publication = new Publication {
+			TenantId = tenantId,
+			PostId = postId,
+			SocialAccountId = resolvedAccountId.Value,
+			Status = status,
+			ScheduledAtUtc = scheduledAtUtc,
+			ScheduledTimeZone = "Etc/UTC",
+			IdempotencyKey = "pending",
+			CreatedAt = createdAtUtc,
+		};
+		db.Publication.Add(publication);
+		await db.SaveChangesAsync();
+		return (publication.GetRequiredId(), resolvedAccountId.Value);
+	}
+
+	private async Task<List<JsonElement>> _FindRowsOfPostAsync(
+		Guid tenantId,
+		string token,
+		Guid postId,
+		string from,
+		string to
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			$"{FindScheduledPublicationsForTenantSpec._FindUrl}?from={from}&to={to}"
+			+ "&status=published,failed"
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await FindScheduledPublicationsForTenantSpec._GetJsonAsync(response);
+		return doc.GetProperty("data")
+			.EnumerateArray()
+			.Where(row => row.GetProperty("postId").GetString() == postId.ToString())
+			.ToList();
+	}
+
+	[Fact]
+	public async Task ItShouldKeepFailedAndReportOnePublishedOfTwoDestinationsForAMixedPost() {
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+		var created = new DateTime(2098, 11, 1, 8, 0, 0, DateTimeKind.Utc);
+		var published = await this._CreateScheduledRowAsync(
+			tenantId,
+			"counts mixed post",
+			new DateTime(2098, 11, 3, 9, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Published
+		);
+		var failed = await this._AddDestinationRowAsync(
+			tenantId,
+			published.PostId,
+			PublicationStatus.Failed,
+			new DateTime(2098, 11, 3, 9, 5, 0, DateTimeKind.Utc),
+			created
+		);
+
+		var rows = await this._FindRowsOfPostAsync(
+			tenantId, token, published.PostId, "2098-11-01T00%3A00%3A00Z", "2098-12-01T00%3A00%3A00Z"
+		);
+
+		rows.Should().HaveCount(2);
+		rows.Select(row => row.GetProperty("publicationId").GetString())
+			.Should().BeEquivalentTo(
+				[published.PublicationId.ToString(), failed.PublicationId.ToString()]
+			);
+		foreach (var row in rows) {
+			row.GetProperty("postStatus").GetString().Should().Be("failed");
+			row.GetProperty("publishedCount").GetInt32().Should().Be(1);
+			row.GetProperty("destinationCount").GetInt32().Should().Be(2);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldDeriveFailedNoMoreOnceAReissuedFailedPairIsPublished() {
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+		var failedAt = new DateTime(2098, 9, 1, 8, 0, 0, DateTimeKind.Utc);
+		var superseded = await this._CreateScheduledRowAsync(
+			tenantId,
+			"counts reissued post",
+			new DateTime(2098, 9, 3, 9, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Failed
+		);
+		// The same pair re-issued later (a failed pair releases the unique index) and
+		// published; a second destination published on the first try.
+		var reissued = await this._AddDestinationRowAsync(
+			tenantId,
+			superseded.PostId,
+			PublicationStatus.Published,
+			new DateTime(2098, 9, 3, 9, 30, 0, DateTimeKind.Utc),
+			failedAt.AddHours(1),
+			superseded.AccountId
+		);
+
+		var rows = await this._FindRowsOfPostAsync(
+			tenantId, token, superseded.PostId, "2098-09-01T00%3A00%3A00Z", "2098-10-01T00%3A00%3A00Z"
+		);
+
+		rows.Select(row => row.GetProperty("publicationId").GetString())
+			.Should().BeEquivalentTo(
+				[superseded.PublicationId.ToString(), reissued.PublicationId.ToString()]
+			);
+		foreach (var row in rows) {
+			row.GetProperty("postStatus").GetString().Should().Be("published");
+			row.GetProperty("publishedCount").GetInt32().Should().Be(1);
+			row.GetProperty("destinationCount").GetInt32().Should().Be(1);
+		}
+	}
+
 	[Fact]
 	public async Task ItShouldReturnScheduledRowsInWindowOrderedByInstant() {
 		var tenantId = await this._GetAcmeIdAsync();

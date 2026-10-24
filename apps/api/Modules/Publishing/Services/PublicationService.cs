@@ -93,6 +93,18 @@ public sealed class ScheduledPublicationItem {
 	public required Guid PostId { get; init; }
 	public required string PostBodyPreview { get; init; }
 	public required string PostStatus { get; init; }
+	/// <summary>
+	/// Destinations of the post that are published. Counted over the post's destinations:
+	/// its live (not soft-deleted) publications, excluding Failed ones a newer publication
+	/// of the same account replaced. The post status stays <c>failed</c> when one
+	/// destination failed and another published; this count carries the detail.
+	/// </summary>
+	public required int PublishedCount { get; init; }
+	/// <summary>
+	/// Destinations of the post: its live (not soft-deleted) publications, excluding Failed
+	/// ones a newer publication of the same account replaced (a re-issued pair counts once).
+	/// </summary>
+	public required int DestinationCount { get; init; }
 	// True when this destination overrides part of the post's content (#2172).
 	public required bool Customized { get; init; }
 	public required Guid SocialAccountId { get; init; }
@@ -873,11 +885,14 @@ public sealed class PublicationService : IPublicationService {
 				cancellationToken
 			);
 
-		var postStatuses = await (
+		// EVERY row of the posts, soft-deleted included: a soft-deleted newer row still
+		// supersedes an older failure (PublicationSupersession).
+		var publicationsByPost = (await (
 			from p in this._DbContext.Publication.AsNoTracking()
-			where postIds.Contains(p.PostId) && !p.IsDeleted
+			where p.TenantId == args.TenantId && postIds.Contains(p.PostId)
 			select p
-		).ToListAsync(cancellationToken);
+		).ToListAsync(cancellationToken))
+			.ToLookup(p => p.PostId);
 
 		var items = new List<ScheduledPublicationItem>(rows.Count);
 		foreach (var row in rows) {
@@ -888,11 +903,7 @@ public sealed class PublicationService : IPublicationService {
 				: string.Empty;
 			var hasRendition = renditionTexts.TryGetValue(publication.GetRequiredId(), out var textsJson);
 			var body = RenditionResolver.EffectiveRootText(sourceBody, textsJson);
-			var derived = PostStatusDerivation.Derive(
-				postStatuses
-					.Where(s => s.PostId == postId)
-					.ToList()
-			);
+			var summary = PostStatusDerivation.Summarize(publicationsByPost[postId].ToList());
 
 			items.Add(new ScheduledPublicationItem {
 				PublicationId = publication.GetRequiredId(),
@@ -900,7 +911,9 @@ public sealed class PublicationService : IPublicationService {
 				PostBodyPreview = body.Length <= PublicationService._BodyPreviewMaxLength
 					? body
 					: body[..PublicationService._BodyPreviewMaxLength],
-				PostStatus = PostStatusDerivation.FormatPostStatus(derived),
+				PostStatus = PostStatusDerivation.FormatPostStatus(summary.Status),
+				PublishedCount = summary.PublishedCount,
+				DestinationCount = summary.DestinationCount,
 				Customized = hasRendition,
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = row.AccountHandle ?? string.Empty,

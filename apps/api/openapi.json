@@ -19362,6 +19362,8 @@
           "postId",
           "postBodyPreview",
           "postStatus",
+          "publishedCount",
+          "destinationCount",
           "customized",
           "socialAccountId",
           "accountDisplayHandle",
@@ -19385,6 +19387,18 @@
           },
           "postStatus": {
             "type": "string"
+          },
+          "publishedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Destinations of the post that are published. Counted over the post's destinations:\nits live (not soft-deleted) publications, excluding Failed ones a newer publication\nof the same account replaced. The post status stays `failed` when one\ndestination failed and another published; this count carries the detail.",
+            "format": "int32"
+          },
+          "destinationCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Destinations of the post: its live (not soft-deleted) publications, excluding Failed\nones a newer publication of the same account replaced (a re-issued pair counts once).",
+            "format": "int32"
           },
           "customized": {
             "type": "boolean"
