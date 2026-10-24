@@ -596,6 +596,7 @@
 	"publish-now": "Publish now",
 	"publish-now-success": "Publishing started",
 	"publication-retry-success": "Retry started",
+	"publication-rendition-reset-success": "Content reset to the shared post",
 	"publication-mark-published-success": "Marked as published",
 	"forbidden": "Forbidden",
 	"no-permission": "No permission",

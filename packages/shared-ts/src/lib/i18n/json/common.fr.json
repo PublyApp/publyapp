@@ -596,6 +596,7 @@
 	"publish-now": "Publier maintenant",
 	"publish-now-success": "Publication lancée",
 	"publication-retry-success": "Nouvelle tentative lancée",
+	"publication-rendition-reset-success": "Contenu réinitialisé sur le billet partagé",
 	"publication-mark-published-success": "Marquée comme publiée",
 	"forbidden": "Interdit",
 	"no-permission": "Pas de permission",
