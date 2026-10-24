@@ -13,7 +13,12 @@ import {
 import type { DeferredImageSelection } from './_post-image-picker';
 
 export type AttachDeferredImagesOutcome =
-	| { ok: true }
+	| {
+			ok: true;
+			/** Asset id by the picked image's local id: a destination's image
+			 * override refers to an image by its local id until it exists. */
+			assetIds: ReadonlyMap<string, string>;
+	  }
 	| {
 			ok: false;
 			/** Exactly the images still to do; an attached image whose alt step
@@ -38,7 +43,10 @@ export const useAttachDeferredImages = (tenantId: string) => {
 	const attachInOrder = async (
 		postId: string,
 		images: DeferredImageSelection[],
-		progress: { remaining: DeferredImageSelection[] },
+		progress: {
+			remaining: DeferredImageSelection[];
+			assetIds: Map<string, string>;
+		},
 	): Promise<void> => {
 		const [image, ...rest] = images;
 		if (!image) {
@@ -56,6 +64,10 @@ export const useAttachDeferredImages = (tenantId: string) => {
 			progress.remaining = progress.remaining.map((entry) =>
 				entry.id === image.id ? { ...entry, attachedAssetId: assetId } : entry,
 			);
+		}
+
+		if (assetId) {
+			progress.assetIds.set(image.id, assetId);
 		}
 
 		if (image.altText.trim() && assetId) {
@@ -77,10 +89,13 @@ export const useAttachDeferredImages = (tenantId: string) => {
 		postId: string,
 		images: DeferredImageSelection[],
 	): Promise<AttachDeferredImagesOutcome> => {
-		const progress = { remaining: images };
+		const progress = {
+			remaining: images,
+			assetIds: new Map<string, string>(),
+		};
 		try {
 			await attachInOrder(postId, images, progress);
-			return { ok: true };
+			return { ok: true, assetIds: progress.assetIds };
 		} catch (error) {
 			return {
 				ok: false,

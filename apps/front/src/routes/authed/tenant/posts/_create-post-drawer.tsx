@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -24,6 +24,7 @@ import {
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { ComposerDestinations } from './_composer-destinations';
 import { PostBodyCounter } from './_post-body-counter';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
@@ -31,6 +32,7 @@ import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
 import { NO_SEGMENTS } from './_segment-draft';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
+import { useDestinationOverrides } from './_use-destination-overrides';
 import { usePublishSelection } from './_use-publish-selection';
 
 const getSchema = (t: (k: string) => string) =>
@@ -157,11 +159,7 @@ export const CreatePostDrawer = ({
 	);
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
-	const followUps = useMemo(
-		() =>
-			Array.isArray(segments) ? segments.map((segment) => segment.text) : [],
-		[segments],
-	);
+	const destinationOverrides = useDestinationOverrides();
 
 	const deferredAttach = useAttachDeferredImages(tenantId);
 
@@ -185,30 +183,31 @@ export const CreatePostDrawer = ({
 	};
 
 	/**
-	 * Attaches the deferred images to the created post. Resolves true when the
-	 * handoff completed; false leaves the handoff state holding exactly the
-	 * images still to do with the surfaced cause, so the drawer offers the
-	 * retry/discard actions.
+	 * Attaches the deferred images to the created post. Resolves the asset id
+	 * of each image (by its local id) when the handoff completed; null leaves
+	 * the handoff state holding exactly the images still to do with the
+	 * surfaced cause, so the drawer offers the retry/discard actions.
 	 */
 	const tryAttach = async (
 		postId: string,
 		images: DeferredImageSelection[],
-	): Promise<boolean> => {
+	): Promise<ReadonlyMap<string, string> | null> => {
 		const outcome = await deferredAttach.attachAll(postId, images);
 		if (outcome.ok) {
-			return true;
+			return outcome.assetIds;
 		}
 
 		setCreatedPostId(postId);
 		setDeferredImages(outcome.remaining);
 		setHandoffCause(outcome.cause);
-		return false;
+		return null;
 	};
 
 	const completeAndClose = async () => {
 		setDeferredImages([]);
 		setCreatedPostId(null);
 		setHandoffCause('');
+		destinationOverrides.resetAll();
 		await invalidateTenantPosts(qc, tenantId);
 		methods.reset();
 		onOpenChange(false);
@@ -237,7 +236,7 @@ export const CreatePostDrawer = ({
 			// does not exist yet; it is attached right after creation.
 			if (deferredImages.length > 0) {
 				const attached = await tryAttach(created.id, deferredImages);
-				if (!attached) {
+				if (attached === null) {
 					// The post was created and stays consistent (it keeps the
 					// images that did attach); the drawer stays open on the
 					// handoff surface naming the cause with the retry/discard
@@ -280,7 +279,7 @@ export const CreatePostDrawer = ({
 		}
 		setHandoffCause('');
 		const attached = await tryAttach(createdPostId, deferredImages);
-		if (attached) {
+		if (attached !== null) {
 			await completeAndClose();
 		}
 	};
@@ -291,6 +290,7 @@ export const CreatePostDrawer = ({
 		// saved draft visible immediately.
 		setHandoffCause('');
 		setCreatedPostId(null);
+		destinationOverrides.resetAll();
 		void invalidateTenantPosts(qc, tenantId);
 		methods.reset();
 		onOpenChange(false);
@@ -301,6 +301,7 @@ export const CreatePostDrawer = ({
 	const handleOpenChange = (o: boolean) => {
 		if (!o) {
 			setDeferredImages([]);
+			destinationOverrides.resetAll();
 		}
 		onOpenChange(o);
 	};
@@ -365,14 +366,26 @@ export const CreatePostDrawer = ({
 								limits={selection.imageLimits}
 							/>
 						)}
+						<ComposerDestinations
+							selection={selection}
+							destinationOverrides={destinationOverrides}
+							body={body}
+							segments={segments}
+							images={deferredImages.map((image) => ({
+								key: image.id,
+								url: null,
+								altText: image.altText,
+							}))}
+						/>
 					</DrawerBody>
 					<DrawerFooter>
 						<div className="w-full space-y-3">
 							<PublishOnBlock
 								selection={selection}
+								destinationOverrides={destinationOverrides}
 								body={body}
-								followUps={followUps}
-								imageCount={deferredImages.length}
+								segments={segments}
+								imageKeys={deferredImages.map((image) => image.id)}
 								onBeforePublish={async () => {
 									const values = methods.getValues();
 									await methods.trigger();
@@ -387,15 +400,18 @@ export const CreatePostDrawer = ({
 										tenantId,
 									});
 									// Picked images belong on the post BEFORE it is published,
-									// or the publication would go out without them.
+									// or the publication would go out without them. Their asset
+									// ids let a destination's image override name them.
+									let assetIdByKey: ReadonlyMap<string, string> = new Map();
 									if (deferredImages.length > 0) {
 										const attached = await tryAttach(
 											details.id,
 											deferredImages,
 										);
-										if (!attached) {
+										if (attached === null) {
 											return null;
 										}
+										assetIdByKey = attached;
 										setDeferredImages([]);
 									}
 									await invalidateTenantPosts(qc, tenantId);
@@ -404,7 +420,7 @@ export const CreatePostDrawer = ({
 										projectId: details.projectId,
 										segments: values.segments,
 									});
-									return details.id;
+									return { postId: details.id, assetIdByKey };
 								}}
 							/>
 							<CreatePostActions

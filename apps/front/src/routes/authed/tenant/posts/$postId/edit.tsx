@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -36,10 +36,11 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 
 import { PostBodyCounter } from '../_post-body-counter';
 import { PostDangerZone } from '../_post-danger-zone';
-import { PostImagePicker } from '../_post-image-picker';
+import { PostEditDestinations } from '../_post-edit-destinations';
+import { PostEditSideColumn } from '../_post-edit-side-column';
 import { PostSegmentsEditor } from '../_post-segments-editor';
-import { PublishOnBlock } from '../_publish-on-block';
 import { NO_SEGMENTS, newSegmentDraft } from '../_segment-draft';
+import { useDestinationOverrides } from '../_use-destination-overrides';
 import { usePublishSelection } from '../_use-publish-selection';
 
 const getSchema = (t: (k: string) => string) =>
@@ -77,10 +78,7 @@ const TenantPostEditPage = () => {
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
-	const followUps = useMemo(
-		() => segments.map((segment) => segment.text),
-		[segments],
-	);
+	const destinationOverrides = useDestinationOverrides();
 	// `formState.isSubmitting` covers the whole async handleSubmit callback.
 	const isSaving = methods.formState.isSubmitting;
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
@@ -300,28 +298,26 @@ const TenantPostEditPage = () => {
 										</Button>
 									</FormActionBar>
 								</Form>
+								<PostEditDestinations
+									selection={selection}
+									destinationOverrides={destinationOverrides}
+									body={body}
+									segments={segments}
+									images={details.images}
+								/>
 								<PostDangerZone
 									onMoveToBin={() => setPendingBinId(details.id)}
 								/>
 							</div>
-							<div
-								className="space-y-4 lg:col-span-4"
-								data-testid="tenant-post-edit-reserved-side-column"
-							>
-								<PostImagePicker
-									postId={postId}
-									tenantId={tenantId ?? ''}
-									existingImages={details.images}
-									limits={selection.imageLimits}
-								/>
-								<PublishOnBlock
-									selection={selection}
-									postId={postId}
-									body={body}
-									followUps={followUps}
-									imageCount={details.images.length}
-								/>
-							</div>
+							<PostEditSideColumn
+								postId={postId}
+								tenantId={tenantId ?? ''}
+								selection={selection}
+								destinationOverrides={destinationOverrides}
+								body={body}
+								segments={segments}
+								images={details.images}
+							/>
 						</div>
 						{blocker.status === 'blocked' ? (
 							<ConfirmDialog

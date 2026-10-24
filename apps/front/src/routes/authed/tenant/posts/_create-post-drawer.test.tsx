@@ -13,6 +13,18 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	/** The props the publish block was last rendered with. */
+	publishBlockProps: {
+		current: undefined as
+			| {
+					imageKeys?: string[];
+					onBeforePublish?: () => Promise<{
+						postId: string;
+						assetIdByKey?: ReadonlyMap<string, string>;
+					} | null>;
+			  }
+			| undefined,
+	},
 	attachMutateAsync: vi.fn(),
 	removeMutateAsync: vi.fn(),
 	reorderMutateAsync: vi.fn(),
@@ -62,9 +74,27 @@ vi.mock('@tanstack/react-query', () => ({
 // These tests cover the deferred image handoff, not publishing, so a static
 // stub keeps the suite focused (same pattern as the edit page's suite).
 vi.mock('./_publish-on-block', () => ({
-	PublishOnBlock: ({ body }: { body?: string }) => (
-		<span data-testid="stub-publish-on-body-length">{body?.length ?? 0}</span>
-	),
+	PublishOnBlock: (props: {
+		body?: string;
+		imageKeys?: string[];
+		onBeforePublish?: () => Promise<{
+			postId: string;
+			assetIdByKey?: ReadonlyMap<string, string>;
+		} | null>;
+	}) => {
+		mocks.publishBlockProps.current = props;
+		return (
+			<span data-testid="stub-publish-on-body-length">
+				{props.body?.length ?? 0}
+			</span>
+		);
+	},
+}));
+
+// The destination chips and tab pull their own queries; the deferred image
+// handoff is what this suite covers.
+vi.mock('./_composer-destinations', () => ({
+	ComposerDestinations: () => <div data-testid="stub-composer-destinations" />,
 }));
 
 vi.mock('./_use-publish-selection', () => ({
@@ -146,13 +176,15 @@ vi.mock('react-hook-form', () => {
 					},
 				};
 			},
+			getValues: () => ({ ...rhf.snapshot(), segments: [] }),
+			trigger: async () => true,
 			handleSubmit:
 				(onValid: (values: Record<string, unknown>) => void | Promise<void>) =>
 				(event?: Event) => {
 					event?.preventDefault();
 					void onValid({ ...rhf.snapshot(), segments: [] });
 				},
-			formState: { errors: rhf.errors, isSubmitting: false },
+			formState: { errors: rhf.errors, isSubmitting: false, isValid: true },
 			// D2's "Publish on" block receives the selected project through
 			// useForm().watch, so the double must expose it even though this
 			// suite stubs the block component itself.
@@ -362,6 +394,53 @@ describe('CreatePostDrawer provider limit counter (#2169)', () => {
 			(screen.getByTestId('tenant-posts-create-save') as HTMLButtonElement)
 				.disabled,
 		).toBe(false);
+	});
+});
+
+describe('CreatePostDrawer publish preparation (#2172)', () => {
+	test('saves the draft, uploads the picked images, and hands back the asset id of each picked image by its local key', async () => {
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+		const props = mocks.publishBlockProps.current;
+		// Before the post exists an image is named by its local id.
+		const [localKey] = props?.imageKeys ?? [];
+		expect(localKey).toBeTruthy();
+
+		const prepared = await props?.onBeforePublish?.();
+
+		expect(mocks.savePost).toHaveBeenCalledWith(
+			expect.objectContaining({ body: 'publish body', tenantId: 'tenant-1' }),
+		);
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		expect(prepared).toEqual({
+			postId: 'post-1',
+			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
+		});
+	});
+
+	test('aborts the publish (null) when an image cannot be attached, leaving the handoff to retry', async () => {
+		mocks.attachMutateAsync.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM);
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+
+		const prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(prepared).toBeNull();
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-handoff'),
+			).toBeTruthy(),
+		);
+	});
+
+	test('a text-only draft needs no upload and hands back no asset ids', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'text only');
+
+		const prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		expect(prepared).toEqual({ postId: 'post-1', assetIdByKey: new Map() });
 	});
 });
 

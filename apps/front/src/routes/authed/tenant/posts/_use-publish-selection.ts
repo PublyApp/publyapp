@@ -41,13 +41,17 @@ const toImageLimits = (
 	return common;
 };
 
+/** A selected destination: its account id (the key of its overrides), its
+ * label and the limits the server advertised for it. */
+export type SelectedDestination = LimitedDestination & { id: string };
+
 export type PublishSelection = {
 	targets: TenantPublishTarget[];
 	selectedIds: string[];
 	toggle: (id: string, checked: boolean) => void;
 	/** The SELECTED destinations with their limits: what every live counter
 	 * (body, thread segments) measures against. */
-	destinations: LimitedDestination[];
+	destinations: SelectedDestination[];
 	/** Image caps shared by the selected destinations, else the server's
 	 * attach-time caps; null only before the targets have loaded. */
 	imageLimits: ImageLimits | null;
@@ -87,7 +91,13 @@ export const usePublishSelection = (
 		const selected = new Set(selectedIds);
 		return targets.flatMap((target) =>
 			selected.has(target.id) && target.limits
-				? [{ label: target.label ?? target.provider, limits: target.limits }]
+				? [
+						{
+							id: target.id,
+							label: target.label ?? target.provider,
+							limits: target.limits,
+						},
+					]
 				: [],
 		);
 	}, [targets, selectedIds]);

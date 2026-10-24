@@ -144,7 +144,7 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 			status: d.status ?? null,
 			createdAt: null,
 			updatedAt: null,
-			images: [],
+			images: (d.images as unknown[]) ?? [],
 			segments: (d.segments as unknown[]) ?? [],
 			publishedSegmentCount: (d.publishedSegmentCount as number) ?? 0,
 		};
@@ -183,6 +183,24 @@ vi.mock('../_use-publish-selection', () => ({
 
 vi.mock('../_publish-on-block', () => ({
 	PublishOnBlock: () => <div data-testid="publish-on-block-stub" />,
+}));
+
+// The destination chips pull their own queries; this suite only asserts what
+// the page hands them.
+vi.mock('../_composer-destinations', () => ({
+	ComposerDestinations: ({
+		body,
+		images,
+	}: {
+		body: string;
+		images: { key: string }[];
+	}) => (
+		<div
+			data-testid="composer-destinations-stub"
+			data-body={body}
+			data-image-keys={images.map((image) => image.key).join(',')}
+		/>
+	),
 }));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
@@ -331,6 +349,35 @@ describe('TenantPostEditPage', () => {
 		render(<TenantPostEditPage />);
 
 		expect(screen.getByTestId('publish-on-block-stub')).toBeTruthy();
+	});
+
+	test('hands the destinations the post images, keyed by asset id', () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+				images: [
+					{ id: 'asset-1', url: 'https://files.example/1.png', altText: 'One' },
+					{ id: null, url: 'https://files.example/2.png', altText: null },
+					{ id: 'asset-3', url: 'https://files.example/3.png', altText: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+
+		render(<TenantPostEditPage />);
+
+		const destinations = screen.getByTestId('composer-destinations-stub');
+		// An image with no asset id cannot be named by an override: it is left out.
+		expect(destinations.getAttribute('data-image-keys')).toBe(
+			'asset-1,asset-3',
+		);
 	});
 
 	test('save submission refreshes the post list and scheduled-publication surfaces for the tenant', async () => {

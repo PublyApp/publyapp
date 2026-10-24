@@ -20,6 +20,7 @@ const POST_ID = 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	mutationFn: vi.fn(),
+	scheduleFn: vi.fn(),
 	invalidateTenantPublications: vi.fn().mockResolvedValue(undefined),
 	useTenantPermissions: vi.fn(),
 	useTargetsQuery: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock('~/lib/query/tenant-publish-targets', () => ({
 
 vi.mock('~/lib/query/tenant-publications', () => ({
 	publishNowMutation: { mutationFn: mocks.mutationFn },
+	schedulePostMutation: { mutationFn: mocks.scheduleFn },
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 
@@ -53,6 +55,12 @@ vi.mock('@tanstack/react-router', () => ({
 
 const EN_LABELS: TestLabelMap = {
 	'posts:publish-on-heading': 'Publish on',
+	'posts:destination-customize': 'Customize',
+	'posts:destination-customize-aria': 'Customize for {{destination}}',
+	'posts:schedule-label': 'Schedule for',
+	'posts:schedule-submit': 'Schedule',
+	'posts:schedule-past': 'Pick a date and time in the future.',
+	'posts:publish-now-too-many-destinations': 'At most {{max}} at once',
 	'posts:publish-on-empty': 'No connected profile to publish to yet.',
 	'common:publish-now': 'Publish now',
 	'common:an-error-occurred': 'An error occurred',
@@ -72,7 +80,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 // eslint-disable-next-line import/first
+import { DestinationChips } from './_destination-chips';
 import { PublishOnBlock } from './_publish-on-block';
+import { newSegmentDraft } from './_segment-draft';
+import { useDestinationOverrides } from './_use-destination-overrides';
 import { usePublishSelection } from './_use-publish-selection';
 
 const allowPermission = (allowed: boolean) => {
@@ -191,14 +202,25 @@ type BlockProps = {
 
 const BlockHarness = ({ postId, body, followUps, imageCount }: BlockProps) => {
 	const selection = usePublishSelection(null);
+	const destinationOverrides = useDestinationOverrides();
 	return (
-		<PublishOnBlock
-			selection={selection}
-			postId={postId ?? POST_ID}
-			body={body}
-			followUps={followUps}
-			imageCount={imageCount}
-		/>
+		<>
+			<DestinationChips
+				selection={selection}
+				overrides={destinationOverrides}
+			/>
+			<PublishOnBlock
+				selection={selection}
+				destinationOverrides={destinationOverrides}
+				postId={postId ?? POST_ID}
+				body={body}
+				segments={followUps?.map((text) => newSegmentDraft(text))}
+				imageKeys={Array.from(
+					{ length: imageCount ?? 0 },
+					(_, index) => `image-${index}`,
+				)}
+			/>
+		</>
 	);
 };
 
@@ -379,7 +401,7 @@ describe('PublishOnBlock', () => {
 		});
 		expect(mocks.mutationFn).toHaveBeenCalledWith({
 			postId: POST_ID,
-			accountIds: [TARGET_B],
+			destinations: [{ socialAccountId: TARGET_B }],
 			tenantId: TENANT_ID,
 		});
 		await waitFor(() => {
