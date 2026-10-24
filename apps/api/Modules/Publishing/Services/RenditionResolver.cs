@@ -54,10 +54,10 @@ public abstract record StageRenditionsResult {
 	// A request override would change a segment the failed publication already sent.
 	public sealed record SegmentsLocked : StageRenditionsResult;
 
-	// An inherited (copied) rendition no longer fits the post (e.g. a removed image).
+	// A destination's overrides (sent or inherited) no longer fit the post (e.g. a removed image).
 	public sealed record OverridesInvalid(RenditionOverrideFailure Failure) : StageRenditionsResult;
 
-	// An inherited rendition breaks the destination's provider limits.
+	// The content a destination would publish breaks its provider limits.
 	public sealed record ContentInvalid(PublishContentFailure Failure) : StageRenditionsResult;
 }
 
@@ -172,12 +172,16 @@ public static class RenditionResolver {
 	}
 
 	/// <summary>
-	/// Stages the rendition rows of freshly created publications. A fresh publication that
-	/// carried published segments over from a failed one (<paramref name="carried"/>)
-	/// inherits that publication's rendition when it has no overrides of its own, and its
-	/// own overrides may not change what those segments were sent with. An INHERITED
-	/// rendition is validated like a request override — against the post as it is now and
-	/// the destination's limits — because the post may have changed since it was stored.
+	/// Resolves what each freshly created publication will REALLY publish and stages its
+	/// rendition row. A fresh publication that carried published segments over from a
+	/// failed one (<paramref name="carried"/>) inherits that publication's rendition when it
+	/// has no overrides of its own, and its own overrides may not change what those segments
+	/// were sent with. Every destination's effective content (request overrides, else the
+	/// inherited rendition, else the shared post) is validated here exactly once — structure
+	/// first, then the destination's limits — so a refusal always names the content that
+	/// would actually go out. The carried source rows are locked <c>FOR SHARE</c> first, so
+	/// a concurrent edit of a source rendition either lands before this read or waits and
+	/// then finds the publication superseded; this must run inside the caller's transaction.
 	/// Anything but <see cref="StageRenditionsResult.Staged"/> means the caller must not
 	/// save (and must clear the tracker: rows may already be staged).
 	/// </summary>
@@ -189,34 +193,43 @@ public static class RenditionResolver {
 		IReadOnlyDictionary<Guid, (Guid SourcePublicationId, int Carried)> carried,
 		CancellationToken cancellationToken
 	) {
+		var sourceIds = carried.Values
+			.Select(entry => entry.SourcePublicationId)
+			.Distinct()
+			.ToList();
+		if (sourceIds.Count > 0) {
+			// Ordered by id so two re-issues locking the same rows cannot deadlock.
+			_ = await db.Database
+				.SqlQuery<Guid>($"""
+					SELECT id AS "Value" FROM publications
+					WHERE id = ANY({sourceIds}) AND tenant_id = {tenantId}
+					ORDER BY id
+					FOR SHARE
+					""")
+				.ToListAsync(cancellationToken);
+		}
+
 		var previous = await RenditionResolver.LoadOverridesAsync(
-			db,
-			tenantId,
-			carried.Values.Select(entry => entry.SourcePublicationId).ToList(),
-			cancellationToken
+			db, tenantId, sourceIds, cancellationToken
 		);
 		foreach (var (publicationId, requested, account) in fresh) {
 			var overrides = requested is { IsEmpty: false } ? requested : null;
-			var inherited = false;
 			if (carried.TryGetValue(publicationId, out var from)) {
 				var before = previous.GetValueOrDefault(from.SourcePublicationId) ?? RenditionOverrides.None;
 				if (overrides is null) {
 					overrides = before.IsEmpty ? null : before;
-					inherited = overrides is not null;
 				} else if (before.ChangesPublishedSegments(overrides, from.Carried)) {
 					return new StageRenditionsResult.SegmentsLocked();
 				}
 			}
 
-			if (overrides is null) {
-				continue;
+			var invalid = RenditionResolver._Validate(source, overrides, account);
+			if (invalid is not null) {
+				return invalid;
 			}
 
-			if (inherited) {
-				var invalid = RenditionResolver._ValidateInherited(source, overrides, account);
-				if (invalid is not null) {
-					return invalid;
-				}
+			if (overrides is null) {
+				continue;
 			}
 
 			var rendition = new Rendition { TenantId = tenantId, PublicationId = publicationId };
@@ -227,17 +240,19 @@ public static class RenditionResolver {
 		return new StageRenditionsResult.Staged();
 	}
 
-	private static StageRenditionsResult? _ValidateInherited(
+	private static StageRenditionsResult? _Validate(
 		SourceContent source,
-		RenditionOverrides overrides,
+		RenditionOverrides? overrides,
 		SocialAccount account
 	) {
-		var overrideFailure = RenditionWire.Validate(source, overrides);
-		if (overrideFailure is not null) {
-			return new StageRenditionsResult.OverridesInvalid(overrideFailure with {
-				Destination = account.DisplayHandle,
-				SocialAccountId = account.GetRequiredId(),
-			});
+		if (overrides is not null) {
+			var overrideFailure = RenditionWire.Validate(source, overrides);
+			if (overrideFailure is not null) {
+				return new StageRenditionsResult.OverridesInvalid(overrideFailure with {
+					Destination = account.DisplayHandle,
+					SocialAccountId = account.GetRequiredId(),
+				});
+			}
 		}
 
 		var contentFailure = PublishValidationService.ValidateDestination(

@@ -18,7 +18,8 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 /// <summary>
 /// Replaces ALL of a destination's overrides (PUT semantics): <c>segments</c>
 /// <c>[{position, text}]</c> (0-based, texts only: the segment count never changes),
-/// and <c>media</c> <c>{assetIds?, altTexts?: [{assetId, altText}]}</c>. An empty body resets to the shared post.
+/// and <c>media</c> <c>{assetIds?, altTexts?: [{assetId, altText}]}</c>. An empty body resets
+/// to the shared post.
 /// </summary>
 public record SetPublicationRenditionBody {
 	public JsonElement Segments { get; init; }
@@ -50,8 +51,9 @@ public sealed class SetPublicationRenditionBodyValidator
 
 /// <summary>
 /// Sets a publication's overrides (#2172). 404 absent/foreign; 409 when published, parked
-/// for review, replaced by a newer publication or being published right now; 422 naming the destination (and the segment)
-/// when an override is unusable or breaks the destination's limits.
+/// for review, replaced by a newer publication or being published right now; 422 naming the
+/// destination (and the segment) when an override is unusable or breaks the destination's
+/// limits.
 /// </summary>
 public sealed class SetPublicationRenditionForTenant {
 	public static async Task<Results<

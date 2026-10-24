@@ -38,7 +38,7 @@ export interface RenditionRequestBuilder extends BaseRequestBuilder<RenditionReq
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<RenditionResponse | undefined>;
     /**
      * Set a publication's per-destination content overrides
-     * @param body Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post.
+     * @param body Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resetsto the shared post.
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<RenditionResponse>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -65,7 +65,7 @@ export interface RenditionRequestBuilder extends BaseRequestBuilder<RenditionReq
      toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
     /**
      * Set a publication's per-destination content overrides
-     * @param body Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post.
+     * @param body Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resetsto the shared post.
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */

@@ -5136,6 +5136,7 @@ export function deserializeIntoScheduledPublicationItem(scheduledPublicationItem
         "scheduledAtUtc": n => { scheduledPublicationItem.scheduledAtUtc = n.getDateValue(); },
         "socialAccountId": n => { scheduledPublicationItem.socialAccountId = n.getGuidValue(); },
         "status": n => { scheduledPublicationItem.status = n.getStringValue(); },
+        "superseded": n => { scheduledPublicationItem.superseded = n.getBooleanValue(); },
         "timeZone": n => { scheduledPublicationItem.timeZone = n.getStringValue(); },
     }
 }
@@ -7706,7 +7707,7 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      */
     customized?: boolean | null;
     /**
-     * Destinations of the post: its live (not soft-deleted) publications, excluding Failedones a newer publication of the same account replaced (a re-issued pair counts once).
+     * Destinations of the post: its live (not soft-deleted) publications, excluding Failedones a newer publication of the same account replaced. A re-issued pair counts once,as its newest row; if that newest row was cancelled (soft-deleted) the pair counts zero.
      */
     destinationCount?: number | null;
     /**
@@ -7749,6 +7750,10 @@ export interface ScheduledPublicationItem extends AdditionalDataHolder, Parsable
      * The status property
      */
     status?: string | null;
+    /**
+     * True when a newer publication (even a cancelled one) exists for the same post andaccount: this row is history and is not counted as a destination. Same rule as thepublications list (PublicationSupersession); the row is still listed.
+     */
+    superseded?: boolean | null;
     /**
      * The timeZone property
      */
@@ -10078,6 +10083,7 @@ export function serializeScheduledPublicationItem(writer: SerializationWriter, s
     writer.writeDateValue("scheduledAtUtc", scheduledPublicationItem.scheduledAtUtc);
     writer.writeGuidValue("socialAccountId", scheduledPublicationItem.socialAccountId);
     writer.writeStringValue("status", scheduledPublicationItem.status);
+    writer.writeBooleanValue("superseded", scheduledPublicationItem.superseded);
     writer.writeStringValue("timeZone", scheduledPublicationItem.timeZone);
     writer.writeAdditionalData(scheduledPublicationItem.additionalData);
 }
@@ -11164,7 +11170,7 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
 }
 /**
- * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resets to the shared post.
+ * Replaces ALL of a destination's overrides (PUT semantics): `segments``[{position, text}]` (0-based, texts only: the segment count never changes),and `media` `{assetIds?, altTexts?: [{assetId, altText}]}`. An empty body resetsto the shared post.
  */
 export interface SetPublicationRenditionBody extends AdditionalDataHolder, Parsable {
     /**

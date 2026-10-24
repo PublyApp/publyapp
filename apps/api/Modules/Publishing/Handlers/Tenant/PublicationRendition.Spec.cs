@@ -272,8 +272,9 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 	[Theory]
 	[InlineData(PublicationStatus.Published, null, "publication-rendition-locked")]
 	[InlineData(PublicationStatus.InProgress, null, "publication-schedule-in-progress")]
+	// A parked needs-review row is Paused: the write may already be on the provider.
 	[InlineData(
-		PublicationStatus.Failed,
+		PublicationStatus.Paused,
 		PublicationFailureCategory.NeedsReview,
 		"publication-rendition-needs-review"
 	)]
@@ -378,6 +379,93 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		publications.Should().ContainSingle().Which.Id.Should().Be(failed.PublicationId);
 		(await this._RenditionsAsync(publications.Select(p => p.GetRequiredId()).ToList()))
 			.Should().ContainSingle("the failed row keeps its rendition and nothing new was staged");
+	}
+
+	[Theory]
+	[InlineData("schedule")]
+	[InlineData("publish-now")]
+	public async Task ItShouldValidateAReissueOnTheInheritedRenditionNotTheSharedContent(string route) {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		// The shared second segment is too long for Bluesky; this destination's own
+		// override of it fits, and the root is already published.
+		var failed = await this._SeedPublicationAsync(
+			tenantId, PublicationStatus.Failed, "root", new string('s', 301)
+		);
+		await this._AddSegmentResultAsync(tenantId, failed.PublicationId, 0);
+		await this._StoreTextOverrideAsync(tenantId, failed.PublicationId, 1, "short for this destination");
+
+		using var reissue = await this._SendAsync(
+			HttpMethod.Post,
+			$"/posts/{failed.PostId}/{route}",
+			token,
+			tenantId,
+			route == "schedule"
+				? new {
+					timeZone = "Etc/UTC",
+					scheduledAtLocal = PublicationRenditionSpec._InstantA,
+					accountIds = new[] { failed.SocialAccountId },
+				}
+				: new { accountIds = new[] { failed.SocialAccountId } }
+		);
+
+		reissue.StatusCode.Should().Be(
+			route == "schedule" ? HttpStatusCode.Created : HttpStatusCode.OK,
+			"the content that will be published is the inherited rendition, which fits"
+		);
+		var created = (await this._PublicationsOfAsync(failed.PostId))
+			.Single(publication => publication.Id != failed.PublicationId);
+		var copied = await this._RenditionsAsync([created.GetRequiredId()]);
+		copied.Should().ContainSingle();
+		RenditionOverrides.FromRow(copied[0]).Texts
+			.Should().Equal(new Dictionary<int, string> { [1] = "short for this destination" });
+	}
+
+	[Fact]
+	public async Task ItShouldCopyTheSourceRenditionOnlyAfterAnInFlightEditOfItCommits() {
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		var failed = await this._SeedPublicationAsync(
+			tenantId, PublicationStatus.Failed, "root", "two", "three"
+		);
+		await this._AddSegmentResultAsync(tenantId, failed.PublicationId, 0);
+		await this._StoreTextOverrideAsync(tenantId, failed.PublicationId, 1, "two, first edit");
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var sourceId = failed.PublicationId;
+
+		// An in-flight rendition edit of the failed row holds its row lock.
+		await using var transaction = await db.Database.BeginTransactionAsync();
+		_ = await db.Database
+			.SqlQuery<Guid>($"""
+				SELECT id AS "Value" FROM publications WHERE id = {sourceId} FOR UPDATE
+				""")
+			.ToListAsync();
+		var reissue = this._SendAsync(
+			HttpMethod.Post, $"/posts/{failed.PostId}/schedule", token, tenantId, new {
+				timeZone = "Etc/UTC",
+				scheduledAtLocal = PublicationRenditionSpec._InstantA,
+				accountIds = new[] { failed.SocialAccountId },
+			}
+		);
+		await Task.Delay(TimeSpan.FromSeconds(1));
+		reissue.IsCompleted.Should().BeFalse("the re-issue must wait for the source row before copying");
+
+		var row = await db.Rendition.SingleAsync(rendition => rendition.PublicationId == sourceId);
+		new RenditionOverrides(
+			new Dictionary<int, string> { [1] = "two, second edit" }, null
+		).WriteTo(row);
+		_ = await db.SaveChangesAsync();
+		await transaction.CommitAsync();
+
+		using var response = await reissue;
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var created = (await this._PublicationsOfAsync(failed.PostId))
+			.Single(publication => publication.Id != sourceId);
+		var copied = await this._RenditionsAsync([created.GetRequiredId()]);
+		RenditionOverrides.FromRow(copied.Should().ContainSingle().Subject).Texts
+			.Should().Equal(
+				new Dictionary<int, string> { [1] = "two, second edit" },
+				"the edit committed before the copy must not be lost"
+			);
 	}
 
 	[Fact]
@@ -858,6 +946,21 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(asset => asset.IsDeleted, true)
 				.SetProperty(asset => asset.DeletedAt, DateTime.UtcNow));
+	}
+
+	private async Task _StoreTextOverrideAsync(
+		Guid tenantId,
+		Guid publicationId,
+		int position,
+		string text
+	) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var rendition = new Rendition { TenantId = tenantId, PublicationId = publicationId };
+		new RenditionOverrides(new Dictionary<int, string> { [position] = text }, null)
+			.WriteTo(rendition);
+		db.Rendition.Add(rendition);
+		await db.SaveChangesAsync();
 	}
 
 	private async Task _StoreMediaOverrideAsync(Guid tenantId, Guid publicationId, Guid assetId) {

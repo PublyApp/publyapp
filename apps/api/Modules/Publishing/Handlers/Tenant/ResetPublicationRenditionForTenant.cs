@@ -14,8 +14,9 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 /// <summary>
 /// Resets a destination to the shared post (#2172): deletes its rendition row. Idempotent
 /// (200 when nothing was customized, and then no audit row). 404 absent/foreign; 409 when
-/// published, parked for review, replaced by a newer publication or being published right now; 422 when a segment it already published was
-/// customized (that text is locked) or the shared content no longer fits the destination.
+/// published, parked for review, replaced by a newer publication or being published right
+/// now; 422 when a segment it already published was customized (that text is locked) or
+/// the shared content no longer fits the destination.
 /// </summary>
 public sealed class ResetPublicationRenditionForTenant {
 	public static async Task<Results<

@@ -28,12 +28,18 @@ public static class PublicationSupersession {
 	}
 
 	/// <summary>
-	/// In-memory form over every row of the post (soft-deleted included).
+	/// In-memory form over every row of the post (soft-deleted included). Same rule as
+	/// <see cref="Supersedes"/> (an expression cannot be shared with a plain method without
+	/// compiling it per call): keep the two in step.
 	/// </summary>
 	public static bool IsSuperseded(
 		Publication publication,
 		IEnumerable<Publication> rowsOfPost
 	) {
-		return rowsOfPost.Any(PublicationSupersession.Supersedes(publication).Compile());
+		return rowsOfPost.Any(other => other.TenantId == publication.TenantId
+			&& other.PostId == publication.PostId
+			&& other.SocialAccountId == publication.SocialAccountId
+			&& other.Id != publication.Id
+			&& other.CreatedAt > publication.CreatedAt);
 	}
 }

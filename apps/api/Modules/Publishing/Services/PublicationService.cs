@@ -105,9 +105,16 @@ public sealed class ScheduledPublicationItem {
 	public required int PublishedCount { get; init; }
 	/// <summary>
 	/// Destinations of the post: its live (not soft-deleted) publications, excluding Failed
-	/// ones a newer publication of the same account replaced (a re-issued pair counts once).
+	/// ones a newer publication of the same account replaced. A re-issued pair counts once,
+	/// as its newest row; if that newest row was cancelled (soft-deleted) the pair counts zero.
 	/// </summary>
 	public required int DestinationCount { get; init; }
+	/// <summary>
+	/// True when a newer publication (even a cancelled one) exists for the same post and
+	/// account: this row is history and is not counted as a destination. Same rule as the
+	/// publications list (<see cref="PublicationSupersession"/>); the row is still listed.
+	/// </summary>
+	public required bool Superseded { get; init; }
 	// True when this destination overrides part of the post's content (#2172).
 	public required bool Customized { get; init; }
 	public required Guid SocialAccountId { get; init; }
@@ -331,30 +338,12 @@ public sealed class PublicationService : IPublicationService {
 			}
 		}
 
-		// Each destination is validated on its EFFECTIVE content (post + its overrides),
-		// so a failure names the destination (and the segment of a thread).
+		// Each destination's EFFECTIVE content (post + sent or inherited overrides) is
+		// validated once, in StageRenditionsAsync, so a failure names the destination (and
+		// the segment of a thread) for the content that will really be published.
 		var source = await RenditionResolver.LoadSourceAsync(
 			this._DbContext, post, cancellationToken
 		);
-		foreach (var destination in args.Destinations) {
-			var account = accounts.Single(candidate => candidate.GetRequiredId() == destination.SocialAccountId);
-			if (destination.Overrides is { } overrides) {
-				var overrideFailure = RenditionWire.Validate(source, overrides);
-				if (overrideFailure is not null) {
-					return new ScheduleResult.OverridesInvalid(overrideFailure with {
-						Destination = account.DisplayHandle,
-						SocialAccountId = destination.SocialAccountId,
-					});
-				}
-			}
-
-			var contentFailure = PublishValidationService.ValidateDestination(
-				RenditionResolver.Resolve(source, destination.Overrides), account
-			);
-			if (contentFailure is not null) {
-				return new ScheduleResult.ContentInvalid(contentFailure);
-			}
-		}
 
 		// The parsed value is already the exact UTC instant (validator contract):
 		// no conversion here. Rows default to Scheduled on insert — no transition.
@@ -376,6 +365,9 @@ public sealed class PublicationService : IPublicationService {
 			})
 			.ToList();
 
+		// One transaction: the carried source rows stay locked until the new rows commit.
+		await using var transaction =
+			await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 		this._DbContext.Publication.AddRange(publications);
 
 		// Re-issuing a failed thread continues after its last published segment.
@@ -420,6 +412,7 @@ public sealed class PublicationService : IPublicationService {
 
 		this._AddAuditEntry(args);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
+		await transaction.CommitAsync(cancellationToken);
 
 		return new ScheduleResult.Scheduled(publications);
 	}
@@ -922,6 +915,7 @@ public sealed class PublicationService : IPublicationService {
 			.ToLookup(p => p.PostId);
 
 		var items = new List<ScheduledPublicationItem>(rows.Count);
+		var summaries = new Dictionary<Guid, PostStatusSummary>();
 		foreach (var row in rows) {
 			var publication = row.Publication;
 			var postId = publication.PostId;
@@ -930,7 +924,11 @@ public sealed class PublicationService : IPublicationService {
 				: string.Empty;
 			var hasRendition = renditionTexts.TryGetValue(publication.GetRequiredId(), out var textsJson);
 			var body = RenditionResolver.EffectiveRootText(sourceBody, textsJson);
-			var summary = PostStatusDerivation.Summarize(publicationsByPost[postId].ToList());
+			var postRowsAll = publicationsByPost[postId].ToList();
+			if (!summaries.TryGetValue(postId, out var summary)) {
+				summary = PostStatusDerivation.Summarize(postRowsAll);
+				summaries[postId] = summary;
+			}
 
 			items.Add(new ScheduledPublicationItem {
 				PublicationId = publication.GetRequiredId(),
@@ -941,6 +939,7 @@ public sealed class PublicationService : IPublicationService {
 				PostStatus = PostStatusDerivation.FormatPostStatus(summary.Status),
 				PublishedCount = summary.PublishedCount,
 				DestinationCount = summary.DestinationCount,
+				Superseded = PublicationSupersession.IsSuperseded(publication, postRowsAll),
 				Customized = hasRendition,
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = row.AccountHandle ?? string.Empty,

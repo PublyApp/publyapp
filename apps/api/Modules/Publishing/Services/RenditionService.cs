@@ -40,7 +40,7 @@ public abstract record RenditionResult {
 	// A Failed publication a newer one replaced is history: customize the newer one.
 	public sealed record Superseded : RenditionResult;
 
-	// Two writers raced on the same rendition twice in a row; nothing was written.
+	// Two writers raced to insert the same rendition row; nothing was written (defensive).
 	public sealed record ConcurrentUpdate : RenditionResult;
 
 	// Segments already published by this publication cannot change (#2171).
@@ -58,7 +58,9 @@ public abstract record RenditionResult {
 /// Segments the publication already published are locked: their overrides, the media
 /// override must stay exactly as stored; a Failed publication a newer one replaced is
 /// refused. Writes take the publication row lock (<c>FOR UPDATE</c>) before checking its
-/// status, so they serialize with each other and with a retry. Nothing here writes status.
+/// status, so they serialize with each other and with a retry. A re-issue of the publication
+/// locks its source row <c>FOR SHARE</c> before copying the rendition: an edit either lands
+/// before the copy or waits and then finds the publication superseded. Nothing here writes status.
 /// </summary>
 public interface IRenditionService {
 	Task<RenditionResult> GetAsync(GetRenditionArgs args, CancellationToken cancellationToken);
@@ -92,24 +94,6 @@ public sealed class RenditionService : IRenditionService {
 	}
 
 	public async Task<RenditionResult> SetAsync(
-		SetRenditionArgs args,
-		CancellationToken cancellationToken
-	) {
-		var result = await this._SetInTransactionAsync(args, cancellationToken);
-		if (result is not null) {
-			return result;
-		}
-
-		// A rendition row appeared between our read and our insert (23505). The failed
-		// INSERT aborted that transaction, so retry ONCE in a fresh one, which now reads
-		// the row and updates it. A second conflict is reported, never retried again.
-		result = await this._SetInTransactionAsync(args, cancellationToken);
-		return result ?? new RenditionResult.ConcurrentUpdate();
-	}
-
-	// One attempt, in one transaction holding the publication row lock. Returns null when
-	// the insert lost a unique-index race (ux_renditions_publication_id).
-	private async Task<RenditionResult?> _SetInTransactionAsync(
 		SetRenditionArgs args,
 		CancellationToken cancellationToken
 	) {
@@ -153,9 +137,12 @@ public sealed class RenditionService : IRenditionService {
 				ConstraintName: "ux_renditions_publication_id",
 			}
 		) {
+			// Defensive fallback only: every writer of a rendition row holds the publication
+			// row lock, so two first writes cannot race to the insert. If one ever does,
+			// nothing was written and the caller is told to reload instead of retrying.
 			await transaction.RollbackAsync(cancellationToken);
 			this._Db.ChangeTracker.Clear();
-			return null;
+			return new RenditionResult.ConcurrentUpdate();
 		}
 	}
 

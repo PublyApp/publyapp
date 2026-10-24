@@ -15,7 +15,8 @@ public static class PostStatusDerivation {
 	/// publications a newer one replaced (<see cref="PublicationSupersession"/>) — a
 	/// re-issued pair counts once, as its newest row. <paramref name="publications"/> is
 	/// EVERY row of the post, soft-deleted included, because a soft-deleted row still
-	/// supersedes an older failure.
+	/// supersedes an older failure: when the newest row of a pair was cancelled
+	/// (soft-deleted) the pair counts zero.
 	/// </summary>
 	public static IReadOnlyList<Publication> Destinations(
 		IReadOnlyCollection<Publication> publications

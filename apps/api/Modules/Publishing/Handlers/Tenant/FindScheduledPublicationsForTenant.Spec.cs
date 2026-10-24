@@ -232,6 +232,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			row.GetProperty("postStatus").GetString().Should().Be("failed");
 			row.GetProperty("publishedCount").GetInt32().Should().Be(1);
 			row.GetProperty("destinationCount").GetInt32().Should().Be(2);
+			row.GetProperty("superseded").GetBoolean().Should().BeFalse();
 		}
 	}
 
@@ -242,21 +243,19 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword
 		);
-		var failedAt = new DateTime(2098, 9, 1, 8, 0, 0, DateTimeKind.Utc);
 		var superseded = await this._CreateScheduledRowAsync(
 			tenantId,
 			"counts reissued post",
 			new DateTime(2098, 9, 3, 9, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Failed
 		);
-		// The same pair re-issued later (a failed pair releases the unique index) and
-		// published; a second destination published on the first try.
+		// The same pair re-issued later (a failed pair releases the unique index) and published.
 		var reissued = await this._AddDestinationRowAsync(
 			tenantId,
 			superseded.PostId,
 			PublicationStatus.Published,
 			new DateTime(2098, 9, 3, 9, 30, 0, DateTimeKind.Utc),
-			failedAt.AddHours(1),
+			new DateTime(2098, 9, 1, 9, 0, 0, DateTimeKind.Utc),
 			superseded.AccountId
 		);
 
@@ -273,6 +272,14 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 			row.GetProperty("publishedCount").GetInt32().Should().Be(1);
 			row.GetProperty("destinationCount").GetInt32().Should().Be(1);
 		}
+
+		// The replaced row is still listed, flagged as history; the live one is not.
+		rows.Single(row => row.GetProperty("publicationId").GetString()
+				== superseded.PublicationId.ToString())
+			.GetProperty("superseded").GetBoolean().Should().BeTrue();
+		rows.Single(row => row.GetProperty("publicationId").GetString()
+				== reissued.PublicationId.ToString())
+			.GetProperty("superseded").GetBoolean().Should().BeFalse();
 	}
 
 	[Fact]

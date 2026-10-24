@@ -134,28 +134,9 @@ public sealed class PublishNowService : IPublishNowService {
 			return new PublishNowResult.LivePublicationsExist(liveAccountIds);
 		}
 
-		// Each destination is validated on its EFFECTIVE content (post + its overrides).
+		// Each destination's EFFECTIVE content (post + sent or inherited overrides) is
+		// validated once, in StageRenditionsAsync, inside the batch transaction.
 		var source = await RenditionResolver.LoadSourceAsync(this._Db, post, cancellationToken);
-		foreach (var account in eligible) {
-			RenditionOverrides? overrides = null;
-			if (args.Overrides?.TryGetValue(account.GetRequiredId(), out var found) == true) {
-				overrides = found;
-				var overrideFailure = RenditionWire.Validate(source, found);
-				if (overrideFailure is not null) {
-					return new PublishNowResult.OverridesInvalid(overrideFailure with {
-						Destination = account.DisplayHandle,
-						SocialAccountId = account.GetRequiredId(),
-					});
-				}
-			}
-
-			var contentFailure = PublishValidationService.ValidateDestination(
-				RenditionResolver.Resolve(source, overrides), account
-			);
-			if (contentFailure is not null) {
-				return new PublishNowResult.ContentInvalid(contentFailure);
-			}
-		}
 
 		return await this._CreatePublicationsAndEnqueueAsync(
 			args,
