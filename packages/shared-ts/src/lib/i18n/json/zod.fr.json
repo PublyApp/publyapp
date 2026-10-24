@@ -16,16 +16,16 @@
 			"uuid": "UUID invalide",
 			"cuid": "cuid invalide",
 			"datetime": "date et heure ISO invalide",
-			"regex": "Chaîne invalide : doit correspondre au modèle {{pattern}}",
-			"startsWith": "Chaîne invalide : doit commencer par {{prefix}}",
-			"endsWith": "Chaîne invalide : doit se terminer par {{suffix}}",
-			"includes": "Chaîne invalide : doit inclure {{includes}}"
+			"regex": "Chaîne de caractères invalide : doit correspondre au motif {{pattern}}",
+			"startsWith": "Chaîne de caractères invalide : doit commencer par {{prefix}}",
+			"endsWith": "Chaîne de caractères invalide : doit se terminer par {{suffix}}",
+			"includes": "Chaîne de caractères invalide : doit inclure {{includes}}"
 		},
 		"too_small": {
 			"string": {
-				"exact": "Trop petit : chaîne doit avoir >={{minimum}} caractères",
-				"inclusive": "Trop petit : chaîne doit avoir >={{minimum}} caractères",
-				"not_inclusive": "Trop petit : chaîne doit avoir >{{minimum}} caractères"
+				"exact": "Trop petit : chaîne de caractères doit avoir >={{minimum}} caractères",
+				"inclusive": "Trop petit : chaîne de caractères doit avoir >={{minimum}} caractères",
+				"not_inclusive": "Trop petit : chaîne de caractères doit avoir >{{minimum}} caractères"
 			},
 			"number": {
 				"exact": "Trop petit : nombre doit être >={{minimum}}",
@@ -63,16 +63,16 @@
 				"not_inclusive": "Trop petit : fichier doit avoir >{{minimum}} octets"
 			},
 			"map": {
-				"exact": "Trop petit : carte doit être >={{minimum}}",
-				"inclusive": "Trop petit : carte doit être >={{minimum}}",
-				"not_inclusive": "Trop petit : carte doit être >{{minimum}}"
+				"exact": "Trop petit : map doit être >={{minimum}}",
+				"inclusive": "Trop petit : map doit être >={{minimum}}",
+				"not_inclusive": "Trop petit : map doit être >{{minimum}}"
 			}
 		},
 		"too_big": {
 			"string": {
-				"exact": "Trop grand : chaîne doit avoir <={{maximum}} caractères",
-				"inclusive": "Trop grand : chaîne doit avoir <={{maximum}} caractères",
-				"not_inclusive": "Trop grand : chaîne doit avoir <{{maximum}} caractères"
+				"exact": "Trop grand : chaîne de caractères doit avoir <={{maximum}} caractères",
+				"inclusive": "Trop grand : chaîne de caractères doit avoir <={{maximum}} caractères",
+				"not_inclusive": "Trop grand : chaîne de caractères doit avoir <{{maximum}} caractères"
 			},
 			"number": {
 				"exact": "Trop grand : nombre doit être <={{maximum}}",
@@ -110,14 +110,14 @@
 				"not_inclusive": "Trop grand : fichier doit avoir <{{maximum}} octets"
 			},
 			"map": {
-				"exact": "Trop grand : carte doit être <={{maximum}}",
-				"inclusive": "Trop grand : carte doit être <={{maximum}}",
-				"not_inclusive": "Trop grand : carte doit être <{{maximum}}"
+				"exact": "Trop grand : map doit être <={{maximum}}",
+				"inclusive": "Trop grand : map doit être <={{maximum}}",
+				"not_inclusive": "Trop grand : map doit être <{{maximum}}"
 			}
 		}
 	},
 	"types": {
-		"string": "chaîne",
+		"string": "chaîne de caractères",
 		"number": "nombre",
 		"int": "entier",
 		"boolean": "booléen",
@@ -131,11 +131,11 @@
 		"array": "tableau",
 		"object": "objet",
 		"tuple": "tuple",
-		"record": "enregistrement",
-		"map": "carte",
+		"record": "record",
+		"map": "map",
 		"set": "ensemble",
 		"file": "fichier",
-		"nonoptional": "non-optionnel",
+		"nonoptional": "non optionnel",
 		"nan": "NaN",
 		"function": "fonction",
 		"promise": "promise"
