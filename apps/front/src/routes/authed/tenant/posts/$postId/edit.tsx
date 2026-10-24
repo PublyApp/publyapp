@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -61,6 +62,28 @@ const getSchema = (t: (k: string) => string) =>
 
 type Values = z.infer<ReturnType<typeof getSchema>>;
 
+/** Loads the saved post into the form. Each segment keeps its id (matched by
+ * text, not position, so a local reorder cannot move a customization onto
+ * another segment): a refetch (an image added or removed) must not re-key the
+ * segments. */
+const resetFormFromDetails = (
+	methods: UseFormReturn<Values>,
+	data: Parameters<typeof toTenantPostDetails>[0],
+) => {
+	const d = toTenantPostDetails(data);
+	if (!d) {
+		return;
+	}
+	methods.reset({
+		body: d.body,
+		projectId: d.projectId,
+		segments: reconcileSegmentDrafts(
+			methods.getValues('segments'),
+			d.segments.map((segment) => segment.body),
+		),
+	});
+};
+
 const TenantPostEditPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const { postId } = Route.useParams();
@@ -95,20 +118,7 @@ const TenantPostEditPage = () => {
 	const isBodyLocked = hasStoredSegments && publishedSegmentCount > 0;
 
 	useEffect(() => {
-		const d = toTenantPostDetails(detailsQuery.data);
-		if (d) {
-			// Keep each segment's id (by text, not position, so a local reorder
-			// cannot move a customization onto another segment): a refetch (an
-			// image added or removed) must not re-key the segments.
-			methods.reset({
-				body: d.body,
-				projectId: d.projectId,
-				segments: reconcileSegmentDrafts(
-					methods.getValues('segments'),
-					d.segments.map((segment) => segment.body),
-				),
-			});
-		}
+		resetFormFromDetails(methods, detailsQuery.data);
 	}, [detailsQuery.data, methods]);
 
 	// Unsaved edits to the post, or unsaved destination customizations: both
