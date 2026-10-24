@@ -119,5 +119,9 @@
 	"history-segments-total": "{{total}} segments",
 	"history-segment-failed": "Segment {{index}} failed",
 	"history-segment-published": "Segment {{index}} published",
-	"history-segment-pending": "Segment {{index}} not published yet"
+	"history-segment-pending": "Segment {{index}} not published yet",
+	"publish-status-failed-partial": "Failed · {{published}}/{{total}} published",
+	"publication-superseded": "Replaced",
+	"publication-superseded-description": "A newer publication replaced this one for the same post and account.",
+	"publication-customized": "Customized"
 }

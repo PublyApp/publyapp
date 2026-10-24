@@ -7,7 +7,9 @@ import { DataTable } from '~/components/table/data-table';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 
 import {
+	MutedWhenSuperseded,
 	ScheduledPublicationCause,
+	ScheduledPublicationCustomized,
 	ScheduledPublicationStatus,
 	ScheduledPublicationTime,
 } from './_scheduled-publication-display';
@@ -44,7 +46,7 @@ export const ScheduledPublicationQueueTable = ({
 			header: t('queue-post-label'),
 			enableSorting: false,
 			cell: ({ row }) => {
-				const { postId, postBodyPreview } = row.original;
+				const { postId, postBodyPreview, superseded } = row.original;
 				const content = (
 					<span
 						className="line-clamp-2 min-w-0"
@@ -59,18 +61,24 @@ export const ScheduledPublicationQueueTable = ({
 				// calendar parity). Rows without a post id stay plain text.
 				if (postId) {
 					return (
-						<Link
-							title={t('posts:publication-open-post')}
-							to="/tenant/posts/$postId/edit"
-							params={{ postId }}
-							className="publy-record-link"
-						>
-							{content}
-						</Link>
+						<MutedWhenSuperseded superseded={superseded}>
+							<Link
+								title={t('posts:publication-open-post')}
+								to="/tenant/posts/$postId/edit"
+								params={{ postId }}
+								className="publy-record-link"
+							>
+								{content}
+							</Link>
+						</MutedWhenSuperseded>
 					);
 				}
 
-				return content;
+				return (
+					<MutedWhenSuperseded superseded={superseded}>
+						{content}
+					</MutedWhenSuperseded>
+				);
 			},
 		},
 		{
@@ -78,7 +86,18 @@ export const ScheduledPublicationQueueTable = ({
 			header: t('queue-account-label'),
 			enableSorting: false,
 			meta: { width: '190px' },
-			cell: ({ row }) => row.original.accountDisplayHandle ?? '—',
+			cell: ({ row }) => (
+				<MutedWhenSuperseded superseded={row.original.superseded}>
+					<div className="flex flex-wrap items-center gap-1.5">
+						<span className="min-w-0 truncate">
+							{row.original.accountDisplayHandle ?? '—'}
+						</span>
+						<ScheduledPublicationCustomized
+							customized={row.original.customized}
+						/>
+					</div>
+				</MutedWhenSuperseded>
+			),
 		},
 		{
 			id: 'status',
@@ -86,13 +105,16 @@ export const ScheduledPublicationQueueTable = ({
 			enableSorting: false,
 			meta: { width: '132px' },
 			cell: ({ row }) => (
-				<div className="flex flex-col items-start gap-1">
-					<ScheduledPublicationStatus status={row.original.status} />
-					<ScheduledPublicationCause
-						status={row.original.status}
-						cause={row.original.lastError}
-					/>
-				</div>
+				<MutedWhenSuperseded superseded={row.original.superseded}>
+					<div className="flex flex-col items-start gap-1">
+						<ScheduledPublicationStatus row={row.original} />
+						<ScheduledPublicationCause
+							status={row.original.status}
+							cause={row.original.lastError}
+							superseded={row.original.superseded}
+						/>
+					</div>
+				</MutedWhenSuperseded>
 			),
 		},
 		{
@@ -100,7 +122,11 @@ export const ScheduledPublicationQueueTable = ({
 			header: t('queue-scheduled-label'),
 			enableSorting: false,
 			meta: { width: '190px' },
-			cell: ({ row }) => <ScheduledPublicationTime row={row.original} />,
+			cell: ({ row }) => (
+				<MutedWhenSuperseded superseded={row.original.superseded}>
+					<ScheduledPublicationTime row={row.original} />
+				</MutedWhenSuperseded>
+			),
 		},
 	];
 

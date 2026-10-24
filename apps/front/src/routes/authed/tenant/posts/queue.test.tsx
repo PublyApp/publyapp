@@ -73,6 +73,10 @@ const EN_LABELS: TestLabelMap = {
 	'publish-status-scheduled': 'Scheduled',
 	'publish-status-in-progress': 'In progress…',
 	'publish-status-paused': 'Paused',
+	'publish-status-failed': 'Failed',
+	'publish-status-failed-partial': 'Failed · {{published}}/{{total}} published',
+	'publication-superseded': 'Replaced',
+	'publication-customized': 'Customized',
 	'posts:publication-open-post': 'Open post',
 	'posts:publication-failed-cause': 'Failed: {{cause}}',
 	'posts:publication-paused-cause': 'Paused: {{cause}}',
@@ -88,10 +92,12 @@ const EN_LABELS: TestLabelMap = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: { cause?: string }) => {
+		t: (key: string, options?: Record<string, string | number>) => {
 			const value =
 				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
-			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
+			return value.replace(/\{\{(\w+)\}\}/g, (_match, name: string) =>
+				String(options?.[name] ?? ''),
+			);
 		},
 		i18n: { resolvedLanguage: mocks.language, language: mocks.language },
 	}),
@@ -473,5 +479,146 @@ describe('TenantPostsQueuePage', () => {
 		// API maximum window — anything wider than that 422s.
 		expect(nowMs - fromMs).toBe(24 * 60 * 60 * 1000);
 		expect(toMs - fromMs).toBe(32 * 24 * 60 * 60 * 1000);
+	});
+
+	test('shows a failed destination of a partly published post as "Failed · 1/2 published"', async () => {
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-failed',
+					postId: 'post-mixed',
+					postBodyPreview: 'Went out on one network only',
+					accountDisplayHandle: '@failed.example',
+					status: 'failed',
+					postStatus: 'failed',
+					publishedCount: 1,
+					destinationCount: 2,
+					superseded: false,
+					customized: false,
+					lastError: 'provider refused',
+					scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+					scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+				{
+					publicationId: 'pub-sibling',
+					postId: 'post-mixed',
+					postBodyPreview: 'Went out on one network only',
+					accountDisplayHandle: '@sibling.example',
+					status: 'scheduled',
+					postStatus: 'failed',
+					publishedCount: 1,
+					destinationCount: 2,
+					superseded: false,
+					customized: false,
+					scheduledAtUtc: new Date('2026-09-01T18:30:00.000Z'),
+					scheduledAtLocal: '2026-09-01T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+
+		const pills = await screen.findAllByTestId('tenant-posts-status-pill');
+		// The failed destination reads as ONE combined status, not "Failed" twice.
+		expect(pills[0]?.textContent).toBe('Failed · 1/2 published');
+		// A destination that is not itself failed keeps its own pill and gets the
+		// post-level detail beneath it.
+		expect(pills[1]?.textContent).toBe('Scheduled');
+		expect(screen.getByTestId('tenant-posts-mixed-status').textContent).toBe(
+			'Failed · 1/2 published',
+		);
+	});
+
+	test('a failed post with nothing published, or fully published, shows no counts', async () => {
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-none',
+					postId: 'post-none',
+					postBodyPreview: 'Nothing went out',
+					accountDisplayHandle: '@none.example',
+					status: 'failed',
+					postStatus: 'failed',
+					publishedCount: 0,
+					destinationCount: 2,
+					superseded: false,
+					customized: false,
+					scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+					scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+
+		const [pill] = await screen.findAllByTestId('tenant-posts-status-pill');
+		expect(pill?.textContent).toBe('Failed');
+		expect(screen.queryByTestId('tenant-posts-mixed-status')).toBeNull();
+	});
+
+	test('a superseded row is muted, labelled Replaced, and its old failure is not shown', async () => {
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-old',
+					postId: 'post-reissued',
+					postBodyPreview: 'Re-issued post',
+					accountDisplayHandle: '@reissued.example',
+					status: 'failed',
+					postStatus: 'scheduled',
+					publishedCount: 0,
+					destinationCount: 1,
+					superseded: true,
+					customized: false,
+					lastError: 'provider unreachable',
+					scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+					scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+
+		const label = await screen.findByTestId('tenant-posts-superseded-label');
+		expect(label.textContent).toBe('Replaced');
+		expect(screen.queryByTestId('tenant-posts-status-pill')).toBeNull();
+		expect(screen.queryByTestId('tenant-posts-publication-cause')).toBeNull();
+		expect(
+			document.querySelectorAll('[data-superseded="true"]').length,
+		).toBeGreaterThan(0);
+	});
+
+	test('a customized destination row carries the Customized badge', async () => {
+		mocks.get.mockResolvedValue({
+			data: [
+				{
+					publicationId: 'pub-custom',
+					postId: 'post-custom',
+					postBodyPreview: 'Tailored post',
+					accountDisplayHandle: '@tailored.example',
+					status: 'scheduled',
+					postStatus: 'scheduled',
+					publishedCount: 0,
+					destinationCount: 2,
+					superseded: false,
+					customized: true,
+					scheduledAtUtc: new Date('2026-08-31T18:30:00.000Z'),
+					scheduledAtLocal: '2026-08-31T20:30:00+02:00',
+					timeZone: 'Europe/Paris',
+				},
+			],
+			nextCursor: null,
+		});
+		renderPage();
+
+		const badge = await screen.findByTestId('tenant-posts-customized-badge');
+		expect(badge.textContent).toBe('Customized');
+		expect(
+			badge.closest('tr')?.textContent?.includes('@tailored.example'),
+		).toBe(true);
 	});
 });

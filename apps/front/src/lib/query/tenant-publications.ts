@@ -54,6 +54,8 @@ export type TenantPublicationRow = {
 	accountUsable: boolean;
 	/** A newer publication exists for the same post and account. */
 	superseded: boolean;
+	/** The destination overrides part of the post's content (it has a rendition). */
+	customized: boolean;
 	updatedAt: Date | null;
 	/** Thread progress: segments published so far / total segments (1 = plain post). */
 	segmentsPublished: number;
@@ -182,6 +184,7 @@ const toTenantPublicationRow = (
 		attempts: item.attempts ?? 0,
 		accountUsable: item.accountUsable ?? false,
 		superseded: item.superseded ?? false,
+		customized: item.customized ?? false,
 		updatedAt: normalizeDate(item.updatedAt),
 		segmentsPublished: item.segmentsPublished ?? 0,
 		segmentsTotal: item.segmentsTotal ?? 1,

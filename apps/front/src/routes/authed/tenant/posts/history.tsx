@@ -23,6 +23,10 @@ import { formatInZone } from '~/utils/format-time';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { PublicationStatusCell } from './_publication-status-cell';
+import {
+	MutedWhenSuperseded,
+	ScheduledPublicationCustomized,
+} from './_scheduled-publication-display';
 import { useTenantPostList } from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
@@ -87,7 +91,16 @@ const TenantPostsHistoryPage = () => {
 				meta: { width: '200px' },
 				cell: ({ row }) =>
 					row.original.accountLabel ? (
-						<span className="truncate">{row.original.accountLabel}</span>
+						<MutedWhenSuperseded superseded={row.original.superseded}>
+							<div className="flex flex-wrap items-center gap-1.5">
+								<span className="min-w-0 truncate">
+									{row.original.accountLabel}
+								</span>
+								<ScheduledPublicationCustomized
+									customized={row.original.customized}
+								/>
+							</div>
+						</MutedWhenSuperseded>
 					) : (
 						'\u2014'
 					),
@@ -97,12 +110,14 @@ const TenantPostsHistoryPage = () => {
 				header: t('posts:history-post-label'),
 				enableSorting: false,
 				cell: ({ row }) => (
-					<span
-						className="line-clamp-2 min-w-0"
-						title={row.original.postExcerpt ?? undefined}
-					>
-						{row.original.postExcerpt ?? '\u2014'}
-					</span>
+					<MutedWhenSuperseded superseded={row.original.superseded}>
+						<span
+							className="line-clamp-2 min-w-0"
+							title={row.original.postExcerpt ?? undefined}
+						>
+							{row.original.postExcerpt ?? '\u2014'}
+						</span>
+					</MutedWhenSuperseded>
 				),
 			},
 			{
@@ -123,10 +138,13 @@ const TenantPostsHistoryPage = () => {
 				header: t('common:updated-at'),
 				enableSorting: false,
 				meta: { width: '132px' },
-				cell: ({ row }) =>
-					row.original.updatedAt
-						? formatInZone(row.original.updatedAt, undefined, language)
-						: '\u2014',
+				cell: ({ row }) => (
+					<MutedWhenSuperseded superseded={row.original.superseded}>
+						{row.original.updatedAt
+							? formatInZone(row.original.updatedAt, undefined, language)
+							: '\u2014'}
+					</MutedWhenSuperseded>
+				),
 			},
 		],
 		[t, language, tenantId, canPublish],

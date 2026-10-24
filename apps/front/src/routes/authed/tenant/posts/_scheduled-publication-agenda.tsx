@@ -5,7 +5,9 @@ import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publi
 import { formatCalendarDay } from '~/utils/format-time';
 
 import {
+	MutedWhenSuperseded,
 	ScheduledPublicationCause,
+	ScheduledPublicationCustomized,
 	ScheduledPublicationStatus,
 	ScheduledPublicationTime,
 } from './_scheduled-publication-display';
@@ -21,9 +23,12 @@ const ScheduledPublicationIdentity = ({
 	const body = (
 		<div className="min-w-0">
 			<p className="truncate font-medium">{row.postBodyPreview ?? '—'}</p>
-			<p className="truncate text-xs text-muted-foreground">
-				{row.accountDisplayHandle ?? '—'}
-			</p>
+			<div className="flex min-w-0 items-center gap-1.5">
+				<p className="truncate text-xs text-muted-foreground">
+					{row.accountDisplayHandle ?? '—'}
+				</p>
+				<ScheduledPublicationCustomized customized={row.customized} />
+			</div>
 		</div>
 	);
 
@@ -71,15 +76,18 @@ export const ScheduledPublicationAgenda = ({
 						{group.rows.map((row) => {
 							return (
 								<article key={row.id} className="py-3 first:pt-0 last:pb-0">
-									<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
-										<ScheduledPublicationIdentity row={row} />
-										<ScheduledPublicationStatus status={row.status} />
-										<ScheduledPublicationTime row={row} />
-									</div>
-									<ScheduledPublicationCause
-										status={row.status}
-										cause={row.lastError}
-									/>
+									<MutedWhenSuperseded superseded={row.superseded}>
+										<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+											<ScheduledPublicationIdentity row={row} />
+											<ScheduledPublicationStatus row={row} />
+											<ScheduledPublicationTime row={row} />
+										</div>
+										<ScheduledPublicationCause
+											status={row.status}
+											cause={row.lastError}
+											superseded={row.superseded}
+										/>
+									</MutedWhenSuperseded>
 								</article>
 							);
 						})}

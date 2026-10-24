@@ -136,6 +136,10 @@ const EN_LABELS: TestLabelMap = {
 	'posts:publication-retry-disabled-permission': 'Need publish permission.',
 	'posts:publication-retry-disabled-status': 'Only failed or paused.',
 	'posts:publication-retry-disabled-superseded': 'Only the newest publication.',
+	'posts:publication-superseded': 'Replaced',
+	'posts:publication-superseded-description':
+		'A newer publication replaced this one.',
+	'posts:publication-customized': 'Customized',
 	'posts:publish-status-in-progress': 'In progress…',
 	'posts:publish-status-published': 'Published',
 	'posts:publish-status-paused': 'Paused',
@@ -190,6 +194,7 @@ const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	attempts: 0,
 	accountUsable: true,
 	superseded: false,
+	customized: false,
 	updatedAt: new Date('2026-08-25T10:00:00Z'),
 	segmentsPublished: 0,
 	segmentsTotal: 1,
@@ -486,20 +491,46 @@ describe('TenantPostsHistoryPage', () => {
 		expect(retry.getAttribute('title')).toBe('Need publish permission.');
 	});
 
-	test('Retry is disabled with a tooltip on a row superseded by a newer publication', () => {
+	test('a row superseded by a newer publication is muted, labelled Replaced and not a live failure', () => {
 		mocks.rows = [
 			row({
 				status: 'failed',
 				externalUrl: null,
 				failureCategory: 'retry_later',
+				lastError: 'provider unreachable',
 				superseded: true,
 			}),
 		];
 		render(<TenantPostsHistoryPage />);
 
-		const retry = screen.getByRole('button', { name: 'Retry' });
-		expect(retry.hasAttribute('disabled')).toBe(true);
-		expect(retry.getAttribute('title')).toBe('Only the newest publication.');
+		expect(
+			screen.getByTestId('tenant-posts-history-superseded-label').textContent,
+		).toBe('Replaced');
+		// Muted, never presented as a live failure: no failed pill, no cause,
+		// no retry.
+		expect(screen.queryByTestId('tenant-posts-history-status-pill')).toBeNull();
+		expect(screen.queryByTestId('tenant-posts-publication-cause')).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+		expect(
+			document.querySelectorAll('[data-superseded="true"]').length,
+		).toBeGreaterThan(0);
+	});
+
+	test('a customized destination carries a Customized badge; a plain one does not', () => {
+		mocks.rows = [
+			row({ id: 'pub-custom', customized: true }),
+			row({ id: 'pub-plain', accountLabel: '@plain.example' }),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(screen.getAllByTestId('tenant-posts-customized-badge')).toHaveLength(
+			1,
+		);
+		const badge = screen.getByTestId('tenant-posts-customized-badge');
+		expect(badge.textContent).toBe('Customized');
+		expect(
+			badge.closest('tr')?.textContent?.includes('@team.publyapp.dev'),
+		).toBe(true);
 	});
 
 	test('a failed retry-later row of an unusable account offers Reconnect, not Retry now', () => {

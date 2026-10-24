@@ -168,6 +168,7 @@ describe('toTenantPublicationRows', () => {
 			attempts: 0,
 			accountUsable: false,
 			superseded: false,
+			customized: false,
 			updatedAt,
 			segmentsPublished: 0,
 			segmentsTotal: 1,
@@ -178,6 +179,15 @@ describe('toTenantPublicationRows', () => {
 		expect(rows[1].attempts).toBe(2);
 		expect(rows[1].accountUsable).toBe(true);
 		expect(rows[1].superseded).toBe(true);
+		expect(rows[1].customized).toBe(false);
+	});
+
+	test('carries the customized flag of a destination with a rendition', () => {
+		const [row] = toTenantPublicationRows({
+			data: [{ id: '0198c7a2-0000-7000-8000-000000000005', customized: true }],
+		});
+
+		expect(row?.customized).toBe(true);
 	});
 
 	test('drops rows without an id and survives an empty payload', () => {

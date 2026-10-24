@@ -22,6 +22,28 @@ export const PublicationStatusCell = ({
 		return <span className="text-muted-foreground">{'—'}</span>;
 	}
 
+	// A newer publication replaced this row for the same post and account
+	// (owner decision, 2026-10-24): it is history, not a live status. Muted,
+	// labelled "Replaced", and never offered the failure details or a retry.
+	if (publication.superseded) {
+		return (
+			<div
+				className="flex max-w-xs flex-col items-start gap-1 opacity-60"
+				data-superseded="true"
+			>
+				<StatusPill
+					tone="neutral"
+					testId="tenant-posts-history-superseded-label"
+				>
+					{t('posts:publication-superseded')}
+				</StatusPill>
+				<p className="text-xs text-muted-foreground">
+					{t('posts:publication-superseded-description')}
+				</p>
+			</div>
+		);
+	}
+
 	const pill = (
 		<StatusPill
 			tone={presentation.tone}
