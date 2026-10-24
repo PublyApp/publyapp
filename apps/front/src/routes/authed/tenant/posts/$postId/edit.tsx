@@ -299,11 +299,14 @@ const TenantPostEditPage = () => {
 									</FormActionBar>
 								</Form>
 								<PostEditDestinations
+									postId={postId}
+									tenantId={tenantId ?? ''}
 									selection={selection}
 									destinationOverrides={destinationOverrides}
 									body={body}
 									segments={segments}
 									images={details.images}
+									isPostDirty={methods.formState.isDirty}
 								/>
 								<PostDangerZone
 									onMoveToBin={() => setPendingBinId(details.id)}

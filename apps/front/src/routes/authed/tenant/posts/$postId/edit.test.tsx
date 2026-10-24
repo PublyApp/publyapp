@@ -185,8 +185,8 @@ vi.mock('../_publish-on-block', () => ({
 	PublishOnBlock: () => <div data-testid="publish-on-block-stub" />,
 }));
 
-// The destination chips pull their own queries; this suite only asserts what
-// the page hands them.
+// The destination chips and the scheduled-destination editor pull their own
+// queries; this suite only asserts what the page hands them.
 vi.mock('../_composer-destinations', () => ({
 	ComposerDestinations: ({
 		body,
@@ -199,6 +199,22 @@ vi.mock('../_composer-destinations', () => ({
 			data-testid="composer-destinations-stub"
 			data-body={body}
 			data-image-keys={images.map((image) => image.key).join(',')}
+		/>
+	),
+}));
+
+vi.mock('../_scheduled-renditions-block', () => ({
+	ScheduledRenditionsBlock: ({
+		postId,
+		isPostDirty,
+	}: {
+		postId: string;
+		isPostDirty: boolean;
+	}) => (
+		<div
+			data-testid="scheduled-renditions-stub"
+			data-post-id={postId}
+			data-dirty={String(isPostDirty)}
 		/>
 	),
 }));
@@ -351,7 +367,7 @@ describe('TenantPostEditPage', () => {
 		expect(screen.getByTestId('publish-on-block-stub')).toBeTruthy();
 	});
 
-	test('hands the destinations the post images, keyed by asset id', () => {
+	test('hands the destinations the post images (keyed by asset id) and the scheduled destinations its id', () => {
 		mocks.useTenantPostDetailsQuery.mockReturnValue({
 			data: {
 				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
@@ -378,6 +394,11 @@ describe('TenantPostEditPage', () => {
 		expect(destinations.getAttribute('data-image-keys')).toBe(
 			'asset-1,asset-3',
 		);
+		const scheduled = screen.getByTestId('scheduled-renditions-stub');
+		expect(scheduled.getAttribute('data-post-id')).toBe(
+			'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+		);
+		expect(scheduled.getAttribute('data-dirty')).toBe('false');
 	});
 
 	test('save submission refreshes the post list and scheduled-publication surfaces for the tenant', async () => {
