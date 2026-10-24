@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => ({
 	composerProps: { current: undefined as CapturedProps | undefined },
 	blockProps: { current: undefined as CapturedProps | undefined },
 	shouldBlock: { current: undefined as (() => boolean) | undefined },
+	beforeUnload: { current: undefined as (() => boolean) | undefined },
 	navigate: vi.fn(),
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
@@ -105,8 +106,15 @@ vi.mock('@tanstack/react-router', () => ({
 			</a>
 		);
 	},
-	useBlocker: ({ shouldBlockFn }: { shouldBlockFn: () => boolean }) => {
+	useBlocker: ({
+		shouldBlockFn,
+		enableBeforeUnload,
+	}: {
+		shouldBlockFn: () => boolean;
+		enableBeforeUnload: () => boolean;
+	}) => {
 		mocks.shouldBlock.current = shouldBlockFn;
+		mocks.beforeUnload.current = enableBeforeUnload;
 		return { status: 'idle', proceed: undefined, reset: undefined };
 	},
 }));
@@ -583,5 +591,7 @@ describe('TenantPostEditPage', () => {
 		});
 
 		expect(mocks.shouldBlock.current?.()).toBe(true);
+		// The browser's unload prompt follows the same switch.
+		expect(mocks.beforeUnload.current?.()).toBe(true);
 	});
 });

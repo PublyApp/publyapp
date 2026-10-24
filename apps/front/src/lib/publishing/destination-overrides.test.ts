@@ -6,6 +6,8 @@ import {
 	effectiveImageCount,
 	fromRenditionOverrides,
 	isCustomized,
+	isOverrideEmpty,
+	pruneToSegments,
 	toWireDestinations,
 	toWireOverrides,
 	withMedia,
@@ -23,6 +25,26 @@ describe('destination overrides model', () => {
 		expect(isCustomized(withText(NO_OVERRIDE, BODY_KEY, 'x'))).toBe(true);
 		expect(
 			isCustomized(withMedia(NO_OVERRIDE, { imageKeys: [], altTexts: {} })),
+		).toBe(true);
+	});
+
+	test('images switched on with nothing chosen yet still inherit: not customized, nothing to send', () => {
+		const switchedOn = withMedia(NO_OVERRIDE, {
+			imageKeys: null,
+			altTexts: {},
+		});
+
+		expect(isCustomized(switchedOn)).toBe(false);
+		expect(isOverrideEmpty(switchedOn)).toBe(false);
+		expect(toWireOverrides(switchedOn, KEYS, IMAGES)).toBeNull();
+		// The moment an alt text or an explicit list appears, it is customized.
+		expect(
+			isCustomized(
+				withMedia(NO_OVERRIDE, { imageKeys: null, altTexts: { i1: 'x' } }),
+			),
+		).toBe(true);
+		expect(
+			isCustomized(withMedia(NO_OVERRIDE, { imageKeys: ['i1'], altTexts: {} })),
 		).toBe(true);
 	});
 
@@ -59,6 +81,22 @@ describe('destination overrides model', () => {
 
 		expect(effectiveImageCount(stale, IMAGES)).toBe(1);
 		expect(effectiveImageCount(stale, ['i1', 'i3'])).toBe(0);
+	});
+});
+
+describe('pruneToSegments', () => {
+	test('drops text of a segment the post no longer has, and a destination left with nothing', () => {
+		const overrides = {
+			'acc-a': withText(withText(NO_OVERRIDE, 'seg-a', 'A'), 'gone', 'dead'),
+			'acc-b': withText(NO_OVERRIDE, 'gone', 'dead'),
+			'acc-c': withMedia(NO_OVERRIDE, { imageKeys: null, altTexts: {} }),
+		};
+
+		expect(pruneToSegments(overrides, KEYS)).toEqual({
+			'acc-a': withText(NO_OVERRIDE, 'seg-a', 'A'),
+			// A switch that is on keeps its editor state.
+			'acc-c': overrides['acc-c'],
+		});
 	});
 });
 

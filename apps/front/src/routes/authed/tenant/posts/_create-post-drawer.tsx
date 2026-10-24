@@ -77,7 +77,9 @@ export const CreatePostDrawer = ({
 	);
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
-	const destinationOverrides = useDestinationOverrides();
+	const destinationOverrides = useDestinationOverrides(
+		segments.map((segment) => segment.id),
+	);
 
 	const deferredAttach = useAttachDeferredImages(tenantId);
 
@@ -159,15 +161,13 @@ export const CreatePostDrawer = ({
 
 			// The picker collects a deferred image selection while the post
 			// does not exist yet; it is attached right after creation.
-			if (deferredImages.length > 0) {
-				const attached = await tryAttach(created.id, deferredImages);
-				if (attached === null) {
-					// The post was created and stays consistent (it keeps the
-					// images that did attach); the drawer stays open on the
-					// handoff surface naming the cause with the retry/discard
-					// actions.
-					return;
-				}
+			const attached = await publishPrep.syncImages(created.id);
+			if (attached === null) {
+				// The post was created and stays consistent (it keeps the
+				// images that did attach); the drawer stays open on the
+				// handoff surface naming the cause with the retry/discard
+				// actions.
+				return;
 			}
 
 			await completeAndClose();

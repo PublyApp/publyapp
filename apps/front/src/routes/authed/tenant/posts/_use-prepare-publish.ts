@@ -1,6 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
+import {
+	useRemovePostImageMutation,
+	useReorderPostImagesMutation,
+} from '~/lib/query/tenant-post-images';
 import { invalidateTenantPosts, savePost } from '~/lib/query/tenant-posts';
 
 import type { DeferredImageSelection } from './_post-image-picker';
@@ -22,9 +26,10 @@ type PostFormValues = {
  * A failed publish leaves the drawer open for another try, so the created
  * post is remembered: the retry updates THAT post instead of creating a
  * second one, and the picked images stay in the picker marked as attached, so
- * their key to asset id mapping survives and nothing is uploaded twice.
- * Changing the picked images after the post was created starts over with a
- * new post (an attached image cannot be removed from here).
+ * their key to asset id mapping survives and nothing is uploaded twice. Alt
+ * text and order edits keep the same post (the retry re-sends the alt texts
+ * and the order); an attached image the user removed is deleted from the post
+ * on the retry, and a newly picked one is uploaded then.
  */
 export const usePreparePublish = ({
 	methods,
@@ -45,7 +50,55 @@ export const usePreparePublish = ({
 	) => Promise<ReadonlyMap<string, string> | null>;
 }) => {
 	const qc = useQueryClient();
+	const removeImage = useRemovePostImageMutation();
+	const reorderImages = useReorderPostImagesMutation();
 	const [createdPostId, setCreatedPostId] = useState<string | null>(null);
+	// Attached images the user took out of the picker since: deleted from the
+	// created post on the next try.
+	const [removedAssetIds, setRemovedAssetIds] = useState<string[]>([]);
+
+	/**
+	 * Brings the created post's images in line with the picker: deletes the
+	 * attached images the user took out, uploads the picked ones not attached
+	 * yet (marking every one attached), and on a retry re-sends the picker
+	 * order. Resolves each image's asset id by its local key, or null after
+	 * surfacing the handoff failure.
+	 */
+	const syncImages = async (
+		postId: string,
+	): Promise<ReadonlyMap<string, string> | null> => {
+		await Promise.all(
+			removedAssetIds.map((assetId) =>
+				removeImage.mutateAsync({ postId, tenantId, assetId }),
+			),
+		);
+		setRemovedAssetIds([]);
+		if (deferredImages.length === 0) {
+			return new Map();
+		}
+
+		const attached = await tryAttach(postId, deferredImages);
+		if (attached === null) {
+			return null;
+		}
+		if (createdPostId !== null && deferredImages.length > 1) {
+			await reorderImages.mutateAsync({
+				postId,
+				tenantId,
+				assetIds: deferredImages.flatMap((image) => {
+					const assetId = attached.get(image.id);
+					return assetId === undefined ? [] : [assetId];
+				}),
+			});
+		}
+		setDeferredImages(
+			deferredImages.map((image) => ({
+				...image,
+				attachedAssetId: attached.get(image.id) ?? image.attachedAssetId,
+			})),
+		);
+		return attached;
+	};
 
 	const prepare = async (): Promise<PreparedPost | null> => {
 		const values = methods.getValues();
@@ -63,19 +116,9 @@ export const usePreparePublish = ({
 		});
 		setCreatedPostId(details.id);
 
-		let assetIdByKey: ReadonlyMap<string, string> = new Map();
-		if (deferredImages.length > 0) {
-			const attached = await tryAttach(details.id, deferredImages);
-			if (attached === null) {
-				return null;
-			}
-			assetIdByKey = attached;
-			setDeferredImages(
-				deferredImages.map((image) => ({
-					...image,
-					attachedAssetId: attached.get(image.id) ?? image.attachedAssetId,
-				})),
-			);
+		const assetIdByKey = await syncImages(details.id);
+		if (assetIdByKey === null) {
+			return null;
 		}
 		await invalidateTenantPosts(qc, tenantId);
 		methods.reset({
@@ -88,23 +131,29 @@ export const usePreparePublish = ({
 
 	return {
 		prepare,
+		syncImages,
 		/** The post an earlier publish attempt created, if any (Save updates it). */
 		createdPostId,
-		/** Stores a new picker selection; once a post was created, any change
-		 * to the picked images starts a fresh post. */
+		/** Stores a new picker selection. Once a post was created, attached
+		 * images that left the picker are remembered for deletion; alt text and
+		 * order edits keep the post. */
 		selectImages: (selections: DeferredImageSelection[]) => {
-			if (createdPostId === null) {
-				setDeferredImages(selections);
-				return;
+			if (createdPostId !== null) {
+				const kept = new Set(selections.map((selection) => selection.id));
+				const removed = deferredImages.flatMap((image) =>
+					!kept.has(image.id) && image.attachedAssetId
+						? [image.attachedAssetId]
+						: [],
+				);
+				if (removed.length > 0) {
+					setRemovedAssetIds((previous) => [...previous, ...removed]);
+				}
 			}
-			setCreatedPostId(null);
-			setDeferredImages(
-				selections.map((selection) => ({
-					...selection,
-					attachedAssetId: undefined,
-				})),
-			);
+			setDeferredImages(selections);
 		},
-		forget: () => setCreatedPostId(null),
+		forget: () => {
+			setCreatedPostId(null);
+			setRemovedAssetIds([]);
+		},
 	};
 };

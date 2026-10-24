@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -52,6 +53,7 @@ const rhf = vi.hoisted(() => {
 	return {
 		fields,
 		errors,
+		noSegments: [] as { id: string; text: string }[],
 		get,
 		resetAll: () => {
 			fields.clear();
@@ -202,7 +204,9 @@ vi.mock('react-hook-form', () => {
 			control: undefined,
 		}),
 		useController,
-		useWatch: ({ name }: { name: string }) => rhf.get(name).value,
+		// Thread segments are a list in the real form, never a text field.
+		useWatch: ({ name }: { name: string }) =>
+			name === 'segments' ? rhf.noSegments : rhf.get(name).value,
 		useFormState: () => ({ isSubmitting: false }),
 	};
 });
@@ -448,24 +452,132 @@ describe('CreatePostDrawer publish preparation (#2172)', () => {
 		});
 	});
 
-	test('changing the picked images after the post was created starts a fresh post', async () => {
-		mocks.savePost.mockResolvedValue({ id: 'post-1', body: 'publish body' });
-		renderDrawer(vi.fn());
-		await fillBodyAndPickImage('publish body');
-		await mocks.publishBlockProps.current?.onBeforePublish?.();
+	describe('after a failed publish the post and its images are kept in step with the picker', () => {
+		// Inside act: the picker must have committed the "attached" marks before
+		// the user's next edit reads its props.
+		const prepareAgain = async () => {
+			let prepared:
+				| { postId: string; assetIdByKey?: ReadonlyMap<string, string> }
+				| null
+				| undefined;
+			await act(async () => {
+				prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+			});
+			return prepared;
+		};
 
-		await userEvent.upload(
-			screen.getByTestId('tenant-posts-create-image-input'),
-			SECOND_FILE,
-		);
-		await waitFor(() =>
-			expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
-		);
-		await mocks.publishBlockProps.current?.onBeforePublish?.();
+		beforeEach(() => {
+			mocks.savePost.mockResolvedValue({ id: 'post-1', body: 'publish body' });
+		});
 
-		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBeUndefined();
-		// Both images are uploaded again onto the new post.
-		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(3);
+		test('an alt text edit keeps the post and the upload, and re-sends the alt text', async () => {
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+			mocks.altMutateAsync.mockClear();
+
+			setFieldValue('tenant-posts-create-image-alt', 'A bigger red square');
+			await waitFor(() =>
+				expect(
+					(
+						screen.getByTestId(
+							'tenant-posts-create-image-alt',
+						) as HTMLInputElement
+					).value,
+				).toBe('A bigger red square'),
+			);
+			await prepareAgain();
+
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetId: 'asset-1',
+				altText: 'A bigger red square',
+			});
+		});
+
+		test('a newly picked image is uploaded onto the same post on the retry', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockResolvedValueOnce({ id: 'asset-2' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				SECOND_FILE,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+			);
+			const retried = await prepareAgain();
+
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(2);
+			expect(retried?.assetIdByKey?.size).toBe(2);
+		});
+
+		test('an attached image the user removed is deleted from the post on the retry', async () => {
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+
+			await userEvent.click(
+				screen.getByTestId('tenant-posts-create-image-remove'),
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toEqual([]),
+			);
+			await prepareAgain();
+
+			expect(mocks.removeMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetId: 'asset-1',
+			});
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		});
+
+		test('a reorder keeps the post and sends the picker order', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockResolvedValueOnce({ id: 'asset-2' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				SECOND_FILE,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+			);
+			await prepareAgain();
+			// The first publish uploads in order: nothing to re-sort yet.
+			expect(mocks.reorderMutateAsync).not.toHaveBeenCalled();
+
+			await userEvent.click(
+				screen.getAllByTestId(
+					'tenant-posts-create-image-move-later',
+				)[0] as HTMLElement,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys?.[0]).not.toBe(
+					'deferred-image-1',
+				),
+			);
+			await prepareAgain();
+
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.reorderMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetIds: ['asset-2', 'asset-1'],
+			});
+		});
 	});
 
 	test('aborts the publish (null) when an image cannot be attached, leaving the handoff to retry', async () => {

@@ -119,8 +119,11 @@ export const usePublishSubmit = ({
 		}
 
 		setPending(null);
+		// The request went out: unsaved customizations no longer matter, and the
+		// leave guard must not offer "stay" (a second click would publish twice).
 		void navigate({
 			to: kind === 'publish' ? '/tenant/posts/history' : '/tenant/posts/queue',
+			ignoreBlocker: true,
 		});
 	};
 

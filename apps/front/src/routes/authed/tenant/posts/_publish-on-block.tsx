@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { BODY_KEY } from '~/lib/publishing/destination-overrides';
+import { BODY_KEY, isCustomized } from '~/lib/publishing/destination-overrides';
 import {
 	POSTS_PUBLISH,
 	SOCIAL_ACCOUNTS_PUBLISH,
@@ -90,7 +90,7 @@ export const PublishOnBlock = ({
 	const isPending = submit.pending !== null;
 	const mustSaveFirst =
 		isPostDirty &&
-		selectedIds.some((id) => id in destinationOverrides.overrides);
+		selectedIds.some((id) => isCustomized(destinationOverrides.overrides[id]));
 	const cannotSubmit =
 		selectedIds.length === 0 ||
 		isPending ||

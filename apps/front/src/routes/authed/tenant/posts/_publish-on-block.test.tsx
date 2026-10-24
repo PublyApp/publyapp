@@ -411,6 +411,7 @@ describe('PublishOnBlock', () => {
 		await waitFor(() => {
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/tenant/posts/history',
+				ignoreBlocker: true,
 			});
 		});
 		expect(mocks.invalidateTenantPublications).toHaveBeenCalledWith(

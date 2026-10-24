@@ -2,6 +2,7 @@ import { IconAdjustmentsHorizontal } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
+import { isCustomized as hasCustomization } from '~/lib/publishing/destination-overrides';
 import {
 	POSTS_PUBLISH,
 	SOCIAL_ACCOUNTS_PUBLISH,
@@ -53,7 +54,9 @@ export const DestinationChips = ({
 				<div role="group" className="flex flex-wrap gap-2">
 					{targets.map((target) => {
 						const isChecked = selectedIdSet.has(target.id);
-						const isCustomized = target.id in overrides.overrides;
+						const isCustomized = hasCustomization(
+							overrides.overrides[target.id],
+						);
 						const label = target.label ?? target.provider;
 
 						return (

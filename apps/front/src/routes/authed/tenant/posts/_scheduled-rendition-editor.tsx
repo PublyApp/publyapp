@@ -1,4 +1,5 @@
 import { IconAlertCircle } from '@tabler/icons-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import QueryDisplay from '~/components/query-display';
 import { Skeleton } from '~/components/ui/skeleton';
@@ -41,6 +42,14 @@ export const ScheduledRenditionEditor = ({
 		publicationId: row.publicationId,
 		tenantId,
 	});
+	// The draft is keyed by segment and image ids: when the shared post's
+	// segments or images change, the form starts again from the server instead
+	// of saving a draft that no longer lines up, and says so.
+	const formKey = [
+		...segments.map((segment) => segment.id),
+		...images.map((image) => image.key),
+	].join('|');
+	const [openedWithKey] = useState(formKey);
 
 	return (
 		<QueryDisplay
@@ -70,24 +79,29 @@ export const ScheduledRenditionEditor = ({
 					return null;
 				}
 				return (
-					<ScheduledRenditionForm
-						// The draft is keyed by segment and image ids: when the shared
-						// post's segments or images change, start again from the server
-						// instead of saving a draft that no longer lines up.
-						key={[
-							...segments.map((s) => s.id),
-							...images.map((i) => i.key),
-						].join('|')}
-						row={row}
-						tenantId={tenantId}
-						rendition={rendition}
-						target={target}
-						body={body}
-						segments={segments}
-						images={images}
-						isPostDirty={isPostDirty}
-						onClose={onClose}
-					/>
+					<>
+						{formKey === openedWithKey ? null : (
+							<p
+								className="publy-type-helper text-muted-foreground"
+								role="status"
+								data-testid="tenant-posts-rendition-reloaded"
+							>
+								{t('posts:rendition-draft-reloaded')}
+							</p>
+						)}
+						<ScheduledRenditionForm
+							key={formKey}
+							row={row}
+							tenantId={tenantId}
+							rendition={rendition}
+							target={target}
+							body={body}
+							segments={segments}
+							images={images}
+							isPostDirty={isPostDirty}
+							onClose={onClose}
+						/>
+					</>
 				);
 			}}
 		</QueryDisplay>

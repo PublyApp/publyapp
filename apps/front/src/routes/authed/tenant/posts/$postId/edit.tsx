@@ -13,6 +13,7 @@ import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { isCustomized } from '~/lib/publishing/destination-overrides';
 import {
 	useTenantPostDetailsQuery,
 	savePost,
@@ -39,7 +40,7 @@ import { PostDangerZone } from '../_post-danger-zone';
 import { PostEditDestinations } from '../_post-edit-destinations';
 import { PostEditSideColumn } from '../_post-edit-side-column';
 import { PostSegmentsEditor } from '../_post-segments-editor';
-import { NO_SEGMENTS, newSegmentDraft } from '../_segment-draft';
+import { NO_SEGMENTS, reconcileSegmentDrafts } from '../_segment-draft';
 import { useDestinationOverrides } from '../_use-destination-overrides';
 import { usePublishSelection } from '../_use-publish-selection';
 import { useUnsavedWorkGuard } from '../_use-unsaved-work-guard';
@@ -79,7 +80,9 @@ const TenantPostEditPage = () => {
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
-	const destinationOverrides = useDestinationOverrides();
+	const destinationOverrides = useDestinationOverrides(
+		segments.map((segment) => segment.id),
+	);
 	// `formState.isSubmitting` covers the whole async handleSubmit callback.
 	const isSaving = methods.formState.isSubmitting;
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
@@ -94,15 +97,15 @@ const TenantPostEditPage = () => {
 	useEffect(() => {
 		const d = toTenantPostDetails(detailsQuery.data);
 		if (d) {
-			// Keep each segment's id by position: a refetch (an image added or
-			// removed) must not re-key the segments, or the destinations'
-			// customizations, which are keyed by segment id, would be orphaned.
-			const previous = methods.getValues('segments');
+			// Keep each segment's id (by text, not position, so a local reorder
+			// cannot move a customization onto another segment): a refetch (an
+			// image added or removed) must not re-key the segments.
 			methods.reset({
 				body: d.body,
 				projectId: d.projectId,
-				segments: d.segments.map((segment, index) =>
-					newSegmentDraft(segment.body, previous[index]?.id),
+				segments: reconcileSegmentDrafts(
+					methods.getValues('segments'),
+					d.segments.map((segment) => segment.body),
 				),
 			});
 		}
@@ -113,7 +116,7 @@ const TenantPostEditPage = () => {
 	const hasUnsavedWork =
 		!methods.formState.isSubmitting &&
 		(methods.formState.isDirty ||
-			Object.keys(destinationOverrides.overrides).length > 0);
+			Object.values(destinationOverrides.overrides).some(isCustomized));
 
 	const blocker = useUnsavedWorkGuard(hasUnsavedWork);
 

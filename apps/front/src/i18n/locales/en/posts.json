@@ -154,5 +154,6 @@
 	"publish-status-failed-partial": "Failed · {{published}}/{{total}} published",
 	"publication-superseded": "Replaced",
 	"publication-superseded-description": "A newer publication replaced this one for the same post and account.",
-	"publication-customized": "Customized"
+	"publication-customized": "Customized",
+	"rendition-draft-reloaded": "The post's segments or images changed, so this customization was reloaded from the saved version."
 }

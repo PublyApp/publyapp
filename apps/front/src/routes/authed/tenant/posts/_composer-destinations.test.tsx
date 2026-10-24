@@ -603,6 +603,7 @@ describe('submitting', () => {
 		await waitFor(() => {
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/tenant/posts/history',
+				ignoreBlocker: true,
 			});
 		});
 	});
@@ -701,12 +702,12 @@ describe('submitting', () => {
 				},
 			],
 		});
-		expect(typeof args.timeZone).toBe('string');
-		expect(args.timeZone.length).toBeGreaterThan(0);
+		expect(args.timeZone).toBe('America/New_York');
 		expect(mocks.publishNow).not.toHaveBeenCalled();
 		await waitFor(() => {
 			expect(mocks.navigate).toHaveBeenCalledWith({
 				to: '/tenant/posts/queue',
+				ignoreBlocker: true,
 			});
 		});
 	});
@@ -838,12 +839,40 @@ describe('images per destination', () => {
 		]);
 	});
 
-	test('turning images on inherits every image (no explicit list) so images added later still flow', async () => {
+	test('turning images on without changing anything still inherits: no dot, nothing sent', async () => {
 		const user = userEvent.setup();
 		renderComposer({ initialBody: 'shared', images: IMAGES });
 		await openTab(user, 'Acme main');
 		await user.click(
 			within(panel()).getByTestId('tenant-posts-destination-media-toggle'),
+		);
+
+		expect(
+			screen.queryByTestId(`tenant-posts-destination-dot-${TARGET_A}`),
+		).toBeNull();
+		await user.click(publishNowButton());
+
+		await waitFor(() => {
+			expect(mocks.publishNow).toHaveBeenCalledTimes(1);
+		});
+		for (const destination of mocks.publishNow.mock.calls[0]?.[0]
+			.destinations as object[]) {
+			expect(destination).not.toHaveProperty('overrides');
+		}
+	});
+
+	test('an alt text alone inherits the images (no explicit list), so images added later still flow', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'shared', images: IMAGES });
+		await openTab(user, 'Acme main');
+		await user.click(
+			within(panel()).getByTestId('tenant-posts-destination-media-toggle'),
+		);
+		await user.type(
+			within(panel()).getAllByTestId(
+				'tenant-posts-destination-image-alt',
+			)[1] as HTMLElement,
+			'A cat',
 		);
 
 		await user.click(publishNowButton());
@@ -852,7 +881,9 @@ describe('images per destination', () => {
 			expect(mocks.publishNow).toHaveBeenCalledTimes(1);
 		});
 		const [acme] = mocks.publishNow.mock.calls[0]?.[0].destinations;
-		expect(acme.overrides.media).toEqual({ altTexts: [] });
+		expect(acme.overrides.media).toEqual({
+			altTexts: [{ assetId: 'img-2', altText: 'A cat' }],
+		});
 	});
 
 	test('element ids in the open tab are unique and derive from the destination', async () => {

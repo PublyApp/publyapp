@@ -280,7 +280,11 @@ describe('ScheduledRenditionsBlock stored overrides survive a round trip', () =>
 		await openEditor(user);
 
 		// The shared segments come back with new ids (e.g. after a refetch).
+		expect(screen.queryByTestId('tenant-posts-rendition-reloaded')).toBeNull();
 		view.rerender(blockOf({ segments: [newSegmentDraft('A follow-up')] }));
+		expect(
+			screen.getByTestId('tenant-posts-rendition-reloaded').textContent,
+		).toContain('reloaded from the saved version');
 		await user.click(screen.getByTestId('tenant-posts-rendition-save'));
 
 		await waitFor(() => {

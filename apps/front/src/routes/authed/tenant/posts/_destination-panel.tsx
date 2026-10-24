@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import {
 	BODY_KEY,
-	isCustomized,
+	isOverrideEmpty,
 	withMedia,
 	withText,
 	withoutText,
@@ -122,7 +122,7 @@ export const DestinationPanel = ({
 						type="button"
 						variant="outline"
 						size="sm"
-						disabled={!isCustomized(override)}
+						disabled={isOverrideEmpty(override)}
 						data-testid="tenant-posts-destination-reset"
 						onClick={onReset}
 					>

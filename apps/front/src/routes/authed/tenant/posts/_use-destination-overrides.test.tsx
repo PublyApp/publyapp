@@ -6,6 +6,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	BODY_KEY,
 	NO_OVERRIDE,
+	withMedia,
 	withText,
 	withoutText,
 } from '~/lib/publishing/destination-overrides';
@@ -57,5 +58,33 @@ describe('useDestinationOverrides', () => {
 
 		act(() => result.current.close());
 		expect(result.current.activeId).toBeNull();
+	});
+
+	test('text customized for a segment that was deleted stops counting, and the destination is no longer customized', () => {
+		const { result, rerender } = renderHook(
+			({ ids }) => useDestinationOverrides(ids),
+			{ initialProps: { ids: ['seg-a', 'seg-b'] } },
+		);
+		act(() =>
+			result.current.update('acc-a', withText(NO_OVERRIDE, 'seg-b', 'mine')),
+		);
+		expect(Object.keys(result.current.overrides)).toEqual(['acc-a']);
+
+		rerender({ ids: ['seg-a'] });
+
+		expect(result.current.overrides).toEqual({});
+	});
+
+	test('images switched on with nothing chosen yet keep their editor state', () => {
+		const { result } = renderHook(() => useDestinationOverrides([]));
+
+		act(() =>
+			result.current.update(
+				'acc-a',
+				withMedia(NO_OVERRIDE, { imageKeys: null, altTexts: {} }),
+			),
+		);
+
+		expect(Object.keys(result.current.overrides)).toEqual(['acc-a']);
 	});
 });

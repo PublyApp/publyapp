@@ -49,11 +49,46 @@ export type WireDestination = {
 
 export const NO_OVERRIDE: DestinationOverride = { texts: {}, media: null };
 
+/** Images switched on but nothing chosen yet (every image, no alt text): the
+ * destination still inherits, so there is nothing to send. */
+const isNoOpMedia = (media: MediaOverride | null): boolean =>
+	media === null ||
+	(media.imageKeys === null && Object.keys(media.altTexts).length === 0);
+
+/** Whether the destination actually differs from the shared post. */
 export const isCustomized = (
 	override: DestinationOverride | undefined,
 ): boolean =>
 	override !== undefined &&
-	(Object.keys(override.texts).length > 0 || override.media !== null);
+	(Object.keys(override.texts).length > 0 || !isNoOpMedia(override.media));
+
+/** Whether there is any editor state at all, including a switch turned on that
+ * has not changed anything yet. */
+export const isOverrideEmpty = (override: DestinationOverride): boolean =>
+	Object.keys(override.texts).length === 0 && override.media === null;
+
+/**
+ * The overrides without the text of segments the post no longer has (a
+ * deleted or re-keyed segment): a destination left with nothing is dropped, so
+ * a dead override never keeps it "customized".
+ */
+export const pruneToSegments = (
+	overrides: DestinationOverrides,
+	segmentKeys: readonly string[],
+): DestinationOverrides => {
+	const present = new Set(segmentKeys);
+	return Object.fromEntries(
+		Object.entries(overrides).flatMap(([accountId, override]) => {
+			const pruned = {
+				...override,
+				texts: Object.fromEntries(
+					Object.entries(override.texts).filter(([key]) => present.has(key)),
+				),
+			};
+			return isOverrideEmpty(pruned) ? [] : [[accountId, pruned]];
+		}),
+	);
+};
 
 export const withText = (
 	override: DestinationOverride,
@@ -119,7 +154,7 @@ export const toWireOverrides = (
 		wire.segments = segments;
 	}
 
-	if (override.media !== null) {
+	if (!isNoOpMedia(override.media) && override.media !== null) {
 		const assetOf = (key: string) => assetIdByKey.get(key) ?? key;
 		const present = new Set(imageKeys);
 		const { imageKeys: own, altTexts } = override.media;

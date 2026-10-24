@@ -152,13 +152,11 @@ export const formatInZone = (
 	return formatDate(date, language, WEEKDAY_DATE_TIME_OPTIONS, timeZone);
 };
 
-/** Resolves the platform's own zone, never one the caller picked. */
-const PLATFORM_ZONE_FORMATTER = new Intl.DateTimeFormat();
-
-/** The viewer's IANA time zone: the zone a schedule is created in. Falls back
- * to UTC when the platform exposes none. */
+/** The viewer's IANA time zone: the zone a schedule is created in. Read on
+ * each call, so a zone change during the session is honoured. Falls back to
+ * UTC when the platform exposes none. */
 export const getBrowserTimeZone = (): string =>
-	PLATFORM_ZONE_FORMATTER.resolvedOptions().timeZone || 'UTC';
+	Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 /** Formats a calendar day in UTC using the UI locale. */
 export const formatCalendarDay = (value: DateInput, language: string): string =>

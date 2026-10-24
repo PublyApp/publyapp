@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { isCustomized } from '~/lib/publishing/destination-overrides';
+import {
+	BODY_KEY,
+	isOverrideEmpty,
+	pruneToSegments,
+} from '~/lib/publishing/destination-overrides';
 import type {
 	DestinationOverride,
 	DestinationOverrides,
@@ -9,8 +13,8 @@ import type {
 const NO_OVERRIDES: DestinationOverrides = {};
 
 export type DestinationOverridesState = {
-	/** Customized destinations only, by social account id: an account that is
-	 * absent inherits the whole shared post. */
+	/** Destinations with something overridden, by social account id: an account
+	 * that is absent inherits the whole shared post. */
 	overrides: DestinationOverrides;
 	/** The destination whose tab is open, or null for the shared editor. */
 	activeId: string | null;
@@ -35,15 +39,23 @@ const withoutKey = (
 /** Owns the composer's per-destination overrides and which destination tab is
  * open. State only: nothing is saved until the user publishes or schedules
  * (there is no autosave). */
-export const useDestinationOverrides = (): DestinationOverridesState => {
-	const [overrides, setOverrides] = useState(NO_OVERRIDES);
+export const useDestinationOverrides = (
+	/** The ids of the shared follow-up segments: text customized for a segment
+	 * that no longer exists is left out of `overrides`. */
+	segmentIds?: readonly string[],
+): DestinationOverridesState => {
+	const [stored, setOverrides] = useState(NO_OVERRIDES);
+	const overrides =
+		segmentIds === undefined
+			? stored
+			: pruneToSegments(stored, [BODY_KEY, ...segmentIds]);
 	const [activeId, setActiveId] = useState<string | null>(null);
 
 	const update = (accountId: string, next: DestinationOverride) => {
 		setOverrides((previous) =>
-			isCustomized(next)
-				? { ...previous, [accountId]: next }
-				: withoutKey(previous, accountId),
+			isOverrideEmpty(next)
+				? withoutKey(previous, accountId)
+				: { ...previous, [accountId]: next },
 		);
 	};
 
