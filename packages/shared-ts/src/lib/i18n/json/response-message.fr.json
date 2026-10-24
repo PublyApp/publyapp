@@ -155,6 +155,8 @@
 	"publication-rendition-locked": "Cette publication est déjà publiée ; son contenu ne peut plus être personnalisé",
 	"publication-rendition-needs-review": "Cette publication est peut-être déjà chez le fournisseur ; son contenu ne peut pas changer avant vérification",
 	"publication-rendition-reset-success": "Contenu réinitialisé sur le billet partagé",
+	"publication-rendition-superseded": "Une publication plus récente a remplacé celle-ci pour ce post et ce compte ; personnalisez la plus récente",
+	"publication-rendition-conflict": "Le contenu de cette publication a été modifié en même temps ; rechargez-la et réessayez",
 	"post-schedule-cancelled-success": "Planification annulée — le billet est de retour dans les brouillons",
 	"post-schedule-cancel-noop": "Aucune planification à annuler",
 	"job-queue-item-not-found": "Élément de la file de jobs introuvable",

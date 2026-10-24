@@ -155,6 +155,8 @@
 	"publication-rendition-locked": "This publication is already published; its content can no longer be customized",
 	"publication-rendition-needs-review": "This publication may already be on the provider, so its content cannot change until it is reviewed",
 	"publication-rendition-reset-success": "Content reset to the shared post",
+	"publication-rendition-superseded": "A newer publication replaced this one for the same post and account; customize the newer one",
+	"publication-rendition-conflict": "This publication's content was changed at the same time; reload it and try again",
 	"post-schedule-cancelled-success": "Schedule cancelled — the post is back in drafts",
 	"post-schedule-cancel-noop": "Nothing scheduled to cancel",
 	"job-queue-item-not-found": "Job queue item not found",

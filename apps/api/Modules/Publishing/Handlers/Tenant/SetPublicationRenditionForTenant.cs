@@ -50,7 +50,7 @@ public sealed class SetPublicationRenditionBodyValidator
 
 /// <summary>
 /// Sets a publication's overrides (#2172). 404 absent/foreign; 409 when published, parked
-/// for review or being published right now; 422 naming the destination (and the segment)
+/// for review, replaced by a newer publication or being published right now; 422 naming the destination (and the segment)
 /// when an override is unusable or breaks the destination's limits.
 /// </summary>
 public sealed class SetPublicationRenditionForTenant {
@@ -112,6 +112,21 @@ public sealed class SetPublicationRenditionForTenant {
 				"This publication is being published right now. Wait for it to finish, "
 					+ "then customize it.",
 				ResponseKeys.PublicationScheduleInProgress
+			);
+		}
+
+		if (result is RenditionResult.Superseded) {
+			return TypedProblems.Conflict(
+				"A newer publication replaced this one for the same post and account. "
+					+ "Customize the newer publication instead.",
+				ResponseKeys.PublicationRenditionSuperseded
+			);
+		}
+
+		if (result is RenditionResult.ConcurrentUpdate) {
+			return TypedProblems.Conflict(
+				"This publication's content was changed at the same time. Reload it and try again.",
+				ResponseKeys.PublicationRenditionConflict
 			);
 		}
 

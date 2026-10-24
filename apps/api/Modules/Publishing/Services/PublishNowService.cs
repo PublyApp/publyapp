@@ -160,6 +160,7 @@ public sealed class PublishNowService : IPublishNowService {
 		return await this._CreatePublicationsAndEnqueueAsync(
 			args,
 			post.GetRequiredId(),
+			source,
 			eligible,
 			cancellationToken
 		);
@@ -171,6 +172,7 @@ public sealed class PublishNowService : IPublishNowService {
 	private async Task<PublishNowResult> _CreatePublicationsAndEnqueueAsync(
 		PublishNowArgs args,
 		Guid postId,
+		SourceContent source,
 		List<SocialAccount> candidates,
 		CancellationToken cancellationToken
 	) {
@@ -208,19 +210,33 @@ public sealed class PublishNowService : IPublishNowService {
 					.ToList(),
 				cancellationToken
 			);
-			if (!await RenditionResolver.StageRenditionsAsync(
+			var staged = await RenditionResolver.StageRenditionsAsync(
 				this._Db,
 				args.TenantId,
+				source,
 				candidates
 					.Zip(keysByPublicationId, (account, entry) => (
 						entry.PublicationId,
-						args.Overrides?.GetValueOrDefault(account.GetRequiredId())
+						args.Overrides?.GetValueOrDefault(account.GetRequiredId()),
+						account
 					))
 					.ToList(),
 				carried,
 				cancellationToken
-			)) {
+			);
+			if (staged is not StageRenditionsResult.Staged) {
 				await transaction.RollbackAsync(cancellationToken);
+				// The rolled-back Added rows are still tracked: drop them (mirrors the
+				// 23505 branch below).
+				this._Db.ChangeTracker.Clear();
+				if (staged is StageRenditionsResult.OverridesInvalid overridesInvalid) {
+					return new PublishNowResult.OverridesInvalid(overridesInvalid.Failure);
+				}
+
+				if (staged is StageRenditionsResult.ContentInvalid contentInvalid) {
+					return new PublishNowResult.ContentInvalid(contentInvalid.Failure);
+				}
+
 				return new PublishNowResult.SegmentsLocked();
 			}
 

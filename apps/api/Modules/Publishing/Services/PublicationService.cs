@@ -31,11 +31,14 @@ public record SchedulePublicationArgs(
 /// <summary>
 /// One destination of a schedule request (#2172): the account, its own instant (UTC) and
 /// the content it overrides, if any. A destination without overrides inherits the post.
+/// <see cref="HasOwnInstant"/> is true when the instant came from the destination itself
+/// (not the shared default), so a refusal can be keyed on <c>destinations[i].scheduledAt</c>.
 /// </summary>
 public sealed record ScheduleDestination(
 	Guid SocialAccountId,
 	DateTime ScheduledAtUtc,
-	RenditionOverrides? Overrides
+	RenditionOverrides? Overrides,
+	bool HasOwnInstant = false
 );
 
 /// <summary>
@@ -277,11 +280,18 @@ public sealed class PublicationService : IPublicationService {
 		_ = zone; // kept for symmetry with later wall-clock conversion needs
 
 		var earliestAllowed = DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds);
-		if (args.Destinations.Any(destination => destination.ScheduledAtUtc < earliestAllowed)) {
-			return new ScheduleResult.InvalidSchedule(
-				"The requested date is already in the past. Pick a future date and time.",
-				"scheduledAtLocal"
-			);
+		for (var index = 0; index < args.Destinations.Count; index++) {
+			var destination = args.Destinations[index];
+			if (destination.ScheduledAtUtc < earliestAllowed) {
+				// A destination's own instant is keyed on that destination; the shared
+				// default (and the accountIds shape) stays on scheduledAtLocal.
+				return new ScheduleResult.InvalidSchedule(
+					"The requested date is already in the past. Pick a future date and time.",
+					destination.HasOwnInstant
+						? $"destinations[{index}].scheduledAt"
+						: "scheduledAtLocal"
+				);
+			}
 		}
 
 		var post = await this._LoadPostAsync(
@@ -379,15 +389,32 @@ public sealed class PublicationService : IPublicationService {
 			cancellationToken
 		);
 
-		if (!await RenditionResolver.StageRenditionsAsync(
+		var staged = await RenditionResolver.StageRenditionsAsync(
 			this._DbContext,
 			args.TenantId,
+			source,
 			publications
-				.Zip(args.Destinations, (publication, destination) => (publication.GetRequiredId(), destination.Overrides))
+				.Zip(args.Destinations, (publication, destination) => (
+					publication.GetRequiredId(),
+					destination.Overrides,
+					accounts.Single(candidate => candidate.GetRequiredId() == destination.SocialAccountId)
+				))
 				.ToList(),
 			carried,
 			cancellationToken
-		)) {
+		);
+		if (staged is not StageRenditionsResult.Staged) {
+			// Nothing is saved, but the new publications and segment copies are still
+			// tracked: drop them so nothing later in the request can persist them.
+			this._DbContext.ChangeTracker.Clear();
+			if (staged is StageRenditionsResult.OverridesInvalid overridesInvalid) {
+				return new ScheduleResult.OverridesInvalid(overridesInvalid.Failure);
+			}
+
+			if (staged is StageRenditionsResult.ContentInvalid contentInvalid) {
+				return new ScheduleResult.ContentInvalid(contentInvalid.Failure);
+			}
+
 			return new ScheduleResult.SegmentsLocked();
 		}
 

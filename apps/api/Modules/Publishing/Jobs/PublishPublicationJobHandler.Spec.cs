@@ -703,6 +703,29 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		return id;
 	}
 
+	// Stages renditions for fresh publications of the same (post, account) as `sameAs`.
+	private static async Task<StageRenditionsResult> _StageAsync(
+		AppDbContext db,
+		Guid tenantId,
+		Guid sameAs,
+		IReadOnlyList<(Guid PublicationId, RenditionOverrides? Requested)> fresh,
+		IReadOnlyDictionary<Guid, (Guid SourcePublicationId, int Carried)> carried
+	) {
+		var publication = await db.Publication.AsNoTracking().SingleAsync(p => p.Id == sameAs);
+		var post = await db.Post.AsNoTracking().SingleAsync(p => p.Id == publication.PostId);
+		var account = await db.SocialAccount.AsNoTracking()
+			.SingleAsync(a => a.Id == publication.SocialAccountId);
+		var source = await RenditionResolver.LoadSourceAsync(db, post, CancellationToken.None);
+		return await RenditionResolver.StageRenditionsAsync(
+			db,
+			tenantId,
+			source,
+			fresh.Select(entry => (entry.PublicationId, entry.Requested, account)).ToList(),
+			carried,
+			CancellationToken.None
+		);
+	}
+
 	private static async Task<JobOutcome> _RunAsync(
 		AppDbContext db,
 		Guid publicationId,
@@ -868,9 +891,9 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var carried = await ThreadSegments.CarryOverFailedProgressAsync(
 			db, seeded.TenantId, source.PostId, [(freshId, source.SocialAccountId)], CancellationToken.None
 		);
-		(await RenditionResolver.StageRenditionsAsync(
-			db, seeded.TenantId, [(freshId, null)], carried, CancellationToken.None
-		)).Should().BeTrue();
+		(await PublishPublicationJobHandlerSpec._StageAsync(
+			db, seeded.TenantId, failed, [(freshId, null)], carried
+		)).Should().BeOfType<StageRenditionsResult.Staged>();
 		await db.SaveChangesAsync();
 		var provider = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
 
@@ -923,16 +946,18 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			[freshId] = (failed, 1),
 		};
 
-		(await RenditionResolver.StageRenditionsAsync(
-			db, seeded.TenantId,
+		(await PublishPublicationJobHandlerSpec._StageAsync(
+			db, seeded.TenantId, failed,
 			[(freshId, PublishPublicationJobHandlerSpec._TextOverrides((0, "new root")))],
-			carried, CancellationToken.None
-		)).Should().BeFalse("the root segment is already on the provider");
-		(await RenditionResolver.StageRenditionsAsync(
-			db, seeded.TenantId,
+			carried
+		)).Should().BeOfType<StageRenditionsResult.SegmentsLocked>(
+			"the root segment is already on the provider"
+		);
+		(await PublishPublicationJobHandlerSpec._StageAsync(
+			db, seeded.TenantId, failed,
 			[(freshId, PublishPublicationJobHandlerSpec._TextOverrides((1, "new two")))],
-			carried, CancellationToken.None
-		)).Should().BeTrue("segment 2 is not published yet");
+			carried
+		)).Should().BeOfType<StageRenditionsResult.Staged>("segment 2 is not published yet");
 	}
 
 	[Fact]
