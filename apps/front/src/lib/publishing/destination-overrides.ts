@@ -13,8 +13,10 @@
 export const BODY_KEY = 'body';
 
 export interface MediaOverride {
-	/** The images this destination publishes, in publish order. */
-	imageKeys: string[];
+	/** The images this destination publishes, in publish order; null keeps
+	 * every image of the post in its order (only alt texts are customized), so
+	 * images added later still flow to this destination. */
+	imageKeys: string[] | null;
 	/** Alt text by image key, only where it differs from the shared alt text. */
 	altTexts: Record<string, string>;
 }
@@ -33,7 +35,8 @@ export type DestinationOverrides = Record<string, DestinationOverride>;
 export type WireOverrides = {
 	segments?: { position: number; text: string }[];
 	media?: {
-		assetIds: string[];
+		/** Omitted keeps every image of the post, in its order. */
+		assetIds?: string[];
 		altTexts: { assetId: string; altText: string }[];
 	};
 };
@@ -76,27 +79,30 @@ export const withMedia = (
 	media: MediaOverride | null,
 ): DestinationOverride => ({ ...override, media });
 
-/** The text a destination publishes for one segment: its own, else the shared one. */
-export const effectiveText = (
-	override: DestinationOverride | undefined,
-	key: string,
-	sharedText: string,
-): string => override?.texts[key] ?? sharedText;
-
-/** How many images a destination publishes: its subset, else every shared image. */
+/** How many images a destination publishes: its own subset, else every shared
+ * image. A key of an image that is no longer on the post counts for nothing. */
 export const effectiveImageCount = (
 	override: DestinationOverride | undefined,
-	sharedImageCount: number,
-): number => override?.media?.imageKeys.length ?? sharedImageCount;
+	imageKeys: readonly string[],
+): number => {
+	const own = override?.media?.imageKeys;
+	if (own === null || own === undefined) {
+		return imageKeys.length;
+	}
+	return own.filter((key) => imageKeys.includes(key)).length;
+};
 
 /**
  * The overrides object for one destination, customized fields only; null when
- * the destination inherits everything. `assetIdByKey` turns a local image key
- * into the uploaded asset id (a key it does not know is already an asset id).
+ * the destination inherits everything. Only images and segments the post
+ * still has are sent (the server refuses an override naming a removed image).
+ * `assetIdByKey` turns a local image key into the uploaded asset id (a key it
+ * does not know is already an asset id).
  */
 export const toWireOverrides = (
 	override: DestinationOverride | undefined,
 	segmentKeys: readonly string[],
+	imageKeys: readonly string[],
 	assetIdByKey: ReadonlyMap<string, string> = new Map(),
 ): WireOverrides | null => {
 	if (override === undefined) {
@@ -114,12 +120,16 @@ export const toWireOverrides = (
 
 	if (override.media !== null) {
 		const assetOf = (key: string) => assetIdByKey.get(key) ?? key;
+		const present = new Set(imageKeys);
+		const { imageKeys: own, altTexts } = override.media;
 		wire.media = {
-			assetIds: override.media.imageKeys.map(assetOf),
-			altTexts: Object.entries(override.media.altTexts).map(
-				([key, altText]) => ({ assetId: assetOf(key), altText }),
-			),
+			altTexts: Object.entries(altTexts)
+				.filter(([key]) => present.has(key))
+				.map(([key, altText]) => ({ assetId: assetOf(key), altText })),
 		};
+		if (own !== null) {
+			wire.media.assetIds = own.filter((key) => present.has(key)).map(assetOf);
+		}
 	}
 
 	if (wire.segments === undefined && wire.media === undefined) {
@@ -136,17 +146,20 @@ export const toWireDestinations = ({
 	accountIds,
 	overrides,
 	segmentKeys,
+	imageKeys,
 	assetIdByKey,
 }: {
 	accountIds: readonly string[];
 	overrides: DestinationOverrides;
 	segmentKeys: readonly string[];
+	imageKeys: readonly string[];
 	assetIdByKey?: ReadonlyMap<string, string>;
 }): WireDestination[] =>
 	accountIds.map((socialAccountId) => {
 		const wire = toWireOverrides(
 			overrides[socialAccountId],
 			segmentKeys,
+			imageKeys,
 			assetIdByKey,
 		);
 		if (wire === null) {
@@ -170,7 +183,6 @@ export type RenditionOverrides = {
 export const fromRenditionOverrides = (
 	rendition: RenditionOverrides,
 	segmentKeys: readonly string[],
-	postImageKeys: readonly string[],
 ): DestinationOverride => {
 	const texts: Record<string, string> = {};
 	for (const { position, text } of rendition.segments) {
@@ -191,7 +203,9 @@ export const fromRenditionOverrides = (
 	return {
 		texts,
 		media: {
-			imageKeys: rendition.media.assetIds ?? [...postImageKeys],
+			// Null stays null: the destination keeps inheriting the post's images
+			// until the user changes the set or the order.
+			imageKeys: rendition.media.assetIds,
 			altTexts,
 		},
 	};

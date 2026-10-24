@@ -104,6 +104,7 @@ export const DestinationPanel = ({
 	return (
 		<section
 			className="space-y-4 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-(--publy-border-strong) p-4"
+			id={`${panelId}-panel`}
 			aria-labelledby={`${panelId}-title`}
 			data-testid="tenant-posts-destination-panel"
 		>
@@ -149,6 +150,7 @@ export const DestinationPanel = ({
 				onChange={onChange}
 			/>
 			<DestinationMediaField
+				idPrefix={panelId}
 				images={images}
 				value={override.media}
 				maxImages={maxImages}

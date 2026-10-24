@@ -28,6 +28,8 @@ const moveKey = (keys: string[], from: number, to: number): string[] => {
 };
 
 type RowProps = {
+	/** Unique per destination tab: the alt text input's id derives from it. */
+	idPrefix: string;
 	image: ComposerImage;
 	/** 1-based place of the image in the shared post. */
 	number: number;
@@ -42,6 +44,7 @@ type RowProps = {
 };
 
 const MediaRow = ({
+	idPrefix,
 	image,
 	number,
 	isIncluded,
@@ -54,7 +57,7 @@ const MediaRow = ({
 	onMoveLater,
 }: RowProps) => {
 	const { t } = useTranslation(['posts']);
-	const altId = `destination-image-alt-${image.key}`;
+	const altId = `${idPrefix}-alt-${image.key}`;
 
 	return (
 		<li
@@ -128,6 +131,7 @@ const MediaRow = ({
 };
 
 type ListProps = {
+	idPrefix: string;
 	images: readonly ComposerImage[];
 	value: MediaOverride;
 	maxImages: number | null;
@@ -136,12 +140,23 @@ type ListProps = {
 
 /** The customized state: every shared image, included ones first in this
  * destination's order, then the left-out ones. */
-const MediaList = ({ images, value, maxImages, onChange }: ListProps) => {
+const MediaList = ({
+	idPrefix,
+	images,
+	value,
+	maxImages,
+	onChange,
+}: ListProps) => {
 	const { t } = useTranslation(['posts']);
 	const byKey = new Map(
 		images.map((image, index) => [image.key, { image, index }]),
 	);
-	const includedKeys = value.imageKeys;
+	// No explicit list: every image of the post, in its order. An explicit one
+	// may still name an image that was removed from the post: leave it out.
+	const includedKeys =
+		value.imageKeys === null
+			? images.map((image) => image.key)
+			: value.imageKeys.filter((key) => byKey.has(key));
 	const includedSet = new Set(includedKeys);
 	const leftOutKeys = images.flatMap((image) =>
 		includedSet.has(image.key) ? [] : [image.key],
@@ -176,6 +191,7 @@ const MediaList = ({ images, value, maxImages, onChange }: ListProps) => {
 					return (
 						<MediaRow
 							key={key}
+							idPrefix={idPrefix}
 							image={entry.image}
 							number={entry.index + 1}
 							isIncluded={isIncluded}
@@ -220,11 +236,14 @@ const MediaList = ({ images, value, maxImages, onChange }: ListProps) => {
  * which alt text. Off, the destination inherits every image in the shared
  * order. */
 export const DestinationMediaField = ({
+	idPrefix,
 	images,
 	value,
 	maxImages,
 	onChange,
 }: {
+	/** Unique per destination tab (switch and alt text ids derive from it). */
+	idPrefix: string;
 	images: readonly ComposerImage[];
 	value: MediaOverride | null;
 	/** The destination's own image cap, when the server advertised one. */
@@ -232,7 +251,7 @@ export const DestinationMediaField = ({
 	onChange: (next: MediaOverride | null) => void;
 }) => {
 	const { t } = useTranslation(['posts']);
-	const switchId = 'destination-media-override';
+	const switchId = `${idPrefix}-media-override`;
 
 	return (
 		<div className="space-y-2" data-testid="tenant-posts-destination-media">
@@ -246,17 +265,11 @@ export const DestinationMediaField = ({
 						id={switchId}
 						size="sm"
 						checked={value !== null}
-						disabled={images.length === 0}
+						disabled={images.length === 0 && value === null}
 						data-testid="tenant-posts-destination-media-toggle"
 						onCheckedChange={(checked) =>
-							onChange(
-								checked
-									? {
-											imageKeys: images.map((image) => image.key),
-											altTexts: {},
-										}
-									: null,
-							)
+							// On inherits every image (null) until the set or order changes.
+							onChange(checked ? { imageKeys: null, altTexts: {} } : null)
 						}
 					/>
 				</div>
@@ -276,6 +289,7 @@ export const DestinationMediaField = ({
 			) : null}
 			{value === null ? null : (
 				<MediaList
+					idPrefix={idPrefix}
 					images={images}
 					value={value}
 					maxImages={maxImages}

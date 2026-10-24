@@ -41,6 +41,7 @@ export const PublishOnBlock = ({
 	body = '',
 	segments = NO_SEGMENTS,
 	imageKeys = NO_IMAGE_KEYS,
+	isPostDirty = false,
 	onBeforePublish,
 }: {
 	/** Which targets are checked (owned by the composer so every counter and
@@ -55,6 +56,10 @@ export const PublishOnBlock = ({
 	segments?: SegmentDraft[];
 	/** Images on the post (attached or picked): a photo network needs one. */
 	imageKeys?: string[];
+	/** Unsaved edits to the shared post (edit page). A customization names
+	 * segments by position and the server applies it to the SAVED post, so
+	 * while the post is dirty a customized publish or schedule is held back. */
+	isPostDirty?: boolean;
 	/** Present once the post exists (edit page). */
 	postId?: string | null;
 	/** In the creation drawer the block calls `onBeforePublish` first so the
@@ -72,18 +77,25 @@ export const PublishOnBlock = ({
 		selectedIds,
 		overrides: destinationOverrides.overrides,
 		segmentKeys: [BODY_KEY, ...segments.map((segment) => segment.id)],
+		imageKeys,
 	});
 	const problems = findPublishProblems({
 		destinations,
 		overrides: destinationOverrides.overrides,
 		body,
 		segments,
-		imageCount: imageKeys.length,
+		imageKeys,
 	});
 	const { overLimitFollowUp, overrideProblem, destinationBlock } = problems;
 	const isPending = submit.pending !== null;
+	const mustSaveFirst =
+		isPostDirty &&
+		selectedIds.some((id) => id in destinationOverrides.overrides);
 	const cannotSubmit =
-		selectedIds.length === 0 || isPending || isPublishBlocked(problems);
+		selectedIds.length === 0 ||
+		isPending ||
+		isPublishBlocked(problems) ||
+		mustSaveFirst;
 	const tooManyForNow = selectedIds.length > PUBLISH_NOW_MAX_DESTINATIONS;
 
 	// D4 alignment (PR #1457): the front must promise only what the back will
@@ -133,6 +145,15 @@ export const PublishOnBlock = ({
 					{t(destinationBlock.key, {
 						destination: destinationBlock.destination,
 					})}
+				</p>
+			) : null}
+			{mustSaveFirst ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-publish-save-post-first"
+				>
+					{t('posts:rendition-save-post-first')}
 				</p>
 			) : null}
 			{tooManyForNow ? (

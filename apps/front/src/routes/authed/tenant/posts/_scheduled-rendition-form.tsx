@@ -57,15 +57,12 @@ export const ScheduledRenditionForm = ({
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const segmentKeys = [BODY_KEY, ...segments.map((segment) => segment.id)];
+	const imageKeys = images.map((image) => image.key);
 	const [draft, setDraft] = useState<DestinationOverride>(() =>
-		fromRenditionOverrides(
-			rendition.overrides,
-			segmentKeys,
-			images.map((image) => image.key),
-		),
+		fromRenditionOverrides(rendition.overrides, segmentKeys),
 	);
 	const [failureMessage, setFailureMessage] = useState<string | null>(null);
-	const [isSaved, setIsSaved] = useState(false);
+	const [feedback, setFeedback] = useState<'saved' | 'reset' | null>(null);
 	const save = useSavePublicationRenditionMutation();
 	const reset = useResetPublicationRenditionMutation();
 	const isBusy = save.isPending || reset.isPending;
@@ -83,7 +80,7 @@ export const ScheduledRenditionForm = ({
 		overrides: destination ? { [destination.id]: draft } : {},
 		body,
 		segments,
-		imageCount: images.length,
+		imageKeys,
 	});
 	const problem = problems.overrideProblem ?? null;
 
@@ -97,23 +94,23 @@ export const ScheduledRenditionForm = ({
 
 	const handleSave = async () => {
 		setFailureMessage(null);
-		setIsSaved(false);
+		setFeedback(null);
 		try {
 			await save.mutateAsync({
 				tenantId,
 				publicationId: row.publicationId,
-				overrides: toWireOverrides(draft, segmentKeys),
+				overrides: toWireOverrides(draft, segmentKeys, imageKeys),
 			});
 		} catch (error) {
 			showFailure(error);
 			return;
 		}
-		setIsSaved(true);
+		setFeedback(isCustomized(draft) ? 'saved' : 'reset');
 	};
 
 	const handleReset = async () => {
 		setFailureMessage(null);
-		setIsSaved(false);
+		setFeedback(null);
 		try {
 			await reset.mutateAsync({ tenantId, publicationId: row.publicationId });
 		} catch (error) {
@@ -121,6 +118,7 @@ export const ScheduledRenditionForm = ({
 			return;
 		}
 		setDraft(NO_OVERRIDE);
+		setFeedback('reset');
 	};
 
 	return (
@@ -134,7 +132,7 @@ export const ScheduledRenditionForm = ({
 			images={images}
 			maxImages={target?.limits?.maxImages ?? null}
 			onChange={(next) => {
-				setIsSaved(false);
+				setFeedback(null);
 				setDraft(next);
 			}}
 			onReset={() => void handleReset()}
@@ -171,13 +169,13 @@ export const ScheduledRenditionForm = ({
 					{failureMessage}
 				</p>
 			) : null}
-			{isSaved ? (
+			{feedback !== null ? (
 				<p
 					className="publy-type-helper text-muted-foreground"
 					role="status"
 					data-testid="tenant-posts-rendition-saved"
 				>
-					{isCustomized(draft)
+					{feedback === 'saved'
 						? t('posts:rendition-saved')
 						: t('posts:rendition-saved-shared')}
 				</p>

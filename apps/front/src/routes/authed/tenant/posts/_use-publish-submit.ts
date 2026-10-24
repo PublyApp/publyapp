@@ -7,6 +7,7 @@ import type {
 	DestinationOverrides,
 	WireDestination,
 } from '~/lib/publishing/destination-overrides';
+import { invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import {
 	invalidateTenantPublications,
 	publishNowMutation,
@@ -39,6 +40,8 @@ type SubmitArgs = {
 	selectedIds: readonly string[];
 	overrides: DestinationOverrides;
 	segmentKeys: readonly string[];
+	/** The post's images (keys): an override naming a removed one is not sent. */
+	imageKeys: readonly string[];
 };
 
 /** Publish now / Schedule for the composer: both send `destinations[]` (one
@@ -51,6 +54,7 @@ export const usePublishSubmit = ({
 	selectedIds,
 	overrides,
 	segmentKeys,
+	imageKeys,
 }: SubmitArgs) => {
 	const { t } = useTranslation(['common']);
 	const navigate = useNavigate();
@@ -59,14 +63,13 @@ export const usePublishSubmit = ({
 	const [pending, setPending] = useState<PendingKind | null>(null);
 	const [failureMessage, setFailureMessage] = useState<string | null>(null);
 
-	const prepare = async (): Promise<PreparedPost> => {
-		const prepared = onBeforePublish
-			? await onBeforePublish()
-			: { postId: postId ?? '' };
-		if (prepared === null || prepared.postId === '') {
-			throw new Error('missing post');
+	/** The post to send, or null when there is none (the caller of
+	 * `onBeforePublish` has already said why). */
+	const prepare = async (): Promise<PreparedPost | null> => {
+		if (onBeforePublish) {
+			return onBeforePublish();
 		}
-		return prepared;
+		return postId ? { postId } : null;
 	};
 
 	const handleSubmit = async (
@@ -86,6 +89,10 @@ export const usePublishSubmit = ({
 
 		try {
 			const prepared = await prepare();
+			if (prepared === null) {
+				setPending(null);
+				return;
+			}
 			await send({
 				tenantId,
 				postId: prepared.postId,
@@ -93,9 +100,12 @@ export const usePublishSubmit = ({
 					accountIds: selectedIds,
 					overrides,
 					segmentKeys,
+					imageKeys,
 					assetIdByKey: prepared.assetIdByKey,
 				}),
 			});
+			// The post's status follows its publications.
+			await invalidateTenantPosts(queryClient, tenantId);
 			await invalidateTenantPublications(queryClient, tenantId);
 			await invalidateTenantScheduledPublications(queryClient, tenantId);
 		} catch (error) {

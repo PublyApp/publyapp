@@ -192,8 +192,12 @@ vi.mock('react-hook-form', () => {
 			setError: (name: string, error: { message?: string }) => {
 				rhf.errors[name] = error;
 			},
-			reset: () => {
+			// Like the real `reset(values)`: the given values become the form state.
+			reset: (values?: { body?: string }) => {
 				rhf.resetAll();
+				if (values?.body !== undefined) {
+					rhf.get('body').value = values.body;
+				}
 			},
 			control: undefined,
 		}),
@@ -416,6 +420,52 @@ describe('CreatePostDrawer publish preparation (#2172)', () => {
 			postId: 'post-1',
 			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
 		});
+	});
+
+	test('a publish that failed is retried on the SAME post, with the same asset ids and no second upload', async () => {
+		mocks.savePost.mockResolvedValue({ id: 'post-1', body: 'publish body' });
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+		const [localKey] = mocks.publishBlockProps.current?.imageKeys ?? [];
+		const first = await mocks.publishBlockProps.current?.onBeforePublish?.();
+		expect(first?.postId).toBe('post-1');
+
+		// The publish request failed: the drawer is still open and the picked
+		// image is still in the picker, so a customization can still name it.
+		await waitFor(() =>
+			expect(mocks.publishBlockProps.current?.imageKeys).toEqual([localKey]),
+		);
+		const second = await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(mocks.savePost).toHaveBeenCalledTimes(2);
+		expect(mocks.savePost.mock.calls[0]?.[0].postId).toBeUndefined();
+		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+		// Uploaded once, and the key to asset id mapping survives the retry.
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		expect(second).toEqual({
+			postId: 'post-1',
+			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
+		});
+	});
+
+	test('changing the picked images after the post was created starts a fresh post', async () => {
+		mocks.savePost.mockResolvedValue({ id: 'post-1', body: 'publish body' });
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+		await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		await userEvent.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			SECOND_FILE,
+		);
+		await waitFor(() =>
+			expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+		);
+		await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBeUndefined();
+		// Both images are uploaded again onto the new post.
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(3);
 	});
 
 	test('aborts the publish (null) when an image cannot be attached, leaving the handoff to retry', async () => {

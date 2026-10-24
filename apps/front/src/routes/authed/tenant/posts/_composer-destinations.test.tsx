@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
 	publishNow: vi.fn(),
 	schedule: vi.fn(),
 	targets: vi.fn(),
+	invalidatePosts: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('~/lib/query/tenant-permissions', () => ({
@@ -51,6 +52,10 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 	publishNowMutation: { mutationFn: mocks.publishNow },
 	schedulePostMutation: { mutationFn: mocks.schedule },
 	invalidateTenantPublications: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('~/lib/query/tenant-posts', () => ({
+	invalidateTenantPosts: mocks.invalidatePosts,
 }));
 
 vi.mock('~/lib/query/tenants-for-picker', () => ({
@@ -124,14 +129,20 @@ type HarnessProps = {
 	initialBody?: string;
 	followUps?: string[];
 	images?: ComposerImage[];
+	/** Unsaved edits to the shared post (edit page). */
+	isPostDirty?: boolean;
+	onBeforePublish?: () => Promise<{ postId: string } | null>;
 };
 
 const Harness = ({
 	initialBody = '',
 	followUps = [],
-	images = NO_IMAGES,
+	images: initialImages = NO_IMAGES,
+	isPostDirty = false,
+	onBeforePublish,
 }: HarnessProps) => {
 	const [body, setBody] = useState(initialBody);
+	const [images, setImages] = useState(initialImages);
 	const [segments] = useState(() =>
 		followUps.map((text) => newSegmentDraft(text)),
 	);
@@ -145,6 +156,20 @@ const Harness = ({
 				value={body}
 				onChange={(event) => setBody(event.target.value)}
 			/>
+			{images.map((image) => (
+				<button
+					key={image.key}
+					type="button"
+					data-testid={`remove-image-${image.key}`}
+					onClick={() =>
+						setImages((current) =>
+							current.filter((candidate) => candidate.key !== image.key),
+						)
+					}
+				>
+					{`Remove ${image.key}`}
+				</button>
+			))}
 			<ComposerDestinations
 				selection={selection}
 				destinationOverrides={destinationOverrides}
@@ -159,6 +184,8 @@ const Harness = ({
 				body={body}
 				segments={segments}
 				imageKeys={images.map((image) => image.key)}
+				isPostDirty={isPostDirty}
+				onBeforePublish={onBeforePublish}
 			/>
 		</>
 	);
@@ -211,6 +238,8 @@ const replaceText = async (
 	await user.type(field, text);
 };
 
+const ORIGINAL_TIME_ZONE = process.env.TZ;
+
 beforeEach(() => {
 	mocks.publishNow.mockResolvedValue({});
 	mocks.schedule.mockResolvedValue({});
@@ -218,6 +247,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	if (ORIGINAL_TIME_ZONE === undefined) {
+		delete process.env.TZ;
+	} else {
+		process.env.TZ = ORIGINAL_TIME_ZONE;
+	}
 	cleanup();
 	vi.clearAllMocks();
 });
@@ -250,6 +284,61 @@ describe('destination chips', () => {
 		expect(
 			screen.getByRole('button', { name: 'Customize for Acme main' }),
 		).toBeTruthy();
+	});
+});
+
+describe('Customize toggle and chip labels', () => {
+	test('Customize is an expanded/collapsed toggle that controls the tab, and a second click closes it', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'shared text' });
+		const customize = () =>
+			screen.getByRole('button', { name: 'Customize for Strict handle' });
+		expect(customize().getAttribute('aria-expanded')).toBe('false');
+		expect(customize().getAttribute('aria-controls')).toBeNull();
+
+		await user.click(customize());
+
+		expect(customize().getAttribute('aria-expanded')).toBe('true');
+		expect(customize().getAttribute('aria-controls')).toBe(panel().id);
+
+		await user.click(customize());
+
+		expect(screen.queryByTestId('tenant-posts-destination-panel')).toBeNull();
+		expect(customize().getAttribute('aria-expanded')).toBe('false');
+	});
+
+	test('a target with no label shows its provider on the chip, matching its Customize name', () => {
+		stubTargets([
+			{ id: TARGET_A, label: null, provider: 'bluesky', limits: limitsOf(300) },
+		]);
+		renderComposer({ initialBody: 'hello' });
+
+		expect(screen.getByRole('checkbox', { name: 'bluesky' })).toBeTruthy();
+		expect(
+			screen.getByRole('button', { name: 'Customize for bluesky' }),
+		).toBeTruthy();
+	});
+
+	test('a target the server sent no limits for still opens a tab and publishes: it is simply not counted', async () => {
+		const user = userEvent.setup();
+		stubTargets([
+			{ id: TARGET_A, label: 'No limits', provider: 'bluesky', limits: null },
+		]);
+		renderComposer({ initialBody: 'hello' });
+
+		await openTab(user, 'No limits');
+		await customizeText(user);
+		fireEvent.change(
+			within(panel()).getByTestId('tenant-posts-destination-text'),
+			{
+				target: { value: 'x'.repeat(5000) },
+			},
+		);
+
+		expect(
+			within(panel()).queryByTestId('tenant-posts-limit-counter'),
+		).toBeNull();
+		expect(publishNowButton().disabled).toBe(false);
 	});
 });
 
@@ -424,7 +513,70 @@ describe('customizing a destination', () => {
 	});
 });
 
+describe('unsaved edits to the shared post (edit page)', () => {
+	test('a customized destination cannot be published or scheduled until the post is saved', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'shared text', isPostDirty: true });
+		expect(publishNowButton().disabled).toBe(false);
+
+		await openTab(user, 'Strict handle');
+		await customizeText(user);
+
+		expect(publishNowButton().disabled).toBe(true);
+		expect(
+			(screen.getByTestId('tenant-posts-schedule-submit') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+		expect(
+			screen.getByTestId('tenant-posts-publish-save-post-first').textContent,
+		).toContain('Save your changes to the post first');
+	});
+
+	test('once the post is saved the same customization goes out', async () => {
+		const user = userEvent.setup();
+		const view = renderComposer({ initialBody: 'shared text' });
+		await openTab(user, 'Strict handle');
+		await customizeText(user);
+
+		expect(publishNowButton().disabled).toBe(false);
+		expect(
+			view.container.querySelector(
+				'[data-testid="tenant-posts-publish-save-post-first"]',
+			),
+		).toBeNull();
+	});
+});
+
 describe('submitting', () => {
+	test('refreshes the post list after publishing, since the post status follows its publications', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'plain' });
+
+		await user.click(publishNowButton());
+
+		await waitFor(() => {
+			expect(mocks.invalidatePosts).toHaveBeenCalledWith(
+				expect.anything(),
+				TENANT_ID,
+			);
+		});
+	});
+
+	test('a post that could not be prepared sends nothing and shows no made-up error', async () => {
+		const user = userEvent.setup();
+		const onBeforePublish = vi.fn().mockResolvedValue(null);
+		renderComposer({ initialBody: 'plain', onBeforePublish });
+
+		await user.click(publishNowButton());
+
+		await waitFor(() => {
+			expect(onBeforePublish).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.publishNow).not.toHaveBeenCalled();
+		expect(within(block()).queryByRole('alert')).toBeNull();
+		expect(publishNowButton().disabled).toBe(false);
+	});
+
 	test('publish-now sends overrides ONLY for the customized destination', async () => {
 		const user = userEvent.setup();
 		renderComposer({ initialBody: 'a'.repeat(120) });
@@ -520,6 +672,7 @@ describe('submitting', () => {
 	});
 
 	test('Schedule sends the same destinations with the chosen instant and the viewer zone, then lands on the queue', async () => {
+		process.env.TZ = 'America/New_York';
 		const user = userEvent.setup();
 		renderComposer({ initialBody: 'a'.repeat(120) });
 		await openTab(user, 'Strict handle');
@@ -538,7 +691,8 @@ describe('submitting', () => {
 		expect(args).toMatchObject({
 			postId: POST_ID,
 			tenantId: TENANT_ID,
-			scheduledAt: new Date('2099-01-02T10:30').toISOString(),
+			// 10:30 on the wall clock of America/New_York (UTC-5 in January).
+			scheduledAt: '2099-01-02T15:30:00.000Z',
 			destinations: [
 				{ socialAccountId: TARGET_A },
 				{
@@ -655,6 +809,67 @@ describe('images per destination', () => {
 				},
 			},
 		]);
+	});
+
+	test('an image removed from the post is not sent in the destination override', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'shared', images: IMAGES });
+		await openTab(user, 'Acme main');
+		await user.click(
+			within(panel()).getByTestId('tenant-posts-destination-media-toggle'),
+		);
+		await user.click(
+			within(panel()).getByRole('button', { name: 'Move image 2 earlier' }),
+		);
+
+		// img-1 is removed from the post while the tab is open.
+		await user.click(screen.getByTestId('remove-image-img-1'));
+		await user.click(publishNowButton());
+
+		await waitFor(() => {
+			expect(mocks.publishNow).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.publishNow.mock.calls[0]?.[0].destinations).toEqual([
+			{
+				socialAccountId: TARGET_A,
+				overrides: { media: { assetIds: ['img-2'], altTexts: [] } },
+			},
+			{ socialAccountId: TARGET_B },
+		]);
+	});
+
+	test('turning images on inherits every image (no explicit list) so images added later still flow', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'shared', images: IMAGES });
+		await openTab(user, 'Acme main');
+		await user.click(
+			within(panel()).getByTestId('tenant-posts-destination-media-toggle'),
+		);
+
+		await user.click(publishNowButton());
+
+		await waitFor(() => {
+			expect(mocks.publishNow).toHaveBeenCalledTimes(1);
+		});
+		const [acme] = mocks.publishNow.mock.calls[0]?.[0].destinations;
+		expect(acme.overrides.media).toEqual({ altTexts: [] });
+	});
+
+	test('element ids in the open tab are unique and derive from the destination', async () => {
+		const user = userEvent.setup();
+		renderComposer({ initialBody: 'shared', images: IMAGES });
+		await openTab(user, 'Acme main');
+		await user.click(
+			within(panel()).getByTestId('tenant-posts-destination-media-toggle'),
+		);
+
+		const ids = [...document.querySelectorAll('[id]')].map(
+			(element) => element.id,
+		);
+		expect(new Set(ids).size).toBe(ids.length);
+		expect(
+			within(panel()).getByText('Customize images').getAttribute('for'),
+		).toContain(TARGET_A);
 	});
 
 	test('reordering the destination images changes only its own order', async () => {

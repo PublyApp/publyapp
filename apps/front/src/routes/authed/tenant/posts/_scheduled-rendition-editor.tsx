@@ -71,6 +71,13 @@ export const ScheduledRenditionEditor = ({
 				}
 				return (
 					<ScheduledRenditionForm
+						// The draft is keyed by segment and image ids: when the shared
+						// post's segments or images change, start again from the server
+						// instead of saving a draft that no longer lines up.
+						key={[
+							...segments.map((s) => s.id),
+							...images.map((i) => i.key),
+						].join('|')}
 						row={row}
 						tenantId={tenantId}
 						rendition={rendition}

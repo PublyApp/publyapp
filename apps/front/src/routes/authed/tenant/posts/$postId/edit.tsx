@@ -93,27 +93,39 @@ const TenantPostEditPage = () => {
 	useEffect(() => {
 		const d = toTenantPostDetails(detailsQuery.data);
 		if (d) {
+			// Keep each segment's id by position: a refetch (an image added or
+			// removed) must not re-key the segments, or the destinations'
+			// customizations, which are keyed by segment id, would be orphaned.
+			const previous = methods.getValues('segments');
 			methods.reset({
 				body: d.body,
 				projectId: d.projectId,
-				segments: d.segments.map((segment) => newSegmentDraft(segment.body)),
+				segments: d.segments.map((segment, index) =>
+					newSegmentDraft(segment.body, previous[index]?.id),
+				),
 			});
 		}
 	}, [detailsQuery.data, methods]);
 
+	// Unsaved edits to the post, or unsaved destination customizations: both
+	// are lost on leaving the page.
+	const hasUnsavedWork =
+		!methods.formState.isSubmitting &&
+		(methods.formState.isDirty ||
+			Object.keys(destinationOverrides.overrides).length > 0);
+
 	useEffect(() => {
 		const handler = (e: BeforeUnloadEvent) => {
-			if (methods.formState.isDirty && !methods.formState.isSubmitting) {
+			if (hasUnsavedWork) {
 				e.preventDefault();
 			}
 		};
 		window.addEventListener('beforeunload', handler);
 		return () => window.removeEventListener('beforeunload', handler);
-	}, [methods.formState.isDirty, methods.formState.isSubmitting]);
+	}, [hasUnsavedWork]);
 
 	const blocker = useBlocker({
-		shouldBlockFn: () =>
-			methods.formState.isDirty && !methods.formState.isSubmitting,
+		shouldBlockFn: () => hasUnsavedWork,
 		withResolver: true,
 	});
 
@@ -260,6 +272,7 @@ const TenantPostEditPage = () => {
 										segments={segments}
 										publishedSegmentCount={publishedSegmentCount}
 										destinations={selection.destinations}
+										overrides={destinationOverrides.overrides}
 										onChange={(next) =>
 											methods.setValue('segments', next, { shouldDirty: true })
 										}
@@ -320,6 +333,7 @@ const TenantPostEditPage = () => {
 								body={body}
 								segments={segments}
 								images={details.images}
+								isPostDirty={methods.formState.isDirty}
 							/>
 						</div>
 						{blocker.status === 'blocked' ? (

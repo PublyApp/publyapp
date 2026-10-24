@@ -17,6 +17,7 @@ export const PostEditSideColumn = ({
 	body,
 	segments,
 	images,
+	isPostDirty,
 }: {
 	postId: string;
 	tenantId: string;
@@ -25,6 +26,8 @@ export const PostEditSideColumn = ({
 	body: string;
 	segments: SegmentDraft[];
 	images: TenantPostImage[];
+	/** Unsaved edits to the shared post. */
+	isPostDirty: boolean;
 }) => (
 	<div
 		className="space-y-4 lg:col-span-4"
@@ -43,6 +46,7 @@ export const PostEditSideColumn = ({
 			body={body}
 			segments={segments}
 			imageKeys={toComposerImages(images).map((image) => image.key)}
+			isPostDirty={isPostDirty}
 		/>
 	</div>
 );

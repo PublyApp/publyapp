@@ -49,7 +49,7 @@ const problemsOf = (
 		overrides: {},
 		body: 'hello',
 		segments: NO_SEGMENTS,
-		imageCount: 0,
+		imageKeys: [],
 		...args,
 	});
 
@@ -158,12 +158,13 @@ describe('findPublishProblems', () => {
 			'posts:publish-blocked-media-required',
 		);
 		expect(
-			problemsOf({ destinations: [PHOTOS], imageCount: 2 }).destinationBlock,
+			problemsOf({ destinations: [PHOTOS], imageKeys: ['i1', 'i2'] })
+				.destinationBlock,
 		).toBeNull();
 		expect(
 			problemsOf({
 				destinations: [PHOTOS],
-				imageCount: 2,
+				imageKeys: ['i1', 'i2'],
 				overrides: {
 					[PHOTOS.id]: withMedia(NO_OVERRIDE, { imageKeys: [], altTexts: {} }),
 				},
@@ -172,10 +173,27 @@ describe('findPublishProblems', () => {
 		expect(
 			problemsOf({
 				destinations: [PHOTOS],
-				imageCount: 1,
+				imageKeys: ['i1'],
 				segments: [{ id: 'seg-1', text: 'more' }],
 			}).destinationBlock?.key,
 		).toBe('posts:publish-blocked-threads-unsupported');
+	});
+
+	test('a destination whose image subset names only removed images is judged as having none', () => {
+		const problems = problemsOf({
+			destinations: [PHOTOS],
+			imageKeys: ['i1'],
+			overrides: {
+				[PHOTOS.id]: withMedia(NO_OVERRIDE, {
+					imageKeys: ['removed'],
+					altTexts: {},
+				}),
+			},
+		});
+
+		expect(problems.destinationBlock?.key).toBe(
+			'posts:publish-blocked-media-required',
+		);
 	});
 
 	test('nothing selected means nothing to validate', () => {

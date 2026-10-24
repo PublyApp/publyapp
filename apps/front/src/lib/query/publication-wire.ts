@@ -28,21 +28,6 @@ const toUntypedSegments = (segments: NonNullable<WireOverrides['segments']>) =>
 		),
 	);
 
-const toUntypedMedia = (media: NonNullable<WireOverrides['media']>) =>
-	createUntypedObject({
-		assetIds: createUntypedArray(
-			media.assetIds.map((assetId) => createUntypedString(assetId)),
-		),
-		altTexts: createUntypedArray(
-			media.altTexts.map(({ assetId, altText }) =>
-				createUntypedObject({
-					assetId: createUntypedString(assetId),
-					altText: createUntypedString(altText),
-				}),
-			),
-		),
-	});
-
 /** An untyped object holding only the fields that are present. */
 const toUntypedFields = (
 	fields: ReadonlyArray<readonly [string, UntypedNode | undefined]>,
@@ -55,6 +40,31 @@ const toUntypedFields = (
 			),
 		),
 	);
+
+const toUntypedMedia = ({
+	assetIds,
+	altTexts,
+}: NonNullable<WireOverrides['media']>) =>
+	toUntypedFields([
+		[
+			'assetIds',
+			assetIds &&
+				createUntypedArray(
+					assetIds.map((assetId) => createUntypedString(assetId)),
+				),
+		],
+		[
+			'altTexts',
+			createUntypedArray(
+				altTexts.map(({ assetId, altText }) =>
+					createUntypedObject({
+						assetId: createUntypedString(assetId),
+						altText: createUntypedString(altText),
+					}),
+				),
+			),
+		],
+	]);
 
 const toUntypedOverrides = ({ segments, media }: WireOverrides) =>
 	toUntypedFields([

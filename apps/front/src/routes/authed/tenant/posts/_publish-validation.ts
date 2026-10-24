@@ -26,13 +26,13 @@ type DestinationBlock = {
 const findDestinationBlock = (
 	destinations: readonly SelectedDestination[],
 	overrides: DestinationOverrides,
-	imageCount: number,
+	imageKeys: readonly string[],
 	followUpCount: number,
 ): DestinationBlock | null => {
 	for (const { id, label, limits } of destinations) {
 		if (
 			limits.requiresMedia === true &&
-			effectiveImageCount(overrides[id], imageCount) === 0
+			effectiveImageCount(overrides[id], imageKeys) === 0
 		) {
 			return {
 				key: 'posts:publish-blocked-media-required',
@@ -116,13 +116,15 @@ export const findPublishProblems = ({
 	overrides,
 	body,
 	segments,
-	imageCount,
+	imageKeys,
 }: {
 	destinations: readonly SelectedDestination[];
 	overrides: DestinationOverrides;
 	body: string;
 	segments: readonly SegmentDraft[];
-	imageCount: number;
+	/** The post's images (keys): a destination's image override is judged
+	 * against the images that are still on the post. */
+	imageKeys: readonly string[];
 }): PublishProblems => {
 	const segmentKeys = [BODY_KEY, ...segments.map((segment) => segment.id)];
 
@@ -142,7 +144,7 @@ export const findPublishProblems = ({
 		destinationBlock: findDestinationBlock(
 			destinations,
 			overrides,
-			imageCount,
+			imageKeys,
 			segments.length,
 		),
 	};

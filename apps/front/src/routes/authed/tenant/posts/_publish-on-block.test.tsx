@@ -45,6 +45,10 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 
+vi.mock('~/lib/query/tenant-posts', () => ({
+	invalidateTenantPosts: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('~/lib/query/tenants-for-picker', () => ({
 	useResolvedWorkspaceTenantId: () => TENANT_ID,
 }));
