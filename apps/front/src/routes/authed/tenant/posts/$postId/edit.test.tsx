@@ -2,9 +2,18 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import {
+	BODY_KEY,
+	NO_OVERRIDE,
+	toWireDestinations,
+	withText,
+} from '~/lib/publishing/destination-overrides';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+import type { DestinationOverridesState } from '../_use-destination-overrides';
 
 /** Named owner contract: each mock feeds a different slice of the hook
  * result across tests, so the shape stays an open dictionary instead of
@@ -19,7 +28,18 @@ interface TenantPostDetailsQueryResultMock {
 	isFetching?: boolean;
 }
 
+/** The props the page last handed a stubbed child. */
+interface CapturedProps {
+	segments?: { id: string; text: string }[];
+	destinationOverrides?: DestinationOverridesState;
+	isPostDirty?: boolean;
+}
+
 const mocks = vi.hoisted(() => ({
+	composerProps: { current: undefined as CapturedProps | undefined },
+	blockProps: { current: undefined as CapturedProps | undefined },
+	shouldBlock: { current: undefined as (() => boolean) | undefined },
+	beforeUnload: { current: undefined as (() => boolean) | undefined },
 	navigate: vi.fn(),
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
@@ -86,7 +106,17 @@ vi.mock('@tanstack/react-router', () => ({
 			</a>
 		);
 	},
-	useBlocker: () => ({ status: 'idle', proceed: undefined, reset: undefined }),
+	useBlocker: ({
+		shouldBlockFn,
+		enableBeforeUnload,
+	}: {
+		shouldBlockFn: () => boolean;
+		enableBeforeUnload: () => boolean;
+	}) => {
+		mocks.shouldBlock.current = shouldBlockFn;
+		mocks.beforeUnload.current = enableBeforeUnload;
+		return { status: 'idle', proceed: undefined, reset: undefined };
+	},
 }));
 
 vi.mock('~/components/error-views/AppErrorView', () => ({
@@ -144,7 +174,7 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 			status: d.status ?? null,
 			createdAt: null,
 			updatedAt: null,
-			images: [],
+			images: (d.images as unknown[]) ?? [],
 			segments: (d.segments as unknown[]) ?? [],
 			publishedSegmentCount: (d.publishedSegmentCount as number) ?? 0,
 		};
@@ -182,7 +212,43 @@ vi.mock('../_use-publish-selection', () => ({
 }));
 
 vi.mock('../_publish-on-block', () => ({
-	PublishOnBlock: () => <div data-testid="publish-on-block-stub" />,
+	PublishOnBlock: (props: CapturedProps) => {
+		mocks.blockProps.current = props;
+		return <div data-testid="publish-on-block-stub" />;
+	},
+}));
+
+// The destination chips and the scheduled-destination editor pull their own
+// queries; this suite only asserts what the page hands them.
+vi.mock('../_composer-destinations', () => ({
+	ComposerDestinations: (
+		props: CapturedProps & { body: string; images: { key: string }[] },
+	) => {
+		mocks.composerProps.current = props;
+		return (
+			<div
+				data-testid="composer-destinations-stub"
+				data-body={props.body}
+				data-image-keys={props.images.map((image) => image.key).join(',')}
+			/>
+		);
+	},
+}));
+
+vi.mock('../_scheduled-renditions-block', () => ({
+	ScheduledRenditionsBlock: ({
+		postId,
+		isPostDirty,
+	}: {
+		postId: string;
+		isPostDirty: boolean;
+	}) => (
+		<div
+			data-testid="scheduled-renditions-stub"
+			data-post-id={postId}
+			data-dirty={String(isPostDirty)}
+		/>
+	),
 }));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
@@ -333,6 +399,40 @@ describe('TenantPostEditPage', () => {
 		expect(screen.getByTestId('publish-on-block-stub')).toBeTruthy();
 	});
 
+	test('hands the destinations the post images (keyed by asset id) and the scheduled destinations its id', () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+				images: [
+					{ id: 'asset-1', url: 'https://files.example/1.png', altText: 'One' },
+					{ id: null, url: 'https://files.example/2.png', altText: null },
+					{ id: 'asset-3', url: 'https://files.example/3.png', altText: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+
+		render(<TenantPostEditPage />);
+
+		const destinations = screen.getByTestId('composer-destinations-stub');
+		// An image with no asset id cannot be named by an override: it is left out.
+		expect(destinations.getAttribute('data-image-keys')).toBe(
+			'asset-1,asset-3',
+		);
+		const scheduled = screen.getByTestId('scheduled-renditions-stub');
+		expect(scheduled.getAttribute('data-post-id')).toBe(
+			'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+		);
+		expect(scheduled.getAttribute('data-dirty')).toBe('false');
+	});
+
 	test('save submission refreshes the post list and scheduled-publication surfaces for the tenant', async () => {
 		mocks.useTenantPostDetailsQuery.mockReturnValue({
 			data: {
@@ -386,5 +486,112 @@ describe('TenantPostEditPage', () => {
 			expect.anything(),
 			'11111111-1111-1111-1111-111111111111',
 		);
+	});
+
+	test('a refetch keeps the segment ids, so a follow-up customization survives it and is still sent', () => {
+		const loadedPost = (images: unknown[]) =>
+			mocks.useTenantPostDetailsQuery.mockReturnValue({
+				data: {
+					id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+					body: 'Hello world',
+					projectId: null,
+					segments: [{ number: 2, body: 'Follow-up' }],
+					images,
+				},
+				isPending: false,
+				isSuccess: true,
+				isError: false,
+				error: null,
+				refetch: vi.fn(),
+				isFetching: false,
+			});
+		loadedPost([]);
+		const view = render(<TenantPostEditPage />);
+		const idsBefore = mocks.composerProps.current?.segments?.map(
+			(segment) => segment.id,
+		);
+
+		// Customize the follow-up (segment 2) for one destination.
+		act(() => {
+			mocks.composerProps.current?.destinationOverrides?.update(
+				'acc-1',
+				withText(NO_OVERRIDE, idsBefore?.[0] ?? '', 'Follow-up for acc-1'),
+			);
+		});
+		// An image is added: the post details refetch with new data.
+		loadedPost([{ id: 'asset-9', url: 'https://files.example/9.png' }]);
+		view.rerender(<TenantPostEditPage />);
+
+		const idsAfter = mocks.blockProps.current?.segments?.map(
+			(segment) => segment.id,
+		);
+		expect(idsAfter).toEqual(idsBefore);
+		expect(
+			toWireDestinations({
+				accountIds: ['acc-1'],
+				overrides:
+					mocks.blockProps.current?.destinationOverrides?.overrides ?? {},
+				segmentKeys: [BODY_KEY, ...(idsAfter ?? [])],
+				imageKeys: ['asset-9'],
+			}),
+		).toEqual([
+			{
+				socialAccountId: 'acc-1',
+				overrides: { segments: [{ position: 1, text: 'Follow-up for acc-1' }] },
+			},
+		]);
+	});
+
+	test("hands the publish block the post's unsaved state, and leaving with customizations asks first", () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+		render(<TenantPostEditPage />);
+		expect(mocks.blockProps.current?.isPostDirty).toBe(false);
+		expect(mocks.shouldBlock.current?.()).toBe(false);
+
+		// Adding a thread segment makes the post dirty.
+		fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+		expect(mocks.blockProps.current?.isPostDirty).toBe(true);
+		expect(mocks.shouldBlock.current?.()).toBe(true);
+	});
+
+	test('unsaved destination customizations alone also guard leaving the page', () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+		render(<TenantPostEditPage />);
+		expect(mocks.shouldBlock.current?.()).toBe(false);
+
+		act(() => {
+			mocks.composerProps.current?.destinationOverrides?.update(
+				'acc-1',
+				withText(NO_OVERRIDE, BODY_KEY, 'Customized'),
+			);
+		});
+
+		expect(mocks.shouldBlock.current?.()).toBe(true);
+		// The browser's unload prompt follows the same switch.
+		expect(mocks.beforeUnload.current?.()).toBe(true);
 	});
 });

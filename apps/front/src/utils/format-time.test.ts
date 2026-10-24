@@ -9,6 +9,7 @@ import {
 	formatInZone,
 	formatMonthYear,
 	formatShortDate,
+	getBrowserTimeZone,
 	getRelativeTimeParts,
 } from './format-time';
 
@@ -113,5 +114,14 @@ describe('format-time', () => {
 		expect(
 			formatInZone(new Date('2026-08-31T18:30:00.000Z'), 'not/a-zone', 'en'),
 		).toBe('—');
+	});
+
+	test('getBrowserTimeZone names a zone Intl accepts, never an empty string', () => {
+		const zone = getBrowserTimeZone();
+
+		expect(zone.length).toBeGreaterThan(0);
+		expect(
+			() => new Intl.DateTimeFormat('en', { timeZone: zone }),
+		).not.toThrow();
 	});
 });

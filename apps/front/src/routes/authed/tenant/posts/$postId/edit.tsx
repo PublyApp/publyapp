@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -13,6 +14,7 @@ import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { isCustomized } from '~/lib/publishing/destination-overrides';
 import {
 	useTenantPostDetailsQuery,
 	savePost,
@@ -36,11 +38,13 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 
 import { PostBodyCounter } from '../_post-body-counter';
 import { PostDangerZone } from '../_post-danger-zone';
-import { PostImagePicker } from '../_post-image-picker';
+import { PostEditDestinations } from '../_post-edit-destinations';
+import { PostEditSideColumn } from '../_post-edit-side-column';
 import { PostSegmentsEditor } from '../_post-segments-editor';
-import { PublishOnBlock } from '../_publish-on-block';
-import { NO_SEGMENTS, newSegmentDraft } from '../_segment-draft';
+import { NO_SEGMENTS, reconcileSegmentDrafts } from '../_segment-draft';
+import { useDestinationOverrides } from '../_use-destination-overrides';
 import { usePublishSelection } from '../_use-publish-selection';
+import { useUnsavedWorkGuard } from '../_use-unsaved-work-guard';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -57,6 +61,28 @@ const getSchema = (t: (k: string) => string) =>
 	});
 
 type Values = z.infer<ReturnType<typeof getSchema>>;
+
+/** Loads the saved post into the form. Each segment keeps its id (matched by
+ * text, not position, so a local reorder cannot move a customization onto
+ * another segment): a refetch (an image added or removed) must not re-key the
+ * segments. */
+const resetFormFromDetails = (
+	methods: UseFormReturn<Values>,
+	data: Parameters<typeof toTenantPostDetails>[0],
+) => {
+	const d = toTenantPostDetails(data);
+	if (!d) {
+		return;
+	}
+	methods.reset({
+		body: d.body,
+		projectId: d.projectId,
+		segments: reconcileSegmentDrafts(
+			methods.getValues('segments'),
+			d.segments.map((segment) => segment.body),
+		),
+	});
+};
 
 const TenantPostEditPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
@@ -77,9 +103,8 @@ const TenantPostEditPage = () => {
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
-	const followUps = useMemo(
-		() => segments.map((segment) => segment.text),
-		[segments],
+	const destinationOverrides = useDestinationOverrides(
+		segments.map((segment) => segment.id),
 	);
 	// `formState.isSubmitting` covers the whole async handleSubmit callback.
 	const isSaving = methods.formState.isSubmitting;
@@ -93,31 +118,17 @@ const TenantPostEditPage = () => {
 	const isBodyLocked = hasStoredSegments && publishedSegmentCount > 0;
 
 	useEffect(() => {
-		const d = toTenantPostDetails(detailsQuery.data);
-		if (d) {
-			methods.reset({
-				body: d.body,
-				projectId: d.projectId,
-				segments: d.segments.map((segment) => newSegmentDraft(segment.body)),
-			});
-		}
+		resetFormFromDetails(methods, detailsQuery.data);
 	}, [detailsQuery.data, methods]);
 
-	useEffect(() => {
-		const handler = (e: BeforeUnloadEvent) => {
-			if (methods.formState.isDirty && !methods.formState.isSubmitting) {
-				e.preventDefault();
-			}
-		};
-		window.addEventListener('beforeunload', handler);
-		return () => window.removeEventListener('beforeunload', handler);
-	}, [methods.formState.isDirty, methods.formState.isSubmitting]);
+	// Unsaved edits to the post, or unsaved destination customizations: both
+	// are lost on leaving the page.
+	const hasUnsavedWork =
+		!methods.formState.isSubmitting &&
+		(methods.formState.isDirty ||
+			Object.values(destinationOverrides.overrides).some(isCustomized));
 
-	const blocker = useBlocker({
-		shouldBlockFn: () =>
-			methods.formState.isDirty && !methods.formState.isSubmitting,
-		withResolver: true,
-	});
+	const blocker = useUnsavedWorkGuard(hasUnsavedWork);
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		try {
@@ -262,6 +273,7 @@ const TenantPostEditPage = () => {
 										segments={segments}
 										publishedSegmentCount={publishedSegmentCount}
 										destinations={selection.destinations}
+										overrides={destinationOverrides.overrides}
 										onChange={(next) =>
 											methods.setValue('segments', next, { shouldDirty: true })
 										}
@@ -300,28 +312,30 @@ const TenantPostEditPage = () => {
 										</Button>
 									</FormActionBar>
 								</Form>
+								<PostEditDestinations
+									postId={postId}
+									tenantId={tenantId ?? ''}
+									selection={selection}
+									destinationOverrides={destinationOverrides}
+									body={body}
+									segments={segments}
+									images={details.images}
+									isPostDirty={methods.formState.isDirty}
+								/>
 								<PostDangerZone
 									onMoveToBin={() => setPendingBinId(details.id)}
 								/>
 							</div>
-							<div
-								className="space-y-4 lg:col-span-4"
-								data-testid="tenant-post-edit-reserved-side-column"
-							>
-								<PostImagePicker
-									postId={postId}
-									tenantId={tenantId ?? ''}
-									existingImages={details.images}
-									limits={selection.imageLimits}
-								/>
-								<PublishOnBlock
-									selection={selection}
-									postId={postId}
-									body={body}
-									followUps={followUps}
-									imageCount={details.images.length}
-								/>
-							</div>
+							<PostEditSideColumn
+								postId={postId}
+								tenantId={tenantId ?? ''}
+								selection={selection}
+								destinationOverrides={destinationOverrides}
+								body={body}
+								segments={segments}
+								images={details.images}
+								isPostDirty={methods.formState.isDirty}
+							/>
 						</div>
 						{blocker.status === 'blocked' ? (
 							<ConfirmDialog

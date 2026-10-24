@@ -1,24 +1,105 @@
 import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '~/components/ui/badge';
 import { StatusPill } from '~/components/ui/product-page';
 import { publicationStatusPresentation } from '~/lib/publishing/publication-status';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 import { formatInZone } from '~/utils/format-time';
 
-export const ScheduledPublicationStatus = ({
-	status,
-}: {
-	status: string | null;
-}) => {
+type StatusRow = Pick<
+	ScheduledPublicationRow,
+	'status' | 'postStatus' | 'publishedCount' | 'destinationCount' | 'superseded'
+>;
+
+/** Some destinations of the post published and others did not: the post
+ * status stays `failed` (owner decision, no partially-failed status) and the
+ * counts carry the detail. */
+const isMixedOutcome = (row: StatusRow): boolean =>
+	row.postStatus === 'failed' &&
+	row.publishedCount > 0 &&
+	row.publishedCount < row.destinationCount;
+
+/** A row's status pill. A replaced row (a newer publication took over its
+ * post and account) reads "Replaced", never as a live status; a failed
+ * destination of a post that partly published reads "Failed · 1/2
+ * published" (a non-failed one gets that line under its own pill). */
+export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 	const { t } = useTranslation('posts');
-	const presentation = publicationStatusPresentation(status);
+	const presentation = publicationStatusPresentation(row.status);
+
+	if (row.superseded && row.status !== 'published') {
+		return (
+			<StatusPill tone="neutral" testId="tenant-posts-superseded-label">
+				{t('posts:publication-superseded')}
+			</StatusPill>
+		);
+	}
+
+	const mixedLabel = isMixedOutcome(row)
+		? t('posts:publish-status-failed-partial', {
+				published: row.publishedCount,
+				total: row.destinationCount,
+			})
+		: null;
+	const pillLabel =
+		mixedLabel !== null && row.status === 'failed'
+			? mixedLabel
+			: presentation && t(presentation.labelKey);
 
 	return (
-		<StatusPill tone={presentation?.tone ?? 'neutral'}>
-			{presentation ? t(presentation.labelKey) : '—'}
-		</StatusPill>
+		<div className="flex flex-col items-start gap-1">
+			<StatusPill
+				tone={presentation?.tone ?? 'neutral'}
+				testId="tenant-posts-status-pill"
+			>
+				{pillLabel ?? '—'}
+			</StatusPill>
+			{mixedLabel !== null && row.status !== 'failed' ? (
+				<span
+					className="text-xs text-muted-foreground"
+					data-testid="tenant-posts-mixed-status"
+				>
+					{mixedLabel}
+				</span>
+			) : null}
+		</div>
 	);
 };
+
+/** "Customized": this destination overrides part of the post's content. */
+export const ScheduledPublicationCustomized = ({
+	customized,
+}: {
+	customized: boolean;
+}) => {
+	const { t } = useTranslation('posts');
+
+	if (!customized) {
+		return null;
+	}
+	return (
+		<Badge variant="outline" data-testid="tenant-posts-customized-badge">
+			{t('posts:publication-customized')}
+		</Badge>
+	);
+};
+
+/** A replaced row is history: muted, with the "Replaced" label in its status. */
+export const MutedWhenSuperseded = ({
+	superseded,
+	children,
+}: {
+	superseded: boolean;
+	children: ReactNode;
+}) => (
+	<div
+		className={superseded ? 'opacity-60' : undefined}
+		data-superseded={superseded ? 'true' : undefined}
+	>
+		{children}
+	</div>
+);
 
 /**
  * Renders the transparent-failure cause for a Failed/Paused scheduled row
@@ -31,13 +112,17 @@ export const ScheduledPublicationStatus = ({
 export const ScheduledPublicationCause = ({
 	status,
 	cause,
+	superseded = false,
 }: {
 	status: string | null;
 	cause: string | null;
+	/** A replaced row is history: its old failure is not a live one. */
+	superseded?: boolean;
 }) => {
 	const { t } = useTranslation('posts');
 
 	if (
+		superseded ||
 		cause === null ||
 		cause === '' ||
 		(status !== 'failed' && status !== 'paused')

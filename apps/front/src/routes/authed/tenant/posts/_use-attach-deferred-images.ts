@@ -13,12 +13,19 @@ import {
 import type { DeferredImageSelection } from './_post-image-picker';
 
 export type AttachDeferredImagesOutcome =
-	| { ok: true }
+	| {
+			ok: true;
+			/** Asset id by the picked image's local id: a destination's image
+			 * override refers to an image by its local id until it exists. */
+			assetIds: ReadonlyMap<string, string>;
+	  }
 	| {
 			ok: false;
 			/** Exactly the images still to do; an attached image whose alt step
 			 * failed keeps its asset id so a retry never attaches it twice. */
 			remaining: DeferredImageSelection[];
+			/** Asset id by local id of every image attached before the failure. */
+			assetIds: ReadonlyMap<string, string>;
 			/** Plain-words cause (the server's problem detail when it sent one). */
 			cause: string;
 	  };
@@ -38,7 +45,10 @@ export const useAttachDeferredImages = (tenantId: string) => {
 	const attachInOrder = async (
 		postId: string,
 		images: DeferredImageSelection[],
-		progress: { remaining: DeferredImageSelection[] },
+		progress: {
+			remaining: DeferredImageSelection[];
+			assetIds: Map<string, string>;
+		},
 	): Promise<void> => {
 		const [image, ...rest] = images;
 		if (!image) {
@@ -58,7 +68,13 @@ export const useAttachDeferredImages = (tenantId: string) => {
 			);
 		}
 
-		if (image.altText.trim() && assetId) {
+		if (assetId) {
+			progress.assetIds.set(image.id, assetId);
+		}
+
+		// An image attached earlier whose alt text was cleared since needs the
+		// empty alt sent too, or the server keeps the old one.
+		if (assetId && (image.altText.trim() || image.attachedAssetId)) {
 			await updateImageAlt.mutateAsync({
 				postId,
 				tenantId,
@@ -77,14 +93,18 @@ export const useAttachDeferredImages = (tenantId: string) => {
 		postId: string,
 		images: DeferredImageSelection[],
 	): Promise<AttachDeferredImagesOutcome> => {
-		const progress = { remaining: images };
+		const progress = {
+			remaining: images,
+			assetIds: new Map<string, string>(),
+		};
 		try {
 			await attachInOrder(postId, images, progress);
-			return { ok: true };
+			return { ok: true, assetIds: progress.assetIds };
 		} catch (error) {
 			return {
 				ok: false,
 				remaining: progress.remaining,
+				assetIds: progress.assetIds,
 				cause:
 					getFailureMessage(toApiFailure(error), {
 						fallback: t('common:an-error-occurred'),

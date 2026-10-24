@@ -1,10 +1,9 @@
-import {
-	createUntypedArray,
-	createUntypedString,
-} from '@microsoft/kiota-abstractions';
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import type { WireDestination } from '~/lib/publishing/destination-overrides';
+import { toUntypedDestinations } from '~/lib/query/publication-wire';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -12,6 +11,7 @@ import type {
 	FindPublicationsForTenantResponse,
 	PublicationListItem,
 	PublishNowBody,
+	SchedulePostBody,
 } from '@org/client-ts/models/index';
 import {
 	buildTenantMutationOptions,
@@ -54,6 +54,8 @@ export type TenantPublicationRow = {
 	accountUsable: boolean;
 	/** A newer publication exists for the same post and account. */
 	superseded: boolean;
+	/** The destination overrides part of the post's content (it has a rendition). */
+	customized: boolean;
 	updatedAt: Date | null;
 	/** Thread progress: segments published so far / total segments (1 = plain post). */
 	segmentsPublished: number;
@@ -182,6 +184,7 @@ const toTenantPublicationRow = (
 		attempts: item.attempts ?? 0,
 		accountUsable: item.accountUsable ?? false,
 		superseded: item.superseded ?? false,
+		customized: item.customized ?? false,
 		updatedAt: normalizeDate(item.updatedAt),
 		segmentsPublished: item.segmentsPublished ?? 0,
 		segmentsTotal: item.segmentsTotal ?? 1,
@@ -224,34 +227,67 @@ export const useTenantPublicationsQuery = (
 
 // ── Publish-now mutation (Task 8) ──────────────────────────────────
 
-/** Wire body for `POST /posts/{postId}/publish-now`. The Kiota builder types
- * `accountIds` as an open `UntypedNode | null`, so the selected ids ride in a
- * Kiota untyped array; omitting the field entirely means "nothing checked". */
-const buildPublishNowBody = (accountIds: string[]): PublishNowBody => {
-	if (accountIds.length === 0) {
-		return {};
-	}
-
-	return {
-		accountIds: createUntypedArray(
-			accountIds.map((id) => createUntypedString(id)),
-		),
-	};
-};
+/** Wire body for `POST /posts/{postId}/publish-now` (#2172): one
+ * `destinations[]` item per selected account, `overrides` only on the ones
+ * that customize something. Kiota types the open field as an `UntypedNode`. */
+const buildPublishNowBody = (
+	destinations: WireDestination[],
+): PublishNowBody =>
+	destinations.length === 0
+		? {}
+		: { destinations: toUntypedDestinations(destinations) };
 
 export const publishNowMutation = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; accountIds: string[] }
+	{ postId: string; destinations: WireDestination[] }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_PUBLICATIONS_QUERY_KEY, 'publish-now'],
 		mutationFn: async (client, variables) => {
 			await client.posts
 				.byPostId(variables.postId)
-				.publishNow.post(buildPublishNowBody(variables.accountIds));
+				.publishNow.post(buildPublishNowBody(variables.destinations));
 		},
 		meta: { successMessage: 'publish-now-success' },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+// ── Schedule mutation (#2172) ──────────────────────────────────────
+
+/** Wire body for `POST /posts/{postId}/schedule`: `scheduledAtLocal` is the
+ * "same time for all" instant (ISO 8601 UTC) every destination without its
+ * own `scheduledAt` takes; `timeZone` is the IANA zone the schedule is shown in. */
+const buildScheduleBody = (variables: {
+	destinations: WireDestination[];
+	scheduledAt: string;
+	timeZone: string;
+}): SchedulePostBody => ({
+	destinations: toUntypedDestinations(variables.destinations),
+	scheduledAtLocal: createUntypedString(variables.scheduledAt),
+	timeZone: createUntypedString(variables.timeZone),
+});
+
+export const schedulePostMutation = buildTenantMutationOptions<
+	ApiClient,
+	unknown,
+	{
+		postId: string;
+		destinations: WireDestination[];
+		scheduledAt: string;
+		timeZone: string;
+	}
+>(
+	{
+		mutationKeyFn: () => [...TENANT_PUBLICATIONS_QUERY_KEY, 'schedule'],
+		mutationFn: async (client, variables) => {
+			await client.posts
+				.byPostId(variables.postId)
+				.schedule.post(buildScheduleBody(variables));
+		},
+		// The composer owns the feedback (inline failure, navigation on success).
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );

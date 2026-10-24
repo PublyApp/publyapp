@@ -39,9 +39,20 @@ export type ScheduledPublicationRow = {
 	publicationId: string;
 	postId: string | null;
 	postBodyPreview: string | null;
+	socialAccountId: string | null;
 	accountDisplayHandle: string | null;
 	status: string | null;
+	/** The post's derived status: `failed` stays `failed` when only some of its
+	 * destinations published (owner decision: no partially-failed status). */
 	postStatus: string | null;
+	/** Destinations of the post that are published. */
+	publishedCount: number;
+	/** Destinations of the post (a re-issued pair counts once). */
+	destinationCount: number;
+	/** A newer publication replaced this row: it is history, not a live row. */
+	superseded: boolean;
+	/** The destination overrides part of the post's content (it has a rendition). */
+	customized: boolean;
 	scheduledAtUtc: Date;
 	scheduledAtLocal: string;
 	timeZone: string | null;
@@ -165,9 +176,14 @@ const toScheduledPublicationRow = (
 		publicationId,
 		postId: normalizeNullableString(item.postId?.toString()),
 		postBodyPreview: normalizeNullableString(item.postBodyPreview),
+		socialAccountId: normalizeNullableString(item.socialAccountId?.toString()),
 		accountDisplayHandle: normalizeNullableString(item.accountDisplayHandle),
 		status: normalizeNullableString(item.status),
 		postStatus: normalizeNullableString(item.postStatus),
+		publishedCount: item.publishedCount ?? 0,
+		destinationCount: item.destinationCount ?? 0,
+		superseded: item.superseded ?? false,
+		customized: item.customized ?? false,
 		scheduledAtUtc,
 		scheduledAtLocal,
 		timeZone: normalizeNullableString(item.timeZone),

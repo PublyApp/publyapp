@@ -678,6 +678,62 @@ const REGISTRY = {
 			);
 		},
 	},
+	'tenant-publication-renditions.ts': {
+		kind: 'list-family',
+		helperName: 'invalidateTenantPublicationRenditions',
+		run: async () => {
+			const {
+				invalidateTenantPublicationRenditions,
+				tenantPublicationRenditionQueryOptions,
+			} = await import('./tenant-publication-renditions');
+			const { scheduledPublicationsQueryOptions } =
+				await import('./tenant-scheduled-publications');
+			const { tenantPublicationsQueryOptions } =
+				await import('./tenant-publications');
+			const invalidated = await capturedInvalidationKeys((client) =>
+				invalidateTenantPublicationRenditions(client, TENANT_ID),
+			);
+			// Customizing (or resetting) a destination flips `customized` on its
+			// queue/calendar row and its history row: both list families refetch.
+			expectListCovered(
+				'tenant-publication-renditions',
+				'invalidateTenantPublicationRenditions',
+				invalidated,
+				[
+					[
+						'queue/calendar page',
+						scheduledPublicationsQueryOptions.queryKey({
+							tenantId: TENANT_ID,
+							from: new Date('2026-10-01T00:00:00Z'),
+							to: new Date('2026-10-31T00:00:00Z'),
+						}),
+					],
+					[
+						'publications history page',
+						tenantPublicationsQueryOptions.queryKey({
+							tenantId: TENANT_ID,
+							statuses: ['failed'],
+						}),
+					],
+				],
+			);
+			// LINE: the rendition read model the editor shows (a sibling family).
+			expectLineCovered(
+				'tenant-publication-renditions',
+				'invalidateTenantPublicationRenditions',
+				invalidated,
+				[
+					[
+						'rendition detail (the line)',
+						tenantPublicationRenditionQueryOptions.queryKey({
+							publicationId: 'pub1',
+							tenantId: TENANT_ID,
+						}),
+					],
+				],
+			);
+		},
+	},
 	'staff-profile-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffProfileUsers',

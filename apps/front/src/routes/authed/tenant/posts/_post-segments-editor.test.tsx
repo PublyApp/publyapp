@@ -5,6 +5,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { NO_OVERRIDE, withText } from '~/lib/publishing/destination-overrides';
+import type { DestinationOverrides } from '~/lib/publishing/destination-overrides';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
@@ -21,6 +23,7 @@ import { newSegmentDraft } from './_segment-draft';
 
 const DESTINATIONS = [
 	{
+		id: 'acc-bluesky',
 		label: 'Bluesky',
 		limits: {
 			textLimits: [
@@ -37,10 +40,12 @@ const DESTINATIONS = [
 const Harness = ({
 	initial = [],
 	published = 0,
+	overrides,
 	onChange,
 }: {
 	initial?: string[];
 	published?: number;
+	overrides?: (segments: SegmentDraft[]) => DestinationOverrides;
 	onChange?: (next: string[]) => void;
 }) => {
 	const [segments, setSegments] = useState<SegmentDraft[]>(() =>
@@ -51,6 +56,7 @@ const Harness = ({
 			segments={segments}
 			publishedSegmentCount={published}
 			destinations={DESTINATIONS}
+			overrides={overrides?.(segments)}
 			onChange={(next) => {
 				setSegments(next);
 				onChange?.(next.map((segment) => segment.text));
@@ -93,6 +99,23 @@ describe('PostSegmentsEditor', () => {
 		expect(
 			screen.getByTestId('tenant-posts-segment-first-number'),
 		).toBeTruthy();
+	});
+
+	test('a segment a destination customized is not counted against that destination', () => {
+		render(
+			<Harness
+				initial={['hello', 'a'.repeat(301)]}
+				// Bluesky has its own text for the second follow-up.
+				overrides={(segments) => ({
+					'acc-bluesky': withText(NO_OVERRIDE, segments[1]?.id ?? '', 'short'),
+				})}
+			/>,
+		);
+
+		const counters = screen.getAllByTestId('tenant-posts-limit-counter');
+		// Only the first follow-up still has a destination that inherits it.
+		expect(counters).toHaveLength(1);
+		expect(counters[0]?.textContent).toContain('5 / 300');
 	});
 
 	test('each segment has its own live counter', () => {

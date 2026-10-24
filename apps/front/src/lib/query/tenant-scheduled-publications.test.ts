@@ -121,6 +121,43 @@ describe('scheduled-publication row mapping', () => {
 			scheduledAtUtc: secondInstant,
 			scheduledAtLocal: '2026-08-20T16:30:00+02:00',
 			timeZone: 'Europe/Paris',
+			// Absent on the wire = a plain, live, single-destination row.
+			publishedCount: 0,
+			destinationCount: 0,
+			superseded: false,
+			customized: false,
+		});
+	});
+
+	test('carries the destination counts, the replaced flag and the customized flag', async () => {
+		const { toScheduledPublicationRows } =
+			await requireScheduledPublicationsModule();
+
+		const [row] = toScheduledPublicationRows({
+			data: [
+				{
+					publicationId: 'pub-mixed',
+					postId: 'post-mixed',
+					socialAccountId: '0198c7a2-0000-7000-8000-000000000003',
+					status: 'failed',
+					postStatus: 'failed',
+					publishedCount: 1,
+					destinationCount: 2,
+					superseded: true,
+					customized: true,
+					scheduledAtUtc: new Date('2026-08-20T13:30:00.000Z'),
+					scheduledAtLocal: '2026-08-20T15:30:00+02:00',
+				},
+			],
+		});
+
+		expect(row).toMatchObject({
+			socialAccountId: '0198c7a2-0000-7000-8000-000000000003',
+			postStatus: 'failed',
+			publishedCount: 1,
+			destinationCount: 2,
+			superseded: true,
+			customized: true,
 		});
 	});
 });

@@ -1,11 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field } from '~/components/field';
-import { Button } from '~/components/ui/button';
 import {
 	Drawer,
 	DrawerContent,
@@ -24,6 +23,8 @@ import {
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { ComposerDestinations } from './_composer-destinations';
+import { CreatePostActions, HandoffPanel } from './_create-post-drawer-parts';
 import { PostBodyCounter } from './_post-body-counter';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
@@ -31,6 +32,8 @@ import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
 import { NO_SEGMENTS } from './_segment-draft';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
+import { useDestinationOverrides } from './_use-destination-overrides';
+import { usePreparePublish } from './_use-prepare-publish';
 import { usePublishSelection } from './_use-publish-selection';
 
 const getSchema = (t: (k: string) => string) =>
@@ -48,89 +51,6 @@ const getSchema = (t: (k: string) => string) =>
 	});
 
 type FormValues = z.infer<ReturnType<typeof getSchema>>;
-
-type HandoffPanelProps = {
-	/** Plain-words cause from the failed attach attempt ('' while retrying). */
-	cause: string;
-	busy: boolean;
-	onRetry: () => void;
-	onDiscard: () => void;
-};
-
-/** Shown when the post was created but its image did not attach: names the
- * cause in plain words and offers the retry/discard way out. */
-const HandoffPanel = ({
-	cause,
-	busy,
-	onRetry,
-	onDiscard,
-}: HandoffPanelProps) => {
-	const { t } = useTranslation(['posts']);
-	return (
-		<div
-			className="space-y-2 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-3"
-			data-testid="tenant-posts-create-image-handoff"
-		>
-			<p className="text-sm font-medium">{t('posts:image-handoff-title')}</p>
-			{cause ? (
-				<p
-					className="publy-type-helper text-[var(--publy-danger)]"
-					role="alert"
-				>
-					{cause}
-				</p>
-			) : null}
-			<div className="flex gap-2">
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					disabled={busy}
-					onClick={onRetry}
-					data-testid="tenant-posts-create-image-retry"
-				>
-					{busy ? t('posts:saving') : t('posts:image-retry')}
-				</Button>
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					disabled={busy}
-					onClick={onDiscard}
-					data-testid="tenant-posts-create-image-discard"
-				>
-					{t('posts:image-discard')}
-				</Button>
-			</div>
-		</div>
-	);
-};
-
-const CreatePostActions = ({
-	isSubmitting,
-	onCancel,
-}: {
-	isSubmitting: boolean;
-	onCancel: () => void;
-}) => {
-	const { t } = useTranslation(['posts', 'common']);
-
-	return (
-		<div className="flex justify-end gap-2">
-			<Button type="button" variant="outline" onClick={onCancel}>
-				{t('common:cancel')}
-			</Button>
-			<Button
-				type="submit"
-				variant="default"
-				disabled={isSubmitting}
-				data-testid="tenant-posts-create-save"
-			>
-				{isSubmitting ? t('posts:saving') : t('posts:save')}
-			</Button>
-		</div>
-	);
-};
 
 export const CreatePostDrawer = ({
 	open,
@@ -157,10 +77,8 @@ export const CreatePostDrawer = ({
 	);
 	const segments =
 		useWatch({ control: methods.control, name: 'segments' }) ?? NO_SEGMENTS;
-	const followUps = useMemo(
-		() =>
-			Array.isArray(segments) ? segments.map((segment) => segment.text) : [],
-		[segments],
+	const destinationOverrides = useDestinationOverrides(
+		segments.map((segment) => segment.id),
 	);
 
 	const deferredAttach = useAttachDeferredImages(tenantId);
@@ -180,35 +98,50 @@ export const CreatePostDrawer = ({
 	const [createdPostId, setCreatedPostId] = useState<string | null>(null);
 	const [handoffCause, setHandoffCause] = useState('');
 
-	const handleSelect = (selections: DeferredImageSelection[]) => {
-		setDeferredImages(selections);
-	};
-
 	/**
-	 * Attaches the deferred images to the created post. Resolves true when the
-	 * handoff completed; false leaves the handoff state holding exactly the
-	 * images still to do with the surfaced cause, so the drawer offers the
-	 * retry/discard actions.
+	 * Attaches the deferred images to the created post. Resolves the asset id
+	 * of each image (by its local id) when the handoff completed; null leaves
+	 * the handoff state holding the images (the attached ones marked) with the
+	 * surfaced cause, so the drawer offers the retry/discard actions.
 	 */
 	const tryAttach = async (
 		postId: string,
 		images: DeferredImageSelection[],
-	): Promise<boolean> => {
+	): Promise<ReadonlyMap<string, string> | null> => {
 		const outcome = await deferredAttach.attachAll(postId, images);
 		if (outcome.ok) {
-			return true;
+			return outcome.assetIds;
 		}
 
 		setCreatedPostId(postId);
-		setDeferredImages(outcome.remaining);
+		// Every image stays in the list, the attached ones marked: a retry
+		// uploads only the rest, and a reorder or an image override still sees
+		// all of them.
+		setDeferredImages(
+			images.map((image) => ({
+				...image,
+				attachedAssetId:
+					outcome.assetIds.get(image.id) ?? image.attachedAssetId,
+			})),
+		);
 		setHandoffCause(outcome.cause);
-		return false;
+		return null;
 	};
 
+	const publishPrep = usePreparePublish({
+		methods,
+		tenantId,
+		deferredImages,
+		setDeferredImages,
+		tryAttach,
+	});
+
 	const completeAndClose = async () => {
+		publishPrep.forget();
 		setDeferredImages([]);
 		setCreatedPostId(null);
 		setHandoffCause('');
+		destinationOverrides.resetAll();
 		await invalidateTenantPosts(qc, tenantId);
 		methods.reset();
 		onOpenChange(false);
@@ -226,7 +159,9 @@ export const CreatePostDrawer = ({
 				return;
 			}
 
+			// A publish that failed earlier already created the post: save onto it.
 			const created = await savePost({
+				postId: publishPrep.createdPostId ?? undefined,
 				body: values.body,
 				projectId: values.projectId ?? null,
 				segments: values.segments.map((segment) => segment.text),
@@ -235,15 +170,13 @@ export const CreatePostDrawer = ({
 
 			// The picker collects a deferred image selection while the post
 			// does not exist yet; it is attached right after creation.
-			if (deferredImages.length > 0) {
-				const attached = await tryAttach(created.id, deferredImages);
-				if (!attached) {
-					// The post was created and stays consistent (it keeps the
-					// images that did attach); the drawer stays open on the
-					// handoff surface naming the cause with the retry/discard
-					// actions.
-					return;
-				}
+			const attached = await publishPrep.syncImages(created.id);
+			if (attached === null) {
+				// The post was created and stays consistent (it keeps the
+				// images that did attach); the drawer stays open on the
+				// handoff surface naming the cause with the retry/discard
+				// actions.
+				return;
 			}
 
 			await completeAndClose();
@@ -280,7 +213,7 @@ export const CreatePostDrawer = ({
 		}
 		setHandoffCause('');
 		const attached = await tryAttach(createdPostId, deferredImages);
-		if (attached) {
+		if (attached !== null) {
 			await completeAndClose();
 		}
 	};
@@ -291,6 +224,8 @@ export const CreatePostDrawer = ({
 		// saved draft visible immediately.
 		setHandoffCause('');
 		setCreatedPostId(null);
+		publishPrep.forget();
+		destinationOverrides.resetAll();
 		void invalidateTenantPosts(qc, tenantId);
 		methods.reset();
 		onOpenChange(false);
@@ -301,6 +236,8 @@ export const CreatePostDrawer = ({
 	const handleOpenChange = (o: boolean) => {
 		if (!o) {
 			setDeferredImages([]);
+			publishPrep.forget();
+			destinationOverrides.resetAll();
 		}
 		onOpenChange(o);
 	};
@@ -328,6 +265,7 @@ export const CreatePostDrawer = ({
 							segments={segments}
 							publishedSegmentCount={0}
 							destinations={selection.destinations}
+							overrides={destinationOverrides.overrides}
 							onChange={(next) =>
 								methods.setValue('segments', next, { shouldDirty: true })
 							}
@@ -360,52 +298,32 @@ export const CreatePostDrawer = ({
 							/>
 						) : (
 							<PostImagePicker
-								onSelect={handleSelect}
+								onSelect={publishPrep.selectImages}
 								selections={deferredImages}
 								limits={selection.imageLimits}
 							/>
 						)}
+						<ComposerDestinations
+							selection={selection}
+							destinationOverrides={destinationOverrides}
+							body={body}
+							segments={segments}
+							images={deferredImages.map((image) => ({
+								key: image.id,
+								url: null,
+								altText: image.altText,
+							}))}
+						/>
 					</DrawerBody>
 					<DrawerFooter>
 						<div className="w-full space-y-3">
 							<PublishOnBlock
 								selection={selection}
+								destinationOverrides={destinationOverrides}
 								body={body}
-								followUps={followUps}
-								imageCount={deferredImages.length}
-								onBeforePublish={async () => {
-									const values = methods.getValues();
-									await methods.trigger();
-									if (!methods.formState.isValid || !values.body.trim()) {
-										return null;
-									}
-
-									const details = await savePost({
-										body: values.body,
-										projectId: values.projectId ?? null,
-										segments: values.segments.map((segment) => segment.text),
-										tenantId,
-									});
-									// Picked images belong on the post BEFORE it is published,
-									// or the publication would go out without them.
-									if (deferredImages.length > 0) {
-										const attached = await tryAttach(
-											details.id,
-											deferredImages,
-										);
-										if (!attached) {
-											return null;
-										}
-										setDeferredImages([]);
-									}
-									await invalidateTenantPosts(qc, tenantId);
-									methods.reset({
-										body: details.body,
-										projectId: details.projectId,
-										segments: values.segments,
-									});
-									return details.id;
-								}}
+								segments={segments}
+								imageKeys={deferredImages.map((image) => image.id)}
+								onBeforePublish={publishPrep.prepare}
 							/>
 							<CreatePostActions
 								isSubmitting={methods.formState.isSubmitting}

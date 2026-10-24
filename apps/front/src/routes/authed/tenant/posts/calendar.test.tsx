@@ -88,6 +88,11 @@ const EN_LABELS: TestLabelMap = {
 	'calendar-empty-description': 'Scheduled publications will appear here.',
 	'publish-status-scheduled': 'Scheduled',
 	'publish-status-paused': 'Paused',
+	'publish-status-failed': 'Failed',
+	'publish-status-failed-partial': 'Failed · {{published}}/{{total}} published',
+	'publication-superseded': 'Replaced',
+	'publication-customized': 'Customized',
+	'posts:publication-failed-cause': 'Failed: {{cause}}',
 	'posts:publication-paused-cause': 'Paused: {{cause}}',
 	'posts:publication-paused-next-action':
 		'Reconnect the account in Settings under Integrations to resume.',
@@ -103,10 +108,12 @@ const EN_LABELS: TestLabelMap = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: { cause?: string }) => {
+		t: (key: string, options?: Record<string, string | number>) => {
 			const value =
 				EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
-			return options?.cause ? value.replace('{{cause}}', options.cause) : value;
+			return value.replace(/\{\{(\w+)\}\}/g, (_match, name: string) =>
+				String(options?.[name] ?? ''),
+			);
 		},
 		i18n: { resolvedLanguage: mocks.language, language: mocks.language },
 	}),
@@ -160,6 +167,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@paris.example',
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: null,
 				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
 				scheduledAtLocal: '2026-08-01T00:30:00+02:00',
@@ -192,6 +204,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@paris.example',
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: null,
 				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
 				scheduledAtLocal: '2026-08-01T00:30:00+02:00',
@@ -227,6 +244,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: null,
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: null,
 				scheduledAtUtc: new Date('2026-08-10T10:00:00.000Z'),
 				scheduledAtLocal: '2026-08-10T12:00:00+02:00',
@@ -240,6 +262,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: null,
 				status: 'paused',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: null,
 				scheduledAtUtc: new Date('2026-08-20T10:00:00.000Z'),
 				scheduledAtLocal: '2026-08-20T12:00:00+02:00',
@@ -267,6 +294,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@link.example',
 				status: 'paused',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: null,
 				scheduledAtUtc: new Date('2026-08-12T09:00:00.000Z'),
 				scheduledAtLocal: '2026-08-12T11:00:00+02:00',
@@ -294,6 +326,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@paused.example',
 				status: 'paused',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: 'account disconnected',
 				scheduledAtUtc: new Date('2026-08-12T09:00:00.000Z'),
 				scheduledAtLocal: '2026-08-12T11:00:00+02:00',
@@ -331,6 +368,11 @@ describe('TenantPostsCalendarPage', () => {
 				accountDisplayHandle: '@zone.example',
 				status: 'scheduled',
 				postStatus: 'scheduled',
+				socialAccountId: null,
+				publishedCount: 0,
+				destinationCount: 1,
+				superseded: false,
+				customized: false,
 				lastError: null,
 				scheduledAtUtc: new Date('2026-07-31T22:30:00.000Z'),
 				scheduledAtLocal: '2026-07-31T18:30:00-04:00',
@@ -347,6 +389,64 @@ describe('TenantPostsCalendarPage', () => {
 		expect(
 			screen.queryByTestId('tenant-posts-calendar-day-2026-07-31'),
 		).toBeNull();
+	});
+
+	test('per-destination rows: mixed status, replaced row and customized badge', async () => {
+		const base = {
+			postId: 'post-multi',
+			postBodyPreview: 'One idea, three networks',
+			socialAccountId: null,
+			scheduledAtUtc: new Date('2026-08-10T10:00:00.000Z'),
+			scheduledAtLocal: '2026-08-10T12:00:00+02:00',
+			timeZone: 'Europe/Paris',
+		};
+		allPagesMock.rows = [
+			{
+				...base,
+				id: 'pub-failed',
+				publicationId: 'pub-failed',
+				accountDisplayHandle: '@failed.example',
+				status: 'failed',
+				postStatus: 'failed',
+				publishedCount: 1,
+				destinationCount: 2,
+				superseded: false,
+				customized: true,
+				lastError: 'provider refused',
+			},
+			{
+				...base,
+				id: 'pub-old',
+				publicationId: 'pub-old',
+				accountDisplayHandle: '@old.example',
+				status: 'failed',
+				postStatus: 'failed',
+				publishedCount: 1,
+				destinationCount: 2,
+				superseded: true,
+				customized: false,
+				lastError: 'an old failure',
+			},
+		];
+		renderPage();
+
+		await screen.findAllByText('One idea, three networks');
+		const [live] = screen.getAllByTestId('tenant-posts-status-pill');
+		expect(live?.textContent).toBe('Failed · 1/2 published');
+		expect(
+			screen.getByTestId('tenant-posts-customized-badge').textContent,
+		).toBe('Customized');
+		// The replaced row: muted, labelled, and its stale failure is not shown.
+		expect(
+			screen.getByTestId('tenant-posts-superseded-label').textContent,
+		).toBe('Replaced');
+		expect(
+			screen.getAllByTestId('tenant-posts-publication-cause'),
+		).toHaveLength(1);
+		expect(screen.queryByText('Failed: an old failure')).toBeNull();
+		expect(document.querySelectorAll('[data-superseded="true"]').length).toBe(
+			1,
+		);
 	});
 
 	test('logs out only when the centralized failure classifier selects the error', async () => {

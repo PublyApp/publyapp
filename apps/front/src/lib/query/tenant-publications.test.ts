@@ -18,10 +18,17 @@ import {
 	invalidateTenantPublications,
 	isTenantPublicationStatus,
 	publishNowMutation,
+	schedulePostMutation,
 	tenantPublicationsQueryOptions,
 	TENANT_PUBLICATIONS_QUERY_KEY,
 	toTenantPublicationRows,
 } from '~/lib/query/tenant-publications';
+import { untypedNodeToJson } from '~/lib/testing/untyped-node-json';
+
+import type {
+	PublishNowBody,
+	SchedulePostBody,
+} from '@org/client-ts/models/index';
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -30,6 +37,8 @@ beforeEach(() => {
 describe('publishNowMutation', () => {
 	const tenantId = '11111111-1111-1111-1111-111111111111';
 	const postId = 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+	const accountA = '01890a5d-ac96-774b-bcce-b302099a8057';
+	const accountB = '01890a5d-ac96-774b-bcce-b302099a8058';
 
 	const stubPost = () => vi.fn().mockResolvedValue({});
 
@@ -38,42 +47,98 @@ describe('publishNowMutation', () => {
 			posts: {
 				byPostId: (id: string) => ({
 					publishNow: { post },
+					schedule: { post },
 					postId: id,
 				}),
 			},
 		});
 
-	test('fires publish-now carrying the selected account ids as untyped array', async () => {
+	test('fires publish-now with one destination per account and overrides only where customized', async () => {
 		const post = stubPost();
 		stubClient(post);
 
 		await publishNowMutation.mutationFn({
 			postId,
-			accountIds: ['01890a5d-ac96-774b-bcce-b302099a8057'],
+			destinations: [
+				{ socialAccountId: accountA },
+				{
+					socialAccountId: accountB,
+					overrides: {
+						segments: [{ position: 0, text: 'Shorter for B' }],
+						media: {
+							assetIds: ['asset-2', 'asset-1'],
+							altTexts: [{ assetId: 'asset-2', altText: 'A cat' }],
+						},
+					},
+				},
+			],
 			tenantId,
 		});
 
 		expect(mocks.getOrCreateClient).toHaveBeenCalledWith(tenantId);
 		expect(post).toHaveBeenCalledTimes(1);
-		const body = post.mock.calls[0]?.[0] as {
-			accountIds?: unknown;
-		};
-		expect(body.accountIds).toBeDefined();
+		const body = post.mock.calls[0]?.[0] as PublishNowBody;
+		// The old accountIds shape is never mixed in (the server refuses both).
+		expect(body.accountIds ?? null).toBeNull();
+		expect(untypedNodeToJson(body.destinations)).toEqual([
+			{ socialAccountId: accountA },
+			{
+				socialAccountId: accountB,
+				overrides: {
+					segments: [{ position: 0, text: 'Shorter for B' }],
+					media: {
+						assetIds: ['asset-2', 'asset-1'],
+						altTexts: [{ assetId: 'asset-2', altText: 'A cat' }],
+					},
+				},
+			},
+		]);
 	});
 
-	test('omits accountIds when no target is checked', async () => {
+	test('omits destinations when no target is checked', async () => {
 		const post = stubPost();
 		stubClient(post);
 
 		await publishNowMutation.mutationFn({
 			postId,
-			accountIds: [],
+			destinations: [],
 			tenantId,
 		});
 
-		const body = post.mock.calls[0]?.[0] as {
-			accountIds?: unknown;
-		};
+		const body = post.mock.calls[0]?.[0] as PublishNowBody;
+		expect(body.destinations ?? null).toBeNull();
+	});
+
+	test('schedule sends destinations, the same-time default instant and the zone', async () => {
+		const post = stubPost();
+		stubClient(post);
+
+		await schedulePostMutation.mutationFn({
+			postId,
+			destinations: [
+				{
+					socialAccountId: accountA,
+					overrides: { segments: [{ position: 1, text: 'Follow-up for A' }] },
+				},
+				{ socialAccountId: accountB },
+			],
+			scheduledAt: '2026-11-02T09:30:00.000Z',
+			timeZone: 'Europe/Paris',
+			tenantId,
+		});
+
+		const body = post.mock.calls[0]?.[0] as SchedulePostBody;
+		expect(untypedNodeToJson(body.destinations)).toEqual([
+			{
+				socialAccountId: accountA,
+				overrides: { segments: [{ position: 1, text: 'Follow-up for A' }] },
+			},
+			{ socialAccountId: accountB },
+		]);
+		expect(untypedNodeToJson(body.scheduledAtLocal)).toBe(
+			'2026-11-02T09:30:00.000Z',
+		);
+		expect(untypedNodeToJson(body.timeZone)).toBe('Europe/Paris');
 		expect(body.accountIds ?? null).toBeNull();
 	});
 });
@@ -168,6 +233,7 @@ describe('toTenantPublicationRows', () => {
 			attempts: 0,
 			accountUsable: false,
 			superseded: false,
+			customized: false,
 			updatedAt,
 			segmentsPublished: 0,
 			segmentsTotal: 1,
@@ -178,6 +244,15 @@ describe('toTenantPublicationRows', () => {
 		expect(rows[1].attempts).toBe(2);
 		expect(rows[1].accountUsable).toBe(true);
 		expect(rows[1].superseded).toBe(true);
+		expect(rows[1].customized).toBe(false);
+	});
+
+	test('carries the customized flag of a destination with a rendition', () => {
+		const [row] = toTenantPublicationRows({
+			data: [{ id: '0198c7a2-0000-7000-8000-000000000005', customized: true }],
+		});
+
+		expect(row?.customized).toBe(true);
 	});
 
 	test('drops rows without an id and survives an empty payload', () => {

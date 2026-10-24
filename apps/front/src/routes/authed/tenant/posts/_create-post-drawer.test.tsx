@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -13,6 +14,18 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+	/** The props the publish block was last rendered with. */
+	publishBlockProps: {
+		current: undefined as
+			| {
+					imageKeys?: string[];
+					onBeforePublish?: () => Promise<{
+						postId: string;
+						assetIdByKey?: ReadonlyMap<string, string>;
+					} | null>;
+			  }
+			| undefined,
+	},
 	attachMutateAsync: vi.fn(),
 	removeMutateAsync: vi.fn(),
 	reorderMutateAsync: vi.fn(),
@@ -40,6 +53,7 @@ const rhf = vi.hoisted(() => {
 	return {
 		fields,
 		errors,
+		noSegments: [] as { id: string; text: string }[],
 		get,
 		resetAll: () => {
 			fields.clear();
@@ -62,9 +76,27 @@ vi.mock('@tanstack/react-query', () => ({
 // These tests cover the deferred image handoff, not publishing, so a static
 // stub keeps the suite focused (same pattern as the edit page's suite).
 vi.mock('./_publish-on-block', () => ({
-	PublishOnBlock: ({ body }: { body?: string }) => (
-		<span data-testid="stub-publish-on-body-length">{body?.length ?? 0}</span>
-	),
+	PublishOnBlock: (props: {
+		body?: string;
+		imageKeys?: string[];
+		onBeforePublish?: () => Promise<{
+			postId: string;
+			assetIdByKey?: ReadonlyMap<string, string>;
+		} | null>;
+	}) => {
+		mocks.publishBlockProps.current = props;
+		return (
+			<span data-testid="stub-publish-on-body-length">
+				{props.body?.length ?? 0}
+			</span>
+		);
+	},
+}));
+
+// The destination chips and tab pull their own queries; the deferred image
+// handoff is what this suite covers.
+vi.mock('./_composer-destinations', () => ({
+	ComposerDestinations: () => <div data-testid="stub-composer-destinations" />,
 }));
 
 vi.mock('./_use-publish-selection', () => ({
@@ -146,13 +178,15 @@ vi.mock('react-hook-form', () => {
 					},
 				};
 			},
+			getValues: () => ({ ...rhf.snapshot(), segments: [] }),
+			trigger: async () => true,
 			handleSubmit:
 				(onValid: (values: Record<string, unknown>) => void | Promise<void>) =>
 				(event?: Event) => {
 					event?.preventDefault();
 					void onValid({ ...rhf.snapshot(), segments: [] });
 				},
-			formState: { errors: rhf.errors, isSubmitting: false },
+			formState: { errors: rhf.errors, isSubmitting: false, isValid: true },
 			// D2's "Publish on" block receives the selected project through
 			// useForm().watch, so the double must expose it even though this
 			// suite stubs the block component itself.
@@ -160,13 +194,19 @@ vi.mock('react-hook-form', () => {
 			setError: (name: string, error: { message?: string }) => {
 				rhf.errors[name] = error;
 			},
-			reset: () => {
+			// Like the real `reset(values)`: the given values become the form state.
+			reset: (values?: { body?: string }) => {
 				rhf.resetAll();
+				if (values?.body !== undefined) {
+					rhf.get('body').value = values.body;
+				}
 			},
 			control: undefined,
 		}),
 		useController,
-		useWatch: ({ name }: { name: string }) => rhf.get(name).value,
+		// Thread segments are a list in the real form, never a text field.
+		useWatch: ({ name }: { name: string }) =>
+			name === 'segments' ? rhf.noSegments : rhf.get(name).value,
 		useFormState: () => ({ isSubmitting: false }),
 	};
 });
@@ -291,6 +331,10 @@ const SECOND_FILE = new File(
 	},
 );
 
+const THIRD_FILE = new File([new Uint8Array([0x89, 0x50])], 'third.png', {
+	type: 'image/png',
+});
+
 const UNSUPPORTED_TYPE_PROBLEM = {
 	status: 422,
 	body: {
@@ -362,6 +406,318 @@ describe('CreatePostDrawer provider limit counter (#2169)', () => {
 			(screen.getByTestId('tenant-posts-create-save') as HTMLButtonElement)
 				.disabled,
 		).toBe(false);
+	});
+});
+
+describe('CreatePostDrawer publish preparation (#2172)', () => {
+	test('saves the draft, uploads the picked images, and hands back the asset id of each picked image by its local key', async () => {
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+		const props = mocks.publishBlockProps.current;
+		// Before the post exists an image is named by its local id.
+		const [localKey] = props?.imageKeys ?? [];
+		expect(localKey).toBeTruthy();
+
+		const prepared = await props?.onBeforePublish?.();
+
+		expect(mocks.savePost).toHaveBeenCalledWith(
+			expect.objectContaining({ body: 'publish body', tenantId: 'tenant-1' }),
+		);
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		expect(prepared).toEqual({
+			postId: 'post-1',
+			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
+		});
+	});
+
+	test('a publish that failed is retried on the SAME post, with the same asset ids and no second upload', async () => {
+		mocks.savePost.mockResolvedValue({ id: 'post-1', body: 'publish body' });
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+		const [localKey] = mocks.publishBlockProps.current?.imageKeys ?? [];
+		const first = await mocks.publishBlockProps.current?.onBeforePublish?.();
+		expect(first?.postId).toBe('post-1');
+
+		// The publish request failed: the drawer is still open and the picked
+		// image is still in the picker, so a customization can still name it.
+		await waitFor(() =>
+			expect(mocks.publishBlockProps.current?.imageKeys).toEqual([localKey]),
+		);
+		const second = await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(mocks.savePost).toHaveBeenCalledTimes(2);
+		expect(mocks.savePost.mock.calls[0]?.[0].postId).toBeUndefined();
+		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+		// Uploaded once, and the key to asset id mapping survives the retry.
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		expect(second).toEqual({
+			postId: 'post-1',
+			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
+		});
+	});
+
+	describe('after a failed publish the post and its images are kept in step with the picker', () => {
+		// Inside act: the picker must have committed the "attached" marks before
+		// the user's next edit reads its props.
+		const prepareAgain = async () => {
+			let prepared:
+				| { postId: string; assetIdByKey?: ReadonlyMap<string, string> }
+				| null
+				| undefined;
+			await act(async () => {
+				prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+			});
+			return prepared;
+		};
+
+		beforeEach(() => {
+			mocks.savePost.mockResolvedValue({ id: 'post-1', body: 'publish body' });
+		});
+
+		test('an alt text edit keeps the post and the upload, and re-sends the alt text', async () => {
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+			mocks.altMutateAsync.mockClear();
+
+			setFieldValue('tenant-posts-create-image-alt', 'A bigger red square');
+			await waitFor(() =>
+				expect(
+					(
+						screen.getByTestId(
+							'tenant-posts-create-image-alt',
+						) as HTMLInputElement
+					).value,
+				).toBe('A bigger red square'),
+			);
+			await prepareAgain();
+
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetId: 'asset-1',
+				altText: 'A bigger red square',
+			});
+		});
+
+		test('a newly picked image is uploaded onto the same post on the retry', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockResolvedValueOnce({ id: 'asset-2' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				SECOND_FILE,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+			);
+			const retried = await prepareAgain();
+
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(2);
+			expect(retried?.assetIdByKey?.size).toBe(2);
+		});
+
+		test('an attached image the user removed is deleted from the post on the retry', async () => {
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+
+			await userEvent.click(
+				screen.getByTestId('tenant-posts-create-image-remove'),
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toEqual([]),
+			);
+			await prepareAgain();
+
+			expect(mocks.removeMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetId: 'asset-1',
+			});
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		});
+
+		test('clearing the alt text of an attached image clears it on the server too', async () => {
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await prepareAgain();
+			mocks.altMutateAsync.mockClear();
+
+			setFieldValue('tenant-posts-create-image-alt', '');
+			await waitFor(() =>
+				expect(
+					(
+						screen.getByTestId(
+							'tenant-posts-create-image-alt',
+						) as HTMLInputElement
+					).value,
+				).toBe(''),
+			);
+			await prepareAgain();
+
+			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetId: 'asset-1',
+				altText: '',
+			});
+		});
+
+		test('a delete that failed is retried alone: ids already deleted (or already gone, 404) are not deleted again', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockResolvedValueOnce({ id: 'asset-2' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				SECOND_FILE,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+			);
+			await prepareAgain();
+
+			for (const button of screen.getAllByTestId(
+				'tenant-posts-create-image-remove',
+			)) {
+				await userEvent.click(button);
+			}
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toEqual([]),
+			);
+			// asset-1 deletes, asset-2 fails with a server error.
+			mocks.removeMutateAsync
+				.mockResolvedValueOnce(undefined)
+				.mockRejectedValueOnce({
+					responseStatusCode: 500,
+					body: { status: 500 },
+				});
+			await expect(prepareAgain()).rejects.toBeDefined();
+			expect(mocks.removeMutateAsync).toHaveBeenCalledTimes(2);
+			// Let the drawer commit the shortened list before the retry.
+			await act(async () => undefined);
+
+			// The retry deletes only the one that failed; a 404 counts as done.
+			mocks.removeMutateAsync.mockRejectedValueOnce({
+				responseStatusCode: 404,
+				body: { status: 404 },
+			});
+			const retried = await prepareAgain();
+
+			expect(mocks.removeMutateAsync).toHaveBeenCalledTimes(3);
+			expect(mocks.removeMutateAsync.mock.calls[2]?.[0].assetId).toBe(
+				'asset-2',
+			);
+			expect(retried?.postId).toBe('post-1');
+			// Nothing left to delete on the next try.
+			await prepareAgain();
+			expect(mocks.removeMutateAsync).toHaveBeenCalledTimes(3);
+		});
+
+		test('three images, the second upload fails: the retry keeps all three and reorders with every asset id', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM)
+				.mockResolvedValueOnce({ id: 'asset-2' })
+				.mockResolvedValueOnce({ id: 'asset-3' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				[SECOND_FILE, THIRD_FILE],
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(3),
+			);
+
+			expect(await prepareAgain()).toBeNull();
+			// The attached first image did not leave the list.
+			expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(3);
+			expect(mocks.reorderMutateAsync).not.toHaveBeenCalled();
+
+			const retried = await prepareAgain();
+
+			expect(retried?.assetIdByKey?.size).toBe(3);
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(4);
+			expect(mocks.reorderMutateAsync).toHaveBeenCalledTimes(1);
+			expect(mocks.reorderMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetIds: ['asset-1', 'asset-2', 'asset-3'],
+			});
+		});
+
+		test('a reorder keeps the post and sends the picker order', async () => {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-1' })
+				.mockResolvedValueOnce({ id: 'asset-2' });
+			renderDrawer(vi.fn());
+			await fillBodyAndPickImage('publish body');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				SECOND_FILE,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys).toHaveLength(2),
+			);
+			await prepareAgain();
+			// The first publish uploads in order: nothing to re-sort yet.
+			expect(mocks.reorderMutateAsync).not.toHaveBeenCalled();
+
+			await userEvent.click(
+				screen.getAllByTestId(
+					'tenant-posts-create-image-move-later',
+				)[0] as HTMLElement,
+			);
+			await waitFor(() =>
+				expect(mocks.publishBlockProps.current?.imageKeys?.[0]).not.toBe(
+					'deferred-image-1',
+				),
+			);
+			await prepareAgain();
+
+			expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+			expect(mocks.reorderMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+				assetIds: ['asset-2', 'asset-1'],
+			});
+		});
+	});
+
+	test('aborts the publish (null) when an image cannot be attached, leaving the handoff to retry', async () => {
+		mocks.attachMutateAsync.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM);
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('publish body');
+
+		const prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(prepared).toBeNull();
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-handoff'),
+			).toBeTruthy(),
+		);
+	});
+
+	test('a text-only draft needs no upload and hands back no asset ids', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'text only');
+
+		const prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		expect(prepared).toEqual({ postId: 'post-1', assetIdByKey: new Map() });
 	});
 });
 

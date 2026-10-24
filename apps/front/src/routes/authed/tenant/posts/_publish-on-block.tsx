@@ -1,173 +1,105 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { Checkbox } from '~/components/ui/checkbox';
+import { BODY_KEY, isCustomized } from '~/lib/publishing/destination-overrides';
 import {
 	POSTS_PUBLISH,
 	SOCIAL_ACCOUNTS_PUBLISH,
 	useTenantPermissions,
 } from '~/lib/query/tenant-permissions';
-import {
-	publishNowMutation,
-	invalidateTenantPublications,
-} from '~/lib/query/tenant-publications';
-import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-import { countText, tightestLimit } from '~/lib/text-counter/text-counter';
-import type { LimitedDestination } from '~/lib/text-counter/text-counter';
-import { useTextCounter } from '~/lib/text-counter/use-text-counter';
-
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { PublishLimitCounter } from './_publish-limit-counter';
+import { PublishScheduleRow } from './_publish-schedule-row';
+import {
+	PUBLISH_NOW_MAX_DESTINATIONS,
+	findPublishProblems,
+	isPublishBlocked,
+} from './_publish-validation';
+import { NO_SEGMENTS } from './_segment-draft';
+import type { SegmentDraft } from './_segment-draft';
+import type { DestinationOverridesState } from './_use-destination-overrides';
 import type { PublishSelection } from './_use-publish-selection';
+import { usePublishSubmit } from './_use-publish-submit';
+import type { PreparedPost } from './_use-publish-submit';
 
-const NO_FOLLOW_UPS: string[] = [];
+const NO_IMAGE_KEYS: string[] = [];
 
-type DestinationBlock = {
-	key:
-		| 'posts:publish-blocked-media-required'
-		| 'posts:publish-blocked-threads-unsupported';
-	destination: string;
-};
-
-/** The first selected destination that cannot take this post as composed: a
- * photo network with no image, or a thread aimed at a network without threads
- * (the server refuses both, this says so before the click). */
-const findDestinationBlock = (
-	destinations: readonly LimitedDestination[],
-	imageCount: number,
-	followUpCount: number,
-): DestinationBlock | null => {
-	for (const { label, limits } of destinations) {
-		if (limits.requiresMedia === true && imageCount === 0) {
-			return {
-				key: 'posts:publish-blocked-media-required',
-				destination: label,
-			};
-		}
-		if (limits.supportsThreads === false && followUpCount > 0) {
-			return {
-				key: 'posts:publish-blocked-threads-unsupported',
-				destination: label,
-			};
-		}
-	}
-	return null;
-};
-
-/** Composer "Publish on" block (Epic D step 6, plan D2 Task 8): the accounts
- * visible in the project per the Epic C rule, shown only with BOTH
+/** Publish actions of the composer (Epic D step 6, plan D2 Task 8, then #2172):
+ * "Publish now" and "Schedule" for the destinations selected in the chips, with
+ * every destination's customized fields. Shown only with BOTH
  * `tenant.posts.publish` AND `tenant.socialaccounts.publish` (the backend
- * publish-now surface requires both — PostEndpointsForTenant.cs:46-49).
- * One checked box per visible target; unchecked-all disables Publish now;
- * publishing fires `publishNowMutation` with the checked ids then lands on
- * History. */
+ * publish surface requires both — PostEndpointsForTenant.cs:46-49).
+ *
+ * Validation is per destination: the shared text is counted against the
+ * destinations that INHERIT it, each customized text against its own
+ * destination. Unchecking every destination disables both actions; publishing
+ * lands on History, scheduling on the Queue. */
 export const PublishOnBlock = ({
 	selection,
+	destinationOverrides,
 	postId,
 	body = '',
-	followUps = NO_FOLLOW_UPS,
-	imageCount = 0,
+	segments = NO_SEGMENTS,
+	imageKeys = NO_IMAGE_KEYS,
+	isPostDirty = false,
 	onBeforePublish,
 }: {
 	/** Which targets are checked (owned by the composer so every counter and
 	 * the image picker follow the same selection). */
 	selection: PublishSelection;
-	/** The text being composed: counted live against the checked destinations. */
+	/** Which destinations customize what (owned by the composer). */
+	destinationOverrides: DestinationOverridesState;
+	/** The text being composed: counted live against the destinations that
+	 * inherit it. */
 	body?: string;
-	/** Thread follow-up texts: each one is held to the same limits (#2171). */
-	followUps?: string[];
+	/** Thread follow-ups: each one is held to the same limits (#2171). */
+	segments?: SegmentDraft[];
 	/** Images on the post (attached or picked): a photo network needs one. */
-	imageCount?: number;
+	imageKeys?: string[];
+	/** Unsaved edits to the shared post (edit page). A customization names
+	 * segments by position and the server applies it to the SAVED post, so
+	 * while the post is dirty a customized publish or schedule is held back. */
+	isPostDirty?: boolean;
 	/** Present once the post exists (edit page). */
 	postId?: string | null;
-	/** In the creation drawer the
-	 * block calls `onBeforePublish` first so the draft is saved and the caller
-	 * hands back the created post id before publish-now fires. */
-	onBeforePublish?: () => Promise<string | null>;
+	/** In the creation drawer the block calls `onBeforePublish` first so the
+	 * draft is saved and the caller hands back the created post before the
+	 * request fires. */
+	onBeforePublish?: () => Promise<PreparedPost | null>;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
 	const { hasPermission } = useTenantPermissions(tenantId);
-	const { targets, selectedIds, toggle, destinations } = selection;
-	const [failureMessage, setFailureMessage] = useState<string | null>(null);
-	const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-	const tightest = useTextCounter(body, destinations);
-	// The first follow-up over a limit (0-based), or -1: publishing a thread
-	// needs every segment within the limits.
-	const overLimitFollowUp = useMemo(
-		() =>
-			followUps.findIndex(
-				(text) =>
-					tightestLimit(countText(text), destinations)?.state === 'error',
-			),
-		[followUps, destinations],
-	);
-	const destinationBlock = findDestinationBlock(
+	const { selectedIds, destinations } = selection;
+	const submit = usePublishSubmit({
+		postId,
+		onBeforePublish,
+		selectedIds,
+		overrides: destinationOverrides.overrides,
+		segmentKeys: [BODY_KEY, ...segments.map((segment) => segment.id)],
+		imageKeys,
+	});
+	const problems = findPublishProblems({
 		destinations,
-		imageCount,
-		followUps.length,
-	);
-	const isOverLimit =
-		tightest?.state === 'error' ||
-		overLimitFollowUp >= 0 ||
-		destinationBlock !== null;
+		overrides: destinationOverrides.overrides,
+		body,
+		segments,
+		imageKeys,
+	});
+	const { overLimitFollowUp, overrideProblem, destinationBlock } = problems;
+	const isPending = submit.pending !== null;
+	const mustSaveFirst =
+		isPostDirty &&
+		selectedIds.some((id) => isCustomized(destinationOverrides.overrides[id]));
+	const cannotSubmit =
+		selectedIds.length === 0 ||
+		isPending ||
+		isPublishBlocked(problems) ||
+		mustSaveFirst;
+	const tooManyForNow = selectedIds.length > PUBLISH_NOW_MAX_DESTINATIONS;
 
-	const [isPublishing, setIsPublishing] = useState(false);
-
-	const handlePublishNow = async () => {
-		if (!tenantId) {
-			return;
-		}
-
-		setIsPublishing(true);
-		setFailureMessage(null);
-
-		try {
-			let effectivePostId: string | null = postId ?? null;
-
-			if (onBeforePublish) {
-				effectivePostId = await onBeforePublish();
-			}
-
-			if (!effectivePostId) {
-				setFailureMessage(
-					getFailureMessage(toApiFailure(new Error('missing post')), {
-						fallback: t('common:an-error-occurred'),
-					}),
-				);
-				return;
-			}
-
-			await publishNowMutation.mutationFn({
-				postId: effectivePostId,
-				accountIds: selectedIds,
-				tenantId,
-			});
-			await invalidateTenantPublications(queryClient, tenantId);
-			await invalidateTenantScheduledPublications(queryClient, tenantId);
-			void navigate({ to: '/tenant/posts/history' });
-		} catch (error) {
-			setFailureMessage(
-				getFailureMessage(toApiFailure(error), {
-					fallback: t('common:an-error-occurred'),
-				}),
-			);
-		} finally {
-			setIsPublishing(false);
-		}
-	};
-
-	// D4 alignment (PR #1457): the publish-now backend surface requires BOTH
-	// tenant.posts.publish AND tenant.socialaccounts.publish (AND logic —
-	// PostEndpointsForTenant.cs:46-49). The front must promise only what the
-	// back will honor: hide the block unless the member holds both verbs.
+	// D4 alignment (PR #1457): the front must promise only what the back will
+	// honor: hide the block unless the member holds both publish verbs.
 	if (
 		!hasPermission(POSTS_PUBLISH) ||
 		!hasPermission(SOCIAL_ACCOUNTS_PUBLISH)
@@ -176,41 +108,8 @@ export const PublishOnBlock = ({
 	}
 
 	return (
-		<section data-testid="tenant-posts-publish-on-block">
-			<p className="text-[13px] font-medium text-foreground">
-				{t('posts:publish-on-heading')}
-			</p>
-			{targets.length === 0 ? (
-				<p className="text-muted-foreground text-xs">
-					{t('posts:publish-on-empty')}
-				</p>
-			) : (
-				<div role="group" className="flex flex-wrap gap-2">
-					{targets.map((target) => {
-						const isChecked = selectedIdSet.has(target.id);
-
-						return (
-							<label
-								key={target.id}
-								className="publy-choice-chip"
-								data-selected={isChecked ? 'true' : undefined}
-							>
-								<Checkbox
-									className="sr-only"
-									name="publishTargets"
-									data-testid={`tenant-posts-publish-target-${target.id}`}
-									checked={isChecked}
-									onCheckedChange={(checked) => {
-										toggle(target.id, Boolean(checked));
-									}}
-								/>
-								<span>{target.label}</span>
-							</label>
-						);
-					})}
-				</div>
-			)}
-			<PublishLimitCounter tightest={tightest} />
+		<section className="space-y-2" data-testid="tenant-posts-publish-on-block">
+			<PublishLimitCounter tightest={problems.bodyLimit} />
 			{overLimitFollowUp >= 0 ? (
 				<p
 					className="text-xs text-[var(--publy-danger)]"
@@ -218,6 +117,23 @@ export const PublishOnBlock = ({
 					data-testid="tenant-posts-segment-limit-error"
 				>
 					{t('posts:segment-over-limit', { index: overLimitFollowUp + 2 })}
+				</p>
+			) : null}
+			{overrideProblem ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-override-problem"
+				>
+					{t(
+						overrideProblem.kind === 'blank'
+							? 'posts:override-blank'
+							: 'posts:override-over-limit',
+						{
+							destination: overrideProblem.destination,
+							index: overrideProblem.segmentNumber,
+						},
+					)}
 				</p>
 			) : null}
 			{destinationBlock ? (
@@ -231,7 +147,27 @@ export const PublishOnBlock = ({
 					})}
 				</p>
 			) : null}
-			{isPublishing ? (
+			{mustSaveFirst ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-publish-save-post-first"
+				>
+					{t('posts:rendition-save-post-first')}
+				</p>
+			) : null}
+			{tooManyForNow ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-publish-too-many"
+				>
+					{t('posts:publish-now-too-many-destinations', {
+						max: PUBLISH_NOW_MAX_DESTINATIONS,
+					})}
+				</p>
+			) : null}
+			{submit.pending === 'publish' ? (
 				<span
 					data-testid="tenant-posts-publish-in-progress"
 					className="inline-flex items-center gap-1 text-xs text-muted-foreground"
@@ -242,15 +178,19 @@ export const PublishOnBlock = ({
 			<Button
 				type="button"
 				variant="default"
-				disabled={selectedIds.length === 0 || isPublishing || isOverLimit}
-				onClick={() => void handlePublishNow()}
+				disabled={cannotSubmit || tooManyForNow}
+				onClick={() => void submit.publishNow()}
 				data-testid="tenant-posts-publish-now"
 			>
 				{t('common:publish-now')}
 			</Button>
-			{failureMessage ? (
+			<PublishScheduleRow
+				disabled={cannotSubmit}
+				onSchedule={(at) => void submit.schedule(at)}
+			/>
+			{submit.failureMessage ? (
 				<p className="text-sm text-destructive" role="alert">
-					{failureMessage}
+					{submit.failureMessage}
 				</p>
 			) : null}
 		</section>
