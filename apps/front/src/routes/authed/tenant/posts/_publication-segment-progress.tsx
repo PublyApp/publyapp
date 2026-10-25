@@ -43,7 +43,11 @@ export const PublicationSegmentProgress = ({
 	const failingNumber = isStopped && !isDone ? published + 1 : null;
 	const label = isDone
 		? t('posts:history-segments-total', { total })
-		: t('posts:history-segments-progress', { published, total });
+		: t('posts:history-segments-progress', {
+				count: published,
+				published,
+				total,
+			});
 
 	return (
 		<div
