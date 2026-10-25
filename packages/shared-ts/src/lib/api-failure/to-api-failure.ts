@@ -300,6 +300,25 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 
 type GetFailureMessageOptions = {
 	fallback?: string;
+	/**
+	 * Resolves a backend `translationKey` (the `response-message` namespace) in
+	 * the viewer's language, or `undefined` when the locale has no entry for it.
+	 * A problem's `detail` is the API's own plain-words text and is always
+	 * English, so a translated key wins over it; without a translation (or
+	 * without this option) the message falls back to `detail` / `title`.
+	 */
+	translate?: (translationKey: string) => string | undefined;
+};
+
+const translateKey = (
+	failure: ProblemFailure | ValidationFailure,
+	options: GetFailureMessageOptions | undefined,
+): string | undefined => {
+	if (!failure.translationKey || !options?.translate) {
+		return undefined;
+	}
+
+	return options.translate(failure.translationKey) || undefined;
 };
 
 export const getFailureMessage = (
@@ -309,6 +328,7 @@ export const getFailureMessage = (
 	switch (failure.kind) {
 		case 'validation':
 			return (
+				translateKey(failure, options) ??
 				failure.detail ??
 				failure.title ??
 				failure.translationKey ??
@@ -317,6 +337,7 @@ export const getFailureMessage = (
 			);
 		case 'problem':
 			return (
+				translateKey(failure, options) ??
 				failure.detail ??
 				failure.title ??
 				failure.translationKey ??

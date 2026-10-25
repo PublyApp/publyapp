@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { toWireDestinations } from '~/lib/publishing/destination-overrides';
 import type {
 	DestinationOverrides,
@@ -57,6 +58,7 @@ export const usePublishSubmit = ({
 	imageKeys,
 }: SubmitArgs) => {
 	const { t } = useTranslation(['common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
@@ -113,6 +115,7 @@ export const usePublishSubmit = ({
 			setFailureMessage(
 				getFailureMessage(toApiFailure(error), {
 					fallback: t('common:an-error-occurred'),
+					translate: translateResponseMessage,
 				}),
 			);
 			return;

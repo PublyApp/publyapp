@@ -14,6 +14,7 @@ import {
 	DrawerFooter,
 	DrawerForm,
 } from '~/components/ui/drawer';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import {
 	useTenantProjectsQuery,
@@ -62,6 +63,7 @@ export const CreatePostDrawer = ({
 	tenantId: string;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const qc = useQueryClient();
 	const projectsQuery = useTenantProjectsQuery({ tenantId });
 	const projectItems = toTenantProjectItems(projectsQuery.data);
@@ -193,6 +195,7 @@ export const CreatePostDrawer = ({
 						message:
 							getFailureMessage(failure, {
 								fallback: t('common:an-error-occurred'),
+								translate: translateResponseMessage,
 							}) ?? undefined,
 					});
 				}
@@ -202,6 +205,7 @@ export const CreatePostDrawer = ({
 				message:
 					getFailureMessage(failure, {
 						fallback: t('common:an-error-occurred'),
+						translate: translateResponseMessage,
 					}) ?? undefined,
 			});
 		}

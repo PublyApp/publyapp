@@ -14,6 +14,8 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import resourceEn from '~/i18n/locales/en';
+import resourceFr from '~/i18n/locales/fr';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 import { translateEnBundles } from '~/lib/testing/translate-en-bundles';
 
@@ -23,6 +25,7 @@ const ACCOUNT_A = '01890a5d-ac96-774b-bcce-b302099a8057';
 const ACCOUNT_B = '01890a5d-ac96-774b-bcce-b302099a8058';
 
 const mocks = vi.hoisted(() => ({
+	language: 'en' as 'en' | 'fr',
 	rows: [] as unknown[],
 	canPublish: true,
 	walk: {
@@ -76,10 +79,26 @@ vi.mock('~/lib/query/tenant-publication-renditions', async (importActual) => ({
 	}),
 }));
 
+// The posts/common bundles are the real English ones; `response-message` keys
+// resolve against the real bundle of the active language (a missing key falls
+// back to its `defaultValue`, as i18next does).
+const translate = (
+	key: string,
+	options?: Record<string, string | number>,
+): string => {
+	if (options?.ns !== 'response-message') {
+		return translateEnBundles(key, options);
+	}
+	const bundle: Record<string, string> = (
+		mocks.language === 'fr' ? resourceFr : resourceEn
+	)['response-message'];
+	return bundle[key] ?? String(options.defaultValue ?? key);
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: translateEnBundles,
-		i18n: { resolvedLanguage: 'en', language: 'en' },
+		t: translate,
+		i18n: { resolvedLanguage: mocks.language, language: mocks.language },
 	}),
 }));
 
@@ -188,6 +207,7 @@ const openEditor = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 beforeEach(() => {
+	mocks.language = 'en';
 	mocks.canPublish = true;
 	mocks.walk.isAggregating = false;
 	mocks.walk.shouldLogout = false;
@@ -268,6 +288,35 @@ describe('ScheduledRenditionsBlock stored overrides survive a round trip', () =>
 		});
 		expect(overrides.media).not.toHaveProperty('assetIds');
 	});
+
+	// #2209: Kiota deserializes the API's `media: null` into an empty object.
+	test.each([
+		['a post with images', IMAGES],
+		['a post without images (a text-only destination)', []],
+	])(
+		'an inheriting destination shows the images switch OFF on %s and saves no media override',
+		async (_label, images) => {
+			const user = userEvent.setup();
+			loaded({ customized: false, segments: [], media: {} });
+			renderBlock({ images });
+			await openEditor(user);
+
+			const toggle = screen.getByTestId(
+				'tenant-posts-destination-media-toggle',
+			);
+			expect(toggle.getAttribute('aria-checked')).toBe('false');
+			expect(
+				screen.queryByTestId('tenant-posts-destination-media-empty'),
+			).toBeNull();
+
+			await user.click(screen.getByTestId('tenant-posts-rendition-save'));
+
+			await waitFor(() => {
+				expect(mocks.save).toHaveBeenCalledTimes(1);
+			});
+			expect(mocks.save.mock.calls[0]?.[0].overrides).toBeNull();
+		},
+	);
 
 	test('a refetch that re-keys the shared segments keeps the stored follow-up override, and it is still sent', async () => {
 		const user = userEvent.setup();
@@ -414,17 +463,11 @@ describe('ScheduledRenditionsBlock', () => {
 		expect(mocks.save).not.toHaveBeenCalled();
 	});
 
-	test("a 409 locked answer stays inline with the server's plain-words cause", async () => {
-		const user = userEvent.setup();
-		mocks.save.mockRejectedValue({
-			responseStatusCode: 409,
-			body: {
-				status: 409,
-				translationKey: 'publication-rendition-locked',
-				detail:
-					'This publication is already published; its content can no longer be customized',
-			},
-		});
+	const saveFailure = async (
+		user: ReturnType<typeof userEvent.setup>,
+		error: unknown,
+	) => {
+		mocks.save.mockRejectedValue(error);
 		renderBlock();
 		const panel = await openEditor(user);
 		await user.click(
@@ -432,19 +475,64 @@ describe('ScheduledRenditionsBlock', () => {
 				'tenant-posts-destination-text-toggle',
 			)[0] as HTMLElement,
 		);
-
 		await user.click(screen.getByTestId('tenant-posts-rendition-save'));
+		return screen.findByTestId('tenant-posts-rendition-failure');
+	};
 
-		const failure = await screen.findByTestId('tenant-posts-rendition-failure');
+	// #2209: the API's `detail` is always English; the key is what localizes.
+	test.each([
+		[
+			'publication-rendition-locked',
+			'Cette publication est déjà publiée ; son contenu ne peut plus être personnalisé',
+		],
+		[
+			'publication-rendition-superseded',
+			'Une publication plus récente a remplacé celle-ci pour ce post et ce compte ; personnalisez la plus récente',
+		],
+		[
+			'publication-rendition-needs-review',
+			'Cette publication est peut-être déjà chez le fournisseur ; son contenu ne peut pas changer avant vérification',
+		],
+		[
+			'publication-rendition-conflict',
+			'Le contenu de cette publication a été modifié en même temps ; rechargez-la et réessayez',
+		],
+	])(
+		'a 409 %s answer is shown in French in the French UI, not as the English detail',
+		async (translationKey, expected) => {
+			mocks.language = 'fr';
+			const failure = await saveFailure(userEvent.setup(), {
+				responseStatusCode: 409,
+				body: {
+					status: 409,
+					translationKey,
+					detail: 'The English detail the API always sends',
+				},
+			});
+
+			expect(failure.textContent).toBe(expected);
+			expect(screen.queryByTestId('tenant-posts-rendition-saved')).toBeNull();
+		},
+	);
+
+	test('a 409 locked answer is shown in English in the English UI', async () => {
+		const failure = await saveFailure(userEvent.setup(), {
+			responseStatusCode: 409,
+			body: {
+				status: 409,
+				translationKey: 'publication-rendition-locked',
+				detail: 'The English detail the API always sends',
+			},
+		});
+
 		expect(failure.textContent).toBe(
 			'This publication is already published; its content can no longer be customized',
 		);
-		expect(screen.queryByTestId('tenant-posts-rendition-saved')).toBeNull();
 	});
 
-	test('a 422 naming the destination stays inline too', async () => {
-		const user = userEvent.setup();
-		mocks.save.mockRejectedValue({
+	test('a 422 naming the destination is shown in French in the French UI', async () => {
+		mocks.language = 'fr';
+		const failure = await saveFailure(userEvent.setup(), {
 			responseStatusCode: 422,
 			body: {
 				status: 422,
@@ -453,19 +541,24 @@ describe('ScheduledRenditionsBlock', () => {
 				errors: { overrides: ['Acme main: Segment 1: too long'] },
 			},
 		});
-		renderBlock();
-		const panel = await openEditor(user);
-		await user.click(
-			within(panel).getAllByTestId(
-				'tenant-posts-destination-text-toggle',
-			)[0] as HTMLElement,
+
+		expect(failure.textContent).toBe(
+			"Le contenu personnalisé de cette destination n'est pas valide",
 		);
+	});
 
-		await user.click(screen.getByTestId('tenant-posts-rendition-save'));
+	test('an answer whose key has no translation keeps the API detail inline', async () => {
+		mocks.language = 'fr';
+		const failure = await saveFailure(userEvent.setup(), {
+			responseStatusCode: 409,
+			body: {
+				status: 409,
+				translationKey: 'a-key-the-bundle-does-not-have',
+				detail: 'Plain words from the API',
+			},
+		});
 
-		expect(
-			(await screen.findByTestId('tenant-posts-rendition-failure')).textContent,
-		).toContain('Acme main');
+		expect(failure.textContent).toBe('Plain words from the API');
 	});
 
 	test("a customized text over this destination's limit blocks Save and names the destination", async () => {

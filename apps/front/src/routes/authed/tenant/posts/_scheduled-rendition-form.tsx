@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import {
 	BODY_KEY,
 	NO_OVERRIDE,
@@ -56,6 +57,7 @@ export const ScheduledRenditionForm = ({
 	onClose: () => void;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const segmentKeys = [BODY_KEY, ...segments.map((segment) => segment.id)];
 	const imageKeys = images.map((image) => image.key);
 	const [draft, setDraft] = useState<DestinationOverride>(() =>
@@ -88,6 +90,7 @@ export const ScheduledRenditionForm = ({
 		setFailureMessage(
 			getFailureMessage(toApiFailure(error), {
 				fallback: t('common:an-error-occurred'),
+				translate: translateResponseMessage,
 			}),
 		);
 	};

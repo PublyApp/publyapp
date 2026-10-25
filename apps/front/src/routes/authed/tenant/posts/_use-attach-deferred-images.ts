@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import {
 	useAttachPostImageMutation,
 	useInvalidatePostImageCaches,
@@ -38,6 +39,7 @@ export type AttachDeferredImagesOutcome =
  */
 export const useAttachDeferredImages = (tenantId: string) => {
 	const { t } = useTranslation(['common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const attachImage = useAttachPostImageMutation();
 	const updateImageAlt = useUpdatePostImageAltMutation();
 	const invalidateCaches = useInvalidatePostImageCaches();
@@ -108,6 +110,7 @@ export const useAttachDeferredImages = (tenantId: string) => {
 				cause:
 					getFailureMessage(toApiFailure(error), {
 						fallback: t('common:an-error-occurred'),
+						translate: translateResponseMessage,
 					}) ?? '',
 			};
 		} finally {

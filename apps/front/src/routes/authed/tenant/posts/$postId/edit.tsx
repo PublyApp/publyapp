@@ -14,6 +14,7 @@ import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { isCustomized } from '~/lib/publishing/destination-overrides';
 import {
 	useTenantPostDetailsQuery,
@@ -86,6 +87,7 @@ const resetFormFromDetails = (
 
 const TenantPostEditPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const { postId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const qc = useQueryClient();
@@ -167,6 +169,7 @@ const TenantPostEditPage = () => {
 				message:
 					getFailureMessage(failure, {
 						fallback: t('common:an-error-occurred'),
+						translate: translateResponseMessage,
 					}) ?? undefined,
 			});
 		}
@@ -224,6 +227,7 @@ const TenantPostEditPage = () => {
 					title={t('common:error-loading-data')}
 					description={getFailureMessage(toApiFailure(detailsQuery.error), {
 						fallback: t('common:an-error-occurred'),
+						translate: translateResponseMessage,
 					})}
 					actions={
 						<Link
