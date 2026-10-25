@@ -185,6 +185,25 @@ describe('toTenantPublicationRendition', () => {
 		},
 	);
 
+	test('an explicit empty image list parsed from the wire stays an override (publish no images)', () => {
+		const response = parseRendition({
+			publicationId: '0b8e6e70-0000-7000-8000-000000000001',
+			customized: true,
+			segments: [],
+			media: { assetIds: [], altTexts: [] },
+		});
+
+		const media = toTenantPublicationRendition(response)?.overrides.media;
+
+		expect(media).toEqual({ assetIds: [], altTexts: [] });
+		const draft = fromRenditionOverrides(
+			(toTenantPublicationRendition(response) as TenantPublicationRendition)
+				.overrides,
+			[BODY_KEY],
+		);
+		expect(draft.media?.imageKeys).toEqual([]);
+	});
+
 	test('a stored image subset parsed from the wire stays a media override', () => {
 		const response = parseRendition({
 			publicationId: '0b8e6e70-0000-7000-8000-000000000001',

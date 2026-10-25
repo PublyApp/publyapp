@@ -87,6 +87,13 @@ const translate = (
 	options?: Record<string, string | number>,
 ): string => {
 	if (options?.ns !== 'response-message') {
+		if (mocks.language === 'fr' && key.startsWith('posts:')) {
+			const posts: Record<string, string> = resourceFr.posts;
+			const text = posts[key.slice('posts:'.length)] ?? key;
+			return text.replace(/\{\{(\w+)\}\}/g, (_match, name: string) =>
+				String(options?.[name] ?? ''),
+			);
+		}
 		return translateEnBundles(key, options);
 	}
 	const bundle: Record<string, string> = (
@@ -515,7 +522,7 @@ describe('ScheduledRenditionsBlock', () => {
 		},
 	);
 
-	test('a 409 locked answer is shown in English in the English UI', async () => {
+	test('a 409 locked answer keeps the API detail in the English UI', async () => {
 		const failure = await saveFailure(userEvent.setup(), {
 			responseStatusCode: 409,
 			body: {
@@ -525,27 +532,80 @@ describe('ScheduledRenditionsBlock', () => {
 			},
 		});
 
-		expect(failure.textContent).toBe(
-			'This publication is already published; its content can no longer be customized',
-		);
+		expect(failure.textContent).toBe('The English detail the API always sends');
 	});
 
-	test('a 422 naming the destination is shown in French in the French UI', async () => {
+	const overrideProblem = (extra: Record<string, unknown>) => ({
+		responseStatusCode: 422,
+		body: {
+			status: 422,
+			translationKey: 'publish-rendition-invalid',
+			detail: 'Acme main: Segment 1: the text is longer than 5000 characters.',
+			errors: { overrides: ['Acme main: Segment 1: too long'] },
+			...extra,
+		},
+	});
+	const OVERRIDE_MEMBERS = {
+		additionalData: {
+			reason: 'SegmentTextTooLong',
+			destination: 'Acme main',
+			segmentNumber: 1,
+		},
+	};
+
+	test('a 422 naming the destination and segment is rebuilt in French from its structured members', async () => {
 		mocks.language = 'fr';
-		const failure = await saveFailure(userEvent.setup(), {
-			responseStatusCode: 422,
-			body: {
-				status: 422,
-				translationKey: 'publish-rendition-invalid',
-				detail: 'Acme main: Segment 1: the text is longer than the limit.',
-				errors: { overrides: ['Acme main: Segment 1: too long'] },
-			},
-		});
+		const failure = await saveFailure(
+			userEvent.setup(),
+			overrideProblem(OVERRIDE_MEMBERS),
+		);
 
 		expect(failure.textContent).toBe(
-			"Le contenu personnalisé de cette destination n'est pas valide",
+			'Acme main : le texte personnalisé du segment 1 est trop long. Raccourcissez-le, ou revenez au texte partagé pour cette destination.',
 		);
 	});
+
+	test('a 422 without structured members keeps the specific API detail in French', async () => {
+		mocks.language = 'fr';
+		const failure = await saveFailure(userEvent.setup(), overrideProblem({}));
+
+		expect(failure.textContent).toBe(
+			'Acme main: Segment 1: the text is longer than 5000 characters.',
+		);
+	});
+
+	test('a 422 keeps the API detail in the English UI', async () => {
+		const failure = await saveFailure(
+			userEvent.setup(),
+			overrideProblem(OVERRIDE_MEMBERS),
+		);
+
+		expect(failure.textContent).toBe(
+			'Acme main: Segment 1: the text is longer than 5000 characters.',
+		);
+	});
+
+	test.each([
+		['fr', 'unprocessable-entity'],
+		['en', 'unprocessable-entity'],
+		['fr', 'not-found'],
+		['en', 'not-found'],
+	] as const)(
+		'in %s, a generic status key (%s) never replaces a specific detail',
+		async (language, translationKey) => {
+			mocks.language = language;
+			const failure = await saveFailure(userEvent.setup(), {
+				responseStatusCode: 422,
+				body: {
+					status: 422,
+					translationKey,
+					detail: 'The scheduled time is in the past.',
+				},
+			});
+
+			expect(failure.textContent).toBe('The scheduled time is in the past.');
+		},
+	);
 
 	test('an answer whose key has no translation keeps the API detail inline', async () => {
 		mocks.language = 'fr';

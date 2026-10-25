@@ -97,6 +97,7 @@ type ProblemLike = {
 	status: number | undefined;
 	responseStatusCode: number | undefined;
 	errors: Record<string, string[]> | undefined;
+	extensions: StringRecord | undefined;
 };
 
 const hasMeaningfulProblemDetails = (problem: ProblemLike): boolean =>
@@ -120,6 +121,8 @@ const readProblemDetails = (value: unknown): ProblemLike | undefined => {
 		status: toNumber(candidate.status),
 		responseStatusCode: toNumber(candidate.responseStatusCode),
 		errors: toRecordOfStringArrays(candidate.errors),
+		// Kiota keeps the problem's extension members in `additionalData`.
+		extensions: asRecord(candidate.additionalData),
 	};
 };
 
@@ -185,6 +188,7 @@ const toProblemFailure = (error: unknown): ProblemFailure | undefined => {
 		translationKey: source.translationKey,
 		detail: source.detail,
 		title: source.title,
+		extensions: source.extensions,
 	};
 };
 
@@ -213,6 +217,7 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 		translationKey: source.translationKey,
 		detail: source.detail,
 		title: source.title,
+		extensions: source.extensions,
 		fieldErrors: source.errors ?? {},
 	};
 };
@@ -303,11 +308,16 @@ type GetFailureMessageOptions = {
 	/**
 	 * Resolves a backend `translationKey` (the `response-message` namespace) in
 	 * the viewer's language, or `undefined` when the locale has no entry for it.
-	 * A problem's `detail` is the API's own plain-words text and is always
-	 * English, so a translated key wins over it; without a translation (or
-	 * without this option) the message falls back to `detail` / `title`.
+	 * `extensions` are the problem's machine-readable members, for a resolver
+	 * that builds a specific message from them. A problem's `detail` is the
+	 * API's own plain-words text and is always English, and often specific; a
+	 * resolver that returns a message wins over it, one that returns
+	 * `undefined` (or no resolver) leaves `detail` / `title` in place.
 	 */
-	translate?: (translationKey: string) => string | undefined;
+	translate?: (
+		translationKey: string,
+		extensions: Record<string, unknown>,
+	) => string | undefined;
 };
 
 const translateKey = (
@@ -318,7 +328,10 @@ const translateKey = (
 		return undefined;
 	}
 
-	return options.translate(failure.translationKey) || undefined;
+	return (
+		options.translate(failure.translationKey, failure.extensions ?? {}) ||
+		undefined
+	);
 };
 
 export const getFailureMessage = (

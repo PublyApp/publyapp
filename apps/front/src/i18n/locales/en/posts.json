@@ -142,6 +142,7 @@
 	"destination-media-empty": "No image will be published to this destination.",
 	"override-over-limit": "{{destination}}: the customized text of segment {{index}} is too long. Shorten it, or reset the destination to the shared text.",
 	"override-blank": "{{destination}}: the customized text of segment {{index}} is empty. Write it, or turn the customization off.",
+	"override-segment-missing": "{{destination}}: segment {{index}} no longer exists in the post. Reload the page and try again.",
 	"publish-now-too-many-destinations": "You can publish to up to {{max}} destinations at once. Deselect some, or schedule instead.",
 	"schedule-label": "Schedule for",
 	"schedule-submit": "Schedule",

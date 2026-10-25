@@ -307,4 +307,36 @@ describe('getFailureMessage translationKey resolution (#2209)', () => {
 		).toBe(conflict.detail);
 		expect(getFailureMessage(toApiFailure(conflict))).toBe(conflict.detail);
 	});
+
+	test("hands the problem's extension members (Kiota additionalData) to the resolver", () => {
+		const received: unknown[] = [];
+		const message = getFailureMessage(
+			toApiFailure({
+				responseStatusCode: 422,
+				translationKey: 'publish-rendition-invalid',
+				detail: 'Bluesky: Segment 2: the text is too long.',
+				errors: { overrides: ['Bluesky: Segment 2: the text is too long.'] },
+				additionalData: {
+					reason: 'SegmentTextTooLong',
+					destination: 'Bluesky',
+					segmentNumber: 2,
+				},
+			}),
+			{
+				translate: (_key, extensions) => {
+					received.push(extensions);
+					return undefined;
+				},
+			},
+		);
+
+		expect(received).toEqual([
+			{
+				reason: 'SegmentTextTooLong',
+				destination: 'Bluesky',
+				segmentNumber: 2,
+			},
+		]);
+		expect(message).toBe('Bluesky: Segment 2: the text is too long.');
+	});
 });

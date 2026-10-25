@@ -4,6 +4,9 @@ export type ProblemFailure = {
 	translationKey: string | undefined;
 	detail: string | undefined;
 	title: string | undefined;
+	/** The problem's machine-readable extension members (`destination`,
+	 * `segmentNumber`, `reason`, ...), when the API sent any. */
+	extensions?: Record<string, unknown>;
 };
 
 export type ValidationFailure = {
@@ -12,6 +15,7 @@ export type ValidationFailure = {
 	translationKey: string | undefined;
 	detail: string | undefined;
 	title: string | undefined;
+	extensions?: Record<string, unknown>;
 	fieldErrors: Record<string, string[]>;
 };
 
