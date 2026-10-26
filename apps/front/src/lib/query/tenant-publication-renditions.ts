@@ -43,23 +43,26 @@ export const toTenantPublicationRendition = (
 			? [{ position: segment.position, text: segment.text }]
 			: [],
 	);
-	const media = data?.media;
+	const assetIds = data?.media?.assetIds?.map((id) => id.toString()) ?? null;
+	const altTexts = (data?.media?.altTexts ?? []).flatMap((alt) =>
+		alt.assetId && typeof alt.altText === 'string'
+			? [{ assetId: alt.assetId.toString(), altText: alt.altText }]
+			: [],
+	);
 
 	return {
 		publicationId,
 		customized: data?.customized ?? false,
 		overrides: {
 			segments,
-			media: media
-				? {
-						assetIds: media.assetIds?.map((id) => id.toString()) ?? null,
-						altTexts: (media.altTexts ?? []).flatMap((alt) =>
-							alt.assetId && typeof alt.altText === 'string'
-								? [{ assetId: alt.assetId.toString(), altText: alt.altText }]
-								: [],
-						),
-					}
-				: null,
+			// The API sends `media: null` for a destination that inherits the post's
+			// images, but Kiota deserializes a null object field to an EMPTY object,
+			// never to null. So a media override is read from its content: a stored
+			// image list or alt texts. Anything else inherits (and is never sent).
+			media:
+				assetIds === null && altTexts.length === 0
+					? null
+					: { assetIds, altTexts },
 		},
 	};
 };

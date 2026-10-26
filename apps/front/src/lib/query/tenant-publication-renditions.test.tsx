@@ -18,6 +18,11 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
+import {
+	BODY_KEY,
+	fromRenditionOverrides,
+	toWireOverrides,
+} from '~/lib/publishing/destination-overrides';
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {
 	tenantPublicationRenditionQueryOptions,
@@ -25,14 +30,38 @@ import {
 	useResetPublicationRenditionMutation,
 	useSavePublicationRenditionMutation,
 } from '~/lib/query/tenant-publication-renditions';
+import type { TenantPublicationRendition } from '~/lib/query/tenant-publication-renditions';
 import { untypedNodeToJson } from '~/lib/testing/untyped-node-json';
 
+import { createRenditionResponseFromDiscriminatorValue } from '@org/client-ts/models/index';
 import type {
 	RenditionResponse,
 	SetPublicationRenditionBody,
 } from '@org/client-ts/models/index';
 
+// The JSON serialization library is a dependency of @org/client-ts, not of
+// front, so the factory resolves through client-ts's own node_modules.
+import { JsonParseNodeFactory } from '../../../../../packages/client-ts/node_modules/@microsoft/kiota-serialization-json/dist/es/src/index.js';
+
 const tenantId = '11111111-1111-1111-1111-111111111111';
+
+/** The wire JSON through the real Kiota deserializer, as the client does. */
+const parseRendition = (
+	payload: Record<string, unknown>,
+): RenditionResponse => {
+	const bytes = new TextEncoder().encode(JSON.stringify(payload));
+	const arrayBuffer = bytes.buffer.slice(
+		bytes.byteOffset,
+		bytes.byteOffset + bytes.byteLength,
+	);
+	const node = new JsonParseNodeFactory().getRootParseNode(
+		'application/json',
+		arrayBuffer,
+	);
+	return node.getObjectValue<RenditionResponse>(
+		createRenditionResponseFromDiscriminatorValue,
+	) as RenditionResponse;
+};
 
 interface RenditionMethods {
 	get?: Mock;
@@ -95,7 +124,7 @@ describe('toTenantPublicationRendition', () => {
 		});
 	});
 
-	test('no media override is null, and a media override without assetIds keeps every image', () => {
+	test('no media override is null, and alt texts alone keep every image', () => {
 		const inheriting: RenditionResponse = {
 			publicationId: 'pub-1',
 			customized: false,
@@ -106,7 +135,10 @@ describe('toTenantPublicationRendition', () => {
 			publicationId: 'pub-1',
 			customized: true,
 			segments: [],
-			media: { assetIds: null, altTexts: [] },
+			media: {
+				assetIds: null,
+				altTexts: [{ assetId: 'asset-1', altText: 'A cat' }],
+			},
 		};
 
 		expect(toTenantPublicationRendition(inheriting)?.overrides).toEqual({
@@ -115,6 +147,76 @@ describe('toTenantPublicationRendition', () => {
 		});
 		expect(toTenantPublicationRendition(altOnly)?.overrides.media).toEqual({
 			assetIds: null,
+			altTexts: [{ assetId: 'asset-1', altText: 'A cat' }],
+		});
+	});
+
+	// #2209: Kiota turns a JSON `media: null` into an EMPTY object (never null),
+	// so the editor showed "Customize images" ON, every image ticked, on a
+	// destination that overrides nothing. These parse the real wire JSON.
+	test.each([
+		['media: null', { media: null }],
+		['media absent', {}],
+		['an empty media object', { media: {} }],
+		[
+			'null assetIds and no alt texts',
+			{ media: { assetIds: null, altTexts: [] } },
+		],
+	])(
+		'a destination that inherits the images (%s) has no media override',
+		(_label, extra) => {
+			const response = parseRendition({
+				publicationId: '0b8e6e70-0000-7000-8000-000000000001',
+				customized: false,
+				segments: [],
+				effective: { texts: ['Hello'], images: [] },
+				...extra,
+			});
+
+			const rendition = toTenantPublicationRendition(response);
+
+			expect(rendition?.overrides.media).toBeNull();
+			const draft = fromRenditionOverrides(
+				(rendition as TenantPublicationRendition).overrides,
+				[BODY_KEY],
+			);
+			expect(draft.media).toBeNull();
+			expect(toWireOverrides(draft, [BODY_KEY], ['asset-1'])).toBeNull();
+		},
+	);
+
+	test('an explicit empty image list parsed from the wire stays an override (publish no images)', () => {
+		const response = parseRendition({
+			publicationId: '0b8e6e70-0000-7000-8000-000000000001',
+			customized: true,
+			segments: [],
+			media: { assetIds: [], altTexts: [] },
+		});
+
+		const media = toTenantPublicationRendition(response)?.overrides.media;
+
+		expect(media).toEqual({ assetIds: [], altTexts: [] });
+		const draft = fromRenditionOverrides(
+			(toTenantPublicationRendition(response) as TenantPublicationRendition)
+				.overrides,
+			[BODY_KEY],
+		);
+		expect(draft.media?.imageKeys).toEqual([]);
+	});
+
+	test('a stored image subset parsed from the wire stays a media override', () => {
+		const response = parseRendition({
+			publicationId: '0b8e6e70-0000-7000-8000-000000000001',
+			customized: true,
+			segments: [],
+			media: {
+				assetIds: ['0b8e6e70-0000-7000-8000-0000000000a1'],
+				altTexts: [],
+			},
+		});
+
+		expect(toTenantPublicationRendition(response)?.overrides.media).toEqual({
+			assetIds: ['0b8e6e70-0000-7000-8000-0000000000a1'],
 			altTexts: [],
 		});
 	});

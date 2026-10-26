@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Label } from '~/components/ui/label';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import {
 	useAttachPostImageMutation,
 	useRemovePostImageMutation,
@@ -85,6 +86,7 @@ export const PostImagePicker = ({
 	limits?: ImageLimits | null;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const maxImages = limits?.maxImages ?? Number.POSITIVE_INFINITY;
 	const isOnline = Boolean(postId);
 	const attachImage = useAttachPostImageMutation();
@@ -103,6 +105,7 @@ export const PostImagePicker = ({
 		setFailureMessage(
 			getFailureMessage(toApiFailure(error), {
 				fallback: t('common:an-error-occurred'),
+				translate: translateResponseMessage,
 			}) ?? '',
 		);
 	};

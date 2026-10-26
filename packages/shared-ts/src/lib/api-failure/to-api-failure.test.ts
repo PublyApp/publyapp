@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
-import { toApiFailure } from './to-api-failure';
+import { getFailureMessage, toApiFailure } from './to-api-failure';
 import type { ApiFailure, ProblemFailure, ValidationFailure } from './types';
 
 // `ApiFailure` is a discriminated union, so property reads (`status`,
@@ -266,5 +266,77 @@ test('lower-camels the PascalCase field-error keys FluentValidation.ToDictionary
 		email: ['Email is required'],
 		newPassword: ['Password must be at least 12 characters'],
 		id: ['must be a valid id'],
+	});
+});
+
+describe('getFailureMessage translationKey resolution (#2209)', () => {
+	const translate = (key: string): string | undefined =>
+		({ 'publication-rendition-locked': 'Déjà publiée' })[key];
+	const conflict = {
+		responseStatusCode: 409,
+		translationKey: 'publication-rendition-locked',
+		detail: 'This publication is already published',
+	};
+
+	test('a translated key wins over the API detail, which is always English', () => {
+		expect(getFailureMessage(toApiFailure(conflict), { translate })).toBe(
+			'Déjà publiée',
+		);
+	});
+
+	test('a 422 carrying a key is translated too', () => {
+		expect(
+			getFailureMessage(
+				toApiFailure({
+					responseStatusCode: 422,
+					translationKey: 'publication-rendition-locked',
+					detail: 'Acme main: Segment 1 is too long',
+					errors: { overrides: ['Acme main: Segment 1 is too long'] },
+				}),
+				{ translate },
+			),
+		).toBe('Déjà publiée');
+	});
+
+	test('an untranslated key, or no translator, keeps the detail', () => {
+		expect(
+			getFailureMessage(
+				toApiFailure({ ...conflict, translationKey: 'unknown-key' }),
+				{ translate },
+			),
+		).toBe(conflict.detail);
+		expect(getFailureMessage(toApiFailure(conflict))).toBe(conflict.detail);
+	});
+
+	test("hands the problem's extension members (Kiota additionalData) to the resolver", () => {
+		const received: unknown[] = [];
+		const message = getFailureMessage(
+			toApiFailure({
+				responseStatusCode: 422,
+				translationKey: 'publish-rendition-invalid',
+				detail: 'Bluesky: Segment 2: the text is too long.',
+				errors: { overrides: ['Bluesky: Segment 2: the text is too long.'] },
+				additionalData: {
+					reason: 'SegmentTextTooLong',
+					destination: 'Bluesky',
+					segmentNumber: 2,
+				},
+			}),
+			{
+				translate: (_key, extensions) => {
+					received.push(extensions);
+					return undefined;
+				},
+			},
+		);
+
+		expect(received).toEqual([
+			{
+				reason: 'SegmentTextTooLong',
+				destination: 'Bluesky',
+				segmentNumber: 2,
+			},
+		]);
+		expect(message).toBe('Bluesky: Segment 2: the text is too long.');
 	});
 });

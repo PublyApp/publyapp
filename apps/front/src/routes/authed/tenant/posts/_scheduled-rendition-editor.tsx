@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import QueryDisplay from '~/components/query-display';
 import { Skeleton } from '~/components/ui/skeleton';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { useTenantPublicationRenditionQuery } from '~/lib/query/tenant-publication-renditions';
 import { toTenantPublicationRendition } from '~/lib/query/tenant-publication-renditions';
 import type { TenantPublishTarget } from '~/lib/query/tenant-publish-targets';
@@ -38,6 +39,7 @@ export const ScheduledRenditionEditor = ({
 	onClose: () => void;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const query = useTenantPublicationRenditionQuery({
 		publicationId: row.publicationId,
 		tenantId,
@@ -69,6 +71,7 @@ export const ScheduledRenditionEditor = ({
 					<IconAlertCircle aria-hidden="true" className="size-4" />
 					{getFailureMessage(toApiFailure(query.error), {
 						fallback: t('common:an-error-occurred'),
+						translate: translateResponseMessage,
 					})}
 				</p>
 			}
