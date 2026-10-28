@@ -109,6 +109,14 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.102'
+      - name: Setup just
+        id: setup_just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - name: Install workspace dependencies
         id: install_workspace
         if: always()
@@ -192,10 +200,10 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["quality-js.checkout","quality-js.install_pnpm","quality-js.setup_node","quality-js.install_workspace","quality-js.trusted_postinstall","quality-js.prepare_hooks","quality-js.materialize_env"],"quality":["quality-js.assert_pins","quality-js.format","quality-js.lint","quality-js.complexity","quality-js.lint_ts_test","quality-js.lint_ts_typecheck","quality-js.client_typecheck","quality-js.knip","quality-js.shared_typecheck","quality-js.shared_test","quality-js.quality.not-applicable"]}'
+          CI_LANE_SPECS: '{"setup":["quality-js.checkout","quality-js.install_pnpm","quality-js.setup_node","quality-js.setup_dotnet","quality-js.setup_just","quality-js.install_workspace","quality-js.trusted_postinstall","quality-js.prepare_hooks","quality-js.materialize_env"],"quality":["quality-js.assert_pins","quality-js.format","quality-js.lint","quality-js.complexity","quality-js.lint_ts_test","quality-js.lint_ts_typecheck","quality-js.client_typecheck","quality-js.knip","quality-js.shared_typecheck","quality-js.shared_test","quality-js.quality.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}"}'
           CI_LANE_MODES: '{"setup":"relevant"}'
-          CI_STEP_RESULTS: '{"quality-js.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"quality-js.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"quality-js.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"quality-js.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"quality-js.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"quality-js.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"quality-js.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"quality-js.assert_pins":{"outcome":"${{ steps.assert_pins.outcome }}"},"quality-js.format":{"outcome":"${{ steps.format.outcome }}"},"quality-js.lint":{"outcome":"${{ steps.lint.outcome }}"},"quality-js.complexity":{"outcome":"${{ steps.complexity.outcome }}"},"quality-js.lint_ts_test":{"outcome":"${{ steps.lint_ts_test.outcome }}"},"quality-js.lint_ts_typecheck":{"outcome":"${{ steps.lint_ts_typecheck.outcome }}"},"quality-js.client_typecheck":{"outcome":"${{ steps.client_typecheck.outcome }}"},"quality-js.knip":{"outcome":"${{ steps.knip.outcome }}"},"quality-js.shared_typecheck":{"outcome":"${{ steps.shared_typecheck.outcome }}"},"quality-js.shared_test":{"outcome":"${{ steps.shared_test.outcome }}"},"quality-js.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"quality-js.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"quality-js.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"quality-js.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"quality-js.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"quality-js.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"quality-js.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"quality-js.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"quality-js.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"quality-js.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"quality-js.assert_pins":{"outcome":"${{ steps.assert_pins.outcome }}"},"quality-js.format":{"outcome":"${{ steps.format.outcome }}"},"quality-js.lint":{"outcome":"${{ steps.lint.outcome }}"},"quality-js.complexity":{"outcome":"${{ steps.complexity.outcome }}"},"quality-js.lint_ts_test":{"outcome":"${{ steps.lint_ts_test.outcome }}"},"quality-js.lint_ts_typecheck":{"outcome":"${{ steps.lint_ts_typecheck.outcome }}"},"quality-js.client_typecheck":{"outcome":"${{ steps.client_typecheck.outcome }}"},"quality-js.knip":{"outcome":"${{ steps.knip.outcome }}"},"quality-js.shared_typecheck":{"outcome":"${{ steps.shared_typecheck.outcome }}"},"quality-js.shared_test":{"outcome":"${{ steps.shared_test.outcome }}"},"quality-js.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -341,6 +349,14 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.102'
+      - name: Setup just
+        id: setup_just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - name: Install workspace dependencies
         id: install_workspace
         if: always()
@@ -421,10 +437,10 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["guards.checkout","guards.install_pnpm","guards.setup_node","guards.install_workspace","guards.trusted_postinstall","guards.prepare_hooks","guards.materialize_env"],"quality":["guards.ci_guard_suite","guards.ci_contract_tests","guards.ci_drift","guards.action_versions","guards.project_closure","guards.quality.not-applicable"],"tracked-guards":["guards.no_ignored_tracked","guards.no_dockerignore_shadow"],"api-paths":["guards.api-paths-tests","guards.api-paths"]}'
+          CI_LANE_SPECS: '{"setup":["guards.checkout","guards.install_pnpm","guards.setup_node","guards.setup_dotnet","guards.setup_just","guards.install_workspace","guards.trusted_postinstall","guards.prepare_hooks","guards.materialize_env"],"quality":["guards.ci_guard_suite","guards.ci_contract_tests","guards.ci_drift","guards.action_versions","guards.project_closure","guards.quality.not-applicable"],"tracked-guards":["guards.no_ignored_tracked","guards.no_dockerignore_shadow"],"api-paths":["guards.api-paths-tests","guards.api-paths"]}'
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}"}'
           CI_LANE_MODES: '{"setup":"relevant","tracked-guards":"relevant","api-paths":"relevant"}'
-          CI_STEP_RESULTS: '{"guards.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"guards.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"guards.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"guards.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"guards.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"guards.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"guards.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"guards.ci_guard_suite":{"outcome":"${{ steps.ci_guard_suite.outcome }}"},"guards.ci_contract_tests":{"outcome":"${{ steps.ci_contract_tests.outcome }}"},"guards.ci_drift":{"outcome":"${{ steps.ci_drift.outcome }}"},"guards.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"},"guards.project_closure":{"outcome":"${{ steps.project_closure.outcome }}"},"guards.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"guards.no_ignored_tracked":{"outcome":"${{ steps.no_ignored_tracked.outcome }}"},"guards.no_dockerignore_shadow":{"outcome":"${{ steps.no_dockerignore_shadow.outcome }}"},"guards.api-paths-tests":{"outcome":"${{ steps.api-paths-tests.outcome }}"},"guards.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"}}'
+          CI_STEP_RESULTS: '{"guards.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"guards.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"guards.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"guards.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"guards.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"guards.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"guards.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"guards.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"guards.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"guards.ci_guard_suite":{"outcome":"${{ steps.ci_guard_suite.outcome }}"},"guards.ci_contract_tests":{"outcome":"${{ steps.ci_contract_tests.outcome }}"},"guards.ci_drift":{"outcome":"${{ steps.ci_drift.outcome }}"},"guards.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"},"guards.project_closure":{"outcome":"${{ steps.project_closure.outcome }}"},"guards.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"guards.no_ignored_tracked":{"outcome":"${{ steps.no_ignored_tracked.outcome }}"},"guards.no_dockerignore_shadow":{"outcome":"${{ steps.no_dockerignore_shadow.outcome }}"},"guards.api-paths-tests":{"outcome":"${{ steps.api-paths-tests.outcome }}"},"guards.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -457,6 +473,14 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.102'
+      - name: Setup just
+        id: setup_just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - name: Install workspace dependencies
         id: install_workspace
         if: always()
@@ -566,10 +590,10 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["docs-react.checkout","docs-react.install_pnpm","docs-react.setup_node","docs-react.install_workspace","docs-react.trusted_postinstall","docs-react.prepare_hooks","docs-react.materialize_env"],"quality":["docs-react.action_pins","docs-react.deploy_env_docs","docs-react.quality.not-applicable"],"docs":["docs-react.docs_links_test","docs-react.docs_prune_test","docs-react.docs_links","docs-react.docs_prune","docs-react.docs.not-applicable"],"react":["docs-react.resolve_react_base","docs-react.react_doctor","docs-react.react.not-applicable"]}'
+          CI_LANE_SPECS: '{"setup":["docs-react.checkout","docs-react.install_pnpm","docs-react.setup_node","docs-react.setup_dotnet","docs-react.setup_just","docs-react.install_workspace","docs-react.trusted_postinstall","docs-react.prepare_hooks","docs-react.materialize_env"],"quality":["docs-react.action_pins","docs-react.deploy_env_docs","docs-react.quality.not-applicable"],"docs":["docs-react.docs_links_test","docs-react.docs_prune_test","docs-react.docs_links","docs-react.docs_prune","docs-react.docs.not-applicable"],"react":["docs-react.resolve_react_base","docs-react.react_doctor","docs-react.react.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}","docs":"${{ needs.classify.outputs.docs }}","react":"${{ needs.classify.outputs.react }}"}'
           CI_LANE_MODES: '{"setup":"relevant"}'
-          CI_STEP_RESULTS: '{"docs-react.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"docs-react.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"docs-react.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"docs-react.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"docs-react.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"docs-react.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"docs-react.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"docs-react.action_pins":{"outcome":"${{ steps.action_pins.outcome }}"},"docs-react.deploy_env_docs":{"outcome":"${{ steps.deploy_env_docs.outcome }}"},"docs-react.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"docs-react.docs_links_test":{"outcome":"${{ steps.docs_links_test.outcome }}"},"docs-react.docs_prune_test":{"outcome":"${{ steps.docs_prune_test.outcome }}"},"docs-react.docs_links":{"outcome":"${{ steps.docs_links.outcome }}"},"docs-react.docs_prune":{"outcome":"${{ steps.docs_prune.outcome }}"},"docs-react.docs.not-applicable":{"outcome":"${{ steps.docs-sentinel.outcome }}"},"docs-react.resolve_react_base":{"outcome":"${{ steps.resolve_react_base.outcome }}"},"docs-react.react_doctor":{"outcome":"${{ steps.react_doctor.outcome }}"},"docs-react.react.not-applicable":{"outcome":"${{ steps.react-sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"docs-react.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"docs-react.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"docs-react.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"docs-react.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"docs-react.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"docs-react.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"docs-react.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"docs-react.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"docs-react.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"docs-react.action_pins":{"outcome":"${{ steps.action_pins.outcome }}"},"docs-react.deploy_env_docs":{"outcome":"${{ steps.deploy_env_docs.outcome }}"},"docs-react.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"docs-react.docs_links_test":{"outcome":"${{ steps.docs_links_test.outcome }}"},"docs-react.docs_prune_test":{"outcome":"${{ steps.docs_prune_test.outcome }}"},"docs-react.docs_links":{"outcome":"${{ steps.docs_links.outcome }}"},"docs-react.docs_prune":{"outcome":"${{ steps.docs_prune.outcome }}"},"docs-react.docs.not-applicable":{"outcome":"${{ steps.docs-sentinel.outcome }}"},"docs-react.resolve_react_base":{"outcome":"${{ steps.resolve_react_base.outcome }}"},"docs-react.react_doctor":{"outcome":"${{ steps.react_doctor.outcome }}"},"docs-react.react.not-applicable":{"outcome":"${{ steps.react-sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -602,6 +626,14 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.102'
+      - name: Setup just
+        id: setup_just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - name: Install workspace dependencies
         id: install_workspace
         if: always()
@@ -684,11 +716,11 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["front-build.checkout","front-build.install_pnpm","front-build.setup_node","front-build.install_workspace","front-build.trusted_postinstall","front-build.prepare_hooks","front-build.materialize_env"],"front":["front-build.front_build","front-build.front_css","front-build.front_font","front-build.front_smoke","front-build.front_react_compiler","front-build.front","front-build.front.not-applicable"]}'
+          CI_LANE_SPECS: '{"setup":["front-build.checkout","front-build.install_pnpm","front-build.setup_node","front-build.setup_dotnet","front-build.setup_just","front-build.install_workspace","front-build.trusted_postinstall","front-build.prepare_hooks","front-build.materialize_env"],"front":["front-build.front_build","front-build.front_css","front-build.front_font","front-build.front_smoke","front-build.front_react_compiler","front-build.front","front-build.front.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
           CI_LANE_MODES: '{"setup":"relevant"}'
           CI_NESTED_REPORT_PATH: 'apps/front/test-results/non-vitest-report.json'
-          CI_STEP_RESULTS: '{"front-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-build.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-build.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-build.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-build.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-build.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-build.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-build.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"front-build.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"front-build.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"front-build.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"front-build.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"front-build.front":{"outcome":"${{ steps.front.outcome }}"},"front-build.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"front-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-build.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-build.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-build.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-build.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-build.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-build.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-build.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-build.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-build.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"front-build.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"front-build.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"front-build.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"front-build.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"front-build.front":{"outcome":"${{ steps.front.outcome }}"},"front-build.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -721,6 +753,14 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.102'
+      - name: Setup just
+        id: setup_just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - name: Install workspace dependencies
         id: install_workspace
         if: always()
@@ -793,10 +833,10 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["front-quality.checkout","front-quality.install_pnpm","front-quality.setup_node","front-quality.install_workspace","front-quality.trusted_postinstall","front-quality.prepare_hooks","front-quality.materialize_env"],"front":["front-quality.front_typecheck","front-quality.front_lint","front-quality.front_design","front-quality.front_column","front-quality.front_static","front-quality.front_proofs","front-quality.front_vitest_coverage","front-quality.front.not-applicable"]}'
+          CI_LANE_SPECS: '{"setup":["front-quality.checkout","front-quality.install_pnpm","front-quality.setup_node","front-quality.setup_dotnet","front-quality.setup_just","front-quality.install_workspace","front-quality.trusted_postinstall","front-quality.prepare_hooks","front-quality.materialize_env"],"front":["front-quality.front_typecheck","front-quality.front_lint","front-quality.front_design","front-quality.front_column","front-quality.front_static","front-quality.front_proofs","front-quality.front_vitest_coverage","front-quality.front.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
           CI_LANE_MODES: '{"setup":"relevant"}'
-          CI_STEP_RESULTS: '{"front-quality.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-quality.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-quality.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-quality.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-quality.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-quality.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-quality.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-quality.front_typecheck":{"outcome":"${{ steps.front_typecheck.outcome }}"},"front-quality.front_lint":{"outcome":"${{ steps.front_lint.outcome }}"},"front-quality.front_design":{"outcome":"${{ steps.front_design.outcome }}"},"front-quality.front_column":{"outcome":"${{ steps.front_column.outcome }}"},"front-quality.front_static":{"outcome":"${{ steps.front_static.outcome }}"},"front-quality.front_proofs":{"outcome":"${{ steps.front_proofs.outcome }}"},"front-quality.front_vitest_coverage":{"outcome":"${{ steps.front_vitest_coverage.outcome }}"},"front-quality.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"front-quality.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-quality.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-quality.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-quality.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-quality.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-quality.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-quality.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-quality.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-quality.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-quality.front_typecheck":{"outcome":"${{ steps.front_typecheck.outcome }}"},"front-quality.front_lint":{"outcome":"${{ steps.front_lint.outcome }}"},"front-quality.front_design":{"outcome":"${{ steps.front_design.outcome }}"},"front-quality.front_column":{"outcome":"${{ steps.front_column.outcome }}"},"front-quality.front_static":{"outcome":"${{ steps.front_static.outcome }}"},"front-quality.front_proofs":{"outcome":"${{ steps.front_proofs.outcome }}"},"front-quality.front_vitest_coverage":{"outcome":"${{ steps.front_vitest_coverage.outcome }}"},"front-quality.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()

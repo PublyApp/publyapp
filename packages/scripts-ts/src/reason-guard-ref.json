@@ -107,7 +107,9 @@
 		"ci.yml::docs-react::Resolve React Doctor base",
 		"ci.yml::docs-react::Run React Doctor",
 		"ci.yml::docs-react::Run trusted first-party postinstall",
+		"ci.yml::docs-react::Setup .NET",
 		"ci.yml::docs-react::Setup Node",
+		"ci.yml::docs-react::Setup just",
 		"ci.yml::docs-react::Test doc-links guard",
 		"ci.yml::docs-react::Test docs prune guard",
 		"ci.yml::docs-react::Upload ci-lane-result",
@@ -158,7 +160,9 @@
 		"ci.yml::front-build::Install workspace dependencies",
 		"ci.yml::front-build::Materialize .env.development",
 		"ci.yml::front-build::Run trusted first-party postinstall",
+		"ci.yml::front-build::Setup .NET",
 		"ci.yml::front-build::Setup Node",
+		"ci.yml::front-build::Setup just",
 		"ci.yml::front-build::Smoke front production server",
 		"ci.yml::front-build::Test front (non-vitest report-all)",
 		"ci.yml::front-build::Upload ci-lane-result",
@@ -177,7 +181,9 @@
 		"ci.yml::front-quality::Lint front",
 		"ci.yml::front-quality::Materialize .env.development",
 		"ci.yml::front-quality::Run trusted first-party postinstall",
+		"ci.yml::front-quality::Setup .NET",
 		"ci.yml::front-quality::Setup Node",
+		"ci.yml::front-quality::Setup just",
 		"ci.yml::front-quality::Typecheck front",
 		"ci.yml::front-quality::Upload ci-lane-result",
 		"ci.yml::front-quality::Verify paired red proofs",
@@ -215,7 +221,9 @@
 		"ci.yml::guards::Install workspace dependencies",
 		"ci.yml::guards::Materialize .env.development",
 		"ci.yml::guards::Run trusted first-party postinstall",
+		"ci.yml::guards::Setup .NET",
 		"ci.yml::guards::Setup Node",
+		"ci.yml::guards::Setup just",
 		"ci.yml::guards::Test API path-filter coverage",
 		"ci.yml::guards::Test CI contracts",
 		"ci.yml::guards::Test CI guard suite",
@@ -252,7 +260,9 @@
 		"ci.yml::quality-js::Lint repository",
 		"ci.yml::quality-js::Materialize .env.development",
 		"ci.yml::quality-js::Run trusted first-party postinstall",
+		"ci.yml::quality-js::Setup .NET",
 		"ci.yml::quality-js::Setup Node",
+		"ci.yml::quality-js::Setup just",
 		"ci.yml::quality-js::Test lint plugin",
 		"ci.yml::quality-js::Test shared TypeScript",
 		"ci.yml::quality-js::Typecheck generated client",
@@ -501,6 +511,14 @@
 			"reason_hash": "fd102e8eec848d3e",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
 		},
+		"ci.yml::docs-react::Setup .NET": {
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::docs-react::Setup just": {
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
 		"ci.yml::docs-react::Setup Node": {
 			"reason_hash": "aa20c961b008e8f3",
 			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
@@ -705,6 +723,14 @@
 			"reason_hash": "fd102e8eec848d3e",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
 		},
+		"ci.yml::front-build::Setup .NET": {
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::front-build::Setup just": {
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
 		"ci.yml::front-build::Setup Node": {
 			"reason_hash": "aa20c961b008e8f3",
 			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
@@ -780,6 +806,14 @@
 		"ci.yml::front-quality::Run trusted first-party postinstall": {
 			"reason_hash": "fd102e8eec848d3e",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::front-quality::Setup .NET": {
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::front-quality::Setup just": {
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::front-quality::Setup Node": {
 			"reason_hash": "aa20c961b008e8f3",
@@ -933,6 +967,14 @@
 			"reason_hash": "fd102e8eec848d3e",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
 		},
+		"ci.yml::guards::Setup .NET": {
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::guards::Setup just": {
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
 		"ci.yml::guards::Setup Node": {
 			"reason_hash": "aa20c961b008e8f3",
 			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
@@ -1080,6 +1122,14 @@
 		"ci.yml::quality-js::Run trusted first-party postinstall": {
 			"reason_hash": "fd102e8eec848d3e",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::quality-js::Setup .NET": {
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::quality-js::Setup just": {
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::quality-js::Setup Node": {
 			"reason_hash": "aa20c961b008e8f3",

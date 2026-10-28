@@ -1197,12 +1197,12 @@
 		},
 		{
 			"step_id": "ci.yml::verification::Setup .NET",
-			"reason": "The serial `verification` job was split into parallel jobs: \"Setup .NET\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
 			"removed_at": "2026-10-28"
 		},
 		{
 			"step_id": "ci.yml::verification::Setup just",
-			"reason": "The serial `verification` job was split into parallel jobs: \"Setup just\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
 			"removed_at": "2026-10-28"
 		},
 		{

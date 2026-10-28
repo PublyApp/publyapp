@@ -267,7 +267,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (react)\"; normalized workflow command(s): [\"echo 'React Doctor is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::docs-react::Collect ci-lane-result": {
-			"hash": "e2e7def9bd714e5d",
+			"hash": "d93f469d79348268",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -305,6 +305,16 @@
 			"hash": "0ff3f6744ab67c09",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::docs-react::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::docs-react::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::docs-react::Setup Node": {
 			"hash": "27fc627190540df5",
@@ -532,7 +542,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Collect ci-lane-result": {
-			"hash": "30b0b0bc77b20ba4",
+			"hash": "70e51be1dcd012ed",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -560,6 +570,16 @@
 			"hash": "0ff3f6744ab67c09",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::front-build::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::front-build::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::front-build::Setup Node": {
 			"hash": "27fc627190540df5",
@@ -622,7 +642,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-quality::Collect ci-lane-result": {
-			"hash": "f1f8edd04900cf17",
+			"hash": "3e131ef7d99c3bcb",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -655,6 +675,16 @@
 			"hash": "0ff3f6744ab67c09",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::front-quality::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::front-quality::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::front-quality::Setup Node": {
 			"hash": "27fc627190540df5",
@@ -817,7 +847,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::guards::Collect ci-lane-result": {
-			"hash": "50c49ce2f98ef58a",
+			"hash": "c7c7d39671970216",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -845,6 +875,16 @@
 			"hash": "0ff3f6744ab67c09",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::guards::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::guards::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::guards::Setup Node": {
 			"hash": "27fc627190540df5",
@@ -997,7 +1037,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::quality-js::Collect ci-lane-result": {
-			"hash": "b41a809baee72757",
+			"hash": "fa13e1927255517a",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -1030,6 +1070,16 @@
 			"hash": "0ff3f6744ab67c09",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::quality-js::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::quality-js::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::quality-js::Setup Node": {
 			"hash": "27fc627190540df5",
