@@ -9,8 +9,6 @@ import type {
 } from '@org/client-ts/models/index';
 import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
-import type { StaffAuditLogRow } from './staff-audit-logs';
-
 export type TenantActivityQueryVariables = {
 	tenantId: string;
 	sortId?: string;
@@ -19,10 +17,20 @@ export type TenantActivityQueryVariables = {
 	size?: number;
 };
 
-/** A tenant-activity row is the same audit-log entry the staff audit-log table
- * renders (both map `AuditLogListItem`), so the row contract has one home in
- * `~/lib/query/staff-audit-logs`. */
-export type TenantActivityRow = StaffAuditLogRow;
+/** Deliberately its OWN row contract, not an alias of `StaffAuditLogRow`
+ * (owner decision 2026-10-29). The tenant-activity and staff audit-log screens
+ * call different endpoints, so one shared type would either force a change in
+ * both places or silently hide the divergence when only one endpoint changes
+ * shape. Both map `AuditLogListItem` today — the two names are the seams. */
+export type TenantActivityRow = {
+	id: string;
+	action: string | null;
+	userName: string | null;
+	userEmail: string | null;
+	ipAddress: string | null;
+	targetId: string | null;
+	createdAt: Date | null;
+};
 
 /** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
  * invalidation/removal key from this. */

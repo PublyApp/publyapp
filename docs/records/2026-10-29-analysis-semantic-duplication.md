@@ -52,14 +52,14 @@ Class definitions and default verdicts are the ones in the packet brief:
 37 families, classified as follows. "Fixed" means changed in this packet's UI/TS commit (class A
 only); everything else is deliberately inventory-only.
 
-| Class | Families | Fixed here | Deferred | Kept (E/intentional) |
+| Class | Families | Fixed here | Deferred | Kept (intentional / by decision) |
 |---|---|---|---|---|
-| A — duplicated type | 7 | **5** | 2 | 0 |
+| A — duplicated type | 7 | **4** | 2 | 1 (`A4`, owner decision) |
 | B — duplicated pure helper | 8 | 0 | 8 | 0 |
 | C — mirrored component | 6 | 0 | 3 | 3 |
 | D — duplicated constant/config | 6 | 0 | 5 | 1 (absorbed by A1) |
 | E — coincidental similarity | 10 | 0 | 0 | 10 |
-| **Total** | **37** | **5** | **18** | **14** |
+| **Total** | **37** | **4** | **18** | **15** |
 
 Weight, not count, is what matters: `B1` (20 copies of one failure classifier), `D1` (1178
 identical translation keys per language, twice) and `B2` (28 copies of one trim helper) are worth
@@ -103,16 +103,10 @@ more than the other 34 entries combined. They are ranked accordingly below.
 | Fix | `export type StaffUsersQueryVariables = TableSearchParams;` and the same for `TenantPostsQueryVariables`; the now-unused `SortOrder` imports dropped. |
 | Risk | Low. Identical shape; the guard test that pins list-query classification still sees the same three generic arguments. `TenantPostsQueryVariables` is intersected with `{ tenantId: string }` at one call site (`tenant-posts.ts:228`) — unchanged. |
 
-### A4 — the audit-row contract declared twice · **FIXED**
+### A4 — the audit-row contract declared twice · **KEPT (owner decision)**
 
-| | |
-|---|---|
-| Files | `apps/front/src/lib/query/staff-tenant-activity.ts:20` (`TenantActivityRow`) vs `apps/front/src/lib/query/staff-audit-logs.ts:41` (`StaffAuditLogRow`) |
-| What it means | Both are the mapped form of the *same* Kiota model — `toTenantActivityRows(items: AuditLogListItem[])` and `toStaffAuditLogRows(...)` map the same seven fields of `AuditLogListItem`, and the tenant activity table is the audit log filtered to one tenant. Two row contracts for one backend row. |
-| Verdict | **merge** |
-| Single home | `~/lib/query/staff-audit-logs` (`StaffAuditLogRow`) |
-| Fix | `export type TenantActivityRow = StaffAuditLogRow;` plus a type-only import. The tenant table keeps its own read-only *columns* (`C5`, kept on purpose) — only the row contract is shared. |
-| Risk | Medium-low, and stated plainly: the two screens call different endpoints. If the tenant activity endpoint ever returns a narrower or wider row, this alias forces the divergence to be an explicit declaration change instead of a silent second copy — that is the point, but it does couple two API seams' type surface. Both mappers are `AuditLogListItem` today. |
+Classified as a duplicated type and merged in this packet's first pass, then **reverted**: the two
+declarations are deliberately distinct. Full entry in [`K1`](#k1--tenantactivityrow-vs-staffauditlogrow-kept-by-owner-decision) below.
 
 ### A5 — the named-profile resolution row declared twice · **FIXED**
 
@@ -293,7 +287,7 @@ Ranked by cost of leaving them.
 | | |
 |---|---|
 | Files | `routes/authed/staff/audit-logs/_audit-log-columns.tsx` vs `routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx` |
-| Why keep | Same rows (`A4` now formalises that), deliberately different product surfaces: the staff table links each row to its detail page, renders row actions and action-category pills; the tenant activity table is read-only, has no detail route and no actions. The 195 cloned lines are the shared cell-rendering *style*, not a shared contract. Merging would require a `canAct` flag threaded through six columns to save nothing. The row type is shared (A4); the columns are not. |
+| Why keep | Same rows (`A4` now formalises that), deliberately different product surfaces: the staff table links each row to its detail page, renders row actions and action-category pills; the tenant activity table is read-only, has no detail route and no actions. The 195 cloned lines are the shared cell-rendering *style*, not a shared contract. Merging would require a `canAct` flag threaded through six columns to save nothing. The row *types* are deliberately separate too (`A4` / `K1`); the columns are not. |
 
 ### C6 — the tenant detail tabs (`activity.tsx`, `invitations.tsx`, `usage.tsx`) · **KEEP**
 
@@ -387,6 +381,18 @@ declaration each, now exported.
 
 ---
 
+## K — kept by decision (not coincidental similarity)
+
+### K1 — `TenantActivityRow` vs `StaffAuditLogRow` · **KEPT (owner decision, 2026-10-29)**
+
+| | |
+|---|---|
+| Files | `apps/front/src/lib/query/staff-tenant-activity.ts:20` (`TenantActivityRow`) vs `apps/front/src/lib/query/staff-audit-logs.ts:41` (`StaffAuditLogRow`) |
+| What it means | Both are the mapped form of the same Kiota model today — `toTenantActivityRows(items: AuditLogListItem[])` and `toStaffAuditLogRows(...)` map the same seven fields, and the tenant activity table renders audit entries filtered to one tenant. Structurally one row contract. |
+| Verdict | **keep** — the owner's decision: *"the two names are seams — the tenant-activity screen and the staff audit-log screen call different endpoints, and one shared type would either force a change in both places or, worse, silently hide the divergence when only one endpoint changes shape. Three lines of alias are not worth coupling two API seams."* |
+| Consequence | Both declarations stay, each mapping `AuditLogListItem` today. The declaration in `staff-tenant-activity.ts` carries a comment recording the decision so it is not re-merged by the next duplication sweep. |
+| Risk of the *keep* | The two row contracts can drift silently, which is the cost the owner accepted. It is bounded: both mappers take `AuditLogListItem`, so a shape change at the model level breaks both at compile time; only a hand-edit to one of the two declarations can drift unnoticed, and either screen's column/test would then disagree with its own mapper. |
+
 ## The three non-type duplications worth the most
 
 1. **D1 — the forked `common` translation catalogue.** 1178 identical keys per language, declared
@@ -439,3 +445,7 @@ repository and should probably ride along with the next packet that touches `lib
 - No `oxlint-disable` added. No test edited to make a fix pass: the only test touch is the moved
   search-params spec's import specifier (assertions untouched), and it is the *proof* that the
   deleted module was a duplicate rather than a fork.
+- **Post-review re-run** (after reverting `A4` to two distinct declarations by owner decision):
+  `pnpm --filter front typecheck` green, `npx oxlint --quiet .` 0 errors, and
+  `tenants/$tenantId/activity.test.tsx` + `users.test.tsx` green — the revert restores the exact
+  pre-packet declaration and touches no behaviour.
