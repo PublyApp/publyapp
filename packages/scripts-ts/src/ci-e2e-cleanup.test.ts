@@ -23,6 +23,7 @@ import {
 	type GhApiResult,
 	type GhApiRunner,
 } from './ci-e2e-cleanup.ts';
+import type { JsonValue } from './json-value.ts';
 
 // Standing proof for PR #1396's round-1 fix (#1362): whenever a
 // `publyapp-e2e-*` package holds exactly ONE tagged version — a package this
@@ -42,7 +43,7 @@ const rawVersion = (id: string | number, tags: string[]) => ({
 	metadata: { container: { tags } },
 });
 
-const ok = (body: unknown = ''): GhApiResult => ({
+const ok = (body: JsonValue = ''): GhApiResult => ({
 	status: 0,
 	stdout: typeof body === 'string' ? body : JSON.stringify(body),
 	stderr: '',

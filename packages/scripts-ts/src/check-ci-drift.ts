@@ -7,6 +7,8 @@ import { promisify } from 'node:util';
 
 import { parse } from 'yaml';
 
+import type { JsonObject, JsonValue } from './json-value.ts';
+
 const execFileAsync = promisify(execFile);
 
 // Drift guard for the local CI gate (`just ci` / `just ci-full`).
@@ -541,7 +543,7 @@ const normalizeCommand = (value: string) =>
  * Serializes a value with deterministic key ordering so the hash depends only
  * on content, never on YAML authoring order.
  */
-const toStableJson = (value: unknown): string => {
+const toStableJson = (value: JsonValue): string => {
 	if (Array.isArray(value)) {
 		return `[${value.map(toStableJson).join(',')}]`;
 	}
@@ -549,10 +551,7 @@ const toStableJson = (value: unknown): string => {
 	if (value !== null && typeof value === 'object') {
 		const keys = Object.keys(value).sort();
 		const body = keys
-			.map(
-				(key) =>
-					`${JSON.stringify(key)}:${toStableJson((value as Record<string, unknown>)[key])}`,
-			)
+			.map((key) => `${JSON.stringify(key)}:${toStableJson(value[key])}`)
 			.join(',');
 
 		return `{${body}}`;
@@ -570,7 +569,7 @@ interface YamlStep {
 	env?: Record<string, string>;
 	if?: string;
 	continue_on_error?: boolean;
-	with?: Record<string, unknown>;
+	with?: JsonObject;
 }
 
 interface YamlJob {
@@ -697,13 +696,13 @@ export const collectWorkflowSteps = async (rootDir: string) => {
  */
 const getEntryValidationProblem = (
 	id: string,
-	entry: unknown,
+	entry: JsonValue,
 ): string | null => {
 	if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
 		return `${manifestPath}: entry "${id}" must be an object.`;
 	}
 
-	const record = entry as Record<string, unknown>;
+	const record = entry;
 
 	if (typeof record.hash !== 'string' || record.hash.length === 0) {
 		return `${manifestPath}: entry "${id}" is missing a \`hash\`.`;
@@ -912,7 +911,7 @@ interface RemovalsConfession {
  * cause in plain words. Never includes the raw document content (which could
  * be large or contain secrets) — only the error type and location.
  */
-const formatJsonError = (error: unknown): string => {
+const formatJsonError = (error: Error): string => {
 	if (error instanceof SyntaxError) {
 		// Node's JSON SyntaxError carries a "position" property in recent
 		// versions; fall back to the message when unavailable.
@@ -922,7 +921,7 @@ const formatJsonError = (error: unknown): string => {
 		}
 		return `syntax error: ${error.message}`;
 	}
-	return `unexpected error: ${error instanceof Error ? error.message : String(error)}`;
+	return `unexpected error: ${error.message}`;
 };
 
 /**
@@ -994,7 +993,8 @@ export const findCiDrift = async ({
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(manifestRaw);
-	} catch (error) {
+	} catch (caught) {
+		const error = caught instanceof Error ? caught : new Error(String(caught));
 		findings.push(
 			`${manifestPath}: invalid JSON — ${formatJsonError(
 				error,
@@ -1019,7 +1019,7 @@ export const findCiDrift = async ({
 		return findings;
 	}
 
-	const manifest = parsed as { steps?: Record<string, unknown> };
+	const manifest = parsed as { steps?: JsonObject };
 
 	// Detect duplicate keys BEFORE using the parsed result — JSON.parse silently
 	// keeps the last occurrence, which would mask a reconciled step as missing.
@@ -1029,7 +1029,7 @@ export const findCiDrift = async ({
 	// is meaningful.
 	findings.push(...findDuplicateKeys(manifestRaw));
 
-	const entries = manifest.steps ?? {};
+	const entries: JsonObject = manifest.steps ?? {};
 
 	const seen = new Set<string>();
 

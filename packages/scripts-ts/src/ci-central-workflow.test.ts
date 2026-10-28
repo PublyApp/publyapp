@@ -16,6 +16,7 @@ import {
 	CI_CONTRACT_TEST_FILES,
 	validateCiContractTestFiles,
 } from './ci-contract-test-files.ts';
+import type { JsonValue } from './json-value.ts';
 
 const repoRoot = path.resolve(new URL('../../..', import.meta.url).pathname);
 const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
@@ -1721,7 +1722,7 @@ type ManifestEvidence = { mirror: string | null; reason: string };
 const normalizeManifestCommand = (value: string): string =>
 	value.replace(/\s+/g, ' ').trim().replace(/^@/, '');
 
-const flattenJustNode = (node: unknown): string => {
+const flattenJustNode = (node: JsonValue): string => {
 	if (typeof node === 'string') {
 		return node;
 	}

@@ -141,6 +141,12 @@
 			"rules": {
 				"typescript/no-deprecated": "off"
 			}
+		},
+		{
+			"files": ["packages/scripts-ts/**", "packages/lint-ts/**"],
+			"rules": {
+				"anti-slop/no-unknown-parameters": "error"
+			}
 		}
 	]
 }

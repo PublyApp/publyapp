@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
+import type { JsonValue } from './json-value.ts';
+
 export type NonVitestCommand = {
 	id: number;
 	argv: string[];
@@ -14,7 +16,7 @@ const command = (id: number, argv: string[]): NonVitestCommand => ({
 });
 
 type FrontPackage = {
-	ciNonVitestCommandInventory?: unknown;
+	ciNonVitestCommandInventory?: JsonValue;
 };
 
 const frontPackage = JSON.parse(
@@ -31,7 +33,7 @@ if (!Array.isArray(frontPackage.ciNonVitestCommandInventory)) {
 }
 
 const packageInventory = frontPackage.ciNonVitestCommandInventory;
-const packageCommand = (value: unknown, index: number): NonVitestCommand => {
+const packageCommand = (value: JsonValue, index: number): NonVitestCommand => {
 	if (
 		!Array.isArray(value) ||
 		value.length === 0 ||

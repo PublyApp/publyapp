@@ -89,9 +89,21 @@ const OXLINTRC_PATH = fileURLToPath(
 const TMP_ROOT = join(WORKSPACE_ROOT, '.tmp');
 mkdirSync(TMP_ROOT, { recursive: true });
 
+type ConfigValue =
+	| string
+	| number
+	| boolean
+	| null
+	| readonly ConfigValue[]
+	| ConfigObject;
+
+interface ConfigObject {
+	[key: string]: ConfigValue;
+}
+
 interface OxlintRootConfig {
-	rules?: Record<string, unknown>;
-	overrides?: Array<{ files?: string[]; rules?: Record<string, unknown> }>;
+	rules?: ConfigObject;
+	overrides?: Array<{ files?: string[]; rules?: ConfigObject }>;
 	ignorePatterns?: string[];
 }
 
@@ -100,7 +112,7 @@ const ROOT_CONFIG = JSON.parse(
 ) as OxlintRootConfig;
 const ROOT_RULES = ROOT_CONFIG.rules ?? {};
 
-const isFuncStyleTuple = (value: unknown): value is [string, string] =>
+const isFuncStyleTuple = (value: ConfigValue): value is [string, string] =>
 	Array.isArray(value) &&
 	value.length === 2 &&
 	value[0] === 'error' &&

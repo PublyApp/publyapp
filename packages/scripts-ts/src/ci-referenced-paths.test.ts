@@ -217,7 +217,7 @@ test('parser throws naming a row whose File cell lost its backticks', () => {
 
 	assert.throws(
 		() => parseSkipInventoryPaths(contents),
-		(error: unknown) => {
+		(error) => {
 			assert.ok(error instanceof Error);
 			assert.match(error.message, /unparseable skip-inventory row/);
 			assert.ok(
@@ -239,7 +239,7 @@ test('parser throws on a back-ticked path not starting with src/', () => {
 
 	assert.throws(
 		() => parseSkipInventoryPaths(contents),
-		(error: unknown) => {
+		(error) => {
 			assert.ok(error instanceof Error);
 			assert.match(error.message, /unparseable skip-inventory row/);
 			assert.ok(error.message.includes(offPrefixRow));
@@ -271,7 +271,7 @@ test('parser keeps the second (diagnostic) table out of scope after a new ## hea
 test('parser throws when the Skip inventory heading is missing', () => {
 	assert.throws(
 		() => parseSkipInventoryPaths('# Guide\n\nNo tables here.\n'),
-		(error: unknown) => {
+		(error) => {
 			assert.ok(error instanceof Error);
 			assert.match(error.message, /no `## Skip inventory` heading/);
 			return true;

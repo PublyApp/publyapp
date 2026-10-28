@@ -8,6 +8,7 @@ import {
 	EXPECTED_JOB_LANES,
 	EXPECTED_UPSTREAM_JOB_KEYS,
 } from './check-ci-gate-aggregation.ts';
+import type { JsonObject, JsonValue } from './json-value.ts';
 
 // Structural guard for workflow contracts that are not covered by the
 // central workflow's byte-level CI drift hash. The central workflow has its
@@ -1255,38 +1256,47 @@ const CENTRAL_PERMISSIONS = {
 	},
 } as const;
 
-const deepEqualJson = (left: unknown, right: unknown): boolean =>
+/**
+ * What the structural comparator accepts: any JSON value, plus an object whose
+ * properties may be absent. `undefined` is how TypeScript models an optional
+ * key, and the workflow documents this guard compares are read through optional
+ * properties — `JSON.stringify` drops those keys on both sides, so the
+ * comparison stays exact.
+ */
+type ComparableJson = JsonValue | undefined | { [key: string]: ComparableJson };
+
+const deepEqualJson = (left: ComparableJson, right: ComparableJson): boolean =>
 	JSON.stringify(left) === JSON.stringify(right);
 
 type CentralStep = {
-	[key: string]: unknown;
-	name?: unknown;
-	id?: unknown;
-	if?: unknown;
-	uses?: unknown;
-	env?: Record<string, unknown>;
-	with?: Record<string, unknown>;
-	'working-directory'?: unknown;
-	'continue-on-error'?: unknown;
+	[key: string]: JsonValue | undefined;
+	name?: JsonValue;
+	id?: JsonValue;
+	if?: JsonValue;
+	uses?: JsonValue;
+	env?: JsonObject;
+	with?: JsonObject;
+	'working-directory'?: JsonValue;
+	'continue-on-error'?: JsonValue;
 };
 
 type CentralJob = {
-	name?: unknown;
-	'runs-on'?: unknown;
-	'timeout-minutes'?: unknown;
-	outputs?: Record<string, unknown>;
-	permissions?: unknown;
-	if?: unknown;
-	needs?: unknown;
+	name?: JsonValue;
+	'runs-on'?: JsonValue;
+	'timeout-minutes'?: JsonValue;
+	outputs?: JsonObject;
+	permissions?: JsonValue;
+	if?: JsonValue;
+	needs?: JsonValue;
 	strategy?: {
-		'fail-fast'?: unknown;
-		include?: unknown;
-		exclude?: unknown;
+		'fail-fast'?: JsonValue;
+		include?: JsonValue;
+		exclude?: JsonValue;
 		matrix?: {
-			[key: string]: unknown;
-			shard?: unknown;
-			include?: unknown;
-			exclude?: unknown;
+			[key: string]: JsonValue | undefined;
+			shard?: JsonValue;
+			include?: JsonValue;
+			exclude?: JsonValue;
 		};
 	};
 	steps?: CentralStep[];
@@ -1344,9 +1354,9 @@ const EXPECTED_CENTRAL_PARENT_RESULTS = {
 type CentralJobs = Record<string, CentralJob>;
 
 type CentralDocument = {
-	concurrency?: unknown;
-	permissions?: unknown;
-	on?: Record<string, unknown>;
+	concurrency?: JsonValue;
+	permissions?: JsonValue;
+	on?: JsonObject;
 	jobs?: CentralJobs;
 };
 
@@ -1431,7 +1441,7 @@ const checkCentralHeaderInvariants = (
 		pullRequest !== null &&
 		typeof pullRequest === 'object' &&
 		!Array.isArray(pullRequest)
-			? (pullRequest as Record<string, unknown>).types
+			? (pullRequest as JsonObject).types
 			: undefined;
 	if (
 		pullRequest === undefined ||
@@ -1469,7 +1479,7 @@ const checkCentralHeaderInvariants = (
 			: [];
 	const pushBranches =
 		push !== null && typeof push === 'object' && !Array.isArray(push)
-			? (push as Record<string, unknown>).branches
+			? (push as JsonObject).branches
 			: undefined;
 	if (
 		push === undefined ||
@@ -1620,7 +1630,7 @@ const checkCentralTopologyInvariants = (
 	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
 		String(step.name).includes('Aggregate upstream artifacts'),
 	);
-	let parentResults: unknown;
+	let parentResults: JsonValue | undefined;
 	try {
 		parentResults = JSON.parse(String(gateAggregate?.env?.CI_CENTRAL_RESULTS));
 	} catch {
@@ -1796,7 +1806,7 @@ const checkCentralClassifierEdges = (
 	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
 		String(step.name).includes('Aggregate upstream artifacts'),
 	);
-	let gateClassifierOutputs: unknown;
+	let gateClassifierOutputs: JsonValue | undefined;
 	try {
 		gateClassifierOutputs = JSON.parse(
 			String(gateAggregate?.env?.CI_CLASSIFIER_OUTPUTS),
@@ -1820,7 +1830,7 @@ const checkCentralClassifierEdges = (
 		const collector = (jobs[jobId]?.steps ?? []).find((step) =>
 			String(step.name).includes('Collect ci-lane-result'),
 		);
-		let actual: unknown;
+		let actual: JsonValue | undefined;
 		try {
 			actual = JSON.parse(String(collector?.env?.CI_CLASSIFIER_OUTPUTS));
 		} catch {
@@ -2203,7 +2213,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 		stepName: string;
 		stepId?: string;
 		condition: string;
-		with: Record<string, unknown>;
+		with: JsonObject;
 	};
 	const laneUpload = (jobId: string, suffix: string): UploadContract => ({
 		jobId,

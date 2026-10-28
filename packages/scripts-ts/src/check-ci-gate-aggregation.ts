@@ -8,6 +8,7 @@ import {
 	isValidE2eTransportProfile,
 } from './ci-lane-result.ts';
 import { NON_VITEST_COMMANDS } from './ci-non-vitest-manifest.ts';
+import type { JsonObject, JsonValue } from './json-value.ts';
 
 export const CLASSIFIER_LANES = [
 	'quality',
@@ -87,7 +88,7 @@ export type AggregateInput = {
 		result: string;
 		outputs: Record<string, unknown>;
 	};
-	records: unknown[];
+	records: JsonValue[];
 	central_results?: Record<string, string>;
 	artifact_filenames?: string[];
 	observed_artifacts?: ObservedArtifact[];
@@ -97,7 +98,7 @@ export type ObservedArtifact = {
 	container: string;
 	filename: string;
 	file_path: string;
-	record: unknown;
+	record: JsonValue;
 };
 
 export type CiLaneResultContext = {
@@ -432,7 +433,13 @@ if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+/**
+ * Narrows anything object-shaped to a JSON object. Generic over the caller's
+ * own type so a typed value keeps its declared properties after narrowing
+ * (`T & JsonObject`) — the runtime data behind it was decoded from JSON, so the
+ * check is a real boundary assertion, not a redundant one.
+ */
+const isRecord = <T>(value: T | undefined): value is T & JsonObject =>
 	value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const push = (failures: string[], message: string): void => {
@@ -441,10 +448,10 @@ const push = (failures: string[], message: string): void => {
 	}
 };
 
-const isValidExitCode = (value: unknown): value is number =>
+const isValidExitCode = (value: JsonValue): value is number =>
 	typeof value === 'number' && Number.isInteger(value) && value >= 0;
 
-const isValidSignal = (value: unknown): value is string | null =>
+const isValidSignal = (value: JsonValue): value is string | null =>
 	value === null || typeof value === 'string';
 
 const isPrerequisiteStep = (id: string): boolean =>
@@ -560,7 +567,7 @@ const validateExactKeys = (
 };
 
 const validateFrontReport = (
-	value: unknown,
+	value: JsonValue,
 	jobKey: string,
 	failures: string[],
 ): void => {
@@ -662,18 +669,18 @@ const validateFrontReport = (
 };
 
 export function validateCiLaneResult(
-	value: unknown,
+	value: JsonValue,
 	context: CiLaneResultContext,
 	failures?: string[],
 ): value is CiLaneResult;
 export function validateCiLaneResult(
-	value: unknown,
+	value: JsonValue,
 	runId: number,
 	runAttempt: number,
 	failures?: string[],
 ): value is CiLaneResult;
 export function validateCiLaneResult(
-	value: unknown,
+	value: JsonValue,
 	contextOrRunId: CiLaneResultContext | number,
 	runAttemptOrFailures: number | string[] = [],
 	legacyFailures: string[] = [],
@@ -1318,14 +1325,14 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 };
 
 type ArtifactRead = {
-	records: unknown[];
+	records: JsonValue[];
 	filenames: string[];
 	observed_artifacts: ObservedArtifact[];
 	failures: string[];
 };
 
 export const readRecords = (directory: string, runId: number): ArtifactRead => {
-	const records: unknown[] = [];
+	const records: JsonValue[] = [];
 	const filenames: string[] = [];
 	const observed_artifacts: ObservedArtifact[] = [];
 	const failures: string[] = [];
@@ -1371,7 +1378,7 @@ export const readRecords = (directory: string, runId: number): ArtifactRead => {
 		const filePath = `${container}/${filename}`;
 		filenames.push(filename);
 		try {
-			const record = JSON.parse(
+			const record: JsonValue = JSON.parse(
 				readFileSync(path.join(artifactDirectory, filename), 'utf8'),
 			);
 			records.push(record);

@@ -291,21 +291,19 @@ const assertCanonicalRootDockerignore = async (
 	rootDir: string,
 ): Promise<void> => {
 	const rootDockerignorePath = path.join(rootDir, '.dockerignore');
-	const rootLstat = await lstat(rootDockerignorePath).catch(
-		(error: unknown) => {
-			const message = error instanceof Error ? error.message : String(error);
-			const code =
-				error instanceof Error && 'code' in error ? error.code : undefined;
-			if (code === 'ENOENT') {
-				throw new Error(
-					`missing canonical root .dockerignore at ${rootDockerignorePath} (ENOENT)`,
-				);
-			}
+	const rootLstat = await lstat(rootDockerignorePath).catch((error) => {
+		const message = error instanceof Error ? error.message : String(error);
+		const code =
+			error instanceof Error && 'code' in error ? error.code : undefined;
+		if (code === 'ENOENT') {
 			throw new Error(
-				`could not inspect canonical root .dockerignore at ${rootDockerignorePath}: ${message}`,
+				`missing canonical root .dockerignore at ${rootDockerignorePath} (ENOENT)`,
 			);
-		},
-	);
+		}
+		throw new Error(
+			`could not inspect canonical root .dockerignore at ${rootDockerignorePath}: ${message}`,
+		);
+	});
 
 	if (!rootLstat.isFile()) {
 		let found = 'neither a regular file nor a directory';
