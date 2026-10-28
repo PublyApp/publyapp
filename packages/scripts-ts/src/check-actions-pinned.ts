@@ -1,7 +1,13 @@
-import { readdir, readFile, realpath } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+import {
+	discoverScanFiles,
+	parseUsesLine,
+	workflowsDir,
+} from './actions-scan-shared.ts';
 
 // Supply-chain guard: fails when any scanned `uses:` reference is not pinned
 // to an immutable reference:
@@ -38,8 +44,6 @@ import { fileURLToPath } from 'node:url';
 //
 // Paired proof: unpin one line → red naming file+line; revert → green.
 
-const workflowsDir = '.github/workflows';
-const actionsDir = '.github/actions';
 const shaPattern = /^[0-9a-f]{40}$/;
 const dockerDigestPattern = /^sha256:[0-9a-f]{64}$/;
 
@@ -64,64 +68,58 @@ type LocalActionTarget =
  * judging ({ uses, local }), or null for lines that need none (non-`uses:`
  * lines and commented-out ones).
  *
+ * Line classification (comment strip, `uses:` capture, local/docker/action)
+ * lives in actions-scan-shared.ts, shared with the sibling pins guard. This
+ * function adds THIS guard's policy: only a full 40-hex commit SHA pins an
+ * action and only a `sha256:` content digest pins a container image.
+ *
  * `local` marks `./<path>` values: since #1268 they are not exempt — the
  * caller resolves them to their action manifest and scans it recursively;
  * the pin judgment itself stays out of scope for this function.
  *
- * Rationale note (corrected in the #1261 round 2): the pin judgment itself
- * never needs the comment strip — `/uses:\s*(\S+)/` stops at whitespace,
- * so a trailing `# <40-hex>` comment can never enter the captured ref.
- * Stripping exists to keep DEAD lines (commented-out `uses:`) out of the
- * findings, i.e. it prevents false positives, and is pinned by the
- * commented-out-lines test. What the trailing-comment test actually pins
- * is the opposite direction: judging a live line by a 40-hex SHA found
- * ANYWHERE on it (e.g. in its comment) must stay a FAILING mutable-ref
- * case, never a silent pass.
+ * Rationale note (corrected in the #1261 round 2): judging a live line by a
+ * 40-hex SHA found ANYWHERE on it (e.g. in its comment) must stay a FAILING
+ * mutable-ref case, never a silent pass — the captured ref can never include
+ * that SHA because `/uses:\s*(\S+)/` stops at whitespace.
  */
 const findLineFinding = (line: string): LineFinding | null => {
-	// Strip YAML comments (# preceded by whitespace or at line start)
-	// before matching, so commented-out uses: lines are not flagged.
-	const code = line.replace(/#.*/, '');
+	const parsed = parseUsesLine(line);
 
-	// Match `uses:` — YAML indentation-insensitive
-	const match = code.match(/uses:\s*(\S+)/);
-	if (!match) {
+	if (parsed === null) {
 		return null;
 	}
-
-	const uses = match[1];
 
 	// Local actions (./path, or an escaping ../path): reported as
 	// unresolved-local here; resolution plus recursive scan happens in
 	// findUnpinnedActions (#1268).
-	if (uses.startsWith('./') || uses.startsWith('../')) {
-		return { uses, local: true };
+	if (parsed.kind === 'local') {
+		return { uses: parsed.uses, local: true };
 	}
 
 	// Container references (docker://…): only a content digest pin is
 	// immutable. Tag-only or digest-less images fail.
-	if (uses.startsWith('docker://')) {
-		const digestIdx = uses.lastIndexOf('@');
-		const digest = digestIdx === -1 ? '' : uses.slice(digestIdx + 1);
+	if (parsed.kind === 'docker') {
+		const digestIdx = parsed.uses.lastIndexOf('@');
+		const digest = digestIdx === -1 ? '' : parsed.uses.slice(digestIdx + 1);
 
 		if (dockerDigestPattern.test(digest)) {
 			return null;
 		}
-		return { uses };
+		return { uses: parsed.uses };
 	}
 
 	// Fail-closed on input without a `@ref` at all: it cannot be
 	// decided, so it never passes silently.
-	const atIdx = uses.lastIndexOf('@');
+	const atIdx = parsed.uses.lastIndexOf('@');
 	if (atIdx === -1) {
-		return { uses };
+		return { uses: parsed.uses };
 	}
 
 	// Accept only a full 40-hex SHA
-	if (shaPattern.test(uses.slice(atIdx + 1))) {
+	if (shaPattern.test(parsed.uses.slice(atIdx + 1))) {
 		return null;
 	}
-	return { uses };
+	return { uses: parsed.uses };
 };
 
 /**
@@ -190,56 +188,6 @@ const resolveLocalActionTarget = async (
 		ok: false,
 		reason: `target action file not found: ${relBase}/action.yml|yaml`,
 	};
-};
-
-/**
- * Deterministic lexicographic ordering for reported file paths.
- */
-const comparePosixPath = (a: string, b: string): number => {
-	if (a === b) {
-		return 0;
-	}
-
-	if (a < b) {
-		return -1;
-	}
-	return 1;
-};
-
-/**
- * Walks `dir` recursively and yields every *.yml/*.yaml file path
- * (repo-relative POSIX, e.g. .github/actions/group/deploy/action.yml).
- */
-const listYamlFiles = async (
-	dir: string,
-	rootDir: string,
-): Promise<string[]> => {
-	const files: string[] = [];
-
-	const walk = async (current: string): Promise<void> => {
-		const entries = await readdir(current, { withFileTypes: true });
-
-		for (const entry of entries) {
-			const fullPath = path.join(current, entry.name);
-
-			if (entry.isDirectory()) {
-				await walk(fullPath);
-				continue;
-			}
-
-			if (!entry.name.endsWith('.yml') && !entry.name.endsWith('.yaml')) {
-				continue;
-			}
-
-			files.push(path.relative(rootDir, fullPath).split(path.sep).join('/'));
-		}
-	};
-
-	await walk(dir);
-
-	files.sort(comparePosixPath);
-
-	return files;
 };
 
 /**
@@ -320,6 +268,8 @@ const scanFileFindings = async ({
  *     certify nothing; the error names the missing path.
  *   - A MISSING .github/actions is tolerated: a repository can legitimately
  *     have zero composite actions.
+ * Both halves are discovered by actions-scan-shared.ts, so the pins guard
+ * judges exactly the same file set.
  */
 export const findUnpinnedActions = async ({
 	rootDir = '.',
@@ -329,33 +279,10 @@ export const findUnpinnedActions = async ({
 	const findings: UnpinnedActionFinding[] = [];
 	const visited = new Set<string>();
 
-	// Mandatory half: see the failure-semantics note above.
-	let workflowFiles: string[];
-	try {
-		workflowFiles = await listYamlFiles(
-			path.join(rootDir, workflowsDir),
-			rootDir,
-		);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-			throw new Error(
-				`actions-pin guard: ${workflowsDir}/ does not exist under '${rootDir}'. The workflows half of the scan certified nothing, so this fails instead of passing. Run the guard from the repository root.`,
-				{ cause: error },
-			);
-		}
-
-		throw error;
-	}
-
-	// Tolerated half: no composite actions yet.
-	let actionFiles: string[] = [];
-	try {
-		actionFiles = await listYamlFiles(path.join(rootDir, actionsDir), rootDir);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-			throw error;
-		}
-	}
+	const { actionFiles, workflowFiles } = await discoverScanFiles(
+		rootDir,
+		`actions-pin guard: ${workflowsDir}/ does not exist under '${rootDir}'. The workflows half of the scan certified nothing, so this fails instead of passing. Run the guard from the repository root.`,
+	);
 
 	// Every file discovered up front counts as visited so a local reference
 	// back into either directory never rescans it.

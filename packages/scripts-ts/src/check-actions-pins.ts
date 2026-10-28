@@ -1,9 +1,15 @@
 import { execFile } from 'node:child_process';
-import { access, readdir, readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+
+import {
+	discoverScanFiles,
+	parseUsesLine,
+	workflowsDir,
+} from './actions-scan-shared.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -42,9 +48,6 @@ const execFileAsync = promisify(execFile);
 // fails naming file:line with expected vs actual; revert → green. Changing
 // ONLY the comment version must equally fail (the comment is half of the
 // binding being enforced).
-
-const workflowsDir = '.github/workflows';
-const actionsDir = '.github/actions';
 
 const shaPattern = /^[0-9a-f]{40}$/;
 // First whitespace-delimited token of the version comment. Accepts the two
@@ -125,40 +128,53 @@ type LocalResolution =
 	| { ok: false; reason: string };
 
 /**
- * Judges one physical line. Comment handling mirrors the sibling guard: the
- * `uses:` VALUE is captured from the comment-stripped code (so commented-out
- * lines and trailing-comment hex can never enter the capture), while the
- * VERSION COMMENT is read from the raw line — it is the very thing this
- * guard binds the SHA to.
+ * Judgment of one physical line carrying a `uses:` value, plus the raw value
+ * the finding must name.
  */
-export const parsePinnedUseLine = (line: string): ParsedUseLine | null => {
-	const code = line.replace(/#.*/, '');
-	const match = code.match(/uses:\s*(\S+)/);
+type JudgedUseLine = { parsed: ParsedUseLine; uses: string };
 
-	if (!match) {
+/**
+ * Judges one physical line. Line classification (comment strip, `uses:`
+ * capture, local/docker/action) lives in actions-scan-shared.ts, shared with
+ * the sibling pinned guard. This function adds THIS guard's policy: a 40-hex
+ * pin must carry a `# v<major>[.minor[.patch]]` comment naming the tag it
+ * resolves to, and anything undecidable is `malformed`, never a silent pass.
+ *
+ * The `uses:` VALUE is captured from the comment-stripped code (so
+ * commented-out lines and trailing-comment hex can never enter the capture),
+ * while the VERSION COMMENT is read from the raw line — it is the very thing
+ * this guard binds the SHA to.
+ */
+const judgeUseLine = (line: string): JudgedUseLine | null => {
+	const usesLine = parseUsesLine(line);
+
+	if (usesLine === null) {
 		return null;
 	}
 
-	const uses = match[1];
+	const { uses } = usesLine;
 
 	// Allowlisted form 1: local composite actions. Resolved and scanned
 	// recursively by the caller; a dangling reference still fails closed.
-	if (uses.startsWith('./') || uses.startsWith('../')) {
-		return { kind: 'local' };
+	if (usesLine.kind === 'local') {
+		return { parsed: { kind: 'local' }, uses };
 	}
 
 	// Allowlisted form 2: container references. Digest immutability is the
 	// sibling guard's policy; there is no `# vX.Y.Z` comment to bind here.
-	if (uses.startsWith('docker://')) {
-		return { kind: 'docker' };
+	if (usesLine.kind === 'docker') {
+		return { parsed: { kind: 'docker' }, uses };
 	}
 
 	const atIdx = uses.lastIndexOf('@');
 
 	if (atIdx === -1) {
 		return {
-			kind: 'malformed',
-			reason: `no @ref on the uses: value — cannot decide anything, refusing to pass silently (${uses})`,
+			parsed: {
+				kind: 'malformed',
+				reason: `no @ref on the uses: value — cannot decide anything, refusing to pass silently (${uses})`,
+			},
+			uses,
 		};
 	}
 
@@ -172,8 +188,11 @@ export const parsePinnedUseLine = (line: string): ParsedUseLine | null => {
 
 	if (!shaPattern.test(ref)) {
 		return {
-			kind: 'malformed',
-			reason: `ref is not a full 40-hex commit SHA (got "${ref}") — mutable or abbreviated refs are unpinnable input`,
+			parsed: {
+				kind: 'malformed',
+				reason: `ref is not a full 40-hex commit SHA (got "${ref}") — mutable or abbreviated refs are unpinnable input`,
+			},
+			uses,
 		};
 	}
 
@@ -182,8 +201,11 @@ export const parsePinnedUseLine = (line: string): ParsedUseLine | null => {
 
 	if (hashIdx === -1) {
 		return {
-			kind: 'malformed',
-			reason: `pin has no version comment — append "# v<major>[.minor[.patch]]" naming the tag this SHA resolves to (${uses})`,
+			parsed: {
+				kind: 'malformed',
+				reason: `pin has no version comment — append "# v<major>[.minor[.patch]]" naming the tag this SHA resolves to (${uses})`,
+			},
+			uses,
 		};
 	}
 
@@ -192,20 +214,36 @@ export const parsePinnedUseLine = (line: string): ParsedUseLine | null => {
 
 	if (versionToken === '') {
 		return {
-			kind: 'malformed',
-			reason: `pin has no version comment — append "# v<major>[.minor[.patch]]" naming the tag this SHA resolves to (${uses})`,
+			parsed: {
+				kind: 'malformed',
+				reason: `pin has no version comment — append "# v<major>[.minor[.patch]]" naming the tag this SHA resolves to (${uses})`,
+			},
+			uses,
 		};
 	}
 
 	if (!versionTokenPattern.test(versionToken)) {
 		return {
-			kind: 'malformed',
-			reason: `version comment "${versionToken}" does not parse as v<major>[.minor[.patch]] — the SHA↔tag binding is undecidable (${uses})`,
+			parsed: {
+				kind: 'malformed',
+				reason: `version comment "${versionToken}" does not parse as v<major>[.minor[.patch]] — the SHA↔tag binding is undecidable (${uses})`,
+			},
+			uses,
 		};
 	}
 
-	return { kind: 'pinned', repo: repoSlug, sha: ref, tag: versionToken };
+	return {
+		parsed: { kind: 'pinned', repo: repoSlug, sha: ref, tag: versionToken },
+		uses,
+	};
 };
+
+/**
+ * The exported judgment: `judgeUseLine` without the raw `uses` value the
+ * scanner needs for its findings.
+ */
+export const parsePinnedUseLine = (line: string): ParsedUseLine | null =>
+	judgeUseLine(line)?.parsed ?? null;
 
 /**
  * Resolves `repo` + `tag` through `lookup`, peeling annotated tags until a
@@ -363,56 +401,6 @@ export const assertCertifiedScan = ({
 };
 
 /**
- * Deterministic lexicographic ordering for reported file paths.
- */
-const comparePosixPath = (a: string, b: string): number => {
-	if (a === b) {
-		return 0;
-	}
-
-	if (a < b) {
-		return -1;
-	}
-	return 1;
-};
-
-/**
- * Walks `dir` recursively and yields every *.yml/*.yaml file path
- * (repo-relative POSIX), sorted deterministically.
- */
-const listYamlFiles = async (
-	dir: string,
-	rootDir: string,
-): Promise<string[]> => {
-	const files: string[] = [];
-
-	const walk = async (current: string): Promise<void> => {
-		const entries = await readdir(current, { withFileTypes: true });
-
-		for (const entry of entries) {
-			const fullPath = path.join(current, entry.name);
-
-			if (entry.isDirectory()) {
-				await walk(fullPath);
-				continue;
-			}
-
-			if (!entry.name.endsWith('.yml') && !entry.name.endsWith('.yaml')) {
-				continue;
-			}
-
-			files.push(path.relative(rootDir, fullPath).split(path.sep).join('/'));
-		}
-	};
-
-	await walk(dir);
-
-	files.sort(comparePosixPath);
-
-	return files;
-};
-
-/**
  * Resolves one `./<path>` local action reference to its action.yml|yaml
  * manifest (repo-relative POSIX). Fails closed on escapes and dangling
  * references — same contract as the sibling guard minus the symlink
@@ -507,33 +495,10 @@ export const findPinMismatches = async ({
 	let filesScanned = 0;
 	let pinnedLineCount = 0;
 
-	// Mandatory half (see the sibling guard): no workflows dir certifies nothing.
-	let workflowFiles: string[];
-	try {
-		workflowFiles = await listYamlFiles(
-			path.join(rootDir, workflowsDir),
-			rootDir,
-		);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-			throw new Error(
-				`actions-pins guard: ${workflowsDir}/ does not exist under '${rootDir}'. Run the guard from the repository root.`,
-				{ cause: error },
-			);
-		}
-
-		throw error;
-	}
-
-	// Tolerated half: zero composite actions is legitimate.
-	let actionFiles: string[] = [];
-	try {
-		actionFiles = await listYamlFiles(path.join(rootDir, actionsDir), rootDir);
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-			throw error;
-		}
-	}
+	const { actionFiles, workflowFiles } = await discoverScanFiles(
+		rootDir,
+		`actions-pins guard: ${workflowsDir}/ does not exist under '${rootDir}'. Run the guard from the repository root.`,
+	);
 
 	for (const file of [...workflowFiles, ...actionFiles]) {
 		visited.add(file);
@@ -545,15 +510,15 @@ export const findPinMismatches = async ({
 		const lines = content.split('\n');
 
 		for (let i = 0; i < lines.length; i++) {
-			const parsed = parsePinnedUseLine(lines[i]);
+			const judged = judgeUseLine(lines[i]);
 
-			if (parsed === null) {
+			if (judged === null) {
 				continue;
 			}
 
+			const { parsed, uses } = judged;
+
 			if (parsed.kind === 'local') {
-				const uses =
-					lines[i].replace(/#.*/, '').match(/uses:\s*(\S+)/)?.[1] ?? './';
 				const target = await resolveLocalActionTarget(uses, rootDir);
 
 				if (!target.ok) {
@@ -584,9 +549,7 @@ export const findPinMismatches = async ({
 					kind: 'unparseable',
 					file,
 					line: i + 1,
-					uses:
-						lines[i].replace(/#.*/, '').match(/uses:\s*(\S+)/)?.[1] ??
-						'(unreadable)',
+					uses,
 					message: parsed.reason,
 				});
 				continue;
