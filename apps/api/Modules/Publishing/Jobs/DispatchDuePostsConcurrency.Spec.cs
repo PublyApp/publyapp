@@ -56,13 +56,10 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 
 		var seededIds = await DispatchDuePostsConcurrencySpec._SeedFiftyPastDueRowsAsync(seedDb);
 
-		async Task NewScopeWithJobAsync(
-			TaskCompletionSource<bool> gate,
-			List<string> sink
-		) {
+		async Task RunScanInOwnScopeAsync() {
 			// Each scan runs from its OWN DI scope: its own DbContext and the
 			// REAL scoped IJobEnqueuer, exactly like two competing workers.
-			var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var db =
 				scope.ServiceProvider.GetRequiredService<AppDbContext>();
 			var enqueuer =
@@ -83,54 +80,38 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 			};
 
 			await job.HandleAsync(context, CancellationToken.None);
-
-			// Record what THIS scope's own queue rows look like afterwards.
-			await using var probe = new AppDbContext(
-				new DbContextOptionsBuilder<AppDbContext>()
-					.UseNpgsql(connectionString)
-					.Options
-			);
-			var enqueuedKeys = await (
-				from row in probe.JobQueue.AsNoTracking()
-				where row.JobType == PublishingJobs.PublishPublicationV1.JobType
-					&& row.IdempotencyKey != null
-				select row.IdempotencyKey
-			).ToListAsync();
-			sink.AddRange(enqueuedKeys);
-
-			gate.TrySetResult(true);
 		}
 
-		var keysWorkerOne = new List<string>();
-		var keysWorkerTwo = new List<string>();
-		var scopeTasks = new List<Task> {
-			Task.Run(() => NewScopeWithJobAsync(
-				new TaskCompletionSource<bool>(),
-				keysWorkerOne)),
-			Task.Run(() => NewScopeWithJobAsync(
-				new TaskCompletionSource<bool>(),
-				keysWorkerTwo)),
-		};
-		await Task.WhenAll(scopeTasks);
+		await Task.WhenAll(
+			Task.Run(RunScanInOwnScopeAsync),
+			Task.Run(RunScanInOwnScopeAsync)
+		);
+
+		// Probe job_queue exactly ONCE, after BOTH scans completed. Probing per
+		// scope would count rows enqueued by the other scan (probe-timing noise).
+		await using var queueDb = new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql(connectionString)
+				.Options
+		);
+		var actualKeys = await (
+			from row in queueDb.JobQueue.AsNoTracking()
+			where row.JobType == PublishingJobs.PublishPublicationV1.JobType
+				&& row.IdempotencyKey != null
+			select row.IdempotencyKey
+		).ToListAsync();
 
 		var expectedKeys = seededIds
 			.Select(PublicationIdempotencyKey.For)
-			.OrderBy(key => key, StringComparer.Ordinal)
-			.ToList();
-		var actualKeys = keysWorkerOne
-			.Concat(keysWorkerTwo)
-			.Distinct(StringComparer.Ordinal)
-			.OrderBy(key => key, StringComparer.Ordinal)
 			.ToList();
 
+		actualKeys.Should().HaveCount(
+			DispatchDuePostsConcurrencySpec._RowCount,
+			"exactly one keyed job_queue row per publication, no duplicates"
+		);
 		actualKeys.Should().BeEquivalentTo(
 			expectedKeys,
-			"the union of both scans must cover every past-due row exactly once"
-		);
-		(keysWorkerOne.Count + keysWorkerTwo.Count).Should().Be(
-			DispatchDuePostsConcurrencySpec._RowCount,
-			"job_queue holds exactly one keyed row per publication "
-				+ "(duplicates are impossible via ux_job_queue_type_idempotency)"
+			"the queue must hold exactly the expected idempotency keys, none missing"
 		);
 
 		await using var verifyDb = new AppDbContext(
