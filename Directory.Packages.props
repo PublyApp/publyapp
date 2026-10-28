@@ -9,20 +9,19 @@
   <!-- Central package version definitions -->
   <ItemGroup>
     <!-- ASP.NET Core packages -->
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.9.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.12.2" />
     <!-- Third-party packages -->
     <PackageVersion Include="Bogus" Version="35.6.5" />
     <PackageVersion Include="DotNetEnv" Version="3.2.0" />
     <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
-    <!-- Transitive-pinned so every project resolves the same patch level:
-         Npgsql.EFCore.PostgreSQL otherwise drags Tests back below 10.0.11 (CS1705).
-         Npgsql's latest 10.x is 10.0.3 (no 10.0.11 exists yet); keep this one entry
-         behind until Npgsql ships a matching patch. -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13" />
+    <!-- Transitive-pinned so every project resolves the same patch level as
+         Microsoft.EntityFrameworkCore (keep Relational and Design in lockstep with it):
+         Npgsql.EFCore.PostgreSQL otherwise drags Tests back below it (CS1705). -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
     <PackageVersion Include="Quartz" Version="3.20.0" />
