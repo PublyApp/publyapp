@@ -1184,7 +1184,7 @@ jobs:
       - name: Download exact upstream result artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-*
+          pattern: ci-lane-result-${{ github.run_id }}-*
           path: ci-results
       - name: Read live PR snapshot
         if: github.event_name == 'pull_request'

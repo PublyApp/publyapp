@@ -727,7 +727,14 @@ export function validateCiLaneResult(
 	) {
 		push(failures, 'result artifact has malformed run identity');
 	}
-	if (runId !== context.runId || runAttempt !== context.runAttempt) {
+	// A "re-run failed jobs" attempt only re-uploads the lanes it re-ran, so the
+	// gate legitimately consumes artifacts written by earlier attempts of the
+	// same run (#2159). Strict mode accepts any attempt from 1 up to the current
+	// one; the legacy numeric form keeps the exact-attempt contract.
+	const attemptAccepted = strict
+		? typeof runAttempt === 'number' && runAttempt <= context.runAttempt
+		: runAttempt === context.runAttempt;
+	if (runId !== context.runId || !attemptAccepted) {
 		push(failures, 'result artifact belongs to another run or attempt');
 	}
 	if (
@@ -782,7 +789,7 @@ export function validateCiLaneResult(
 		}
 		if (
 			value.artifact_name !==
-			`ci-lane-result-${context.runId}-${context.runAttempt}-${expectedArtifactKey}`
+			`ci-lane-result-${context.runId}-${String(runAttempt)}-${expectedArtifactKey}`
 		) {
 			push(failures, `${job.key}: artifact name does not match job key`);
 		}
@@ -997,11 +1004,54 @@ const contractFor = (jobKey: string): JobContract[] => {
 	return contracts ?? [];
 };
 
+/**
+ * Keeps, per lane key, only the artifact written by the highest attempt of the
+ * run (#2159). A partial re-run leaves older attempts' artifacts for the lanes
+ * it did not re-run, and supersedes the older artifact of every lane it did.
+ * Superseded artifacts are dropped before validation; the retained ones are
+ * still validated exactly as before. Containers that do not parse as
+ * `ci-lane-result-<run>-<attempt>-<lane>` for this run are kept untouched so
+ * the strict validation rejects them, as do two artifacts for the same lane
+ * and attempt.
+ */
+export const selectLatestAttemptArtifacts = (
+	observations: ObservedArtifact[],
+	runId: number,
+): ObservedArtifact[] => {
+	const prefix = new RegExp(`^ci-lane-result-${runId}-([1-9][0-9]*)-(.+)$`);
+	const latest = new Map<string, number>();
+	const parsed = observations.map((observation) => {
+		const match =
+			typeof observation?.container === 'string'
+				? prefix.exec(observation.container)
+				: null;
+		if (match === null) {
+			return undefined;
+		}
+		const attempt = Number(match[1]);
+		latest.set(match[2], Math.max(latest.get(match[2]) ?? 0, attempt));
+		return { lane: match[2], attempt };
+	});
+	return observations.filter((_observation, index) => {
+		const entry = parsed[index];
+		return entry === undefined || entry.attempt === latest.get(entry.lane);
+	});
+};
+
 export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 	const failures: string[] = [];
 	const expectedKeys = [...EXPECTED_UPSTREAM_JOB_KEYS];
 	const records = input.records;
-	const observations = input.observed_artifacts;
+	const observations =
+		input.observed_artifacts === undefined
+			? undefined
+			: selectLatestAttemptArtifacts(input.observed_artifacts, input.run_id);
+	// Filenames carry no attempt, so with observations the exact-set check runs
+	// over the retained artifacts rather than over every downloaded attempt.
+	let artifactFilenames = input.artifact_filenames;
+	if (observations !== undefined && artifactFilenames !== undefined) {
+		artifactFilenames = observations.map((observation) => observation.filename);
+	}
 	const observedKeys: string[] = [];
 	const strictContext =
 		input.event_sha !== undefined &&
@@ -1017,19 +1067,18 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 					workflowRef: input.workflow_ref,
 				}
 			: undefined;
-	if (strictContext && input.artifact_filenames !== undefined) {
+	if (strictContext && artifactFilenames !== undefined) {
 		const expectedFilenames = expectedKeys.map(
 			(key) => `${key.replace('/', '-')}.json`,
 		);
 		if (
-			input.artifact_filenames.length !== expectedFilenames.length ||
-			new Set(input.artifact_filenames).size !==
-				input.artifact_filenames.length ||
-			input.artifact_filenames.some(
+			artifactFilenames.length !== expectedFilenames.length ||
+			new Set(artifactFilenames).size !== artifactFilenames.length ||
+			artifactFilenames.some(
 				(filename) => !expectedFilenames.includes(filename),
 			) ||
 			expectedFilenames.some(
-				(filename) => !input.artifact_filenames?.includes(filename),
+				(filename) => !artifactFilenames?.includes(filename),
 			)
 		) {
 			push(

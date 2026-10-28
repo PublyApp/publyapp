@@ -6,6 +6,7 @@ import {
 	EXPECTED_UPSTREAM_JOB_KEYS,
 	aggregateCiGate,
 	getExpectedJobLanes,
+	selectLatestAttemptArtifacts,
 	validateCiLaneResult,
 } from './check-ci-gate-aggregation.ts';
 import type { AggregateInput } from './check-ci-gate-aggregation.ts';
@@ -61,7 +62,7 @@ const makeRecord = () =>
 		},
 	});
 
-const makeCompleteRecords = () =>
+const makeCompleteRecords = (runAttempt: number = context.runAttempt) =>
 	EXPECTED_UPSTREAM_JOB_KEYS.map((jobKey) => {
 		const contracts = getExpectedJobLanes(jobKey);
 		assert.ok(contracts);
@@ -72,7 +73,7 @@ const makeCompleteRecords = () =>
 				expectedSteps: lane.expectedSteps,
 				mode: 'relevant',
 				runId: context.runId,
-				runAttempt: context.runAttempt,
+				runAttempt,
 				eventSha: context.eventSha,
 				workflowPath: context.workflowPath,
 				workflowRef: context.workflowRef,
@@ -538,4 +539,199 @@ test('nested non-Vitest diagnostics reject invalid optional types', () => {
 
 	assert.equal(validateCiLaneResult(record, context, failures), false);
 	assert.match(failures.join('\n'), /exit_code|signal/i);
+});
+
+// Partial re-runs (#2159): a "re-run failed jobs" attempt only re-uploads the
+// lanes it re-ran, so the gate keeps the highest-attempt artifact per lane.
+type LaneRecord = ReturnType<typeof makeCompleteRecords>[number];
+
+const observe = (record: LaneRecord) => ({
+	container: record.artifact_name,
+	filename: record.artifact_filename,
+	file_path: `${record.artifact_name}/${record.artifact_filename}`,
+	record,
+});
+
+const failLane = (record: LaneRecord): LaneRecord => {
+	record.job.conclusion = 'failure';
+	for (const lane of Object.values(record.job.lanes)) {
+		const step = lane.steps.find(
+			(candidate) => candidate.outcome === 'success',
+		);
+		if (step !== undefined) {
+			step.outcome = 'failure';
+		}
+	}
+	return record;
+};
+
+const partialRerun = (
+	rerunKeys: string[],
+	rerunRecord: (record: LaneRecord) => LaneRecord = (record) => record,
+) => {
+	const input = completeAggregateInput();
+	const firstAttempt = makeCompleteRecords(1).map((record) =>
+		rerunKeys.includes(record.job.key) ? failLane(record) : record,
+	);
+	const rerun = makeCompleteRecords(context.runAttempt)
+		.filter((record) => rerunKeys.includes(record.job.key))
+		.map(rerunRecord);
+	const records = [...firstAttempt, ...rerun];
+	return {
+		...input,
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		observed_artifacts: records.map(observe),
+	} satisfies AggregateInput;
+};
+
+test('partial re-run: lanes from attempt 1 plus a lane re-run in the current attempt pass', () => {
+	const result = aggregateCiGate(partialRerun(['front-vitest/2']));
+
+	assert.equal(result.ok, true, result.failures.join('\n'));
+	assert.equal(result.observed_keys.length, EXPECTED_UPSTREAM_JOB_KEYS.length);
+});
+
+test('partial re-run: several lanes re-run across attempts 2 and 3 keep the highest attempt', () => {
+	const input = completeAggregateInput();
+	const attempt1 = makeCompleteRecords(1).map((record) =>
+		record.job.key === 'api' || record.job.key === 'verification'
+			? failLane(record)
+			: record,
+	);
+	const attempt2 = makeCompleteRecords(2)
+		.filter(
+			(record) => record.job.key === 'api' || record.job.key === 'verification',
+		)
+		.map((record) => (record.job.key === 'api' ? failLane(record) : record));
+	const attempt3 = makeCompleteRecords(3).filter(
+		(record) => record.job.key === 'api',
+	);
+	const records = [...attempt1, ...attempt2, ...attempt3];
+
+	const result = aggregateCiGate({
+		...input,
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		observed_artifacts: records.map(observe),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, true, result.failures.join('\n'));
+});
+
+test('partial re-run: a lane failing in its latest attempt fails even though attempt 1 passed it', () => {
+	const input = completeAggregateInput();
+	const attempt1 = makeCompleteRecords(1);
+	const attempt3 = makeCompleteRecords(3)
+		.filter((record) => record.job.key === 'front-vitest/2')
+		.map(failLane);
+	const records = [...attempt1, ...attempt3];
+
+	const result = aggregateCiGate({
+		...input,
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		observed_artifacts: records.map(observe),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /front-vitest\/2/);
+});
+
+test('partial re-run: an older passing lane that was re-run and failed in the latest attempt fails the gate', () => {
+	// The re-run job produced no usable artifact, so only attempt 1 remains for the
+	// lane. The central job result for it is the backstop and must still reject.
+	const input = completeAggregateInput();
+	const records = makeCompleteRecords(1);
+
+	const result = aggregateCiGate({
+		...input,
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		observed_artifacts: records.map(observe),
+		central_results: { ...input.central_results, 'front-vitest': 'failure' },
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /front-vitest.*failure/);
+});
+
+test('partial re-run: a lane absent from every attempt is still missing', () => {
+	const input = partialRerun(['front-vitest/2']);
+	const observed = input.observed_artifacts.filter(
+		(observation) => observation.record.job.key !== 'e2e-cleanup',
+	);
+
+	const result = aggregateCiGate({
+		...input,
+		records: observed.map((observation) => observation.record),
+		artifact_filenames: observed.map((observation) => observation.filename),
+		observed_artifacts: observed,
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /e2e-cleanup|exactly 15/);
+});
+
+test('partial re-run: an artifact from a future attempt is rejected, not preferred', () => {
+	const input = completeAggregateInput();
+	const records = [
+		...makeCompleteRecords(1),
+		...makeCompleteRecords(context.runAttempt + 1).filter(
+			(record) => record.job.key === 'api',
+		),
+	];
+
+	const result = aggregateCiGate({
+		...input,
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		observed_artifacts: records.map(observe),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /another run or attempt/);
+});
+
+test('partial re-run: an older-attempt artifact still has its contents validated exactly', () => {
+	const input = completeAggregateInput();
+	const records = makeCompleteRecords(1);
+	records[0].event_sha = 'someone-elses-sha';
+
+	const result = aggregateCiGate({
+		...input,
+		records,
+		artifact_filenames: records.map((record) => record.artifact_filename),
+		observed_artifacts: records.map(observe),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /event_sha/);
+});
+
+test('selectLatestAttemptArtifacts keeps the highest attempt per lane and foreign containers', () => {
+	const make = (container: string) => ({
+		container,
+		filename: 'api.json',
+		file_path: `${container}/api.json`,
+		record: {},
+	});
+	const selected = selectLatestAttemptArtifacts(
+		[
+			make('ci-lane-result-42-1-api'),
+			make('ci-lane-result-42-3-api'),
+			make('ci-lane-result-42-2-api'),
+			make('ci-lane-result-42-2-verification'),
+			make('ci-lane-result-41-9-api'),
+			make('unrelated-container'),
+		],
+		42,
+	).map((observation) => observation.container);
+
+	assert.deepEqual(selected, [
+		'ci-lane-result-42-3-api',
+		'ci-lane-result-42-2-verification',
+		'ci-lane-result-41-9-api',
+		'unrelated-container',
+	]);
 });
