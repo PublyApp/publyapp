@@ -18,6 +18,15 @@ export type PrSnapshotInput = {
 	workflow_action: string;
 	run_id: number;
 	run_attempt: number;
+	/**
+	 * Additive content identity of the event and live merge commits (#2216).
+	 * External consumers apply the same content rule as the gate: same head
+	 * (second parent), same base tip (first parent), same tree.
+	 */
+	event_merge_tree?: string;
+	event_merge_parents?: string[];
+	potential_merge_tree?: string;
+	potential_merge_parents?: string[];
 };
 
 /**
