@@ -314,6 +314,7 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 	// green test green.
 	[Theory]
 	[InlineData(
+		"one package bumped",
 		// Synthetic props: the runtime instrumentation package is bumped from
 		// 1.18.0 to 1.19.0 — the canonical "one caret flip desyncs the family"
 		// case the r2 brief calls out.
@@ -324,6 +325,7 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 		"<PackageVersion Include=\"OpenTelemetry.Exporter.OpenTelemetryProtocol\" Version=\"1.18.0\" />\n"
 	)]
 	[InlineData(
+		"every package on a different version",
 		// Synthetic props: every package has a different version — the family
 		// is fully shattered, the detector must still flag exactly one
 		// "desynchronized" violation (distinct.Count > 1), not a per-package
@@ -335,15 +337,19 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 		"<PackageVersion Include=\"OpenTelemetry.Exporter.OpenTelemetryProtocol\" Version=\"1.18.4\" />\n"
 	)]
 	[InlineData(
+		"one package missing",
 		// Synthetic props: a package from the family is missing entirely.
 		"<PackageVersion Include=\"OpenTelemetry.Extensions.Hosting\" Version=\"1.18.0\" />\n" +
 		"<PackageVersion Include=\"OpenTelemetry.Instrumentation.AspNetCore\" Version=\"1.18.0\" />\n" +
 		"<PackageVersion Include=\"OpenTelemetry.Instrumentation.Http\" Version=\"1.18.0\" />\n" +
 		"<PackageVersion Include=\"OpenTelemetry.Exporter.OpenTelemetryProtocol\" Version=\"1.18.0\" />\n"
 	)]
-	public void ItShouldDetectLockstepFamilyDriftFailClosed(string offendingProps) {
+	// `scenario` leads the display name: the long props text is truncated in it, and three
+	// rows with identical display names are listed once by `dotnet test --list-tests` but
+	// executed three times, which breaks the API shard planner's assigned-vs-executed count.
+	public void ItShouldDetectLockstepFamilyDriftFailClosed(string scenario, string offendingProps) {
 		OpenTelemetryLogPathGuardSpec.DetectLockstepDrift(offendingProps).Should().NotBeEmpty(
-			because: $"the lockstep guard must flag this desynchronized family. Input: {offendingProps}"
+			because: $"the lockstep guard must flag this desynchronized family ({scenario}). Input: {offendingProps}"
 		);
 	}
 
