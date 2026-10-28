@@ -25,6 +25,21 @@ pnpm test:ci-contracts
 node packages/scripts-ts/src/check-ci-gate-structure.ts
 ```
 
+Re-runs: the gate downloads `ci-lane-result-<run_id>-*` across **every attempt** of the run and
+keeps, per lane, the artifact of the highest attempt (each retained artifact is validated exactly
+as before; its name must carry an attempt no greater than the current one). A "re-run failed
+jobs" attempt therefore only needs to re-produce the lanes it re-ran, and the central `needs.*`
+results stay the backstop for a re-run that never uploaded. The e2e shards still refuse a partial
+re-run through their own image-tag guard (`rerun all jobs`). For `pull_request` runs the live-PR
+binding compares the event merge commit with GitHub's current potential merge commit by
+**content** (same tree, same base-tip first parent, same head second parent) rather than by
+object id: a re-run keeps the original event SHA, while GitHub may have recomputed the PR's test
+merge commit (new oid, same content) since, for example on ready-for-review or a description edit
+(#2216). A moved head or base, or a different tree, is rejected. The snapshot artifact carries the
+content as additive fields (`event_merge_tree`, `event_merge_parents`, `potential_merge_tree`,
+`potential_merge_parents`) so external consumers can apply the same rule; see
+[the superseding record](../records/2026-10-28-spec-ci-gate-merge-content-binding.md).
+
 Central ownership is explicit: `CI verification` executes the repository quality,
 front build/CSS/font/smoke/typecheck/lint/design/static-import/compiler/proof,
 docs, React Doctor, API path-coverage, analyzer, dependency, action-pin, deploy-env,

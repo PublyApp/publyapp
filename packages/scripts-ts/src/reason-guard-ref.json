@@ -599,8 +599,8 @@
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
 		"ci.yml::gate::Download exact upstream result artifacts": {
-			"reason_hash": "2a5378d116dad6a5",
-			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-*\",\"path\":\"ci-results\"},\"env\":null}."
+			"reason_hash": "abfae96c13d7910b",
+			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-*\",\"path\":\"ci-results\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install pnpm": {
 			"reason_hash": "44db22d3703f8493",
