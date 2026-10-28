@@ -23,7 +23,8 @@ const repoRoot = path.resolve(
 const LISTING_HEADER = 'The following Tests are available:';
 const CLASS_NAME = /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$/;
 
-export type Suite = Map<string, Set<string>>;
+/** Listed test count per fully-qualified class name. */
+export type Suite = Map<string, number>;
 
 /** Discovers the real suite: builds (if stale) and lists the API test project. */
 export const discoverSuite = (root: string = repoRoot): Suite => {
@@ -46,6 +47,8 @@ export const discoverSuite = (root: string = repoRoot): Suite => {
 				...process.env,
 				APP_ROLE: 'all',
 				ASPNETCORE_ENVIRONMENT: 'Testing',
+				// The listing header is parsed as English text.
+				DOTNET_CLI_UI_LANGUAGE: 'en',
 			},
 		},
 	);
@@ -60,7 +63,10 @@ export const discoverSuite = (root: string = repoRoot): Suite => {
 	return parseListing(result.stdout);
 };
 
-/** Groups `dotnet test --list-tests` output by class, deduping tests per class. */
+/**
+ * Counts every listed line per class: theory rows whose display names collide are
+ * listed repeatedly and all execute, so the listing count equals the executed count.
+ */
 export const parseListing = (output: string): Suite => {
 	const lines = output.split(/\r?\n/);
 	const header = lines.indexOf(LISTING_HEADER);
@@ -81,9 +87,7 @@ export const parseListing = (output: string): Suite => {
 		if (!CLASS_NAME.test(className)) {
 			throw new Error(`Cannot derive a plain class name from test: ${test}`);
 		}
-		const tests = suite.get(className) ?? new Set<string>();
-		tests.add(test);
-		suite.set(className, tests);
+		suite.set(className, (suite.get(className) ?? 0) + 1);
 	}
 	if (suite.size === 0) {
 		throw new Error('Test listing is empty');
@@ -109,7 +113,7 @@ export const planShard = (
 	}
 	let tests = 0;
 	for (const className of classes) {
-		tests += suite.get(className)?.size ?? 0;
+		tests += suite.get(className) ?? 0;
 	}
 	// The trailing dot keeps `Ns.FooSpec` from also matching `Ns.FooSpecExtra`.
 	const filter = classes

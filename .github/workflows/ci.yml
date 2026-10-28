@@ -711,7 +711,10 @@ jobs:
         id: shard_partition
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
         continue-on-error: true
-        run: just ci-api-shard-partition
+        run: |
+          if [ "${{ matrix.shard }}" = 1 ]; then
+            just ci-api-shard-partition
+          fi
       - name: Run full API test suite
         id: suite
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'

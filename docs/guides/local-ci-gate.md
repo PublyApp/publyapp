@@ -186,8 +186,7 @@ changes, per the aggregate-gate contract).
 ### API suite sharding (#1947)
 
 The `api` job is a 4-way matrix (`api/1`..`api/4`, same shape as `front-vitest`). Each
-shard rebuilds and runs the drift steps, then `just ci-api-shard-partition` and
-`just test-api-shard <shard> 4` (the way to reproduce one CI shard locally; Unix only):
+shard rebuilds and runs the drift steps, then `just test-api-shard <shard> 4` (the way to reproduce one CI shard locally; Unix only):
 
 - `packages/scripts-ts/src/shard-api-tests.ts <shard> <total>` discovers the real suite
   once (`dotnet test --list-tests` on the `Test` build), assigns **whole classes** by
@@ -201,8 +200,12 @@ shard rebuilds and runs the drift steps, then `just ci-api-shard-partition` and
   gate.
 - `packages/scripts-ts/src/shard-api-tests.test.ts` runs against the real suite and
   proves every class is in exactly one shard and the union is the whole suite. It
-  builds the `Test` configuration if stale; it runs as `just ci-api-shard-partition`
-  (the `Verify API shard partition` step of every shard, and part of `just ci`).
+  builds the `Test` configuration if stale; it runs as `just ci-api-shard-partition`,
+  which the `Verify API shard partition` step runs in shard 1 only (every shard keeps
+  the step so the lane contract stays uniform) and `just ci` runs locally. Each shard
+  discovers the suite once for its own plan; the proof adds one discovery in shard 1.
+  Identical theory display names are listed once per row and all execute, so the
+  planner counts every listed line.
 - `OpenApiContractSpec` is an ordinary suite class: it runs once, in the shard that owns
   it. The former dedicated contract step was removed because every shard job must run
   the same steps (it would have run four extra times); `just ci-spec-drift` still runs

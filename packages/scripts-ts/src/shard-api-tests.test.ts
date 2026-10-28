@@ -12,7 +12,7 @@ const TOTAL = 4;
 const SHARDS = [1, 2, 3, 4];
 
 describe('shard-api-tests listing', () => {
-	it('groups by class, dedupes per class and keeps prefix-related classes apart', () => {
+	it('counts every listed line per class (identical theory rows included) and keeps prefix-related classes apart', () => {
 		const suite = parseListing(
 			[
 				'Test run for x.dll',
@@ -24,8 +24,9 @@ describe('shard-api-tests listing', () => {
 				'',
 			].join('\n'),
 		);
-		expect(suite.get('A.B.FooSpec')?.size).toBe(2);
-		expect(suite.get('A.B.FooSpecExtra')?.size).toBe(1);
+		expect(suite.get('A.B.FooSpec')).toBe(3);
+		expect(suite.get('A.B.FooSpecExtra')).toBe(1);
+		expect(planShard(suite, 1, 1).tests).toBe(4);
 		const { filter } = planShard(suite, 1, 1);
 		expect(filter.split('|')).toContain('FullyQualifiedName~A.B.FooSpec.');
 		expect(filter.split('|')).toContain('FullyQualifiedName~A.B.FooSpecExtra.');
@@ -73,7 +74,7 @@ describe('shard-api-tests real suite', () => {
 		expect([...owners.keys()].sort()).toEqual([...suite.keys()].sort());
 		let fullSuiteTests = 0;
 		for (const tests of suite.values()) {
-			fullSuiteTests += tests.size;
+			fullSuiteTests += tests;
 		}
 		expect(assignedTests).toBe(fullSuiteTests);
 	}, 600_000);

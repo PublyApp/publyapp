@@ -2220,9 +2220,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 		laneUpload('verification', 'verification'),
 		laneUpload('audit-development', 'audit-development'),
 		laneUpload('audit-production', 'audit-production'),
-		{
-			...laneUpload('api', 'api-\${{ matrix.shard }}'),
-		},
+		laneUpload('api', 'api-\${{ matrix.shard }}'),
 		{
 			...laneUpload('front-vitest', 'front-vitest-\${{ matrix.shard }}'),
 		},

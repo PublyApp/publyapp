@@ -907,9 +907,9 @@
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
 		"ci.yml::api::Verify API shard partition": {
-			"hash": "1054f89c0d6dc58d",
-			"mirror": "just ci-api-shard-partition",
-			"reason": "Local mirror just ci-api-shard-partition is derived from exact normalized workflow command match(es): [\"just ci-api-shard-partition\"]."
+			"hash": "1af70c7cf01c1035",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Verify API shard partition\"; normalized workflow command(s): [\"if [ \\\"${{ matrix.shard }}\\\" = 1 ]; then\",\"just ci-api-shard-partition\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		}
 	}
 }
