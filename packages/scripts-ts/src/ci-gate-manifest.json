@@ -77,9 +77,9 @@
 			"reason": "Hosted-only action step \"Set up .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
 		},
 		"ci.yml::api::Set up pnpm": {
-			"hash": "8985553731d304dc",
+			"hash": "fe22da5e51d30f96",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Set up pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Set up pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::api::Setup just": {
 			"hash": "17b73e0220816c76",
@@ -87,19 +87,19 @@
 			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::api::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::api::Upload API test results": {
-			"hash": "dc470f12ee641b72",
+			"hash": "36173e0ae86735df",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload API test results\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')\",\"with\":{\"name\":\"api-test-results-${{ github.run_id }}-${{ matrix.shard }}\",\"path\":\"apps/api/Tests/TestResults/\\napps/api/.artifacts/logs/\\n\",\"if-no-files-found\":\"ignore\",\"retention-days\":5},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload API test results\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')\",\"with\":{\"name\":\"api-test-results-${{ github.run_id }}-${{ matrix.shard }}\",\"path\":\"apps/api/Tests/TestResults/\\napps/api/.artifacts/logs/\\n\",\"if-no-files-found\":\"ignore\",\"retention-days\":5},\"env\":null}."
 		},
 		"ci.yml::api::Upload ci-lane-result": {
-			"hash": "bfa86e4cca8059be",
+			"hash": "a8e71c7099d1dfeb",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api-${{ matrix.shard }}\",\"path\":\"ci-results/api-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api-${{ matrix.shard }}\",\"path\":\"ci-results/api-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::audit-development::Audit development dependencies": {
 			"hash": "ef54b1ae64476a06",
@@ -122,9 +122,9 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-development::Install pnpm": {
-			"hash": "8985553731d304dc",
+			"hash": "fe22da5e51d30f96",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::audit-development::Install workspace dependencies": {
 			"hash": "e3c8d434f159eafd",
@@ -137,14 +137,14 @@
 			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
 		},
 		"ci.yml::audit-development::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::audit-development::Upload ci-lane-result": {
-			"hash": "e7ca1bebf5d347a3",
+			"hash": "8842425cff4a5d62",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-development\",\"path\":\"ci-results/audit-development.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-development\",\"path\":\"ci-results/audit-development.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::audit-production::Audit production dependencies": {
 			"hash": "b571a3f914c3893e",
@@ -167,9 +167,9 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-production::Install pnpm": {
-			"hash": "8985553731d304dc",
+			"hash": "fe22da5e51d30f96",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::audit-production::Install workspace dependencies": {
 			"hash": "e3c8d434f159eafd",
@@ -182,14 +182,14 @@
 			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
 		},
 		"ci.yml::audit-production::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::audit-production::Upload ci-lane-result": {
-			"hash": "5d212468fbea69a7",
+			"hash": "459d9acb54a50649",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-production\",\"path\":\"ci-results/audit-production.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-audit-production\",\"path\":\"ci-results/audit-production.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::classify::Checkout": {
 			"hash": "f6bbd86f711cad8c",
@@ -212,14 +212,14 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::classify::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::classify::Upload ci-lane-result": {
-			"hash": "f5eeddc9d10ef483",
+			"hash": "64442bca61ef5dbc",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify\",\"path\":\"ci-results/classify.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify\",\"path\":\"ci-results/classify.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Build and push e2e images": {
 			"hash": "c563b90279a0ae4a",
@@ -262,9 +262,9 @@
 			"reason": "No exact local command match for run step \"Resolve image tag\"; normalized workflow command(s): [\"echo \\\"tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Setup Docker Buildx": {
-			"hash": "5c49199064998cbc",
+			"hash": "bec12b28535ce54e",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Docker Buildx\" uses docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":null,\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Docker Buildx\" uses docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-build::Setup GitHub Actions runtime": {
 			"hash": "d3dcd7a7778e8cd0",
@@ -272,14 +272,14 @@
 			"reason": "Hosted-only action step \"Setup GitHub Actions runtime\" uses crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-build::Upload ci-lane-result": {
-			"hash": "972922bcd032bd32",
+			"hash": "dce11640f832b7df",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-build\",\"path\":\"ci-results/e2e-build.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-build\",\"path\":\"ci-results/e2e-build.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Upload fork e2e images": {
-			"hash": "6ef4414968484f0e",
+			"hash": "9937b4f0230dc85c",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload fork e2e images\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ steps.image-tag.outputs.tag }}\",\"path\":\"/tmp/e2e-images/*.tar.gz\",\"retention-days\":1,\"compression-level\":0,\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload fork e2e images\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ steps.image-tag.outputs.tag }}\",\"path\":\"/tmp/e2e-images/*.tar.gz\",\"retention-days\":1,\"compression-level\":0,\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Verify built front image": {
 			"hash": "b2aab67ca7b44776",
@@ -307,9 +307,9 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Upload ci-lane-result": {
-			"hash": "ef099dc7d465ed54",
+			"hash": "98019b6f893bb2e3",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup\",\"path\":\"ci-results/e2e-cleanup.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup\",\"path\":\"ci-results/e2e-cleanup.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
 			"hash": "0a06539db489c0d2",
@@ -352,9 +352,9 @@
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::e2e-test::Install pnpm": {
-			"hash": "8f4ffe2c447e6f89",
+			"hash": "762cf35b2f590e94",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Load fork e2e images": {
 			"hash": "66f0ae3117c3a4a1",
@@ -377,9 +377,9 @@
 			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"pnpm --filter front exec playwright install chromium --with-deps\",\"pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/4\",\"if [ \\\"${{ matrix.shard }}\\\" = \\\"4\\\" ]; then\",\"pnpm --filter front exec playwright test --project=setup --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-source --no-deps\",\"pnpm --filter front test:drawer-contrast\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Setup Node": {
-			"hash": "85a8b3c8a4c1cc7b",
+			"hash": "8e1d2eb82c0a31af",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Start e2e stack": {
 			"hash": "9bf6426fa267bd9a",
@@ -392,14 +392,14 @@
 			"reason": "No exact local command match for run step \"Tear down e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml down -v\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Upload ci-lane-result": {
-			"hash": "315afc632da008c3",
+			"hash": "974d0f5103432057",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}\",\"path\":\"ci-results/e2e-test-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}\",\"path\":\"ci-results/e2e-test-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Upload Playwright report": {
-			"hash": "f970378231bfa0c5",
+			"hash": "aed6029fc35cd59d",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
 			"hash": "844893a2675c63fd",
@@ -432,9 +432,9 @@
 			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Install pnpm": {
-			"hash": "8985553731d304dc",
+			"hash": "fe22da5e51d30f96",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::front-vitest::Run trusted first-party postinstall": {
 			"hash": "6923850a26324a40",
@@ -447,19 +447,19 @@
 			"reason": "No exact local command match for run step \"Run vitest shard\"; normalized workflow command(s): [\"pnpm --filter front exec vitest run --shard=${{ matrix.shard }}/4\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-vitest::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::front-vitest::Upload ci-lane-result": {
-			"hash": "1204e9a96933adb3",
+			"hash": "5d7165300df98edb",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-vitest-${{ matrix.shard }}\",\"path\":\"ci-results/front-vitest-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-vitest-${{ matrix.shard }}\",\"path\":\"ci-results/front-vitest-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::front-vitest::Upload Vitest report": {
-			"hash": "ee045e1353d3e0b2",
+			"hash": "729346ad152eda7a",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload Vitest report\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')\",\"with\":{\"name\":\"front-ci-vitest-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/test-results\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload Vitest report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')\",\"with\":{\"name\":\"front-ci-vitest-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/test-results\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
 			"hash": "71f4cbb79489ab2d",
@@ -477,9 +477,9 @@
 			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-*\",\"path\":\"ci-results\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install pnpm": {
-			"hash": "8985553731d304dc",
+			"hash": "fe22da5e51d30f96",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install workspace dependencies": {
 			"hash": "2fd5cf518bdeb323",
@@ -497,14 +497,14 @@
 			"reason": "No exact local command match for run step \"Run central structural self-check\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-gate-structure.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::gate::Upload live PR snapshot": {
-			"hash": "5db7e717dd8e212f",
+			"hash": "96aaac9515a62a66",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload live PR snapshot\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"github.event_name == 'pull_request'\",\"with\":{\"name\":\"ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}\",\"path\":\"ci-results/ci-pr-snapshot.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload live PR snapshot\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"github.event_name == 'pull_request'\",\"with\":{\"name\":\"ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}\",\"path\":\"ci-results/ci-pr-snapshot.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::gate::Verify linked issue relationship": {
 			"hash": "bd16b221f81e4aa7",
@@ -662,9 +662,9 @@
 			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::verification::Install pnpm": {
-			"hash": "8985553731d304dc",
+			"hash": "fe22da5e51d30f96",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::verification::Install workspace dependencies": {
 			"hash": "0f6bb0ee355abb6a",
@@ -722,9 +722,9 @@
 			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::verification::Setup Node": {
-			"hash": "6c699edc403fc068",
+			"hash": "27fc627190540df5",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::verification::Smoke front production server": {
 			"hash": "946f61944280dd08",
@@ -842,9 +842,9 @@
 			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts typecheck\"]."
 		},
 		"ci.yml::verification::Upload ci-lane-result": {
-			"hash": "75325d79271d5565",
+			"hash": "fd8099f8e294e945",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-verification\",\"path\":\"ci-results/verification.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-verification\",\"path\":\"ci-results/verification.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::verification::Verify API path-filter coverage": {
 			"hash": "96841940dba766ac",
@@ -867,17 +867,17 @@
 			"reason": "No exact local command match for run step \"Verify paired red proofs\"; normalized workflow command(s): [\"pnpm --filter front test:preuves\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
-			"hash": "e4dc88bbd1b1946a",
+			"hash": "e4ac9bb64369823d",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push API runtime image": {
-			"hash": "73918aacfc6ab804",
+			"hash": "3b522762c8c019ec",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push Front image": {
-			"hash": "679d848e6d15e12d",
+			"hash": "5458c5d5a4129444",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
 		},
@@ -902,7 +902,7 @@
 			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): derives the lowercased ghcr.io owner namespace from github.repository_owner because GHCR rejects uppercase image paths. GitHub-only shell one-liner; the local deploy-images.ts wrapper keeps its own IMAGE_ROOT constant reconciled by its unit tests."
 		},
 		"deploy-images.yml::publish::Set up Docker Buildx": {
-			"hash": "05add9af020bea61",
+			"hash": "0c3cb7cf41c4d15f",
 			"mirror": "just ci",
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
