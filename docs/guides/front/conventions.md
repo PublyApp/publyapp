@@ -123,17 +123,25 @@ Two different kinds of declaration file, two different homes — the folder name
 
 - **`src/@types/*.d.ts`** (and `packages/shared-ts/src/@types/*.d.ts`) holds declarations that are
   **never imported**: ambient globals and third-party module augmentations (`i18next.d.ts`). The `@`
-  prefix means exactly that — not a module. Nothing here should be a domain type.
-- **A domain type** (`JsonValue`, `JsonObject`, `ApiResponse`, `QueryArgumentValue`, …) lives in a
-  real module — `src/types/…`, or beside the code that owns it — and is always imported explicitly.
+  prefix means exactly that — not a module. What belongs here is _internal convenience_: pure
+  type-level helpers used unimported everywhere in one program (`DeepPartial`, `StringLiteral`) and
+  augmentations of someone else's module.
+- **Everything else lives in a real module** — `src/types/…`, or beside the code that owns it — and
+  is imported explicitly.
 
-Why the split matters: a global type is invisible at the call site (`git grep` finds no import), and
-it only reaches another package's TypeScript program if that package's `tsconfig` explicitly includes
-the file. `apps/front/tsconfig.json` includes `packages/shared-ts/src/@types/**/*.d.ts` for the
-augmentations; a global domain type would still not reach `packages/scripts-ts`.
+The dividing line is **not** "domain vs utility". `JsonValue` is a structural type, not a domain
+concept, and it still belongs in a module — because `packages/shared-ts` **exports** it. The test is:
+_does another package or another program depend on this name?_ If yes, it must be importable,
+greppable and versioned with the package that owns it.
 
-Rule of thumb: **if it can be imported, it goes in `types/`; if it must not be, it goes in
-`@types/`.** This section exists because the two folders coexisted with the same content (`i18next.d.ts`)
+Why a global fails that test: it is invisible at the call site (`git grep` finds no import), and it
+only reaches another package's TypeScript program if that package's `tsconfig` explicitly includes the
+file. `apps/front/tsconfig.json` includes `packages/shared-ts/src/@types/**/*.d.ts` for the
+augmentations; a global type would still not reach `packages/scripts-ts`, which would have to
+redeclare it — the duplication this rule exists to prevent.
+
+Rule of thumb: **if another program can be expected to import it, it goes in a module under
+`types/`; if it is internal convenience that must never be imported, it goes in `@types/`.** This section exists because the two folders coexisted with the same content (`i18next.d.ts`)
 in both, until the front folder was renamed to `@types/` to match.
 
 ## Browser and date/time utility boundaries
