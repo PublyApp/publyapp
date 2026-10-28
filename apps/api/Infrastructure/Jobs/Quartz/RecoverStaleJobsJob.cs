@@ -29,8 +29,11 @@ public sealed class RecoverStaleJobsJob : IJob {
 		this._Logger = logger;
 	}
 
-	public async Task Execute(IJobExecutionContext context) {
-		await this.RecoverAsync(context.CancellationToken);
+	public async ValueTask Execute(
+		IJobExecutionContext context,
+		CancellationToken cancellationToken
+	) {
+		await this.RecoverAsync(cancellationToken);
 	}
 
 	// Public: lets specs drive one recovery pass deterministically (the repo's

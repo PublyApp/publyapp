@@ -1,12 +1,9 @@
-using System.Collections.Specialized;
-
 using Npgsql;
 
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 
 using Quartz;
-using Quartz.Impl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
 
@@ -52,6 +49,10 @@ public sealed class SchedulerLeaderService : BackgroundService {
 	private NpgsqlConnection? _LockConnection;
 	private IScheduler? _Scheduler;
 
+	// Quartz 4 has no properties-driven StdSchedulerFactory: the standalone builder's factory
+	// owns the container the scheduler was built from, so it is disposed after shutdown.
+	private StandaloneSchedulerFactory? _OwnedSchedulerFactory;
+
 	public SchedulerLeaderService(
 		SchedulerLeaderOptions options,
 		IServiceScopeFactory scopeFactory,
@@ -77,7 +78,7 @@ public sealed class SchedulerLeaderService : BackgroundService {
 	// True only when this instance holds leadership AND its scheduler is actively
 	// running (started and not in standby). Followers never start a scheduler.
 	public bool IsSchedulerRunning {
-		get { return this._Scheduler is { IsStarted: true, InStandbyMode: false }; }
+		get { return this._Scheduler is { Status: SchedulerStatus.Running }; }
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -213,6 +214,8 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			this._Scheduler = null;
 		}
 
+		await this._DisposeOwnedSchedulerFactoryAsync();
+
 		if (this._LockConnection is not null) {
 			try {
 				await using var command = new NpgsqlCommand(
@@ -238,16 +241,19 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			// Manual lifecycle, RAM job store (no qrtz_* tables) — durability lives in
 			// job_queue and leadership in the advisory lock (design §5.3). A unique
 			// instance name keeps two leaders-in-a-test out of Quartz's shared
-			// scheduler repository.
-			var properties = new NameValueCollection {
-				["quartz.scheduler.instanceName"] = $"publyapp-scheduler-{Guid.NewGuid():N}",
-				["quartz.scheduler.instanceId"] = "AUTO",
-				["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz",
-				["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
-				["quartz.threadPool.maxConcurrency"] = "5",
-			};
+			// scheduler repository. Quartz 4 takes the job factory at build time.
+			var factory = QuartzSchedulerBuilder.Create(builder => builder
+				.ConfigureScheduler(options => {
+					options.InstanceName = $"publyapp-scheduler-{Guid.NewGuid():N}";
+					options.GenerateInstanceId = true;
+				})
+				.UseInMemoryStore()
+				.UseDefaultThreadPool(5)
+				.UseJobFactory(this._JobFactory)
+			).Build();
+			this._OwnedSchedulerFactory = factory;
 
-			scheduler = await new StdSchedulerFactory(properties).GetScheduler(cancellationToken);
+			scheduler = await factory.GetScheduler(cancellationToken);
 		}
 
 		// Ownership transfers BEFORE registration/start (fail-closed): Quartz can begin
@@ -258,7 +264,6 @@ public sealed class SchedulerLeaderService : BackgroundService {
 		// the advisory lock be released while triggers may still be live.
 		this._Scheduler = scheduler;
 
-		scheduler.JobFactory = this._JobFactory;
 		await SchedulerLeaderService._RegisterFixedTriggersAsync(scheduler, cancellationToken);
 		await scheduler.Start(cancellationToken);
 	}
@@ -272,20 +277,20 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			.Build();
 		var syncTrigger = TriggerBuilder.Create()
 			.WithIdentity("sync-system-jobs", SchedulerLeaderService._InfraGroup)
-			.StartAt(DateBuilder.FutureDate(SchedulerLeaderService.SyncIntervalSeconds, IntervalUnit.Second))
-			.WithSimpleSchedule(x => x.WithIntervalInSeconds(SchedulerLeaderService.SyncIntervalSeconds).RepeatForever())
+			.StartAt(DateTimeOffset.UtcNow.AddSeconds(SchedulerLeaderService.SyncIntervalSeconds))
+			.WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(SchedulerLeaderService.SyncIntervalSeconds)).RepeatForever())
 			.Build();
-		await scheduler.ScheduleJob(syncJob, syncTrigger, cancellationToken);
+		await scheduler.ScheduleJob(syncJob, syncTrigger, new ScheduleJobOptions(), cancellationToken);
 
 		var recoverJob = JobBuilder.Create<RecoverStaleJobsJob>()
 			.WithIdentity("recover-stale-jobs", SchedulerLeaderService._InfraGroup)
 			.Build();
 		var recoverTrigger = TriggerBuilder.Create()
 			.WithIdentity("recover-stale-jobs", SchedulerLeaderService._InfraGroup)
-			.StartAt(DateBuilder.FutureDate(SchedulerLeaderService.RecoverIntervalSeconds, IntervalUnit.Second))
-			.WithSimpleSchedule(x => x.WithIntervalInSeconds(SchedulerLeaderService.RecoverIntervalSeconds).RepeatForever())
+			.StartAt(DateTimeOffset.UtcNow.AddSeconds(SchedulerLeaderService.RecoverIntervalSeconds))
+			.WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(SchedulerLeaderService.RecoverIntervalSeconds)).RepeatForever())
 			.Build();
-		await scheduler.ScheduleJob(recoverJob, recoverTrigger, cancellationToken);
+		await scheduler.ScheduleJob(recoverJob, recoverTrigger, new ScheduleJobOptions(), cancellationToken);
 	}
 
 	private async Task<bool> _IsLockConnectionAliveAsync(CancellationToken cancellationToken) {
@@ -299,6 +304,20 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			return true;
 		} catch (Exception ex) when (ex is not OperationCanceledException) {
 			return false;
+		}
+	}
+
+	private async Task _DisposeOwnedSchedulerFactoryAsync() {
+		var factory = this._OwnedSchedulerFactory;
+		if (factory is null) {
+			return;
+		}
+
+		this._OwnedSchedulerFactory = null;
+		try {
+			await factory.DisposeAsync();
+		} catch (Exception ex) {
+			this._Logger.LogError(ex, "Disposing the Quartz scheduler container failed; continuing");
 		}
 	}
 }

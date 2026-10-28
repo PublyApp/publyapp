@@ -68,6 +68,12 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 	// (ItShouldPinTheCodeDefinedDefaultsShapeThatProtectionRestoresFrom) and the
 	// re-inserted row
 	// (ItShouldReinsertAMissingKeyWithDefaultsWhileLeavingOperatorEditsUntouched).
+	// Quartz 4 replaced CronExpression.IsValidExpression with TryParse(out), which an
+	// expression tree cannot contain, so the assertions go through this helper.
+	private static bool _IsValidCron(string cron) {
+		return CronExpression.TryParse(cron, out _);
+	}
+
 	[Fact]
 	public async Task ItShouldSeedEverySystemJobDefinitionWithAValidCron() {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
@@ -86,7 +92,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 				+ "reddens here on the real DB rows."
 		);
 		rows.Should().OnlyContain(
-			r => CronExpression.IsValidExpression(r.CronExpression),
+			r => SystemJobDefinitionSeederSpec._IsValidCron(r.CronExpression),
 			"every seeded cron must be a valid Quartz expression SyncSystemJobsJob can register"
 		);
 	}
@@ -104,7 +110,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 			"the restore source must cover exactly the code-defined system jobs"
 		);
 		defaults.Should().OnlyContain(
-			definition => CronExpression.IsValidExpression(definition.CronExpression),
+			definition => SystemJobDefinitionSeederSpec._IsValidCron(definition.CronExpression),
 			"a default Quartz cannot parse trips the restore's programming-error gate "
 				+ "and refuses the whole pass"
 		);
