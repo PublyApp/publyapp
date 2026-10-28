@@ -125,6 +125,17 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 | `anti-slop/no-shape-in-symbol-names` | `error` | 69 (fixed) | rung 3 |
 | `anti-slop/no-unknown-returns` | `error` | 73 (fixed) | rung 4 |
 | `anti-slop/no-chained-type-assertions` | `error` | 126 (fixed) | rung 5 |
+| `anti-slop/no-unknown-parameters` | `error` (scoped) | — | #2229 (rung 7) |
+| `anti-slop/no-unsafe-dictionary-type` | `error` (scoped) | 58 (fixed) | rung 8 |
+
+Two of those rows are **scoped enablements**: the rule stays `"off"` in the
+global `rules` block and is switched on for one package at a time through a
+`files` entry in the existing `overrides` block of `.oxlintrc.json`. The
+scoped package must reach 0 diagnostics in the same change that enables it
+(no `oxlint-disable` comments — `check-oxlint-disables.ts` only ever accepts
+rule-specific, reviewed ones), and the entry names the package glob, not a
+file list. Enabling a rule repo-wide later means deleting the global `"off"`
+entry — not widening the pattern.
 
 ### Candidate next rung: `publy/no-never-any-casts` (#1337)
 

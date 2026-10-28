@@ -125,10 +125,13 @@ export const toSocialAccountRows = (
 	return rows;
 };
 
+/** The list has no filters of its own; only the tenant the factory scopes it to. */
+type SocialAccountsQueryVariables = { tenantId: string };
+
 export const socialAccountsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	SocialAccountsWireResponse,
-	Record<string, unknown>
+	SocialAccountsQueryVariables
 >(
 	{
 		queryKeyFn: () => [...SOCIAL_ACCOUNTS_QUERY_KEY],
