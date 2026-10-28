@@ -41,12 +41,13 @@ const ProfileEditDetailsDrawerInner = ({
 	const form = useProfileEditDetailsForm({
 		profile,
 		isSaving: updateProfile.isPending,
-		save: async (values) =>
-			updateProfile.mutateAsync({
+		save: async (values) => {
+			await updateProfile.mutateAsync({
 				tenantId,
 				profileId: profile.id,
 				...values,
-			}),
+			});
+		},
 		invalidate: () => invalidateAllStaffTenantScopes(queryClient),
 		onOpenChange,
 		onSaved,

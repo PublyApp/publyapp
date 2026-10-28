@@ -15,7 +15,7 @@ import { resolveProfileSaveFailure } from './profile-edit-details-save-failure';
 
 /** The profile fields the drawer edits — the same shape for the staff
  * (non-tenant) and tenant-scoped profile surfaces. */
-export type ProfileEditDetailsDrawerProfile = {
+type ProfileEditDetailsDrawerProfile = {
 	id: string;
 	name: string;
 	description: string | null;
@@ -52,7 +52,7 @@ const buildProfileEditDetailsSchema = (t: (key: string) => string) =>
 		tone: z.string().min(1).nullable(),
 	});
 
-export type ProfileEditDetailsValues = z.infer<
+type ProfileEditDetailsValues = z.infer<
 	ReturnType<typeof buildProfileEditDetailsSchema>
 >;
 

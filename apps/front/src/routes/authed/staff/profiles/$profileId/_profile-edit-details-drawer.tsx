@@ -38,8 +38,9 @@ const StaffProfileEditDetailsDrawerInner = ({
 	const form = useProfileEditDetailsForm({
 		profile,
 		isSaving: updateProfile.isPending,
-		save: async (values) =>
-			updateProfile.mutateAsync({ profileId: profile.id, ...values }),
+		save: async (values) => {
+			await updateProfile.mutateAsync({ profileId: profile.id, ...values });
+		},
 		invalidate: () => invalidateStaffProfiles(queryClient),
 		onOpenChange,
 		onSaved,
