@@ -296,7 +296,9 @@ export const createCiLaneResult = ({
 	return job;
 };
 
-export const parseClassifierMode = (value: unknown): LaneResultMode => {
+export const parseClassifierMode = (
+	value: string | undefined,
+): LaneResultMode => {
 	if (value === 'true') {
 		return 'relevant';
 	}
@@ -306,7 +308,7 @@ export const parseClassifierMode = (value: unknown): LaneResultMode => {
 	throw new Error('classifier lane mode must be the literal true or false');
 };
 
-const parseExplicitMode = (value: unknown): LaneResultMode => {
+const parseExplicitMode = (value: string | undefined): LaneResultMode => {
 	if (value === 'relevant' || value === 'not_applicable') {
 		return value;
 	}

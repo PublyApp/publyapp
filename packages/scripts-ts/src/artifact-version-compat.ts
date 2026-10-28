@@ -18,6 +18,8 @@ import path from 'node:path';
 
 import { parse } from 'yaml';
 
+import type { JsonValue } from './json-value.ts';
+
 const workflowsDirectory = '.github/workflows';
 
 const UPLOAD_REPO = 'actions/upload-artifact';
@@ -33,7 +35,10 @@ type WithScalar = string | number | boolean | null;
  * Looks up a key in a `with:` block case-insensitively, because
  * GitHub Actions YAML keys are case-insensitive at evaluation time.
  */
-const readWith = (step: unknown, key: string): WithScalar | undefined => {
+const readWith = (
+	step: JsonValue | undefined,
+	key: string,
+): WithScalar | undefined => {
 	const withBlock = (step as { with?: Record<string, WithScalar> } | undefined)
 		?.with;
 	if (withBlock === undefined || withBlock === null) {
@@ -52,7 +57,10 @@ const readWith = (step: unknown, key: string): WithScalar | undefined => {
 /** The `with:` value as a non-empty string, or `undefined` when absent, empty,
  * or of another type. A non-string here is a malformed workflow, not a default
  * to silently substitute — the caller decides what an absent name means. */
-const readWithString = (step: unknown, key: string): string | undefined => {
+const readWithString = (
+	step: JsonValue | undefined,
+	key: string,
+): string | undefined => {
 	const value = readWith(step, key);
 	if (typeof value !== 'string' || value.trim().length === 0) {
 		return undefined;
@@ -64,7 +72,10 @@ const readWithString = (step: unknown, key: string): string | undefined => {
 /** The `with:` value as a boolean, or `undefined` when absent or of another
  * type. YAML also admits the strings "true"/"false" here, which GitHub
  * evaluates as booleans, so both spellings are accepted. */
-const readWithBoolean = (step: unknown, key: string): boolean | undefined => {
+const readWithBoolean = (
+	step: JsonValue | undefined,
+	key: string,
+): boolean | undefined => {
 	const value = readWith(step, key);
 	if (typeof value === 'boolean') {
 		return value;

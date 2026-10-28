@@ -16,6 +16,7 @@ import {
 import type { AggregateInput } from './check-ci-gate-aggregation.ts';
 import { createCiLaneResult } from './ci-lane-result.ts';
 import { NON_VITEST_COMMANDS } from './ci-non-vitest-manifest.ts';
+import type { JsonValue } from './json-value.ts';
 
 const context = {
 	runId: 42,
@@ -27,9 +28,9 @@ const context = {
 	workflowEvent: 'pull_request',
 };
 
-type MutableObject = Record<string, unknown>;
+type MutableObject = Record<string, JsonValue>;
 
-const mutableObject = (value: unknown): MutableObject => {
+const mutableObject = (value: JsonValue): MutableObject => {
 	assert.equal(typeof value, 'object');
 	assert.notEqual(value, null);
 	return value as MutableObject;
@@ -162,8 +163,11 @@ const completeAggregateInput = () => {
 	};
 };
 
-const assertRejected = (mutate: (record: unknown) => void, message: RegExp) => {
-	const record = makeRecord();
+const assertRejected = (
+	mutate: (record: MutableObject) => void,
+	message: RegExp,
+) => {
+	const record = mutableObject(makeRecord());
 	mutate(record);
 	const failures: string[] = [];
 
@@ -193,62 +197,61 @@ test('accepts the closed lane-result envelope and derived artifact identity', ()
 test.each([
 	[
 		'wrong event SHA',
-		(record: unknown) => (mutableObject(record).event_sha = 'old-sha'),
+		(record: MutableObject) => (record.event_sha = 'old-sha'),
 		/event_sha/,
 	],
 	[
 		'wrong workflow path',
-		(record: unknown) => (mutableObject(record).workflow_path = 'old.yml'),
+		(record: MutableObject) => (record.workflow_path = 'old.yml'),
 		/workflow path/,
 	],
 	[
 		'wrong workflow identity',
-		(record: unknown) => (mutableObject(record).workflow_ref = 'other'),
+		(record: MutableObject) => (record.workflow_ref = 'other'),
 		/workflow ref/,
 	],
 	[
 		'wrong event',
-		(record: unknown) => (mutableObject(record).workflow_event = 'push'),
+		(record: MutableObject) => (record.workflow_event = 'push'),
 		/workflow event/,
 	],
 	[
 		'renamed artifact',
-		(record: unknown) =>
-			(mutableObject(record).artifact_filename = 'renamed.json'),
+		(record: MutableObject) => (record.artifact_filename = 'renamed.json'),
 		/artifact filename/,
 	],
 	[
 		'wrong artifact owner',
-		(record: unknown) =>
-			(mutableObject(record).artifact_name = 'ci-lane-result-42-3-other'),
+		(record: MutableObject) =>
+			(record.artifact_name = 'ci-lane-result-42-3-other'),
 		/artifact name/,
 	],
 	[
 		'unknown top-level field',
-		(record: unknown) => (mutableObject(record).extra = true),
+		(record: MutableObject) => (record.extra = true),
 		/unknown field/,
 	],
 	[
 		'nested report on non-verification job',
-		(record: unknown) => (mutableObject(mutableObject(record).job).report = {}),
+		(record: MutableObject) => (mutableObject(record.job).report = {}),
 		/only allowed on verification/,
 	],
 	[
 		'unknown lane mode',
-		(record: unknown) =>
-			((
-				mutableObject(mutableObject(mutableObject(record).job).lanes)
-					.api as MutableObject
-			).mode = 'maybe'),
+		(record: MutableObject) => {
+			const api = mutableObject(
+				mutableObject(mutableObject(record.job).lanes).api,
+			);
+			api.mode = 'maybe';
+		},
 		/malformed lane mode/,
 	],
 	[
 		'reordered step evidence',
-		(record: unknown) => {
-			const lanes = mutableObject(mutableObject(record).job)
-				.lanes as MutableObject;
+		(record: MutableObject) => {
+			const lanes = mutableObject(mutableObject(record.job).lanes);
 			const api = mutableObject(lanes.api);
-			api.steps = [...(api.steps as unknown[])].reverse();
+			api.steps = [...(api.steps as JsonValue[])].reverse();
 		},
 		/step order/,
 	],
