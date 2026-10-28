@@ -13,7 +13,7 @@ namespace PublyApp.Api.Lib.Architecture;
 /// <summary>
 /// Guard for the Aspire AppHost's central claims (issue #1722 / PR #1840).
 ///
-/// The AppHost (apps/apphost/Program.cs) is a top-level-statements project that this
+/// The AppHost (apps/apphost/Program.cs) is an executable project that this
 /// test project cannot reference — an AppHost referencing the API is one direction
 /// only — so the guard drives the AppHost as a process and asserts on what it
 /// REPORTS: the constructed resource model (--dump-model) and the boot behavior
