@@ -47,7 +47,7 @@ Follow them by hand until automation exists:
   (`?invite=%221%22`), and bare `=1` URLs parse as a number, so string-typed flags break
   redirects and deep links. Parse leniently (accept `1` and `'1'`), emit the number.
 - An **id-carrying** search param (`?edit=<profileId>` — the drawer-over-a-list marker, where the
-  id says *which row*) is the opposite case: it must accept **strings only**. The serializer
+  id says _which row_) is the opposite case: it must accept **strings only**. The serializer
   re-quotes any string that is itself valid JSON and the parser turns an unquoted numeric value
   back into a number, so an all-digit value cannot round-trip; UUID ids never are, and anything
   that parses to a non-string is not an id. Drop it at the router boundary rather than coercing.
@@ -60,7 +60,7 @@ Follow them by hand until automation exists:
   drawer's trigger into a no-op.
 - **A resource's sections are path segments, not `?tab=`** (#977). "Which section of this resource
   am I looking at" is a distinct, linkable, navigable location; query params are for view state
-  that *modifies* the page it sits on (filters, sort, pagination, a drawer-open flag). Both detail
+  that _modifies_ the page it sits on (filters, sort, pagination, a drawer-open flag). Both detail
   shells follow this today: `/staff/staff-users/$userId/{permissions,activity,settings}` and
   `/staff/tenants/$tenantId/profiles/$profileId/{permissions,members}`, each with the overview as
   the index child. Consequences worth knowing before adding the next one: the parent becomes a
@@ -104,6 +104,7 @@ purely performance-driven memoisation.
   [`docs/guides/react-doctor.md`](../react-doctor.md).
 
 **Known compiler skip patterns (informational):**
+
 - `throw` inside `try/catch` — the compiler cannot lower this yet (Todo upstream)
 - `finally` clauses — the compiler skips components with `try/finally`
 - Ref access during render — `locationRef.current = location` in render scope
@@ -115,6 +116,25 @@ specific components.
 ## Route-Local Private File Naming
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
+
+## Type Declaration Folders (`@types/` vs `types/`)
+
+Two different kinds of declaration file, two different homes — the folder name is the signal:
+
+- **`src/@types/*.d.ts`** (and `packages/shared-ts/src/@types/*.d.ts`) holds declarations that are
+  **never imported**: ambient globals and third-party module augmentations (`i18next.d.ts`). The `@`
+  prefix means exactly that — not a module. Nothing here should be a domain type.
+- **A domain type** (`JsonValue`, `JsonObject`, `ApiResponse`, `QueryArgumentValue`, …) lives in a
+  real module — `src/types/…`, or beside the code that owns it — and is always imported explicitly.
+
+Why the split matters: a global type is invisible at the call site (`git grep` finds no import), and
+it only reaches another package's TypeScript program if that package's `tsconfig` explicitly includes
+the file. `apps/front/tsconfig.json` includes `packages/shared-ts/src/@types/**/*.d.ts` for the
+augmentations; a global domain type would still not reach `packages/scripts-ts`.
+
+Rule of thumb: **if it can be imported, it goes in `types/`; if it must not be, it goes in
+`@types/`.** This section exists because the two folders coexisted with the same content (`i18next.d.ts`)
+in both, until the front folder was renamed to `@types/` to match.
 
 ## Browser and date/time utility boundaries
 
@@ -160,7 +180,7 @@ augments TanStack Router's `StaticDataRouteOption` to make `crumbs` a **required
 route file whose `createFileRoute(...)({ staticData: {...} })` call omits it fails
 `pnpm --filter front typecheck` — the same gate `just ci-front` runs. This is the Tier 1 rule;
 the Tier 2 machine guards below (`src/lib/navigation/breadcrumb-contract.test.tsx`) exist because
-a required field only proves a route declared *something*, not that the something is correct.
+a required field only proves a route declared _something_, not that the something is correct.
 
 **The two permitted shapes of `staticData.crumbs`:**
 
@@ -169,7 +189,7 @@ a required field only proves a route declared *something*, not that the somethin
   redirects and which render `null` (e.g. `profiles-new.tsx`, `$profileId-edit.tsx`,
   `users-invite.tsx`). `deriveBreadcrumbTrail` walks from the deepest match upward and skips
   `'shell'` matches, so an ancestor or sibling route still supplies the visible trail.
-- A function `(params) => readonly CrumbSpec[]` — the route's full trail *tail* (everything
+- A function `(params) => readonly CrumbSpec[]` — the route's full trail _tail_ (everything
   after the scope root). Routes are flat (see Route-Local Private File Naming above), so the
   deepest matching route declares its entire tail, not just its own segment; do not expect
   parent/child routes to each contribute one crumb.
@@ -189,7 +209,7 @@ segment, and — since #973's third review round — that route's entity crumbs 
 SAME left-to-right order as its own `$param` segments** (crumb 0 names the first segment, crumb 1
 the second, and so on). This ordering is a real constraint the guards below rely on, not
 incidental style. The Tier 2 route-tree-walk guard's structural test counts `$param` segments
-against `entity` crumbs for every real, generated route and fails if the *counts* don't match —
+against `entity` crumbs for every real, generated route and fails if the _counts_ don't match —
 a dynamic route may not fall back to a generic label crumb for the thing its own URL identifies.
 **Count matching alone does not prove crumb 0 actually names segment 0** — see the binding guard
 below, which is what actually enforces the ordering claim. The only exception to the
@@ -202,13 +222,13 @@ is correct there because the route never renders a trail at all).
   `xxxDetailsQueryOptions` factory the entity's own detail page queries (see the `*CrumbQuery`
   helpers next to each domain's query module, e.g. `staffTenantCrumbQuery` in
   `src/lib/query/staff-tenants.ts`) — reusing the query key lets TanStack Query dedupe the
-  request, so a page the user navigated *from* already has the entity cached and the crumb paints
+  request, so a page the user navigated _from_ already has the entity cached and the crumb paints
   instantly instead of showing a skeleton.
 - `select(data)` must derive the entity's actual human name from `data` and return `undefined` on
   a shape it can't resolve (renders the muted-dash fallback). It must never return a fixed
   string regardless of input — the #973 BLOCKER's first round was exactly that: a real route's
   `select` rewritten to always return `'Tenant detail'` typechecked and passed the route-tree-walk
-  guard, because that guard only proved a crumb was *tagged* `entity`, not that its selector was
+  guard, because that guard only proved a crumb was _tagged_ `entity`, not that its selector was
   wired to the payload. The route-tree-walk guard's own selector-marker test (in
   `breadcrumb-contract.test.tsx`, NOT the rendered-artifact guard — see the correction below) now
   drives every real route's own `select` closure against a representative payload and asserts the
@@ -216,7 +236,7 @@ is correct there because the route never renders a trail at all).
 - **`query` and `select` must each belong to the crumb's OWN `$param`, not merely to SOME
   registered entity** — the #973 BLOCKER's second round: a route whose profile crumb was rewired
   to the tenant's already-registered `query`/`select` pair passed both tests above (the query was
-  registered, and the selector echoed *its own* payload's marker) while silently resolving the
+  registered, and the selector echoed _its own_ payload's marker) while silently resolving the
   tenant's name into the profile's slot at runtime. The route-tree-walk guard's binding test
   closes this by proving each entity crumb's `query` is behaviorally sensitive to its OWN segment
   and NOT to any deeper (descendant) segment — it changes only that one route param at a time and
@@ -237,7 +257,7 @@ is correct there because the route never renders a trail at all).
   failure), which a pure-function walk can't observe.
 - **What none of the above still proves:** the binding guard establishes that a crumb's query is
   sensitive to its own segment and not to a deeper one; it does not (and cannot, from calling a
-  pure function in a test) prove the query hits the *correct backend endpoint* for that entity
+  pure function in a test) prove the query hits the _correct backend endpoint_ for that entity
   type — only that it reacts to the right route parameter. A hand-written new query that reads
   the correct param but calls the wrong endpoint for that entity family would still pass every
   guard here; that class of bug is caught by ordinary code review of the `*CrumbQuery` helper
@@ -486,6 +506,7 @@ decision log; this section is the forward-looking rulebook. When a new screen fo
 new choice, decide in this spirit and add the rule here.
 
 ### Elevation & borders
+
 - Cards and sections are outlined by a **1px box-shadow ring**, never a drop-shadow/elevation.
   Use `box-shadow: var(--publy-shadow-ring)`; do not add `shadow-md`,
   `shadow-lg`, or ad-hoc elevation. Flat surfaces, crisp hairlines.
@@ -495,6 +516,7 @@ new choice, decide in this spirit and add the rule here.
   the ring (that doubles the line).
 
 ### Corner radius
+
 - Radius **scales with control height** — a small control must not look pill-ish. Buttons:
   `xs` 8px · `sm` 10px · `default` 12px · `lg` 14px (icon sizes match by height). Inputs 10px,
   chips 8px. These live on the size variants in `components/ui/button.tsx` and the
@@ -506,6 +528,7 @@ new choice, decide in this spirit and add the rule here.
   allowlist so an unrelated selector cannot inherit an exception by sharing a name prefix).
 
 ### Action buttons & destructive placement
+
 - **No destructive action in a detail-view header.** Headers carry only non-destructive primary
   actions (Edit, Reset invite, Copy link, Resend). Destructive/lifecycle actions (Suspend/
   Reactivate, Delete, Remove, Revoke) live in a **dedicated body section** — a "Danger zone" card
@@ -517,6 +540,7 @@ new choice, decide in this spirit and add the rule here.
   `Button` system + `buttonVariants`, not ad-hoc heights/radii/`color-mix` inline colors.
 
 ### Primary CTA consistency across "Add X" actions
+
 - **Owner consistency rulings outrank single-screen design details.** When a design-pack PNG draws
   one screen's primary action differently from the rest of the app, and the owner rules that
   cross-app consistency wins, apply the owner's ruling — the design pack is a single frozen
@@ -527,6 +551,7 @@ new choice, decide in this spirit and add the rule here.
   `variant="default"`, not outline, despite the design pack.
 
 ### Error & empty states
+
 - Error views (4xx/5xx) and empty/no-match list states are **flat**: no card box, no ring, no
   shadow, no backing disc/tile behind the icon.
 - Both render the **one shared primitive** (`components/ui/state-view.tsx`) at the **same visual
@@ -540,12 +565,14 @@ new choice, decide in this spirit and add the rule here.
   refetch (client-side), never `window.location`.
 
 ### Not-found vs bad-request (malformed IDs)
+
 - A malformed / non-GUID id in a detail route renders the **404 not-found view**, not a distinct
   400 "invalid link" view. (Backend still returns 400 for malformed and 404 for absent per
   AGENTS.md — this is a front-end presentation choice. Fold the malformed-400 case into the
   not-found branch.) A separate 400 "invalid link" screen for a detail route is a regression.
 
 ### Back navigation
+
 - Every **page-top back-link** uses the `.publy-back-link` style: a TanStack `<Link>` with
   `<IconArrowLeft aria-hidden className="size-3" />` + the label. An **arrow** (`IconArrowLeft`),
   not a chevron. Same treatment on detail, edit, new, and invite pages — no ad-hoc `text-xs`/color
@@ -554,6 +581,7 @@ new choice, decide in this spirit and add the rule here.
   styled as buttons (`buttonVariants({ variant: 'outline' })`). Leave those as buttons.
 
 ### Tables
+
 - A list table's **first column is the entity link**: the whole cell is a TanStack `<Link>`
   (`no-underline`) wrapping the icon/avatar + name, and the **name span carries `.publy-record-link`**
   so it underlines on hover. Every list table's first column must behave identically — never render
@@ -572,6 +600,7 @@ new choice, decide in this spirit and add the rule here.
   tab) — page-scroll is correct there; only `DataTable`-backed views must own their scroll.
 
 ### Selection mode & bulk actions
+
 - Row-selection bulk actions render in a **floating bottom-center action bar**
   (`components/table/floating-selection-bar.tsx`, `FloatingSelectionBar`), not an in-toolbar swap.
   This supersedes the earlier "toolbar swaps to bulk actions" pattern — the table's `toolbarEnd`
@@ -598,6 +627,7 @@ new choice, decide in this spirit and add the rule here.
   alone is not sufficient visual feedback that a card is selected.
 
 ### Content & data honesty
+
 - **Never render fabricated or placeholder admin data.** If the contract does not provide a field,
   omit it — no invented values (2FA/session/"Type: Custom"), no `TODO(contract): …` shown as UI
   text, no `"—"` standing in for data a staff admin would read as real. The field returns when the
@@ -607,6 +637,7 @@ new choice, decide in this spirit and add the rule here.
   description overflow its card. Full-width prose blocks may wrap instead.
 
 ### Navigation & layout
+
 - Internal navigation is always a TanStack `<Link>`, **never** a raw `<a href>` (a hard reload
   tears down the SPA and drops the query cache). Path-constant hrefs on an `<a>` count too.
 - A detail view's heading block spans the **same width** as its tabs/body grid — the header is not
@@ -615,6 +646,7 @@ new choice, decide in this spirit and add the rule here.
   canvas defines light only); dark borders follow the `gray-ui-csm` template.
 
 ### Menus, selects & controls
+
 - The `outline` button variant's border must be **legible in both themes** — use
   `border-(--publy-border-strong)` unconditionally (no separate faint light-mode border with a
   stronger `dark:` override).
