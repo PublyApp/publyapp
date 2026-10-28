@@ -1222,7 +1222,7 @@
 	"tenant-invitations-batch-success_other": "{{count}} invitations envoyées avec succès.",
 	"tenant-invitations-batch-summary": "{{succeeded}} réussie(s) · {{failed}} échouée(s)",
 	"unknown-invitee": "Personne invitée inconnue",
-	"marketing-home": "Accueil PublyApp",
+	"marketing-home": "PublyApp – accueil",
 	"marketing-menu": "Menu",
 	"marketing-open-menu": "Ouvrir le menu",
 	"marketing-primary-navigation": "Navigation principale",
