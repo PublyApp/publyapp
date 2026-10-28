@@ -11,6 +11,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Services;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Services;
 
@@ -86,6 +87,7 @@ public sealed class ResetPassword {
 	> Handle(
 		[FromBody] ResetPasswordBody body,
 		[FromServices] IUserService userService,
+		[FromServices] ISessionService sessionService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<ResetPassword> logger,
 		CancellationToken cancellationToken
@@ -141,6 +143,17 @@ public sealed class ResetPassword {
 		user.PasswordResetTokenExpiresAt = null;
 
 		await userService.UpdateUserAsync(user, cancellationToken);
+
+		// A password reset is a credential change: every token issued under the
+		// old password must stop authenticating, or a stolen token outlives the
+		// reset performed to contain it (#1498). The reset request itself is
+		// anonymous, so there is no current session to preserve.
+		if (user.Id is not null) {
+			await sessionService.RevokeAllSessionsForUserAsync(
+				user.Id.Value,
+				cancellationToken
+			);
+		}
 
 		// Best-effort notification: best-effort and non-request-scoped to avoid
 		// cancellations caused by request completion.

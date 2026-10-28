@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import {
 	selectToken,
 	formatSessionCookie,
@@ -201,8 +202,56 @@ export const getServerSessionAction = createServerFn({
 	method: 'GET',
 }).handler(() => determineServerSessionAction(readSessionCookieValue()));
 
+/**
+ * Long enough for a healthy same-origin round trip, short enough that an
+ * unreachable API cannot hold the logout click hostage: the cookie is cleared
+ * whether or not the revocation lands.
+ */
+const REVOKE_SESSION_TIMEOUT_MS = 3000;
+
+const readPresentedSessionTokens = (): string[] => {
+	const { staffToken, tenantToken } = readSessionTokensFromCookie();
+	const tokens = [staffToken, tenantToken].filter(
+		(token): token is string => typeof token === 'string' && token.length > 0,
+	);
+
+	return [...new Set(tokens)];
+};
+
+/**
+ * Revokes the sessions this request's cookie presents, server-side (#1498).
+ * Clearing the cookie alone leaves a valid `sessions` row behind: a token
+ * copied before logout keeps authenticating until it expires.
+ *
+ * Best-effort by construction — a logout is a client-side promise the user
+ * already acted on, so it must complete even when the API is down, slow, or
+ * says the token is not a regular session. In particular the API refuses to
+ * revoke an impersonation session through this endpoint (that path owns its
+ * own `impersonation.ended` audit), so a 403 there is expected and leaves
+ * that row for the impersonation flow to end.
+ */
+const revokePresentedSessions = async (): Promise<void> => {
+	await Promise.all(
+		readPresentedSessionTokens().map(async (sessionToken) => {
+			try {
+				await createClient({
+					getSessionToken: () => sessionToken,
+					signal: AbortSignal.timeout(REVOKE_SESSION_TIMEOUT_MS),
+				}).auth.revokeSession.post();
+			} catch (error) {
+				logger.warn(
+					'logout: session revocation failed; clearing the cookie anyway',
+					error,
+				);
+			}
+		}),
+	);
+};
+
 export const clearSession = createServerFn({ method: 'POST' }).handler(
 	async () => {
+		await revokePresentedSessions();
+
 		// Cookie deletion is matched by the browser on (name, domain, path)
 		// only — httpOnly/secure/sameSite play no part in whether this
 		// overwrites the cookie set by `getCookieOptions`, so one header

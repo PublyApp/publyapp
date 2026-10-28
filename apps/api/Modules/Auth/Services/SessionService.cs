@@ -30,6 +30,15 @@ public interface ISessionService {
 	/// impersonation sessions.
 	/// </summary>
 	Task<bool> RevokeRegularSessionForTokenAsync(string token, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Physically deletes every session row belonging to the user, ordinary and
+	/// impersonation alike, in a single statement. Used after a credential
+	/// change (a completed password reset) so that a token copied before the
+	/// change stops authenticating instead of surviving until its natural
+	/// expiry. Returns the number of deleted rows.
+	/// </summary>
+	Task<int> RevokeAllSessionsForUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -107,5 +116,19 @@ public class SessionService : ISessionService {
 			.ExecuteDeleteAsync(cancellationToken);
 
 		return affectedRows > 0;
+	}
+
+	/// <inheritdoc />
+	public async Task<int> RevokeAllSessionsForUserAsync(
+		Guid userId,
+		CancellationToken cancellationToken = default
+	) {
+		// One statement, so a session created concurrently with the credential
+		// change either lands before the delete and dies with it, or lands after
+		// and is issued under the new password — there is no window where a
+		// pre-change token survives in a row this delete already scanned.
+		return await this._DbContext.Session
+			.Where(s => s.UserId == userId)
+			.ExecuteDeleteAsync(cancellationToken);
 	}
 }
