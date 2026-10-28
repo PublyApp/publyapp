@@ -1,6 +1,7 @@
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
+	type TableSearchParamInput,
 	type TableSearchParams,
 	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
@@ -12,9 +13,7 @@ import {
 	type InviteUserSearchStateInput,
 } from './_invite-user-search-state';
 
-type TableSearchParamInput = Parameters<typeof parseTableSearchParams>[0];
-
-const KNOWN_TENANT_USER_STATUSES = [
+export const KNOWN_TENANT_USER_STATUSES = [
 	'active',
 	'suspended',
 	'globally_suspended',
@@ -26,7 +25,7 @@ const KNOWN_TENANT_USER_STATUS_SET = new Set<string>(
 	KNOWN_TENANT_USER_STATUSES,
 );
 
-const KNOWN_TENANT_USER_LEVELS = ['admin', 'user'] as const;
+export const KNOWN_TENANT_USER_LEVELS = ['admin', 'user'] as const;
 
 export type KnownTenantUserLevel = (typeof KNOWN_TENANT_USER_LEVELS)[number];
 

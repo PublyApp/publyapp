@@ -9,6 +9,8 @@ import type {
 } from '@org/client-ts/models/index';
 import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
+import type { StaffAuditLogRow } from './staff-audit-logs';
+
 export type TenantActivityQueryVariables = {
 	tenantId: string;
 	sortId?: string;
@@ -17,15 +19,10 @@ export type TenantActivityQueryVariables = {
 	size?: number;
 };
 
-export type TenantActivityRow = {
-	id: string;
-	action: string | null;
-	userName: string | null;
-	userEmail: string | null;
-	ipAddress: string | null;
-	targetId: string | null;
-	createdAt: Date | null;
-};
+/** A tenant-activity row is the same audit-log entry the staff audit-log table
+ * renders (both map `AuditLogListItem`), so the row contract has one home in
+ * `~/lib/query/staff-audit-logs`. */
+export type TenantActivityRow = StaffAuditLogRow;
 
 /** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
  * invalidation/removal key from this. */

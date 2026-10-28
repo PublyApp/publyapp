@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { StaffTenantUserUpdateInput } from '~/lib/query/staff-tenant-users';
 
 import { isAbsoluteHttpUrl } from '../../tenant-organization-profile-fields';
 
@@ -42,14 +43,9 @@ export type TenantUserEditValues = z.infer<
 	ReturnType<typeof buildTenantUserEditSchema>
 >;
 
-export type TenantUserEditPayload = {
-	tenantId: string;
-	userId: string;
-	firstName?: string | null;
-	lastName?: string | null;
-	avatarUrl?: string | null;
-	accountLevel?: string | null;
-};
+/** The form's update body IS the mutation's input shape — one declaration, in
+ * `~/lib/query/staff-tenant-users`, so the two cannot drift apart. */
+export type TenantUserEditPayload = StaffTenantUserUpdateInput;
 
 export const normalizeAccountLevel = (
 	value: string | null,
