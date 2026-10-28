@@ -27,7 +27,10 @@ public sealed class EnqueueSystemJobJob : IJob {
 		this._Logger = logger;
 	}
 
-	public async Task Execute(IJobExecutionContext context) {
+	public async ValueTask Execute(
+		IJobExecutionContext context,
+		CancellationToken cancellationToken
+	) {
 		var jobKey = context.MergedJobDataMap.GetString(EnqueueSystemJobJob.JobKeyDataKey);
 		if (string.IsNullOrWhiteSpace(jobKey)) {
 			this._Logger.LogWarning(
@@ -60,7 +63,7 @@ public sealed class EnqueueSystemJobJob : IJob {
 			jobKey,
 			scheduledFireTime.Value.UtcDateTime,
 			scheduleEpoch,
-			context.CancellationToken
+			cancellationToken
 		);
 	}
 

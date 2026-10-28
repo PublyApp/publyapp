@@ -6,7 +6,6 @@ using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Jobs.Seeders;
 
 using Quartz;
-using Quartz.Impl.Matchers;
 
 namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 
@@ -53,8 +52,11 @@ public sealed class SyncSystemJobsJob : IJob {
 		this._CodeDefinedDefaults = codeDefinedDefaults ?? SystemJobDefinitionSeeder.GetCodeDefinedDefaults;
 	}
 
-	public async Task Execute(IJobExecutionContext context) {
-		await this.ReconcileAsync(context.Scheduler, context.CancellationToken);
+	public async ValueTask Execute(
+		IJobExecutionContext context,
+		CancellationToken cancellationToken
+	) {
+		await this.ReconcileAsync(context.Scheduler, cancellationToken);
 	}
 
 	// Public: lets specs drive one reconcile pass against a real scheduler directly
@@ -79,7 +81,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// valid) has to be removed by the sweep below, not left firing forever.
 		var validDefinitions = new List<SystemJobDefinition>();
 		foreach (var definition in definitions) {
-			if (CronExpression.IsValidExpression(definition.CronExpression)) {
+			if (SystemJobCron.IsValid(definition.CronExpression)) {
 				validDefinitions.Add(definition);
 			} else {
 				this._Logger.LogWarning(
@@ -149,7 +151,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		var driftedProtectedJobs = candidates
 			.Where(candidate => SystemJobDisableProtection.IsDisableProtected(candidate.JobKey)
 				&& (!candidate.IsEnabled
-					|| !CronExpression.IsValidExpression(candidate.CronExpression)))
+					|| !SystemJobCron.IsValid(candidate.CronExpression)))
 			.ToList();
 
 		var codeDefinedDefaults = this._CodeDefinedDefaults();
@@ -186,7 +188,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			// would corrupt the privacy-load-bearing schedule BY PROTECTION ITSELF (the
 			// cron-validity split would then delete its trigger). Refuse the whole pass
 			// loudly instead.
-			if (!CronExpression.IsValidExpression(defaults.CronExpression)) {
+			if (!SystemJobCron.IsValid(defaults.CronExpression)) {
 				throw new InvalidOperationException(
 					$"SystemJobDefinitionSeeder.GetCodeDefinedDefaults() returns an invalid "
 						+ $"cron expression '{defaults.CronExpression}' for protected system "
@@ -258,15 +260,17 @@ public sealed class SyncSystemJobsJob : IJob {
 		var jobKeyName = definition.JobKey;
 		var jobKey = new JobKey(jobKeyName, SyncSystemJobsJob.SystemJobsGroup);
 
+		// Quartz 4 stores a normalized expression string, so the comparison is against the
+		// canonical form of the definition's text (whitespace must not rotate the epoch).
 		// A changed cron retires every trigger stamped with the previous epoch. Persist
 		// the new epoch before installing its replacement so delivery can exact-match it.
-		if (await scheduler.CheckExists(jobKey, cancellationToken)) {
+		if (await scheduler.Exists(jobKey, cancellationToken)) {
 			var triggers = await scheduler.GetTriggersOfJob(jobKey, cancellationToken);
 			var cronTrigger = triggers.OfType<ICronTrigger>().SingleOrDefault();
 			if (cronTrigger is null
 				|| !string.Equals(
 					cronTrigger.CronExpressionString,
-					definition.CronExpression,
+					SystemJobCron.Canonicalize(definition.CronExpression),
 					StringComparison.Ordinal
 				)) {
 				definition.ScheduleEpoch = Guid.NewGuid();
@@ -291,6 +295,6 @@ public sealed class SyncSystemJobsJob : IJob {
 			.WithCronSchedule(definition.CronExpression)
 			.Build();
 
-		await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
+		await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken: cancellationToken);
 	}
 }

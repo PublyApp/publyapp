@@ -1,12 +1,12 @@
 using Quartz;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 
 /// <summary>
 /// Resolves Quartz jobs from a fresh DI scope per fire (design §5.3 — jobs use scoped
 /// AppDbContext), since this design drives Quartz with a manual lifecycle and RAM store
-/// rather than the Quartz.Extensions.Hosting DI integration. The scope is created when a
+/// rather than the Quartz DI integration (AddQuartz). The scope is created when a
 /// trigger fires and disposed when Quartz returns the job.
 /// </summary>
 public sealed class ScopedJobFactory : IJobFactory {
@@ -16,40 +16,28 @@ public sealed class ScopedJobFactory : IJobFactory {
 		this._ScopeFactory = scopeFactory;
 	}
 
-	public IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler) {
+	public ValueTask<JobScope> CreateJob(
+		TriggerFiredBundle bundle,
+		IScheduler scheduler,
+		CancellationToken cancellationToken
+	) {
 		var scope = this._ScopeFactory.CreateScope();
 		try {
-			var job = (IJob)scope.ServiceProvider.GetRequiredService(bundle.JobDetail.JobType);
-			return new ScopedJob(scope, job);
+			var job = (IJob)scope.ServiceProvider.GetRequiredService(bundle.JobDetail.JobType.Type);
+			return ValueTask.FromResult(new JobScope(job, scope));
 		} catch {
 			scope.Dispose();
 			throw;
 		}
 	}
 
-	public void ReturnJob(IJob job) {
-		if (job is ScopedJob scopedJob) {
-			scopedJob.Dispose();
-		}
-	}
-
-	// Wraps the resolved job with its DI scope so the scope outlives execution and is
-	// disposed in ReturnJob.
-	private sealed class ScopedJob : IJob, IDisposable {
-		private readonly IServiceScope _Scope;
-		private readonly IJob _Inner;
-
-		public ScopedJob(IServiceScope scope, IJob inner) {
-			this._Scope = scope;
-			this._Inner = inner;
-		}
-
-		public Task Execute(IJobExecutionContext context) {
-			return this._Inner.Execute(context);
-		}
-
-		public void Dispose() {
-			this._Scope.Dispose();
+	// The DI scope rides in JobScope.State from CreateJob to here, so the job stays the
+	// resolved job and the scope is disposed once Quartz returns it.
+	public async ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken) {
+		if (scope.State is IAsyncDisposable asyncDisposable) {
+			await asyncDisposable.DisposeAsync();
+		} else if (scope.State is IDisposable disposable) {
+			disposable.Dispose();
 		}
 	}
 }
