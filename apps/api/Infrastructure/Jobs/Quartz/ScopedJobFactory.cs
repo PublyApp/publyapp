@@ -33,11 +33,11 @@ public sealed class ScopedJobFactory : IJobFactory {
 
 	// The DI scope rides in JobScope.State from CreateJob to here, so the job stays the
 	// resolved job and the scope is disposed once Quartz returns it.
-	public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken) {
-		if (scope.State is IDisposable disposable) {
+	public async ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken) {
+		if (scope.State is IAsyncDisposable asyncDisposable) {
+			await asyncDisposable.DisposeAsync();
+		} else if (scope.State is IDisposable disposable) {
 			disposable.Dispose();
 		}
-
-		return ValueTask.CompletedTask;
 	}
 }

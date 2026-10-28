@@ -81,7 +81,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// valid) has to be removed by the sweep below, not left firing forever.
 		var validDefinitions = new List<SystemJobDefinition>();
 		foreach (var definition in definitions) {
-			if (CronExpression.TryParse(definition.CronExpression, out _)) {
+			if (SystemJobCron.IsValid(definition.CronExpression)) {
 				validDefinitions.Add(definition);
 			} else {
 				this._Logger.LogWarning(
@@ -151,7 +151,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		var driftedProtectedJobs = candidates
 			.Where(candidate => SystemJobDisableProtection.IsDisableProtected(candidate.JobKey)
 				&& (!candidate.IsEnabled
-					|| !CronExpression.TryParse(candidate.CronExpression, out _)))
+					|| !SystemJobCron.IsValid(candidate.CronExpression)))
 			.ToList();
 
 		var codeDefinedDefaults = this._CodeDefinedDefaults();
@@ -188,7 +188,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			// would corrupt the privacy-load-bearing schedule BY PROTECTION ITSELF (the
 			// cron-validity split would then delete its trigger). Refuse the whole pass
 			// loudly instead.
-			if (!CronExpression.TryParse(defaults.CronExpression, out _)) {
+			if (!SystemJobCron.IsValid(defaults.CronExpression)) {
 				throw new InvalidOperationException(
 					$"SystemJobDefinitionSeeder.GetCodeDefinedDefaults() returns an invalid "
 						+ $"cron expression '{defaults.CronExpression}' for protected system "
@@ -260,6 +260,8 @@ public sealed class SyncSystemJobsJob : IJob {
 		var jobKeyName = definition.JobKey;
 		var jobKey = new JobKey(jobKeyName, SyncSystemJobsJob.SystemJobsGroup);
 
+		// Quartz 4 stores a normalized expression string, so the comparison is against the
+		// canonical form of the definition's text (whitespace must not rotate the epoch).
 		// A changed cron retires every trigger stamped with the previous epoch. Persist
 		// the new epoch before installing its replacement so delivery can exact-match it.
 		if (await scheduler.Exists(jobKey, cancellationToken)) {
@@ -268,7 +270,7 @@ public sealed class SyncSystemJobsJob : IJob {
 			if (cronTrigger is null
 				|| !string.Equals(
 					cronTrigger.CronExpressionString,
-					definition.CronExpression,
+					SystemJobCron.Canonicalize(definition.CronExpression),
 					StringComparison.Ordinal
 				)) {
 				definition.ScheduleEpoch = Guid.NewGuid();
@@ -293,6 +295,6 @@ public sealed class SyncSystemJobsJob : IJob {
 			.WithCronSchedule(definition.CronExpression)
 			.Build();
 
-		await scheduler.ScheduleJob(jobDetail, trigger, new ScheduleJobOptions(), cancellationToken);
+		await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken: cancellationToken);
 	}
 }

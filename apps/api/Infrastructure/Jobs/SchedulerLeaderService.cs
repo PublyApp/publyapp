@@ -200,7 +200,10 @@ public sealed class SchedulerLeaderService : BackgroundService {
 			await this._Scheduler.Standby(cancellationToken);
 
 			try {
-				await this._Scheduler.Shutdown(waitForJobsToComplete: true, cancellationToken);
+				// CancellationToken.None on purpose: in Quartz 4 a cancelled token abandons the wait
+				// for running jobs, which would release the advisory lock (and dispose the
+				// container) under an in-flight job during host stop. Quartz 3 ignored it.
+				await this._Scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
 			} catch (Exception ex) {
 				// Standby above already confirmed no further firing, so a failed full
 				// Shutdown is a resource-teardown problem (thread-pool leak), not a
@@ -278,9 +281,11 @@ public sealed class SchedulerLeaderService : BackgroundService {
 		var syncTrigger = TriggerBuilder.Create()
 			.WithIdentity("sync-system-jobs", SchedulerLeaderService._InfraGroup)
 			.StartAt(DateTimeOffset.UtcNow.AddSeconds(SchedulerLeaderService.SyncIntervalSeconds))
-			.WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(SchedulerLeaderService.SyncIntervalSeconds)).RepeatForever())
+			.WithSimpleSchedule(x => x
+				.WithInterval(TimeSpan.FromSeconds(SchedulerLeaderService.SyncIntervalSeconds))
+				.RepeatForever())
 			.Build();
-		await scheduler.ScheduleJob(syncJob, syncTrigger, new ScheduleJobOptions(), cancellationToken);
+		await scheduler.ScheduleJob(syncJob, syncTrigger, cancellationToken: cancellationToken);
 
 		var recoverJob = JobBuilder.Create<RecoverStaleJobsJob>()
 			.WithIdentity("recover-stale-jobs", SchedulerLeaderService._InfraGroup)
@@ -288,9 +293,11 @@ public sealed class SchedulerLeaderService : BackgroundService {
 		var recoverTrigger = TriggerBuilder.Create()
 			.WithIdentity("recover-stale-jobs", SchedulerLeaderService._InfraGroup)
 			.StartAt(DateTimeOffset.UtcNow.AddSeconds(SchedulerLeaderService.RecoverIntervalSeconds))
-			.WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(SchedulerLeaderService.RecoverIntervalSeconds)).RepeatForever())
+			.WithSimpleSchedule(x => x
+				.WithInterval(TimeSpan.FromSeconds(SchedulerLeaderService.RecoverIntervalSeconds))
+				.RepeatForever())
 			.Build();
-		await scheduler.ScheduleJob(recoverJob, recoverTrigger, new ScheduleJobOptions(), cancellationToken);
+		await scheduler.ScheduleJob(recoverJob, recoverTrigger, cancellationToken: cancellationToken);
 	}
 
 	private async Task<bool> _IsLockConnectionAliveAsync(CancellationToken cancellationToken) {

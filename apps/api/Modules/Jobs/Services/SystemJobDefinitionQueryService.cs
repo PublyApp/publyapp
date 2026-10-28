@@ -304,7 +304,7 @@ public class SystemJobDefinitionQueryService(
 		UpdateSystemJobCronArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		if (!CronExpression.TryParse(args.NewCronExpression, out _)) {
+		if (!SystemJobCron.IsValid(args.NewCronExpression)) {
 			return new UpdateSystemJobCronResult.InvalidCron();
 		}
 

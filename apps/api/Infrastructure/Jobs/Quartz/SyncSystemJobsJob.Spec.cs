@@ -23,7 +23,7 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 // definition whose cron was valid and becomes invalid must have its OLD trigger
 // removed (not left firing the stale schedule forever), and one invalid row must
 // never stop the remaining definitions from reconciling.
-public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
+public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDisposable {
 	private const string _ValidCron = "0 0/5 * * * ?";
 	private const string _InvalidCron = "definitely-not-a-cron";
 
@@ -38,6 +38,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			.CronExpression;
 
 	private readonly ApiFixture _Fixture;
+	private readonly List<StandaloneSchedulerFactory> _SchedulerFactories = [];
 
 	public SyncSystemJobsJobSpec(ApiFixture fixture) {
 		this._Fixture = fixture;
@@ -47,7 +48,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRemoveTheScheduledTriggerWhenAValidCronBecomesInvalid() {
 		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		var definition = new SystemJobDefinition {
 			JobKey = "flips-to-invalid",
@@ -75,10 +76,35 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldNotRotateTheEpochWhenTheStoredCronHasSurroundingWhitespace() {
+		await using var dbContext = await this._CreateDbContextAsync();
+		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
+		var scheduler = await this._CreateRamSchedulerAsync();
+
+		var definition = new SystemJobDefinition {
+			JobKey = "padded-cron",
+			CronExpression = "  0 0 3 * * ?  ",
+		};
+		await dbContext.SystemJobDefinition.AddAsync(definition);
+		await dbContext.SaveChangesAsync();
+
+		var job = new SyncSystemJobsJob(dbContext, NullLogger<SyncSystemJobsJob>.Instance);
+		await job.ReconcileAsync(scheduler, CancellationToken.None);
+		var epochAfterFirst = definition.ScheduleEpoch;
+
+		await job.ReconcileAsync(scheduler, CancellationToken.None);
+
+		definition.ScheduleEpoch.Should().Be(
+			epochAfterFirst,
+			"Quartz stores a normalized cron, so whitespace alone is not a cron change"
+		);
+	}
+
+	[Fact]
 	public async Task ItShouldStillReconcileValidDefinitionsWhenAnotherRowHasAnInvalidCron() {
 		await using var dbContext = await this._CreateDbContextAsync();
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		// Seed the invalid row FIRST so a fail-fast regression (returning on the bad
 		// row instead of skipping it) would starve the valid one behind it.
@@ -112,7 +138,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
 			await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
@@ -157,7 +183,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		var jobKeyName = $"epoch-change-{Guid.NewGuid():N}";
 		var originalEpoch = Guid.NewGuid();
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
 			var definition = new SystemJobDefinition {
@@ -199,7 +225,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRefuseToDisableThePrivacyLoadBearingPreparedSweepAndReEnableIt() {
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
@@ -268,7 +294,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		string corruptedCron
 	) {
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
 			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
@@ -342,7 +368,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldNameTheJobAndTheRejectedCronInTheWholeDefinitionRestorationNotice() {
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
 		try {
@@ -402,7 +428,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRefuseToWriteAnInvalidCodeDefinedDefaultCronOntoAProtectedSweep() {
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
 		try {
@@ -488,7 +514,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldLogAndReportADriftedProtectedSweepThatHasNoCodeDefinedDefault() {
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
 		try {
@@ -542,7 +568,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldStillHonorDisablingAHousekeepingSweep() {
 		await using var dbContext = await this._CreateDbContextAsync();
-		var scheduler = await SyncSystemJobsJobSpec._CreateRamSchedulerAsync();
+		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
 			var unprotectedKey = CleanupExpiredSessionsHandler.JobKey;
@@ -598,17 +624,27 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	// A real RAM-store scheduler; never started, since ScheduleJob/CheckExists/
+	// A real RAM-store scheduler; never started, since ScheduleJob/Exists/
 	// GetJobKeys all work on a non-started scheduler and no trigger should fire here.
-	private static async Task<IScheduler> _CreateRamSchedulerAsync() {
-		return await QuartzSchedulerBuilder.Create(builder => builder
+	private async Task<IScheduler> _CreateRamSchedulerAsync() {
+		var factory = QuartzSchedulerBuilder.Create(builder => builder
 			.ConfigureScheduler(options => {
 				options.InstanceName = $"sync-spec-{Guid.NewGuid():N}";
 				options.GenerateInstanceId = true;
 			})
 			.UseInMemoryStore()
 			.UseDefaultThreadPool(1)
-		).BuildScheduler();
+		).Build();
+		this._SchedulerFactories.Add(factory);
+
+		return await factory.GetScheduler();
+	}
+
+	// Disposing a factory shuts its scheduler down and disposes the owned container.
+	public async ValueTask DisposeAsync() {
+		foreach (var factory in this._SchedulerFactories) {
+			await factory.DisposeAsync();
+		}
 	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
