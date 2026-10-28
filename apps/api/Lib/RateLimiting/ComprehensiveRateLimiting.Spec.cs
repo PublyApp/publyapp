@@ -1381,5 +1381,12 @@ public sealed class ComprehensiveRateLimitingSpec
 		) {
 			throw new NotSupportedException();
 		}
+
+		public Task<int> RevokeAllSessionsForUserAsync(
+			Guid userId,
+			CancellationToken cancellationToken = default
+		) {
+			throw new NotSupportedException();
+		}
 	}
 }
