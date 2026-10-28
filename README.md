@@ -182,6 +182,11 @@ security gates required for pull requests. See the
 [local CI guide](docs/guides/local-ci-gate.md) for the exact local/hosted
 mapping and known gaps.
 
+Pull requests land on `develop` through GitHub's merge queue: the combination of
+your branch and the current `develop` is tested as one merge group before it
+lands, so two pull requests that are each green cannot break `develop` together
+(#1889).
+
 ## Contributing
 
 Start with [`CONTRIBUTING.md`](CONTRIBUTING.md), then read [`AGENTS.md`](AGENTS.md),
