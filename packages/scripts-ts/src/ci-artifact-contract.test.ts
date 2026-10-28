@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { test } from 'vitest';
 
@@ -6,6 +9,7 @@ import {
 	EXPECTED_UPSTREAM_JOB_KEYS,
 	aggregateCiGate,
 	getExpectedJobLanes,
+	readRecords,
 	selectLatestAttemptArtifacts,
 	validateCiLaneResult,
 } from './check-ci-gate-aggregation.ts';
@@ -734,4 +738,95 @@ test('selectLatestAttemptArtifacts keeps the highest attempt per lane and foreig
 		'ci-lane-result-41-9-api',
 		'unrelated-container',
 	]);
+});
+
+test('selectLatestAttemptArtifacts does not parse a leading-zero attempt as valid', () => {
+	const make = (container: string) => ({
+		container,
+		filename: 'api.json',
+		file_path: `${container}/api.json`,
+		record: {},
+	});
+	const selected = selectLatestAttemptArtifacts(
+		[make('ci-lane-result-42-01-api'), make('ci-lane-result-42-2-api')],
+		42,
+	).map((observation) => observation.container);
+
+	// The malformed name is retained untouched so strict validation rejects it.
+	assert.deepEqual(selected, [
+		'ci-lane-result-42-01-api',
+		'ci-lane-result-42-2-api',
+	]);
+});
+
+const writeContainers = (
+	directory: string,
+	containers: Array<{ record: LaneRecord; raw?: string }>,
+) => {
+	for (const { record, raw } of containers) {
+		const container = path.join(directory, record.artifact_name);
+		mkdirSync(container, { recursive: true });
+		writeFileSync(
+			path.join(container, record.artifact_filename),
+			raw ?? JSON.stringify(record),
+		);
+	}
+};
+
+const aggregateFromDirectory = (directory: string) => {
+	const input = completeAggregateInput();
+	const read = readRecords(directory, context.runId);
+	const result = aggregateCiGate({
+		...input,
+		records: read.records,
+		artifact_filenames: read.filenames,
+		observed_artifacts: read.observed_artifacts,
+	} satisfies AggregateInput);
+	return { read, result };
+};
+
+test('a corrupt superseded attempt-1 artifact does not fail a lane that attempt 2 re-ran', () => {
+	const directory = mkdtempSync(path.join(tmpdir(), 'gate-results-'));
+	try {
+		const attempt1 = makeCompleteRecords(1);
+		const attempt2 = makeCompleteRecords(2).filter(
+			(record) => record.job.key === 'front-vitest/2',
+		);
+		writeContainers(directory, [
+			...attempt1.map((record) =>
+				record.job.key === 'front-vitest/2'
+					? { record, raw: '{ not json' }
+					: { record },
+			),
+			...attempt2.map((record) => ({ record })),
+		]);
+
+		const { read, result } = aggregateFromDirectory(directory);
+
+		assert.deepEqual(read.failures, []);
+		assert.equal(result.ok, true, result.failures.join('\n'));
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
+});
+
+test('a corrupt artifact in the latest attempt still fails the gate', () => {
+	const directory = mkdtempSync(path.join(tmpdir(), 'gate-results-'));
+	try {
+		const attempt1 = makeCompleteRecords(1);
+		const attempt2 = makeCompleteRecords(2).filter(
+			(record) => record.job.key === 'front-vitest/2',
+		);
+		writeContainers(directory, [
+			...attempt1.map((record) => ({ record })),
+			...attempt2.map((record) => ({ record, raw: '{ not json' })),
+		]);
+
+		const { read, result } = aggregateFromDirectory(directory);
+
+		assert.match(read.failures.join('\n'), /malformed JSON/);
+		assert.equal(result.ok, false);
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
 });

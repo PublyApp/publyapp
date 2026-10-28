@@ -3,3 +3,12 @@
 /packages/scripts-ts/src/ci-*.ts @radandevist
 /packages/scripts-ts/src/check-ci-gate-structure.ts @radandevist
 /packages/scripts-ts/src/ci-gate-manifest.json @radandevist
+/packages/scripts-ts/src/check-ci-gate-aggregation.ts @radandevist
+/packages/scripts-ts/src/check-ci-drift.ts @radandevist
+/packages/scripts-ts/src/check-ci-drift.test.ts @radandevist
+/packages/scripts-ts/src/check-ci-gate-structure.test.ts @radandevist
+/packages/scripts-ts/src/gen-reason-ref.ts @radandevist
+/packages/scripts-ts/src/gen-reason-ref.test.ts @radandevist
+/packages/scripts-ts/src/reason-guard-ref.json @radandevist
+/packages/scripts-ts/src/ci-gate-removals.json @radandevist
+/packages/scripts-ts/src/run-ci-contract-tests.ts @radandevist

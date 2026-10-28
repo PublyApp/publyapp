@@ -201,38 +201,79 @@ export const validatePrSnapshotBinding = ({
 	}
 };
 
-export const createPrSnapshot = (input: PrSnapshotInput) => ({
-	schema_version: 1 as const,
-	pr_number: input.pr_number,
-	head_sha: input.head_sha,
-	base_ref_name: input.base_ref_name,
-	potential_merge_commit_oid: input.potential_merge_commit_oid,
-	body_sha256: createHash('sha256').update(input.body).digest('hex'),
-	is_draft: input.is_draft,
-	event_name: input.event_name,
-	event_sha: input.event_sha,
-	workflow_path: input.workflow_path,
-	workflow_id: input.workflow_id,
-	workflow_action: input.workflow_action,
-	run_id: input.run_id,
-	run_attempt: input.run_attempt,
-});
+export type PrSnapshot = {
+	schema_version: 1;
+	pr_number: number;
+	head_sha: string;
+	base_ref_name: string;
+	potential_merge_commit_oid: string;
+	body_sha256: string;
+	is_draft: boolean;
+	event_name: string;
+	event_sha: string;
+	workflow_path: string;
+	workflow_id: number;
+	workflow_action: string;
+	run_id: number;
+	run_attempt: number;
+	event_merge_tree?: string;
+	event_merge_parents?: string[];
+	potential_merge_tree?: string;
+	potential_merge_parents?: string[];
+};
+
+export const createPrSnapshot = (input: PrSnapshotInput): PrSnapshot => {
+	const snapshot: PrSnapshot = {
+		schema_version: 1,
+		pr_number: input.pr_number,
+		head_sha: input.head_sha,
+		base_ref_name: input.base_ref_name,
+		potential_merge_commit_oid: input.potential_merge_commit_oid,
+		body_sha256: createHash('sha256').update(input.body).digest('hex'),
+		is_draft: input.is_draft,
+		event_name: input.event_name,
+		event_sha: input.event_sha,
+		workflow_path: input.workflow_path,
+		workflow_id: input.workflow_id,
+		workflow_action: input.workflow_action,
+		run_id: input.run_id,
+		run_attempt: input.run_attempt,
+	};
+	// Additive content fields are present only when the gate could read them.
+	if (input.event_merge_tree !== undefined) {
+		snapshot.event_merge_tree = input.event_merge_tree;
+	}
+	if (input.event_merge_parents !== undefined) {
+		snapshot.event_merge_parents = input.event_merge_parents;
+	}
+	if (input.potential_merge_tree !== undefined) {
+		snapshot.potential_merge_tree = input.potential_merge_tree;
+	}
+	if (input.potential_merge_parents !== undefined) {
+		snapshot.potential_merge_parents = input.potential_merge_parents;
+	}
+	return snapshot;
+};
 
 const ghJson = <T>(args: string[]): T =>
 	JSON.parse(execFileSync('gh', args, { encoding: 'utf8' }));
 
-const POTENTIAL_MERGE_COMMIT_QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){potentialMergeCommit{oid tree{oid} parents(first:3){nodes{oid}}}}}}`;
+const LIVE_PR_MERGE_QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid potentialMergeCommit{oid tree{oid} parents(first:3){nodes{oid}}}}}}`;
 
-// One GraphQL read so the oid, tree and parents describe the same merge commit.
-const readLivePotentialMergeCommit = (
+// One GraphQL read so the head, oid, tree and parents describe the same state.
+const readLivePrMergeState = (
 	repo: string,
 	prNumber: string,
-): LivePotentialMergeCommit | null => {
+): {
+	headRefOid?: string;
+	potentialMergeCommit?: LivePotentialMergeCommit | null;
+} => {
 	const [owner = '', name = ''] = repo.split('/');
 	const response = ghJson<{
 		data?: {
 			repository?: {
 				pullRequest?: {
+					headRefOid?: string;
 					potentialMergeCommit?: LivePotentialMergeCommit | null;
 				} | null;
 			} | null;
@@ -241,7 +282,7 @@ const readLivePotentialMergeCommit = (
 		'api',
 		'graphql',
 		'-f',
-		`query=${POTENTIAL_MERGE_COMMIT_QUERY}`,
+		`query=${LIVE_PR_MERGE_QUERY}`,
 		'-F',
 		`owner=${owner}`,
 		'-F',
@@ -249,35 +290,63 @@ const readLivePotentialMergeCommit = (
 		'-F',
 		`number=${prNumber}`,
 	]);
-	return response.data?.repository?.pullRequest?.potentialMergeCommit ?? null;
+	return response.data?.repository?.pullRequest ?? {};
 };
 
 const git = (args: string[]): string =>
 	execFileSync('git', args, {
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'pipe'],
-	}).trim();
+	});
+
+export type EventMergeCommitReaders = {
+	git: (args: string[]) => string;
+	ghJson: <T>(args: string[]) => T;
+};
+
+/**
+ * Parses the header of a raw commit object into its tree and parents.
+ * Continuation lines (leading space, e.g. a gpgsig block) are skipped and the
+ * message after the first blank line is ignored.
+ */
+export const parseCommitObject = (raw: string): MergeCommitContent | null => {
+	let tree: string | undefined;
+	const parents: string[] = [];
+	for (const line of raw.split('\n')) {
+		if (line === '') {
+			break;
+		}
+		if (line.startsWith('tree ') && tree === undefined) {
+			tree = line.slice('tree '.length).trim();
+		} else if (line.startsWith('parent ')) {
+			parents.push(line.slice('parent '.length).trim());
+		}
+	}
+	return tree ? { tree, parents } : null;
+};
 
 // The gate job checks out the event merge commit with `fetch-depth: 0`, so the
 // object is local even after GitHub has re-minted the live merge commit. The
-// REST commits API is the fallback if the checkout lacks it.
+// raw object is read with --no-replace-objects so replace refs and grafts
+// cannot rewrite its parents. A missing object (shallow checkout) or anything
+// but a two-parent commit falls back to the REST commits API.
 export const readEventMergeCommit = (
 	repo: string,
 	eventSha: string,
+	readers: EventMergeCommitReaders = { git, ghJson },
 ): MergeCommitContent | null => {
 	try {
-		const [, ...parents] = git(['rev-list', '--parents', '-n', '1', eventSha])
-			.split(/\s+/)
-			.filter(Boolean);
-		const tree = git(['rev-parse', `${eventSha}^{tree}`]);
-		if (tree) {
-			return { tree, parents };
+		const local = parseCommitObject(
+			readers.git(['--no-replace-objects', 'cat-file', 'commit', eventSha]),
+		);
+		if (local !== null && local.parents.length === 2) {
+			return local;
 		}
 	} catch {
 		// fall through to the REST API
 	}
 	try {
-		const commit = ghJson<{
+		const commit = readers.ghJson<{
 			commit?: { tree?: { sha?: string } };
 			parents?: Array<{ sha?: string }>;
 		}>(['api', `repos/${repo}/commits/${eventSha}`]);
@@ -305,6 +374,7 @@ type LivePrRecordEnvelope = {
 	run: LivePrSnapshotBinding['run'];
 	event_sha: string;
 	event_name: string;
+	event_merge_commit?: MergeCommitContent;
 };
 
 const readLivePrRecord = (
@@ -322,9 +392,11 @@ const readLivePrRecord = (
 		'--repo',
 		repo,
 		'--json',
-		'headRefOid,baseRefName,potentialMergeCommit,body,isDraft,author',
+		'baseRefName,body,isDraft,author',
 	]);
-	pr.potentialMergeCommit = readLivePotentialMergeCommit(repo, prNumber);
+	const mergeState = readLivePrMergeState(repo, prNumber);
+	pr.headRefOid = mergeState.headRefOid ?? '';
+	pr.potentialMergeCommit = mergeState.potentialMergeCommit;
 	const run = ghJson<LivePrSnapshotBinding['run']>([
 		'api',
 		`repos/${repo}/actions/runs/${runId}`,
@@ -333,25 +405,27 @@ const readLivePrRecord = (
 	if (!mergeOid) {
 		throw new Error('live PR has no potential merge commit');
 	}
+	const liveContent = liveMergeCommitContent(pr.potentialMergeCommit);
+	const eventMergeCommit =
+		eventSha === mergeOid ? liveContent : readEventMergeCommit(repo, eventSha);
 	validatePrSnapshotBinding({
 		pr,
 		run,
 		eventSha,
-		eventMergeCommit:
-			eventSha === mergeOid ? undefined : readEventMergeCommit(repo, eventSha),
+		eventMergeCommit,
 		eventName,
 		runId,
 		runAttempt,
 	});
-	return {
+	const envelope: LivePrRecordEnvelope = {
 		schema_version: 1,
 		pr_number: Number(prNumber),
 		pr: {
 			headRefOid: pr.headRefOid,
 			baseRefName: pr.baseRefName,
 			mergeOid,
-			mergeTree: liveMergeCommitContent(pr.potentialMergeCommit)?.tree,
-			mergeParents: liveMergeCommitContent(pr.potentialMergeCommit)?.parents,
+			mergeTree: liveContent?.tree,
+			mergeParents: liveContent?.parents,
 			body: pr.body ?? '',
 			isDraft: pr.isDraft,
 			author_login: pr.author?.login ?? '',
@@ -360,6 +434,10 @@ const readLivePrRecord = (
 		event_sha: eventSha,
 		event_name: eventName,
 	};
+	if (eventMergeCommit !== undefined && eventMergeCommit !== null) {
+		envelope.event_merge_commit = eventMergeCommit;
+	}
+	return envelope;
 };
 
 export const assertRunUnchanged = (
@@ -448,6 +526,10 @@ if (isDirectRun) {
 		workflow_action: live.run.event,
 		run_id: live.run.id,
 		run_attempt: live.run.run_attempt,
+		event_merge_tree: live.event_merge_commit?.tree,
+		event_merge_parents: live.event_merge_commit?.parents,
+		potential_merge_tree: live.pr.mergeTree,
+		potential_merge_parents: live.pr.mergeParents,
 	});
 	const output = path.join(outputDirectory, 'ci-pr-snapshot.json');
 	await mkdir(path.dirname(output), { recursive: true });

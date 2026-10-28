@@ -1014,17 +1014,14 @@ const contractFor = (jobKey: string): JobContract[] => {
  * the strict validation rejects them, as do two artifacts for the same lane
  * and attempt.
  */
-export const selectLatestAttemptArtifacts = (
-	observations: ObservedArtifact[],
+export const selectLatestAttemptContainers = (
+	containers: string[],
 	runId: number,
-): ObservedArtifact[] => {
+): Set<string> => {
 	const prefix = new RegExp(`^ci-lane-result-${runId}-([1-9][0-9]*)-(.+)$`);
 	const latest = new Map<string, number>();
-	const parsed = observations.map((observation) => {
-		const match =
-			typeof observation?.container === 'string'
-				? prefix.exec(observation.container)
-				: null;
+	const parsed = containers.map((container) => {
+		const match = typeof container === 'string' ? prefix.exec(container) : null;
 		if (match === null) {
 			return undefined;
 		}
@@ -1032,10 +1029,23 @@ export const selectLatestAttemptArtifacts = (
 		latest.set(match[2], Math.max(latest.get(match[2]) ?? 0, attempt));
 		return { lane: match[2], attempt };
 	});
-	return observations.filter((_observation, index) => {
-		const entry = parsed[index];
-		return entry === undefined || entry.attempt === latest.get(entry.lane);
-	});
+	return new Set(
+		containers.filter((_container, index) => {
+			const entry = parsed[index];
+			return entry === undefined || entry.attempt === latest.get(entry.lane);
+		}),
+	);
+};
+
+export const selectLatestAttemptArtifacts = (
+	observations: ObservedArtifact[],
+	runId: number,
+): ObservedArtifact[] => {
+	const kept = selectLatestAttemptContainers(
+		observations.map((observation) => observation?.container),
+		runId,
+	);
+	return observations.filter((observation) => kept.has(observation?.container));
 };
 
 export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
@@ -1308,7 +1318,7 @@ type ArtifactRead = {
 	failures: string[];
 };
 
-const readRecords = (directory: string): ArtifactRead => {
+export const readRecords = (directory: string, runId: number): ArtifactRead => {
 	const records: unknown[] = [];
 	const filenames: string[] = [];
 	const observed_artifacts: ObservedArtifact[] = [];
@@ -1324,7 +1334,16 @@ const readRecords = (directory: string): ArtifactRead => {
 			failures: [`unable to read result artifact directory: ${String(error)}`],
 		};
 	}
+	// Superseded (lower-attempt) containers are neither read nor validated, so a
+	// corrupt artifact of an attempt that a later attempt re-ran cannot fail the gate.
+	const retained = selectLatestAttemptContainers(
+		entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+		runId,
+	);
 	for (const entry of entries) {
+		if (entry.isDirectory() && !retained.has(entry.name)) {
+			continue;
+		}
 		if (!entry.isDirectory()) {
 			if (entry.isFile() && entry.name.endsWith('.json')) {
 				failures.push(
@@ -1370,9 +1389,10 @@ const isDirectRun =
 
 if (isDirectRun) {
 	const directory = process.argv[2] ?? 'ci-results';
-	const read = readRecords(directory);
+	const runId = Number(process.env.GITHUB_RUN_ID ?? 0);
+	const read = readRecords(directory, runId);
 	const aggregateInput = {
-		run_id: Number(process.env.GITHUB_RUN_ID ?? 0),
+		run_id: runId,
 		run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT ?? 1),
 		event_sha: process.env.GITHUB_SHA ?? '',
 		event_name: process.env.GITHUB_EVENT_NAME ?? '',
