@@ -83,10 +83,12 @@ needle both ways, recorded here so the next pass starts from truth:
   cleanup), tenant `users.tsx` (`performAction`), and tenant
   `users/$userId.tsx` (remove). All three skip again; re-queued as
   follow-ups, out of this PR's scope.
-- **Previously unlisted:** `_profile-edit-details-drawer.tsx` carries a
+- **Previously unlisted:** `_profile-edit-details-drawer.tsx` carried a
   documented `exhaustive-deps` suppression on its open-transition reset
   effect; the diagnostic predates this refresh but was missing from the
-  earlier inventory.
+  earlier inventory. The reset effect is gone (a session-keyed remount
+  replaced it) and the code now lives in the shared
+  `use-profile-edit-details-form` hook — see that row below.
 Line numbers drift; treat them as of this writing.
 
 Decision vocabulary: **acceptable skip** = leave it (the pattern is load-bearing
@@ -114,7 +116,7 @@ in the compiler issue tracker).
 | `src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx` | try/finally (remove handler clears `pendingRemove` in `finally`) | **follow-up (regressed).** Same #1234 → #1305 story. Skips again; queued. |
 | `src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx` | suppression (`rowAccountIdsKey` stable-key effect) | **acceptable skip.** Documented joined-key rationale; a second suppression stopped firing after #1305's QueryDisplay restructure. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx` | suppression (`exhaustive-deps` on the open-transition reset effect) | **acceptable skip.** Deliberate re-seed keyed on open/profile-id so a refetch cannot discard an in-progress draft (commented as such). Newly listed: the diagnostic predates this refresh but the earlier inventory omitted it. |
+| `src/lib/profiles/use-profile-edit-details-form.ts` | incompatible library (`methods.watch()` subscription in the dirty-flag uplink) | **acceptable skip.** The subscription is the event-driven uplink #1264 chose over a render-lagged `formState.isDirty` effect, and `watch()` cannot be memoized, so the compiler skips this hook. Shared by the staff and tenant profile-edit drawers: the diagnostic (and the reset-effect suppression it used to sit beside) moved here when the two drawers were deduplicated. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-permissions-tab.tsx` | suppression (`grantedSignature` stable key) | **acceptable skip.** Documented signature-key rationale. |
 | `src/routes/authed/tenant/posts/$postId/edit.tsx` | — (was try/finally) | **rewritten in #1234.** Now compiles. |
 | `src/routes/authed/tenant/posts/_create-post-drawer.tsx` | — (was incompatible library: `watch()` read during render) | **fixed in #1264.** Subscribes with `useWatch()` instead of calling `watch()` in render. Now compiles. |
