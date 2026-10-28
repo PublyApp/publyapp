@@ -21,9 +21,33 @@ export const CLASSIFIER_LANES = [
 
 export type ClassifierLane = (typeof CLASSIFIER_LANES)[number];
 
+/**
+ * The parallel jobs that replace the retired serial `verification` job
+ * (#ci-slim). Every entry is a real workflow job that owns its own
+ * `ci-lane-result` artifact, its own lane contracts below, and its own parent
+ * result in the gate. The list is the single source of truth for the artifact
+ * key set, so a job added or dropped here cannot silently leave the aggregate
+ * gate blind to it.
+ */
+export const EXPECTED_VERIFICATION_JOB_KEYS = [
+	'quality-js',
+	'quality-dotnet',
+	'guards',
+	'docs-react',
+	'front-build',
+	'front-quality',
+] as const;
+
+/**
+ * The one job allowed to carry the nested front non-Vitest report. It is the
+ * only job that runs `run-non-vitest-report-all.mts`, and the aggregate gate
+ * requires the report on exactly this job's `front` lane.
+ */
+export const FRONT_REPORT_JOB_ID = 'front-build';
+
 export const EXPECTED_UPSTREAM_JOB_KEYS = [
 	'classify',
-	'verification',
+	...EXPECTED_VERIFICATION_JOB_KEYS,
 	'audit-development',
 	'audit-production',
 	'api/1',
@@ -111,7 +135,7 @@ export type CiLaneResultContext = {
 };
 
 const CENTRAL_PARENT_KEYS = [
-	'verification',
+	...EXPECTED_VERIFICATION_JOB_KEYS,
 	'audit-development',
 	'audit-production',
 	'api',
@@ -165,109 +189,186 @@ const baseJobLaneContracts = {
 			'classify.run',
 		]),
 	],
-	verification: [
-		contract('verification', 'setup', [
-			'verification.checkout',
-			'verification.install_pnpm',
-			'verification.setup_node',
-			'verification.setup_dotnet',
-			'verification.setup_just',
-			'verification.install_workspace',
-			'verification.trusted_postinstall',
-			'verification.prepare_hooks',
-			'verification.materialize_env',
+	'quality-js': [
+		contract('quality-js', 'setup', [
+			'quality-js.checkout',
+			'quality-js.install_pnpm',
+			'quality-js.setup_node',
+			'quality-js.install_workspace',
+			'quality-js.trusted_postinstall',
+			'quality-js.prepare_hooks',
+			'quality-js.materialize_env',
 		]),
 		contract(
-			'verification',
+			'quality-js',
 			'quality',
 			[
-				'verification.assert_pins',
-				'verification.format',
-				'verification.formatter_scope',
-				'verification.lint',
-				'verification.complexity',
-				'verification.lint_ts_test',
-				'verification.lint_ts_typecheck',
-				'verification.client_typecheck',
-				'verification.knip',
-				'verification.shared_typecheck',
-				'verification.shared_test',
-				'verification.dotnet_restore',
-				'verification.dotnet_build',
-				'verification.nuget_audit',
-				'verification.nuget_fixtures',
-				'verification.dependency_health',
-				'verification.action_pins',
-				'verification.deploy_env_docs',
-				'verification.analyzers',
-				'verification.ci_contract_tests',
-				'verification.ci_drift_tests',
-				'verification.ci_drift',
-				'verification.ci_changed_paths_test',
-				'verification.ci_referenced_paths_test',
-				'verification.ci_guard_tests',
-				'verification.front_lint_test',
-				'verification.complexity_test',
-				'verification.action_versions_test',
-				'verification.action_versions',
-				'verification.production_audit_test',
-				'verification.npm_audit_test',
-				'verification.project_closure',
-				'verification.quality.not-applicable',
+				'quality-js.assert_pins',
+				'quality-js.format',
+				'quality-js.lint',
+				'quality-js.complexity',
+				'quality-js.lint_ts_test',
+				'quality-js.lint_ts_typecheck',
+				'quality-js.client_typecheck',
+				'quality-js.knip',
+				'quality-js.shared_typecheck',
+				'quality-js.shared_test',
+				'quality-js.quality.not-applicable',
 			],
 			'quality',
 		),
+	],
+	'quality-dotnet': [
+		contract('quality-dotnet', 'setup', [
+			'quality-dotnet.checkout',
+			'quality-dotnet.install_pnpm',
+			'quality-dotnet.setup_node',
+			'quality-dotnet.setup_dotnet',
+			'quality-dotnet.setup_just',
+			'quality-dotnet.install_workspace',
+			'quality-dotnet.trusted_postinstall',
+			'quality-dotnet.prepare_hooks',
+			'quality-dotnet.materialize_env',
+		]),
 		contract(
-			'verification',
-			'front',
+			'quality-dotnet',
+			'quality',
 			[
-				'verification.front_build',
-				'verification.front_css',
-				'verification.front_font',
-				'verification.front_smoke',
-				'verification.front_typecheck',
-				'verification.front_lint',
-				'verification.front_design',
-				'verification.front_column',
-				'verification.front_static',
-				'verification.front_react_compiler',
-				'verification.front',
-				'verification.front_proofs',
-				'verification.front_vitest_coverage',
-				'verification.front.not-applicable',
+				'quality-dotnet.dotnet_restore',
+				'quality-dotnet.dotnet_build',
+				'quality-dotnet.nuget_audit',
+				'quality-dotnet.nuget_fixtures',
+				'quality-dotnet.analyzers',
+				'quality-dotnet.quality.not-applicable',
 			],
-			'front',
+			'quality',
+		),
+	],
+	guards: [
+		contract('guards', 'setup', [
+			'guards.checkout',
+			'guards.install_pnpm',
+			'guards.setup_node',
+			'guards.install_workspace',
+			'guards.trusted_postinstall',
+			'guards.prepare_hooks',
+			'guards.materialize_env',
+		]),
+		contract(
+			'guards',
+			'quality',
+			[
+				'guards.ci_guard_suite',
+				'guards.ci_contract_tests',
+				'guards.ci_drift',
+				'guards.action_versions',
+				'guards.project_closure',
+				'guards.quality.not-applicable',
+			],
+			'quality',
+		),
+		contract('guards', 'tracked-guards', [
+			'guards.no_ignored_tracked',
+			'guards.no_dockerignore_shadow',
+		]),
+		contract('guards', 'api-paths', [
+			'guards.api-paths-tests',
+			'guards.api-paths',
+		]),
+	],
+	'docs-react': [
+		contract('docs-react', 'setup', [
+			'docs-react.checkout',
+			'docs-react.install_pnpm',
+			'docs-react.setup_node',
+			'docs-react.install_workspace',
+			'docs-react.trusted_postinstall',
+			'docs-react.prepare_hooks',
+			'docs-react.materialize_env',
+		]),
+		contract(
+			'docs-react',
+			'quality',
+			[
+				'docs-react.action_pins',
+				'docs-react.deploy_env_docs',
+				'docs-react.quality.not-applicable',
+			],
+			'quality',
 		),
 		contract(
-			'verification',
+			'docs-react',
 			'docs',
 			[
-				'verification.docs_links_test',
-				'verification.docs_prune_test',
-				'verification.docs_links',
-				'verification.docs_prune',
-				'verification.docs.not-applicable',
+				'docs-react.docs_links_test',
+				'docs-react.docs_prune_test',
+				'docs-react.docs_links',
+				'docs-react.docs_prune',
+				'docs-react.docs.not-applicable',
 			],
 			'docs',
 		),
 		contract(
-			'verification',
+			'docs-react',
 			'react',
 			[
-				'verification.resolve_react_base',
-				'verification.react_doctor',
-				'verification.react.not-applicable',
+				'docs-react.resolve_react_base',
+				'docs-react.react_doctor',
+				'docs-react.react.not-applicable',
 			],
 			'react',
 		),
-		contract('verification', 'tracked-guards', [
-			'verification.no_ignored_tracked',
-			'verification.no_dockerignore_shadow',
+	],
+	'front-build': [
+		contract('front-build', 'setup', [
+			'front-build.checkout',
+			'front-build.install_pnpm',
+			'front-build.setup_node',
+			'front-build.install_workspace',
+			'front-build.trusted_postinstall',
+			'front-build.prepare_hooks',
+			'front-build.materialize_env',
 		]),
-		contract('verification', 'api-paths', [
-			'verification.api-paths-tests',
-			'verification.api-paths',
+		contract(
+			'front-build',
+			'front',
+			[
+				'front-build.front_build',
+				'front-build.front_css',
+				'front-build.front_font',
+				'front-build.front_smoke',
+				'front-build.front_react_compiler',
+				'front-build.front',
+				'front-build.front.not-applicable',
+			],
+			'front',
+		),
+	],
+	'front-quality': [
+		contract('front-quality', 'setup', [
+			'front-quality.checkout',
+			'front-quality.install_pnpm',
+			'front-quality.setup_node',
+			'front-quality.install_workspace',
+			'front-quality.trusted_postinstall',
+			'front-quality.prepare_hooks',
+			'front-quality.materialize_env',
 		]),
+		contract(
+			'front-quality',
+			'front',
+			[
+				'front-quality.front_typecheck',
+				'front-quality.front_lint',
+				'front-quality.front_design',
+				'front-quality.front_column',
+				'front-quality.front_static',
+				'front-quality.front_proofs',
+				'front-quality.front_vitest_coverage',
+				'front-quality.front.not-applicable',
+			],
+			'front',
+		),
 	],
 	'audit-development': [
 		contract(
@@ -428,7 +529,7 @@ export const getExpectedJobLanes = (
 ): JobContract[] | undefined =>
 	EXPECTED_JOB_LANES[jobKey as keyof typeof EXPECTED_JOB_LANES];
 
-const expectedJobLaneContractCount = 6 + 3 * 4;
+const expectedJobLaneContractCount = 11 + 3 * 4;
 if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
 }
@@ -828,8 +929,11 @@ export function validateCiLaneResult(
 			}
 		}
 	}
-	if (job.report !== undefined && job.id !== 'verification') {
-		push(failures, `${job.key}: nested report is only allowed on verification`);
+	if (job.report !== undefined && job.id !== FRONT_REPORT_JOB_ID) {
+		push(
+			failures,
+			`${job.key}: nested report is only allowed on ${FRONT_REPORT_JOB_ID}`,
+		);
 	}
 	if (!isRecord(job.lanes)) {
 		push(failures, `${job.key}: missing lanes`);
@@ -889,7 +993,7 @@ export function validateCiLaneResult(
 		}
 		validateSteps(job.key, laneName, lane as LaneEvidence, failures);
 	}
-	if (strict && job.id === 'verification' && isRecord(job.lanes.front)) {
+	if (strict && job.id === FRONT_REPORT_JOB_ID && isRecord(job.lanes.front)) {
 		const front = job.lanes.front as Record<string, unknown>;
 		if (front.mode === 'relevant') {
 			if (job.report === undefined) {

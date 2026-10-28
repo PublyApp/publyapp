@@ -26,7 +26,7 @@
  * `core.hooksPath` at the versioned `.husky` dir in the shared git config —
  * which every worktree of that clone inherits — and the installer fails loud
  * when the hooks cannot be wired. CI wires the hooks explicitly
- * (ci.yml::verification::"Install Git hooks").
+ * (ci.yml::quality-js::"Install Git hooks").
  *
  * ## What the proof asserts
  *

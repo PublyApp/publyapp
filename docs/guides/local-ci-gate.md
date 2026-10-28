@@ -6,11 +6,19 @@ a green run locally is a strong prediction that CI would be green too.
 ## Central PR CI
 
 `.github/workflows/ci.yml` is the additive central workflow for pull requests,
-merge groups, and pushes to `develop`. It creates the stable 19 visible checks:
-one classifier, packed verification/audit jobs, four API suite shards, four front
-Vitest shards, four E2E shards, cleanup, and one artifact-backed `ci-final-gate` (or
-`ci-push-check` on `develop`). The classifier emits the six lane decisions once; irrelevant lanes run
+merge groups, and pushes to `develop`. It creates the stable 24 visible checks:
+one classifier (`CI classifier`), six parallel verification jobs, two audit jobs,
+four API suite shards, four front Vitest shards, one e2e image build, four E2E
+shards, cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
+`develop`). The classifier emits the six lane decisions once; irrelevant lanes run
 named success sentinels rather than becoming skipped jobs.
+
+The single serial `verification` job was split into six parallel jobs so no job sits
+behind a meta-check it does not need: `CI quality (JS)`, `CI quality (.NET)`, `CI
+guard battery`, `CI docs and React Doctor`, `CI front build`, and `CI front checks`.
+Every check that ran before still runs, in the job whose classifier lane gates it;
+the split only moved job boundaries and gives each job its own `ci-lane-result`
+artifact.
 
 The eight predecessor PR workflows were removed in PR B. The external ruleset
 now requires only `ci-final-gate`; `deploy-images.yml` remains an independent
@@ -40,10 +48,17 @@ content as additive fields (`event_merge_tree`, `event_merge_parents`, `potentia
 `potential_merge_parents`) so external consumers can apply the same rule; see
 [the superseding record](../records/2026-10-28-spec-ci-gate-merge-content-binding.md).
 
-Central ownership is explicit: `CI verification` executes the repository quality,
-front build/CSS/font/smoke/typecheck/lint/design/static-import/compiler/proof,
-docs, React Doctor, API path-coverage, analyzer, dependency, action-pin, deploy-env,
-CI-contract, project-closure, and unconditional tracked-file checks; the `api` lane
+Central ownership is explicit: the split verification jobs together still execute the
+repository quality, front build/CSS/font/smoke/typecheck/lint/design/static-import/
+compiler/proof, docs, React Doctor, API path-coverage, analyzer, dependency,
+action-pin, deploy-env, CI-contract, project-closure, and unconditional tracked-file
+checks — `quality-js` owns format/lint/knip/typechecks/shared tests, `quality-dotnet`
+owns restore/build/NuGet audit/analyzers, `guards` owns the batched scripts-ts guard
+suite plus the CI-contract, drift, action-version, project-closure, tracked-file and
+API path-coverage checks, `docs-react` owns doc links/prune and React Doctor,
+`front-build` owns the build and the 32-command non-Vitest report, and
+`front-checks` owns typecheck/lint/design/import guards, proofs, and the Vitest
+shard-coverage equality guard; the `api` lane
 executes API/OpenAPI/client generation and drift checks, the shard-partition proof and
 one `just test-api-shard` slice of the API suite (including `OpenApiContractSpec`, which runs in whichever shard
 owns it); the four `front-ci` shards execute install/postinstall/hooks and
@@ -78,7 +93,7 @@ just ci-quality-dotnet   # dotnet restore + build (warnings as errors)
 just test-analyzers      # Roslyn analyzer unit suite
 ```
 
-`.github/workflows/ci.yml::verification::Check unused exports and dependencies` runs
+`.github/workflows/ci.yml::quality-js::Check unused exports and dependencies` runs
 `pnpm exec knip` against the root `knip.ts`; `just ci-knip` is the identical
 invocation. Exit 0 is the contract on both sides: every knip exception must be
 a scoped entry with an inline reason in `knip.ts`, never a blanket ignore.
@@ -87,7 +102,7 @@ classifier regex, so config edits always re-run the step.
 
 CI needs `APP_ROLE=api` + `TRUSTED_PROXY_CIDRS` for the build step (the build boots the
 app to emit `openapi.json`; without the pin it fails fast in Production). The recipes
-pin both (`just ci-quality-dotnet` and `.github/workflows/ci.yml::verification::{Restore,Build} .NET solution`
+pin both (`just ci-quality-dotnet` and `.github/workflows/ci.yml::quality-dotnet::{Restore,Build} .NET solution`
 both export `APP_ROLE=api`, `TRUSTED_PROXY_CIDRS=127.0.0.1/32`). Path filter mirrors the
 other gates' `Determine changed paths` pattern and covers: the workflow itself,
 `.oxlintrc.json`, `.oxfmtrc.json`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
@@ -153,7 +168,7 @@ frontend behaviour, since that is where the e2e suites earn their runtime.
 
 `pnpm test:project-closure-adapter` remains a permanent local subgate and is
 covered by the central verification contract. The central
-`ci.yml::verification::Test project closure adapter` step is the server-side
+`ci.yml::guards::Test project closure adapter` step is the server-side
 contract check and is mirrored by `ci-project-closure-adapter` in `just ci`.
 It is required during PR closure in `.ai/project-closure-v1.json`
 (`local_review_ready_commands` and `closure_acceptance_commands`).
@@ -240,7 +255,7 @@ It parses every regular file under `.github/workflows/` and content-addresses ea
 `packages/scripts-ts/src/ci-gate-manifest.json`, which holds one entry per step:
 
 ```json
-"ci.yml::verification::Typecheck front": {
+"ci.yml::front-quality::Typecheck front": {
   "hash": "780f674ec757c52e",
   "mirror": "just ci-front",
   "reason": "ci-front runs the identical pnpm --filter front typecheck."
@@ -559,7 +574,7 @@ pushes a fresh image set.
 The guard's behavior is proven by `packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts` (executes the real
 `run:` body from the workflow against the fresh-run, full-rerun, and partial-rerun scenarios),
 which runs in `just ci-drift` and server-side in
-`ci.yml::verification::Test CI guard fixtures`.
+`ci.yml::guards::Test CI guard suite`.
 
 ## Runtime
 

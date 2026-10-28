@@ -91,6 +91,26 @@
 		"ci.yml::classify::Collect ci-lane-result",
 		"ci.yml::classify::Setup Node",
 		"ci.yml::classify::Upload ci-lane-result",
+		"ci.yml::docs-react::CI lane not applicable (docs)",
+		"ci.yml::docs-react::CI lane not applicable (quality)",
+		"ci.yml::docs-react::CI lane not applicable (react)",
+		"ci.yml::docs-react::Check action SHA bindings",
+		"ci.yml::docs-react::Check deploy environment documentation",
+		"ci.yml::docs-react::Check doc links",
+		"ci.yml::docs-react::Check docs prune inventory",
+		"ci.yml::docs-react::Checkout",
+		"ci.yml::docs-react::Collect ci-lane-result",
+		"ci.yml::docs-react::Install Git hooks",
+		"ci.yml::docs-react::Install pnpm",
+		"ci.yml::docs-react::Install workspace dependencies",
+		"ci.yml::docs-react::Materialize .env.development",
+		"ci.yml::docs-react::Resolve React Doctor base",
+		"ci.yml::docs-react::Run React Doctor",
+		"ci.yml::docs-react::Run trusted first-party postinstall",
+		"ci.yml::docs-react::Setup Node",
+		"ci.yml::docs-react::Test doc-links guard",
+		"ci.yml::docs-react::Test docs prune guard",
+		"ci.yml::docs-react::Upload ci-lane-result",
 		"ci.yml::e2e-build::Build and push e2e images",
 		"ci.yml::e2e-build::CI lane not applicable",
 		"ci.yml::e2e-build::Checkout",
@@ -128,6 +148,39 @@
 		"ci.yml::e2e-test::Upload Playwright report",
 		"ci.yml::e2e-test::Upload ci-lane-result",
 		"ci.yml::e2e-test::Wait for e2e stack health",
+		"ci.yml::front-build::Build front",
+		"ci.yml::front-build::CI lane not applicable (front)",
+		"ci.yml::front-build::Check front React Compiler artifacts",
+		"ci.yml::front-build::Checkout",
+		"ci.yml::front-build::Collect ci-lane-result",
+		"ci.yml::front-build::Install Git hooks",
+		"ci.yml::front-build::Install pnpm",
+		"ci.yml::front-build::Install workspace dependencies",
+		"ci.yml::front-build::Materialize .env.development",
+		"ci.yml::front-build::Run trusted first-party postinstall",
+		"ci.yml::front-build::Setup Node",
+		"ci.yml::front-build::Smoke front production server",
+		"ci.yml::front-build::Test front (non-vitest report-all)",
+		"ci.yml::front-build::Upload ci-lane-result",
+		"ci.yml::front-build::Verify front CSS asset",
+		"ci.yml::front-build::Verify front font bundle",
+		"ci.yml::front-quality::CI lane not applicable (front)",
+		"ci.yml::front-quality::Check Vitest shard coverage",
+		"ci.yml::front-quality::Check front column-type imports",
+		"ci.yml::front-quality::Check front design system",
+		"ci.yml::front-quality::Check front static imports",
+		"ci.yml::front-quality::Checkout",
+		"ci.yml::front-quality::Collect ci-lane-result",
+		"ci.yml::front-quality::Install Git hooks",
+		"ci.yml::front-quality::Install pnpm",
+		"ci.yml::front-quality::Install workspace dependencies",
+		"ci.yml::front-quality::Lint front",
+		"ci.yml::front-quality::Materialize .env.development",
+		"ci.yml::front-quality::Run trusted first-party postinstall",
+		"ci.yml::front-quality::Setup Node",
+		"ci.yml::front-quality::Typecheck front",
+		"ci.yml::front-quality::Upload ci-lane-result",
+		"ci.yml::front-quality::Verify paired red proofs",
 		"ci.yml::front-vitest::CI lane not applicable",
 		"ci.yml::front-vitest::Checkout",
 		"ci.yml::front-vitest::Collect ci-lane-result",
@@ -150,76 +203,62 @@
 		"ci.yml::gate::Upload live PR snapshot",
 		"ci.yml::gate::Verify linked issue relationship",
 		"ci.yml::gate::Write live PR snapshot",
-		"ci.yml::verification::Assert exact pins",
-		"ci.yml::verification::Audit .NET packages",
-		"ci.yml::verification::Build .NET solution",
-		"ci.yml::verification::Build front",
-		"ci.yml::verification::CI lane not applicable (docs)",
-		"ci.yml::verification::CI lane not applicable (front)",
-		"ci.yml::verification::CI lane not applicable (quality)",
-		"ci.yml::verification::CI lane not applicable (react)",
-		"ci.yml::verification::Check CI drift",
-		"ci.yml::verification::Check Vitest shard coverage",
-		"ci.yml::verification::Check action SHA bindings",
-		"ci.yml::verification::Check action versions",
-		"ci.yml::verification::Check complexity bounds",
-		"ci.yml::verification::Check dependency health contract",
-		"ci.yml::verification::Check deploy environment documentation",
-		"ci.yml::verification::Check doc links",
-		"ci.yml::verification::Check docs prune inventory",
-		"ci.yml::verification::Check formatter scope",
-		"ci.yml::verification::Check formatting",
-		"ci.yml::verification::Check front React Compiler artifacts",
-		"ci.yml::verification::Check front column-type imports",
-		"ci.yml::verification::Check front design system",
-		"ci.yml::verification::Check front static imports",
-		"ci.yml::verification::Check no dockerignore shadow files",
-		"ci.yml::verification::Check no ignored tracked files",
-		"ci.yml::verification::Check unused exports and dependencies",
-		"ci.yml::verification::Checkout",
-		"ci.yml::verification::Collect ci-lane-result",
-		"ci.yml::verification::Install Git hooks",
-		"ci.yml::verification::Install pnpm",
-		"ci.yml::verification::Install workspace dependencies",
-		"ci.yml::verification::Lint front",
-		"ci.yml::verification::Lint repository",
-		"ci.yml::verification::Materialize .env.development",
-		"ci.yml::verification::Resolve React Doctor base",
-		"ci.yml::verification::Restore .NET solution",
-		"ci.yml::verification::Run React Doctor",
-		"ci.yml::verification::Run analyzer tests",
-		"ci.yml::verification::Run trusted first-party postinstall",
-		"ci.yml::verification::Setup .NET",
-		"ci.yml::verification::Setup Node",
-		"ci.yml::verification::Setup just",
-		"ci.yml::verification::Smoke front production server",
-		"ci.yml::verification::Test .NET audit fixtures",
-		"ci.yml::verification::Test API path-filter coverage",
-		"ci.yml::verification::Test CI changed-path classifier",
-		"ci.yml::verification::Test CI contracts",
-		"ci.yml::verification::Test CI drift contracts",
-		"ci.yml::verification::Test CI guard fixtures",
-		"ci.yml::verification::Test CI referenced paths",
-		"ci.yml::verification::Test action version guard",
-		"ci.yml::verification::Test complexity guard",
-		"ci.yml::verification::Test doc-links guard",
-		"ci.yml::verification::Test docs prune guard",
-		"ci.yml::verification::Test front (non-vitest report-all)",
-		"ci.yml::verification::Test front lint guard",
-		"ci.yml::verification::Test lint plugin",
-		"ci.yml::verification::Test npm audit runner",
-		"ci.yml::verification::Test production audit threshold",
-		"ci.yml::verification::Test project closure adapter",
-		"ci.yml::verification::Test shared TypeScript",
-		"ci.yml::verification::Typecheck front",
-		"ci.yml::verification::Typecheck generated client",
-		"ci.yml::verification::Typecheck lint plugin",
-		"ci.yml::verification::Typecheck shared TypeScript",
-		"ci.yml::verification::Upload ci-lane-result",
-		"ci.yml::verification::Verify API path-filter coverage",
-		"ci.yml::verification::Verify front CSS asset",
-		"ci.yml::verification::Verify front font bundle",
-		"ci.yml::verification::Verify paired red proofs",
+		"ci.yml::guards::CI lane not applicable (quality)",
+		"ci.yml::guards::Check CI drift",
+		"ci.yml::guards::Check action versions",
+		"ci.yml::guards::Check no dockerignore shadow files",
+		"ci.yml::guards::Check no ignored tracked files",
+		"ci.yml::guards::Checkout",
+		"ci.yml::guards::Collect ci-lane-result",
+		"ci.yml::guards::Install Git hooks",
+		"ci.yml::guards::Install pnpm",
+		"ci.yml::guards::Install workspace dependencies",
+		"ci.yml::guards::Materialize .env.development",
+		"ci.yml::guards::Run trusted first-party postinstall",
+		"ci.yml::guards::Setup Node",
+		"ci.yml::guards::Test API path-filter coverage",
+		"ci.yml::guards::Test CI contracts",
+		"ci.yml::guards::Test CI guard suite",
+		"ci.yml::guards::Test project closure adapter",
+		"ci.yml::guards::Upload ci-lane-result",
+		"ci.yml::guards::Verify API path-filter coverage",
+		"ci.yml::quality-dotnet::Audit .NET packages",
+		"ci.yml::quality-dotnet::Build .NET solution",
+		"ci.yml::quality-dotnet::CI lane not applicable (quality)",
+		"ci.yml::quality-dotnet::Checkout",
+		"ci.yml::quality-dotnet::Collect ci-lane-result",
+		"ci.yml::quality-dotnet::Install Git hooks",
+		"ci.yml::quality-dotnet::Install pnpm",
+		"ci.yml::quality-dotnet::Install workspace dependencies",
+		"ci.yml::quality-dotnet::Materialize .env.development",
+		"ci.yml::quality-dotnet::Restore .NET solution",
+		"ci.yml::quality-dotnet::Run analyzer tests",
+		"ci.yml::quality-dotnet::Run trusted first-party postinstall",
+		"ci.yml::quality-dotnet::Setup .NET",
+		"ci.yml::quality-dotnet::Setup Node",
+		"ci.yml::quality-dotnet::Setup just",
+		"ci.yml::quality-dotnet::Test .NET audit fixtures",
+		"ci.yml::quality-dotnet::Upload ci-lane-result",
+		"ci.yml::quality-js::Assert exact pins",
+		"ci.yml::quality-js::CI lane not applicable (quality)",
+		"ci.yml::quality-js::Check complexity bounds",
+		"ci.yml::quality-js::Check formatting",
+		"ci.yml::quality-js::Check unused exports and dependencies",
+		"ci.yml::quality-js::Checkout",
+		"ci.yml::quality-js::Collect ci-lane-result",
+		"ci.yml::quality-js::Install Git hooks",
+		"ci.yml::quality-js::Install pnpm",
+		"ci.yml::quality-js::Install workspace dependencies",
+		"ci.yml::quality-js::Lint repository",
+		"ci.yml::quality-js::Materialize .env.development",
+		"ci.yml::quality-js::Run trusted first-party postinstall",
+		"ci.yml::quality-js::Setup Node",
+		"ci.yml::quality-js::Test lint plugin",
+		"ci.yml::quality-js::Test shared TypeScript",
+		"ci.yml::quality-js::Typecheck generated client",
+		"ci.yml::quality-js::Typecheck lint plugin",
+		"ci.yml::quality-js::Typecheck shared TypeScript",
+		"ci.yml::quality-js::Upload ci-lane-result",
 		"deploy-images.yml::publish::Build and push API migrate image",
 		"deploy-images.yml::publish::Build and push API runtime image",
 		"deploy-images.yml::publish::Build and push Front image",
@@ -297,6 +336,10 @@
 		"ci.yml::api::Upload ci-lane-result": {
 			"reason_hash": "922151e1c16196f0",
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api-${{ matrix.shard }}\",\"path\":\"ci-results/api-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::api::Verify API shard partition": {
+			"reason_hash": "c82637982fe8ab4d",
+			"reason": "No exact local command match for run step \"Verify API shard partition\"; normalized workflow command(s): [\"if [ \\\"${{ matrix.shard }}\\\" = 1 ]; then\",\"just ci-api-shard-partition\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-development::Audit development dependencies": {
 			"reason_hash": "1077651c05a2fec7",
@@ -393,6 +436,86 @@
 		"ci.yml::classify::Upload ci-lane-result": {
 			"reason_hash": "90da8eb16cf60d2e",
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify\",\"path\":\"ci-results/classify.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::docs-react::Check action SHA bindings": {
+			"reason_hash": "864b8cd9eadf6458",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts\",\"node ./packages/scripts-ts/src/check-actions-pins.ts\"]."
+		},
+		"ci.yml::docs-react::Check deploy environment documentation": {
+			"reason_hash": "9170736b4193038e",
+			"reason": "Local mirror just ci-deploy-env-docs is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts\",\"node ./packages/scripts-ts/src/check-deploy-env-docs.ts\"]."
+		},
+		"ci.yml::docs-react::Check doc links": {
+			"reason_hash": "0dbbe4aba7324efa",
+			"reason": "No exact local command match for run step \"Check doc links\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-doc-links.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Check docs prune inventory": {
+			"reason_hash": "b265f599e3455523",
+			"reason": "No exact local command match for run step \"Check docs prune inventory\"; normalized workflow command(s): [\"node packages/scripts-ts/src/audit-docs-prune.ts --check\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Checkout": {
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
+		},
+		"ci.yml::docs-react::CI lane not applicable (docs)": {
+			"reason_hash": "87474b219aef7695",
+			"reason": "No exact local command match for run step \"CI lane not applicable (docs)\"; normalized workflow command(s): [\"echo 'docs verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::CI lane not applicable (quality)": {
+			"reason_hash": "650c1d84406760a0",
+			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::CI lane not applicable (react)": {
+			"reason_hash": "9931100ee8b79ac9",
+			"reason": "No exact local command match for run step \"CI lane not applicable (react)\"; normalized workflow command(s): [\"echo 'React Doctor is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Collect ci-lane-result": {
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Install Git hooks": {
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Install pnpm": {
+			"reason_hash": "59d7d531f04d2e8d",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::docs-react::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::docs-react::Materialize .env.development": {
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Resolve React Doctor base": {
+			"reason_hash": "25eb5404269c04aa",
+			"reason": "No exact local command match for run step \"Resolve React Doctor base\"; normalized workflow command(s): [\"case \\\"$CI_EVENT_NAME\\\" in\",\"pull_request) diff_base=\\\"$CI_PR_BASE_SHA\\\" ;;\",\"merge_group) diff_base=\\\"$CI_MERGE_GROUP_BASE_SHA\\\" ;;\",\"push)\",\"if [ -n \\\"$CI_PUSH_BEFORE\\\" ] && [ \\\"$CI_PUSH_BEFORE\\\" != \\\"0000000000000000000000000000000000000000\\\" ]; then\",\"diff_base=\\\"$CI_PUSH_BEFORE\\\"\",\"diff_base='HEAD~1'\",\"*) echo \\\"unsupported event $CI_EVENT_NAME\\\" >&2; exit 1 ;;\",\"git rev-parse --verify \\\"$diff_base^{commit}\\\" >/dev/null\",\"printf 'base=%s\\\\n' \\\"$diff_base\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Run React Doctor": {
+			"reason_hash": "974af2c0cda3345f",
+			"reason": "No exact local command match for run step \"Run React Doctor\"; normalized workflow command(s): [\"pnpm dlx react-doctor@0.9.12 --scope files --base \\\"$CI_REACT_DOCTOR_BASE\\\" --blocking warning --no-telemetry --verbose\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::docs-react::Run trusted first-party postinstall": {
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::docs-react::Setup Node": {
+			"reason_hash": "aa20c961b008e8f3",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::docs-react::Test doc-links guard": {
+			"reason_hash": "3e6a9bc511e131b1",
+			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts\"]."
+		},
+		"ci.yml::docs-react::Test docs prune guard": {
+			"reason_hash": "4d4d24bbfcb965cf",
+			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts\"]."
+		},
+		"ci.yml::docs-react::Upload ci-lane-result": {
+			"reason_hash": "d5123152e73b6087",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-docs-react\",\"path\":\"ci-results/docs-react.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Build and push e2e images": {
 			"reason_hash": "3a1c021b35a23a23",
@@ -542,6 +665,138 @@
 			"reason_hash": "2fc1467a75d26a69",
 			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
+		"ci.yml::front-build::Build front": {
+			"reason_hash": "b75e2ada180bfe05",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front build\"]."
+		},
+		"ci.yml::front-build::Check front React Compiler artifacts": {
+			"reason_hash": "c08c79cb8a7e7f03",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:react-compiler\"]."
+		},
+		"ci.yml::front-build::Checkout": {
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
+		},
+		"ci.yml::front-build::CI lane not applicable (front)": {
+			"reason_hash": "f514562cd60a8904",
+			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Collect ci-lane-result": {
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Install Git hooks": {
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Install pnpm": {
+			"reason_hash": "59d7d531f04d2e8d",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::front-build::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::front-build::Materialize .env.development": {
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Run trusted first-party postinstall": {
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::front-build::Setup Node": {
+			"reason_hash": "aa20c961b008e8f3",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::front-build::Smoke front production server": {
+			"reason_hash": "8f4135c0dc0e7176",
+			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &\",\"front_server_pid=$!\",\"trap 'kill \\\"$front_server_pid\\\" || true' EXIT\",\"for attempt in $(seq 1 20); do\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html && break\",\"sleep 1\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html\",\"grep -aEq 'rel=\\\"stylesheet\\\"[^>]*href=\\\"[^\\\"]+\\\\.css\\\"' /tmp/front-home.html\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Test front (non-vitest report-all)": {
+			"reason_hash": "ed33de86e4956f2f",
+			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Upload ci-lane-result": {
+			"reason_hash": "8180f37c9f9ea98b",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-build\",\"path\":\"ci-results/front-build.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::front-build::Verify front CSS asset": {
+			"reason_hash": "31eb281766a5c7ac",
+			"reason": "No exact local command match for run step \"Verify front CSS asset\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-build::Verify front font bundle": {
+			"reason_hash": "8f27e3bc9c0ba61e",
+			"reason": "No exact local command match for run step \"Verify front font bundle\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-quality::Check front column-type imports": {
+			"reason_hash": "c75d9d733ca99e78",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:column-type-imports\"]."
+		},
+		"ci.yml::front-quality::Check front design system": {
+			"reason_hash": "d8821d3438865dd6",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:design-system\"]."
+		},
+		"ci.yml::front-quality::Check front static imports": {
+			"reason_hash": "8f68bdcc699161d7",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:server-static-imports\"]."
+		},
+		"ci.yml::front-quality::Check Vitest shard coverage": {
+			"reason_hash": "24a10a8c7bd7c5f2",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front test:vitest-shard-coverage\"]."
+		},
+		"ci.yml::front-quality::Checkout": {
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
+		},
+		"ci.yml::front-quality::CI lane not applicable (front)": {
+			"reason_hash": "f514562cd60a8904",
+			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-quality::Collect ci-lane-result": {
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-quality::Install Git hooks": {
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-quality::Install pnpm": {
+			"reason_hash": "59d7d531f04d2e8d",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::front-quality::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::front-quality::Lint front": {
+			"reason_hash": "4b02047f1495f1c0",
+			"reason": "Local mirror just ci-lint is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/lint-front.ts --quiet\",\"node packages/scripts-ts/src/check-no-floating-promises.ts\",\"pnpm lint:disables\",\"pnpm check:frontend-barrels\"]."
+		},
+		"ci.yml::front-quality::Materialize .env.development": {
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-quality::Run trusted first-party postinstall": {
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::front-quality::Setup Node": {
+			"reason_hash": "aa20c961b008e8f3",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::front-quality::Typecheck front": {
+			"reason_hash": "af3c4b9dbfddb95e",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front typecheck\"]."
+		},
+		"ci.yml::front-quality::Upload ci-lane-result": {
+			"reason_hash": "766eb8c3501da59d",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-quality\",\"path\":\"ci-results/front-quality.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::front-quality::Verify paired red proofs": {
+			"reason_hash": "55e95c65a036fbde",
+			"reason": "No exact local command match for run step \"Verify paired red proofs\"; normalized workflow command(s): [\"pnpm --filter front test:preuves\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
 		"ci.yml::front-vitest::Checkout": {
 			"reason_hash": "78cf6713208e8581",
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
@@ -630,285 +885,229 @@
 			"reason_hash": "83509ea47d7e687d",
 			"reason": "No exact local command match for run step \"Write live PR snapshot\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-pr-snapshot.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Assert exact pins": {
-			"reason_hash": "712ef234877f676b",
-			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
-		},
-		"ci.yml::verification::Audit .NET packages": {
-			"reason_hash": "5a13f38df2622c17",
-			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/nuget-audit.ts\"]."
-		},
-		"ci.yml::verification::Build .NET solution": {
-			"reason_hash": "3ecfe7a4c196abe0",
-			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet build PublyApp.slnx --no-restore\"]."
-		},
-		"ci.yml::verification::Build front": {
-			"reason_hash": "b75e2ada180bfe05",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front build\"]."
-		},
-		"ci.yml::verification::Check action SHA bindings": {
-			"reason_hash": "864b8cd9eadf6458",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts\",\"node ./packages/scripts-ts/src/check-actions-pins.ts\"]."
-		},
-		"ci.yml::verification::Check action versions": {
+		"ci.yml::guards::Check action versions": {
 			"reason_hash": "d163580067248ae0",
 			"reason": "No exact local command match for run step \"Check action versions\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-actions-pinned.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Check CI drift": {
+		"ci.yml::guards::Check CI drift": {
 			"reason_hash": "19c6916d273877dc",
 			"reason": "No exact local command match for run step \"Check CI drift\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-drift.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Check complexity bounds": {
-			"reason_hash": "e1d5df7d16c33a3c",
-			"reason": "No exact local command match for run step \"Check complexity bounds\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-cyclomatic-bound.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Check dependency health contract": {
-			"reason_hash": "006d3028a49a2f4d",
-			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts\"]."
-		},
-		"ci.yml::verification::Check deploy environment documentation": {
-			"reason_hash": "9170736b4193038e",
-			"reason": "Local mirror just ci-deploy-env-docs is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-deploy-env-docs.test.ts\",\"node ./packages/scripts-ts/src/check-deploy-env-docs.ts\"]."
-		},
-		"ci.yml::verification::Check doc links": {
-			"reason_hash": "0dbbe4aba7324efa",
-			"reason": "No exact local command match for run step \"Check doc links\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-doc-links.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Check docs prune inventory": {
-			"reason_hash": "b265f599e3455523",
-			"reason": "No exact local command match for run step \"Check docs prune inventory\"; normalized workflow command(s): [\"node packages/scripts-ts/src/audit-docs-prune.ts --check\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Check formatter scope": {
-			"reason_hash": "e5302eb932aa0dd7",
-			"reason": "Local mirror just ci-format is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts\"]."
-		},
-		"ci.yml::verification::Check formatting": {
-			"reason_hash": "917c37da3f3b4901",
-			"reason": "Local mirror just format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
-		},
-		"ci.yml::verification::Check front column-type imports": {
-			"reason_hash": "c75d9d733ca99e78",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:column-type-imports\"]."
-		},
-		"ci.yml::verification::Check front design system": {
-			"reason_hash": "d8821d3438865dd6",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:design-system\"]."
-		},
-		"ci.yml::verification::Check front React Compiler artifacts": {
-			"reason_hash": "c08c79cb8a7e7f03",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:react-compiler\"]."
-		},
-		"ci.yml::verification::Check front static imports": {
-			"reason_hash": "8f68bdcc699161d7",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:server-static-imports\"]."
-		},
-		"ci.yml::verification::Check no dockerignore shadow files": {
+		"ci.yml::guards::Check no dockerignore shadow files": {
 			"reason_hash": "4680345f7d2b4619",
 			"reason": "No exact local command match for run step \"Check no dockerignore shadow files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-dockerignore-shadow.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Check no ignored tracked files": {
+		"ci.yml::guards::Check no ignored tracked files": {
 			"reason_hash": "5f0b5c4ff18663d6",
 			"reason": "No exact local command match for run step \"Check no ignored tracked files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-no-ignored-tracked.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Check unused exports and dependencies": {
-			"reason_hash": "cb1d0cd877b052ad",
-			"reason": "Local mirror just ci-knip is derived from exact normalized workflow command match(es): [\"pnpm exec knip\"]."
-		},
-		"ci.yml::verification::Check Vitest shard coverage": {
-			"reason_hash": "24a10a8c7bd7c5f2",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front test:vitest-shard-coverage\"]."
-		},
-		"ci.yml::verification::Checkout": {
+		"ci.yml::guards::Checkout": {
 			"reason_hash": "51be5bfa577c7732",
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
-		"ci.yml::verification::CI lane not applicable (docs)": {
-			"reason_hash": "87474b219aef7695",
-			"reason": "No exact local command match for run step \"CI lane not applicable (docs)\"; normalized workflow command(s): [\"echo 'docs verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::CI lane not applicable (front)": {
-			"reason_hash": "f514562cd60a8904",
-			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::CI lane not applicable (quality)": {
+		"ci.yml::guards::CI lane not applicable (quality)": {
 			"reason_hash": "650c1d84406760a0",
 			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::CI lane not applicable (react)": {
-			"reason_hash": "9931100ee8b79ac9",
-			"reason": "No exact local command match for run step \"CI lane not applicable (react)\"; normalized workflow command(s): [\"echo 'React Doctor is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Collect ci-lane-result": {
+		"ci.yml::guards::Collect ci-lane-result": {
 			"reason_hash": "baa09120079054a3",
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Install Git hooks": {
+		"ci.yml::guards::Install Git hooks": {
 			"reason_hash": "175a36a5d6789b0a",
 			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Install pnpm": {
+		"ci.yml::guards::Install pnpm": {
 			"reason_hash": "59d7d531f04d2e8d",
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
-		"ci.yml::verification::Install workspace dependencies": {
+		"ci.yml::guards::Install workspace dependencies": {
 			"reason_hash": "e1ece79f66c50373",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
-		"ci.yml::verification::Lint front": {
-			"reason_hash": "4b02047f1495f1c0",
-			"reason": "Local mirror just ci-lint is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/lint-front.ts --quiet\",\"node packages/scripts-ts/src/check-no-floating-promises.ts\",\"pnpm lint:disables\",\"pnpm check:frontend-barrels\"]."
-		},
-		"ci.yml::verification::Lint repository": {
-			"reason_hash": "9aaa099451472035",
-			"reason": "Local mirror just ci-quality is derived from exact normalized workflow command match(es): [\"pnpm lint\"]."
-		},
-		"ci.yml::verification::Materialize .env.development": {
+		"ci.yml::guards::Materialize .env.development": {
 			"reason_hash": "eb9b245eb69d579d",
 			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Resolve React Doctor base": {
-			"reason_hash": "25eb5404269c04aa",
-			"reason": "No exact local command match for run step \"Resolve React Doctor base\"; normalized workflow command(s): [\"case \\\"$CI_EVENT_NAME\\\" in\",\"pull_request) diff_base=\\\"$CI_PR_BASE_SHA\\\" ;;\",\"merge_group) diff_base=\\\"$CI_MERGE_GROUP_BASE_SHA\\\" ;;\",\"push)\",\"if [ -n \\\"$CI_PUSH_BEFORE\\\" ] && [ \\\"$CI_PUSH_BEFORE\\\" != \\\"0000000000000000000000000000000000000000\\\" ]; then\",\"diff_base=\\\"$CI_PUSH_BEFORE\\\"\",\"diff_base='HEAD~1'\",\"*) echo \\\"unsupported event $CI_EVENT_NAME\\\" >&2; exit 1 ;;\",\"git rev-parse --verify \\\"$diff_base^{commit}\\\" >/dev/null\",\"printf 'base=%s\\\\n' \\\"$diff_base\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Restore .NET solution": {
-			"reason_hash": "7646752159c9c6f0",
-			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet restore PublyApp.slnx\"]."
-		},
-		"ci.yml::verification::Run analyzer tests": {
-			"reason_hash": "6613aa9e2613728e",
-			"reason": "Local mirror just test-analyzers is derived from exact normalized workflow command match(es): [\"pnpm exec just test-analyzers\"]."
-		},
-		"ci.yml::verification::Run React Doctor": {
-			"reason_hash": "974af2c0cda3345f",
-			"reason": "No exact local command match for run step \"Run React Doctor\"; normalized workflow command(s): [\"pnpm dlx react-doctor@0.9.12 --scope files --base \\\"$CI_REACT_DOCTOR_BASE\\\" --blocking warning --no-telemetry --verbose\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Run trusted first-party postinstall": {
+		"ci.yml::guards::Run trusted first-party postinstall": {
 			"reason_hash": "fd102e8eec848d3e",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
 		},
-		"ci.yml::verification::Setup .NET": {
-			"reason_hash": "8eaffbdfc92ae552",
-			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
-		},
-		"ci.yml::verification::Setup just": {
-			"reason_hash": "b7ce43bd981167fc",
-			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
-		},
-		"ci.yml::verification::Setup Node": {
+		"ci.yml::guards::Setup Node": {
 			"reason_hash": "aa20c961b008e8f3",
 			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
-		"ci.yml::verification::Smoke front production server": {
-			"reason_hash": "8f4135c0dc0e7176",
-			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &\",\"front_server_pid=$!\",\"trap 'kill \\\"$front_server_pid\\\" || true' EXIT\",\"for attempt in $(seq 1 20); do\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html && break\",\"sleep 1\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html\",\"grep -aEq 'rel=\\\"stylesheet\\\"[^>]*href=\\\"[^\\\"]+\\\\.css\\\"' /tmp/front-home.html\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Test .NET audit fixtures": {
-			"reason_hash": "f1ca31bf3738f4af",
-			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts\"]."
-		},
-		"ci.yml::verification::Test action version guard": {
-			"reason_hash": "67626ff26e8405d1",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts\"]."
-		},
-		"ci.yml::verification::Test API path-filter coverage": {
+		"ci.yml::guards::Test API path-filter coverage": {
 			"reason_hash": "c179b1d67b6442c6",
 			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts\"]."
 		},
-		"ci.yml::verification::Test CI changed-path classifier": {
-			"reason_hash": "bee340a09aa26af0",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts\"]."
-		},
-		"ci.yml::verification::Test CI contracts": {
+		"ci.yml::guards::Test CI contracts": {
 			"reason_hash": "4b694c549565e49a",
 			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/run-ci-contract-tests.ts\"]."
 		},
-		"ci.yml::verification::Test CI drift contracts": {
-			"reason_hash": "f2ed5584cba35c09",
-			"reason": "No exact local command match for run step \"Test CI drift contracts\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts src/artifact-version-compat.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		"ci.yml::guards::Test CI guard suite": {
+			"reason_hash": "a1ad62059a4b9d4a",
+			"reason": "No exact local command match for run step \"Test CI guard suite\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts src/check-actions-pinned.test.ts src/check-ci-drift.test.ts src/check-cyclomatic-bound.test.ts src/check-formatter-scope.test.ts src/check-no-floating-promises.test.ts src/ci-changed-paths.test.ts src/ci-e2e-rerun-guard.test.ts src/ci-referenced-paths.test.ts src/codeowners-contract.test.ts src/dependency-health-pin-location.test.ts src/gen-reason-ref.test.ts src/lint-front.test.ts src/npm-audit-runner.test.ts src/prod-audit-bites.test.ts src/require-linked-issue.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Test CI guard fixtures": {
-			"reason_hash": "91dff1532f3ae20c",
-			"reason": "No exact local command match for run step \"Test CI guard fixtures\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts src/check-api-tests-path-coverage.test.ts src/require-linked-issue.test.ts src/codeowners-contract.test.ts src/gen-reason-ref.test.ts src/check-no-floating-promises.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Test CI referenced paths": {
-			"reason_hash": "e0fd421fdabee61d",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts\"]."
-		},
-		"ci.yml::verification::Test complexity guard": {
-			"reason_hash": "e989bf80ef2eef8e",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-cyclomatic-bound.test.ts\"]."
-		},
-		"ci.yml::verification::Test doc-links guard": {
-			"reason_hash": "3e6a9bc511e131b1",
-			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts\"]."
-		},
-		"ci.yml::verification::Test docs prune guard": {
-			"reason_hash": "4d4d24bbfcb965cf",
-			"reason": "Local mirror just ci-doc-links is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts\"]."
-		},
-		"ci.yml::verification::Test front (non-vitest report-all)": {
-			"reason_hash": "ed33de86e4956f2f",
-			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
-		"ci.yml::verification::Test front lint guard": {
-			"reason_hash": "11dcf153e367a219",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts\"]."
-		},
-		"ci.yml::verification::Test lint plugin": {
-			"reason_hash": "56bbbe497f28f32e",
-			"reason": "Local mirror just ci-lint is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/lint-ts test\"]."
-		},
-		"ci.yml::verification::Test npm audit runner": {
-			"reason_hash": "b2739ccd2a13c5a4",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
-		},
-		"ci.yml::verification::Test production audit threshold": {
-			"reason_hash": "f36c39d713069162",
-			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts\"]."
-		},
-		"ci.yml::verification::Test project closure adapter": {
+		"ci.yml::guards::Test project closure adapter": {
 			"reason_hash": "6c89f9959e70e503",
 			"reason": "Local mirror just ci-project-closure-adapter is derived from exact normalized workflow command match(es): [\"pnpm test:project-closure-adapter\"]."
 		},
-		"ci.yml::verification::Test shared TypeScript": {
-			"reason_hash": "97df2f38620ddaa4",
-			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts test\"]."
+		"ci.yml::guards::Upload ci-lane-result": {
+			"reason_hash": "08d2981debf1b547",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-guards\",\"path\":\"ci-results/guards.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
-		"ci.yml::verification::Typecheck front": {
-			"reason_hash": "af3c4b9dbfddb95e",
-			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front typecheck\"]."
-		},
-		"ci.yml::verification::Typecheck generated client": {
-			"reason_hash": "1c4b36250bdaebb7",
-			"reason": "Local mirror just ci-lint-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/client-ts typecheck\"]."
-		},
-		"ci.yml::verification::Typecheck lint plugin": {
-			"reason_hash": "b84876d240a8580c",
-			"reason": "Local mirror just ci-lint-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/lint-ts typecheck\"]."
-		},
-		"ci.yml::verification::Typecheck shared TypeScript": {
-			"reason_hash": "e90e6e244c2148fb",
-			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts typecheck\"]."
-		},
-		"ci.yml::verification::Upload ci-lane-result": {
-			"reason_hash": "0060f4aa9c1af5a8",
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-verification\",\"path\":\"ci-results/verification.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
-		},
-		"ci.yml::verification::Verify API path-filter coverage": {
+		"ci.yml::guards::Verify API path-filter coverage": {
 			"reason_hash": "f6eae4a0e137c59f",
 			"reason": "No exact local command match for run step \"Verify API path-filter coverage\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-api-tests-path-coverage.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::verification::Verify front CSS asset": {
-			"reason_hash": "31eb281766a5c7ac",
-			"reason": "No exact local command match for run step \"Verify front CSS asset\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		"ci.yml::quality-dotnet::Audit .NET packages": {
+			"reason_hash": "5a13f38df2622c17",
+			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/nuget-audit.ts\"]."
 		},
-		"ci.yml::verification::Verify front font bundle": {
-			"reason_hash": "8f27e3bc9c0ba61e",
-			"reason": "No exact local command match for run step \"Verify front font bundle\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		"ci.yml::quality-dotnet::Build .NET solution": {
+			"reason_hash": "3ecfe7a4c196abe0",
+			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet build PublyApp.slnx --no-restore\"]."
 		},
-		"ci.yml::verification::Verify paired red proofs": {
-			"reason_hash": "55e95c65a036fbde",
-			"reason": "No exact local command match for run step \"Verify paired red proofs\"; normalized workflow command(s): [\"pnpm --filter front test:preuves\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		"ci.yml::quality-dotnet::Checkout": {
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
+		},
+		"ci.yml::quality-dotnet::CI lane not applicable (quality)": {
+			"reason_hash": "650c1d84406760a0",
+			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-dotnet::Collect ci-lane-result": {
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-dotnet::Install Git hooks": {
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-dotnet::Install pnpm": {
+			"reason_hash": "59d7d531f04d2e8d",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::quality-dotnet::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::quality-dotnet::Materialize .env.development": {
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-dotnet::Restore .NET solution": {
+			"reason_hash": "7646752159c9c6f0",
+			"reason": "Local mirror just ci-quality-dotnet is derived from exact normalized workflow command match(es): [\"dotnet restore PublyApp.slnx\"]."
+		},
+		"ci.yml::quality-dotnet::Run analyzer tests": {
+			"reason_hash": "6613aa9e2613728e",
+			"reason": "Local mirror just test-analyzers is derived from exact normalized workflow command match(es): [\"pnpm exec just test-analyzers\"]."
+		},
+		"ci.yml::quality-dotnet::Run trusted first-party postinstall": {
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::quality-dotnet::Setup .NET": {
+			"reason_hash": "8eaffbdfc92ae552",
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::quality-dotnet::Setup just": {
+			"reason_hash": "b7ce43bd981167fc",
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
+		"ci.yml::quality-dotnet::Setup Node": {
+			"reason_hash": "aa20c961b008e8f3",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::quality-dotnet::Test .NET audit fixtures": {
+			"reason_hash": "f1ca31bf3738f4af",
+			"reason": "Local mirror just nuget-audit is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts\"]."
+		},
+		"ci.yml::quality-dotnet::Upload ci-lane-result": {
+			"reason_hash": "eaabd116e7536230",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-quality-dotnet\",\"path\":\"ci-results/quality-dotnet.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::quality-js::Assert exact pins": {
+			"reason_hash": "712ef234877f676b",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
+		},
+		"ci.yml::quality-js::Check complexity bounds": {
+			"reason_hash": "e1d5df7d16c33a3c",
+			"reason": "No exact local command match for run step \"Check complexity bounds\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-cyclomatic-bound.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-js::Check formatting": {
+			"reason_hash": "917c37da3f3b4901",
+			"reason": "Local mirror just format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
+		},
+		"ci.yml::quality-js::Check unused exports and dependencies": {
+			"reason_hash": "cb1d0cd877b052ad",
+			"reason": "Local mirror just ci-knip is derived from exact normalized workflow command match(es): [\"pnpm exec knip\"]."
+		},
+		"ci.yml::quality-js::Checkout": {
+			"reason_hash": "51be5bfa577c7732",
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
+		},
+		"ci.yml::quality-js::CI lane not applicable (quality)": {
+			"reason_hash": "650c1d84406760a0",
+			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-js::Collect ci-lane-result": {
+			"reason_hash": "baa09120079054a3",
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-js::Install Git hooks": {
+			"reason_hash": "175a36a5d6789b0a",
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-js::Install pnpm": {
+			"reason_hash": "59d7d531f04d2e8d",
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::quality-js::Install workspace dependencies": {
+			"reason_hash": "e1ece79f66c50373",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::quality-js::Lint repository": {
+			"reason_hash": "9aaa099451472035",
+			"reason": "Local mirror just ci-quality is derived from exact normalized workflow command match(es): [\"pnpm lint\"]."
+		},
+		"ci.yml::quality-js::Materialize .env.development": {
+			"reason_hash": "eb9b245eb69d579d",
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::quality-js::Run trusted first-party postinstall": {
+			"reason_hash": "fd102e8eec848d3e",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::quality-js::Setup Node": {
+			"reason_hash": "aa20c961b008e8f3",
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::quality-js::Test lint plugin": {
+			"reason_hash": "56bbbe497f28f32e",
+			"reason": "Local mirror just ci-lint is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/lint-ts test\"]."
+		},
+		"ci.yml::quality-js::Test shared TypeScript": {
+			"reason_hash": "97df2f38620ddaa4",
+			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts test\"]."
+		},
+		"ci.yml::quality-js::Typecheck generated client": {
+			"reason_hash": "1c4b36250bdaebb7",
+			"reason": "Local mirror just ci-lint-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/client-ts typecheck\"]."
+		},
+		"ci.yml::quality-js::Typecheck lint plugin": {
+			"reason_hash": "b84876d240a8580c",
+			"reason": "Local mirror just ci-lint-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/lint-ts typecheck\"]."
+		},
+		"ci.yml::quality-js::Typecheck shared TypeScript": {
+			"reason_hash": "e90e6e244c2148fb",
+			"reason": "Local mirror just ci-shared-ts is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts typecheck\"]."
+		},
+		"ci.yml::quality-js::Upload ci-lane-result": {
+			"reason_hash": "197b5986fcd3d3e3",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-quality-js\",\"path\":\"ci-results/quality-js.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"reason_hash": "83411d8a82349d27",
@@ -941,10 +1140,6 @@
 		"deploy-images.yml::publish::Set up Docker Buildx": {
 			"reason_hash": "8a049d5a0e89b91b",
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
-		},
-		"ci.yml::api::Verify API shard partition": {
-			"reason_hash": "c82637982fe8ab4d",
-			"reason": "No exact local command match for run step \"Verify API shard partition\"; normalized workflow command(s): [\"if [ \\\"${{ matrix.shard }}\\\" = 1 ]; then\",\"just ci-api-shard-partition\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		}
 	}
 }

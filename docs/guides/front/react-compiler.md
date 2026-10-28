@@ -33,7 +33,7 @@ deliberately.
 
 The guard is wired like `check:design-system`: it runs as part of
 `pnpm --filter front test`, as an explicit step of `just ci-front`, and as the
-`.github/workflows/ci.yml::verification::Check front React Compiler artifacts`
+`.github/workflows/ci.yml::front-build::Check front React Compiler artifacts`
 step (reconciled in `scripts/ci-gate-manifest.json`). Its unit tests
 live in `scripts/guards/check-react-compiler.test.mts`.
 

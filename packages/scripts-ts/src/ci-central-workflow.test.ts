@@ -239,7 +239,7 @@ const e2eConditionDeletionCases = [
 	['e2e-test', 'cache-playwright'],
 ] as const;
 
-test('central workflow exposes exactly the stable 19 display labels', async () => {
+test('central workflow exposes exactly the stable 24 display labels', async () => {
 	const workflow = parse(await readFile(workflowPath, 'utf8'));
 	const labels = Object.values(
 		workflow.jobs as Record<
@@ -520,7 +520,7 @@ test('central workflow contract command names the real complete contract suite',
 		),
 	) as { steps: Record<string, { mirror: string | null }> };
 	assert.equal(
-		manifest.steps['ci.yml::verification::Test CI contracts']?.mirror,
+		manifest.steps['ci.yml::guards::Test CI contracts']?.mirror,
 		'just ci-drift',
 	);
 });
@@ -559,28 +559,28 @@ test('central workflow rejects every CI_STEP_RESULTS outcome edge mutation and d
 		[
 			'verification lint outcome points at format',
 			original.replace(
-				'"verification.lint":{"outcome":"${{ steps.lint.outcome }}"}',
-				'"verification.lint":{"outcome":"${{ steps.format.outcome }}"}',
+				'"quality-js.lint":{"outcome":"${{ steps.lint.outcome }}"}',
+				'"quality-js.lint":{"outcome":"${{ steps.format.outcome }}"}',
 			),
 		],
 		[
 			'every result uploader has exactly one producer',
 			original.replace(
-				'          if-no-files-found: error\n\n  verification:',
+				'          if-no-files-found: error\n\n  quality-js:',
 				'          if-no-files-found: error\n      - name: Duplicate result upload\n        if: always()\n        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0\n        with:\n          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-classify\n          path: ci-results/classify.json\n          if-no-files-found: error\n\n  verification:',
 			),
 		],
 		[
 			'result uploader overwrite contract changes',
 			original.replace(
-				'          if-no-files-found: error\n\n  verification:',
+				'          if-no-files-found: error\n\n  quality-js:',
 				'          if-no-files-found: error\n          overwrite: true\n\n  verification:',
 			),
 		],
 		[
 			'dynamically equivalent forged result producer is rejected',
 			original.replace(
-				'          if-no-files-found: error\n\n  verification:',
+				'          if-no-files-found: error\n\n  quality-js:',
 				`          if-no-files-found: error
 	      - name: Forge result producer
 	        if: always()
@@ -893,7 +893,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 94 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 84 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -915,12 +915,12 @@ test('central workflow rejects six mutations for every one of its 94 classifier 
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 94);
+	assert.equal(classifierTrueSteps.length, 84);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		94,
+		84,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -996,8 +996,8 @@ test('central workflow rejects six mutations for every one of its 94 classifier 
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 564);
-		assert.equal(rejected, 564);
+		assert.equal(mutatedWorkflows.size, 504);
+		assert.equal(rejected, 504);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -1110,8 +1110,8 @@ test('central workflow structure rejects topology mutations', async () => {
 			'gate disconnected',
 			(value: string) =>
 				value.replace(
-					'        classify,\n        verification,',
-					'        verification,\n        verification,',
+					'        classify,\n        quality-js,',
+					'        quality-js,\n        quality-js,',
 				),
 			/needs/i,
 		],
@@ -1195,7 +1195,7 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 		[
 			'front matrix needs changed',
 			jobBlock('front-vitest', (block) =>
-				block.replace('needs: classify', 'needs: verification'),
+				block.replace('needs: classify', 'needs: quality-js'),
 			),
 			/needs|front-vitest/i,
 		],
@@ -1261,7 +1261,12 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 
 		for (const jobId of [
 			'classify',
-			'verification',
+			'quality-js',
+			'quality-dotnet',
+			'guards',
+			'docs-react',
+			'front-build',
+			'front-quality',
 			'audit-development',
 			'audit-production',
 			'api',
@@ -1463,8 +1468,8 @@ test('central structure rejects provenance, dataflow, and collector mutations', 
 			'collector loses always',
 			(value) =>
 				value.replace(
-					'      - name: Collect ci-lane-result\n        if: always()\n        env:\n          CI_JOB_KEY: verification',
-					'      - name: Collect ci-lane-result\n        if: failure()\n        env:\n          CI_JOB_KEY: verification',
+					'      - name: Collect ci-lane-result\n        if: always()\n        env:\n          CI_JOB_KEY: quality-js',
+					'      - name: Collect ci-lane-result\n        if: failure()\n        env:\n          CI_JOB_KEY: quality-js',
 				),
 			/always.*collector/i,
 		],
@@ -1481,7 +1486,7 @@ test('central structure rejects provenance, dataflow, and collector mutations', 
 			'workflow step outcome key disappears',
 			(value) =>
 				value.replace(
-					',"verification.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"}',
+					',"guards.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"}',
 					'',
 				),
 			/CI_STEP_RESULTS/i,
@@ -1527,13 +1532,24 @@ test('central workflow owns the predecessor evidence as unconditional, named che
 	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
 		jobs: Record<string, { steps?: Array<Record<string, unknown>> }>;
 	};
-	const verification = workflow.jobs.verification.steps ?? [];
+	// The serial `verification` job is gone; its evidence now lives across the
+	// parallel jobs, so the check spans them instead of one job.
+	const split = [
+		'quality-js',
+		'quality-dotnet',
+		'guards',
+		'docs-react',
+		'front-build',
+		'front-quality',
+	];
+	const verification = split.flatMap(
+		(jobId) => workflow.jobs[jobId]?.steps ?? [],
+	);
 	const stepNames = verification.map((step) => String(step.name));
 
 	for (const name of [
 		'Check no ignored tracked files',
 		'Check no dockerignore shadow files',
-		'Check dependency health contract',
 		'Check action SHA bindings',
 		'Check deploy environment documentation',
 		'Run analyzer tests',
@@ -1543,6 +1559,17 @@ test('central workflow owns the predecessor evidence as unconditional, named che
 			`central verification must own ${name}`,
 		);
 	}
+
+	// The dependency-health contract was folded into the batched guard suite;
+	// its invocation must still be present there, not lost with its old step.
+	const guardSuite = workflow.jobs.guards.steps?.find(
+		(candidate) => candidate.name === 'Test CI guard suite',
+	);
+	assert.match(
+		String(guardSuite?.run),
+		/src\/dependency-health-pin-location\.test\.ts/,
+		'central guard battery must still run the dependency-health contract',
+	);
 
 	for (const step of verification.filter((candidate) =>
 		[
@@ -2002,7 +2029,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 171 entries', async () => {
+test('central manifest derives honest evidence for every one of its 210 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2015,7 +2042,7 @@ test('central manifest derives honest evidence for every one of its 171 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 171);
+	assert.equal(central.length, 210);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2041,23 +2068,23 @@ test('central manifest derives honest evidence for every one of its 171 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 171);
+	assert.equal(decisions.size, 210);
 	assert.equal(
-		manifest.steps['ci.yml::verification::Install pnpm']?.mirror,
+		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,
 	);
 	assert.equal(
-		manifest.steps['ci.yml::verification::Install workspace dependencies']
+		manifest.steps['ci.yml::quality-js::Install workspace dependencies']
 			?.mirror,
 		'just ci-install',
 	);
 	assert.equal(
-		manifest.steps['ci.yml::verification::Smoke front production server']
+		manifest.steps['ci.yml::front-build::Smoke front production server']
 			?.mirror,
 		null,
 	);
 	assert.match(
-		manifest.steps['ci.yml::verification::Materialize .env.development']
+		manifest.steps['ci.yml::quality-js::Materialize .env.development']
 			?.reason ?? '',
 		/No exact local command match/,
 	);
@@ -2093,35 +2120,35 @@ test('central manifest evidence mutations are RED for all Sol examples and gener
 	> = [
 		[
 			'Install pnpm falsely claims a local mirror',
-			'ci.yml::verification::Install pnpm',
+			'ci.yml::quality-js::Install pnpm',
 			(entry) => {
 				entry.mirror = 'just ci-install';
 			},
 		],
 		[
 			'workspace dependencies falsely claim hosted-only',
-			'ci.yml::verification::Install workspace dependencies',
+			'ci.yml::quality-js::Install workspace dependencies',
 			(entry) => {
 				entry.mirror = null;
 			},
 		],
 		[
 			'smoke production server falsely claims ci-front',
-			'ci.yml::verification::Smoke front production server',
+			'ci.yml::front-build::Smoke front production server',
 			(entry) => {
 				entry.mirror = 'just ci-front';
 			},
 		],
 		[
 			'Materialize env uses an unrelated generic boundary',
-			'ci.yml::verification::Materialize .env.development',
+			'ci.yml::quality-js::Materialize .env.development',
 			(entry) => {
 				entry.reason = 'GitHub-only setup for a hosted runner boundary.';
 			},
 		],
 		[
 			'generic action reason omits actual hosted fields',
-			'ci.yml::verification::Setup Node',
+			'ci.yml::quality-js::Setup Node',
 			(entry) => {
 				entry.reason = 'GitHub-only setup for a hosted runner boundary.';
 			},
