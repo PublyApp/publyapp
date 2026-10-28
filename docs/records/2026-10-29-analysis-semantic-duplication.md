@@ -106,7 +106,7 @@ more than the other 34 entries combined. They are ranked accordingly below.
 ### A4 — the audit-row contract declared twice · **KEPT (owner decision)**
 
 Classified as a duplicated type and merged in this packet's first pass, then **reverted**: the two
-declarations are deliberately distinct. Full entry in [`K1`](#k1--tenantactivityrow-vs-staffauditlogrow-kept-by-owner-decision) below.
+declarations are deliberately distinct. Full entry is the `K1` table below.
 
 ### A5 — the named-profile resolution row declared twice · **FIXED**
 
