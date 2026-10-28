@@ -7,6 +7,10 @@ import { cn } from '~/lib/utils';
  * carrying the brand initial in `--publy-primary-foreground` (never a
  * circle — a fully-rounded radius is reserved for avatars). "PublyApp" is
  * never translated.
+ *
+ * The accessible name comes from a visually hidden span rather than an
+ * `aria-label`: axe-core 4.14 counts the `aria-hidden` initial tile as visible
+ * text, so any `aria-label` on this link fails `label-content-name-mismatch`.
  */
 export const MarketingBrand = ({
 	className,
@@ -20,7 +24,6 @@ export const MarketingBrand = ({
 	return (
 		<Link
 			to="/"
-			aria-label={t('marketing-home')}
 			className={cn(
 				'inline-flex shrink-0 items-center gap-2 no-underline outline-none focus-visible:ring-3 focus-visible:ring-ring',
 				'rounded-[var(--publy-radius-small-control)]',
@@ -36,9 +39,13 @@ export const MarketingBrand = ({
 			>
 				P
 			</span>
-			<span className="text-[15.5px] font-semibold tracking-[-0.02em] text-foreground">
+			<span
+				aria-hidden="true"
+				className="text-[15.5px] font-semibold tracking-[-0.02em] text-foreground"
+			>
 				PublyApp
 			</span>
+			<span className="sr-only">{t('marketing-home')}</span>
 		</Link>
 	);
 };

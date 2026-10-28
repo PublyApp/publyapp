@@ -220,12 +220,12 @@ by both, and `6.16.0` is the first version patched against both.
 
 `qs` is **entirely transitive** and **dev-scoped**: no workspace package
 declares or imports it. `pnpm -r why qs` shows a single dev entry point —
-`apps/front` → `shadcn@4.19.0` → `@modelcontextprotocol/sdk@1.29.0` — but from
+`apps/front` → `shadcn@4.22.1` → `@modelcontextprotocol/sdk@1.32.1` — but from
 there `qs` is reached by more than one branch:
 
 - `@modelcontextprotocol/sdk` → `express@5.2.1` → `qs` directly
   (`express` declares `qs: ^6.14.0`), **and**
-- `@modelcontextprotocol/sdk` → `express@5.2.1` → `body-parser@2.3.0` → `qs`
+- `@modelcontextprotocol/sdk` → `express@5.2.1` → `body-parser@2.4.0` → `qs`
   (`express` declares `body-parser: ^2.2.1`; `body-parser` declares
   `qs: ^6.15.2`),
 - with `@modelcontextprotocol/sdk` → `express-rate-limit@8.5.2` re-entering the

@@ -23,15 +23,15 @@
 		"test:nuget-audit": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts"
 	},
 	"devDependencies": {
-		"@types/node": "^24.13.3",
+		"@types/node": "^24.19.2",
 		"chokidar": "^5.0.0",
-		"knip": "6.32.2",
-		"lint-staged": "^17.3.0",
-		"oxfmt": "0.65.0",
-		"oxlint": "1.80.0",
-		"oxlint-tsgolint": "7.0.2001",
+		"knip": "6.43.0",
+		"lint-staged": "^17.6.0",
+		"oxfmt": "0.74.0",
+		"oxlint": "1.89.0",
+		"oxlint-tsgolint": "7.0.2005",
 		"typescript": "^7.0.2",
-		"yaml": "^2.8.3"
+		"yaml": "^2.9.1"
 	},
 	"packageManager": "pnpm@10.13.1",
 	"engines": {
@@ -58,10 +58,11 @@
 			"fast-uri": "^3.1.9",
 			"@hono/node-server": "^2.0.5",
 			"brace-expansion": "^5.0.12",
-			"postcss": "^8.5.25",
+			"postcss": "^8.5.31",
+			"jsdom": "30.0.1",
 			"qs": "^6.16.1",
 			"uuid": "^13.0.1",
-			"yaml": "^2.8.3",
+			"yaml": "^2.9.1",
 			"shell-quote": "^1.8.4",
 			"form-data": "^4.0.6",
 			"ws": "^8.21.0",
