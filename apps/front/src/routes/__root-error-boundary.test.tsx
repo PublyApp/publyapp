@@ -44,8 +44,9 @@ vi.mock('~/lib/i18n/client', () => ({
 
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
-import { GLOBAL_I18N_NAMESPACES } from '~/lib/i18n/namespaces';
-import type { SupportedLanguage } from '~/lib/i18n/shared';
+
+import { GLOBAL_I18N_NAMESPACES } from '@org/shared-ts/lib/i18n/namespaces';
+import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
 
 import { RootErrorBoundary, Route as RootRoute } from './__root';
 

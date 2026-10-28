@@ -17,7 +17,6 @@ import {
 } from '~/components/ui/detail-skeleton';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
-import { LOCALE_LABELS, isSupportedLanguage } from '~/lib/i18n/shared';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -35,6 +34,10 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	LOCALE_LABELS,
+	isSupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {

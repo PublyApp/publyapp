@@ -16,7 +16,6 @@ import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 import enResource from '~/i18n/locales/en';
 import frResource from '~/i18n/locales/fr';
-import type { SupportedNamespace } from '~/lib/i18n/namespaces';
 import suppressionInventory from '~/lib/testing/suppression-inventory.json';
 import {
 	diffSuppressionInventory,
@@ -24,6 +23,8 @@ import {
 	isPreviousLineSuppressed,
 	type SuppressionSite,
 } from '~/lib/testing/suppression-reason';
+
+import type { SupportedNamespace } from '@org/shared-ts/lib/i18n/namespaces';
 
 // Extracts every string-literal translation-function call and JSX i18n-key
 // attribute under apps/front/src and asserts it resolves in both locale

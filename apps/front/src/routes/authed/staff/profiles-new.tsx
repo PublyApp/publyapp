@@ -14,7 +14,6 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
-import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n/shared';
 import {
 	invalidateStaffProfiles,
 	useCreateStaffProfileMutation,
@@ -25,6 +24,10 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	FALLBACK_LANGUAGE,
+	isSupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';

@@ -12,12 +12,13 @@ import {
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { useSwitchLocale } from '~/lib/hooks/use-switch-locale';
+import { cn } from '~/lib/utils';
+
 import {
 	isSupportedLanguage,
 	LOCALE_LABELS,
 	SUPPORTED_LANGUAGES,
-} from '~/lib/i18n/shared';
-import { cn } from '~/lib/utils';
+} from '@org/shared-ts/lib/i18n/shared';
 
 type SimpleLayoutProps = {
 	children: ReactNode;

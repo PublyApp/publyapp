@@ -1,13 +1,12 @@
 import type { i18n as I18nInstance } from 'i18next';
 import { z } from 'zod';
 
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
-
 import {
 	FALLBACK_LANGUAGE,
 	isSupportedLanguage,
 	type SupportedLanguage,
-} from './shared';
+} from '@org/shared-ts/lib/i18n/shared';
+import InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
 type InterZodI18nLike = InterZodOptions['i18n'];

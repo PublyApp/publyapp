@@ -11,7 +11,6 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { FieldRowsSkeleton } from '~/components/ui/detail-skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
-import { LOCALE_LABELS } from '~/lib/i18n/shared';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -29,6 +28,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { LOCALE_LABELS } from '@org/shared-ts/lib/i18n/shared';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { WorkspacePageHeader } from '../_workspace-page-parts';

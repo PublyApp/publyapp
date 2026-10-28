@@ -1,40 +1,14 @@
 import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 
-import account from './en/account.json';
-import auth from './en/auth.json';
-import common from './en/common.json';
-import landing from './en/landing.json';
-import organizations from './en/organizations.json';
-import posts from './en/posts.json';
-import settings from './en/settings.json';
-import socialAccounts from './en/social-accounts.json';
-import staffAuditLogs from './en/staff-audit-logs.json';
-import staffInvitations from './en/staff-invitations.json';
-import staffJobs from './en/staff-jobs.json';
-import staffTenantActivity from './en/staff-tenant-activity.json';
-import staffTenantProfiles from './en/staff-tenant-profiles.json';
-import staffUsers from './en/staff-users.json';
-
-const resourceEN = {
-	common,
-	zod: sharedEn.zod,
-	'response-message': sharedEn['response-message'],
-	auth,
-	account,
-	settings,
-	organizations,
-	posts,
-	'social-accounts': socialAccounts,
-	'staff-tenant-profiles': staffTenantProfiles,
-	'staff-users': staffUsers,
-	'staff-invitations': staffInvitations,
-	'staff-audit-logs': staffAuditLogs,
-	'staff-jobs': staffJobs,
-	'staff-tenant-activity': staffTenantActivity,
-	landing,
-} as const;
-
-export type Front2Resource = typeof resourceEN;
+/**
+ * The English catalogue lives in `packages/shared-ts` (issue #2250: shared-ts is its single home,
+ * and the app loads it at runtime through `@org/shared-ts/lib/i18n/backend`'s per-namespace
+ * loaders). This barrel is the app-wide *value and type* surface over that catalogue — tests, the
+ * `<Trans>` guard and `Front2Resource` read it — so it publishes exactly what the shared barrel
+ * publishes, in the shared barrel's order, and nothing else. `locales.test.ts` asserts the
+ * published namespaces are `I18N_NAMESPACES`, in registry order.
+ */
+export type Front2Resource = typeof sharedEn;
 export type LooseResource = ToPrimitive<Front2Resource>;
 
-export default resourceEN;
+export default sharedEn;

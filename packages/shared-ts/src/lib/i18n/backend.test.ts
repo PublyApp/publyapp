@@ -8,6 +8,8 @@ import {
 	loadNamespacesStrict,
 	readNamespaceResource,
 } from './backend';
+import { I18N_NAMESPACES } from './namespaces';
+import { SUPPORTED_LANGUAGES } from './shared';
 
 describe('i18n Vite backend', () => {
 	test.each([
@@ -30,6 +32,23 @@ describe('i18n Vite backend', () => {
 	// Exercised through i18nBackend.read, whose i18next signature takes raw
 	// strings: an out-of-contract loader key arrives here exactly like it
 	// would from the real backend pipeline, no type assertion needed.
+	// The loader map is written by hand (one dynamic `import()` per namespace per language — that
+	// is what code-splits each catalogue into its own chunk), and a `Map` cannot express
+	// "covers every registered namespace" in the type system. A namespace missing from it loads as
+	// `Unknown i18n resource` on exactly the route that needs it, which no other test would see.
+	test.each(
+		SUPPORTED_LANGUAGES.flatMap((language) =>
+			I18N_NAMESPACES.map((namespace) => [language, namespace] as const),
+		),
+	)(
+		'has a loader for the registered %s/%s namespace',
+		async (locale, namespace) => {
+			await expect(
+				readNamespaceResource(locale, namespace),
+			).resolves.toBeTypeOf('object');
+		},
+	);
+
 	test('rejects an unknown locale/namespace loader key', async () => {
 		const failure = await new Promise<unknown>((resolve) => {
 			i18nBackend.read('en', 'missing', (error) => resolve(error));
