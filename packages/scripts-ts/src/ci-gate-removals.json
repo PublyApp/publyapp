@@ -994,6 +994,11 @@
 			"step_id": "require-linked-issue.yml::require-linked-issue::Verify the PR links an existing issue",
 			"reason": "PR-B #2113 intentionally removes this predecessor step; the central workflow gate now owns this validation, remains fail-closed, and feeds the single required ci-final-gate status through the central topology.",
 			"removed_at": "2026-09-09"
+		},
+		{
+			"step_id": "ci.yml::api::Run OpenAPI contract spec",
+			"reason": "#1947: the API lane is now a 4-way shard matrix, and every shard job must execute the same step set. OpenApiContractSpec is a class of the API suite, so the shard that owns it by class-name hash already runs it exactly once; a separate always-on step would run it a second time in each of the four shards. The spec still runs in every PR's API lane and in the local `just ci-spec-drift`; no verification was dropped.",
+			"removed_at": "2026-10-28"
 		}
 	]
 }

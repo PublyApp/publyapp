@@ -25,7 +25,10 @@ export const EXPECTED_UPSTREAM_JOB_KEYS = [
 	'verification',
 	'audit-development',
 	'audit-production',
-	'api',
+	'api/1',
+	'api/2',
+	'api/3',
+	'api/4',
 	'front-vitest/1',
 	'front-vitest/2',
 	'front-vitest/3',
@@ -297,31 +300,6 @@ const baseJobLaneContracts = {
 			'quality',
 		),
 	],
-	api: [
-		contract(
-			'api',
-			'api',
-			[
-				'api.checkout',
-				'api.setup_dotnet',
-				'api.install_pnpm',
-				'api.setup_node',
-				'api.setup_just',
-				'api.install_workspace',
-				'api.materialize_env',
-				'api.restore_tools',
-				'api.build_api',
-				'api.openapi_drift',
-				'api.generate_client',
-				'api.client_drift',
-				'api.openapi_contract',
-				'api.suite',
-				'api.test_results',
-				'api.not-applicable',
-			],
-			'api',
-		),
-	],
 	'e2e-build': [
 		contract(
 			'e2e-build',
@@ -358,6 +336,34 @@ const baseJobLaneContracts = {
 
 const matrixJobLaneContracts = Object.fromEntries(
 	[1, 2, 3, 4].flatMap((shard) => [
+		[
+			`api/${shard}`,
+			[
+				contract(
+					'api',
+					'api',
+					[
+						'api.checkout',
+						'api.setup_dotnet',
+						'api.install_pnpm',
+						'api.setup_node',
+						'api.setup_just',
+						'api.install_workspace',
+						'api.materialize_env',
+						'api.restore_tools',
+						'api.build_api',
+						'api.openapi_drift',
+						'api.generate_client',
+						'api.client_drift',
+						'api.shard_partition',
+						'api.suite',
+						'api.test_results',
+						'api.not-applicable',
+					],
+					'api',
+				),
+			],
+		],
 		[
 			`front-vitest/${shard}`,
 			[
@@ -421,7 +427,7 @@ export const getExpectedJobLanes = (
 ): JobContract[] | undefined =>
 	EXPECTED_JOB_LANES[jobKey as keyof typeof EXPECTED_JOB_LANES];
 
-const expectedJobLaneContractCount = 7 + 2 * 4;
+const expectedJobLaneContractCount = 6 + 3 * 4;
 if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
 }

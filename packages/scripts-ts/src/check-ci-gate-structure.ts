@@ -1089,6 +1089,10 @@ export const findRequiredContextCollisionProblems = async ({
 	// Central verification jobs have dynamic display names that must remain
 	// authorized explicitly.
 	authorizedExpressionNames.set(
+		'ci.yml::api',
+		'API contract and suite (${{ matrix.shard }}/4)',
+	);
+	authorizedExpressionNames.set(
 		'ci.yml::front-vitest',
 		'front-ci (${{ matrix.shard }}/4)',
 	);
@@ -1203,7 +1207,10 @@ export const CENTRAL_VISIBLE_CHECKS = [
 	'CI verification',
 	'Audit development dependencies',
 	'Audit production dependencies',
-	'API contract and suite',
+	'API contract and suite (1/4)',
+	'API contract and suite (2/4)',
+	'API contract and suite (3/4)',
+	'API contract and suite (4/4)',
 	'front-ci (1/4)',
 	'front-ci (2/4)',
 	'front-ci (3/4)',
@@ -1362,7 +1369,7 @@ const expandedCentralNames = (jobs: CentralJobs): string[] => {
 };
 
 const centralJobKey = (jobId: string): string => {
-	if (jobId === 'front-vitest' || jobId === 'e2e-test') {
+	if (jobId === 'api' || jobId === 'front-vitest' || jobId === 'e2e-test') {
 		return `${jobId}/1`;
 	}
 	return jobId;
@@ -1490,7 +1497,7 @@ const checkCentralTopologyInvariants = (
 	}
 	if (!deepEqualJson(expandedCentralNames(jobs), CENTRAL_VISIBLE_CHECKS)) {
 		findings.push(
-			'ci.yml: expanded display-name set is not exactly the pinned 16 labels',
+			'ci.yml: expanded display-name set is not exactly the pinned 19 labels',
 		);
 	}
 
@@ -1547,7 +1554,7 @@ const checkCentralTopologyInvariants = (
 		}
 	}
 
-	for (const jobId of ['front-vitest', 'e2e-test']) {
+	for (const jobId of ['api', 'front-vitest', 'e2e-test']) {
 		const strategy = jobs[jobId]?.strategy;
 		if (strategy?.['fail-fast'] !== false) {
 			findings.push(`${jobId}: fail-fast must be false`);
@@ -2213,7 +2220,9 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 		laneUpload('verification', 'verification'),
 		laneUpload('audit-development', 'audit-development'),
 		laneUpload('audit-production', 'audit-production'),
-		laneUpload('api', 'api'),
+		{
+			...laneUpload('api', 'api-\${{ matrix.shard }}'),
+		},
 		{
 			...laneUpload('front-vitest', 'front-vitest-\${{ matrix.shard }}'),
 		},
@@ -2229,7 +2238,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			condition:
 				"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')",
 			with: {
-				name: 'api-test-results-\${{ github.run_id }}',
+				name: 'api-test-results-\${{ github.run_id }}-\${{ matrix.shard }}',
 				path: 'apps/api/Tests/TestResults/\napps/api/.artifacts/logs/\n',
 				'if-no-files-found': 'ignore',
 				'retention-days': 5,

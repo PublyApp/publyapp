@@ -152,11 +152,11 @@ test('central workflow structure rejects concurrency and API timeout mutations',
 			/timeout-minutes|api/i,
 		],
 		[
-			'API timeout nested under permissions',
+			'API timeout moved off runs-on',
 			(value) =>
 				value.replace(
-					'    timeout-minutes: 30\n    permissions:',
-					'    permissions:\n      timeout-minutes: 30',
+					'    timeout-minutes: 30\n    strategy:\n      fail-fast: false\n      matrix:\n        shard: [1, 2, 3, 4]\n    permissions:',
+					'    strategy:\n      fail-fast: false\n      matrix:\n        shard: [1, 2, 3, 4]\n    timeout-minutes: 30\n    permissions:',
 				),
 			/timeout-minutes|api/i,
 		],
@@ -238,7 +238,7 @@ const e2eConditionDeletionCases = [
 	['e2e-test', 'cache-playwright'],
 ] as const;
 
-test('central workflow exposes exactly the stable 16 display labels', async () => {
+test('central workflow exposes exactly the stable 19 display labels', async () => {
 	const workflow = parse(await readFile(workflowPath, 'utf8'));
 	const labels = Object.values(
 		workflow.jobs as Record<
@@ -1090,7 +1090,10 @@ test('central workflow structure rejects topology mutations', async () => {
 		[
 			'front shard omitted',
 			(value: string) =>
-				value.replace('shard: [1, 2, 3, 4]', 'shard: [1, 2, 3]'),
+				value.replace(
+					/(front-vitest:[\s\S]*?)shard: \[1, 2, 3, 4\]/,
+					'$1shard: [1, 2, 3]',
+				),
 			/front-vitest.*shard/i,
 		],
 		[
@@ -1353,7 +1356,7 @@ test('central structure rejects independent-check and artifact mutations', async
 			'result artifact is renamed',
 			(value) =>
 				value.replace(
-					'path: ci-results/api.json',
+					'path: ci-results/api-${{ matrix.shard }}.json',
 					'path: ci-results/renamed.json',
 				),
 			/artifact.*(path|filename)|api\.json/i,
@@ -1450,8 +1453,8 @@ test('central structure rejects provenance, dataflow, and collector mutations', 
 			'result artifact allows missing file',
 			(value) =>
 				value.replace(
-					'path: ci-results/api.json\n          if-no-files-found: error',
-					'path: ci-results/api.json\n          if-no-files-found: ignore',
+					'path: ci-results/api-${{ matrix.shard }}.json\n          if-no-files-found: error',
+					'path: ci-results/api-${{ matrix.shard }}.json\n          if-no-files-found: ignore',
 				),
 			/artifact.*contract/i,
 		],

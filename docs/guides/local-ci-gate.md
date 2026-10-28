@@ -6,10 +6,10 @@ a green run locally is a strong prediction that CI would be green too.
 ## Central PR CI
 
 `.github/workflows/ci.yml` is the additive central workflow for pull requests,
-merge groups, and pushes to `develop`. It creates the stable 16 visible checks:
-one classifier, packed verification/audit/API jobs, four front Vitest shards, four
-E2E shards, cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
-`develop`). The classifier emits the six lane decisions once; irrelevant lanes run
+merge groups, and pushes to `develop`. It creates the stable 19 visible checks:
+one classifier, packed verification/audit jobs, four API suite shards, four front
+Vitest shards, four E2E shards, cleanup, and one artifact-backed `ci-final-gate` (or
+`ci-push-check` on `develop`). The classifier emits the six lane decisions once; irrelevant lanes run
 named success sentinels rather than becoming skipped jobs.
 
 The eight predecessor PR workflows were removed in PR B. The external ruleset
@@ -44,8 +44,9 @@ Central ownership is explicit: `CI verification` executes the repository quality
 front build/CSS/font/smoke/typecheck/lint/design/static-import/compiler/proof,
 docs, React Doctor, API path-coverage, analyzer, dependency, action-pin, deploy-env,
 CI-contract, project-closure, and unconditional tracked-file checks; the `api` lane
-executes API/OpenAPI/client generation and drift checks, the OpenAPI contract spec,
-and `just test-api`; the four `front-ci` shards execute install/postinstall/hooks and
+executes API/OpenAPI/client generation and drift checks, the shard-partition proof and
+one `just test-api-shard` slice of the API suite (including `OpenApiContractSpec`, which runs in whichever shard
+owns it); the four `front-ci` shards execute install/postinstall/hooks and
 Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
 health, Playwright, shard-4 hermetic/drawer guards, failure-report, teardown, and
 cleanup steps. The nested front report records the complete ordered 32-command
@@ -171,16 +172,44 @@ error: Recipe `ci-lint` failed on line 251 with exit code 1
 ## The API-suite asymmetry (read this once)
 
 **Since #1462, a workflow runs the API test suite.** `.github/workflows/ci.yml`
-runs `just test-api` (~2,000 specs on real Postgres via Testcontainers) in the
-central API lane, with the same #1017 aggregate-gate shape (changes classifier ->
-heavy job -> final gate) as every other lane. The only remaining `dotnet test`
-asymmetry is `ci.yml`'s contract-only filter.
+runs it (~3,000 specs on real Postgres via Testcontainers) in the central API lane,
+with the same #1017 aggregate-gate shape (changes classifier -> heavy job -> final
+gate) as every other lane. CI runs it **sharded**; `just ci` runs it **unsharded**
+(`just test-api`) — the one deliberate asymmetry, described next.
 
 `just ci` still runs the full suite locally via its final recipe, so it remains the
 fastest pre-push signal; CI now independently enforces what used to be local-only.
 The suite is relevance-classified in CI: doc-only changes skip the heavy job while
 the required `ci-final-gate` still reports (passing on verified-irrelevant
 changes, per the aggregate-gate contract).
+
+### API suite sharding (#1947)
+
+The `api` job is a 4-way matrix (`api/1`..`api/4`, same shape as `front-vitest`). Each
+shard rebuilds and runs the drift steps, then `just ci-api-shard-partition` and
+`just test-api-shard <shard> 4` (the way to reproduce one CI shard locally; Unix only):
+
+- `packages/scripts-ts/src/shard-api-tests.ts <shard> <total>` discovers the real suite
+  once (`dotnet test --list-tests` on the `Test` build), assigns **whole classes** by
+  `sha256(fully-qualified class name) % total`, and prints the shard's `tests=<count>`
+  and `filter=<dotnet test --filter>`. Each class FQN is suffixed with `.` in the filter
+  so `Ns.FooSpec` never also selects `Ns.FooSpecExtra`.
+- The recipe runs that filter and **fails unless the executed total equals the assigned
+  count**. There is no second discovery.
+- `ci-final-gate` requires all four `ci-lane-result` artifacts (`api/1`..`api/4`) plus
+  `needs.api.result == success`; a failed, cancelled, skipped or missing shard fails the
+  gate.
+- `packages/scripts-ts/src/shard-api-tests.test.ts` runs against the real suite and
+  proves every class is in exactly one shard and the union is the whole suite. It
+  builds the `Test` configuration if stale; it runs as `just ci-api-shard-partition`
+  (the `Verify API shard partition` step of every shard, and part of `just ci`).
+- `OpenApiContractSpec` is an ordinary suite class: it runs once, in the shard that owns
+  it. The former dedicated contract step was removed because every shard job must run
+  the same steps (it would have run four extra times); `just ci-spec-drift` still runs
+  it locally.
+- Each shard is its own runner with its own Testcontainers Postgres (no fixed name,
+  host port or database name), so shards cannot collide. `AppHostOrchestrationGuardSpec`
+  binds `127.0.0.1:5454`; it lives in exactly one shard.
 
 ## What CI has that the local gate cannot
 
