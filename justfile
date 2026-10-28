@@ -261,6 +261,28 @@ test-api $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
   cd {{api_dir}} && dotnet restore Tests/PublyApp.Api.Tests.csproj
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=normal"
 
+# One CI shard of the API suite (#1947), also the way to reproduce a CI shard locally.
+# `node .../shard-api-tests.ts` discovers the real suite once and prints the shard's
+# assigned test count and `--filter`; the executed total must equal that count.
+# `just test-api` stays the unsharded local run. Unix only (bash).
+[unix]
+test-api-shard shard total $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
+  #!/usr/bin/env bash
+  set -euo pipefail
+  export DOTNET_CLI_UI_LANGUAGE=en
+  dotnet restore {{api_dir}}/Tests/PublyApp.Api.Tests.csproj
+  plan=$(node packages/scripts-ts/src/shard-api-tests.ts {{shard}} {{total}})
+  assigned=$(sed -n 's/^tests=//p' <<< "$plan")
+  filter=$(sed -n 's/^filter=//p' <<< "$plan")
+  log=$(mktemp)
+  trap 'rm -f "$log"' EXIT
+  (cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-build --nologo --verbosity minimal --logger "console;verbosity=normal" --filter "$filter") 2>&1 | tee "$log"
+  executed=$(sed -nE 's/^ *Total tests: +([0-9]+).*/\1/p' "$log" | tail -1)
+  if [ "$executed" != "$assigned" ]; then
+    echo "::error::API shard {{shard}}/{{total}} executed ${executed:-no} tests but was assigned $assigned"
+    exit 1
+  fi
+
 # Run analyzer tests
 test-analyzers:
   dotnet restore packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj
@@ -584,6 +606,14 @@ ci-spec-drift:
   node ./packages/scripts-ts/src/check-tree-clean.ts packages/client-ts
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~OpenApiContractSpec"
 
+# API shard partition (#1947): every test class of the real suite belongs to exactly one
+# CI shard and the shards' union is the whole suite. Builds the `Test` configuration if stale.
+# Mirrors ci.yml::api::Verify API shard partition.
+ci-api-shard-partition:
+  @echo "=== [gate] API shard partition ==="
+  dotnet restore {{api_dir}}/Tests/PublyApp.Api.Tests.csproj
+  pnpm --filter scripts-ts exec vitest run src/shard-api-tests.test.ts
+
 # front e2e: docker stack + playwright (e2e only; `just ci-full` runs this)
 #
 # The whole lifecycle is one Node invocation because a justfile cannot express
@@ -604,7 +634,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit ci-api-shard-partition test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

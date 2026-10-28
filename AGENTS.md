@@ -126,10 +126,10 @@ just ci-migration-expand-contract # New migration safety gate for expand/contrac
 just ci-full           # just ci + both e2e suites
 ```
 
-**CI runs the API suite since #1462** (`.github/workflows/ci.yml` runs
-`just test-api` in its API lane), so `just ci` mirrors it locally rather than
-exceeding CI on the backend. The central workflow is now the sole PR validation
-workflow; PR B removed the eight predecessor workflows.
+**CI runs the API suite since #1462** (`.github/workflows/ci.yml` runs it in its API
+lane, sharded four ways by `just test-api-shard` since #1947), so `just ci` mirrors it
+locally (unsharded `just test-api`) rather than exceeding CI on the backend. The central
+workflow is now the sole PR validation workflow; PR B removed the eight predecessor workflows.
 `just ci-drift` fails if a workflow gains or changes a step the local gate has not been
 reconciled against — never bump a hash in `packages/scripts-ts/src/ci-gate-manifest.json` without reading
 the step it points at. Full details, exemptions, and known gaps:

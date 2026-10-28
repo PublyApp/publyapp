@@ -59,7 +59,6 @@
 		"ci.yml::api::Materialize .env.development",
 		"ci.yml::api::Regenerate TypeScript client",
 		"ci.yml::api::Restore .NET tools",
-		"ci.yml::api::Run OpenAPI contract spec",
 		"ci.yml::api::Run full API test suite",
 		"ci.yml::api::Set up .NET",
 		"ci.yml::api::Set up pnpm",
@@ -67,6 +66,7 @@
 		"ci.yml::api::Setup just",
 		"ci.yml::api::Upload API test results",
 		"ci.yml::api::Upload ci-lane-result",
+		"ci.yml::api::Verify API shard partition",
 		"ci.yml::audit-development::Audit development dependencies",
 		"ci.yml::audit-development::CI lane not applicable",
 		"ci.yml::audit-development::Checkout",
@@ -271,12 +271,8 @@
 			"reason": "Local mirror just ci-spec-drift is derived from exact normalized workflow command match(es): [\"dotnet tool restore\"]."
 		},
 		"ci.yml::api::Run full API test suite": {
-			"reason_hash": "58903d0127e3dcc4",
-			"reason": "Local mirror just test-api is derived from exact normalized workflow command match(es): [\"just test-api\"]."
-		},
-		"ci.yml::api::Run OpenAPI contract spec": {
-			"reason_hash": "3b119872fd7b11aa",
-			"reason": "No exact local command match for run step \"Run OpenAPI contract spec\"; normalized workflow command(s): [\"cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter \\\"FullyQualifiedName~OpenApiContractSpec\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "064eaa919e31f1af",
+			"reason": "No exact local command match for run step \"Run full API test suite\"; normalized workflow command(s): [\"just test-api-shard ${{ matrix.shard }} 4\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Set up .NET": {
 			"reason_hash": "521d202fa69013d9",
@@ -295,12 +291,12 @@
 			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@820762786026740c76f36085b0efc47a31fe5020; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::api::Upload API test results": {
-			"reason_hash": "1392dba00a2ce55c",
-			"reason": "Hosted-only action step \"Upload API test results\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')\",\"with\":{\"name\":\"api-test-results-${{ github.run_id }}\",\"path\":\"apps/api/Tests/TestResults/\\napps/api/.artifacts/logs/\\n\",\"if-no-files-found\":\"ignore\",\"retention-days\":5},\"env\":null}."
+			"reason_hash": "f95b44d71335d636",
+			"reason": "Hosted-only action step \"Upload API test results\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')\",\"with\":{\"name\":\"api-test-results-${{ github.run_id }}-${{ matrix.shard }}\",\"path\":\"apps/api/Tests/TestResults/\\napps/api/.artifacts/logs/\\n\",\"if-no-files-found\":\"ignore\",\"retention-days\":5},\"env\":null}."
 		},
 		"ci.yml::api::Upload ci-lane-result": {
-			"reason_hash": "7b60a04790347b2a",
-			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api\",\"path\":\"ci-results/api.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason_hash": "29060a44eb404d81",
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api-${{ matrix.shard }}\",\"path\":\"ci-results/api-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::audit-development::Audit development dependencies": {
 			"reason_hash": "1077651c05a2fec7",
@@ -945,6 +941,10 @@
 		"deploy-images.yml::publish::Set up Docker Buildx": {
 			"reason_hash": "8a049d5a0e89b91b",
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
+		},
+		"ci.yml::api::Verify API shard partition": {
+			"reason_hash": "c82637982fe8ab4d",
+			"reason": "No exact local command match for run step \"Verify API shard partition\"; normalized workflow command(s): [\"if [ \\\"${{ matrix.shard }}\\\" = 1 ]; then\",\"just ci-api-shard-partition\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		}
 	}
 }

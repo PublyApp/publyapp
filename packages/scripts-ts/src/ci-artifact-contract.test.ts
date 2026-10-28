@@ -49,7 +49,7 @@ const completeStepOutcome = (step: string): 'success' | 'skipped' => {
 
 const makeRecord = () =>
 	createCiLaneResult({
-		jobKey: 'api',
+		jobKey: 'api/1',
 		lane: 'api',
 		expectedSteps: ['api.checkout', 'api.suite', 'api.not-applicable'],
 		mode: 'relevant',
@@ -183,9 +183,9 @@ test('accepts the closed lane-result envelope and derived artifact identity', ()
 			key: record.job.key,
 		},
 		{
-			name: 'ci-lane-result-42-3-api',
-			filename: 'api.json',
-			key: 'api',
+			name: 'ci-lane-result-42-3-api-1',
+			filename: 'api-1.json',
+			key: 'api/1',
 		},
 	);
 });
@@ -379,7 +379,7 @@ test('aggregation rejects duplicate upstream records and duplicate artifact file
 
 test('aggregation rejects valid api and verification contents swapped between observed artifacts', () => {
 	const input = completeAggregateInput();
-	const api = input.records.find((record) => record.job.key === 'api');
+	const api = input.records.find((record) => record.job.key === 'api/1');
 	const verification = input.records.find(
 		(record) => record.job.key === 'verification',
 	);
@@ -599,17 +599,18 @@ test('partial re-run: lanes from attempt 1 plus a lane re-run in the current att
 test('partial re-run: several lanes re-run across attempts 2 and 3 keep the highest attempt', () => {
 	const input = completeAggregateInput();
 	const attempt1 = makeCompleteRecords(1).map((record) =>
-		record.job.key === 'api' || record.job.key === 'verification'
+		record.job.key === 'api/1' || record.job.key === 'verification'
 			? failLane(record)
 			: record,
 	);
 	const attempt2 = makeCompleteRecords(2)
 		.filter(
-			(record) => record.job.key === 'api' || record.job.key === 'verification',
+			(record) =>
+				record.job.key === 'api/1' || record.job.key === 'verification',
 		)
-		.map((record) => (record.job.key === 'api' ? failLane(record) : record));
+		.map((record) => (record.job.key === 'api/1' ? failLane(record) : record));
 	const attempt3 = makeCompleteRecords(3).filter(
-		(record) => record.job.key === 'api',
+		(record) => record.job.key === 'api/1',
 	);
 	const records = [...attempt1, ...attempt2, ...attempt3];
 
@@ -682,7 +683,7 @@ test('partial re-run: an artifact from a future attempt is rejected, not preferr
 	const records = [
 		...makeCompleteRecords(1),
 		...makeCompleteRecords(context.runAttempt + 1).filter(
-			(record) => record.job.key === 'api',
+			(record) => record.job.key === 'api/1',
 		),
 	];
 

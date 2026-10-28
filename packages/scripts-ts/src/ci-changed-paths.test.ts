@@ -116,6 +116,8 @@ test('lane patterns cover the complete central trigger classes', () => {
 		['docs/guides/dependency-health.md', 'quality'],
 		['docs/deployment/first-deploy-runbook.md', 'quality'],
 		['.gitattributes', 'api'],
+		['packages/scripts-ts/src/shard-api-tests.ts', 'api'],
+		['packages/scripts-ts/src/shard-api-tests.test.ts', 'api'],
 		['.github/workflows/ci.yml', 'react'],
 	] as const;
 

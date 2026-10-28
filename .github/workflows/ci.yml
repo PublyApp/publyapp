@@ -634,11 +634,15 @@ jobs:
           if-no-files-found: error
 
   api:
-    name: API contract and suite
+    name: API contract and suite (${{ matrix.shard }}/4)
     needs: classify
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     permissions:
       contents: read
     steps:
@@ -703,22 +707,25 @@ jobs:
         run: |
           git diff --exit-code -- packages/client-ts
           test -z "$(git status --porcelain -- packages/client-ts)"
-      - name: Run OpenAPI contract spec
-        id: openapi_contract
+      - name: Verify API shard partition
+        id: shard_partition
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
         continue-on-error: true
-        run: cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~OpenApiContractSpec"
+        run: |
+          if [ "${{ matrix.shard }}" = 1 ]; then
+            just ci-api-shard-partition
+          fi
       - name: Run full API test suite
         id: suite
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
         continue-on-error: true
-        run: just test-api
+        run: just test-api-shard ${{ matrix.shard }} 4
       - name: Upload API test results
         id: test-results
         if: always() && (steps.suite.outcome == 'failure' || steps.suite.outcome == 'cancelled')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: api-test-results-${{ github.run_id }}
+          name: api-test-results-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             apps/api/Tests/TestResults/
             apps/api/.artifacts/logs/
@@ -731,20 +738,20 @@ jobs:
       - name: Collect ci-lane-result
         if: always()
         env:
-          CI_JOB_KEY: api
+          CI_JOB_KEY: api/${{ matrix.shard }}
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"api":["api.checkout","api.setup_dotnet","api.install_pnpm","api.setup_node","api.setup_just","api.install_workspace","api.materialize_env","api.restore_tools","api.build_api","api.openapi_drift","api.generate_client","api.client_drift","api.openapi_contract","api.suite","api.test_results","api.not-applicable"]}'
+          CI_LANE_SPECS: '{"api":["api.checkout","api.setup_dotnet","api.install_pnpm","api.setup_node","api.setup_just","api.install_workspace","api.materialize_env","api.restore_tools","api.build_api","api.openapi_drift","api.generate_client","api.client_drift","api.shard_partition","api.suite","api.test_results","api.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"api":"${{ needs.classify.outputs.api }}"}'
-          CI_STEP_RESULTS: '{"api.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"api.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"api.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"api.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"api.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"api.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"api.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"api.restore_tools":{"outcome":"${{ steps.restore_tools.outcome }}"},"api.build_api":{"outcome":"${{ steps.build_api.outcome }}"},"api.openapi_drift":{"outcome":"${{ steps.openapi_drift.outcome }}"},"api.generate_client":{"outcome":"${{ steps.generate_client.outcome }}"},"api.client_drift":{"outcome":"${{ steps.client_drift.outcome }}"},"api.openapi_contract":{"outcome":"${{ steps.openapi_contract.outcome }}"},"api.suite":{"outcome":"${{ steps.suite.outcome }}"},"api.test_results":{"outcome":"${{ steps.test-results.outcome }}"},"api.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"api.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"api.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"api.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"api.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"api.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"api.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"api.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"api.restore_tools":{"outcome":"${{ steps.restore_tools.outcome }}"},"api.build_api":{"outcome":"${{ steps.build_api.outcome }}"},"api.openapi_drift":{"outcome":"${{ steps.openapi_drift.outcome }}"},"api.generate_client":{"outcome":"${{ steps.generate_client.outcome }}"},"api.client_drift":{"outcome":"${{ steps.client_drift.outcome }}"},"api.shard_partition":{"outcome":"${{ steps.shard_partition.outcome }}"},"api.suite":{"outcome":"${{ steps.suite.outcome }}"},"api.test_results":{"outcome":"${{ steps.test-results.outcome }}"},"api.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api
-          path: ci-results/api.json
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api-${{ matrix.shard }}
+          path: ci-results/api-${{ matrix.shard }}.json
           if-no-files-found: error
 
   front-vitest:
