@@ -15,6 +15,7 @@ import staffTenantProfiles from '../json/staff-tenant-profiles.en.json' with { t
 import staffUsers from '../json/staff-users.en.json' with { type: 'json' };
 import zod from '../json/zod.en.json' with { type: 'json' };
 import { I18N_NAMESPACES } from '../namespaces';
+import type { NamespaceResource } from '../shared';
 
 // The key ORDER below is the namespace registry's order (`../namespaces.ts`), and consumers rely
 // on it: `apps/front/src/i18n/locales/locales.test.ts` asserts that this barrel publishes exactly
@@ -38,7 +39,10 @@ const resourceEN = {
 	'staff-jobs': staffJobs,
 	'staff-tenant-activity': staffTenantActivity,
 	landing,
-} as const satisfies Record<(typeof I18N_NAMESPACES)[number], object>;
+} as const satisfies Record<
+	(typeof I18N_NAMESPACES)[number],
+	NamespaceResource
+>;
 
 export type Resource = typeof resourceEN;
 export type LooseResource = ToPrimitive<Resource>;

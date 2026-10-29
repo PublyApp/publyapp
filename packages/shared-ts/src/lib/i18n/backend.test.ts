@@ -1,6 +1,7 @@
 import { createInstance } from 'i18next';
 import { describe, expect, test, vi } from 'vitest';
 
+import type { JsonObject, JsonValue } from '../../types/json.types';
 import {
 	createBackendI18n,
 	i18nBackend,
@@ -11,6 +12,10 @@ import {
 import { I18N_NAMESPACES } from './namespaces';
 import { SUPPORTED_LANGUAGES } from './shared';
 
+/** Narrows a JSON value to an object without an assertion, so a dotted key can be walked. */
+const isJsonObject = (value: JsonValue | undefined): value is JsonObject =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
+
 describe('i18n Vite backend', () => {
 	test.each([
 		['en', 'common', 'hello', 'Hello'],
@@ -19,12 +24,9 @@ describe('i18n Vite backend', () => {
 		['fr', 'response-message', 'unauthorized', 'Non autorisé'],
 	] as const)('loads %s/%s', async (locale, namespace, key, expected) => {
 		const resource = await readNamespaceResource(locale, namespace);
-		let value: unknown = resource;
+		let value: JsonValue | undefined = resource;
 		for (const part of key.split('.')) {
-			value =
-				typeof value === 'object' && value !== null
-					? (value as Record<string, unknown>)[part]
-					: undefined;
+			value = isJsonObject(value) ? value[part] : undefined;
 		}
 		expect(value).toBe(expected);
 	});
