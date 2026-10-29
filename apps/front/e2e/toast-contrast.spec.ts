@@ -22,16 +22,23 @@ import {
 // the runner).
 test.use({ deviceScaleFactor: 2 });
 
-// The suite's own leg under genuine contention is 19.9-24.0s of measurement
-// work against the shipped 30s test timeout (round-15 I2, four legs at
-// load 64-68 on 12 cores — ~80% occupancy, the round-13 flake). The
-// `data-hydrated` wait is NOT the binding cost: it measured 0.31-1.20s in
-// the same runs. This spec raises its own test timeout to 60s — 2.5x the
-// measured leg, the cost that actually binds — and bounds the hydration
-// wait at 30s in `openToastFixture`: a reachable bound, whose exhaustion
-// surfaces as the locator's own diagnostic ~29s before the test timeout
-// instead of the bare "Test timeout exceeded" that the 30s test timeout
-// made of round 14's unreachable 30s attribute wait.
+// #2260 FIX-FLAKY. The round-13 flake was NOT a too-small test timeout: every
+// measurement batch had to finish inside Sonner's 4 s auto-dismiss window
+// because `AppToaster` sets no `duration`, so a leg slower than the window lost
+// its toast mid-read and the next assertion failed for a reason unrelated to
+// contrast. That window is gone at its source — the fixture
+// (`routes/field-validation.tsx`, the guard's only entry point) now asks for a
+// ten-minute duration, and product toasts keep Sonner's default because they
+// omit `duration`.
+//
+// What remains is plain measurement cost: one leg is 19.9-24.0 s of sequential
+// screenshot-decode work under deliberate contention (round-15 I2, four legs at
+// load 64-68 on 12 cores, ~80% occupancy). A 60 s ceiling is 2.5x that cost, so
+// the budget now bounds the WORK rather than papering a race; the
+// `data-hydrated` wait in `openToastFixture` measured 0.31-1.20 s in the same
+// runs and stays bounded at 30 s, inside the test timeout, so a hydration
+// failure surfaces as the locator's own diagnostic instead of a bare
+// "Test timeout exceeded".
 test.setTimeout(60_000);
 
 /**
@@ -2480,22 +2487,14 @@ const dismissToast = async (toast: Locator): Promise<void> => {
 	await expect(toast).toHaveCount(0);
 };
 
-// Timing budget (round-11 I2, recorded so it is not rediscovered): AppToaster
-// sets no `duration`, so Sonner's 4 s default auto-dismiss applies to every
-// toast. Every measurement of a toast's targets — and the whole leg's
-// dismiss — must complete inside that window, or the toast vanishes
-// mid-measurement and the next `toHaveAttribute('data-mounted')`/`toHaveCSS`
-// wait reds for reasons unrelated to contrast. Each toast is measured
-// SEQUENTIALLY and more than once: the default toast takes three
-// measurements (message, description, close glyph) and every semantic toast
-// takes FOUR (message, description, semantic glyph, close glyph — see the
-// matrix test below), so the 4 s window holds one toast's whole set, not a
-// single reading. Each reading is a full screenshot decode plus the
-// reference-mask render and a pixel scan — which is why the round-10
-// report's "nothing moved a timing boundary" was wrong in kind: the work
-// got heavier. The flake closure itself survives (the reviewer's three
-// loaded runs here, plus round 9's, are consecutive greens), but the
-// binding constraint is the Sonner auto-dismiss, not the waits.
+// Timing budget (round-11 I2, superseded by #2260): this used to be the story
+// of how much sequential measurement work had to fit inside Sonner's 4 s
+// auto-dismiss window. That window no longer exists — the fixture asks for a
+// ten-minute duration (routes/field-validation.tsx), so a slow batch cannot
+// lose its toast mid-read. Each toast is still measured SEQUENTIALLY and more
+// than once (the default toast takes three readings, every semantic toast
+// four), each a full screenshot decode plus a reference-mask render and a pixel
+// scan; that work is what the spec's own 60 s test timeout bounds.
 
 const TEXT_TARGETS = [
 	{
