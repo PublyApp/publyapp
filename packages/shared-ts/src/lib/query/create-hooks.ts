@@ -1,7 +1,7 @@
 import { toApiFailure } from '../api-failure/to-api-failure';
 import type { ApiFailure } from '../api-failure/types';
 import type { MutationFeedbackMeta } from '../mutation-feedback/types';
-import type { QueryKeySegment } from './keys';
+import type { QueryArgumentRecord, QueryKeySegment } from './keys';
 import type {
 	QueryScope,
 	QueryErrorHandlers,
@@ -13,8 +13,6 @@ type TenantQueryVariables<TVariables> = { tenantId?: string } & Omit<
 	'tenantId'
 >;
 
-type ScopedQueryKeySegment = QueryKeySegment | Record<string, unknown>;
-
 type TenantQueryVariablesRequired<TVariables> = { tenantId: string } & Omit<
 	TVariables,
 	'tenantId'
@@ -22,15 +20,19 @@ type TenantQueryVariablesRequired<TVariables> = { tenantId: string } & Omit<
 
 type QueryBaseOptions<TError = Error> = {
 	onError?: (error: TError) => void;
-	[key: string]: unknown;
 };
 
 // NOTE: these were previously `Omit<QueryBaseOptions<TError>, 'queryKey' | 'fetcher'>`
 // (and similar) even though `QueryBaseOptions` never declared those keys — a no-op
-// Omit. `Omit` over a type with a string index signature widens `keyof` and can make
-// TS lose the precise `onError` property type on destructure (surfaces as bogus
-// "Argument of type 'unknown' is not assignable to ((error: TError) => void)"
+// Omit. `Omit` over a type with a string index signature widened `keyof` and could
+// make TS lose the precise `onError` property type on destructure (surfaces as
+// bogus "Argument of type 'unknown' is not assignable to ((error: TError) => void)"
 // errors at every call site). Plain aliases keep the identical type, without the bug.
+//
+// `QueryBaseOptions` carries no open string index signature: the factory forwarded
+// only its own `onError` plus the `meta` declared below. TanStack's option surface
+// (`staleTime`, `enabled`, `retry`, ...) is applied by the caller on the
+// `useQuery`/`useMutation` call it builds from this object, never through here.
 type BaseQueryOptions<TError = Error> = QueryBaseOptions<TError>;
 
 type BaseSuspenseQueryOptions<TError = Error> = QueryBaseOptions<TError>;
@@ -42,7 +44,7 @@ type BaseMutationOptions<TError = Error> = QueryBaseOptions<TError> & {
 type TenantQueryConfig<
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 > = {
 	queryKeyFn: () => QueryKeySegment[];
@@ -56,7 +58,7 @@ type TenantQueryConfig<
 type TenantSuspenseQueryConfig<
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 > = {
 	queryKeyFn: () => QueryKeySegment[];
@@ -67,10 +69,18 @@ type TenantSuspenseQueryConfig<
 	handlers?: QueryErrorHandlers;
 } & BaseSuspenseQueryOptions<TError>;
 
+// Mutation variable bags are constrained to `object`, not to
+// `QueryArgumentRecord`: the factory only spreads them and forwards them to the
+// caller's `mutationFn`, never reading a value or folding them into a key, so
+// their contents are opaque here. Their inputs may legitimately be something a
+// query-key segment could never hold — a `File` for a multipart upload, for
+// example — so claiming they are query arguments would be a lie. `object` still
+// rejects a primitive (a string/number/boolean is not a variable bag) while
+// admitting every real bag shape.
 type TenantMutationConfig<
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends object,
 	TError = Error,
 > = {
 	mutationKeyFn: () => QueryKeySegment[];
@@ -84,7 +94,7 @@ type TenantMutationConfig<
 type StaffQueryConfig<
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 > = {
 	queryKeyFn: () => QueryKeySegment[];
@@ -95,7 +105,7 @@ type StaffQueryConfig<
 type StaffSuspenseQueryConfig<
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 > = {
 	queryKeyFn: () => QueryKeySegment[];
@@ -106,7 +116,7 @@ type StaffSuspenseQueryConfig<
 type StaffMutationConfig<
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends object,
 	TError = Error,
 > = {
 	mutationKeyFn: () => QueryKeySegment[];
@@ -156,8 +166,8 @@ const resolveTenantId = <TVariables>(
 };
 
 const stripUndefinedVariables = (
-	variables?: Record<string, unknown>,
-): Record<string, unknown> | undefined => {
+	variables?: QueryArgumentRecord,
+): QueryArgumentRecord | undefined => {
 	if (!variables) {
 		return undefined;
 	}
@@ -173,15 +183,17 @@ const stripUndefinedVariables = (
 	return Object.fromEntries(entries);
 };
 
-const stripTenantIdFromVariables = <TVariables>(
+const stripTenantIdFromVariables = <TVariables extends QueryArgumentRecord>(
 	variables?: TenantQueryVariables<TVariables>,
-): Record<string, unknown> | undefined => {
+): QueryArgumentRecord | undefined => {
 	if (!variables) {
 		return undefined;
 	}
 
-	const { tenantId: _tenantId, ...rest } = variables as Record<string, unknown>;
-	return stripUndefinedVariables(rest);
+	// `Omit` over a generic bag does not reduce to an index signature for TS,
+	// but every remaining value came from `TVariables extends QueryArgumentRecord`.
+	const { tenantId: _tenantId, ...rest } = variables;
+	return stripUndefinedVariables(rest as QueryArgumentRecord);
 };
 
 const requireTenantId = (tenantId: string | undefined): string => {
@@ -237,9 +249,9 @@ const buildScopedQueryKey = (
 	scope: QueryScope,
 	queryKey: QueryKeySegment[],
 	tenantId?: string,
-	variables?: Record<string, unknown>,
+	variables?: QueryArgumentRecord,
 ) => {
-	const key: ScopedQueryKeySegment[] = [scope, ...queryKey];
+	const key: QueryKeySegment[] = [scope, ...queryKey];
 
 	if (tenantId) {
 		key.push(tenantId);
@@ -268,7 +280,7 @@ export const scopedKey = (
 export const buildTenantQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: TenantQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -322,7 +334,7 @@ export const buildTenantQueryOptions = <
 export const buildTenantSuspenseQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: TenantSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -376,7 +388,7 @@ export const buildTenantSuspenseQueryOptions = <
 export const buildTenantMutationOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends object = QueryArgumentRecord,
 	TError = Error,
 >(
 	config: TenantMutationConfig<TApiClient, TData, TVariables, TError>,
@@ -418,7 +430,7 @@ export const buildTenantMutationOptions = <
 export const buildStaffQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -440,7 +452,7 @@ export const buildStaffQueryOptions = <
 				'staff',
 				queryKey,
 				undefined,
-				stripUndefinedVariables(variables as Record<string, unknown>),
+				stripUndefinedVariables(variables),
 			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
@@ -457,7 +469,7 @@ export const buildStaffQueryOptions = <
 export const buildStaffSuspenseQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -479,7 +491,7 @@ export const buildStaffSuspenseQueryOptions = <
 				'staff',
 				queryKey,
 				undefined,
-				stripUndefinedVariables(variables as Record<string, unknown>),
+				stripUndefinedVariables(variables),
 			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateStaffClient();
@@ -496,7 +508,7 @@ export const buildStaffSuspenseQueryOptions = <
 export const buildStaffMutationOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends object = QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffMutationConfig<TApiClient, TData, TVariables, TError>,
@@ -529,7 +541,7 @@ export const buildStaffMutationOptions = <
 export const buildAnonymousQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -551,7 +563,7 @@ export const buildAnonymousQueryOptions = <
 				'anonymous',
 				queryKey,
 				undefined,
-				stripUndefinedVariables(variables as Record<string, unknown>),
+				stripUndefinedVariables(variables),
 			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
@@ -568,7 +580,7 @@ export const buildAnonymousQueryOptions = <
 export const buildAnonymousSuspenseQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -590,7 +602,7 @@ export const buildAnonymousSuspenseQueryOptions = <
 				'anonymous',
 				queryKey,
 				undefined,
-				stripUndefinedVariables(variables as Record<string, unknown>),
+				stripUndefinedVariables(variables),
 			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
@@ -607,7 +619,7 @@ export const buildAnonymousSuspenseQueryOptions = <
 export const buildAnonymousMutationOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends object = QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffMutationConfig<TApiClient, TData, TVariables, TError>,
@@ -640,7 +652,7 @@ export const buildAnonymousMutationOptions = <
 export const buildAuthQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -662,7 +674,7 @@ export const buildAuthQueryOptions = <
 				'auth',
 				queryKey,
 				undefined,
-				stripUndefinedVariables(variables as Record<string, unknown>),
+				stripUndefinedVariables(variables),
 			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
@@ -679,7 +691,7 @@ export const buildAuthQueryOptions = <
 export const buildAuthSuspenseQueryOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffSuspenseQueryConfig<TApiClient, TData, TVariables, TError>,
@@ -701,7 +713,7 @@ export const buildAuthSuspenseQueryOptions = <
 				'auth',
 				queryKey,
 				undefined,
-				stripUndefinedVariables(variables as Record<string, unknown>),
+				stripUndefinedVariables(variables),
 			),
 		fetcher: async (variables: TVariables): Promise<TData> => {
 			const client = options.clientAccessor.getOrCreateAnonymousClient();
@@ -718,7 +730,7 @@ export const buildAuthSuspenseQueryOptions = <
 export const buildAuthMutationOptions = <
 	TApiClient,
 	TData,
-	TVariables extends Record<string, unknown>,
+	TVariables extends object = QueryArgumentRecord,
 	TError = Error,
 >(
 	config: StaffMutationConfig<TApiClient, TData, TVariables, TError>,

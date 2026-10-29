@@ -1,12 +1,46 @@
+/**
+ * A value that can appear in a query key or in a query/mutation variable bag.
+ *
+ * `stringifyQueryArg` below is the single serializer for all of them, and this
+ * union is the part of its input domain that keeps its identity: primitives,
+ * `Date`s (rendered as their ISO string), arrays element-wise, and plain objects
+ * key-by-key. A function or a symbol renders as a placeholder marker, so it is
+ * deliberately outside the contract. Naming the union here — rather than leaving
+ * an open dictionary of `unknown` — is what makes a query key's contract
+ * checkable.
+ */
+export type QueryArgumentValue =
+	| string
+	| number
+	| boolean
+	| bigint
+	| null
+	| undefined
+	| Date
+	| readonly QueryArgumentValue[]
+	| QueryArgumentRecord;
+
+/**
+ * A bag of query arguments: query/mutation variables, or an object segment of
+ * a query key. Values are {@link QueryArgumentValue}s, so a bag is as
+ * checkable as the key it ends up in.
+ */
+export type QueryArgumentRecord = {
+	readonly [key: string]: QueryArgumentValue;
+};
+
+/** Object arguments read through a symbol key, mirroring {@link QueryArgumentRecord}. */
+type SymbolKeyedArguments = {
+	readonly [key: symbol]: QueryArgumentValue;
+};
+
 export type QueryKeySegment =
 	| string
 	| number
 	| boolean
 	| null
 	| undefined
-	| Record<string, unknown>;
-
-type JsonRecord = Record<string, unknown>;
+	| QueryArgumentRecord;
 
 type StringifySeen = Set<object>;
 
@@ -52,15 +86,16 @@ const stringifyQueryArg = (arg: unknown, seen: StringifySeen): string => {
 		seen.add(arg);
 		try {
 			const entries: string[] = [];
-			for (const key of Object.keys(arg as JsonRecord).sort()) {
-				entries.push(
-					`${key}:${stringifyQueryArg((arg as JsonRecord)[key], seen)}`,
-				);
+			// `arg` is a plain object here; reading it as a bag of query
+			// arguments is the same contract `getQueryKey` accepts.
+			const record = arg as QueryArgumentRecord;
+			for (const key of Object.keys(record).sort()) {
+				entries.push(`${key}:${stringifyQueryArg(record[key], seen)}`);
 			}
 
-			for (const symbolKey of Object.getOwnPropertySymbols(arg as object)) {
+			for (const symbolKey of Object.getOwnPropertySymbols(record)) {
 				entries.push(
-					`${String(symbolKey)}:${stringifyQueryArg((arg as { [key: symbol]: unknown })[symbolKey], seen)}`,
+					`${String(symbolKey)}:${stringifyQueryArg((record as SymbolKeyedArguments)[symbolKey], seen)}`,
 				);
 			}
 
