@@ -24,16 +24,17 @@ import {
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { useSwitchLocale } from '~/lib/hooks/use-switch-locale';
-import {
-	isSupportedLanguage,
-	LOCALE_LABELS,
-	SUPPORTED_LANGUAGES,
-} from '~/lib/i18n/shared';
 import { toCurrentUser, useCurrentUserQuery } from '~/lib/query/auth';
 import {
 	useUiStore,
 	withThemeTransitionSuppressed,
 } from '~/lib/store/ui-store';
+
+import {
+	isSupportedLanguage,
+	LOCALE_LABELS,
+	SUPPORTED_LANGUAGES,
+} from '@org/shared-ts/lib/i18n/shared';
 
 export const AppShellUserMenu = () => {
 	const { t, i18n } = useTranslation('common');

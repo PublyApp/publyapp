@@ -483,7 +483,7 @@ test.describe(
 			// the failure must NAME the cause (node not connected) AND the
 			// expected action — the issue's acceptance criterion — in the
 			// guard's production `en` text (the page bundle carries the real
-			// `en/common.json` resource, initialized by the browser entry).
+			// `common.en.json` resource, initialized by the browser entry).
 			expect(
 				result.ok,
 				`detached node: the real guard must fail loudly — ${result.message || 'no reason reported'}`,

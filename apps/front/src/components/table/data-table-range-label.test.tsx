@@ -28,12 +28,11 @@ import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, test } from 'vitest';
-import resourceEN from '~/i18n/locales/en/common.json';
-import resourceFR from '~/i18n/locales/fr/common.json';
-import {
-	createI18nFromResources,
-	type SupportedLanguage,
-} from '~/lib/i18n/shared';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
+import { type SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
 
 import type { ColumnDef } from './column-type';
 import { DataTable, DataTableCursorFooter } from './data-table';
@@ -63,7 +62,9 @@ const lastPageRows: TestRow[] = Array.from({ length: 17 }, (_, index) => ({
 
 const createI18n = (language: SupportedLanguage): I18nInstance =>
 	createI18nFromResources(language, ['common'], {
-		[language]: { common: language === 'en' ? resourceEN : resourceFR },
+		[language]: {
+			common: language === 'en' ? enLocale.common : frLocale.common,
+		},
 	});
 
 const renderTable = (

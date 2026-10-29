@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { createI18nFromResources } from './shared';
+import { createI18nFromResources } from './react-i18n';
 
 describe('createI18nFromResources', () => {
 	test('initializes synchronously from only the active language', () => {

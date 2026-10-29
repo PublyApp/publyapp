@@ -17,15 +17,15 @@
  * that named nothing — the same defect class this issue removes). The real
  * app always runs with i18n initialized, so this entry mirrors that
  * environment: it initializes the singleton synchronously with the real
- * `en/common.json` resource (the guard's production texts, not a stand-in)
+ * shared-ts `common.en.json` resource (the guard's production texts, not a stand-in)
  * before exposing the guard. `initAsync: false` keeps the init synchronous
  * because the resources are inline (the same option the app's
  * `createI18nFromResources` in `src/lib/i18n/shared.ts` uses).
  */
 import i18next from 'i18next';
 
+import enCommon from '../../../../packages/shared-ts/src/lib/i18n/json/common.en.json';
 import { assertIconIsVisible } from '../../src/components/table/data-table-icon-visibility-guard';
-import enCommon from '../../src/i18n/locales/en/common.json';
 
 // `init` returns a `Promise` even with `initAsync: false` (the app's own
 // call in `src/lib/i18n/shared.ts` voids it for the same reason); the

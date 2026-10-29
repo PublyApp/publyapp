@@ -3,7 +3,10 @@ import {
 	postBroadcast,
 } from '~/lib/tab-sync/broadcast-sync';
 
-import { isSupportedLanguage, type SupportedLanguage } from './shared';
+import {
+	isSupportedLanguage,
+	type SupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 
 type LocaleSwitchedResult = { locale: SupportedLanguage };
 

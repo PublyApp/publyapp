@@ -33,12 +33,10 @@ export type SupportedNamespace = (typeof I18N_NAMESPACES)[number];
 
 export const I18nNamespaceListSchema = z.array(z.enum(I18N_NAMESPACES));
 
-declare module '@tanstack/react-router' {
-	interface StaticDataRouteOption {
-		i18nNamespaces?: readonly SupportedNamespace[];
-	}
-}
-
+// NOTE: the TanStack Router `staticData.i18nNamespaces` augmentation deliberately does NOT live
+// here. It is an app-only type surface (`@tanstack/react-router` is a front dependency), and a
+// module augmentation in this package would make every consumer of the registry inherit it. Each
+// app declares its own (`apps/front/src/types/route-static-data.d.ts`).
 export type I18nRouteMatch = {
 	staticData?: {
 		i18nNamespaces?: readonly SupportedNamespace[];

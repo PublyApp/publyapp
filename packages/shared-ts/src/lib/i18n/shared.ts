@@ -1,10 +1,3 @@
-import {
-	createInstance,
-	type i18n as I18nInstance,
-	type Resource,
-} from 'i18next';
-import { initReactI18next } from 'react-i18next';
-
 import type { SupportedNamespace } from './namespaces';
 
 export const SUPPORTED_LANGUAGES = ['en', 'fr'] as const;
@@ -36,24 +29,4 @@ export type I18nLoadResult = {
 	namespaces: SupportedNamespace[];
 	resources: I18nResources;
 	namespaceLoadError: string | null;
-};
-
-export const createI18nFromResources = (
-	locale: SupportedLanguage,
-	namespaces: readonly SupportedNamespace[],
-	resources: I18nResources,
-): I18nInstance => {
-	const instance = createInstance();
-	void instance.use(initReactI18next).init({
-		lng: locale,
-		fallbackLng: false,
-		supportedLngs: [...SUPPORTED_LANGUAGES],
-		defaultNS: 'common',
-		ns: [...namespaces],
-		resources: resources as Resource,
-		interpolation: { escapeValue: false },
-		react: { useSuspense: false },
-		initAsync: false,
-	});
-	return instance;
 };

@@ -100,6 +100,12 @@ import { createElement, type ReactElement, type ReactNode } from 'react';
 import { I18nextProvider, initReactI18next, Trans } from 'react-i18next';
 import { ts } from 'ts-morph';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
+import {
+	type I18nResources,
+	type SupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 
 import resourceEN from '../../i18n/locales/en';
 import resourceFR from '../../i18n/locales/fr';
@@ -107,11 +113,6 @@ import { Route as AcceptInvitationRoute } from '../../routes/accept-invitation';
 import { Route as ResetPasswordRoute } from '../../routes/reset-password';
 import { Route as VerifyEmailRoute } from '../../routes/verify-email';
 import { AuthBrandProvider } from '../auth/auth-brand-context';
-import {
-	createI18nFromResources,
-	type I18nResources,
-	type SupportedLanguage,
-} from './shared';
 
 type ResetPasswordLoaderData =
 	| { view: 'invalid' }

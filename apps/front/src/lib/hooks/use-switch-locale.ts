@@ -2,9 +2,9 @@ import { useRouter } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useRef, useState } from 'react';
 import { switchLocale } from '~/lib/i18n/locale-switch';
-import type { SupportedLanguage } from '~/lib/i18n/shared';
 import { setLocale } from '~/server/i18n-locale';
 
+import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 export const useSwitchLocale = () => {
