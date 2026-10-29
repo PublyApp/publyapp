@@ -57,6 +57,15 @@ public static class ServiceRegistration {
 				}
 			};
 		});
+		// A request whose JSON body omits a `required` member is rejected by the
+		// request delegate BEFORE FluentValidation runs. RouteHandlerOptions'
+		// default outside Development is ThrowOnBadRequest = false, which turns
+		// that rejection into a silent, body-less 400 — nothing for the client to
+		// render and no field name. Throw instead so the single global
+		// CustomExceptionHandler answers it as RFC 7807 (422 + `errors`, #2261).
+		builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(options => {
+			options.ThrowOnBadRequest = true;
+		});
 		builder.Services.AddAnonymousAuthRateLimiting();
 
 		// Add Response Compression
