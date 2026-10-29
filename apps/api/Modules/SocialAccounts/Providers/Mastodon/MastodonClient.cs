@@ -1,6 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 
+using PublyApp.Api.Lib.Extensions;
+
+
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
 /// <summary>
@@ -31,8 +34,8 @@ public sealed class MastodonClient : IMastodonClient {
 			HttpMethod.Post, host, "/api/v1/apps", new FormUrlEncodedContent(body), null, cancellationToken
 		);
 		return MastodonClient._Parse(response, payload => {
-			var id = MastodonClient._String(payload, "client_id");
-			var secret = MastodonClient._String(payload, "client_secret");
+			var id = payload.GetStringPropertyOrNull("client_id");
+			var secret = payload.GetStringPropertyOrNull("client_secret");
 			return id is null || secret is null ? null : new MastodonApp(id, secret);
 		});
 	}
@@ -50,7 +53,7 @@ public sealed class MastodonClient : IMastodonClient {
 		var response = await this._SendAsync(
 			HttpMethod.Post, host, "/oauth/token", new FormUrlEncodedContent(body), null, cancellationToken
 		);
-		return MastodonClient._Parse(response, payload => MastodonClient._String(payload, "access_token"));
+		return MastodonClient._Parse(response, payload => payload.GetStringPropertyOrNull("access_token"));
 	}
 
 	public async Task<MastodonResult<MastodonAccountInfo>> VerifyCredentialsAsync(
@@ -60,8 +63,8 @@ public sealed class MastodonClient : IMastodonClient {
 			HttpMethod.Get, host, "/api/v1/accounts/verify_credentials", null, accessToken, cancellationToken
 		);
 		return MastodonClient._Parse(response, payload => {
-			var id = MastodonClient._String(payload, "id");
-			var acct = MastodonClient._String(payload, "acct");
+			var id = payload.GetStringPropertyOrNull("id");
+			var acct = payload.GetStringPropertyOrNull("acct");
 			return id is null || acct is null ? null : new MastodonAccountInfo(id, acct);
 		});
 	}
@@ -175,15 +178,6 @@ public sealed class MastodonClient : IMastodonClient {
 			&& element.TryGetProperty(name, out var child)
 			&& child.ValueKind == JsonValueKind.Object
 				? child
-				: null;
-	}
-
-	private static string? _String(JsonElement payload, string name) {
-		return payload.ValueKind == JsonValueKind.Object
-			&& payload.TryGetProperty(name, out var value)
-			&& value.ValueKind == JsonValueKind.String
-			&& !string.IsNullOrWhiteSpace(value.GetString())
-				? value.GetString()
 				: null;
 	}
 

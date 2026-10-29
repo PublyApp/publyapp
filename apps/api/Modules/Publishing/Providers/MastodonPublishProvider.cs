@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
+using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
@@ -225,7 +226,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		}
 
 		var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
-		var id = MastodonPublishProvider._String(body, "id");
+		var id = body.GetStringPropertyOrNull("id");
 		if (id is null) {
 			return new Outcome(
 				new PublishResult.Ambiguous($"{network} accepted the status but returned no id"),
@@ -233,8 +234,8 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			);
 		}
 
-		var url = MastodonPublishProvider._String(body, "url")
-			?? MastodonPublishProvider._String(body, "uri")
+		var url = body.GetStringPropertyOrNull("url")
+			?? body.GetStringPropertyOrNull("uri")
 			?? string.Empty;
 		return new Outcome(new PublishResult.Published(id, url), new CompletedSegment(position, id, string.Empty, url));
 	}
@@ -293,7 +294,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			}
 
 			var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
-			var id = MastodonPublishProvider._String(body, "id");
+			var id = body.GetStringPropertyOrNull("id");
 			if (id is null) {
 				return new Uploaded(ids, new PublishResult.TransientFailure(
 					$"{MastodonPublishProvider._Network(request)} accepted image {number} but returned no media id"
@@ -302,7 +303,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 			// 200 = ready; 202 = still processing: poll until the media carries a url.
 			if (response.StatusCode == HttpStatusCode.Accepted
-				|| MastodonPublishProvider._String(body, "url") is null) {
+				|| body.GetStringPropertyOrNull("url") is null) {
 				var pollFailure = await this._WaitForMediaAsync(client, request, id, number, cancellationToken);
 				if (pollFailure is not null) {
 					return new Uploaded(ids, pollFailure);
@@ -339,7 +340,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			}
 
 			var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
-			if (MastodonPublishProvider._String(body, "url") is not null) {
+			if (body.GetStringPropertyOrNull("url") is not null) {
 				return null;
 			}
 		}
@@ -368,7 +369,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		var error = "the instance returned an error without a parsable body";
 		try {
 			var payload = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
-			error = MastodonPublishProvider._String(payload, "error") ?? error;
+			error = payload.GetStringPropertyOrNull("error") ?? error;
 		} catch (JsonException) {
 			// Keep the descriptive default above.
 		}
@@ -420,15 +421,6 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 	private static string _Clean(string text) {
 		return LastErrorSanitiser.Sanitize(text) ?? text;
-	}
-
-	private static string? _String(JsonElement payload, string name) {
-		return payload.ValueKind == JsonValueKind.Object
-			&& payload.TryGetProperty(name, out var value)
-			&& value.ValueKind == JsonValueKind.String
-			&& !string.IsNullOrWhiteSpace(value.GetString())
-				? value.GetString()
-				: null;
 	}
 
 	private static async Task<JsonElement> _ReadJsonAsync(
