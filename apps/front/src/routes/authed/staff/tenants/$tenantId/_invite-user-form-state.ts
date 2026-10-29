@@ -879,27 +879,32 @@ const DEFAULT_VALUES: InviteFormValues = {
 	rows: [makeManualRow()],
 };
 
+/** No `t()` here (every rule is structural), so the factory can live at module
+ * scope — an inline arrow would defeat the resolver's memo and rebuild this
+ * schema on every render. */
+const getInviteFormSchema = () =>
+	z.object({
+		pasteEmails: z.string().optional(),
+		sharedAccountLevel: z.enum(['Admin', 'User']),
+		sharedProfileIds: z.array(z.string()),
+		rows: z.array(
+			z.object({
+				email: z.string(),
+				accountLevel: z.enum(['Admin', 'User']),
+				profileIds: z.array(z.string()),
+				profileNames: z.array(z.string()),
+				source: z.enum(['file', 'manual']),
+				key: z.string(),
+			}),
+		),
+	});
+
 /** Owns the invite form instance. Language-keyed resolver so validation
  * messages stay localized; the host calls this so it can read
  * `methods.formState.isDirty` for the unsaved-changes navigation blocker. */
 export const useInviteForm = (): UseFormReturn<InviteFormValues> => {
-	const resolver = useLanguageKeyedZodResolver<InviteFormValues>(() =>
-		z.object({
-			pasteEmails: z.string().optional(),
-			sharedAccountLevel: z.enum(['Admin', 'User']),
-			sharedProfileIds: z.array(z.string()),
-			rows: z.array(
-				z.object({
-					email: z.string(),
-					accountLevel: z.enum(['Admin', 'User']),
-					profileIds: z.array(z.string()),
-					profileNames: z.array(z.string()),
-					source: z.enum(['file', 'manual']),
-					key: z.string(),
-				}),
-			),
-		}),
-	);
+	const resolver =
+		useLanguageKeyedZodResolver<InviteFormValues>(getInviteFormSchema);
 	return useForm<InviteFormValues>({
 		resolver,
 		defaultValues: DEFAULT_VALUES,

@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -13,6 +12,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	type SocialAccountRow,
 	useConnectDiscordWebhookMutation,
@@ -50,8 +50,14 @@ export const DiscordConnectDrawer = ({
 }) => {
 	const { t } = useTranslation(['settings']);
 	const connectMutation = useConnectDiscordWebhookMutation();
+	// Language-keyed resolver: schema + resolver built once per language, not
+	// once per render.
+	const resolver = useLanguageKeyedZodResolver<FormValues>(
+		getSchema,
+		'settings',
+	);
 	const methods = useForm<FormValues>({
-		resolver: zodResolver(getSchema(t)),
+		resolver,
 		defaultValues: { webhookUrl: '' },
 	});
 

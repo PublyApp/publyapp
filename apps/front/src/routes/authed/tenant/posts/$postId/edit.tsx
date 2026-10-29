@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
@@ -14,6 +13,7 @@ import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { isCustomized } from '~/lib/publishing/destination-overrides';
 import {
@@ -98,8 +98,14 @@ const TenantPostEditPage = () => {
 	);
 	const projectsQuery = useTenantProjectsQuery({ tenantId: tenantId ?? '' });
 	const projectItems = toTenantProjectItems(projectsQuery.data);
+	// Language-keyed resolver: schema + resolver built once per language, not
+	// once per render.
+	const resolver = useLanguageKeyedZodResolver<Values>(getSchema, [
+		'posts',
+		'common',
+	]);
 	const methods = useForm<Values>({
-		resolver: zodResolver(getSchema(t)),
+		resolver,
 		defaultValues: { body: '', projectId: null, segments: [] },
 	});
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -66,8 +67,10 @@ export const BlueskyConnectDrawer = ({
 	const { t } = useTranslation(['settings']);
 	const connectMutation = useConnectSocialAccountMutation();
 	const reconnectMutation = useReconnectSocialAccountMutation();
+	// Schema + resolver are built per language and per mode, not per render.
+	const resolver = useMemo(() => zodResolver(getSchema(t, mode)), [t, mode]);
 	const methods = useForm<FormValues>({
-		resolver: zodResolver(getSchema(t, mode)),
+		resolver,
 		defaultValues: {
 			identifier: account?.displayHandle ?? '',
 			appPassword: '',
