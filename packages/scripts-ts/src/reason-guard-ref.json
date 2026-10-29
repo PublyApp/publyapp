@@ -212,6 +212,7 @@
 		"ci.yml::guards::CI lane not applicable (quality)",
 		"ci.yml::guards::Check CI drift",
 		"ci.yml::guards::Check action versions",
+		"ci.yml::guards::Check formatter scope",
 		"ci.yml::guards::Check no dockerignore shadow files",
 		"ci.yml::guards::Check no ignored tracked files",
 		"ci.yml::guards::Checkout",
@@ -226,7 +227,12 @@
 		"ci.yml::guards::Setup just",
 		"ci.yml::guards::Test API path-filter coverage",
 		"ci.yml::guards::Test CI contracts",
+		"ci.yml::guards::Test CI drift contracts",
+		"ci.yml::guards::Test CI guard subprocess fixtures",
 		"ci.yml::guards::Test CI guard suite",
+		"ci.yml::guards::Test front lint guard",
+		"ci.yml::guards::Test npm audit runner",
+		"ci.yml::guards::Test production audit threshold",
 		"ci.yml::guards::Test project closure adapter",
 		"ci.yml::guards::Upload ci-lane-result",
 		"ci.yml::guards::Verify API path-filter coverage",
@@ -927,6 +933,10 @@
 			"reason_hash": "19c6916d273877dc",
 			"reason": "No exact local command match for run step \"Check CI drift\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-drift.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
+		"ci.yml::guards::Check formatter scope": {
+			"reason_hash": "e5302eb932aa0dd7",
+			"reason": "Local mirror just ci-format is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts\"]."
+		},
 		"ci.yml::guards::Check no dockerignore shadow files": {
 			"reason_hash": "4680345f7d2b4619",
 			"reason": "No exact local command match for run step \"Check no dockerignore shadow files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-dockerignore-shadow.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
@@ -987,9 +997,29 @@
 			"reason_hash": "4b694c549565e49a",
 			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/run-ci-contract-tests.ts\"]."
 		},
+		"ci.yml::guards::Test CI drift contracts": {
+			"reason_hash": "f2ed5584cba35c09",
+			"reason": "No exact local command match for run step \"Test CI drift contracts\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts src/artifact-version-compat.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::guards::Test CI guard subprocess fixtures": {
+			"reason_hash": "338e5f2b3924e70d",
+			"reason": "No exact local command match for run step \"Test CI guard subprocess fixtures\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts src/ci-changed-paths.test.ts src/ci-e2e-rerun-guard.test.ts src/gen-reason-ref.test.ts src/require-linked-issue.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
 		"ci.yml::guards::Test CI guard suite": {
-			"reason_hash": "a1ad62059a4b9d4a",
-			"reason": "No exact local command match for run step \"Test CI guard suite\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts src/check-actions-pinned.test.ts src/check-ci-drift.test.ts src/check-cyclomatic-bound.test.ts src/check-formatter-scope.test.ts src/check-no-floating-promises.test.ts src/ci-changed-paths.test.ts src/ci-e2e-rerun-guard.test.ts src/ci-referenced-paths.test.ts src/codeowners-contract.test.ts src/dependency-health-pin-location.test.ts src/gen-reason-ref.test.ts src/lint-front.test.ts src/npm-audit-runner.test.ts src/prod-audit-bites.test.ts src/require-linked-issue.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "841180bda956b1e6",
+			"reason": "No exact local command match for run step \"Test CI guard suite\"; normalized workflow command(s): [\"pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts src/check-cyclomatic-bound.test.ts src/ci-referenced-paths.test.ts src/codeowners-contract.test.ts src/dependency-health-pin-location.test.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::guards::Test front lint guard": {
+			"reason_hash": "11dcf153e367a219",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts\"]."
+		},
+		"ci.yml::guards::Test npm audit runner": {
+			"reason_hash": "b2739ccd2a13c5a4",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts\"]."
+		},
+		"ci.yml::guards::Test production audit threshold": {
+			"reason_hash": "f36c39d713069162",
+			"reason": "Local mirror just ci-drift is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts\"]."
 		},
 		"ci.yml::guards::Test project closure adapter": {
 			"reason_hash": "6c89f9959e70e503",

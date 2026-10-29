@@ -263,6 +263,12 @@ const baseJobLaneContracts = {
 			'quality',
 			[
 				'guards.ci_guard_suite',
+				'guards.ci_guard_spawners',
+				'guards.ci_drift_tests',
+				'guards.npm_audit_runner',
+				'guards.production_audit_test',
+				'guards.formatter_scope',
+				'guards.front_lint_test',
 				'guards.ci_contract_tests',
 				'guards.ci_drift',
 				'guards.action_versions',

@@ -385,7 +385,39 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-        run: pnpm --filter scripts-ts exec vitest run src/artifact-version-compat.test.ts src/check-actions-pinned.test.ts src/check-ci-drift.test.ts src/check-cyclomatic-bound.test.ts src/check-formatter-scope.test.ts src/check-no-floating-promises.test.ts src/ci-changed-paths.test.ts src/ci-e2e-rerun-guard.test.ts src/ci-referenced-paths.test.ts src/codeowners-contract.test.ts src/dependency-health-pin-location.test.ts src/gen-reason-ref.test.ts src/lint-front.test.ts src/npm-audit-runner.test.ts src/prod-audit-bites.test.ts src/require-linked-issue.test.ts
+        run: pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts src/check-cyclomatic-bound.test.ts src/ci-referenced-paths.test.ts src/codeowners-contract.test.ts src/dependency-health-pin-location.test.ts
+      - name: Test CI guard subprocess fixtures
+        id: ci_guard_spawners
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts src/ci-changed-paths.test.ts src/ci-e2e-rerun-guard.test.ts src/gen-reason-ref.test.ts src/require-linked-issue.test.ts
+      - name: Test CI drift contracts
+        id: ci_drift_tests
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts src/artifact-version-compat.test.ts
+      - name: Test npm audit runner
+        id: npm_audit_runner
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/npm-audit-runner.test.ts
+      - name: Test production audit threshold
+        id: production_audit_test
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/prod-audit-bites.test.ts
+      - name: Check formatter scope
+        id: formatter_scope
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
+      - name: Test front lint guard
+        id: front_lint_test
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        continue-on-error: true
+        run: pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
       - name: Test CI contracts
         id: ci_contract_tests
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
@@ -437,10 +469,10 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["guards.checkout","guards.install_pnpm","guards.setup_node","guards.setup_dotnet","guards.setup_just","guards.install_workspace","guards.trusted_postinstall","guards.prepare_hooks","guards.materialize_env"],"quality":["guards.ci_guard_suite","guards.ci_contract_tests","guards.ci_drift","guards.action_versions","guards.project_closure","guards.quality.not-applicable"],"tracked-guards":["guards.no_ignored_tracked","guards.no_dockerignore_shadow"],"api-paths":["guards.api-paths-tests","guards.api-paths"]}'
+          CI_LANE_SPECS: '{"setup":["guards.checkout","guards.install_pnpm","guards.setup_node","guards.setup_dotnet","guards.setup_just","guards.install_workspace","guards.trusted_postinstall","guards.prepare_hooks","guards.materialize_env"],"quality":["guards.ci_guard_suite","guards.ci_guard_spawners","guards.ci_drift_tests","guards.npm_audit_runner","guards.production_audit_test","guards.formatter_scope","guards.front_lint_test","guards.ci_contract_tests","guards.ci_drift","guards.action_versions","guards.project_closure","guards.quality.not-applicable"],"tracked-guards":["guards.no_ignored_tracked","guards.no_dockerignore_shadow"],"api-paths":["guards.api-paths-tests","guards.api-paths"]}'
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}"}'
           CI_LANE_MODES: '{"setup":"relevant","tracked-guards":"relevant","api-paths":"relevant"}'
-          CI_STEP_RESULTS: '{"guards.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"guards.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"guards.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"guards.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"guards.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"guards.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"guards.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"guards.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"guards.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"guards.ci_guard_suite":{"outcome":"${{ steps.ci_guard_suite.outcome }}"},"guards.ci_contract_tests":{"outcome":"${{ steps.ci_contract_tests.outcome }}"},"guards.ci_drift":{"outcome":"${{ steps.ci_drift.outcome }}"},"guards.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"},"guards.project_closure":{"outcome":"${{ steps.project_closure.outcome }}"},"guards.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"guards.no_ignored_tracked":{"outcome":"${{ steps.no_ignored_tracked.outcome }}"},"guards.no_dockerignore_shadow":{"outcome":"${{ steps.no_dockerignore_shadow.outcome }}"},"guards.api-paths-tests":{"outcome":"${{ steps.api-paths-tests.outcome }}"},"guards.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"}}'
+          CI_STEP_RESULTS: '{"guards.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"guards.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"guards.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"guards.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"guards.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"guards.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"guards.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"guards.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"guards.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"guards.ci_guard_suite":{"outcome":"${{ steps.ci_guard_suite.outcome }}"},"guards.ci_guard_spawners":{"outcome":"${{ steps.ci_guard_spawners.outcome }}"},"guards.ci_drift_tests":{"outcome":"${{ steps.ci_drift_tests.outcome }}"},"guards.npm_audit_runner":{"outcome":"${{ steps.npm_audit_runner.outcome }}"},"guards.production_audit_test":{"outcome":"${{ steps.production_audit_test.outcome }}"},"guards.formatter_scope":{"outcome":"${{ steps.formatter_scope.outcome }}"},"guards.front_lint_test":{"outcome":"${{ steps.front_lint_test.outcome }}"},"guards.ci_contract_tests":{"outcome":"${{ steps.ci_contract_tests.outcome }}"},"guards.ci_drift":{"outcome":"${{ steps.ci_drift.outcome }}"},"guards.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"},"guards.project_closure":{"outcome":"${{ steps.project_closure.outcome }}"},"guards.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"guards.no_ignored_tracked":{"outcome":"${{ steps.no_ignored_tracked.outcome }}"},"guards.no_dockerignore_shadow":{"outcome":"${{ steps.no_dockerignore_shadow.outcome }}"},"guards.api-paths-tests":{"outcome":"${{ steps.api-paths-tests.outcome }}"},"guards.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
