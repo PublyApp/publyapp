@@ -1,6 +1,6 @@
 # E2E suite audit — is the 52-spec suite earning its ~11.5 minutes?
 
-Date: 2026-10-29. Type: analysis. Issue: #2260. PR: #PR.
+Date: 2026-10-29. Type: analysis. Issue: #2260. PR: #2262.
 
 ## Why this record exists
 
