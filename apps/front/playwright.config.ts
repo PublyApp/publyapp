@@ -34,7 +34,7 @@ const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
 /**
  * Which slice of the suite this process runs (audit
- * `docs/records/2026-10-29-analysis-e2e-suite-audit.md`, issue #2260).
+ * issue #2260).
  *
  * - `all` (default, and what an unconfigured local run gets): every spec, as
  *   before the split. Nothing is silently dropped from a contributor's run.

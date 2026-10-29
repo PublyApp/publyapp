@@ -849,9 +849,10 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 			([jobId, job]) =>
 				(job.steps ?? []).flatMap((step) => {
 					const raw = step.env?.CI_CLASSIFIER_OUTPUTS;
-					return typeof raw === 'string'
-						? [{ jobId, values: JSON.parse(raw) as Record<string, string> }]
-						: [];
+					if (typeof raw !== 'string') {
+						return [];
+					}
+					return [{ jobId, values: JSON.parse(raw) as Record<string, string> }];
 				}),
 		);
 		assert.ok(
