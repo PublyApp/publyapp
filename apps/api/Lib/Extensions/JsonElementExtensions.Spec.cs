@@ -139,4 +139,41 @@ public sealed class JsonElementExtensionsSpec {
 		Action act = () => { _ = element.GetValueAsGuidOrNull(); };
 		_ = act.Should().Throw<InvalidOperationException>();
 	}
+
+	// ==================== GetStringPropertyOrNull ====================
+
+	[Fact]
+	public void ItShouldReturnTheStringPropertyWhenPresent() {
+		var payload = JsonDocument.Parse("{\"id\":\"abc\",\"n\":1}").RootElement;
+		var result = payload.GetStringPropertyOrNull("id");
+		_ = result.Should().Be("abc");
+	}
+
+	[Fact]
+	public void ItShouldReturnNullWhenThePropertyIsAbsent() {
+		var payload = JsonDocument.Parse("{\"id\":\"abc\"}").RootElement;
+		var result = payload.GetStringPropertyOrNull("url");
+		_ = result.Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldReturnNullWhenThePropertyIsNotAString() {
+		var payload = JsonDocument.Parse("{\"id\":42}").RootElement;
+		var result = payload.GetStringPropertyOrNull("id");
+		_ = result.Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldReturnNullWhenThePropertyIsBlank() {
+		var payload = JsonDocument.Parse("{\"id\":\"   \"}").RootElement;
+		var result = payload.GetStringPropertyOrNull("id");
+		_ = result.Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldReturnNullWhenThePayloadIsNotAnObject() {
+		var payload = JsonDocument.Parse("[\"id\"]").RootElement;
+		var result = payload.GetStringPropertyOrNull("id");
+		_ = result.Should().BeNull();
+	}
 }
