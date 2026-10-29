@@ -417,6 +417,19 @@ run per merge (~26 min in the merge queue) plus the nightly. The PR critical pat
   class therefore rests on each spec's own in-file account of a race it worked around, which
   is quoted rather than inferred. A perfunctory "these five flake" claim would be wrong and is
   not made.
+- **"Prove it red" for each KEEP.** The guide requires the guard to go red when the code it
+  protects is neutralised. I did not neutralise the code behind all 24 KEEP specs. Several carry
+  their own in-file mutation proofs (`focus-ring-cascade`, `breadcrumb-entity-name-truncation`,
+  `data-table-icon-visibility-guard`, both `profile-icon-picker-pin-*`, and the ~25 paint-model
+  mutations in `toast-contrast`); the rest were judged by reading the assertion and the seam it
+  names. A per-spec mutation run is follow-up work, and this audit does not claim it.
+- **A longer CI history.** The behaviour sample is the last 40 `ci.yml` runs, all from
+  2026-10-28. Older runs were not sampled, so "not flaky in CI" is a statement about that window.
+- **`tenant-portal-picker`'s determinism.** Its first picker test failed once locally (a tenant
+  login's `waitForURL` never left the marketing page) after prior state mutation on a shared
+  database; it did not reproduce in CI (6.8 s, green) or in the clean HEAD run. One unresolved
+  occurrence is recorded as a signal, not a verdict — the spec stays KEEP because nothing was
+  reproduced, but its fixture writes to the compose Postgres and deserves a second look.
 - **Whether `toast-contrast` still flakes.** Its own comment says the round-13 flake was
   closed by a raised budget and reworked measurement, with consecutive green runs. It is
   classified FIX-FLAKY because the race was mitigated, not removed, and because the 4 s
