@@ -52,12 +52,7 @@ public sealed class BulkDeleteStaffUsers {
 			[FromServices] ILogger<BulkDeleteStaffUsers> logger,
 			CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. Ensure the endpoint has .WithPermission()."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		var requestedUserIds = body.GetUserIds().Distinct().ToList();
 		var result = await userService.BulkDeleteStaffUsersAsync(

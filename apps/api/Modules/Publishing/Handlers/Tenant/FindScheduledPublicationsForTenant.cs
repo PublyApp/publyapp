@@ -185,14 +185,8 @@ public sealed class FindScheduledPublicationsForTenant {
 			);
 		}
 
-		var tenantAccount = authContext.AccountTenant;
-		if (tenantAccount is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithTenantPermission(...) middleware."
-			);
-		}
+		// Guard: this endpoint must stay behind .WithTenantPermission(...).
+		_ = authContext.GetRequiredTenantAccount();
 
 		if (query.From is null || query.To is null) {
 			return TypedProblems.ValidationProblem(

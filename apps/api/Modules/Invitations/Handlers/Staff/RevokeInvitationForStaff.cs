@@ -23,14 +23,7 @@ public sealed class RevokeInvitationForStaff {
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
-		// IMPOSSIBLE STATE: Staff endpoint without staff account
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		// Validate invitationId format
 		if (!Guid.TryParse(invitationId, out var invitationIdGuid)) {

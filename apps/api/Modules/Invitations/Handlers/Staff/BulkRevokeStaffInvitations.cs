@@ -54,13 +54,7 @@ public sealed class BulkRevokeStaffInvitations {
 			[FromServices] ILogger<BulkRevokeStaffInvitations> logger,
 			CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		var requestedInvitationIds = body.GetInvitationIds().Distinct().ToList();
 		var result = await invitationRevokeService.BulkRevokeStaffInvitationsAsync(

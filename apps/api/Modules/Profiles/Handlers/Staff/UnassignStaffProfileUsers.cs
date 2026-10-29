@@ -90,13 +90,7 @@ public sealed class UnassignStaffProfileUsers {
 			return TypedProblems.BadRequest("Invalid profileId", ResponseKeys.MalformedId);
 		}
 
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		// Collapse duplicates up front so bulk actions stay idempotent and the
 		// service does not waste work on repeated user IDs from the UI selection
