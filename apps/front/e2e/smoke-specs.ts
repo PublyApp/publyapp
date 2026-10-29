@@ -2,7 +2,7 @@
  * The `smoke` lane: the twelve specs every pull request runs.
  *
  * Why a FILE LIST and not a `--grep` over tags (audit
- * `docs/records/2026-10-29-analysis-e2e-suite-audit.md`, F5): six tests in this
+ * `the e2e suite audit (#2260)`, F5): six tests in this
  * suite sit outside any `test.describe` (`auth-screens.spec.ts`'s five
  * auth-layout tests, `tab-sync.spec.ts`'s cross-tab theme test). The tag guard
  * only inspects describes, so those tests carry no domain tag at all and a

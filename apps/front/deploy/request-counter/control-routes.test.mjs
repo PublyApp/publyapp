@@ -61,7 +61,7 @@ test('POST /__counter/reset clears counts and returns ok', () => {
 	assert.equal(counts.size, 0);
 });
 
-test('a marker-scoped read returns only that client, while the unmarked read still totals every bucket', () => {
+await test('a marker-scoped read returns only that client, while the unmarked read still totals every bucket', () => {
 	const counts = new Map([
 		[getCountKey('GET', '/staff/invitations', 'client-a'), 1],
 		[getCountKey('GET', '/staff/invitations', 'client-b'), 2],

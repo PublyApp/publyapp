@@ -112,16 +112,12 @@ const displayToast = async (
 		return;
 	}
 
-	const options =
-		description === undefined && durationMs === undefined
-			? undefined
-			: {
-					...(description === undefined ? {} : { description }),
-					...(durationMs === undefined ? {} : { duration: durationMs }),
-				};
+	const options = { description, duration: durationMs };
+	const hasOptions =
+		options.description !== undefined || options.duration !== undefined;
 
 	try {
-		if (options === undefined) {
+		if (!hasOptions) {
 			if (method === 'default') {
 				sonner.toast(message);
 			} else {
