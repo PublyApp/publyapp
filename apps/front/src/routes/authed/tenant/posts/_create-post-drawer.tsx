@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -14,6 +13,7 @@ import {
 	DrawerFooter,
 	DrawerForm,
 } from '~/components/ui/drawer';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import {
@@ -67,8 +67,14 @@ export const CreatePostDrawer = ({
 	const qc = useQueryClient();
 	const projectsQuery = useTenantProjectsQuery({ tenantId });
 	const projectItems = toTenantProjectItems(projectsQuery.data);
+	// Language-keyed resolver: schema + resolver built once per language, not
+	// once per render.
+	const resolver = useLanguageKeyedZodResolver<FormValues>(getSchema, [
+		'posts',
+		'common',
+	]);
 	const methods = useForm<FormValues>({
-		resolver: zodResolver(getSchema(t)),
+		resolver,
 		defaultValues: { body: '', projectId: null, segments: [] },
 	});
 	// useWatch, not a render-time `methods.watch()` (which makes React Hook Form

@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { getCookie, setCookie } from '@tanstack/react-start/server';
-import { z } from 'zod';
+import { compile, z } from 'zod';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import {
@@ -24,14 +24,23 @@ const resolveLocaleFromCookie = (): SupportedLanguage => {
 	return FALLBACK_LANGUAGE;
 };
 
-const LoadI18nInputSchema = z.object({
-	namespaces: I18nNamespaceListSchema,
-});
+const buildLoadI18nInputSchema = () =>
+	compile(
+		z.object({
+			namespaces: I18nNamespaceListSchema,
+		}),
+	);
 
-type LoadI18nInput = z.infer<typeof LoadI18nInputSchema>;
+let compiledLoadI18nInput:
+	| ReturnType<typeof buildLoadI18nInputSchema>
+	| undefined;
+const getLoadI18nInputSchema = () =>
+	(compiledLoadI18nInput ??= buildLoadI18nInputSchema());
+
+type LoadI18nInput = z.infer<ReturnType<typeof buildLoadI18nInputSchema>>;
 
 export const loadI18nForRequest = createServerFn({ method: 'GET' })
-	.validator((data): LoadI18nInput => LoadI18nInputSchema.parse(data))
+	.validator((data): LoadI18nInput => getLoadI18nInputSchema().parse(data))
 	.handler(async ({ data }) => {
 		const locale = resolveLocaleFromCookie();
 		const instance = await createBackendI18n(locale);
@@ -41,14 +50,23 @@ export const loadI18nForRequest = createServerFn({ method: 'GET' })
 		};
 	});
 
-const SetLocaleInputSchema = z.object({
-	locale: z.enum(SUPPORTED_LANGUAGES),
-});
+const buildSetLocaleInputSchema = () =>
+	compile(
+		z.object({
+			locale: z.enum(SUPPORTED_LANGUAGES),
+		}),
+	);
 
-type SetLocaleInput = z.infer<typeof SetLocaleInputSchema>;
+let compiledSetLocaleInput:
+	| ReturnType<typeof buildSetLocaleInputSchema>
+	| undefined;
+const getSetLocaleInputSchema = () =>
+	(compiledSetLocaleInput ??= buildSetLocaleInputSchema());
+
+type SetLocaleInput = z.infer<ReturnType<typeof buildSetLocaleInputSchema>>;
 
 export const setLocale = createServerFn({ method: 'POST' })
-	.validator((data): SetLocaleInput => SetLocaleInputSchema.parse(data))
+	.validator((data): SetLocaleInput => getSetLocaleInputSchema().parse(data))
 	.handler(async ({ data }) => {
 		setCookie(LOCALE_COOKIE_KEY, data.locale, {
 			path: '/',
