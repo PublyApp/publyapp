@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
@@ -70,6 +72,82 @@ public sealed class CustomExceptionHandlerSpec {
 
 		mapped.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
 		mapped.Key.Should().Be(ResponseKeys.InternalServerError);
+		mapped.Errors.Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldMapAMissingRequiredBodyPropertyTo422NamingTheValidatorKey() {
+		// System.Text.Json reports the camelCase wire member; FluentValidation keys
+		// the CLR property, so the mapping must hand back "Body" — the key the front
+		// already reads from the validator path (#2261).
+		var exception = new BadHttpRequestException(
+			"Failed to read parameter \"CreatePostBody body\" from the request body as JSON.",
+			StatusCodes.Status400BadRequest,
+			new JsonException(
+				"JSON deserialization for type 'CreatePostBody' was missing "
+				+ "required properties including: 'body'."
+			)
+		);
+
+		var mapped = CustomExceptionHandler.MapException(exception);
+
+		mapped.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+		mapped.Title.Should().Be("Validation Failed");
+		mapped.Detail.Should().Be("Request body validation failed");
+		mapped.Key.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		mapped.Errors.Should().NotBeNull();
+		mapped.Errors.Required().Should().ContainKey("Body")
+			.WhoseValue.Should().Equal("Body is required");
+	}
+
+	[Fact]
+	public void ItShouldNameEveryMissingRequiredBodyProperty() {
+		var exception = new BadHttpRequestException(
+			"Failed to read parameter \"ResetPasswordBody body\" from the request body as JSON.",
+			StatusCodes.Status400BadRequest,
+			new JsonException(
+				"JSON deserialization for type 'ResetPasswordBody' was missing "
+				+ "required properties including: 'id', 'token', 'newPassword', 'confirmPassword'."
+			)
+		);
+
+		var mapped = CustomExceptionHandler.MapException(exception);
+
+		mapped.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
+		mapped.Errors.Required().Keys.Should().BeEquivalentTo(
+			["Id", "Token", "NewPassword", "ConfirmPassword"]
+		);
+	}
+
+	[Fact]
+	public void ItShouldMapAMalformedJsonBodyToA400ProblemInsteadOfA500() {
+		var exception = new BadHttpRequestException(
+			"Failed to read parameter \"CreatePostBody body\" from the request body as JSON.",
+			StatusCodes.Status400BadRequest,
+			new JsonException("'t' is an invalid start of a property name.")
+		);
+
+		var mapped = CustomExceptionHandler.MapException(exception);
+
+		mapped.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+		mapped.Title.Should().Be("Bad Request");
+		mapped.Detail.Should().Be("'t' is an invalid start of a property name.");
+		mapped.Key.Should().Be(ResponseKeys.BadRequest);
+		mapped.Errors.Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldMapAnUnsupportedContentTypeTo415() {
+		var exception = new BadHttpRequestException(
+			"Expected a supported JSON media type but got \"text/plain\".",
+			StatusCodes.Status415UnsupportedMediaType
+		);
+
+		var mapped = CustomExceptionHandler.MapException(exception);
+
+		mapped.StatusCode.Should().Be(StatusCodes.Status415UnsupportedMediaType);
+		mapped.Title.Should().Be("Unsupported Media Type");
+		mapped.Key.Should().Be(ResponseKeys.BadRequest);
 		mapped.Errors.Should().BeNull();
 	}
 
