@@ -52,12 +52,7 @@ public sealed class BulkSuspendStaffUsers {
 			[FromServices] ILogger<BulkSuspendStaffUsers> logger,
 			CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. Ensure the endpoint has .WithPermission()."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		var userIds = body.GetUserIds();
 		var result = await userService.BulkSuspendStaffUsersAsync(

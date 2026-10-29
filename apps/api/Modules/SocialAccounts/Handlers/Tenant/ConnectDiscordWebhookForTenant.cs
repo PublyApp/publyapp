@@ -66,12 +66,7 @@ public sealed class ConnectDiscordWebhookForTenant {
 			throw new InvalidOperationException($"{nameof(authContext.TenantId)} is not a GUID");
 		}
 
-		var account = authContext.AccountTenant;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. Ensure the endpoint has .WithTenantPermission(...) middleware."
-			);
-		}
+		var account = authContext.GetRequiredTenantAccount();
 
 		Guid? replaceAccountId = null;
 		var rawAccountId = body.GetSocialAccountId();

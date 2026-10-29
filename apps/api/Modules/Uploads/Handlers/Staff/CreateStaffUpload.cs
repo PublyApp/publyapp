@@ -49,13 +49,7 @@ public sealed class CreateStaffUpload {
 		IFormFile? file,
 		CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		if (file is null || file.Length == 0) {
 			return CreateStaffUpload._ValidationFailure(

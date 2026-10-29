@@ -55,12 +55,7 @@ public sealed class BulkDeleteStaffProfiles {
 		CancellationToken cancellationToken = default
 	) {
 		// Staff profile bulk delete is staff-only and relies on auth context.
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. Ensure the endpoint has .WithPermission()."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		// Normalize incoming IDs once; backend service enforces max batch size via validation.
 		var distinctProfileIds = body.GetProfileIds().Distinct().ToList();

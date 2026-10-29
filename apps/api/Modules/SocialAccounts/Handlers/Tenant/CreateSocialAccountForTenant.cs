@@ -77,14 +77,7 @@ public sealed class CreateSocialAccountForTenant {
 			);
 		}
 
-		var account = authContext.AccountTenant;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithTenantPermission(...) middleware."
-			);
-		}
+		var account = authContext.GetRequiredTenantAccount();
 
 		// Parsing-sensitive getters are cached in locals (PUBLY0006).
 		var identifier = body.GetIdentifier().Trim();

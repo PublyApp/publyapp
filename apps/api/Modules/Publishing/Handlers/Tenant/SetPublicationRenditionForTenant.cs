@@ -76,14 +76,7 @@ public sealed class SetPublicationRenditionForTenant {
 			);
 		}
 
-		var account = authContext.AccountTenant;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithTenantPermission(...) middleware."
-			);
-		}
+		var account = authContext.GetRequiredTenantAccount();
 
 		if (!Guid.TryParse(publicationId, out var publicationIdGuid)) {
 			return TypedProblems.BadRequest(
