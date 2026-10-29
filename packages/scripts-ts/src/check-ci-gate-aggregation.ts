@@ -59,10 +59,9 @@ export const EXPECTED_UPSTREAM_JOB_KEYS = [
 	'front-vitest/3',
 	'front-vitest/4',
 	'e2e-build',
+	'e2e-smoke',
 	'e2e-test/1',
 	'e2e-test/2',
-	'e2e-test/3',
-	'e2e-test/4',
 	'e2e-cleanup',
 ] as const;
 
@@ -141,6 +140,7 @@ const CENTRAL_PARENT_KEYS = [
 	'api',
 	'front-vitest',
 	'e2e-build',
+	'e2e-smoke',
 	'e2e-test',
 	'e2e-cleanup',
 ] as const;
@@ -438,6 +438,32 @@ const baseJobLaneContracts = {
 			'e2e',
 		),
 	],
+	'e2e-smoke': [
+		contract(
+			'e2e-smoke',
+			'e2e',
+			[
+				'e2e-smoke.checkout',
+				'e2e-smoke.install_pnpm',
+				'e2e-smoke.setup_node',
+				'e2e-smoke.assert_pins',
+				'e2e-smoke.install_dependencies',
+				'e2e-smoke.login',
+				'e2e-smoke.rerun_guard',
+				'e2e-smoke.pull_stack',
+				'e2e-smoke.download_images',
+				'e2e-smoke.load_images',
+				'e2e-smoke.cache_playwright',
+				'e2e-smoke.up_stack',
+				'e2e-smoke.wait_health',
+				'e2e-smoke.playwright',
+				'e2e-smoke.report_upload',
+				'e2e-smoke.teardown',
+				'e2e-smoke.not-applicable',
+			],
+			'e2e',
+		),
+	],
 	'e2e-cleanup': [
 		contract(
 			'e2e-cleanup',
@@ -503,7 +529,18 @@ const matrixJobLaneContracts = Object.fromEntries(
 				),
 			],
 		],
-		[
+	]),
+) satisfies JobLaneContracts;
+
+/**
+ * The full e2e lane shards two ways (#2260: four shards minus the twelve
+ * smoke specs no longer needs four stacks), and the smoke lane is a single
+ * job. Both are matrix-shaped contracts like the four-shard lanes above, so
+ * the artifact key set is derived the same way rather than hand-listed.
+ */
+const e2eMatrixJobLaneContracts = Object.fromEntries(
+	[
+		[1, 2].map((shard) => [
 			`e2e-test/${shard}`,
 			[
 				contract(
@@ -531,13 +568,14 @@ const matrixJobLaneContracts = Object.fromEntries(
 					'e2e',
 				),
 			],
-		],
-	]),
+		]),
+	].flat(),
 ) satisfies JobLaneContracts;
 
 export const EXPECTED_JOB_LANES = {
 	...baseJobLaneContracts,
 	...matrixJobLaneContracts,
+	...e2eMatrixJobLaneContracts,
 } satisfies JobLaneContracts;
 
 export const getExpectedJobLanes = (
@@ -545,7 +583,9 @@ export const getExpectedJobLanes = (
 ): JobContract[] | undefined =>
 	EXPECTED_JOB_LANES[jobKey as keyof typeof EXPECTED_JOB_LANES];
 
-const expectedJobLaneContractCount = 11 + 3 * 4;
+// 12 central jobs with a fixed contract + four api shards + four front-vitest
+// shards + two full-e2e shards (the smoke lane is one of the twelve).
+const expectedJobLaneContractCount = 12 + 4 + 4 + 2;
 if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
 }

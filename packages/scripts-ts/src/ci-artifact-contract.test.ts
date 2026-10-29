@@ -42,7 +42,9 @@ const completeStepOutcome = (step: string): 'success' | 'skipped' => {
 		step.endsWith('.not-applicable') ||
 		step === 'e2e-build.upload_images' ||
 		step === 'e2e-test.download_images' ||
-		step === 'e2e-test.load_images'
+		step === 'e2e-test.load_images' ||
+		step === 'e2e-smoke.download_images' ||
+		step === 'e2e-smoke.load_images'
 	) {
 		return 'skipped';
 	}
@@ -162,6 +164,7 @@ const completeAggregateInput = () => {
 				'api',
 				'front-vitest',
 				'e2e-build',
+				'e2e-smoke',
 				'e2e-test',
 				'e2e-cleanup',
 			].map((job) => [job, 'success']),

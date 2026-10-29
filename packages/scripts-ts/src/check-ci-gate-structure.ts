@@ -1101,7 +1101,7 @@ export const findRequiredContextCollisionProblems = async ({
 	);
 	authorizedExpressionNames.set(
 		'ci.yml::e2e-test',
-		'front-e2e (${{ matrix.shard }}/4)',
+		'front-e2e (${{ matrix.shard }}/2)',
 	);
 	authorizedExpressionNames.set(
 		'ci.yml::gate',
@@ -1224,10 +1224,9 @@ export const CENTRAL_VISIBLE_CHECKS = [
 	'front-ci (3/4)',
 	'front-ci (4/4)',
 	'Build e2e images',
-	'front-e2e (1/4)',
-	'front-e2e (2/4)',
-	'front-e2e (3/4)',
-	'front-e2e (4/4)',
+	'front-e2e-smoke',
+	'front-e2e (1/2)',
+	'front-e2e (2/2)',
 	'Clean up e2e images',
 	'ci-final-gate',
 ] as const;
@@ -1240,6 +1239,7 @@ const CENTRAL_JOB_IDS = [
 	'api',
 	'front-vitest',
 	'e2e-build',
+	'e2e-smoke',
 	'e2e-test',
 	'e2e-cleanup',
 	'gate',
@@ -1258,6 +1258,7 @@ const CENTRAL_PERMISSIONS = {
 	api: { contents: 'read' },
 	frontVitest: { contents: 'read' },
 	e2eBuild: { contents: 'read', packages: 'write' },
+	e2eSmoke: { contents: 'read', packages: 'read' },
 	e2eTest: { contents: 'read', packages: 'read' },
 	e2eCleanup: { contents: 'read', packages: 'write' },
 	gate: {
@@ -1323,6 +1324,27 @@ const EXPECTED_CENTRAL_CLASSIFIER_OUTPUTS = {
 	react: '${{ steps.classifier.outputs.react }}',
 } as const;
 
+/**
+ * The two e2e lanes are event-scoped (#2260): the twelve-spec smoke lane runs
+ * on every pull request, the full suite runs in the merge queue. The event
+ * predicate appears in each step condition AND in the collector's classifier
+ * boolean below, so an off-event run reports the lane `not_applicable` through
+ * the same sentinel mechanism as a classifier-irrelevant lane — one mechanism,
+ * not two. `checkCentralClassifierEdges` derives both strings from this table,
+ * so the workflow and the guard cannot drift into disagreeing about which
+ * event a lane belongs to.
+ */
+const CENTRAL_EVENT_SCOPED_LANES = {
+	'e2e-smoke': {
+		positive: "github.event_name == 'pull_request'",
+		negative: "github.event_name != 'pull_request'",
+	},
+	'e2e-test': {
+		positive: "github.event_name == 'merge_group'",
+		negative: "github.event_name != 'merge_group'",
+	},
+} satisfies Record<string, { positive: string; negative: string }>;
+
 const EXPECTED_CENTRAL_COLLECTOR_CLASSIFIER_OUTPUTS = {
 	'quality-js': { quality: '${{ needs.classify.outputs.quality }}' },
 	'quality-dotnet': { quality: '${{ needs.classify.outputs.quality }}' },
@@ -1343,7 +1365,12 @@ const EXPECTED_CENTRAL_COLLECTOR_CLASSIFIER_OUTPUTS = {
 	api: { api: '${{ needs.classify.outputs.api }}' },
 	'front-vitest': { front: '${{ needs.classify.outputs.front }}' },
 	'e2e-build': { e2e: '${{ needs.classify.outputs.e2e }}' },
-	'e2e-test': { e2e: '${{ needs.classify.outputs.e2e }}' },
+	'e2e-smoke': {
+		e2e: "${{ needs.classify.outputs.e2e == 'true' && github.event_name == 'pull_request' }}",
+	},
+	'e2e-test': {
+		e2e: "${{ needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group' }}",
+	},
 	'e2e-cleanup': { e2e: '${{ needs.classify.outputs.e2e }}' },
 } as const;
 
@@ -1368,6 +1395,7 @@ const EXPECTED_CENTRAL_PARENT_RESULTS = {
 	api: '${{ needs.api.result }}',
 	'front-vitest': '${{ needs.front-vitest.result }}',
 	'e2e-build': '${{ needs.e2e-build.result }}',
+	'e2e-smoke': '${{ needs.e2e-smoke.result }}',
 	'e2e-test': '${{ needs.e2e-test.result }}',
 	'e2e-cleanup': '${{ needs.e2e-cleanup.result }}',
 } as const;
@@ -1545,6 +1573,7 @@ const checkCentralTopologyInvariants = (
 		api: CENTRAL_PERMISSIONS.api,
 		'front-vitest': CENTRAL_PERMISSIONS.frontVitest,
 		'e2e-build': CENTRAL_PERMISSIONS.e2eBuild,
+		'e2e-smoke': CENTRAL_PERMISSIONS.e2eSmoke,
 		'e2e-test': CENTRAL_PERMISSIONS.e2eTest,
 		'e2e-cleanup': CENTRAL_PERMISSIONS.e2eCleanup,
 		gate: CENTRAL_PERMISSIONS.gate,
@@ -1590,7 +1619,14 @@ const checkCentralTopologyInvariants = (
 		}
 	}
 
-	for (const jobId of ['api', 'front-vitest', 'e2e-test']) {
+	// #2260: the full e2e lane shards two ways (the twelve smoke specs left
+	// the PR lane), every other sharded lane stays at four.
+	const expectedShardsByJob = {
+		api: [1, 2, 3, 4],
+		'front-vitest': [1, 2, 3, 4],
+		'e2e-test': [1, 2],
+	} satisfies Record<string, number[]>;
+	for (const [jobId, expectedShards] of Object.entries(expectedShardsByJob)) {
 		const strategy = jobs[jobId]?.strategy;
 		if (strategy?.['fail-fast'] !== false) {
 			findings.push(`${jobId}: fail-fast must be false`);
@@ -1605,8 +1641,10 @@ const checkCentralTopologyInvariants = (
 		) {
 			findings.push(`${jobId}: matrix must contain exactly the shard axis`);
 		}
-		if (!deepEqualJson(strategy?.matrix?.shard, [1, 2, 3, 4])) {
-			findings.push(`${jobId}: matrix shard axis must be exactly [1, 2, 3, 4]`);
+		if (!deepEqualJson(strategy?.matrix?.shard, expectedShards)) {
+			findings.push(
+				`${jobId}: matrix shard axis must be exactly ${JSON.stringify(expectedShards)}`,
+			);
 		}
 		if (
 			strategy?.include !== undefined ||
@@ -1620,10 +1658,12 @@ const checkCentralTopologyInvariants = (
 	if (jobs['front-vitest']?.needs !== 'classify') {
 		findings.push('front-vitest.needs must be exactly classify');
 	}
-	if (!deepEqualJson(jobs['e2e-test']?.needs, ['classify', 'e2e-build'])) {
-		findings.push(
-			'e2e-test.needs must be exactly [classify, e2e-build] for every matrix shard',
-		);
+	for (const e2eJobId of ['e2e-smoke', 'e2e-test']) {
+		if (!deepEqualJson(jobs[e2eJobId]?.needs, ['classify', 'e2e-build'])) {
+			findings.push(
+				`${e2eJobId}.needs must be exactly [classify, e2e-build] so no e2e lane starts without the run-scoped image build`,
+			);
+		}
 	}
 
 	const expectedNeeds = [
@@ -1634,6 +1674,7 @@ const checkCentralTopologyInvariants = (
 		'api',
 		'front-vitest',
 		'e2e-build',
+		'e2e-smoke',
 		'e2e-test',
 		'e2e-cleanup',
 	];
@@ -1727,25 +1768,43 @@ const checkCentralClassifierEdges = (
 		'front-vitest.install_pnpm',
 		'front-vitest.setup_node',
 		'e2e-build.checkout',
+		'e2e-smoke.checkout',
 		'e2e-test.checkout',
 		'e2e-cleanup.checkout',
 	]);
 	const normalizeCondition = (condition: string): string =>
 		condition.replace(/\s+/g, ' ').trim();
-	const classifierCondition = (lane: string, terms: string[] = []): string =>
-		[
+	const classifierCondition = (
+		jobId: string,
+		lane: string,
+		terms: string[] = [],
+	): string => {
+		const eventScope = CENTRAL_EVENT_SCOPED_LANES[jobId];
+		return [
 			'always()',
+			...(eventScope === undefined ? [] : [eventScope.positive]),
 			`needs.classify.result == 'success'`,
 			`needs.classify.outputs.${lane} == 'true'`,
 			...terms,
 		].join(' && ');
+	};
+	/** The exact complement of `classifierCondition`, for the sentinel step:
+	 * an event-scoped lane is not-applicable either when the classifier says
+	 * the lane is irrelevant OR when this event is not the lane's event. */
+	const expectedSentinelCondition = (jobId: string, lane: string): string => {
+		const eventScope = CENTRAL_EVENT_SCOPED_LANES[jobId];
+		if (eventScope === undefined) {
+			return `always() && needs.classify.result == 'success' && needs.classify.outputs.${lane} == 'false'`;
+		}
+		return `always() && needs.classify.result == 'success' && (needs.classify.outputs.${lane} == 'false' || ${eventScope.negative})`;
+	};
 	const expectedClassifierCondition = (
 		jobId: string,
 		stepId: string,
 		lane: string,
 	): string => {
 		if (stepId === 'react_doctor') {
-			return classifierCondition(lane, [
+			return classifierCondition(jobId, lane, [
 				"steps.resolve_react_base.outcome == 'success'",
 			]);
 		}
@@ -1761,9 +1820,9 @@ const checkCentralClassifierEdges = (
 					],
 				],
 			]);
-			return classifierCondition(lane, terms.get(stepId) ?? []);
+			return classifierCondition(jobId, lane, terms.get(stepId) ?? []);
 		}
-		if (jobId === 'e2e-test') {
+		if (jobId === 'e2e-test' || jobId === 'e2e-smoke') {
 			const terms = new Map([
 				['install-pnpm', ["needs.e2e-build.result == 'success'"]],
 				['setup-node', ["needs.e2e-build.result == 'success'"]],
@@ -1825,9 +1884,9 @@ const checkCentralClassifierEdges = (
 				],
 				['teardown', []],
 			]);
-			return classifierCondition(lane, terms.get(stepId) ?? []);
+			return classifierCondition(jobId, lane, terms.get(stepId) ?? []);
 		}
-		return classifierCondition(lane);
+		return classifierCondition(jobId, lane);
 	};
 	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
 		String(step.name).includes('Aggregate upstream artifacts'),
@@ -1876,7 +1935,6 @@ const checkCentralClassifierEdges = (
 			if (lane.classifierLane === undefined) {
 				continue;
 			}
-			const falseCondition = `needs.classify.result == 'success' && needs.classify.outputs.${lane.classifierLane} == 'false'`;
 			for (const expectedStepId of lane.expectedSteps) {
 				const step = steps.find(
 					(candidate) =>
@@ -1897,7 +1955,7 @@ const checkCentralClassifierEdges = (
 					if (!isIntentionallyUnconditional && !isFailureOnly) {
 						if (isSentinel) {
 							findings.push(
-								`${actualJobId}: sentinel ${expectedStepId} must consume ${falseCondition}`,
+								`${actualJobId}: sentinel ${expectedStepId} must consume ${expectedSentinelCondition(actualJobId, lane.classifierLane)}`,
 							);
 						} else {
 							findings.push(
@@ -1909,10 +1967,11 @@ const checkCentralClassifierEdges = (
 				}
 				if (isSentinel) {
 					if (
-						normalizeCondition(condition) !== `always() && ${falseCondition}`
+						normalizeCondition(condition) !==
+						expectedSentinelCondition(actualJobId, lane.classifierLane)
 					) {
 						findings.push(
-							`${actualJobId}: sentinel ${expectedStepId} must consume ${falseCondition}`,
+							`${actualJobId}: sentinel ${expectedStepId} must consume ${expectedSentinelCondition(actualJobId, lane.classifierLane)}`,
 						);
 					}
 				} else if (
@@ -2276,6 +2335,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			...laneUpload('front-vitest', 'front-vitest-\${{ matrix.shard }}'),
 		},
 		laneUpload('e2e-build', 'e2e-build'),
+		laneUpload('e2e-smoke', 'e2e-smoke'),
 		{
 			...laneUpload('e2e-test', 'e2e-test-\${{ matrix.shard }}'),
 		},
@@ -2326,7 +2386,19 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			condition:
 				"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')",
 			with: {
-				name: 'front-e2e-playwright-report-\${{ matrix.shard }}-of-4',
+				name: 'front-e2e-playwright-report-\${{ matrix.shard }}-of-2',
+				path: 'apps/front/playwright-report\napps/front/test-results\n',
+				'if-no-files-found': 'ignore',
+			},
+		},
+		{
+			jobId: 'e2e-smoke',
+			stepName: 'Upload Playwright report',
+			stepId: 'report-upload',
+			condition:
+				"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')",
+			with: {
+				name: 'front-e2e-smoke-playwright-report',
 				path: 'apps/front/playwright-report\napps/front/test-results\n',
 				'if-no-files-found': 'ignore',
 			},
@@ -2420,6 +2492,7 @@ const checkCentralDiagnosticUploads = (
 		['api', 'Upload API test results', 'suite'],
 		['front-vitest', 'Upload Vitest report', 'vitest'],
 		['e2e-test', 'Upload Playwright report', 'playwright'],
+		['e2e-smoke', 'Upload Playwright report', 'playwright'],
 	] as const;
 	for (const [jobId, stepName, stepId] of expected) {
 		const step = (jobs[jobId]?.steps ?? []).find(

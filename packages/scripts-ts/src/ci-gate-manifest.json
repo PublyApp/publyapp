@@ -426,15 +426,110 @@
 			"mirror": null,
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup\",\"path\":\"ci-results/e2e-cleanup.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
+		"ci.yml::e2e-smoke::Assert exact pins": {
+			"hash": "bc8a1ad93273826e",
+			"mirror": "just ci-install",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
+		},
+		"ci.yml::e2e-smoke::Cache Playwright browsers": {
+			"hash": "9ba6fef8355513c1",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Cache Playwright browsers\" uses actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"path\":\"~/.cache/ms-playwright\",\"key\":\"${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}\"},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::CI lane not applicable": {
+			"hash": "86eade7999374027",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E smoke lane is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Collect ci-lane-result": {
+			"hash": "e564b88a8265b8fe",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Detect partial rerun": {
+			"hash": "bcc320e145ff6719",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Download fork e2e images": {
+			"hash": "a5703efcfb902e84",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Install dependencies": {
+			"hash": "32d0b8ce13c29719",
+			"mirror": "just ci-install",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::e2e-smoke::Install pnpm": {
+			"hash": "ee77f915d030dde1",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Load fork e2e images": {
+			"hash": "7c583cafcad19efa",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Login to GHCR": {
+			"hash": "d420e18ca803a874",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Pull stack images": {
+			"hash": "9871c251a6270aa3",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Run Playwright smoke lane": {
+			"hash": "5fa6584a32bd40fc",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Run Playwright smoke lane\"; normalized workflow command(s): [\"pnpm --filter front exec playwright install chromium --with-deps\",\"pnpm --filter front exec playwright test --project=chromium\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Setup Node": {
+			"hash": "9415b2be359e0fdc",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Start e2e stack": {
+			"hash": "1fb4bd77564b652e",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Start e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml up -d --no-build\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Tear down e2e stack": {
+			"hash": "67432281f7a56da0",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Tear down e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml down -v\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-smoke::Upload ci-lane-result": {
+			"hash": "aa2409cd4d2fb084",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-smoke\",\"path\":\"ci-results/e2e-smoke.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Upload Playwright report": {
+			"hash": "6ec146e70ac4a74a",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-smoke-playwright-report\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
+		},
+		"ci.yml::e2e-smoke::Wait for e2e stack health": {
+			"hash": "2ab21af93eb90c43",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
 		"ci.yml::e2e-test::Assert exact pins": {
-			"hash": "0a06539db489c0d2",
+			"hash": "3923fd5266c3c251",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
-			"hash": "f9f488c926adb3c3",
+			"hash": "32a56a373977bdce",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Cache Playwright browsers\" uses actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"path\":\"~/.cache/ms-playwright\",\"key\":\"${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Cache Playwright browsers\" uses actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"path\":\"~/.cache/ms-playwright\",\"key\":\"${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
@@ -442,67 +537,67 @@
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"ci.yml::e2e-test::CI lane not applicable": {
-			"hash": "0a6f8efc55f7f966",
+			"hash": "92b97d81c1b2d0a9",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E shard is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Collect ci-lane-result": {
-			"hash": "69385b0269e4cc3e",
+			"hash": "337967168a1d1891",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Detect partial rerun": {
-			"hash": "13b0cab4980aa44c",
+			"hash": "e81e52aa0fc5ba18",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Download fork e2e images": {
-			"hash": "fa54aafb5bbc9fc1",
+			"hash": "555217f785761d1e",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Install dependencies": {
-			"hash": "9419f3ebca3a365d",
+			"hash": "2b4fcc2651373832",
 			"mirror": "just ci-install",
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
 		},
 		"ci.yml::e2e-test::Install pnpm": {
-			"hash": "762cf35b2f590e94",
+			"hash": "659da34d5a549fd3",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Load fork e2e images": {
-			"hash": "66f0ae3117c3a4a1",
+			"hash": "e2014f129f9d03ac",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Login to GHCR": {
-			"hash": "00ee2ede5b6d1caa",
+			"hash": "13b514df3fe14a94",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Pull stack images": {
-			"hash": "05b12ef693852731",
+			"hash": "7f018528f5b2bc48",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"hash": "3b6ad46fafad4e05",
+			"hash": "f8b50d63f39681f6",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"pnpm --filter front exec playwright install chromium --with-deps\",\"pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/4\",\"if [ \\\"${{ matrix.shard }}\\\" = \\\"4\\\" ]; then\",\"pnpm --filter front exec playwright test --project=setup --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-source --no-deps\",\"pnpm --filter front test:drawer-contrast\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"pnpm --filter front exec playwright install chromium --with-deps\",\"pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/2\",\"if [ \\\"${{ matrix.shard }}\\\" = \\\"2\\\" ]; then\",\"pnpm --filter front exec playwright test --project=setup --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-source --no-deps\",\"pnpm --filter front test:drawer-contrast\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Setup Node": {
-			"hash": "8e1d2eb82c0a31af",
+			"hash": "ffdd064f68f94812",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"node-version\":24},\"env\":null}."
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Start e2e stack": {
-			"hash": "9bf6426fa267bd9a",
+			"hash": "1860cc00d6e43154",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Start e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml up -d --no-build\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Tear down e2e stack": {
-			"hash": "5f9173a0cd96b192",
+			"hash": "86595ee1c90be7f1",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Tear down e2e stack\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml down -v\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -512,12 +607,12 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}\",\"path\":\"ci-results/e2e-test-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Upload Playwright report": {
-			"hash": "aed6029fc35cd59d",
+			"hash": "3a8cedb2b96c916e",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-2\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
-			"hash": "844893a2675c63fd",
+			"hash": "ea11648ef2e8f3d5",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -762,7 +857,7 @@
 			"reason": "Hosted-only action step \"Upload Vitest report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')\",\"with\":{\"name\":\"front-ci-vitest-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/test-results\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
-			"hash": "a5cf3ad3c688ffb3",
+			"hash": "bd9726d18d2734dd",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Aggregate upstream artifacts\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-gate-aggregation.ts ci-results\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -1148,43 +1243,43 @@
 		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"hash": "e4ac9bb64369823d",
-			"mirror": "just ci",
-			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
+			"mirror": null,
+			"reason": "Hosted-only action step \"Build and push API migrate image\" uses docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc; exact hosted fields: {\"if\":null,\"with\":{\"context\":\".\",\"file\":\"apps/api/Dockerfile\",\"target\":\"migrate\",\"push\":true,\"platforms\":\"linux/amd64\",\"tags\":\"${{ steps.ns.outputs.root }}/migrate:${{ steps.release.outputs.tag }}\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Build and push API runtime image": {
 			"hash": "3b522762c8c019ec",
-			"mirror": "just ci",
-			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
+			"mirror": null,
+			"reason": "Hosted-only action step \"Build and push API runtime image\" uses docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc; exact hosted fields: {\"if\":null,\"with\":{\"context\":\".\",\"file\":\"apps/api/Dockerfile\",\"target\":\"runtime\",\"push\":true,\"platforms\":\"linux/amd64\",\"tags\":\"${{ steps.ns.outputs.root }}/api:${{ steps.release.outputs.tag }}\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Build and push Front image": {
 			"hash": "5458c5d5a4129444",
-			"mirror": "just ci",
-			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
+			"mirror": null,
+			"reason": "Hosted-only action step \"Build and push Front image\" uses docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc; exact hosted fields: {\"if\":null,\"with\":{\"context\":\".\",\"file\":\"apps/front/Dockerfile\",\"push\":true,\"platforms\":\"linux/amd64\",\"tags\":\"${{ steps.ns.outputs.root }}/front:${{ steps.release.outputs.tag }}\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
 			"mirror": null,
-			"reason": "GitHub-only: clones the repository onto the runner. Locally the working tree already is the code under test."
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"deploy-images.yml::publish::Log in to GHCR": {
 			"hash": "49f3c47b7fbf6259",
-			"mirror": "just ci",
-			"reason": "GitHub-only registry authentication step required to push images; local gate does not publish images."
+			"mirror": null,
+			"reason": "Hosted-only action step \"Log in to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":null,\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ secrets.GITHUB_TOKEN }}\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Resolve immutable release tag": {
 			"hash": "224b349bb25ae583",
-			"mirror": "just ci",
-			"reason": "The workflow computes RELEASE_TAG from GITHUB_SHA for immutable tagging; local checks do not perform registry publishing."
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Resolve immutable release tag\"; normalized workflow command(s): [\"echo \\\"tag=${GITHUB_SHA}\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"deploy-images.yml::publish::Resolve lowercase image namespace": {
 			"hash": "0b974ca915df8a1a",
 			"mirror": null,
-			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): derives the lowercased ghcr.io owner namespace from github.repository_owner because GHCR rejects uppercase image paths. GitHub-only shell one-liner; the local deploy-images.ts wrapper keeps its own IMAGE_ROOT constant reconciled by its unit tests."
+			"reason": "No exact local command match for run step \"Resolve lowercase image namespace\"; normalized workflow command(s): [\"echo \\\"root=ghcr.io/$(printf '%s' \\\"$OWNER\\\" | tr '[:upper:]' '[:lower:]')/publyapp\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"deploy-images.yml::publish::Set up Docker Buildx": {
 			"hash": "0c3cb7cf41c4d15f",
-			"mirror": "just ci",
-			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
+			"mirror": null,
+			"reason": "Hosted-only action step \"Set up Docker Buildx\" uses docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		}
 	}
 }
