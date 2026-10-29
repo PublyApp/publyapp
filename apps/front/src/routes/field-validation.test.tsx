@@ -48,11 +48,23 @@ describe('field-validation route', () => {
 
 		for (const variant of ['success', 'error', 'warning', 'info'] as const) {
 			fireEvent.click(screen.getByTestId(`toast-contrast-${variant}`));
-			expect(toastMocks[variant]).toHaveBeenCalledWith('active', 'description');
+			// The fixture passes an explicit long duration (#2260): Sonner's 4 s
+			// default auto-dismiss was the binding constraint on every contrast
+			// measurement, so the fixture — this spec's only entry point — asks for
+			// one far beyond any run.
+			expect(toastMocks[variant]).toHaveBeenCalledWith(
+				'active',
+				'description',
+				600_000,
+			);
 		}
 
 		fireEvent.click(screen.getByTestId('toast-contrast-default'));
-		expect(toastMocks.default).toHaveBeenCalledWith('active', 'description');
+		expect(toastMocks.default).toHaveBeenCalledWith(
+			'active',
+			'description',
+			600_000,
+		);
 	});
 
 	test('authors inert compiled-style probes for focus and invalid focus', () => {

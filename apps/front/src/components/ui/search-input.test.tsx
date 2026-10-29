@@ -312,10 +312,15 @@ describe('SearchInput', () => {
 	// identical computed style whether the suppression rule is present or
 	// entirely absent. Closing this for real needs either a real desktop
 	// Chrome/Firefox/WebKit environment (well beyond this fix's scope) or
-	// manual/visual QA — not something this suite can assert. See
-	// `e2e/search-input-native-cancel-suppression.spec.ts` for the adjacent
-	// real-browser coverage this repo DOES get (exactly one accessible,
-	// working custom clear control).
+	// manual/visual QA — not something this suite can assert.
+	//
+	// The former `e2e/search-input-native-cancel-suppression.spec.ts` proved the
+	// adjacent real-browser half (exactly one accessible, working custom clear
+	// control) and was deleted in #2260: the browser-level assertions it made
+	// are the ones below, at a hundredth of the cost, and its own docstring
+	// recorded that the pseudo-element suppression it was written for is not
+	// observable on this platform. This file is now the cheaper test of record
+	// for the clear control.
 	//
 	// Selector semantics are deliberately outside this bounded resolver; they
 	// belong to the policy in scripts/guards/search-cancel-css-policy.mts. Stated

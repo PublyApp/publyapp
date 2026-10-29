@@ -1,15 +1,113 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
+import { sleep } from '@org/shared-ts/utils/any.utils';
+
+import { API_BASE_URL, getSessionTokenFromBrowser } from './helpers/api';
 import {
 	loginAsTenantUser,
 	SINGLE_TENANT_USER_CREDENTIALS,
 } from './helpers/login';
+
+const TENANT_HEADER_KEY = 'X-PublyApp-TenantId';
+const PUBLICATIONS_PATH = '/publishing/publications';
+/** The worker is single-threaded and shares the API container in the e2e
+ * stack; ten measured publish-now latencies on 2026-08-30 ranged 5.3–12.6 s
+ * (mean ~8.6 s). This bound is the observation deadline for the worker, not a
+ * wait for the UI to catch up. */
+const WORKER_DEADLINE_MS = 20_000;
+const POLL_INTERVAL_MS = 250;
+
+type PublicationWireRow = {
+	postExcerpt?: string | null;
+	status?: string | null;
+	externalUrl?: string | null;
+};
 
 // The `chromium` project supplies a pre-authenticated staff-admin
 // `storageState` (playwright.config.ts). Every test here calls
 // `loginAsTenantUser`, which does a real form login starting from `/login`,
 // so this file must start from a clean, unauthenticated context.
 test.use({ storageState: { cookies: [], origins: [] } });
+
+/**
+ * The tenant the app itself scopes its publications request to, read off the
+ * request the history page issues. The test must not guess it: the app owns
+ * that header, and the API authenticates the tenant scope from it.
+ */
+const armHistoryPublicationsRequest = (page: Page) =>
+	page.waitForResponse(
+		(candidate) =>
+			candidate.request().method() === 'GET' &&
+			candidate.url().startsWith(`${API_BASE_URL}${PUBLICATIONS_PATH}`),
+		{ timeout: 15_000 },
+	);
+
+const readTenantIdFromHistoryRequest = async (
+	historyListResponse: Promise<import('@playwright/test').Response>,
+): Promise<string> => {
+	const response = await historyListResponse;
+	const tenantId = response.request().headers()['x-publyapp-tenantid'] ?? '';
+	expect(tenantId, 'the history list request must name its tenant').not.toBe(
+		'',
+	);
+	return tenantId;
+};
+
+/**
+ * Polls the REAL publications endpoint until the worker has driven this
+ * post's publication to a terminal Published row carrying an external URL.
+ * Returns that URL so the UI assertion below can cross-check it.
+ *
+ * This is the FIX-FLAKY replacement for a 120-second `page.reload()` loop
+ * (#2260): the observation is a cheap API request with a deadline tied to the
+ * worker's measured latency, not a full document bootstrap per iteration.
+ */
+const waitForPublishedExternalUrl = async (
+	page: Page,
+	options: { postBody: string; tenantId: string },
+): Promise<string> => {
+	const token = await getSessionTokenFromBrowser(page, 'tenant');
+	if (token === undefined) {
+		throw new Error('no tenant session token to read publications with');
+	}
+	const deadline = Date.now() + WORKER_DEADLINE_MS;
+	let observed = 'no publication row for the composed body';
+
+	for (;;) {
+		// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
+		const response = await page.request.get(
+			`${API_BASE_URL}${PUBLICATIONS_PATH}?limit=50`,
+			{
+				headers: {
+					'X-Session-Token': token,
+					[TENANT_HEADER_KEY]: options.tenantId,
+				},
+			},
+		);
+		expect(
+			response.status(),
+			'reading publications must be authenticated (403/401 here means the page and the test disagree about scope, not that publish-now failed)',
+		).toBe(200);
+		// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
+		const payload = (await response.json()) as { data?: PublicationWireRow[] };
+		const row = (payload.data ?? []).find((candidate) =>
+			(candidate.postExcerpt ?? '').includes(options.postBody),
+		);
+		if (row !== undefined) {
+			observed = `publication status ${String(row.status)}`;
+			if (typeof row.externalUrl === 'string' && row.externalUrl.length > 0) {
+				return row.externalUrl;
+			}
+		}
+		if (Date.now() > deadline) {
+			throw new Error(
+				`publish-now never reached Published within ${WORKER_DEADLINE_MS}ms of worker observation (last seen: ${observed})`,
+			);
+		}
+		// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
+		await sleep(POLL_INTERVAL_MS);
+	}
+};
 
 // D2 acceptance: the e2e stack runs APP_ROLE=all (api + worker in one
 // container) with PUBLISHING_FAKE_PROVIDER=true, so the full publish pipeline
@@ -29,27 +127,14 @@ test.describe(
 			page,
 		}) => {
 			// The worker is single-threaded and shares the API container in the
-			// e2e stack. The deterministic reload loop below is the actual
-			// answer to "how long until the worker flips scheduled→published":
-			// it polls until the row lands, so the wall-clock time of the
-			// test is dominated by worker latency on a given run, NOT by
-			// this timeout. The timeout just has to be larger than the
-			// expected worst case.
-			//
-			// Measured (ronde 10, 2026-08-30): 10 consecutive runs against
-			// the local e2e stack (front.localhost:8443, fresh containers)
-			// produced publish-now-link-visible latencies of 9.9s, 11.6s,
-			// 5.3s, 7.7s, 12.6s, 7.2s, 10.3s, 7.0s, 6.9s, 7.5s — max 12.6s,
-			// mean ~8.6s, all five with a 30 000 ms test timeout. The
-			// previous 150 000 ms budget was chosen before anyone measured
-			// the worker; it was a guess, not a number. CI runners are
-			// noisier than the local stack, so a 2x margin over the local
-			// max is the smallest honest ceiling that does not silently
-			// truncate the observation loop. A future regression that pushes
-			// the worker past 60s will trip THIS budget instead of the
-			// loop's reload deadline — which is the loud failure the test
-			// is for.
-			test.setTimeout(60_000);
+			// e2e stack, so "how long until the worker flips scheduled→published"
+			// is a property of the worker, not of this test. The observation
+			// below polls the API with its own deadline (WORKER_DEADLINE_MS,
+			// 20 s — ~1.6x the 12.6 s worst case measured over ten runs on
+			// 2026-08-30) and the test keeps the default 30 s budget. A
+			// regression that pushes the worker past the deadline fails loudly
+			// with the last observed status, instead of silently stretching the
+			// run.
 
 			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
 
@@ -78,6 +163,10 @@ test.describe(
 				.all()
 				.then((boxes) => Promise.all(boxes.map((b) => b.check())));
 
+			// Armed BEFORE the click: the history page's mount fetch is the request
+			// whose tenant header the API poll below reuses.
+			const historyListResponse = armHistoryPublicationsRequest(page);
+
 			await page.getByTestId('tenant-posts-publish-now').click();
 
 			// Redirect to history
@@ -85,62 +174,49 @@ test.describe(
 			await expect(history).toBeVisible();
 
 			// The worker drives the publication to Published through the faked
-			// provider. The history list auto-refreshes while a row is in
-			// flight (in_progress, or scheduled and freshly updated), but the
-			// mount fetch can still land outside that window and then the page
-			// sits on the stale row until a manual reload. Reload on a short
-			// cadence so the test deterministically observes the worker's
-			// transition.
+			// provider. #2260 FIX-FLAKY: this used to be a 120-second RELOAD LOOP —
+			// `page.reload()` until the link appeared — so the test's duration was
+			// whatever the shared single-threaded worker happened to cost that run,
+			// and every iteration paid a full document bootstrap.
 			//
-			// IMPORTANT (ronde 10 proof): the assertion below binds the link
-			// to its row's `post_excerpt` cell — the row's `postExcerpt` MUST
-			// contain the freshly-composed `postBody`. Without this binding,
-			// any link already present in the history table (a previous e2e
-			// run on a shared tenant) would satisfy the test: `postRow()`'s
-			// `.first()` would resolve to the stale row, the link's href would
-			// still match `^https://bsky.app/profile/`, and the test would
-			// pass while the publish-now feature itself stayed broken. The
-			// `readPublishedHref()` helper returns `null` when the link's row
-			// does not carry the freshly-composed `postBody`, so the reload
-			// loop continues until either the new row reaches the table OR
-			// the deadline is reached — and a stale-only hit never satisfies
-			// the loop's exit condition. A post may have multiple
-			// publications (one per connected social account), so take the
-			// first link on the matching row and verify its href rather than
-			// asserting a global count of 1 — the count depends on the
-			// number of active seeded accounts, which is a seeder concern,
-			// not this test's.
+			// The race it papered: the history page's own in-flight poll (5 s while a
+			// row is `in_progress` or freshly `scheduled`) only starts when the mount
+			// fetch already SAW such a row. A mount fetch that lands between the
+			// publish-now POST and the row becoming visible sees nothing in flight,
+			// stops polling, and then sits on a stale list forever — no amount of
+			// waiting fixes that, which is why the loop had to reload.
+			//
+			// The fix observes the worker through the API first (a second request, the
+			// seam the coverage guide asks for), and only reloads once, after the
+			// publication is genuinely Published. The UI assertion then has a
+			// deterministic precondition instead of a wall-clock race.
+			const tenantId =
+				await readTenantIdFromHistoryRequest(historyListResponse);
+			const publishedHref = await waitForPublishedExternalUrl(page, {
+				postBody,
+				tenantId,
+			});
+
+			await page.reload();
+			await expect(history).toBeVisible();
+
+			// Row-level binding (ronde 10): the link must belong to the row whose
+			// `post_excerpt` carries the freshly-composed body. A stale row from an
+			// earlier run on a shared tenant can therefore never satisfy the
+			// assertion, and `apps/front/tests/proofs/1628/` keeps this filter
+			// pinned as a paired red proof.
 			const postRow = () =>
 				page
 					.getByTestId('tenant-posts-history-table')
 					.locator('tr', { hasText: postBody });
-			const readPublishedHref = async (): Promise<string | null> => {
-				const row = postRow();
-				if ((await row.count()) === 0) {
-					return null;
-				}
-				const link = row.getByTestId('tenant-posts-history-link').first();
-				if (!(await link.isVisible().catch(() => false))) {
-					return null;
-				}
-				return link.getAttribute('href');
-			};
-
-			const publishDeadline = Date.now() + 120_000;
-			let publishedHref: string | null = await readPublishedHref();
-
-			while (publishedHref === null && Date.now() < publishDeadline) {
-				await page.reload();
-				await expect(history).toBeVisible();
-				publishedHref = await readPublishedHref();
-			}
-
-			if (publishedHref === null) {
-				throw new Error(
-					'publish-now never surfaced an external link in history within 120s',
-				);
-			}
-
+			const publishedRow = postRow();
+			const link = publishedRow
+				.getByTestId('tenant-posts-history-link')
+				.first();
+			await expect(link).toBeVisible();
+			// Cross-check, not a duplicate: the href the UI paints must be the URL
+			// the API reported for the same publication.
+			expect(await link.getAttribute('href')).toBe(publishedHref);
 			expect(publishedHref).toMatch(/^https:\/\/bsky\.app\/profile\//);
 
 			// Final invariant (#1628 ronde 10 paired proof): the link we
