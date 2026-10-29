@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getControlResponse } from './control-routes.mjs';
+import {
+	COUNTER_MARKER_QUERY_KEY,
+	getControlResponse,
+	getCountKey,
+} from './control-routes.mjs';
 
 const buildCounts = () =>
 	new Map([
@@ -55,6 +59,48 @@ test('POST /__counter/reset clears counts and returns ok', () => {
 	assert.equal(response?.statusCode, 200);
 	assert.equal(response?.body, 'ok');
 	assert.equal(counts.size, 0);
+});
+
+await test('a marker-scoped read returns only that client, while the unmarked read still totals every bucket', () => {
+	const counts = new Map([
+		[getCountKey('GET', '/staff/invitations', 'client-a'), 1],
+		[getCountKey('GET', '/staff/invitations', 'client-b'), 2],
+		['GET /staff/invitations', 4],
+	]);
+
+	/** @param {string} query @returns {string | undefined} */
+	const read = (query) =>
+		getControlResponse({ method: 'GET', url: `/__counter?${query}` }, counts)
+			?.body;
+
+	assert.equal(
+		read(
+			`path=%2Fstaff%2Finvitations&method=GET&${COUNTER_MARKER_QUERY_KEY}=client-a`,
+		),
+		JSON.stringify({ count: 1 }),
+	);
+	assert.equal(
+		read(
+			`path=%2Fstaff%2Finvitations&method=GET&${COUNTER_MARKER_QUERY_KEY}=client-b`,
+		),
+		JSON.stringify({ count: 2 }),
+	);
+	assert.equal(
+		read(`path=%2Fstaff%2Finvitations&${COUNTER_MARKER_QUERY_KEY}=client-a`),
+		JSON.stringify({ count: 1 }),
+	);
+	// No marker: the pre-#2260 global total, summed across every bucket.
+	assert.equal(
+		read('path=%2Fstaff%2Finvitations&method=GET'),
+		JSON.stringify({ count: 7 }),
+	);
+	// An unknown marker reads zero rather than falling back to the total.
+	assert.equal(
+		read(
+			`path=%2Fstaff%2Finvitations&method=GET&${COUNTER_MARKER_QUERY_KEY}=client-c`,
+		),
+		JSON.stringify({ count: 0 }),
+	);
 });
 
 test('unknown /__counter methods return 405', () => {

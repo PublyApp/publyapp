@@ -335,18 +335,29 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 
 	// This call site navigates to a route whose chunks are requested for the
 	// FIRST time in the run (every other call site's routes were already pulled
-	// in by earlier specs). On a cold local stack that first chunk fetch plus
-	// the page's four data queries can exceed the shared 10s open timeout even
-	// though nothing is wrong — the trace of the one local failure shows the
-	// 201 create and the '?edit=1' navigation landing while route chunks were
-	// still resolving. CI (the evidence lane) starts from a warm stack, but the
-	// registration itself must not be the thing that flakes locally, so this
-	// one open waits a little longer. The geometry assertions keep the shared
-	// timeouts.
+	// in by earlier specs). On a cold stack that first chunk fetch plus the
+	// page's four data queries once made this open outlast the shared 10s
+	// budget, and the workaround was a blanket 25s visibility wait (#2260
+	// FIX-FLAKY: a bigger number is not a fix — it raced the data and hid the
+	// race behind a ceiling).
+	//
+	// The deterministic form is to wait for the PRECONDITION the drawer renders
+	// on: the detail route fetches `GET /staff/profiles/{id}` and the page
+	// returns its skeleton until that resolves, so the drawer cannot be visible
+	// before this response lands. A genuinely slow chunk delays that request
+	// rather than silently truncating the observation, and the assertion below
+	// keeps the same shared budget as every other call site.
+	const detailFetched = page.waitForResponse(
+		(response) =>
+			isApiPath(response.url(), `/staff/profiles/${profileId}`) &&
+			response.request().method() === 'GET' &&
+			response.status() === 200,
+	);
 	await page.goto(`/staff/profiles/${profileId}?edit=1`);
+	await detailFetched;
 	await expect(
 		page.getByTestId('staff-profile-edit-details-drawer'),
-	).toBeVisible({ timeout: 25_000 });
+	).toBeVisible({ timeout: 10_000 });
 	// #1342 disables the footer submit while the form is pristine; dirty the
 	// form so the geometry assertions can trial-click the action (see the
 	// tenant edit drawer above).

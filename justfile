@@ -633,6 +633,14 @@ ci-api-shard-partition:
 ci-e2e-front:
   @node apps/front/scripts/run-e2e-front.mts
 
+# The `smoke` lane: the twelve specs every pull request runs, on ONE stack
+# (target <= 3 min). Same lifecycle as `ci-e2e-front`; the lane is selected by
+# `E2E_LANE`, which `apps/front/playwright.config.ts` reads (see
+# apps/front/e2e/smoke-specs.ts for the list and why it is a file list, not a
+# grep). Unset `E2E_LANE` runs everything, which is what `ci-e2e-front` does.
+e2e-smoke:
+  @E2E_LANE=smoke node apps/front/scripts/run-e2e-front.mts
+
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
 ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit ci-api-shard-partition test-api

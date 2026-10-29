@@ -5,7 +5,12 @@ import { createServer as createHttpsServer } from 'node:https';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { getControlResponse, writeControlResponse } from './control-routes.mjs';
+import {
+	COUNTER_MARKER_QUERY_KEY,
+	getControlResponse,
+	getCountKey,
+	writeControlResponse,
+} from './control-routes.mjs';
 
 const parseUpstream = () => {
 	if (!process.env.API_UPSTREAM) {
@@ -45,13 +50,6 @@ const parseUpstream = () => {
 
 const UPSTREAM = parseUpstream();
 const counts = new Map();
-
-/**
- * @param {string | undefined} method
- * @param {string} path
- * @returns {string}
- */
-const getCountKey = (method, path) => `${method} ${path}`;
 
 const createTlsOptions = () => {
 	const dir = mkdtempSync(join(tmpdir(), 'request-counter-tls-'));
@@ -100,8 +98,17 @@ const handleRequest = (req, res) => {
 	// Countering strips query strings so counts are path-based.
 	// Assertions for q/size/sort_id/sort_order/cursor changes should use Playwright
 	// network events, not this counter.
+	//
+	// The one exception is the marker (#2260): a request carrying
+	// `?__e2e_counter=<marker>` is ALSO counted in a marker-scoped bucket, so a
+	// spec can read its own traffic without depending on being the only client
+	// on the stack. Unmarked requests keep the plain path key.
 	const path = req.url?.split('?')[0] ?? '';
-	const countKey = getCountKey(req.method, path);
+	const marker = new URL(
+		req.url ?? '/',
+		'http://request-counter.local',
+	).searchParams.get(COUNTER_MARKER_QUERY_KEY);
+	const countKey = getCountKey(req.method ?? 'GET', path, marker);
 	counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
 
 	const basePath = UPSTREAM.pathname.replace(/\/$/, '');

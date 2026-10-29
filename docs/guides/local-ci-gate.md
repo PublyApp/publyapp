@@ -6,12 +6,16 @@ a green run locally is a strong prediction that CI would be green too.
 ## Central PR CI
 
 `.github/workflows/ci.yml` is the additive central workflow for pull requests,
-merge groups, and pushes to `develop`. It creates the stable 24 visible checks:
+merge groups, and pushes to `develop`. It creates the stable 23 visible checks:
 one classifier (`CI classifier`), six parallel verification jobs, two audit jobs,
-four API suite shards, four front Vitest shards, one e2e image build, four E2E
-shards, cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
+four API suite shards, four front Vitest shards, one e2e image build, one E2E
+smoke lane (every pull request, one stack), two E2E full shards (merge queue only),
+cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
 `develop`). The classifier emits the six lane decisions once; irrelevant lanes run
-named success sentinels rather than becoming skipped jobs.
+named success sentinels rather than becoming skipped jobs. The two e2e test lanes are
+event-scoped on top of the classifier: a lane that does not belong to the current event
+reports `not_applicable` through the same sentinel, so the aggregate gate sees one
+consistent shape on `pull_request`, `merge_group` and `push`.
 
 The single serial `verification` job was split into six parallel jobs so no job sits
 behind a meta-check it does not need: `CI quality (JS)`, `CI quality (.NET)`, `CI
@@ -63,8 +67,9 @@ executes API/OpenAPI/client generation and drift checks, the shard-partition pro
 one `just test-api-shard` slice of the API suite (including `OpenApiContractSpec`, which runs in whichever shard
 owns it); the four `front-ci` shards execute install/postinstall/hooks and
 Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
-health, Playwright, shard-4 hermetic/drawer guards, failure-report, teardown, and
-cleanup steps. The nested front report records the complete ordered 32-command
+health, Playwright, last-shard hermetic/drawer guards, failure-report, teardown, and
+cleanup steps; the smoke lane runs the twelve smoke specs on a single stack under the same
+lifecycle. The nested front report records the complete ordered 32-command
 non-Vitest chain. The central workflow is the sole PR validation owner.
 
 This matters more than it normally would: the repo is on a Free plan with a private

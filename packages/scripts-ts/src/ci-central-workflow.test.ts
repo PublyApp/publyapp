@@ -23,6 +23,27 @@ const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
 const EXPECTED_CENTRAL_CONCURRENCY_GROUP =
 	'central-ci-${{ github.event.pull_request.number || github.ref }}';
 
+/**
+ * Applies `mutate` to exactly one top-level job's block. Needed since #2260:
+ * the same step condition string now appears in more than one e2e job, so a
+ * bare `original.replace(condition, …)` mutates the FIRST job that carries it
+ * (e2e-smoke) while the assertion names another (e2e-test).
+ */
+const mutateJobBlock = (
+	value: string,
+	jobId: string,
+	mutate: (block: string) => string,
+): string => {
+	const start = value.indexOf(`  ${jobId}:\n`);
+	assert.notEqual(start, -1, `${jobId} fixture job missing`);
+	let next = value.indexOf('\n  ', start + 3);
+	while (next !== -1 && value[next + 3] === ' ') {
+		next = value.indexOf('\n  ', next + 1);
+	}
+	const end = next === -1 ? value.length : next;
+	return `${value.slice(0, start)}${mutate(value.slice(start, end))}${value.slice(end)}`;
+};
+
 test('central workflow pins concurrency and API timeout contracts', async () => {
 	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
 		concurrency?: Record<string, unknown>;
@@ -381,17 +402,20 @@ type E2eTestJob = {
 	steps: E2eLifecycleStep[];
 };
 
-const assertE2eImageEnvPropagation = (job: E2eTestJob): void => {
+const assertE2eImageEnvPropagation = (
+	job: E2eTestJob,
+	options: { composeSuffix: string; lane: 'smoke' | 'full' },
+): void => {
 	const expectedEnv = {
 		E2E_IMAGE_NS: '${{ needs.e2e-build.outputs.root }}',
 		E2E_IMAGE_TAG: '${{ needs.e2e-build.outputs.tag }}',
-		COMPOSE_PROJECT_NAME:
-			'publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}',
+		COMPOSE_PROJECT_NAME: `publyapp-e2e-\${{ github.run_id }}-\${{ github.run_attempt }}-${options.composeSuffix}`,
+		E2E_LANE: options.lane,
 	};
 	assert.deepEqual(
 		job.env,
 		expectedEnv,
-		'e2e-test must expose canonical image env',
+		`the ${options.lane} e2e lane must expose canonical image env`,
 	);
 
 	for (const stepId of ['pull-stack', 'up-stack', 'wait-health', 'teardown']) {
@@ -412,12 +436,19 @@ const assertE2eImageEnvPropagation = (job: E2eTestJob): void => {
 	}
 };
 
-test('e2e test propagates canonical image env through the compose lifecycle', async () => {
+test('both e2e lanes propagate canonical image env and their lane through the compose lifecycle', async () => {
 	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
 		jobs: Record<string, E2eTestJob>;
 	};
 
-	assertE2eImageEnvPropagation(workflow.jobs['e2e-test']);
+	assertE2eImageEnvPropagation(workflow.jobs['e2e-test'], {
+		composeSuffix: '${{ matrix.shard }}',
+		lane: 'full',
+	});
+	assertE2eImageEnvPropagation(workflow.jobs['e2e-smoke'], {
+		composeSuffix: 'smoke',
+		lane: 'smoke',
+	});
 });
 
 test('e2e image env contract rejects missing or wrong job output bindings', async () => {
@@ -440,6 +471,7 @@ test('e2e image env contract rejects missing or wrong job output bindings', asyn
 			{
 				E2E_IMAGE_NS: expectedEnv.E2E_IMAGE_NS,
 				E2E_IMAGE_TAG: expectedEnv.E2E_IMAGE_TAG,
+				E2E_LANE: 'full',
 			},
 		],
 		[
@@ -447,11 +479,33 @@ test('e2e image env contract rejects missing or wrong job output bindings', asyn
 			{
 				...expectedEnv,
 				COMPOSE_PROJECT_NAME: 'publyapp-e2e',
+				E2E_LANE: 'full',
+			},
+		],
+		[
+			'missing lane selection',
+			{
+				...expectedEnv,
+				COMPOSE_PROJECT_NAME:
+					'publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}',
+			},
+		],
+		[
+			'full lane declared as smoke',
+			{
+				...expectedEnv,
+				COMPOSE_PROJECT_NAME:
+					'publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}',
+				E2E_LANE: 'smoke',
 			},
 		],
 	] as const) {
 		assert.throws(
-			() => assertE2eImageEnvPropagation({ ...job, env }),
+			() =>
+				assertE2eImageEnvPropagation(
+					{ ...job, env },
+					{ composeSuffix: '${{ matrix.shard }}', lane: 'full' },
+				),
 			/assert|canonical|image env/i,
 			`${label} must be rejected`,
 		);
@@ -780,20 +834,35 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 			),
 		);
 
-		const classifierLines = original
-			.split('\n')
-			.filter((line) => line.includes('CI_CLASSIFIER_OUTPUTS:'));
+		// Parsed from the YAML document rather than regexed out of the raw text:
+		// an event-scoped classifier boolean (#2260) carries its own quoted
+		// string literals, which YAML escapes as doubled single quotes inside
+		// the single-quoted scalar. The raw form is rebuilt for the text
+		// mutation below with the same escaping, so the mutation still lands.
+		const parsedWorkflow = parse(original) as {
+			jobs: Record<
+				string,
+				{ steps?: Array<{ env?: Record<string, unknown> }> }
+			>;
+		};
+		const classifierConsumers = Object.entries(parsedWorkflow.jobs).flatMap(
+			([jobId, job]) =>
+				(job.steps ?? []).flatMap((step) => {
+					const raw = step.env?.CI_CLASSIFIER_OUTPUTS;
+					if (typeof raw !== 'string') {
+						return [];
+					}
+					return [{ jobId, values: JSON.parse(raw) as Record<string, string> }];
+				}),
+		);
 		assert.ok(
-			classifierLines.length > 0,
+			classifierConsumers.length > 0,
 			'classifier consumers must be present',
 		);
-		for (const line of classifierLines) {
-			const json = line.match(/CI_CLASSIFIER_OUTPUTS: '([^']+)'/)?.[1];
-			assert.ok(json, `classifier line must contain JSON: ${line}`);
-			const values = Object.entries(JSON.parse(json) as Record<string, string>);
-			for (const [key, value] of values) {
+		for (const { jobId, values } of classifierConsumers) {
+			for (const [key, value] of Object.entries(values)) {
 				const replacementValue = [
-					...values.map(([, candidateValue]) => candidateValue),
+					...Object.values(values),
 					'${{ needs.classify.outputs.quality }}',
 					'${{ needs.classify.outputs.front }}',
 					'${{ needs.classify.outputs.api }}',
@@ -805,15 +874,18 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 					replacementValue,
 					`classifier input ${key} needs a swap target`,
 				);
-				const mutationLine = line.replace(
-					`"${key}":"${value}"`,
-					`"${key}":"${replacementValue}"`,
+				const rawToken = (candidate: string): string =>
+					JSON.stringify(candidate).replaceAll("'", "''");
+				const mutation = mutateJobBlock(original, jobId, (block) =>
+					block.replace(
+						`"${key}":${rawToken(value)}`,
+						`"${key}":${rawToken(replacementValue)}`,
+					),
 				);
-				const mutation = original.replace(line, mutationLine);
 				assert.notEqual(
 					mutation,
 					original,
-					`${key} classifier input mutation must change the fixture`,
+					`${jobId} ${key} classifier input mutation must change the fixture`,
 				);
 				await writeFile(workflowFile, mutation);
 				const findings = await findCentralCiStructureProblems({ rootDir });
@@ -893,7 +965,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 90 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 104 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -915,12 +987,12 @@ test('central workflow rejects six mutations for every one of its 90 classifier 
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 90);
+	assert.equal(classifierTrueSteps.length, 104);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		90,
+		104,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -938,6 +1010,7 @@ test('central workflow rejects six mutations for every one of its 90 classifier 
 			'audit-production/install_workspace',
 			'audit-production/fixtures',
 			'e2e-build/login',
+			'e2e-smoke/login',
 			'e2e-test/login',
 		],
 	);
@@ -996,8 +1069,8 @@ test('central workflow rejects six mutations for every one of its 90 classifier 
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 540);
-		assert.equal(rejected, 540);
+		assert.equal(mutatedWorkflows.size, 624);
+		assert.equal(rejected, 624);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -1150,16 +1223,8 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 	const workflowFile = path.join(rootDir, '.github/workflows/ci.yml');
 	const original = await readFile(workflowFile, 'utf8');
 	const jobBlock =
-		(jobId: string, mutate: (block: string) => string) => (value: string) => {
-			const start = value.indexOf(`  ${jobId}:\n`);
-			assert.notEqual(start, -1, `${jobId} fixture job missing`);
-			let next = value.indexOf('\n  ', start + 3);
-			while (next !== -1 && value[next + 3] === ' ') {
-				next = value.indexOf('\n  ', next + 1);
-			}
-			const end = next === -1 ? value.length : next;
-			return `${value.slice(0, start)}${mutate(value.slice(start, end))}${value.slice(end)}`;
-		};
+		(jobId: string, mutate: (block: string) => string) => (value: string) =>
+			mutateJobBlock(value, jobId, mutate);
 	const mutations: Array<[string, (value: string) => string, RegExp]> = [
 		[
 			'front shard omitted',
@@ -1173,10 +1238,15 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 				const start = value.indexOf(marker);
 				const suffix = value
 					.slice(start)
-					.replace('shard: [1, 2, 3, 4]', 'shard: [1, 2, 3]');
+					.replace('shard: [1, 2]', 'shard: [1]');
 				return `${value.slice(0, start)}${suffix}`;
 			},
 			/shard axis|expanded display/i,
+		],
+		[
+			'e2e smoke lane removed from the merge-queue gate',
+			jobBlock('gate', (block) => block.replace('        e2e-smoke,\n', '')),
+			/needs/i,
 		],
 		[
 			'matrix exclude added',
@@ -1272,6 +1342,7 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 			'api',
 			'front-vitest',
 			'e2e-build',
+			'e2e-smoke',
 			'e2e-test',
 			'e2e-cleanup',
 			'gate',
@@ -1616,6 +1687,7 @@ test('tolerated test diagnostics run only for failure or cancellation', async ()
 		['api', 'Upload API test results', 'suite'],
 		['front-vitest', 'Upload Vitest report', 'vitest'],
 		['e2e-test', 'Upload Playwright report', 'playwright'],
+		['e2e-smoke', 'Upload Playwright report', 'playwright'],
 	] as const;
 
 	for (const [jobId, stepName, stepId] of expected) {
@@ -1640,9 +1712,13 @@ test('tolerated test diagnostics run only for failure or cancellation', async ()
 	try {
 		for (const [jobId, stepName, stepId] of expected) {
 			const expectedCondition = `always() && (steps.${stepId}.outcome == 'failure' || steps.${stepId}.outcome == 'cancelled')`;
-			const mutation = original.replace(
-				`if: ${expectedCondition}`,
-				'if: failure()',
+			const mutation = mutateJobBlock(original, jobId, (block) =>
+				block.replace(`if: ${expectedCondition}`, 'if: failure()'),
+			);
+			assert.notEqual(
+				mutation,
+				original,
+				`${jobId} diagnostic mutation must change the workflow`,
 			);
 			await writeFile(workflowFile, mutation);
 			const findings = await findCentralCiStructureProblems({ rootDir });
@@ -2029,7 +2105,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 226 entries', async () => {
+test('central manifest derives honest evidence for every one of its 245 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2042,7 +2118,7 @@ test('central manifest derives honest evidence for every one of its 226 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 226);
+	assert.equal(central.length, 245);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2068,7 +2144,7 @@ test('central manifest derives honest evidence for every one of its 226 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 226);
+	assert.equal(decisions.size, 245);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,

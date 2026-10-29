@@ -47,7 +47,39 @@ test.describe('@uploads @639 tenant post image', () => {
 			.getByTestId('tenant-posts-create-image-alt')
 			.fill('A tiny red square');
 
+		// The drawer closes when its save chain is done: create the post, attach
+		// the deferred image, then PATCH that image's alt text — three upload/write
+		// round-trips through Traefik. Arm the three matchers BEFORE the click and
+		// await them, so the close assertion below sequences on the chain instead
+		// of racing a cold stack's first writes against the expect budget.
+		const saveChain = [
+			page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).pathname === '/posts' &&
+					response.ok(),
+				{ timeout: 20_000 },
+			),
+			page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					/^\/posts\/[^/]+\/image$/.test(new URL(response.url()).pathname) &&
+					response.ok(),
+				{ timeout: 20_000 },
+			),
+			page.waitForResponse(
+				(response) =>
+					response.request().method() === 'PATCH' &&
+					/^\/posts\/[^/]+\/images\/[^/]+$/.test(
+						new URL(response.url()).pathname,
+					) &&
+					response.ok(),
+				{ timeout: 20_000 },
+			),
+		];
+
 		await page.getByTestId('tenant-posts-create-save').click();
+		await Promise.all(saveChain);
 
 		// Save closes the drawer once the post exists and the deferred image
 		// has been attached.
