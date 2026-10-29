@@ -2,10 +2,14 @@
 
 **Level: Guidance** — a strong default. Skip it only with a stated reason in the PR description.
 
-Playwright specs live in `apps/front/e2e/`. They run in CI as four required shards
-(`ci.yml`), so this guide decides **what to add**, not whether to run. A suite
-that tries to cover everything becomes slow and flaky, and a flaky suite is ignored —
-which is the same as having no suite. A suite that covers nothing is honest but useless.
+Playwright specs live in `apps/front/e2e/`. They run in CI in two lanes (`ci.yml`,
+`apps/front/e2e/smoke-specs.ts`): the twelve **smoke** specs on every pull request, one stack,
+≤ 3 min; everything else as **full** in the merge queue, two stacks. A new spec joins the
+`full` lane automatically, because `full` is defined as every spec that is not in the smoke
+list — there is no second list to forget. This guide decides **what to add**, not which lane it
+lands in. A suite that tries to cover everything becomes slow and flaky, and a flaky suite is
+ignored — which is the same as having no suite. A suite that covers nothing is honest but
+useless.
 
 ## The five criteria
 

@@ -50,13 +50,27 @@ const E2E_TEST_TRANSPORT_STEPS = [
 	'e2e-test.load_images',
 ] as const;
 
+const E2E_SMOKE_TRANSPORT_STEPS = [
+	'e2e-smoke.login',
+	'e2e-smoke.pull_stack',
+	'e2e-smoke.download_images',
+	'e2e-smoke.load_images',
+] as const;
+
 type E2eTransportProfile = {
 	successful: readonly string[];
 	skipped: readonly string[];
 };
 
+/**
+ * Both e2e test lanes carry the SAME transport contract (#2260 added the
+ * single-shard smoke lane): a run is valid only when it either pushed the
+ * run-scoped images out and pulled them back, or downloaded and loaded the
+ * fork's uploaded tarballs. The contract keys on the job key, so the smoke
+ * lane gets its own entry rather than inheriting one by name coincidence.
+ */
 type E2eTransportContract = {
-	jobId: 'e2e-build' | 'e2e-test';
+	jobId: 'e2e-build' | 'e2e-test' | 'e2e-smoke';
 	expectedSteps: readonly string[];
 	profiles: readonly E2eTransportProfile[];
 };
@@ -87,6 +101,20 @@ const E2E_TRANSPORT_CONTRACTS: readonly E2eTransportContract[] = [
 			{
 				successful: ['e2e-test.download_images', 'e2e-test.load_images'],
 				skipped: ['e2e-test.login', 'e2e-test.pull_stack'],
+			},
+		],
+	},
+	{
+		jobId: 'e2e-smoke',
+		expectedSteps: E2E_SMOKE_TRANSPORT_STEPS,
+		profiles: [
+			{
+				successful: ['e2e-smoke.login', 'e2e-smoke.pull_stack'],
+				skipped: ['e2e-smoke.download_images', 'e2e-smoke.load_images'],
+			},
+			{
+				successful: ['e2e-smoke.download_images', 'e2e-smoke.load_images'],
+				skipped: ['e2e-smoke.login', 'e2e-smoke.pull_stack'],
 			},
 		],
 	},
