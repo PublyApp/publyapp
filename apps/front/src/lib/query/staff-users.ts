@@ -10,7 +10,7 @@ import {
 	toRootRelativeApiFileUrl,
 } from '~/lib/api-client/resolve-api-file-url';
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
-import type { SortOrder } from '~/lib/url-state/table-search-params';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
@@ -33,13 +33,10 @@ import {
 } from '@org/shared-ts/lib/query/create-hooks';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
-export type StaffUsersQueryVariables = {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	size?: number;
-};
+/** The staff users table's query variables ARE the shared table search
+ * contract (`~/lib/url-state/table-search-params`) — re-declaring the five
+ * fields here is what let a fourth field drift in earlier. */
+export type StaffUsersQueryVariables = TableSearchParams;
 
 export type StaffUserDetailsQueryVariables = {
 	userId: string;

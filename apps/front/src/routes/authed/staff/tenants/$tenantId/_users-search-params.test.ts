@@ -7,7 +7,7 @@ import {
 	serializeTenantUserLevelFilter,
 	serializeTenantUsersListSearchParams,
 	serializeTenantUserStatusFilter,
-} from './_users-list-search';
+} from './_users-search-params';
 
 describe('parseTenantUserStatusFilter', () => {
 	it('keeps only known statuses, lowercased and de-duplicated', () => {
