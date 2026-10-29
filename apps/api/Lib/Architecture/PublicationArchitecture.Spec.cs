@@ -111,6 +111,9 @@ public sealed partial class PublicationArchitectureSpec {
 		"Modules/Publishing/Handlers/Tenant/PublicationRendition.Spec.cs",
 		// D3 round-3: direct-invocation find-scheduled spec seeds scheduled rows.
 		"Modules/Publishing/Services/PublicationService.FindScheduled.Spec.cs",
+		// #2176 (cov-tests): the mark-published endpoint spec seeds needs-review AND
+		// non-review rows so every refusal path proves the row keeps its status.
+		"Modules/Publishing/Handlers/Tenant/MarkPublicationPublishedForTenant.Spec.cs",
 	};
 
 	// The ONE legitimate production BIRTH site: PublicationService creates
