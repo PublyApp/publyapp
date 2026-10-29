@@ -106,11 +106,14 @@ const localCiDrift = justfileContents.match(
 	/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m,
 )?.[1];
 
+// The serial `verification` job was split into parallel jobs; the batched
+// `Test CI guard suite` step in the `guards` job is the one that runs this
+// contract now, so the wiring check reads that step.
 const centralGuardRunBlock = parse(centralWorkflowContents).jobs[
-	'verification'
+	'guards'
 ]?.steps.find(
 	// @ts-expect-error rung-0: add proper type in later rung
-	(step) => step.name === 'Test CI guard fixtures',
+	(step) => step.name === 'Test CI guard suite',
 )?.run;
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -178,10 +181,10 @@ test('a commented-out ci-drift invocation fails the local wiring check', () => {
 	);
 });
 
-test('the central GitHub verification lane runs the CODEOWNERS contract', () => {
+test('the central guard battery lane runs the CODEOWNERS contract', () => {
 	assert.ok(
 		typeof centralGuardRunBlock === 'string',
-		'ci.yml must define the central CI guard-fixture step',
+		'ci.yml must define the central CI guard suite step',
 	);
 	assertRunsInvocation(
 		centralGuardRunBlock,
@@ -193,7 +196,7 @@ test('the central GitHub verification lane runs the CODEOWNERS contract', () => 
 test('a commented-out central guard invocation fails the workflow wiring check', () => {
 	assert.ok(
 		typeof centralGuardRunBlock === 'string',
-		'ci.yml must define the central CI guard-fixture step',
+		'ci.yml must define the central CI guard suite step',
 	);
 	assert.throws(
 		() =>
