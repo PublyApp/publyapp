@@ -28,7 +28,6 @@ import {
 	DeleteConfirmField,
 	ConfirmHeaderInfo,
 } from '../_staff-user-delete-confirm';
-import { StaffUserErrorViews } from '../_staff-user-error-views';
 import { StaffUserIdentityHeader } from '../_staff-user-identity-header';
 import { staffUserCrumbsBase } from './$userId/_crumbs';
 import { StaffUserDetailsEmptyPayload } from './$userId/_detail-views';
@@ -41,6 +40,7 @@ import {
 	STAFF_STATUS_SUSPENDED,
 } from './$userId/_lifecycle';
 import type { StaffUserOverviewContextValue } from './$userId/_overview-context';
+import { StaffUserDetailsError } from './_user-details-error';
 
 const StaffUserDetailsPage = () => {
 	const { userId } = Route.useParams();
@@ -87,7 +87,7 @@ const StaffUserDetailsPage = () => {
 	}
 
 	const renderDetailErrorSlot = (
-		<StaffUserErrorViews
+		<StaffUserDetailsError
 			error={detailError}
 			onRetry={() => {
 				void detailQuery.refetch();
