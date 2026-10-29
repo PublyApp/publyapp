@@ -117,9 +117,11 @@ const getCounter = async (
  * other call stay untouched, so nothing else about the app changes.
  */
 const markInvocations = async (page: Page, marker: string): Promise<void> => {
+	// The pattern carries the full API origin, so the app's own navigation to
+	// `/staff/invitations` (a different origin) can never match it; the trailing
+	// `**` covers the query string.
 	await page.route(
-		(url) =>
-			url.origin === API_BASE_URL && url.pathname === STAFF_INVITATIONS_PATH,
+		`${API_BASE_URL}${STAFF_INVITATIONS_PATH}**`,
 		async (route) => {
 			const marked = new URL(route.request().url());
 			marked.searchParams.set(COUNTER_MARKER_QUERY_KEY, marker);
