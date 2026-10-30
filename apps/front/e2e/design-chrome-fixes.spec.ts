@@ -6,11 +6,20 @@ import { waitForBoundingBoxToSettle } from './helpers/settle';
 
 // #d4d4d8 (light --publy-border-strong) vs the old, too-faint #e4e4e7
 // (--publy-border). #f0bd00 (dark --publy-primary/accent, the amber that was
-// leaking into menu-item hover) vs #27272a (dark --publy-surface-muted).
+// leaking into menu-item hover).
 const LIGHT_BORDER_STRONG = 'rgb(212, 212, 216)';
 const DARK_BORDER_STRONG = 'rgba(255, 255, 255, 0.15)';
 const DARK_ACCENT_AMBER = 'rgb(240, 189, 0)';
-const DARK_MUTED = 'rgb(39, 39, 42)';
+
+// DESIGN.md "Hover states": a menu item highlights with a 5% foreground mix
+// over the popover base. The item is compared against a probe carrying that
+// recipe instead of an rgb() literal: the redesign paints this with
+// `color-mix(in oklch, …)`, whose computed value Chromium serialises as
+// `oklch()`, so an rgb() string can never match it. The probe also proves the
+// highlight is distinguishable from the popover base, which `bg-muted` is not
+// (in dark it equals the popover).
+const MENU_ITEM_HIGHLIGHT =
+	'color-mix(in oklch, var(--popover), var(--foreground) 5%)';
 
 const seedDarkTheme = async (page: Page): Promise<void> => {
 	await page.evaluate((key) => {
@@ -116,7 +125,20 @@ test.describe(
 			await page.keyboard.press('ArrowDown');
 			const highlighted = checkboxItems.first();
 			await expect(highlighted).toHaveCSS('border-radius', '9px');
-			await expect(highlighted).toHaveCSS('background-color', DARK_MUTED);
+			const highlightColours = await highlighted.evaluate((item, recipe) => {
+				const probe = document.createElement('div');
+				probe.style.backgroundColor = recipe;
+				document.body.append(probe);
+				const readBackground = (node: Element): string =>
+					getComputedStyle(node).backgroundColor;
+				const colours = {
+					item: readBackground(item),
+					ruling: readBackground(probe),
+				};
+				probe.remove();
+				return colours;
+			}, MENU_ITEM_HIGHLIGHT);
+			expect(highlightColours.item).toBe(highlightColours.ruling);
 			await expect(highlighted).not.toHaveCSS(
 				'background-color',
 				DARK_ACCENT_AMBER,
