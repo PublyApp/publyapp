@@ -33,7 +33,7 @@ export const ProfileSectionNavLink = ({
 		return (
 			<span
 				aria-current="page"
-				className="inline-flex items-center gap-2 border-b-2 border-primary px-3 pb-2.5 text-[13px] font-medium text-foreground"
+				className="inline-flex items-center gap-2 border-b-2 border-foreground px-3 pb-2.5 text-sm font-medium text-foreground"
 			>
 				{content}
 			</span>
@@ -59,7 +59,7 @@ export const ProfileSectionNavLink = ({
 				// merged search belongs to sibling routes, not to a section URL.
 				edit: previous.edit === 1 ? 1 : undefined,
 			})}
-			className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 pb-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+			className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 pb-2.5 text-sm font-normal text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{content}
 		</Link>

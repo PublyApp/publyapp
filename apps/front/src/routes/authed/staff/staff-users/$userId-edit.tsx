@@ -199,9 +199,7 @@ const StaffUserEditPage = () => {
 					{t('common:back-to-user')}
 				</Link>
 				<div>
-					<h1 className="text-xl font-semibold tracking-[-0.01em]">
-						{t('edit-staff-user')}
-					</h1>
+					<h1 className="publy-type-page-title">{t('edit-staff-user')}</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
 						{t('edit-staff-user-description')}
 					</p>

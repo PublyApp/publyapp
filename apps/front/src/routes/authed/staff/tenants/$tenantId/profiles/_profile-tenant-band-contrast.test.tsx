@@ -317,10 +317,14 @@ describe('ProfileTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)',
 		},
 	);
 
-	test('evasion proof: the pre-fix text-muted-foreground-on-bg-muted pairing is what actually failed in light mode', () => {
+	// The 2026-10-30 redesign (#2271) remaps `muted` to the page background, so
+	// the historical `bg-muted` pairing now lands just over the floor. The muted
+	// *fill* is `secondary`/`--publy-surface-muted`, and that pairing is still
+	// below 4.5:1 — which is what keeps this proof meaningful.
+	test('evasion proof: text-muted-foreground on the muted surface is below the light-mode floor', () => {
 		const themeDeclarations = extractDeclarations(extractBlock(':root'));
 		const backgroundHex = resolvePaintedHex(
-			'bg-muted',
+			'bg-secondary',
 			'background-color',
 			themeInlineDeclarations,
 			themeDeclarations,

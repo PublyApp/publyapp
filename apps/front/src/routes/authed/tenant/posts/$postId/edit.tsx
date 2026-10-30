@@ -256,7 +256,7 @@ const TenantPostEditPage = () => {
 								{t('posts:back-to-drafts')}
 							</Link>
 							<div>
-								<h1 className="text-xl font-semibold tracking-[-0.01em]">
+								<h1 className="publy-type-page-title">
 									{t('posts:edit-post')}
 								</h1>
 							</div>

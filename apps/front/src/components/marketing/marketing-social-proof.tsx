@@ -42,7 +42,7 @@ export const MarketingSocialProof = () => {
 			>
 				<p
 					id="marketing-social-proof-caption"
-					className="publy-marketing-eyebrow text-center"
+					className="publy-marketing-eyebrow text-center text-(--publy-foreground-secondary)"
 				>
 					{t('marketing-social-proof-caption')}
 				</p>
