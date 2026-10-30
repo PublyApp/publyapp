@@ -317,11 +317,12 @@ describe('ProfileTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)',
 		},
 	);
 
-	// The 2026-10-30 redesign (#2271) remaps `muted` to the page background, so
-	// the historical `bg-muted` pairing now lands just over the floor. The muted
-	// *fill* is `secondary`/`--publy-surface-muted`, and that pairing is still
-	// below 4.5:1 — which is what keeps this proof meaningful.
-	test('evasion proof: text-muted-foreground on the muted surface is below the light-mode floor', () => {
+	// The 2026-10-30 redesign (#2271) first remapped `muted` to the page
+	// background and left the muted foreground just under 4.5:1 on the card and
+	// secondary fills; the owner fixed the token itself (#6b6b73 / #898989).
+	// The strictest common pairing — muted text on the secondary fill — must now
+	// clear the floor too.
+	test('text-muted-foreground on the secondary surface clears the light-mode floor', () => {
 		const themeDeclarations = extractDeclarations(extractBlock(':root'));
 		const backgroundHex = resolvePaintedHex(
 			'bg-secondary',
@@ -337,9 +338,9 @@ describe('ProfileTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)',
 		);
 
 		const ratio = contrastRatio(foregroundHex, backgroundHex);
-		// Documents WHY this guard exists: proves the exact pre-fix pair this
-		// batch shipped is genuinely below the floor this test enforces, so the
-		// floor above is not vacuous.
-		expect(ratio).toBeLessThan(WCAG_AA_NORMAL_TEXT_FLOOR);
+		expect(
+			ratio,
+			`muted on secondary -> ${ratio.toFixed(2)}:1`,
+		).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT_FLOOR);
 	});
 });

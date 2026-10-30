@@ -37,7 +37,7 @@ export const MarketingFooter = ({
 				<div className="publy-marketing-footer-grid grid gap-10">
 					<div className="publy-marketing-footer-brand flex flex-col gap-4">
 						<MarketingBrand />
-						<p className="max-w-[36ch] text-[13.5px] leading-[1.6] text-(--publy-foreground-secondary)">
+						<p className="max-w-[36ch] text-[13.5px] leading-[1.6] text-(--publy-foreground-muted)">
 							{t('marketing-footer-blurb')}
 						</p>
 					</div>
@@ -56,7 +56,7 @@ export const MarketingFooter = ({
 									to={link.to}
 									hash={link.hash}
 									data-footer-link={link.id}
-									className="text-[13.5px] text-(--publy-foreground-secondary) no-underline outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring"
+									className="text-[13.5px] text-(--publy-foreground-muted) no-underline outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring"
 								>
 									{t(link.labelKey)}
 								</Link>
@@ -65,7 +65,7 @@ export const MarketingFooter = ({
 					))}
 				</div>
 				<div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-(--publy-border) pt-6">
-					<p className="publy-type-helper text-(--publy-foreground-secondary)">
+					<p className="publy-type-helper text-(--publy-foreground-muted)">
 						{t('marketing-footer-copyright', {
 							year: new Date().getFullYear(),
 						})}
@@ -76,7 +76,7 @@ export const MarketingFooter = ({
 						type="button"
 						onClick={onManageCookiePreferences}
 						data-testid="marketing-manage-cookies"
-						className="cursor-pointer rounded-[var(--publy-radius-small-control)] text-[13.5px] text-(--publy-foreground-secondary) underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring"
+						className="cursor-pointer rounded-[var(--publy-radius-small-control)] text-[13.5px] text-(--publy-foreground-muted) underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring"
 					>
 						{t('marketing-manage-cookie-preferences')}
 					</button>

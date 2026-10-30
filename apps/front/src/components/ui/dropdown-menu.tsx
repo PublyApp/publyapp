@@ -6,6 +6,12 @@ import { Checkbox } from '~/components/ui/checkbox';
 import { ScrollArea } from '~/components/ui/scroll-area';
 import { cn } from '~/lib/utils';
 
+// The only highlight a menu item paints (it uses `outline-hidden`): a 5%
+// foreground mix on the popover base, so it stays visible in both themes.
+// `bg-muted` is not usable here — in dark it equals the popover.
+const menuItemHighlight =
+	'focus:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)] data-highlighted:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)]';
+
 const DropdownMenu = ({ ...props }: MenuPrimitive.Root.Props) => {
 	return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 };
@@ -101,7 +107,7 @@ const DropdownMenuItem = ({
 			data-inset={inset}
 			data-variant={variant}
 			className={cn(
-				"group/dropdown-menu-item relative flex h-8 cursor-default items-center gap-2 rounded-[var(--publy-radius-menu-item)] px-2.5 text-[13px] text-foreground outline-hidden select-none focus:bg-muted data-highlighted:bg-muted data-inset:pl-9.5 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:text-destructive data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px] [&_svg]:text-muted-foreground data-[variant=destructive]:*:[svg]:text-destructive",
+				`group/dropdown-menu-item relative flex h-8 cursor-default items-center gap-2 rounded-[var(--publy-radius-menu-item)] px-2.5 text-[13px] text-foreground outline-hidden select-none ${menuItemHighlight} data-inset:pl-9.5 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:text-destructive data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px] [&_svg]:text-muted-foreground data-[variant=destructive]:*:[svg]:text-destructive`,
 				className,
 			)}
 			{...props}
@@ -126,7 +132,7 @@ const DropdownMenuSubTrigger = ({
 			data-slot="dropdown-menu-sub-trigger"
 			data-inset={inset}
 			className={cn(
-				"flex h-8 cursor-default items-center gap-2 rounded-[var(--publy-radius-menu-item)] px-2.5 text-[13px] text-foreground outline-hidden select-none focus:bg-muted data-inset:pl-9.5 data-popup-open:bg-muted data-open:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px] [&_svg]:text-muted-foreground",
+				`flex h-8 cursor-default items-center gap-2 rounded-[var(--publy-radius-menu-item)] px-2.5 text-[13px] text-foreground outline-hidden select-none ${menuItemHighlight} data-inset:pl-9.5 data-popup-open:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)] data-open:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px] [&_svg]:text-muted-foreground`,
 				className,
 			)}
 			{...props}
@@ -180,7 +186,7 @@ const DropdownMenuCheckboxItem = ({
 			data-slot="dropdown-menu-checkbox-item"
 			data-inset={inset}
 			className={cn(
-				"relative flex h-8 cursor-default items-center gap-2.5 rounded-[var(--publy-radius-menu-item)] pl-3 text-[13px] text-foreground outline-hidden select-none focus:bg-muted data-highlighted:bg-muted data-inset:pl-9.5 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+				`relative flex h-8 cursor-default items-center gap-2.5 rounded-[var(--publy-radius-menu-item)] pl-3 text-[13px] text-foreground outline-hidden select-none ${menuItemHighlight} data-inset:pl-9.5 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4`,
 				showCheckbox ? 'pr-3' : 'pr-8',
 				className,
 			)}
@@ -240,7 +246,7 @@ const DropdownMenuRadioItem = ({
 			data-slot="dropdown-menu-radio-item"
 			data-inset={inset}
 			className={cn(
-				"relative flex h-8 cursor-default items-center gap-2.5 rounded-[var(--publy-radius-menu-item)] pr-8 pl-3 text-[13px] text-foreground outline-hidden select-none focus:bg-muted data-highlighted:bg-muted data-inset:pl-9.5 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+				`relative flex h-8 cursor-default items-center gap-2.5 rounded-[var(--publy-radius-menu-item)] pr-8 pl-3 text-[13px] text-foreground outline-hidden select-none ${menuItemHighlight} data-inset:pl-9.5 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4`,
 				className,
 			)}
 			{...props}

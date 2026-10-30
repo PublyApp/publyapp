@@ -97,7 +97,7 @@ describe('DropdownMenuItem', () => {
 	// r3 F9: pinned to the shared --publy-radius-menu-item token reference
 	// rather than the literal `9px`, so a future rename/retune of the token
 	// can't silently drift this assertion out of sync with the real value.
-	test('uses the shared menu-item radius token and a muted (not accent) highlighted background', () => {
+	test('uses the shared menu-item radius token and the menu highlight mix (not accent)', () => {
 		render(
 			<DropdownMenu defaultOpen modal={false}>
 				<DropdownMenuContent>
@@ -113,11 +113,11 @@ describe('DropdownMenuItem', () => {
 			'rounded-[var(--publy-radius-menu-item)]',
 		);
 		expect(item?.className).not.toMatch(/rounded-\[9px\]/);
-		expect(item?.className).toContain('data-highlighted:bg-muted');
+		expect(item?.className).toContain('data-highlighted:bg-[color-mix(');
 		expect(item?.className).not.toContain('data-highlighted:bg-accent');
 	});
 
-	test('keeps destructive rows on muted focus/highlight surfaces', () => {
+	test('keeps destructive rows on the shared focus/highlight surface', () => {
 		render(
 			<DropdownMenu defaultOpen modal={false}>
 				<DropdownMenuContent>
@@ -129,8 +129,8 @@ describe('DropdownMenuItem', () => {
 		const item = screen
 			.getByText('Delete')
 			.closest('[data-slot="dropdown-menu-item"]');
-		expect(item?.className).toContain('focus:bg-muted');
-		expect(item?.className).toContain('data-highlighted:bg-muted');
+		expect(item?.className).toContain('focus:bg-[color-mix(');
+		expect(item?.className).toContain('data-highlighted:bg-[color-mix(');
 		expect(item?.className).not.toContain('focus:bg-destructive');
 		expect(item?.className).not.toContain('data-highlighted:bg-destructive');
 		expect(item?.getAttribute('data-variant')).toBe('destructive');

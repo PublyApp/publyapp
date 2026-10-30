@@ -37,6 +37,7 @@ const AvatarImage = ({ className, ...props }: AvatarPrimitive.Image.Props) => {
 
 const AvatarFallback = ({
 	className,
+	children,
 	...props
 }: AvatarPrimitive.Fallback.Props) => {
 	return (
@@ -47,7 +48,16 @@ const AvatarFallback = ({
 				className,
 			)}
 			{...props}
-		/>
+		>
+			{/* `text-box-trim` has no effect on the flex container itself; the
+			    inline text child carries the trim and the flex parent centres it. */}
+			<span
+				data-slot="avatar-fallback-text"
+				className="publy-avatar-fallback-text"
+			>
+				{children}
+			</span>
+		</AvatarPrimitive.Fallback>
 	);
 };
 

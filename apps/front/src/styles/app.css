@@ -200,7 +200,10 @@
 	--publy-table-header: #fcfcfd;
 	--publy-foreground: #18181b;
 	--publy-foreground-secondary: #3f3f46;
-	--publy-foreground-muted: #71717a;
+	/* Deliberate gap from Shopkart (#71717a / #7f7f7f): one step darker in
+	   each theme so muted text clears AA 4.5:1 on every surface (page, card,
+	   popover, secondary, raised), not just the page. */
+	--publy-foreground-muted: #6b6b73;
 	--publy-foreground-subtle: #a1a1aa;
 	--publy-disabled: #d4d4d8;
 	--publy-border: #e3e3e3;
@@ -408,7 +411,7 @@ html.dark {
 	--publy-focus-ring: #facc15;
 	--publy-foreground: #feffff;
 	--publy-foreground-secondary: #d4d4d8;
-	--publy-foreground-muted: #7f7f7f;
+	--publy-foreground-muted: #898989;
 	--publy-foreground-subtle: #71717a;
 	--publy-disabled: #52525b;
 	--publy-table-header: #212124;
@@ -515,10 +518,14 @@ html.dark {
 .publy-avatar-initials {
 	color: var(--publy-avatar-foreground);
 	background: var(--publy-avatar-1);
-	/* Centre the glyphs on Geist's capitals rather than on the line box
-	   (#2271 §2.5): line-height alone left them visibly low. */
-	line-height: 1;
 	letter-spacing: 0.01em;
+}
+
+/* `text-box-trim` applies to block containers and inline boxes, not to flex
+   containers. AvatarFallback is flex, so its inner text span carries the trim
+   (#2271 §2.5) and the flex parent centres that span. */
+.publy-avatar-fallback-text {
+	line-height: 1;
 	text-box-trim: trim-both;
 	text-box-edge: cap alphabetic;
 }
@@ -2103,10 +2110,7 @@ html.dark {
 		border-radius: var(--publy-radius-control);
 		font-size: 18px;
 		font-weight: 600;
-		line-height: 1;
 		letter-spacing: 0.01em;
-		text-box-trim: trim-both;
-		text-box-edge: cap alphabetic;
 		color: var(--publy-avatar-foreground);
 		background: var(--publy-avatar-1);
 		object-fit: cover;

@@ -78,8 +78,9 @@ describe('MarketingShell composition', () => {
 
 describe('MarketingShell — measured contrast decisions', () => {
 	// Paired with `styles/marketing-contrast.test.ts`, which proves the muted
-	// foreground measures BELOW AA on the muted surface. This half proves the
-	// band's small labels do not use it — the two together are the guard.
+	// foreground clears AA on its surfaces. The CTA band still uses the
+	// secondary step for its labels; this pins that choice so it cannot drift
+	// back to muted without a deliberate decision.
 	test('the CTA band labels use the secondary foreground, not the muted step, on the muted band', async () => {
 		await renderShell();
 

@@ -80,7 +80,7 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 | Surface active | `#ffffff` | `#27272a` | Active navigation row. |
 | Foreground | `#18181b` | `#feffff` | Body text. |
 | Foreground secondary | `#3f3f46` | `#d4d4d8` | Real content text. |
-| Foreground muted | `#71717a` | `#7f7f7f` | Secondary body text; the dark step is the redesign value — use secondary for standalone small text (see Contrast). |
+| Foreground muted | `#6b6b73` | `#898989` | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast). |
 | Foreground subtle | `#a1a1aa` | `#71717a` | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons). |
 | Border | `#e3e3e3` | `#323234` | Hairline ring colour. |
 | Border strong | `#d4d4d8` | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes). |
@@ -100,6 +100,10 @@ no separate thumb-tint set (the avatar palette already carries the identity hue)
 space, tenant space and auth/marketing pages share them; they are not scoped to one surface. The
 brand yellow `--publy-primary` stays PublyApp's `#fdc700`.
 
+**Deliberate gap from Shopkart (owner decision, 30/10):** muted foreground is `#6b6b73` light /
+`#898989` dark instead of Shopkart's `#71717a` / `#7f7f7f`, because those measured 4.32–4.51:1 on
+our card, popover and secondary fills. AA contrast wins over pixel parity.
+
 Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / `#d97706` dark) is
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`
 
@@ -113,8 +117,10 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   **28px / 600 / `letter-spacing: -0.02em`**. — source: `app.css`, `apps/front/src/components/ui/product-page.tsx`
 - **Initials avatars** (`.publy-avatar-initials`, `PersonAvatar`): list/default size **30px with
   11px initials**; the topbar account avatar stays **28px**. Initials are optically centred on
-  Geist's capitals with `line-height: 1; text-box-trim: trim-both; text-box-edge: cap alphabetic;`.
-  — source: `apps/front/src/components/ui/person-avatar.tsx`, `app.css`, `apps/front/src/components/app-shell/user-menu.tsx`
+  Geist's capitals: the flex fallback hosts an inner text span carrying
+  `line-height: 1; text-box-trim: trim-both; text-box-edge: cap alphabetic;` (`text-box-trim` does
+  not apply to flex containers). — source: `apps/front/src/components/ui/avatar.tsx`,
+  `apps/front/src/components/ui/person-avatar.tsx`, `app.css`, `apps/front/src/components/app-shell/user-menu.tsx`
 - No bespoke type scale beyond Tailwind utilities mapped to the `--publy-font-*` tokens.
 
 ### Spacing & radius
@@ -189,10 +195,11 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - `--publy-foreground-subtle` (~2.5:1) is a **known intentional failure** and is legitimate only for
   non-text or de-emphasised roles (placeholders, eyebrows, helpers, inline metadata/separators). It
   must never be standalone body-size readable text. — source: `docs/guides/front/conventions.md` (Subtle text token), `app.css`
-- The redesign's dark `--publy-foreground-muted` (`#7f7f7f`) measures **4.42:1** on
-  `--publy-background` (`#18181b`), just under the 4.5 body-text floor. Guards that require 4.5:1
-  use `--publy-foreground-secondary`; the muted step is reserved for metadata/supporting text, not
-  standalone body copy. — source: `app.css`, `apps/front/src/styles/marketing-contrast.test.ts`
+- `--publy-foreground-muted` clears **4.5:1 on every text surface** in both themes (page, card,
+  popover, secondary and raised), so it is safe for body-size secondary text. That is why it is a
+  deliberate AA step away from Shopkart's `#71717a` / `#7f7f7f` (see Colour tokens). — source:
+  `app.css`, `apps/front/src/routes/authed/staff/tenants/$tenantId/profiles/_profile-tenant-band-contrast.test.tsx`,
+  `apps/front/src/styles/marketing-contrast.test.ts`
 
 ---
 
@@ -217,7 +224,7 @@ scaffolding/CSS-import dependency only, not a runtime library. — source: `docs
 | `card.tsx` | Sectioned surface (no cva; `size` prop) | `size`: default/sm; slots: Header/Title/Description/Action/Content/Footer | `--publy-shadow-ring`, `--publy-radius-card` |
 | `input.tsx` / `textarea.tsx` | Text entry | none (utility classes) | `--publy-radius-input`, `--publy-shadow-input`, `ring-ring`, `--publy-destructive-soft` |
 | `select.tsx` | Trigger-anchored dropdown select | none; `size` data attr | `--publy-radius-input`, `ring-ring`; `alignItemWithTrigger` defaults `false` |
-| `dropdown-menu.tsx` | Menu / context menu / submenu | item radius 9px; `showCheckbox` prop | `--publy-radius-menu-item`, `bg-muted` (hover) |
+| `dropdown-menu.tsx` | Menu / context menu / submenu | item radius 9px; `showCheckbox` prop | `--publy-radius-menu-item`, 5% foreground mix on `--popover` (hover/focus/highlight) |
 | `switch.tsx` / `checkbox.tsx` | Toggles | `size`: default/sm | `--publy-radius-small-control`, `bg-primary` (checked) |
 | `tabs.tsx` | Tab list | `variant`: default/line | `bg-muted`, `border-border`; labels 14px/400 muted, active 500 foreground with a 2px foreground underline and 12px inline padding |
 | `table.tsx` | Data grid primitives (`TableContainer`, etc.) | none | `--publy-table-header`, `--publy-row-border` |

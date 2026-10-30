@@ -8,14 +8,16 @@ export const buttonVariants = cva(
 				default:
 					'btn-primary-chrome bg-primary text-primary-foreground hover:bg-primary/80',
 				// #2271 §2.9: the light theme's --muted equals --background, so
-				// `hover:bg-muted` was invisible. Outline/ghost hover — and an open
-				// menu trigger — paint a 5% foreground mix instead, in both themes.
+				// `hover:bg-muted` was invisible. Outline/ghost hover paints a 5%
+				// foreground mix instead, in both themes. Open menu triggers get the
+				// same fill from the global [aria-haspopup][aria-expanded] rule; a
+				// neutral disclosure stays neutral at rest.
 				outline:
-					'border-(--publy-border-strong) bg-background hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground aria-expanded:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] aria-expanded:text-foreground',
+					'border-(--publy-border-strong) bg-background hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground',
 				secondary:
-					'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] aria-expanded:text-secondary-foreground',
+					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
 				ghost:
-					'hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground aria-expanded:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] aria-expanded:text-foreground',
+					'hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground',
 				destructive:
 					'bg-(--publy-destructive-soft) text-destructive hover:bg-(--publy-destructive-soft-hover)',
 				link: 'text-primary underline-offset-4 hover:underline',

@@ -26,9 +26,12 @@ describe('Avatar', () => {
 
 		const root = container.querySelector('[data-slot="avatar"]');
 		expect(root?.getAttribute('data-size')).toBe('default');
-		expect(screen.getByText('AB').getAttribute('data-slot')).toBe(
-			'avatar-fallback',
-		);
+		const fallback = container.querySelector('[data-slot="avatar-fallback"]');
+		expect(fallback?.textContent).toBe('AB');
+		expect(
+			fallback?.querySelector('[data-slot="avatar-fallback-text"]')
+				?.textContent,
+		).toBe('AB');
 	});
 });
 
