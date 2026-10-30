@@ -258,6 +258,19 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 ### App shell & navigation
 - Authenticated surfaces use a rail + secondary panel + topbar shell. Rail width `--publy-shell-rail-width 49px`,
   panel `--publy-shell-panel-width 272px`, topbar `--publy-shell-topbar-height 64px`. — source: `app.css`
+- The rail follows Shopkart: muted icons, no hover fill, and the active section uses
+  `--publy-surface-active` with a 1px `--publy-border` ring. The secondary panel is a FilterPanel-style
+  group: a 32px mono 14/500 muted group title, 32px links with 8px inset and an 8px radius, a transparent
+  text-only hover, an active row with the same surface + 1px ring, and 2px top padding so the ring is never
+  clipped. The panel toggle persists across pages, and the panel/theme toggle labels follow state. — source:
+  `app.css`, `components/app-shell/app-shell.tsx`, `lib/navigation/route-metadata.tsx`
+- Rail and panel active state: the rail lights the most specific matching **section** (a detail page keeps
+  its section lit); panel rows match their **exact pathname** only. `/staff` and the rail logo lead to
+  `/staff/dashboard`. The Tâches rail entry (`/staff/jobs`) owns Queue, Dead letters and System jobs. — source:
+  `lib/navigation/route-metadata.tsx`, `routes/authed/staff.tsx`
+- The breadcrumb root is the page's **section** (`Organisations`, `Tableau de bord`, `Équipe`, `Tâches`),
+  never the staff scope label; « Équipe » is reserved for the staff-members section. — source:
+  `lib/navigation/breadcrumbs.ts`
 - Navigation is always a TanStack `<Link>`, **never** a raw `<a href>` (hard reload tears down the SPA
   and drops the query cache). — source: `docs/guides/front/conventions.md` (Navigation & layout)
 - **Breadcrumbs** are required: every route declares `staticData.crumbs` (`'shell'` or a

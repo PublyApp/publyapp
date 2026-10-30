@@ -1,13 +1,16 @@
 import {
 	IconActivity,
+	IconAlertTriangle,
 	IconBuilding,
 	IconCalendarEvent,
 	IconClipboardList,
 	IconClock,
 	IconHistory,
 	IconLayoutDashboard,
+	IconList,
 	IconMail,
 	IconReportAnalytics,
+	IconServerBolt,
 	IconSettings,
 	IconShieldCheck,
 	IconShieldLock,
@@ -33,17 +36,13 @@ export type SecondaryPanelItem = {
 	Icon: TablerIcon;
 	/** Search params the link must set (and that isActive must match), e.g. a status filter. */
 	search?: SecondaryPanelItemSearch;
-	/** Match the pathname EXACTLY instead of by prefix — for a panel row whose
-	 * path is a prefix of a sibling row's path (the account module's Profile
-	 * row at `/tenant/account` would otherwise stay lit on
-	 * `/tenant/account/security`). */
-	matchExact?: boolean;
 };
 
 type RouteId =
 	| 'dashboard'
 	| 'tenants'
 	| 'staff'
+	| 'jobs'
 	| 'account'
 	| 'settings'
 	| 'posts'
@@ -198,6 +197,27 @@ const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
 	},
 ];
 
+const JOBS_MODULE_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'jobs-queue',
+		labelKey: 'nav-staff-jobs-queue',
+		path: '/staff/jobs',
+		Icon: IconList,
+	},
+	{
+		id: 'jobs-dead-letter',
+		labelKey: 'nav-staff-jobs-dead-letter',
+		path: '/staff/jobs/dead-letter',
+		Icon: IconAlertTriangle,
+	},
+	{
+		id: 'jobs-system',
+		labelKey: 'nav-staff-jobs-system',
+		path: '/staff/jobs/system-jobs',
+		Icon: IconSettings,
+	},
+];
+
 const itemPathname = (item: SecondaryPanelItem): string => item.path;
 
 const itemPathnames = (items: SecondaryPanelItem[]): string[] =>
@@ -248,6 +268,17 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		visibility: 'public',
 		requiredPermissions: [],
 	},
+	{
+		id: 'jobs',
+		labelKey: 'nav-staff-jobs',
+		scope: 'staff',
+		path: '/staff/jobs',
+		Icon: IconServerBolt,
+		matchPrefixes: ['/staff/jobs'],
+		secondaryItems: JOBS_MODULE_ITEMS,
+		visibility: 'public',
+		requiredPermissions: [],
+	},
 ];
 
 const ACCOUNT_MODULE_ITEMS: SecondaryPanelItem[] = [
@@ -256,7 +287,6 @@ const ACCOUNT_MODULE_ITEMS: SecondaryPanelItem[] = [
 		labelKey: 'profile',
 		path: '/tenant/account',
 		Icon: IconUserCircle,
-		matchExact: true,
 	},
 	// #818 F8: Security and Notifications are hidden from the account panel
 	// until their APIs exist (no password-change / 2FA / session endpoints,
@@ -422,20 +452,18 @@ export const getSecondaryPanelItems = (
 };
 
 /**
- * A panel item is active when its pathname matches AND its declared search
- * (e.g. a status filter) matches the current search — so "All tenants" (no
- * search) and "Active" (status=active) never both light up for the same URL.
- * `matchExact` narrows a nested row (e.g. the account Profile row) to an
- * exact pathname match so it does not stay lit on its children's routes.
+ * A panel item is active only on its EXACT pathname, and only when its
+ * declared search (e.g. a status filter) matches the current search — so
+ * "Overview" never stays lit on Activity/Reports, "All tenants" never lights
+ * up alongside a status row, and a nested row (e.g. the account Profile row)
+ * never stays lit on its children's routes.
  */
 export const isSecondaryPanelItemActive = (
 	item: SecondaryPanelItem,
 	pathname: string,
 	search: Record<string, unknown>,
 ): boolean => {
-	const matchesPath = item.matchExact
-		? pathname === item.path
-		: isPathPrefix(pathname, item.path);
+	const matchesPath = pathname === item.path;
 	const itemStatus = item.search?.status;
 	const currentStatus =
 		typeof search.status === 'string' ? search.status : undefined;

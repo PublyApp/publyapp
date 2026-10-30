@@ -422,60 +422,59 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT: GuardDebtEntry[] = [
 		file: 'src/styles/app.css',
 		sourceIncludes: 'height: 22px !important;',
 		reason:
-			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge h-5 default — real conflict, see rule comment.',
+			'.app-shell-tenant-pill vs Badge h-5 default — real conflict, see rule comment.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
-		maxOccurrences: 2,
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'font-size: 11px !important;',
-		reason:
-			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge text-xs default — real conflict.',
+		reason: '.app-shell-tenant-pill vs Badge text-xs default — real conflict.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
-		maxOccurrences: 2,
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'border-radius: var(--publy-radius-chip) !important;',
 		reason:
-			'.app-shell-workspace-pill/.app-shell-tenant-pill — same computed value as the Badge utility today, but kept explicit and important so a future Badge radius change cannot silently drift the shell chip.',
+			'.app-shell-tenant-pill — same computed value as the Badge utility today, but kept explicit and important so a future Badge radius change cannot silently drift the shell chip.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
-		maxOccurrences: 2,
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'padding: 0 8px !important;',
 		reason:
-			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge px-2 py-0.5 default — real conflict.',
+			'.app-shell-tenant-pill vs Badge px-2 py-0.5 default — real conflict.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
-		maxOccurrences: 2,
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'background: var(--publy-surface-muted) !important;',
 		reason:
-			'.app-shell-workspace-pill/.app-shell-tenant-pill — Badge outline has no base bg utility, kept important for symmetry with the rest of the rule.',
+			'.app-shell-tenant-pill — Badge outline has no base bg utility, kept important for symmetry with the rest of the rule.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
-		maxOccurrences: 2,
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'color: var(--publy-foreground-muted) !important;',
 		reason:
-			'.app-shell-workspace-pill/.app-shell-tenant-pill/.app-shell-topbar-action-btn vs Badge text-foreground / Button outline defaults — real conflict.',
+			'.app-shell-tenant-pill/.app-shell-topbar-action-btn vs Badge text-foreground / Button outline defaults — real conflict.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
-		maxOccurrences: 3,
+		maxOccurrences: 2,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,

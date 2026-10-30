@@ -12,7 +12,7 @@
 	"system-page-title": "Définitions des tâches système",
 	"system-page-description": "Tâches récurrentes de la plateforme et leurs planifications.",
 	"column-status": "Statut",
-	"column-tenant": "Tenant",
+	"column-tenant": "Organisation",
 	"column-next-attempt": "Prochaine tentative",
 	"column-last-enqueued": "Dernière mise en file",
 	"column-updated-at": "Mise à jour le",

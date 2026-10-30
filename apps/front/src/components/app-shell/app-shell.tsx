@@ -6,7 +6,6 @@ import {
 import { Link, useMatches } from '@tanstack/react-router';
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import {
 	Drawer,
@@ -144,6 +143,7 @@ const SecondaryPanelNavItem = ({
 				cursor: undefined,
 			})}
 			onClick={onNavigate}
+			aria-current={isActive ? 'page' : undefined}
 			className="app-shell-secondary-nav-link"
 			data-active={isActive ? 'true' : undefined}
 		>
@@ -152,6 +152,14 @@ const SecondaryPanelNavItem = ({
 		</Link>
 	);
 };
+
+const SecondaryPanelHeader = ({ title }: { title: string | null }) => (
+	<div className="app-shell-secondary-header">
+		<h2 className="app-shell-secondary-title" id="app-shell-secondary-heading">
+			{title}
+		</h2>
+	</div>
+);
 
 // Pre-existing size finding (~310 lines before C3 added two). Splitting the
 // workspace shell is a standalone maintainability change with its own
@@ -193,7 +201,7 @@ const AuthedWorkspaceShell = ({
 	// destination (review #1131 round 2 — MAJOR). `/tenant` re-resolves the
 	// workspace (or shows the picker), so it is the tenant scope's root.
 	const homePath =
-		getShellScope(pathname) === 'tenant' ? '/tenant' : '/staff/staff-users';
+		getShellScope(pathname) === 'tenant' ? '/tenant' : '/staff/dashboard';
 	// The trail is a pure function of the current matches (i.e. of the URL),
 	// never of fetched data — every dynamic path param the deepest match's
 	// route declares MUST resolve to a named entity crumb (#973), and the
@@ -308,17 +316,9 @@ const AuthedWorkspaceShell = ({
 					inert={showSecondaryPanel ? undefined : true}
 				>
 					<div className="app-shell-secondary-panel-inner">
-						<div className="app-shell-secondary-header">
-							<h2
-								className="app-shell-secondary-title"
-								id="app-shell-secondary-heading"
-							>
-								{activeRoute ? t(activeRoute.labelKey) : null}
-							</h2>
-							<Badge variant="outline" className="app-shell-workspace-pill">
-								{t('nav-root-workspace')}
-							</Badge>
-						</div>
+						<SecondaryPanelHeader
+							title={activeRoute ? t(activeRoute.labelKey) : null}
+						/>
 						<nav
 							className="app-shell-secondary-nav"
 							aria-label={t('nav-secondary')}

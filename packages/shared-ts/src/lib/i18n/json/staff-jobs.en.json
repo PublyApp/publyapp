@@ -12,7 +12,7 @@
 	"system-page-title": "System job definitions",
 	"system-page-description": "Recurring platform jobs and their schedules.",
 	"column-status": "Status",
-	"column-tenant": "Tenant",
+	"column-tenant": "Organization",
 	"column-next-attempt": "Next attempt",
 	"column-last-enqueued": "Last enqueued",
 	"column-updated-at": "Updated at",

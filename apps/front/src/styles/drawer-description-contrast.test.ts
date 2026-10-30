@@ -3963,7 +3963,6 @@ describe('drawer description text contrast (#1043)', () => {
 	// e2e measures the real variant paints.
 	test.each([
 		['app-shell-tenant-pill', '--publy-foreground-muted'],
-		['app-shell-workspace-pill', '--publy-foreground-muted'],
 		['app-shell-topbar-action-btn', '--publy-foreground-muted'],
 		['app-shell-workspace', '--publy-foreground'],
 	] as const)(
