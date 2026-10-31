@@ -335,6 +335,10 @@ const AuthedWorkspaceShell = ({
 								/>
 							))}
 						</nav>
+						{/* A list page's filter-shortcut groups portal here (#2274
+						    §4.1): page-owned runtime counters cannot live in the route
+						    metadata, so the page mounts its own panel content. */}
+						<div id="app-shell-page-panel" />
 					</div>
 				</aside>
 			) : null}

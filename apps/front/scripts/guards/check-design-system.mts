@@ -1372,7 +1372,10 @@ const checkTokenGuardViolations = (
 
 const isConfirmDialogFile = (relativePath: string): boolean =>
 	relativePath === 'src/components/ui/confirm-dialog.tsx' ||
-	relativePath === 'src/components/ui/drawer.tsx';
+	relativePath === 'src/components/ui/drawer.tsx' ||
+	// A bottom sheet is the mobile counterpart of the drawer: a
+	// non-confirmation overlay primitive, never a centered confirm.
+	relativePath === 'src/components/ui/bottom-sheet.tsx';
 
 // F824 ui F1/tests F2: a debt entry is a BUDGET, not an unlimited licence.
 // The old matcher ran `source.includes(snippet)` over the whole FILE, so a
