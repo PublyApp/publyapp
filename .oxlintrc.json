@@ -137,7 +137,10 @@
 			}
 		},
 		{
-			"files": ["apps/front/src/components/table/data-table.tsx"],
+			"files": [
+				"apps/front/src/components/table/data-table.tsx",
+				"apps/front/src/components/list/list-table.tsx"
+			],
 			"rules": {
 				"typescript/no-deprecated": "off"
 			}

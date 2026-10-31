@@ -14,6 +14,7 @@ Every z-index utility (a Tailwind `z-*` class) in `apps/front/src` must route th
 
 ```
 :root {
+  --publy-z-sticky-cell: 2;      /* a list's sticky first column, over body cells only */
   --publy-z-raised: 10;          /* small affordances inside a surface */
   --publy-z-shell-topbar: 20;    /* the app-shell topbar */
   --publy-z-selection-bar: 40;   /* bulk-selection floating bar */

@@ -322,6 +322,10 @@
 	   z-index only: overlay backdrop < drawer/dialog surface < menu/select
 	   popups, so a Select/DropdownMenu opened from inside a Drawer paints
 	   above it instead of underneath. */
+	/* A list's sticky first column (#2280): above the row's other body cells,
+	   below the pinned toolbar/header (`--publy-z-raised`) it must never paint
+	   over while the table scrolls under them. */
+	--publy-z-sticky-cell: 2;
 	--publy-z-raised: 10;
 	--publy-z-shell-topbar: 20;
 	--publy-z-selection-bar: 40;
@@ -1503,6 +1507,11 @@ html.dark {
 	.app-shell-main {
 		@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
 		padding: 20px 28px 32px;
+		/* The real page padding, exposed to pinned list chrome (#2274 §2.10):
+		   a sticky search bar / table header offsets itself by this instead of
+		   a hard-coded 32px that only matched Shopkart's own layout. */
+		--page-pad-top: 20px;
+		--page-pad-bottom: 32px;
 		/* Reserve the scrollbar's width so a page that grows past the viewport
 		   does not shift its content sideways (#2271 §2.6). */
 		scrollbar-gutter: stable;
@@ -1515,7 +1524,18 @@ html.dark {
 	@media (max-width: 767px) {
 		.app-shell-main {
 			padding: 16px;
+			--page-pad-top: 16px;
+			--page-pad-bottom: 16px;
 		}
+	}
+
+	/* §2.10 bis: a modal Select (or a bottom sheet) opened from a page locks
+	   the DOCUMENT, but the shell's main area is the real scroller. Lock it
+	   too while such a popup is open so the page never slides under it.
+	   `scrollbar-gutter: stable` keeps the layout still. */
+	body:has([data-slot='select-content'][data-open]) .app-shell-main,
+	body:has([data-slot='bottom-sheet'][data-open]) .app-shell-main {
+		overflow: hidden;
 	}
 }
 
@@ -3301,3 +3321,72 @@ html[data-theme-changing] * {
  * upstream change that breaks the transformer fails the build loudly.
  * ------------------------------------------------------------------------- */
 @import 'simplebar-core/dist/simplebar.css';
+
+/* ---------------------------------------------------------------------------
+ * Collapse (Shopkart OS `collapse.tsx`, #2274 §4.1): the room is a grid track
+ * going 0fr ↔ 1fr, the content fades/slides/shrinks. Never width/height, so
+ * nothing measures or reflows mid-animation. A collapsed element gives back
+ * the bar's gap (x) or the page column's gap (y).
+ * ------------------------------------------------------------------------- */
+@layer components {
+	[data-collapse] {
+		display: grid;
+		grid-template-columns: 0fr;
+		grid-template-rows: 1fr;
+		transition: grid-template-columns var(--publy-motion-medium)
+			var(--publy-motion-ease);
+	}
+
+	[data-collapse='y'] {
+		grid-template-columns: 1fr;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows var(--publy-motion-medium)
+			var(--publy-motion-ease);
+	}
+
+	[data-collapse] > div {
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	[data-collapse] > div > div {
+		min-width: 0;
+		opacity: 0;
+		transform: translateX(-4px);
+		filter: blur(2px);
+		transition:
+			opacity var(--publy-motion-fast) var(--publy-motion-ease),
+			transform var(--publy-motion-fast) var(--publy-motion-ease),
+			filter var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	[data-collapse='y'] > div > div {
+		transform: translateY(-4px);
+	}
+
+	[data-collapse][data-from='right'] > div > div {
+		transform: translateX(4px);
+	}
+
+	[data-collapse][data-open] {
+		grid-template-columns: 1fr;
+	}
+
+	[data-collapse='y'][data-open] {
+		grid-template-rows: 1fr;
+	}
+
+	[data-collapse][data-open] > div > div {
+		opacity: 1;
+		transform: none;
+		filter: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		[data-collapse],
+		[data-collapse] > div > div {
+			transition: none;
+		}
+	}
+}
