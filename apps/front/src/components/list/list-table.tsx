@@ -162,6 +162,7 @@ const TableRow = ({
 	return (
 		<tr
 			tabIndex={0}
+			data-slot="table-row"
 			onKeyDown={(event) => {
 				if (event.key === 'Enter' && event.target === event.currentTarget) {
 					onOpen();
@@ -172,6 +173,7 @@ const TableRow = ({
 			{cells.map((cell, index) => (
 				<td
 					key={cell.id}
+					data-slot="table-cell"
 					className={cn(
 						'truncate border-r border-b bg-background px-2 last:border-r-0 group-hover/row:bg-card group-focus-visible/row:bg-card',
 						index === 0 && 'sticky left-0 z-(--publy-z-sticky-cell)',
@@ -300,6 +302,7 @@ export const useListTable = <T extends { id: string }>({
  */
 export const ListTable = <T extends { id: string }>({
 	ariaLabel,
+	testId,
 	specs,
 	ids,
 	rows,
@@ -313,6 +316,7 @@ export const ListTable = <T extends { id: string }>({
 	onMove,
 }: {
 	ariaLabel: string;
+	testId?: string;
 	specs: ColumnSpecs;
 	ids: string[];
 	rows: { id: string; original: T; cells: { id: string; node: ReactNode }[] }[];
@@ -347,7 +351,10 @@ export const ListTable = <T extends { id: string }>({
 
 	return (
 		<>
-			<div className="hidden min-h-[320px] flex-1 flex-col overflow-clip rounded-[var(--publy-radius-control)] border bg-background md:flex">
+			<div
+				className="hidden min-h-[320px] flex-1 flex-col overflow-clip rounded-[var(--publy-radius-control)] border bg-background md:flex"
+				data-testid={testId ? `${testId}-card` : undefined}
+			>
 				<div
 					ref={headBox}
 					data-pinned-head=""
@@ -368,6 +375,7 @@ export const ListTable = <T extends { id: string }>({
 				</div>
 				<div
 					className="min-h-0 flex-1 overflow-auto [container-type:inline-size] [scrollbar-gutter:stable]"
+					data-testid={testId ? `${testId}-rows` : undefined}
 					onScroll={(event) => {
 						for (const pinned of [headBox.current, footBox.current]) {
 							if (pinned) {

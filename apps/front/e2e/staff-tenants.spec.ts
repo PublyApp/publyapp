@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
-import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const STAFF_TENANTS_PATH = '/staff/tenants';
 const BULK_SUSPEND_PATH = '/staff/tenants/bulk-suspend';
@@ -17,6 +16,10 @@ const isApiPath = (url: string, path: string): boolean => {
 	const parsed = new URL(url);
 	return parsed.origin === API_BASE_URL && parsed.pathname === path;
 };
+
+/** The visible table row for an organisation (the mobile card repeats the
+ * name in the same DOM, so scope to the table role). */
+const tenantRow = (page: Page, name: string) => page.getByRole('row', { name });
 
 /** Floating bar is portalled to `document.body` and pinned near the viewport
  * bottom — assert it isn't trapped inside `.app-shell-main`'s scroll area. */
@@ -149,8 +152,8 @@ test.describe(
 
 			await page.goto('/staff/tenants');
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
-			await expect(page.getByText('Acme Corporation')).toBeVisible();
-			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await expect(tenantRow(page, 'Acme Corporation')).toBeVisible();
+			await expect(tenantRow(page, 'Globex Suspended Co')).toBeVisible();
 
 			const panel = page.getByTestId('app-shell-secondary-panel');
 			const activeRequest = page.waitForRequest(
@@ -160,18 +163,18 @@ test.describe(
 					new URL(request.url()).searchParams.get('status') === 'active',
 			);
 
-			await panel.getByRole('link', { name: 'Active' }).click();
+			await panel.getByRole('button', { name: 'Active' }).click();
 			await activeRequest;
 
 			await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
-			await expect(page.getByText('Globex Suspended Co')).toHaveCount(0);
-			await expect(page.getByText('Acme Corporation')).toBeVisible();
-			await expect(panel.getByRole('link', { name: 'Active' })).toHaveAttribute(
-				'data-active',
-				'true',
-			);
+			await expect(tenantRow(page, 'Globex Suspended Co')).toHaveCount(0);
+			await expect(tenantRow(page, 'Acme Corporation')).toBeVisible();
 			await expect(
-				panel.getByRole('link', { name: 'All organizations' }),
+				panel.getByRole('button', { name: 'Active' }),
+			).toHaveAttribute('data-active', 'true');
+			// The panel shortcut is exclusive: another status is never also on.
+			await expect(
+				panel.getByRole('button', { name: 'Suspended' }),
 			).not.toHaveAttribute('data-active', 'true');
 
 			const suspendedRequest = page.waitForRequest(
@@ -181,22 +184,23 @@ test.describe(
 					new URL(request.url()).searchParams.get('status') === 'suspended',
 			);
 
-			await panel.getByRole('link', { name: 'Suspended' }).click();
+			await panel.getByRole('button', { name: 'Suspended' }).click();
 			await suspendedRequest;
 
 			await expect(page).toHaveURL(/[?&]status=suspended(?:&|$)/);
-			await expect(page.getByText('Acme Corporation')).toHaveCount(0);
-			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
-			// Only the most specific filter announces itself as the current page;
-			// the router must not also mark "All organizations" through its own
-			// prefix match.
-			await expect(panel.locator('[aria-current="page"]')).toHaveCount(1);
+			await expect(tenantRow(page, 'Acme Corporation')).toHaveCount(0);
+			await expect(tenantRow(page, 'Globex Suspended Co')).toBeVisible();
+			// The exclusive shortcut replaces the previous status: the Active
+			// entry is no longer active and the chip names Suspended only.
 			await expect(
-				panel.getByRole('link', { name: 'Suspended' }),
-			).toHaveAttribute('aria-current', 'page');
-			await expect(
-				panel.getByRole('link', { name: 'Suspended' }),
+				panel.getByRole('button', { name: 'Suspended' }),
 			).toHaveAttribute('data-active', 'true');
+			await expect(
+				panel.getByRole('button', { name: 'Active' }),
+			).not.toHaveAttribute('data-active', 'true');
+			await expect(
+				page.getByRole('button', { name: 'Remove Statuses: Suspended' }),
+			).toBeVisible();
 		});
 	},
 );
@@ -211,54 +215,52 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await mockStaffTenantsByStatus(page);
 			await page.goto('/staff/tenants');
+			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-			const trigger = page.getByTestId(
-				'staff-tenants-table-status-filter-trigger',
-			);
+			const trigger = page.getByRole('button', { name: /^Filters/ });
 			await trigger.click();
-			const active = page.getByTestId(
-				'staff-tenants-table-status-filter-active',
-			);
-			const suspended = page.getByTestId(
-				'staff-tenants-table-status-filter-suspended',
-			);
-			for (const item of [active, suspended]) {
-				await expect(item).toHaveAttribute('role', 'menuitemcheckbox');
-				await expect(
-					item.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
-				).toBeVisible();
-			}
+			const active = page.getByRole('checkbox', {
+				name: 'Active',
+				exact: true,
+			});
+			const suspended = page.getByRole('checkbox', {
+				name: 'Suspended',
+				exact: true,
+			});
+			await expect(active).toBeVisible();
+			await expect(suspended).toBeVisible();
 
 			await active.click();
-			await expect(active).toHaveAttribute('aria-checked', 'true');
-			await expect(suspended).toBeVisible();
+			await expect(active).toBeChecked();
 			await suspended.click();
-			await expect(suspended).toHaveAttribute('aria-checked', 'true');
+			await expect(suspended).toBeChecked();
 			await expect
 				.poll(() => new URL(page.url()).searchParams.get('status'))
 				.toBe('active,suspended');
-			await expect(page.getByText('Acme Corporation')).toBeVisible();
-			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await expect(tenantRow(page, 'Acme Corporation')).toBeVisible();
+			await expect(tenantRow(page, 'Globex Suspended Co')).toBeVisible();
 
 			await active.click();
-			await expect(active).toHaveAttribute('aria-checked', 'false');
+			await expect(active).not.toBeChecked();
 			await expect
 				.poll(() => new URL(page.url()).searchParams.get('status'))
 				.toBe('suspended');
-			await expect(page.getByText('Acme Corporation')).toHaveCount(0);
-			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await expect(tenantRow(page, 'Acme Corporation')).toHaveCount(0);
+			await expect(tenantRow(page, 'Globex Suspended Co')).toBeVisible();
 
-			const all = page.getByTestId('staff-tenants-table-status-filter-all');
-			await expect(
-				all.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
-			).toHaveCount(0);
-			await all.click();
-			await expect(page.getByRole('menu')).toBeHidden();
+			// The new filter menu has no exclusive "All" row: the Statuses
+			// section's Clear all is the reset.
+			await page.getByRole('button', { name: 'Clear all' }).click();
 			await expect
 				.poll(() => new URL(page.url()).searchParams.has('status'))
 				.toBe(false);
-			await expect(page.getByText('Acme Corporation')).toBeVisible();
-			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await expect(tenantRow(page, 'Acme Corporation')).toBeVisible();
+			await expect(tenantRow(page, 'Globex Suspended Co')).toBeVisible();
+
+			await page.keyboard.press('Escape');
+			await expect(
+				page.getByRole('checkbox', { name: 'Active', exact: true }),
+			).toBeHidden();
 		});
 	},
 );
@@ -287,7 +289,7 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 		).toBeVisible();
 	});
 
-	test('column widths follow the adapted 3a grid and the table never overflows its card', async ({
+	test('column widths follow the new default grid and the wide table scrolls inside its card', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
@@ -296,29 +298,40 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 		await page.goto('/staff/tenants');
 		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-		// Adapted grid: SPEC 3a's Plan/Owner/Created columns aren't implemented
-		// yet, so Name (the only unbounded text field) is the fluid column.
+		// The new 14-column default grid; the old "Users"/"Max users" pair is
+		// now Members plus the Seats-used ratio.
 		await expect(page.getByRole('columnheader', { name: 'Status' })).toHaveCSS(
 			'width',
-			'124px',
+			'130px',
 		);
 		await expect(
-			page.getByRole('columnheader', { name: 'Users', exact: true }),
-		).toHaveCSS('width', '92px');
+			page.getByRole('columnheader', { name: 'Members', exact: true }),
+		).toHaveCSS('width', '130px');
 		await expect(
-			page.getByRole('columnheader', { name: 'Max users' }),
-		).toHaveCSS('width', '132px');
+			page.getByRole('columnheader', { name: 'Seats used' }),
+		).toHaveCSS('width', '190px');
 
-		const tableScrollWidth = await page
-			.getByTestId(`${TABLE}-rows`)
-			.evaluate((el) => el.scrollWidth);
-		const cardClientWidth = await page
-			.getByTestId(`${TABLE}-card`)
-			.evaluate((el) => el.clientWidth);
-		// Upper bound alone passes for a collapsed (0-width) table too — pair
-		// with a real minimum (review-r1-tests.md F25).
-		expect(tableScrollWidth).toBeGreaterThan(0);
-		expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+		const scroller = page.getByTestId(`${TABLE}-rows`);
+		const card = page.getByTestId(`${TABLE}-card`);
+		const { scrollWidth, clientWidth } = await scroller.evaluate((el) => ({
+			scrollWidth: el.scrollWidth,
+			clientWidth: el.clientWidth,
+		}));
+		// The 14 default columns are wider than the card at 1280px: the
+		// horizontal scroll belongs to the rows scroller inside the card, not
+		// to the page (the old grid fit by dropping columns).
+		expect(scrollWidth).toBeGreaterThan(clientWidth);
+		const cardBox = await card.boundingBox();
+		const viewport = page.viewportSize();
+		expect(cardBox).not.toBeNull();
+		if (cardBox && viewport) {
+			expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewport.width);
+		}
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth),
+		).toBeLessThanOrEqual(
+			(await page.evaluate(() => document.documentElement.clientWidth)) + 1,
+		);
 	});
 
 	test('bulk-suspends the eligible selected tenant and clears the selection on success', async ({
@@ -428,12 +441,40 @@ for (const width of [768, 390]) {
 		() => {
 			test.use({ viewport: { width, height: 800 } });
 
-			test('table never overflows its card', async ({ page }) => {
+			test('the list adapts at its breakpoint without overflowing the page', async ({
+				page,
+			}) => {
 				await loginAsStaffAdmin(page);
 				await mockStaffTenants(page);
 
 				await page.goto('/staff/tenants');
-				await expectTableFitsCard(page, TABLE);
+
+				if (width < 768) {
+					// Below md the generic list renders meta cards instead of the
+					// table; the wide table is not a horizontal page overflow.
+					await expect(page.getByTestId(`${TABLE}-rows`)).toBeHidden();
+					await expect(
+						page.getByRole('link', { name: 'Open Acme Corporation' }),
+					).toBeVisible();
+				} else {
+					// At md the table shows and owns its own horizontal scroll.
+					const scroller = page.getByTestId(`${TABLE}-rows`);
+					await expect(scroller).toBeVisible();
+					const { scrollWidth, clientWidth } = await scroller.evaluate(
+						(el) => ({
+							scrollWidth: el.scrollWidth,
+							clientWidth: el.clientWidth,
+						}),
+					);
+					expect(scrollWidth).toBeGreaterThan(0);
+					expect(scrollWidth).toBeGreaterThan(clientWidth);
+				}
+
+				expect(
+					await page.evaluate(() => document.documentElement.scrollWidth),
+				).toBeLessThanOrEqual(
+					(await page.evaluate(() => document.documentElement.clientWidth)) + 1,
+				);
 			});
 		},
 	);

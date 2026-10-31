@@ -499,7 +499,7 @@ describe('staff tenants route (organisations list)', () => {
 			queryResult({ data: undefined, isPending: true }),
 		);
 		renderPage();
-		expect(screen.getByTestId('staff-tenants-loading')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenants-table-loading')).toBeTruthy();
 	});
 
 	test('renders the error state without logging out for non-401 failures', () => {
@@ -507,7 +507,7 @@ describe('staff tenants route (organisations list)', () => {
 			queryResult({ data: undefined, isError: true, error: new Error('boom') }),
 		);
 		renderPage();
-		expect(screen.getByTestId('staff-tenants-error')).toBeTruthy();
+		expect(screen.getByTestId('staff-tenants-table-error')).toBeTruthy();
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

@@ -143,7 +143,7 @@ const StaffTenantsPage = () => {
 
 	return (
 		<ListPage
-			testId="staff-tenants"
+			testId="staff-tenants-table"
 			ariaLabel={t('list-aria')}
 			title={t('tenants')}
 			description={t('tenants-list-description')}
@@ -218,7 +218,7 @@ const StaffTenantsPage = () => {
 			footer={
 				rows.length > 0 ? (
 					<DataTableCursorFooter
-						testId="staff-tenants"
+						testId="staff-tenants-table"
 						pageIndex={controller.cursor.pageIndex}
 						size={controller.size}
 						onSizeChange={controller.onSizeChange}

@@ -175,6 +175,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 						q={props.q}
 						onSearch={props.onSearch}
 						placeholder={props.searchPlaceholder}
+						testId={props.testId ? `${props.testId}-search` : undefined}
 						disabled={
 							props.selection !== undefined &&
 							props.selection.selectedIds.size > 0
@@ -238,6 +239,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 			) : (
 				<ListTable
 					ariaLabel={props.ariaLabel}
+					testId={props.testId}
 					specs={page.specs}
 					ids={page.ids}
 					rows={page.tableRows}

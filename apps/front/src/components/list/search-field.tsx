@@ -15,6 +15,7 @@ export const SearchField = ({
 	onSearch,
 	placeholder,
 	ariaLabel,
+	testId,
 	disabled,
 	delayMs = SEARCH_DELAY_MS,
 }: {
@@ -22,6 +23,8 @@ export const SearchField = ({
 	onSearch: (q: string | undefined) => void;
 	placeholder: string;
 	ariaLabel?: string;
+	/** Follows the DataTable `${testId}-search` convention. */
+	testId?: string;
 	disabled?: boolean;
 	delayMs?: number;
 }) => {
@@ -61,6 +64,7 @@ export const SearchField = ({
 				onChange={(event) => onChange(event.target.value)}
 				placeholder={placeholder}
 				aria-label={ariaLabel ?? placeholder}
+				data-testid={testId}
 				disabled={disabled}
 				className="h-11 w-full rounded-[var(--publy-radius-medium-control)] border border-transparent bg-background pr-3 pl-9 text-sm shadow-[var(--publy-shadow-chrome)] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-60 md:h-10"
 			/>
