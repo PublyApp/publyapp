@@ -230,7 +230,9 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 
 		const nav = screen.getByRole('navigation', { name: 'nav-breadcrumb' });
 
-		expect(nav.textContent).toContain('nav-root-staff');
+		// §2.3: the trail roots at the page's SECTION, so the first crumb is
+		// "Organisations" — never the old "Équipe" scope root.
+		expect(nav.textContent).not.toContain('nav-root-staff');
 		expect(nav.textContent).toContain('nav-tenants');
 		expect(nav.textContent).toContain('Acme Corporation');
 		expect(nav.textContent).toContain('common:profiles');

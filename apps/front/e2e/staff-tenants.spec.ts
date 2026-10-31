@@ -171,7 +171,7 @@ test.describe(
 				'true',
 			);
 			await expect(
-				panel.getByRole('link', { name: 'All tenants' }),
+				panel.getByRole('link', { name: 'All organizations' }),
 			).not.toHaveAttribute('data-active', 'true');
 
 			const suspendedRequest = page.waitForRequest(
@@ -187,6 +187,13 @@ test.describe(
 			await expect(page).toHaveURL(/[?&]status=suspended(?:&|$)/);
 			await expect(page.getByText('Acme Corporation')).toHaveCount(0);
 			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			// Only the most specific filter announces itself as the current page;
+			// the router must not also mark "All organizations" through its own
+			// prefix match.
+			await expect(panel.locator('[aria-current="page"]')).toHaveCount(1);
+			await expect(
+				panel.getByRole('link', { name: 'Suspended' }),
+			).toHaveAttribute('aria-current', 'page');
 			await expect(
 				panel.getByRole('link', { name: 'Suspended' }),
 			).toHaveAttribute('data-active', 'true');
@@ -353,7 +360,7 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 		});
 
 		await expect(
-			page.getByText('Successfully suspended 1 tenant(s).'),
+			page.getByText('Successfully suspended 1 organization(s).'),
 		).toBeVisible();
 		await expect(
 			page.getByRole('checkbox', { name: 'Select Acme Corporation' }),
@@ -404,7 +411,7 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 		await page.getByRole('menuitem', { name: 'Suspend selected' }).click();
 
 		await expect(
-			page.getByText('Select at least one active tenant to suspend.'),
+			page.getByText('Select at least one active organization to suspend.'),
 		).toBeVisible();
 		await expect(
 			page.getByRole('heading', { name: 'Suspend selected' }),

@@ -225,7 +225,7 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff');
 
-		await expect(page).toHaveURL('/staff/staff-users');
+		await expect(page).toHaveURL('/staff/dashboard');
 		await expect(page.getByTestId('app-shell-shell')).toHaveAttribute(
 			'data-mode',
 			'authed',
@@ -249,16 +249,23 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 			'0px',
 		);
 
+		// /staff now lands on the dashboard, so the Dashboard section — not the
+		// staff-members section — is the current rail entry.
+		await expect(
+			page
+				.getByTestId('app-shell-rail')
+				.getByRole('link', { name: 'Dashboard' }),
+		).toHaveAttribute('aria-current', 'page');
 		await expect(
 			page.getByTestId('app-shell-rail').getByRole('link', { name: 'Staff' }),
-		).toHaveAttribute('aria-current', 'page');
+		).not.toHaveAttribute('aria-current', 'page');
 	});
 
-	test('redirects /staff/ to /staff/staff-users', async ({ page }) => {
+	test('redirects /staff/ to /staff/dashboard', async ({ page }) => {
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff/');
 
-		await expect(page).toHaveURL('/staff/staff-users');
+		await expect(page).toHaveURL('/staff/dashboard');
 	});
 
 	test('renders the handoff staff rail and secondary panel', async ({
@@ -270,7 +277,9 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 
 		const rail = page.getByTestId('app-shell-rail');
 		await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-		await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
+		await expect(
+			rail.getByRole('link', { name: 'Organizations' }),
+		).toBeVisible();
 		await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
 
 		const panel = page.getByTestId('app-shell-secondary-panel');
@@ -305,12 +314,12 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		await expect(
 			page
 				.getByTestId('app-shell-secondary-panel')
-				.getByRole('heading', { name: 'Tenants' }),
+				.getByRole('heading', { name: 'Organizations' }),
 		).toBeVisible();
 		await expect(
 			page
 				.getByTestId('app-shell-secondary-panel')
-				.getByRole('link', { name: 'All tenants' }),
+				.getByRole('link', { name: 'All organizations' }),
 		).toBeVisible();
 		await expect(
 			page
@@ -400,10 +409,7 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		await toggle.click();
 
 		await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
-		await expect(toggle).toHaveAttribute(
-			'aria-label',
-			'Expand navigation panel',
-		);
+		await expect(toggle).toHaveAttribute('aria-label', 'Show navigation panel');
 
 		await toggle.click();
 
@@ -424,10 +430,7 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		const toggle = page.getByTestId('app-shell-sidebar-toggle');
 		await toggle.click();
 		await expect(page.getByTestId('app-shell-secondary-panel')).toBeHidden();
-		await expect(toggle).toHaveAttribute(
-			'aria-label',
-			'Expand navigation panel',
-		);
+		await expect(toggle).toHaveAttribute('aria-label', 'Show navigation panel');
 		await toggle.click();
 		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 		await expect(toggle).toHaveAttribute(

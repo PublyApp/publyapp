@@ -1166,15 +1166,22 @@ html.dark {
 		border: 2px solid var(--publy-primary);
 	}
 
+	/* Shopkart's rail (#2273 §2.2): muted glyphs, no hover fill, and the
+	   active entry gets the active surface plus a 1px ring. The tenant
+	   account entry already carries its own primary border. */
 	.app-shell-rail-link:hover,
 	.app-shell-rail-link:focus-visible {
-		background: var(--publy-surface-hover);
+		background: transparent;
 		color: var(--publy-foreground);
 	}
 
 	.app-shell-rail-link[data-active='true'] {
 		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
+	}
+
+	.app-shell-rail-link[data-active='true']:not([data-rail-item='account']) {
+		box-shadow: 0 0 0 1px var(--publy-border);
 	}
 
 	.app-shell-rail-links {
@@ -1236,31 +1243,23 @@ html.dark {
 			transform var(--publy-motion-medium) var(--publy-motion-ease);
 	}
 
+	/* Shopkart FilterPanel group title (#2273 §2.2): mono 14/500, muted at
+	   65%, a 32px row with no separator rule of its own — the group's links
+	   own the bottom border. */
 	.app-shell-secondary-header {
-		@apply flex items-center gap-2 border-b px-4;
-		padding-top: 16px;
-		padding-bottom: 16px;
-		border-color: var(--publy-border);
+		@apply flex items-center px-6;
+		padding-top: 8px;
+		padding-bottom: 0;
 	}
 
 	.app-shell-secondary-title {
-		font-size: 15px;
+		@apply flex items-center;
+		height: 32px;
+		font-family: var(--publy-font-mono);
+		font-size: 14px;
 		font-weight: 500;
-		color: var(--publy-foreground);
-	}
-
-	/* Now in @layer components (F17), so these important markers stay: this is
-   a `<Badge variant="outline">` and Badge's own utilities (h-5, text-xs,
-   px-2 py-0.5, text-foreground) are real conflicts, not decoration — a
-   layered rule without one would lose to them and the chip would revert to
-   Badge's default 20px/12px sizing and full-strength text color. */
-	.app-shell-workspace-pill {
-		height: 22px !important;
-		font-size: 11px !important;
-		border-radius: var(--publy-radius-chip) !important;
-		padding: 0 8px !important;
-		background: var(--publy-surface-muted) !important;
-		color: var(--publy-foreground-muted) !important;
+		color: var(--publy-foreground-muted);
+		opacity: 0.65;
 	}
 
 	/* Same horizontal inset as .app-shell-secondary-nav so the search input
@@ -1311,15 +1310,21 @@ html.dark {
 	}
 
 	.app-shell-secondary-nav {
-		@apply flex min-h-0 flex-1 flex-col overflow-y-auto;
-		padding: 8px;
-		gap: 2px;
+		@apply flex min-h-0 flex-col overflow-y-auto;
+		flex: 0 1 auto;
+		/* 2px top padding so the active row's 1px ring is never clipped —
+		   the r1 review bug (#2273 §6.1). */
+		padding: 2px 16px 8px;
+		gap: 0;
+		border-bottom: 1px solid var(--publy-border);
 	}
 
 	.app-shell-secondary-nav-link {
-		@apply flex items-center gap-2 rounded-lg px-3;
+		@apply flex items-center gap-2;
 		height: 32px;
-		font-size: 13px;
+		padding-inline: 8px;
+		border-radius: 8px;
+		font-size: 14px;
 		color: var(--publy-foreground-muted);
 		transition:
 			background-color var(--publy-motion-fast) var(--publy-motion-ease),
@@ -1327,7 +1332,7 @@ html.dark {
 	}
 
 	.app-shell-secondary-nav-link:hover {
-		background: var(--publy-surface-hover);
+		background: transparent;
 		color: var(--publy-foreground);
 	}
 
@@ -1335,6 +1340,7 @@ html.dark {
 		background: var(--publy-surface-active);
 		color: var(--publy-foreground);
 		font-weight: 500;
+		box-shadow: 0 0 0 1px var(--publy-border);
 	}
 
 	.app-shell-secondary-nav-label {
@@ -1342,8 +1348,10 @@ html.dark {
 	}
 
 	.app-shell-secondary-nav-count {
-		font-size: 11px;
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
 		color: var(--publy-foreground-subtle);
+		opacity: 0.7;
 	}
 
 	.app-shell-secondary-nav-count[data-tone='warning'] {
@@ -1354,9 +1362,10 @@ html.dark {
 		padding: 0 7px;
 	}
 
-	/* Same real conflict as .app-shell-workspace-pill above (also a
-   `<Badge variant="outline">`) — the important marker stays for the same
-   reason. */
+	/* This is a `<Badge variant="outline">`: Badge's own utilities (h-5,
+   text-xs, px-2 py-0.5, text-foreground) are real conflicts, not
+   decoration, so the important marker stays — a layered rule without one
+   would lose to them. */
 	.app-shell-tenant-pill {
 		height: 22px !important;
 		font-size: 11px !important;

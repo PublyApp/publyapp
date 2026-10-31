@@ -48,11 +48,13 @@ vi.mock('@tanstack/react-router', () => ({
 		children,
 		to,
 		search,
+		activeOptions,
 		...props
 	}: {
 		children?: ReactNode;
 		to: string;
 		search?: unknown;
+		activeOptions?: { exact?: boolean };
 	}) => {
 		const resolvedSearch =
 			typeof search === 'function'
@@ -68,6 +70,10 @@ vi.mock('@tanstack/react-router', () => ({
 					resolvedSearch !== undefined
 						? JSON.stringify(resolvedSearch)
 						: undefined,
+				// The real TanStack Link writes aria-current="page" by itself on
+				// any prefix match; passing exact activeOptions is what keeps the
+				// automated ARIA state in sync with the visual ring.
+				'data-active-options-exact': activeOptions?.exact ? 'true' : undefined,
 				...props,
 			},
 			children,
@@ -423,7 +429,54 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 			container.querySelectorAll('[data-rail-item]'),
 		).map((el) => el.getAttribute('data-rail-item'));
 
-		expect(railItemIds).toEqual(['dashboard', 'tenants', 'staff']);
+		expect(railItemIds).toEqual(['dashboard', 'tenants', 'staff', 'jobs']);
+	});
+
+	test('the rail logo leads to the dashboard, not the staff-users list', () => {
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(
+			screen
+				.getByRole('link', { name: 'nav-workspace-home' })
+				.getAttribute('href'),
+		).toBe('/staff/dashboard');
+	});
+
+	test('a sub-page lights its own section entry only', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname="/staff/jobs/system-jobs">
+				content
+			</AppShell>,
+		);
+
+		const activeIds = Array.from(
+			container.querySelectorAll('[data-rail-item][data-active="true"]'),
+		).map((el) => el.getAttribute('data-rail-item'));
+
+		expect(activeIds).toEqual(['jobs']);
+	});
+
+	test('the jobs rail section exposes its three destinations and exact active row', () => {
+		render(
+			<AppShell mode="authed" pathname="/staff/jobs/dead-letter">
+				content
+			</AppShell>,
+		);
+
+		expect(
+			screen.getByRole('link', { name: 'nav-staff-jobs-dead-letter' }),
+		).toBeTruthy();
+		const activeRows = Array.from(
+			document.querySelectorAll(
+				'.app-shell-secondary-nav-link[data-active="true"]',
+			),
+		).map((el) => el.getAttribute('aria-current'));
+
+		expect(activeRows).toEqual(['page']);
 	});
 
 	test('the tenant scope rail renders the shipped workspace modules', () => {
@@ -472,7 +525,12 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		const drawerRailItemIds = Array.from(
 			drawer.querySelectorAll('[data-rail-item]'),
 		).map((el) => el.getAttribute('data-rail-item'));
-		expect(drawerRailItemIds).toEqual(['dashboard', 'tenants', 'staff']);
+		expect(drawerRailItemIds).toEqual([
+			'dashboard',
+			'tenants',
+			'staff',
+			'jobs',
+		]);
 
 		// Each rail item must be reachable BY NAME in the drawer, not just by
 		// testid/data-rail-item — a column of bare icon glyphs with only an
@@ -486,10 +544,182 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		expect(
 			within(drawer).getByRole('link', { name: 'nav-staff' }),
 		).toBeTruthy();
+		expect(
+			within(drawer).getByRole('link', { name: 'nav-staff-jobs' }),
+		).toBeTruthy();
+	});
+
+	test('the shell renders no SimpleBar wrapper — native styled scrollbars own the main area', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(container.querySelector('[data-simplebar]')).toBeNull();
+		expect(container.querySelector('.simplebar-track')).toBeNull();
+		const main = container.querySelector('.app-shell-main');
+		expect(main?.getAttribute('data-simplebar')).toBeNull();
+	});
+});
+
+describe('AppShell active panel row and panel persistence', () => {
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		window.localStorage.clear();
+		resetUiStore();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('only the panel row of the exact route is active', () => {
+		render(
+			<AppShell mode="authed" pathname="/staff/dashboard/activity">
+				content
+			</AppShell>,
+		);
+
+		const activeLinks = Array.from(
+			document.querySelectorAll(
+				'.app-shell-secondary-nav-link[data-active="true"]',
+			),
+		);
+		expect(activeLinks).toHaveLength(1);
+		expect(activeLinks[0]?.textContent).toBe('nav-dashboard-activity');
+	});
+
+	test('an index panel row lights up on its own page with a trailing slash or /index', () => {
+		const { container, rerender } = render(
+			<AppShell mode="authed" pathname="/staff/dashboard/">
+				content
+			</AppShell>,
+		);
+
+		let activeLinks = Array.from(
+			container.querySelectorAll(
+				'.app-shell-secondary-nav-link[aria-current="page"]',
+			),
+		);
+		expect(activeLinks.map((link) => link.textContent)).toEqual([
+			'nav-dashboard-overview',
+		]);
+
+		rerender(
+			<AppShell mode="authed" pathname="/staff/jobs/index">
+				content
+			</AppShell>,
+		);
+		activeLinks = Array.from(
+			container.querySelectorAll(
+				'.app-shell-secondary-nav-link[aria-current="page"]',
+			),
+		);
+		expect(activeLinks.map((link) => link.textContent)).toEqual([
+			'nav-staff-jobs-queue',
+		]);
+	});
+
+	test('only the status row of the current tenant filter announces aria-current', () => {
+		render(
+			<AppShell
+				mode="authed"
+				pathname="/staff/tenants"
+				search={{ status: 'suspended' }}
+			>
+				content
+			</AppShell>,
+		);
+
+		const currentRows = Array.from(
+			document.querySelectorAll(
+				'.app-shell-secondary-nav-link[aria-current="page"]',
+			),
+		);
+		expect(currentRows.map((row) => row.textContent)).toEqual([
+			'nav-tenants-suspended',
+		]);
+	});
+
+	test('dead-letter does not leave the queue row announced as the current page', () => {
+		render(
+			<AppShell mode="authed" pathname="/staff/jobs/dead-letter">
+				content
+			</AppShell>,
+		);
+
+		const currentRows = Array.from(
+			document.querySelectorAll(
+				'.app-shell-secondary-nav-link[aria-current="page"]',
+			),
+		);
+		expect(currentRows.map((row) => row.textContent)).toEqual([
+			'nav-staff-jobs-dead-letter',
+		]);
+		expect(
+			screen
+				.getByRole('link', { name: 'nav-staff-jobs-queue' })
+				.getAttribute('aria-current'),
+		).toBeNull();
+	});
+
+	test('every navigable panel row disables the router prefix match that duplicates aria-current', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname="/staff/jobs/dead-letter">
+				content
+			</AppShell>,
+		);
+
+		const navLinks = Array.from(
+			container.querySelectorAll(
+				'.app-shell-rail-link, .app-shell-secondary-nav-link',
+			),
+		);
+		expect(navLinks.length).toBeGreaterThan(0);
+		expect(
+			navLinks.every(
+				(link) => link.getAttribute('data-active-options-exact') === 'true',
+			),
+		).toBe(true);
+	});
+
+	test('collapsing the panel persists the preference and the label follows', () => {
+		const { rerender } = render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'collapse-navigation-panel' }),
+		);
+
+		expect(window.localStorage.getItem(SIDEBAR_OPEN_STORAGE_KEY)).toBe('false');
+		expect(
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
+		).toBeTruthy();
+
+		rerender(
+			<AppShell mode="authed" pathname="/staff/tenants">
+				content
+			</AppShell>,
+		);
+		expect(
+			screen.getByRole('button', { name: 'expand-navigation-panel' }),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId('app-shell-secondary-panel').hasAttribute('inert'),
+		).toBe(true);
 	});
 });
 
 describe('AppShell secondary-panel status links preserve the toolbar search state (r3-tenants-F5)', () => {
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		resetUiStore();
+	});
+
 	afterEach(() => {
 		cleanup();
 		mocks.linkPrevSearch = {};

@@ -381,7 +381,7 @@ describe('authenticated shell continuity', () => {
 		expect(screen.getByTestId('authed-route-content-skeleton')).toBeTruthy();
 		await waitFor(() => {
 			expect(mocks.navigate).toHaveBeenCalledWith({
-				to: '/staff/staff-users',
+				to: '/staff/dashboard',
 				replace: true,
 			});
 		});

@@ -13,6 +13,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
+import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
+import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
+
 const mocks = vi.hoisted(() => ({
 	search: {},
 	navigate: vi.fn(),
@@ -57,6 +60,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 const TRANSLATIONS: TestLabelMap = {
 	tenant: 'Tenant',
+	'new-organization': 'New organization',
 	'bulk-suspend': 'Suspend selected',
 	'bulk-reactivate': 'Reactivate selected',
 	'bulk-delete': 'Delete selected',
@@ -127,10 +131,6 @@ const TRANSLATIONS: TestLabelMap = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			if (key === 'new-item' && typeof options?.item === 'string') {
-				return `New ${options.item}`;
-			}
-
 			let text = TRANSLATIONS[key] ?? key;
 			if (!options) {
 				return text;
@@ -281,6 +281,22 @@ describe('staff tenants route', () => {
 			cursor: undefined,
 			size: 100,
 		});
+	});
+
+	test('the create CTA uses the feminine organisation label, not a composed masculine one', () => {
+		// "Organisation" is feminine: "Nouveau Organisation" (new-item + tenant)
+		// was the bug. The dedicated key carries the agreed wording in both
+		// locales, and the CTA must render it.
+		expect(sharedFr.common['new-organization']).toBe('Nouvelle organisation');
+		expect(sharedEn.common['new-organization']).toBe('New organization');
+
+		renderPage();
+
+		expect(
+			screen
+				.getByRole('link', { name: 'New organization' })
+				.getAttribute('href'),
+		).toBe('/staff/tenants/new');
 	});
 
 	test('passes the active status filter from the URL through to the tenants query', () => {

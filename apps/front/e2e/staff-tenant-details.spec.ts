@@ -16,7 +16,7 @@ const isApiPath = (url: string, path: string): boolean => {
 };
 
 /**
- * The tenant-details "Tenant sections" tab set renders its own
+ * The tenant-details "Organization sections" tab set renders its own
  * `aria-current="page"` on the active tab, independently of the app-shell
  * breadcrumb's own `aria-current="page"` on its current crumb (the two are
  * separate `<nav>` landmarks — see `_tenant-details-shell.tsx` and
@@ -307,7 +307,9 @@ test.describe(
 			// Secondary panel follows the persisted sidebarOpen preference; default open.
 			await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
-			const nav = page.getByRole('navigation', { name: 'Tenant sections' });
+			const nav = page.getByRole('navigation', {
+				name: 'Organization sections',
+			});
 			await expect(nav.getByText('Basics')).toBeVisible();
 			await expect(nav.getByRole('link', { name: 'Profiles' })).toBeVisible();
 			await expect(
@@ -742,11 +744,11 @@ test.describe(
 			const bar = page.getByTestId('floating-selection-bar');
 			await bar.getByRole('button', { name: 'Bulk actions' }).click();
 			await page
-				.getByRole('menuitem', { name: 'Remove selected from tenant' })
+				.getByRole('menuitem', { name: 'Remove selected from organization' })
 				.click();
 
 			const dialog = page.getByRole('heading', {
-				name: 'Remove selected from tenant',
+				name: 'Remove selected from organization',
 			});
 			await expect(dialog).toBeVisible();
 

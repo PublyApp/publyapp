@@ -342,7 +342,7 @@ const StaffTenantsPage = () => {
 						className={buttonVariants({ variant: 'default' })}
 					>
 						<IconPlus aria-hidden="true" className="size-4" />
-						{t('new-item', { item: t('tenant') })}
+						{t('new-organization')}
 					</Link>
 				}
 			/>

@@ -17,6 +17,7 @@ describe('front route metadata', () => {
 			'nav-dashboard',
 			'nav-tenants',
 			'nav-staff',
+			'nav-staff-jobs',
 		]);
 	});
 
@@ -33,7 +34,7 @@ describe('front route metadata', () => {
 	test('rail items for scope are derived from pathname', () => {
 		expect(
 			getRailItemsForPath('/staff/staff-users').map((route) => route.id),
-		).toEqual(['dashboard', 'tenants', 'staff']);
+		).toEqual(['dashboard', 'tenants', 'staff', 'jobs']);
 		expect(getRailItemsForPath('/tenant').map((route) => route.id)).toEqual([
 			'account',
 			'settings',
@@ -76,6 +77,26 @@ describe('front route metadata', () => {
 		]);
 	});
 
+	test('staff jobs rail entry sits after the staff-members section and owns three sections', () => {
+		expect(getActiveRailItem('/staff/jobs')?.id).toBe('jobs');
+		expect(getActiveRailItem('/staff/jobs/dead-letter')?.id).toBe('jobs');
+		expect(getActiveRailItem('/staff/jobs/system-jobs')?.id).toBe('jobs');
+		expect(
+			getSecondaryPanelItems('/staff/jobs').map((item) => item.labelKey),
+		).toEqual([
+			'nav-staff-jobs-queue',
+			'nav-staff-jobs-dead-letter',
+			'nav-staff-jobs-system',
+		]);
+		expect(
+			getSecondaryPanelItems('/staff/jobs').map((item) => item.path),
+		).toEqual([
+			'/staff/jobs',
+			'/staff/jobs/dead-letter',
+			'/staff/jobs/system-jobs',
+		]);
+	});
+
 	test('tenant root resolves to no active rail item — the picker has no module', () => {
 		expect(getActiveRailItem('/tenant')).toBeUndefined();
 		expect(getSecondaryPanelItems('/tenant')).toEqual([]);
@@ -102,6 +123,78 @@ describe('front route metadata', () => {
 		).toEqual(['profile']);
 	});
 
+	test('panel rows are active on their EXACT pathname only', () => {
+		const [overview, activity, reports] =
+			getSecondaryPanelItems('/staff/dashboard');
+		if (!overview || !activity || !reports) {
+			throw new Error('expected the three dashboard panel items to exist');
+		}
+
+		expect(isSecondaryPanelItemActive(overview, '/staff/dashboard', {})).toBe(
+			true,
+		);
+		expect(isSecondaryPanelItemActive(activity, '/staff/dashboard', {})).toBe(
+			false,
+		);
+		expect(
+			isSecondaryPanelItemActive(overview, '/staff/dashboard/activity', {}),
+		).toBe(false);
+		expect(
+			isSecondaryPanelItemActive(activity, '/staff/dashboard/activity', {}),
+		).toBe(true);
+		expect(
+			isSecondaryPanelItemActive(reports, '/staff/dashboard/reports', {}),
+		).toBe(true);
+	});
+
+	test('index panel rows stay active with a trailing slash or an explicit /index segment', () => {
+		const [overview] = getSecondaryPanelItems('/staff/dashboard');
+		const [queue] = getSecondaryPanelItems('/staff/jobs');
+		if (!overview || !queue) {
+			throw new Error('expected the index panel rows to exist');
+		}
+
+		for (const pathname of [
+			'/staff/dashboard/',
+			'/staff/dashboard/index',
+			'/staff/dashboard/index/',
+		]) {
+			expect(isSecondaryPanelItemActive(overview, pathname, {})).toBe(true);
+		}
+
+		for (const pathname of ['/staff/jobs/', '/staff/jobs/index']) {
+			expect(isSecondaryPanelItemActive(queue, pathname, {})).toBe(true);
+		}
+
+		// Normalisation must not turn the exact match back into a prefix match.
+		expect(
+			isSecondaryPanelItemActive(overview, '/staff/dashboard/activity', {}),
+		).toBe(false);
+		expect(
+			isSecondaryPanelItemActive(queue, '/staff/jobs/dead-letter', {}),
+		).toBe(false);
+	});
+
+	test('every staff panel entry lights up on its own canonical path with a trailing slash', () => {
+		const staffSectionPaths = [
+			'/staff/dashboard',
+			'/staff/tenants',
+			'/staff/staff-users',
+			'/staff/jobs',
+		];
+
+		for (const sectionPath of staffSectionPaths) {
+			const items = getSecondaryPanelItems(sectionPath);
+			expect(items.length).toBeGreaterThan(0);
+
+			for (const item of items) {
+				expect(
+					isSecondaryPanelItemActive(item, `${item.path}/`, item.search ?? {}),
+				).toBe(true);
+			}
+		}
+	});
+
 	test('tenant account panel: only the deepest matching row is active', () => {
 		const [profile] = getSecondaryPanelItems('/tenant/account');
 		if (!profile) {
@@ -112,9 +205,9 @@ describe('front route metadata', () => {
 			true,
 		);
 
-		// The Profile row matches `/tenant/account` by prefix — `matchExact`
-		// must keep it off children's routes, including deep-linked hidden
-		// sections whose routes stay registered.
+		// Panel rows match their EXACT pathname — the Profile row must stay
+		// off children's routes, including deep-linked hidden sections whose
+		// routes stay registered.
 		expect(
 			isSecondaryPanelItemActive(profile, '/tenant/account/security', {}),
 		).toBe(false);
@@ -356,7 +449,7 @@ describe('front route metadata', () => {
 			const requiredKeys = items.map((item) => item.requiredPermissions);
 			// Staff has no module-level gate yet — the staff rail is always
 			// visible. The empty array encodes that contract: NO filter.
-			expect(requiredKeys).toEqual([[], [], []]);
+			expect(requiredKeys).toEqual([[], [], [], []]);
 		});
 
 		test('filterRailItemsByPermissions keeps items whose required key is granted', () => {
@@ -479,6 +572,7 @@ describe('front route metadata', () => {
 				);
 			}
 			expect(items.map((item) => item.requiredPermissions)).toEqual([
+				[],
 				[],
 				[],
 				[],

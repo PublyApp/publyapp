@@ -184,7 +184,7 @@ test.describe(
 				.getByRole('textbox', { name: 'Legal name' })
 				.fill('Acme Corporation Ltd');
 
-			await page.getByRole('link', { name: 'Back to tenant' }).click();
+			await page.getByRole('link', { name: 'Back to organization' }).click();
 
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
@@ -357,11 +357,13 @@ test.describe(
 				.locator('input[name="owners.0.email"]')
 				.fill(`owner-${uniqueSuffix}@acme.com`);
 
-			await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await page
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 			const createDialog = page.getByRole('alertdialog');
 			await expect(createDialog).toBeVisible();
 			await createDialog
-				.getByRole('button', { name: /^(create tenant)$/i })
+				.getByRole('button', { name: /^(create organization)$/i })
 				.click();
 
 			// A UUID-shaped final segment, not a bare `[^/]+` — the latter also

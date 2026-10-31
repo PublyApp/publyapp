@@ -72,7 +72,7 @@ test.describe('logging in on a parked tab', { tag: ['@auth', '@806'] }, () => {
 
 		await loginAsStaffAdmin(page);
 
-		await expect(parkedTab).toHaveURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
+		await expect(parkedTab).toHaveURL(/\/staff(?:\/dashboard)?(?:[?#].*)?$/, {
 			timeout: 10_000,
 		});
 	});
