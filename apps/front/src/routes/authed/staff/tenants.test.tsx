@@ -14,8 +14,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
+/** The URL search the route mock resolves (only what these tests set). */
+type MockSearch = { status?: string };
+
 const mocks = vi.hoisted(() => ({
-	search: {} as Record<string, unknown>,
+	search: {} as MockSearch,
 	navigate: vi.fn(),
 	invalidateQueries: vi.fn(),
 	useStaffTenantsQuery: vi.fn(),
@@ -46,7 +49,7 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS = {
 	tenants: 'Organisations',
 	'tenants-list-description': 'Gérez les organisations.',
 	'list-aria': 'Organisations (personnel)',
@@ -72,19 +75,15 @@ const TRANSLATIONS: Record<string, string> = {
 	'list-empty': 'Aucune organisation ne correspond aux filtres.',
 	'list-statuses': 'Statuts',
 	'list-seats': 'Places',
-	'list-languages': 'Langues',
 	'list-status-active': 'Active',
 	'list-status-pending': 'En attente',
 	'list-status-suspended': 'Suspendue',
 	'list-seats-full': 'Complètes',
 	'list-seats-high': 'Presque pleines',
 	'list-seats-available': 'Places disponibles',
-	'list-invitations-with': 'Invitations en attente',
-	'list-invitations-without': 'Aucune invitation',
 	'list-stat-organisations': 'Organisations',
 	'list-stat-members': 'Membres',
 	'list-stat-almost-full': 'Presque pleines',
-	'list-stat-pending-invitations': 'Invitations en attente',
 	'list-stat-active-count_one': '{{count}} active',
 	'list-stat-active-count_other': '{{count}} actives',
 	'list-stat-pending-count_one': '{{count}} en attente',
@@ -179,7 +178,7 @@ const TRANSLATIONS: Record<string, string> = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			let text = TRANSLATIONS[key] ?? key;
+			let text = TRANSLATIONS[key as keyof typeof TRANSLATIONS] ?? key;
 			for (const [name, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${name}}}`, String(value));
 			}
@@ -304,7 +303,7 @@ describe('staff tenants route (organisations list)', () => {
 		cleanup();
 	});
 
-	test('renders the organisations title, the 4 stat cards and the 14 default columns', () => {
+	test('renders the organisations title, the 3 stat cards and the 14 default columns', () => {
 		renderPage();
 
 		expect(screen.getAllByText('Organisations').length).toBeGreaterThan(0);
@@ -315,9 +314,7 @@ describe('staff tenants route (organisations list)', () => {
 		expect(screen.getByTestId('tenant-stat-almost-full').textContent).toContain(
 			'1',
 		);
-		expect(screen.getByTestId('tenant-stat-invitations').textContent).toContain(
-			'—',
-		);
+		expect(screen.queryByTestId('tenant-stat-invitations')).toBeNull();
 
 		fireEvent.click(
 			screen.getByText('Colonnes').closest('button') as HTMLElement,
@@ -351,20 +348,20 @@ describe('staff tenants route (organisations list)', () => {
 		).toBe('/staff/tenants/new');
 	});
 
-	test('a ?status=pending link filters the list and shows its chip', () => {
+	test('a ?status=pending link filters server-side and shows its chip', () => {
 		mocks.search = { status: 'pending' };
 		renderPage();
 
 		expect(screen.getAllByText('Globex').length).toBeGreaterThan(0);
 		expect(screen.queryByText('Acme Corporation')).toBeNull();
 		expect(screen.getByText('Statuts : En attente')).toBeTruthy();
-		// The API is asked for every status so the panel counters stay honest.
+		// The status filter is sent to the API so it reaches rows on later pages.
 		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith(
-			expect.not.objectContaining({ status: expect.anything() }),
+			expect.objectContaining({ status: 'pending' }),
 		);
 	});
 
-	test('counters equal the rows of the filtered list, from the same data', async () => {
+	test('counters equal the collection when the API returns it in one page', async () => {
 		renderPage();
 		const panel = document.getElementById('app-shell-page-panel');
 		if (!panel) {
@@ -382,17 +379,56 @@ describe('staff tenants route (organisations list)', () => {
 		expect(
 			within(statusGroup as HTMLElement).getByText('Statuts'),
 		).toBeTruthy();
-		// 1 active + 1 pending in the loaded rows.
+		// 1 active + 1 pending, and nextCursor is null: the page is the collection.
 		expect(within(statusGroup as HTMLElement).getAllByText('1')).toHaveLength(
 			2,
 		);
 	});
 
-	test('the missing pending-invitation figure is an em dash, never 0', () => {
+	test('counters show « — » when the API has more pages, never the page', async () => {
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			queryResult({ data: { data: rows, nextCursor: 'next-page' } }),
+		);
 		renderPage();
-		const card = screen.getByTestId('tenant-stat-invitations');
-		expect(card.textContent).not.toContain('0');
-		expect(card.textContent).toContain('—');
+
+		expect(screen.getByTestId('tenant-stat-total').textContent).toContain('—');
+		expect(screen.getByTestId('tenant-stat-members').textContent).toContain(
+			'—',
+		);
+		const panel = document.getElementById('app-shell-page-panel');
+		if (!panel) {
+			throw new Error('panel missing');
+		}
+		const statusGroup = panel.querySelector('[data-list-panel-group="status"]');
+		if (!statusGroup) {
+			throw new Error('status group missing');
+		}
+		// « — » for each of the three status entries, not the page's counts.
+		expect(within(statusGroup as HTMLElement).getAllByText('—')).toHaveLength(
+			3,
+		);
+	});
+
+	test('the dead Langues and Invitations filters are not rendered', () => {
+		renderPage();
+		fireEvent.click(
+			screen.getByText('Filtres').closest('button') as HTMLElement,
+		);
+		const popover = document.querySelector('[data-slot="popover-content"]');
+		if (!popover) {
+			throw new Error('filters popover missing');
+		}
+		expect(within(popover as HTMLElement).getByText('Statuts')).toBeTruthy();
+		expect(within(popover as HTMLElement).getByText('Places')).toBeTruthy();
+		expect(within(popover as HTMLElement).queryByText('Langues')).toBeNull();
+		expect(
+			within(popover as HTMLElement).queryByText('Invitations'),
+		).toBeNull();
+	});
+
+	test('the invitations stat card is omitted until the API provides it', () => {
+		renderPage();
+		expect(screen.queryByTestId('tenant-stat-invitations')).toBeNull();
 	});
 
 	test('the row actions menu offers suspend for an active organisation', () => {

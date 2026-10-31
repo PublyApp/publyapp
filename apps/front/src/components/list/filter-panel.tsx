@@ -5,7 +5,8 @@ type ListPanelEntry = {
 	key: string;
 	label: string;
 	icon: ReactNode;
-	count: number;
+	/** `null` when the API offers no count source: shows « — ». */
+	count: number | null;
 	active: boolean;
 	onClick: () => void;
 };
@@ -40,7 +41,7 @@ const PanelGroup = ({ group }: { group: ListPanelGroup }) => {
 					{entry.icon}
 					<span className="truncate">{entry.label}</span>
 					<span className="ml-auto text-xs tabular-nums opacity-70">
-						{entry.count}
+						{entry.count ?? '—'}
 					</span>
 				</button>
 			))}

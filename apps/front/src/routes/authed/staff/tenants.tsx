@@ -34,6 +34,7 @@ import { TenantStatCards } from './_tenants-list-stat-cards';
 import {
 	parseTenantListSearchParams,
 	serializeTenantListSearchParams,
+	serializeTenantStatusFilter,
 	type TenantListSearchParamInput,
 	type TenantListSearchParams,
 } from './tenants-list-helpers';
@@ -70,6 +71,8 @@ const StaffTenantsPage = () => {
 			search.occupancy.join(','),
 			search.locale.join(','),
 			search.invitations.join(','),
+			search.sortId ?? DEFAULT_SORT.id,
+			search.sortOrder ?? DEFAULT_SORT.order,
 		].join('|'),
 	});
 
@@ -77,8 +80,12 @@ const StaffTenantsPage = () => {
 	// client-side, so the request keeps a valid server order.
 	const sortState = controller.sort;
 	const serverSort = SERVER_SORT_IDS.has(sortState.id);
+	const statusFilter = serializeTenantStatusFilter(search.status);
 	const query = useStaffTenantsQuery({
 		...controller.apiVariables,
+		// The API filters by status server-side, so a status filter reaches
+		// matching organisations on later pages instead of only the loaded one.
+		status: statusFilter,
 		sortId: serverSort ? sortState.id : 'created_at',
 		sortOrder: serverSort ? sortState.order : 'desc',
 	});
@@ -86,6 +93,17 @@ const StaffTenantsPage = () => {
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const selectedIds = selectedTenantIds(rows, selection);
 	const locale = i18n.language;
+
+	// The list API returns `data` + `nextCursor` only: there is no total count
+	// and no per-status count. Counters are exact only when the API proves the
+	// loaded page is the whole collection (first page, no next cursor) and no
+	// server-side status filter narrows it; otherwise they show « — », never a
+	// page-scoped number presented as the total (issue #2275).
+	const collectionComplete =
+		query.data !== undefined &&
+		query.data.nextCursor == null &&
+		!controller.cursor.hasPreviousPage;
+	const countsKnown = collectionComplete && search.status.length === 0;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 
@@ -156,8 +174,13 @@ const StaffTenantsPage = () => {
 			filters={buildTenantFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			countsKnown={countsKnown}
+			emptyText={t('list-empty')}
+			locale={locale}
 			cards={
-				query.isPending ? undefined : <TenantStatCards rows={rows} t={t} />
+				query.isPending ? undefined : (
+					<TenantStatCards rows={rows} t={t} known={countsKnown} />
+				)
 			}
 			totals={buildTenantTotals(t)}
 			onOpen={(row) =>

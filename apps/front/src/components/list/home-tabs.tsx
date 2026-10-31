@@ -3,7 +3,8 @@ import { cn } from '~/lib/utils';
 export type HomeTabDef = {
 	key: string;
 	label: string;
-	count: number;
+	/** `null` when the API offers no count source: the pill shows « — ». */
+	count: number | null;
 };
 
 /**
@@ -24,7 +25,7 @@ export const HomeTabs = ({
 }) => (
 	<nav
 		aria-label={label}
-		className="no-scrollbar sticky top-0 z-(--publy-z-raised) flex items-end gap-1 overflow-x-auto border-b bg-background whitespace-nowrap max-md:-mx-4 max-md:px-4 md:top-[calc(var(--page-pad-top)*-1)]"
+		className="no-scrollbar sticky top-[calc(var(--page-pad-top)*-1)] z-(--publy-z-raised) flex items-end gap-1 overflow-x-auto border-b bg-background whitespace-nowrap max-md:-mx-4 max-md:px-4"
 	>
 		{tabs.map((tab) => {
 			const active = tab.key === current;
@@ -41,7 +42,7 @@ export const HomeTabs = ({
 				>
 					{tab.label}
 					<span className="flex h-5 items-center rounded-[var(--publy-radius-chip)] bg-secondary px-2 text-xs font-medium text-secondary-foreground tabular-nums">
-						{tab.count}
+						{tab.count ?? '—'}
 					</span>
 				</button>
 			);

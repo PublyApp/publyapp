@@ -50,4 +50,32 @@ describe('HomeTabs', () => {
 		fireEvent.click(screen.getByRole('button', { name: /Actives/ }));
 		expect(onPick).toHaveBeenCalledWith('active');
 	});
+
+	test('shows « — » when the API offers no tab count', () => {
+		render(
+			<HomeTabs
+				tabs={[{ key: 'all', label: 'Toutes', count: null }]}
+				current="all"
+				label="Organisations"
+				onPick={vi.fn()}
+			/>,
+		);
+		expect(
+			screen.getByRole('button', { name: /Toutes/ }).textContent,
+		).toContain('—');
+	});
+
+	test('pins under the topbar on both breakpoints via the page-pad variable', () => {
+		render(
+			<HomeTabs
+				tabs={tabs}
+				current="all"
+				label="Organisations"
+				onPick={vi.fn()}
+			/>,
+		);
+		const nav = screen.getByRole('navigation', { name: 'Organisations' });
+		expect(nav.className).toContain('top-[calc(var(--page-pad-top)*-1)]');
+		expect(nav.className).not.toContain('top-0');
+	});
 });

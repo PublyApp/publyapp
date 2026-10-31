@@ -14,7 +14,8 @@ import { useMediaQuery } from '~/lib/hooks/use-media-query';
 import type { ListFilter, ListFiltersValue } from './list-types';
 import { labelOfFilterValue } from './list-types';
 
-export type FilterCounts = Record<string, Record<string, number>>;
+/** Per-choice counts; `null` means the API offers no count source. */
+export type FilterCounts = Record<string, Record<string, number | null>>;
 
 const FilterButton = ({
 	activeCount,
@@ -57,6 +58,7 @@ const FilterOptions = <T,>({
 		<div className="flex flex-col divide-y">
 			{filters.map((filter) => {
 				const selected = active[filter.key] ?? [];
+				const selectedSet = new Set(selected);
 				const Icon = filter.icon;
 				return (
 					<section key={filter.key} className="flex flex-col gap-1 p-2">
@@ -76,7 +78,7 @@ const FilterOptions = <T,>({
 							) : null}
 						</div>
 						{filter.choices.map((choice) => {
-							const checked = selected.includes(choice.value);
+							const checked = selectedSet.has(choice.value);
 							return (
 								<label
 									key={choice.value}
@@ -97,7 +99,7 @@ const FilterOptions = <T,>({
 										{choice.label}
 									</span>
 									<span className="text-xs text-muted-foreground tabular-nums">
-										{counts[filter.key]?.[choice.value] ?? 0}
+										{counts[filter.key]?.[choice.value] ?? '—'}
 									</span>
 								</label>
 							);

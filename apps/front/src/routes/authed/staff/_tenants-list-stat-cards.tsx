@@ -1,7 +1,6 @@
 import {
 	IconBuilding,
 	IconChartPie,
-	IconMail,
 	IconUsersGroup,
 } from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
@@ -12,16 +11,20 @@ import { occupancyBand } from './_tenants-list-model';
 const Dash = () => <span className="text-muted-foreground">—</span>;
 
 /**
- * The four StatCards above the organisations list (§4.2). Every figure is
- * computed from the loaded rows; a value the list API does not provide
- * ("Invitations en attente") is an em dash, never a silent 0.
+ * The StatCards above the organisations list (§4.2). Every figure describes
+ * the whole collection, never just the loaded page: when the consumer keeps
+ * cursor pagination and the API exposes no count source, `known` is false and
+ * the figures are an em dash. The invitations card is omitted until the list
+ * API provides an invitation count (issue #2275).
  */
 export const TenantStatCards = ({
 	rows,
 	t,
+	known = true,
 }: {
 	rows: StaffTenantRow[];
 	t: (key: string, options?: Record<string, unknown>) => string;
+	known?: boolean;
 }) => {
 	let members = 0;
 	let seats = 0;
@@ -53,61 +56,63 @@ export const TenantStatCards = ({
 
 	const seatsShare = seats > 0 ? Math.round((members / seats) * 100) : null;
 
+	let membersFooter = <Dash />;
+	if (known && seatsShare !== null) {
+		membersFooter = (
+			<>
+				<span className="font-medium text-foreground">
+					{t('list-stat-seats-share', { percent: seatsShare })}
+				</span>
+			</>
+		);
+	}
+
 	return (
 		<>
 			<StatCard
 				testId="tenant-stat-total"
 				label={t('list-stat-organisations')}
 				icon={<IconBuilding />}
-				value={rows.length}
+				value={known ? rows.length : <Dash />}
 				footer={
-					<>
-						<span className="font-medium text-foreground">
-							{t('list-stat-active-count', { count: active })}
-						</span>{' '}
-						· {t('list-stat-pending-count', { count: pending })} ·{' '}
-						{t('list-stat-suspended-count', { count: suspended })}
-					</>
+					known ? (
+						<>
+							<span className="font-medium text-foreground">
+								{t('list-stat-active-count', { count: active })}
+							</span>{' '}
+							· {t('list-stat-pending-count', { count: pending })} ·{' '}
+							{t('list-stat-suspended-count', { count: suspended })}
+						</>
+					) : (
+						<Dash />
+					)
 				}
 			/>
 			<StatCard
 				testId="tenant-stat-members"
 				label={t('list-stat-members')}
 				icon={<IconUsersGroup />}
-				value={members}
-				unit={seats > 0 ? `/ ${seats}` : undefined}
-				footer={
-					seatsShare === null ? (
-						<Dash />
-					) : (
-						<>
-							<span className="font-medium text-foreground">
-								{t('list-stat-seats-share', { percent: seatsShare })}
-							</span>
-						</>
-					)
-				}
+				value={known ? members : <Dash />}
+				unit={known && seats > 0 ? `/ ${seats}` : undefined}
+				footer={membersFooter}
 			/>
 			<StatCard
 				testId="tenant-stat-almost-full"
 				label={t('list-stat-almost-full')}
 				icon={<IconChartPie />}
-				value={almostFull}
+				value={known ? almostFull : <Dash />}
 				footer={
-					<>
-						<span className="text-[var(--publy-chip-pending-text)]">
-							{t('list-stat-over-80', { count: almostFull })}
-						</span>{' '}
-						· {t('list-stat-full', { count: full })}
-					</>
+					known ? (
+						<>
+							<span className="text-[var(--publy-chip-pending-text)]">
+								{t('list-stat-over-80', { count: almostFull })}
+							</span>{' '}
+							· {t('list-stat-full', { count: full })}
+						</>
+					) : (
+						<Dash />
+					)
 				}
-			/>
-			<StatCard
-				testId="tenant-stat-invitations"
-				label={t('list-stat-pending-invitations')}
-				icon={<IconMail />}
-				value={<Dash />}
-				footer={<Dash />}
 			/>
 		</>
 	);

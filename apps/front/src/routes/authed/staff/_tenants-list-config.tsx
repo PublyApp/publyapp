@@ -1,9 +1,4 @@
-import {
-	IconChartPie,
-	IconCircleDashed,
-	IconLanguage,
-	IconMail,
-} from '@tabler/icons-react';
+import { IconChartPie, IconCircleDashed } from '@tabler/icons-react';
 import type { ListFilter } from '~/components/list/list-types';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import { StatusPill } from '~/components/ui/product-page';
@@ -24,8 +19,15 @@ import {
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** The organisations list's filters: statuses, seats and languages in the
- * side panel; invitations in the Filters menu only. */
+/** The missing-value convention (§4.1 item 11): « — », never a fabricated 0. */
+const DASH = '—';
+
+/** The organisations list's filters: statuses and seats in the side panel.
+ *
+ * ponytail: the « Langues » and « Invitations » filters are omitted until the
+ * list API returns `defaultLocale` and a pending-invitation count — offering
+ * a filter whose `valueOf` is always empty empties the list with a lie. Both
+ * return with the API fields, tracked in issue #2275. */
 export const buildTenantFilters = (
 	t: Translate,
 ): ListFilter<StaffTenantRow>[] => [
@@ -52,30 +54,6 @@ export const buildTenantFilters = (
 			{ value: 'available', label: t('list-seats-available') },
 		],
 		valueOf: (row) => occupancyBand(row) ?? [],
-	},
-	{
-		key: 'locale',
-		label: t('list-languages'),
-		icon: IconLanguage,
-		panel: true,
-		choices: [
-			{ value: 'fr', label: 'Français' },
-			{ value: 'en', label: 'English' },
-		],
-		// The list API returns no locale: the filter is offered but no row
-		// matches until the API provides one (reported, not faked).
-		valueOf: () => [],
-	},
-	{
-		key: 'invitations',
-		label: t('list-column-invitations'),
-		icon: IconMail,
-		choices: [
-			{ value: 'with', label: t('list-invitations-with') },
-			{ value: 'without', label: t('list-invitations-without') },
-		],
-		// The list API returns no pending-invitation count.
-		valueOf: () => [],
 	},
 ];
 
@@ -167,7 +145,8 @@ export const buildTenantMobileCard =
 				: formatShortDate(row.lastActivityAt, locale);
 		}
 		return {
-			code: row.id.slice(0, 8),
+			// The list API has no code: the table shows « — », so the card does too.
+			code: DASH,
 			badges: status ? (
 				<StatusPill tone={statusPillTone(row.status)}>
 					{t(`list-status-${status}`)}

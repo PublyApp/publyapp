@@ -51,9 +51,20 @@ export type ListPageProps<T extends { id: string }> = {
 	onSortingChange: (next: SortingState) => void;
 	q: string;
 	onSearch: (q: string | undefined) => void;
+	/** Locale for the client-side sort collation (the runtime i18n locale). */
+	locale?: string;
 	filters: ListFilter<T>[];
 	filtersValue: ListFiltersValue;
 	onFiltersChange: (next: ListFiltersValue) => void;
+	/**
+	 * Whether the counters (panel groups, filter-menu badges, tabs) describe
+	 * the whole collection. Pass `false` when the consumer keeps cursor
+	 * pagination and the API exposes no count source: the counters then show
+	 * « — » instead of counting the loaded page.
+	 */
+	countsKnown?: boolean;
+	/** The empty state's text (the generic page has no resource noun). */
+	emptyText?: string;
 	tabs?: ListTab<T>[];
 	currentTab?: string;
 	onTabChange?: (key: string) => void;
@@ -108,9 +119,12 @@ export const ListPage = <T extends { id: string }>({
 	onSortingChange,
 	q,
 	onSearch,
+	locale,
 	filters,
 	filtersValue,
 	onFiltersChange,
+	countsKnown = true,
+	emptyText,
 	tabs = [],
 	currentTab,
 	onTabChange,
@@ -170,7 +184,7 @@ export const ListPage = <T extends { id: string }>({
 				if (typeof left === 'number' && typeof right === 'number') {
 					return (left - right) * direction;
 				}
-				return String(left).localeCompare(String(right), 'fr') * direction;
+				return String(left).localeCompare(String(right), locale) * direction;
 			});
 		}
 	}
@@ -202,16 +216,21 @@ export const ListPage = <T extends { id: string }>({
 		specs,
 	});
 
-	const countsFor = (filter: ListFilter<T>) =>
+	// The same per-choice counts feed the filter menu and the side panel (the
+	// Shopkart faceted rule: count within the other filters). `null` means the
+	// collection is not fully loaded and the API exposes no count source.
+	const countsFor = (filter: ListFilter<T>): Record<string, number | null> =>
 		Object.fromEntries(
 			filter.choices.map((choice) => [
 				choice.value,
-				rows.filter(
-					(row) =>
-						inTab(row) &&
-						passes(row, filter.key) &&
-						listValueHas(filter.valueOf(row), choice.value),
-				).length,
+				countsKnown
+					? rows.filter(
+							(row) =>
+								inTab(row) &&
+								passes(row, filter.key) &&
+								listValueHas(filter.valueOf(row), choice.value),
+						).length
+					: null,
 			]),
 		);
 	const counts: FilterCounts = {};
@@ -254,23 +273,24 @@ export const ListPage = <T extends { id: string }>({
 		onFiltersChange(next);
 	};
 
-	const panelGroups: ListPanelGroup[] = filters
-		.filter((filter) => filter.panel)
-		.map((filter) => ({
+	const panelGroups: ListPanelGroup[] = [];
+	for (const filter of filters) {
+		if (!filter.panel) {
+			continue;
+		}
+		panelGroups.push({
 			key: filter.key,
 			title: filter.label,
 			entries: filter.choices.map((choice) => ({
 				key: `${filter.key}:${choice.value}`,
 				label: choice.label,
 				icon: choice.icon ?? <FilterGlyph icon={filter.icon} />,
-				count: rows.filter(
-					(row) =>
-						inTab(row) && listValueHas(filter.valueOf(row), choice.value),
-				).length,
+				count: counts[filter.key]?.[choice.value] ?? null,
 				active: filtersValue[filter.key]?.includes(choice.value) ?? false,
 				onClick: () => shortcut(filter.key, choice.value),
 			})),
-		}));
+		});
+	}
 
 	let activeFilterCount = 0;
 	for (const filter of filters) {
@@ -283,16 +303,17 @@ export const ListPage = <T extends { id: string }>({
 		rowCount: displayed.length,
 		hasActiveSearch,
 	});
+	const emptyContent = emptyText ?? t('list-empty');
 	const emptyNode = (
 		<p className="py-10 text-center text-sm text-muted-foreground">
-			{t('list-empty')}
+			{emptyContent}
 		</p>
 	);
 
 	const tabDefs = tabs.map((entry) => ({
 		key: entry.key,
 		label: entry.label,
-		count: rows.filter(entry.match).length,
+		count: countsKnown ? rows.filter(entry.match).length : null,
 	}));
 	const titleRow = (
 		<>
@@ -442,7 +463,7 @@ export const ListPage = <T extends { id: string }>({
 					resolvedRowHeight={48}
 					onRetry={queryState.onRetry}
 					errorContent={t('list-error-default-description')}
-					emptyContent={t('list-empty')}
+					emptyContent={emptyContent}
 					noMatchContent={t('list-no-match-default-description')}
 				/>
 			) : (
