@@ -273,31 +273,40 @@ vi.mock('~/components/table/data-table', () => ({
 		queryState: { isPending: boolean; isError: boolean };
 		emptyTitle?: string;
 		emptyContent?: string;
-	}) =>
-		createElement('div', { 'data-testid': testId }, [
-			queryState.isPending
-				? createElement('div', { key: 'loading' }, 'Loading...')
-				: rows.length === 0
-					? createElement(
-							'div',
-							{ key: 'empty' },
-							createElement('p', {}, emptyTitle),
-							createElement('p', {}, emptyContent),
-						)
-					: rows.map((row) =>
-							createElement(
-								'div',
-								{ key: row.id, 'data-testid': `row-${row.id}` },
-								columns.map((col) =>
-									createElement(
-										'span',
-										{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
-										col.cell({ row: { original: row } }),
-									),
-								),
-							),
+	}) => {
+		if (queryState.isPending) {
+			return createElement('div', { 'data-testid': testId }, [
+				createElement('div', { key: 'loading' }, 'Loading...'),
+			]);
+		}
+		if (rows.length === 0) {
+			return createElement('div', { 'data-testid': testId }, [
+				createElement(
+					'div',
+					{ key: 'empty' },
+					createElement('p', {}, emptyTitle),
+					createElement('p', {}, emptyContent),
+				),
+			]);
+		}
+		return createElement(
+			'div',
+			{ 'data-testid': testId },
+			rows.map((row) =>
+				createElement(
+					'div',
+					{ key: row.id, 'data-testid': `row-${row.id}` },
+					columns.map((col) =>
+						createElement(
+							'span',
+							{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
+							col.cell({ row: { original: row } }),
 						),
-		]),
+					),
+				),
+			),
+		);
+	},
 }));
 
 vi.mock('./_permissions', () => ({

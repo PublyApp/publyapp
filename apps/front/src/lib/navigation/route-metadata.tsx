@@ -459,9 +459,10 @@ export const getSecondaryPanelItems = (
  */
 const normalizeActivePathname = (pathname: string): string => {
 	const withoutTrailingSlashes = pathname.replace(/\/+$/, '');
-	return withoutTrailingSlashes.endsWith('/index')
-		? withoutTrailingSlashes.slice(0, -'/index'.length)
-		: withoutTrailingSlashes;
+	if (withoutTrailingSlashes.endsWith('/index')) {
+		return withoutTrailingSlashes.slice(0, -'/index'.length);
+	}
+	return withoutTrailingSlashes;
 };
 
 /**
