@@ -9,6 +9,7 @@ import {
 	screen,
 	within,
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('react-i18next', () => ({
@@ -79,6 +80,8 @@ const renderPage = (
 		inset?: boolean;
 		q?: string;
 		data?: Row[];
+		isError?: boolean;
+		errorContent?: ReactNode;
 	} = {},
 ) =>
 	render(
@@ -111,7 +114,12 @@ const renderPage = (
 				openLabel={(row) => `Ouvrir ${row.name}`}
 				mobileCard={(row) => ({ code: row.status, title: row.name })}
 				cards={<div data-testid="stats" />}
-				queryState={{ isPending: false, isError: false, onRetry: vi.fn() }}
+				queryState={{
+					isPending: false,
+					isError: options.isError ?? false,
+					onRetry: vi.fn(),
+				}}
+				errorContent={options.errorContent}
 			/>
 		</>,
 	);
@@ -208,5 +216,19 @@ describe('ListPage', () => {
 		);
 		expect(screen.getAllByText('list-empty').length).toBeGreaterThan(0);
 		expect(screen.queryByText('list-no-match-title')).toBeNull();
+	});
+
+	test('consumer error content replaces the generic error description', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				errorContent: <p>403 specific explanation</p>,
+			},
+		);
+
+		expect(screen.getByText('403 specific explanation')).toBeTruthy();
+		expect(screen.queryByText('list-error-default-description')).toBeNull();
+		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
 	});
 });

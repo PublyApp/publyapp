@@ -85,6 +85,9 @@ export type ListPageProps<T extends { id: string }> = {
 		isError: boolean;
 		onRetry: () => void;
 	};
+	/** Extra content in the error state (e.g. a 403 explanation); falls back to
+	 * the generic description when omitted. */
+	errorContent?: ReactNode;
 	/** Extra content under the table (a cursor pager). */
 	footer?: ReactNode;
 	/** Extra content after the page (a drawer). */
@@ -255,7 +258,9 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					bodyState={page.bodyState}
 					resolvedRowHeight={48}
 					onRetry={props.queryState.onRetry}
-					errorContent={t('list-error-default-description')}
+					errorContent={
+						props.errorContent ?? t('list-error-default-description')
+					}
 					emptyContent={page.emptyContent}
 					noMatchContent={t('list-no-match-default-description')}
 				/>

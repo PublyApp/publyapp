@@ -81,7 +81,7 @@ export const invitationColumns = (
 					{row.profileName}
 				</span>
 			) : (
-				<Dash />
+				<span className="text-muted-foreground">{t('unknown-profile')}</span>
 			),
 		sortable: false,
 	},
@@ -90,7 +90,10 @@ export const invitationColumns = (
 		header: t('common:invited-by'),
 		icon: IconUserPlus,
 		width: 170,
-		cell: (row) => row.invitedByName || <Dash />,
+		cell: (row) =>
+			row.invitedByName || (
+				<span className="text-muted-foreground">{t('unknown-inviter')}</span>
+			),
 		sortable: false,
 	},
 	{
