@@ -195,7 +195,7 @@
 		"@base-ui/react": "1.9.0",
 		"@hookform/resolvers": "5.9.1",
 		"@microsoft/kiota-abstractions": "1.0.0-preview.107",
-		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.103",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.111",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"@tabler/icons-react": "3.49.0",
