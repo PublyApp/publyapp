@@ -117,8 +117,11 @@ export const buildInvitationMobileCard =
 		),
 		end: row.createdAt ? formatShortDate(row.createdAt, locale) : DASH,
 		title: row.email,
-		sub: row.profileName || DASH,
-		foot: [t('invited-by'), row.invitedByName || DASH] as [string, string],
+		sub: row.profileName || t('unknown-profile'),
+		foot: [t('invited-by'), row.invitedByName || t('unknown-inviter')] as [
+			string,
+			string,
+		],
 	});
 
 export const exportInvitationRows = (

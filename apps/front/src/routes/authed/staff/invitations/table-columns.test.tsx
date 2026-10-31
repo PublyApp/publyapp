@@ -121,7 +121,7 @@ describe('invitationColumns', () => {
 		expect(screen.queryByRole('link')).toBeNull();
 	});
 
-	test('shows a dash for a missing profile or inviter', () => {
+	test('labels a missing profile or inviter as unknown', () => {
 		const columns = invitationColumns(t, 'en');
 		const profileColumn = columns.find((column) => column.id === 'profile');
 		const invitedByColumn = columns.find((column) => column.id === 'invitedBy');
@@ -132,7 +132,9 @@ describe('invitationColumns', () => {
 			</>,
 		);
 
-		expect(screen.getAllByText('—')).toHaveLength(2);
+		expect(screen.getByText('unknown-profile')).toBeTruthy();
+		expect(screen.getByText('unknown-inviter')).toBeTruthy();
+		expect(screen.queryByText('—')).toBeNull();
 	});
 });
 

@@ -1,6 +1,7 @@
 import { IconUserPlus } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { SortingState } from '@tanstack/react-table';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListPage } from '~/components/list/list-page';
 import type {
@@ -35,9 +36,14 @@ type StaffProfileUsersListProps = {
 	size: number;
 	hasPreviousPage: boolean;
 	hasNextPage: boolean;
-	isPending: boolean;
-	isError: boolean;
-	isFetching: boolean;
+	/** The users query's loading flags, grouped like `DataTable`'s. */
+	queryState: {
+		isPending: boolean;
+		isError: boolean;
+		isFetching: boolean;
+	};
+	/** Replaces the generic list error description (a 403 explanation). */
+	errorContent?: ReactNode;
 	q: string;
 	sorting: SortingState;
 	selection: ListSelection;
@@ -74,9 +80,8 @@ export const StaffProfileUsersList = ({
 	size,
 	hasPreviousPage,
 	hasNextPage,
-	isPending,
-	isError,
-	isFetching,
+	queryState,
+	errorContent,
 	q,
 	sorting,
 	selection,
@@ -96,6 +101,7 @@ export const StaffProfileUsersList = ({
 	onTeamSelect,
 }: StaffProfileUsersListProps) => {
 	const { t } = useTranslation('common');
+	const { isPending, isError, isFetching } = queryState;
 
 	return (
 		<div className="publy-page-fill">
@@ -127,6 +133,8 @@ export const StaffProfileUsersList = ({
 					onTeamSelect,
 				)}
 				newAction={
+					// ponytail: no bulk-assign endpoint exists yet — the profile
+					// overview is the only place membership is editable today.
 					<Link
 						to="/staff/profiles/$profileId"
 						params={{ profileId }}
@@ -146,6 +154,7 @@ export const StaffProfileUsersList = ({
 				})}
 				selection={selection}
 				queryState={{ isPending, isError, onRetry }}
+				errorContent={errorContent}
 				footer={
 					rows.length > 0 ? (
 						<DataTableCursorFooter

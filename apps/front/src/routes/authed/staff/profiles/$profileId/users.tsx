@@ -29,6 +29,7 @@ import type {
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
@@ -176,6 +177,13 @@ const StaffProfileUsersPage = () => {
 	const hasPreviousPage = pageIndex > 0;
 	const hasNextPage =
 		totalCount !== null && (pageIndex + 1) * controller.size < totalCount;
+	const usersFailure = usersError !== null ? toApiFailure(usersError) : null;
+	const usersErrorContent =
+		usersFailure?.kind === 'problem' && usersFailure.status === 403 ? (
+			<p className="text-sm text-muted-foreground">
+				{t('no-permission-to-view-assigned-users')}
+			</p>
+		) : undefined;
 
 	return (
 		<div
@@ -236,9 +244,12 @@ const StaffProfileUsersPage = () => {
 						size={controller.size}
 						hasPreviousPage={hasPreviousPage}
 						hasNextPage={hasNextPage}
-						isPending={usersQuery.isPending}
-						isError={usersQuery.isError}
-						isFetching={usersQuery.isFetching}
+						queryState={{
+							isPending: usersQuery.isPending,
+							isError: usersQuery.isError,
+							isFetching: usersQuery.isFetching,
+						}}
+						errorContent={usersErrorContent}
 						q={search.q ?? ''}
 						sorting={[
 							{

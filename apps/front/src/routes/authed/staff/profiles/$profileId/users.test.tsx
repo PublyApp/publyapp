@@ -143,6 +143,7 @@ vi.mock('~/components/list/list-page', () => ({
 				'data-count': String(props.count),
 			},
 			props.newAction as ReactNode,
+			props.errorContent as ReactNode,
 		);
 	},
 }));
@@ -291,5 +292,23 @@ describe('staff profile users page', () => {
 		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
+	});
+
+	test('passes the 403 explanation to the list error state', () => {
+		mocks.useStaffProfileUsersQuery.mockReturnValue({
+			data: undefined,
+			isPending: false,
+			isError: true,
+			isFetching: false,
+			error: { status: 403, responseStatusCode: 403 },
+			refetch: vi.fn(),
+		});
+
+		renderPage();
+
+		expect(
+			screen.getByText('no-permission-to-view-assigned-users'),
+		).toBeTruthy();
+		expect(listPageProps('errorContent')).toBeTruthy();
 	});
 });
