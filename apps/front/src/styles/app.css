@@ -322,6 +322,10 @@
 	   z-index only: overlay backdrop < drawer/dialog surface < menu/select
 	   popups, so a Select/DropdownMenu opened from inside a Drawer paints
 	   above it instead of underneath. */
+	/* A list's sticky first column (#2280): above the row's other body cells,
+	   below the pinned toolbar/header (`--publy-z-raised`) it must never paint
+	   over while the table scrolls under them. */
+	--publy-z-sticky-cell: 2;
 	--publy-z-raised: 10;
 	--publy-z-shell-topbar: 20;
 	--publy-z-selection-bar: 40;

@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
 
+// Under md the actions drop below the title (Shopkart's PageTitle): a 390px
+// row cannot hold « Organisations » and the action cluster side by side
+// without the buttons painting over the title (#2280).
 export const PageHeader = ({
 	title,
 	description,
@@ -12,7 +15,7 @@ export const PageHeader = ({
 	/** Count badge rendered beside the title inside a shared flex wrapper. */
 	count?: ReactNode;
 }) => (
-	<header className="publy-page-header">
+	<header className="publy-page-header max-md:flex-col max-md:items-stretch">
 		<div className="min-w-0">
 			{count ? (
 				<div className="flex items-center gap-2.5">

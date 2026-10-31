@@ -28,6 +28,10 @@ describe('ListToolbar', () => {
 
 		const toolbar = container.querySelector('[data-list-toolbar]');
 		expect(toolbar?.className).toContain('top-[calc(var(--page-pad-top)*-1)]');
+		// #2280: the pinned toolbar outranks the table's sticky first column
+		// (`--publy-z-sticky-cell`), which must never paint over it.
+		expect(toolbar?.className).toContain('md:z-(--publy-z-raised)');
+		expect(toolbar?.className).toContain('max-md:z-(--publy-z-raised)');
 		expect(onHeightChange).toHaveBeenCalledWith(0);
 	});
 });

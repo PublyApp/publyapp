@@ -74,7 +74,12 @@ const filters: ListFilter<Row>[] = [
 
 const renderPage = (
 	active: Record<string, string[]> = {},
-	options: { countsKnown?: boolean; inset?: boolean } = {},
+	options: {
+		countsKnown?: boolean;
+		inset?: boolean;
+		q?: string;
+		data?: Row[];
+	} = {},
 ) =>
 	render(
 		<>
@@ -83,13 +88,13 @@ const renderPage = (
 				ariaLabel="Organisations"
 				title="Organisations"
 				searchPlaceholder="Rechercher"
-				rows={rows}
+				rows={options.data ?? rows}
 				columns={columns}
 				defaultColumns={['name', 'members']}
 				lockedColumn="name"
 				sorting={[]}
 				onSortingChange={vi.fn()}
-				q=""
+				q={options.q ?? ''}
 				onSearch={vi.fn()}
 				filters={filters}
 				filtersValue={active}
@@ -176,5 +181,32 @@ describe('ListPage', () => {
 				.getByRole('button', { name: 'list-stats-expand' })
 				.getAttribute('aria-expanded'),
 		).toBe('false');
+	});
+
+	// #2280: the list fills the height left by the page so the table scrolls
+	// inside it and the pager stays reachable. `.publy-page-fill` is the
+	// established bounded-height chain (flex h-full min-h-0 flex-col gap-4).
+	test('the list page fills the remaining viewport height', () => {
+		const { container } = renderPage();
+		const root = container.querySelector('[data-list-page]');
+		expect(root?.className).toContain('publy-page-fill');
+	});
+
+	// #2280: a search with no match is not a filter miss.
+	test('a search with no match says so', () => {
+		renderPage({}, { q: 'zzz', data: [] });
+		expect(screen.getAllByText('list-no-match-title').length).toBeGreaterThan(
+			0,
+		);
+		expect(screen.queryByText('list-empty')).toBeNull();
+	});
+
+	test('a filter with no match keeps the consumer filters text', () => {
+		renderPage(
+			{ status: ['pending'] },
+			{ data: [{ id: 'a', name: 'Acme', members: 1, status: 'active' }] },
+		);
+		expect(screen.getAllByText('list-empty').length).toBeGreaterThan(0);
+		expect(screen.queryByText('list-no-match-title')).toBeNull();
 	});
 });

@@ -317,9 +317,16 @@ export const ListPage = <T extends { id: string }>({
 		hasActiveSearch,
 	});
 	const emptyContent = emptyText ?? t('list-empty');
+	// A search with no match gets its own wording (already keyed, the same
+	// sentence the table states use); filters keep the consumer's text. The
+	// table body is the only body that rendered the wrong sentence (#2280).
+	const bodyContent =
+		bodyState === 'no-match' && q.length > 0
+			? t('list-no-match-title')
+			: emptyContent;
 	const emptyNode = (
 		<p className="py-10 text-center text-sm text-muted-foreground">
-			{emptyContent}
+			{bodyContent}
 		</p>
 	);
 
@@ -392,7 +399,10 @@ export const ListPage = <T extends { id: string }>({
 
 	return (
 		<div
-			className="flex min-h-full flex-col gap-4"
+			// The established bounded-height chain (conventions.md: table views
+			// scroll inside the table, never the page): the table's flex-1 box
+			// then owns the rows' scroll and the pager stays on screen (#2280).
+			className="publy-page-fill"
 			data-list-page=""
 			style={{ '--search-height': `${searchHeight}px` } as CSSProperties}
 		>

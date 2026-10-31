@@ -140,4 +140,51 @@ describe('ListTable', () => {
 		render(<Harness sorting={[]} onSortingChange={vi.fn()} data={[]} />);
 		expect(screen.getByText('Vide')).toBeTruthy();
 	});
+
+	// #2280: the sticky first column used to share `--publy-z-raised` with the
+	// pinned toolbar and header and, being later in the DOM, painted over them
+	// while scrolling. The scale now puts it above the row's own cells only.
+	test('the sticky first column stays below the pinned header and toolbar', () => {
+		render(<Harness sorting={[]} onSortingChange={vi.fn()} />);
+
+		const pinned = document.querySelectorAll('td.sticky');
+		expect(pinned.length).toBeGreaterThan(0);
+		for (const cell of pinned) {
+			expect(cell.className).toContain('z-(--publy-z-sticky-cell)');
+			expect(cell.className).not.toContain('z-(--publy-z-raised)');
+		}
+
+		for (const header of document.querySelectorAll('th')) {
+			expect(header.className).toContain('z-(--publy-z-raised)');
+		}
+		expect(document.querySelector('[data-pinned-head]')?.className).toContain(
+			'z-(--publy-z-raised)',
+		);
+	});
+
+	// #2280 §2.11: the box fills the height left and scrolls its rows between
+	// a fixed header and the totals, which are the last thing in the box —
+	// nothing (no partial row) can show under them.
+	test('the totals are pinned at the bottom of the scrolling box', () => {
+		render(<Harness sorting={[]} onSortingChange={vi.fn()} />);
+
+		const head = document.querySelector('[data-pinned-head]');
+		const box = head?.parentElement;
+		const scroller = head?.nextElementSibling;
+		const foot = document.querySelector('[data-pinned-foot]');
+
+		expect(box).not.toBeNull();
+		expect(box?.className).toContain('flex-1');
+		expect(box?.className).toContain('min-h-[320px]');
+		expect(box?.lastElementChild).toBe(foot);
+
+		expect(scroller?.className).toContain('overflow-auto');
+		expect(scroller?.className).toContain('flex-1');
+		expect(scroller?.className).toContain('min-h-0');
+		expect(scroller?.contains(foot)).toBe(false);
+
+		expect(foot?.className).toContain('sticky');
+		expect(foot?.className).toContain('bottom-0');
+		expect(foot?.className).toContain('z-(--publy-z-raised)');
+	});
 });

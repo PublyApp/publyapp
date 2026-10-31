@@ -174,7 +174,7 @@ const TableRow = ({
 					key={cell.id}
 					className={cn(
 						'truncate border-r border-b bg-background px-2 last:border-r-0 group-hover/row:bg-card group-focus-visible/row:bg-card',
-						index === 0 && 'sticky left-0 z-(--publy-z-raised)',
+						index === 0 && 'sticky left-0 z-(--publy-z-sticky-cell)',
 					)}
 				>
 					{index === 0 ? (
@@ -286,9 +286,17 @@ export const useListTable = <T extends { id: string }>({
 /**
  * A generic list table (Shopkart OS `data-table.tsx`): the pinned header and
  * totals, a sticky first column, vertical rules carried down through the
- * spacer row to the totals, and the meta cards below `md`. The header and the
- * totals are separate tables outside the sideways scroller, so they stay
- * pinned against the page while following its scroll.
+ * spacer row to the totals, and the meta cards below `md`. The box fills the
+ * height left by the page (#2280): the header and the totals are shrink-0
+ * siblings of the only scroller, so the rows scroll between them — the totals
+ * sit at the bottom of the scroll area with nothing under them, and the pager
+ * below stays on screen instead of after a hundred rows.
+ *
+ * The header and totals tables are outside the sideways scroller (any overflow
+ * would be the box a sticky header sticks in) and follow its `scrollLeft`. The
+ * body's first column pins with `--publy-z-sticky-cell`, below the toolbar and
+ * header's `--publy-z-raised`: a cell sliding under them must never paint over
+ * them (#2280).
  */
 export const ListTable = <T extends { id: string }>({
 	ariaLabel,
@@ -343,7 +351,7 @@ export const ListTable = <T extends { id: string }>({
 				<div
 					ref={headBox}
 					data-pinned-head=""
-					className="sticky top-[calc(var(--search-height,0px)-var(--page-pad-top))] z-(--publy-z-raised) shrink-0 overflow-hidden"
+					className="sticky top-[calc(var(--search-height,0px)-var(--page-pad-top))] z-(--publy-z-raised) shrink-0 overflow-hidden [scrollbar-gutter:stable]"
 				>
 					<table aria-label={ariaLabel} className={TABLE} style={{ minWidth }}>
 						{cols}
@@ -359,7 +367,7 @@ export const ListTable = <T extends { id: string }>({
 					</table>
 				</div>
 				<div
-					className="min-h-0 flex-1 overflow-x-auto [container-type:inline-size]"
+					className="min-h-0 flex-1 overflow-auto [container-type:inline-size] [scrollbar-gutter:stable]"
 					onScroll={(event) => {
 						for (const pinned of [headBox.current, footBox.current]) {
 							if (pinned) {
@@ -402,7 +410,7 @@ export const ListTable = <T extends { id: string }>({
 										key={id}
 										className={cn(
 											'border-r bg-background p-0 last:border-r-0',
-											index === 0 && 'sticky left-0 z-(--publy-z-raised)',
+											index === 0 && 'sticky left-0 z-(--publy-z-sticky-cell)',
 										)}
 									/>
 								))}
@@ -410,10 +418,12 @@ export const ListTable = <T extends { id: string }>({
 						</tbody>
 					</table>
 				</div>
+				{/* Pinned to the bottom of the scroll area, after the scroller: no
+				    partial row can show under it (#2280). */}
 				<div
 					ref={footBox}
 					data-pinned-foot=""
-					className="sticky bottom-0 z-(--publy-z-raised) shrink-0 overflow-hidden bg-background"
+					className="sticky bottom-0 z-(--publy-z-raised) shrink-0 overflow-hidden bg-background [scrollbar-gutter:stable]"
 				>
 					<table
 						aria-label={t('list-summary')}
@@ -429,7 +439,7 @@ export const ListTable = <T extends { id: string }>({
 										title={totals.get(id)}
 										className={cn(
 											'truncate border-t border-r bg-background px-2 last:border-r-0',
-											index === 0 && 'sticky left-0 z-(--publy-z-raised)',
+											index === 0 && 'sticky left-0 z-(--publy-z-sticky-cell)',
 										)}
 									>
 										{totals.get(id)}
