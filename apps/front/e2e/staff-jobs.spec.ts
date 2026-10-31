@@ -105,15 +105,23 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		// Deterministic action-gating: see mockStaffAuthScope above.
 		await mockStaffAuthScope(page);
 
-		// --- Queue tab renders rows from the mocked list endpoint.
+		// --- Queue section renders rows from the mocked list endpoint.
 		await mockQueueList(page, [queueRow]);
 		await page.goto('/staff/jobs');
 		await expect(page.getByTestId(QUEUE_TABLE)).toBeVisible();
 		await expect(
 			page.getByTestId(QUEUE_TABLE).getByText('SendEmailJob'),
 		).toBeVisible();
+		// The index route lights its own panel row even though its pathname is
+		// the section path, and no sibling row claims the current page.
+		const panel = page.getByTestId('app-shell-secondary-panel');
+		await expect(panel.locator('[aria-current="page"]')).toHaveCount(1);
+		await expect(panel.getByRole('link', { name: 'Queue' })).toHaveAttribute(
+			'aria-current',
+			'page',
+		);
 
-		// --- Dead-letter tab: a failed row is inspectable and requeuable.
+		// --- Dead-letter section: a failed row is inspectable and requeuable.
 		const deadLetterId = 'aaaaaaaa-0000-0000-0000-000000000002';
 		let requeued = false;
 		await page.route('**/staff/jobs/dead-letter**', async (route) => {
@@ -194,9 +202,19 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 				});
 			},
 		);
-		await page.getByRole('tab', { name: 'Dead letter' }).click();
+		await page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'Dead letter' })
+			.click();
 		const url = new URL(page.url());
 		expect(url.pathname).toBe('/staff/jobs/dead-letter');
+		await expect(panel.locator('[aria-current="page"]')).toHaveCount(1);
+		await expect(
+			panel.getByRole('link', { name: 'Dead letter' }),
+		).toHaveAttribute('aria-current', 'page');
+		await expect(
+			panel.getByRole('link', { name: 'Queue' }),
+		).not.toHaveAttribute('aria-current', 'page');
 		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
 		await page.getByRole('button', { name: 'SendEmailJob' }).first().click();
 		await page.getByTestId(`dead-letter-requeue-${deadLetterId}`).click();
@@ -268,7 +286,10 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 			},
 		);
 
-		await page.getByRole('tab', { name: 'System jobs' }).click();
+		await page
+			.getByTestId('app-shell-secondary-panel')
+			.getByRole('link', { name: 'System jobs' })
+			.click();
 		await expect(page.getByTestId(SYSTEM_TABLE)).toBeVisible();
 		await page.getByTestId(`system-job-trigger-${systemJobId}`).click();
 		await expect(page.getByText('System job enqueued')).toBeVisible({

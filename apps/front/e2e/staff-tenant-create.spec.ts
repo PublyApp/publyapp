@@ -262,11 +262,15 @@ test.describe(
 					isApiPath(request.url(), STAFF_TENANTS_PATH),
 			);
 
-			await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await page
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
-			await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await dialog
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 			await createRequest;
 
 			await expect(page).toHaveURL(
@@ -311,10 +315,14 @@ test.describe(
 					isApiPath(request.url(), STAFF_TENANTS_PATH),
 			);
 
-			await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await page
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
-			await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await dialog
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 			const request = await createRequest;
 
 			const body = request.postDataJSON() as Record<string, unknown>;
@@ -356,7 +364,9 @@ test.describe(
 				}
 			});
 
-			await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await page
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
@@ -420,10 +430,14 @@ test.describe(
 					request.method() === 'POST' &&
 					isApiPath(request.url(), STAFF_TENANTS_PATH),
 			);
-			await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await page
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
-			await dialog.getByRole('button', { name: /^(create tenant)$/i }).click();
+			await dialog
+				.getByRole('button', { name: /^(create organization)$/i })
+				.click();
 			const request = await createRequest;
 			expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
 				UPLOADED_LOGO_URL,

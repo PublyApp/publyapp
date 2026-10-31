@@ -75,6 +75,9 @@ vi.mock('react-i18next', () => ({
 					"You don't have permission for this action.",
 				'no-rows-match-title': 'No matches',
 				'no-rows-match-description': 'No system jobs match your search.',
+				'system-empty-title': 'No system jobs',
+				'system-empty-description':
+					"The platform's recurring jobs will appear here.",
 			};
 
 			let text = labels[key] ?? key;
@@ -261,28 +264,39 @@ vi.mock('~/components/table/data-table', () => ({
 		columns,
 		rows,
 		queryState,
+		emptyTitle,
+		emptyContent,
 	}: {
 		testId?: string;
 		columns: Array<{ id: string; cell: (ctx: unknown) => ReactNode }>;
 		rows: Array<{ id: string; jobKey: string }>;
 		queryState: { isPending: boolean; isError: boolean };
+		emptyTitle?: string;
+		emptyContent?: string;
 	}) =>
 		createElement('div', { 'data-testid': testId }, [
 			queryState.isPending
 				? createElement('div', { key: 'loading' }, 'Loading...')
-				: rows.map((row) =>
-						createElement(
+				: rows.length === 0
+					? createElement(
 							'div',
-							{ key: row.id, 'data-testid': `row-${row.id}` },
-							columns.map((col) =>
-								createElement(
-									'span',
-									{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
-									col.cell({ row: { original: row } }),
+							{ key: 'empty' },
+							createElement('p', {}, emptyTitle),
+							createElement('p', {}, emptyContent),
+						)
+					: rows.map((row) =>
+							createElement(
+								'div',
+								{ key: row.id, 'data-testid': `row-${row.id}` },
+								columns.map((col) =>
+									createElement(
+										'span',
+										{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
+										col.cell({ row: { original: row } }),
+									),
 								),
 							),
 						),
-					),
 		]),
 }));
 
@@ -364,6 +378,23 @@ describe('system-jobs page: query invalidation after mutations (#1627 r5)', () =
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('an empty system-jobs list shows its own empty state, not the audit-log copy', () => {
+		mocks.useStaffSystemJobDefinitionsQuery.mockReturnValue({
+			data: { data: [], nextCursor: undefined },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+		});
+
+		renderPage();
+
+		expect(screen.getByText('No system jobs')).toBeTruthy();
+		expect(
+			screen.getByText("The platform's recurring jobs will appear here."),
+		).toBeTruthy();
+		expect(screen.queryByText('No audit logs yet')).toBeNull();
 	});
 
 	test('toggle-enabled calls invalidateQueries after successful mutateAsync', async () => {

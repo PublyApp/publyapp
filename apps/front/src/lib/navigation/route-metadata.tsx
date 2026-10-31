@@ -452,18 +452,32 @@ export const getSecondaryPanelItems = (
 };
 
 /**
- * A panel item is active only on its EXACT pathname, and only when its
- * declared search (e.g. a status filter) matches the current search — so
- * "Overview" never stays lit on Activity/Reports, "All tenants" never lights
- * up alongside a status row, and a nested row (e.g. the account Profile row)
- * never stays lit on its children's routes.
+ * The router can hand back a trailing slash (or an explicit `/index` segment)
+ * for an index route — `/staff/dashboard/`, `/staff/jobs/index`. Both name the
+ * same page as the nav entry's canonical path, so the comparison normalises
+ * them instead of leaving the entry unlit on its own page.
+ */
+const normalizeActivePathname = (pathname: string): string => {
+	const withoutTrailingSlashes = pathname.replace(/\/+$/, '');
+	return withoutTrailingSlashes.endsWith('/index')
+		? withoutTrailingSlashes.slice(0, -'/index'.length)
+		: withoutTrailingSlashes;
+};
+
+/**
+ * A panel item is active only on its EXACT pathname (normalised for index
+ * routes), and only when its declared search (e.g. a status filter) matches
+ * the current search — so "Overview" never stays lit on Activity/Reports,
+ * "All organisations" never lights up alongside a status row, and a nested
+ * row (e.g. the account Profile row) never stays lit on its children's routes.
  */
 export const isSecondaryPanelItemActive = (
 	item: SecondaryPanelItem,
 	pathname: string,
 	search: Record<string, unknown>,
 ): boolean => {
-	const matchesPath = pathname === item.path;
+	const matchesPath =
+		normalizeActivePathname(pathname) === normalizeActivePathname(item.path);
 	const itemStatus = item.search?.status;
 	const currentStatus =
 		typeof search.status === 'string' ? search.status : undefined;

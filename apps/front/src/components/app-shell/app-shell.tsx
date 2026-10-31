@@ -89,6 +89,7 @@ const RailLink = ({
 		return (
 			<Link
 				to={item.path}
+				activeOptions={{ exact: true }}
 				aria-current={isActive ? 'page' : undefined}
 				onClick={onNavigate}
 				data-rail-item={item.id}
@@ -106,6 +107,7 @@ const RailLink = ({
 	return (
 		<Link
 			to={item.path}
+			activeOptions={{ exact: true }}
 			aria-label={t(item.labelKey)}
 			aria-current={isActive ? 'page' : undefined}
 			onClick={onNavigate}
@@ -142,6 +144,7 @@ const SecondaryPanelNavItem = ({
 				status: item.search?.status,
 				cursor: undefined,
 			})}
+			activeOptions={{ exact: true }}
 			onClick={onNavigate}
 			aria-current={isActive ? 'page' : undefined}
 			className="app-shell-secondary-nav-link"

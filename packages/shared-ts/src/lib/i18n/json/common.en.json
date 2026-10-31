@@ -1571,5 +1571,6 @@
 	"icon-guard-indeterminate-unresolved": "{{context}}: computed style value is unresolved (empty), so the icon's visibility cannot be measured. Expected action: make sure the element's computed style can be read (connected node, resolved stylesheet), then re-run the guard.",
 	"nav-staff-jobs-queue": "Queue",
 	"nav-staff-jobs-dead-letter": "Dead letters",
-	"nav-staff-jobs-system": "System jobs"
+	"nav-staff-jobs-system": "System jobs",
+	"new-organization": "New organization"
 }

@@ -147,6 +147,54 @@ describe('front route metadata', () => {
 		).toBe(true);
 	});
 
+	test('index panel rows stay active with a trailing slash or an explicit /index segment', () => {
+		const [overview] = getSecondaryPanelItems('/staff/dashboard');
+		const [queue] = getSecondaryPanelItems('/staff/jobs');
+		if (!overview || !queue) {
+			throw new Error('expected the index panel rows to exist');
+		}
+
+		for (const pathname of [
+			'/staff/dashboard/',
+			'/staff/dashboard/index',
+			'/staff/dashboard/index/',
+		]) {
+			expect(isSecondaryPanelItemActive(overview, pathname, {})).toBe(true);
+		}
+
+		for (const pathname of ['/staff/jobs/', '/staff/jobs/index']) {
+			expect(isSecondaryPanelItemActive(queue, pathname, {})).toBe(true);
+		}
+
+		// Normalisation must not turn the exact match back into a prefix match.
+		expect(
+			isSecondaryPanelItemActive(overview, '/staff/dashboard/activity', {}),
+		).toBe(false);
+		expect(
+			isSecondaryPanelItemActive(queue, '/staff/jobs/dead-letter', {}),
+		).toBe(false);
+	});
+
+	test('every staff panel entry lights up on its own canonical path with a trailing slash', () => {
+		const staffSectionPaths = [
+			'/staff/dashboard',
+			'/staff/tenants',
+			'/staff/staff-users',
+			'/staff/jobs',
+		];
+
+		for (const sectionPath of staffSectionPaths) {
+			const items = getSecondaryPanelItems(sectionPath);
+			expect(items.length).toBeGreaterThan(0);
+
+			for (const item of items) {
+				expect(
+					isSecondaryPanelItemActive(item, `${item.path}/`, item.search ?? {}),
+				).toBe(true);
+			}
+		}
+	});
+
 	test('tenant account panel: only the deepest matching row is active', () => {
 		const [profile] = getSecondaryPanelItems('/tenant/account');
 		if (!profile) {

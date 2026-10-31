@@ -78,8 +78,9 @@ vi.mock('react-i18next', () => ({
 				'common:no-value': '—',
 				'common:column-attempts': 'Attempts',
 				'common:column-failed-at': 'Failed at',
-				'common:no-audit-logs-yet': 'No audit logs yet',
-				'common:no-audit-logs-description': 'There are no audit logs to show.',
+				'dl-empty-title': 'No dead-letter jobs',
+				'dl-empty-description':
+					'Failed jobs will appear here once they exhaust their attempts.',
 				'common:action-requeue': 'Requeue',
 				'common:cancel': 'Cancel',
 			};
@@ -275,28 +276,39 @@ vi.mock('~/components/table/data-table', () => ({
 		columns,
 		rows,
 		queryState,
+		emptyTitle,
+		emptyContent,
 	}: {
 		testId?: string;
 		columns: Array<{ id: string; cell: (ctx: unknown) => ReactNode }>;
 		rows: Array<{ id: string } & Record<string, unknown>>;
 		queryState: { isPending: boolean; isError: boolean };
+		emptyTitle?: string;
+		emptyContent?: string;
 	}) =>
 		createElement('div', { 'data-testid': testId }, [
 			queryState.isPending
 				? createElement('div', { key: 'loading' }, 'Loading...')
-				: rows.map((row) =>
-						createElement(
+				: rows.length === 0
+					? createElement(
 							'div',
-							{ key: row.id, 'data-testid': `row-${row.id}` },
-							columns.map((col) =>
-								createElement(
-									'span',
-									{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
-									col.cell({ row: { original: row } }),
+							{ key: 'empty' },
+							createElement('p', {}, emptyTitle),
+							createElement('p', {}, emptyContent),
+						)
+					: rows.map((row) =>
+							createElement(
+								'div',
+								{ key: row.id, 'data-testid': `row-${row.id}` },
+								columns.map((col) =>
+									createElement(
+										'span',
+										{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
+										col.cell({ row: { original: row } }),
+									),
 								),
 							),
 						),
-					),
 		]),
 }));
 
@@ -367,6 +379,26 @@ describe('dead-letter page: query invalidation after requeue (#1775)', () => {
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('an empty dead-letter list shows its own empty state, not the audit-log copy', () => {
+		mocks.useStaffDeadLettersQuery.mockReturnValue({
+			data: { data: [], nextCursor: undefined },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+			error: null,
+		});
+
+		renderPage();
+
+		expect(screen.getByText('No dead-letter jobs')).toBeTruthy();
+		expect(
+			screen.getByText(
+				'Failed jobs will appear here once they exhaust their attempts.',
+			),
+		).toBeTruthy();
+		expect(screen.queryByText('No audit logs yet')).toBeNull();
 	});
 
 	test('requeue calls invalidateQueries with [staff, staff-jobs] after successful mutateAsync', async () => {

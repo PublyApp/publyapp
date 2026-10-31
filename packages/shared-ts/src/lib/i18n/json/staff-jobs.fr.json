@@ -36,5 +36,11 @@
 	"action-permission-checking": "Vérification de vos droits…",
 	"action-permission-denied": "Vous n’avez pas le droit d’effectuer cette action.",
 	"no-rows-match-title": "Aucune tâche correspondante",
-	"no-rows-match-description": "Essayez d'ajuster ou d'effacer les filtres."
+	"no-rows-match-description": "Essayez d'ajuster ou d'effacer les filtres.",
+	"queue-empty-title": "Aucune tâche en file",
+	"queue-empty-description": "Les tâches en attente ou en cours de traitement apparaîtront ici.",
+	"dl-empty-title": "Aucune lettre morte",
+	"dl-empty-description": "Les tâches en échec apparaîtront ici dès qu'elles auront épuisé leurs tentatives.",
+	"system-empty-title": "Aucune tâche système",
+	"system-empty-description": "Les tâches récurrentes de la plateforme apparaîtront ici."
 }
