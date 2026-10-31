@@ -83,7 +83,8 @@ const BrandTileVisual = ({
 			className={cn('publy-brand-tile', className)}
 			data-palette={paletteIndex(name)}
 		>
-			{toInitials(name)}
+			{/* The flex tile cannot trim its own text box; the inner span does. */}
+			<span className="publy-avatar-fallback-text">{toInitials(name)}</span>
 		</span>
 	);
 };

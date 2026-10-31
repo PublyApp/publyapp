@@ -151,21 +151,21 @@
 	color-scheme: light;
 	--background: var(--publy-background);
 	--foreground: var(--publy-foreground);
-	--card: var(--publy-surface);
+	--card: var(--publy-card);
 	--card-foreground: var(--publy-foreground);
-	--popover: var(--publy-surface);
+	--popover: var(--publy-card);
 	--popover-foreground: var(--publy-foreground);
 	--primary: var(--publy-primary);
 	--primary-foreground: var(--publy-primary-foreground);
 	--secondary: var(--publy-surface-muted);
-	--secondary-foreground: var(--publy-foreground-muted);
-	--muted: var(--publy-surface-muted);
+	--secondary-foreground: var(--publy-foreground-secondary);
+	--muted: var(--publy-muted);
 	--muted-foreground: var(--publy-foreground-muted);
 	--accent: var(--publy-surface-muted);
 	--accent-foreground: var(--publy-foreground);
 	--destructive: var(--publy-danger);
 	--border: var(--publy-border);
-	--input: var(--publy-border);
+	--input: var(--publy-input-border);
 	--ring: var(--publy-focus-ring);
 	--radius: 0.625rem;
 	--publy-font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
@@ -184,20 +184,31 @@
 	/* Handoff-specified marketing eyebrow accent — 5.05:1 on white, 4.83:1 on #fafafa.
 	   Do not lighten. */
 	--publy-marketing-eyebrow-accent: #8a6a1f;
-	--publy-background: #ffffff;
-	--publy-surface: #ffffff;
-	--publy-surface-raised: #fafafa;
-	--publy-surface-muted: #f4f4f5;
-	--publy-surface-hover: #fafafa;
-	--publy-surface-active: #ececee;
+	/* Shopkart OS / Gray UI foundations (owner decision 2026-10-30, #2271).
+	   `--publy-card` is the elevated card/popover surface, distinct from the
+	   page (`--publy-background`/`--publy-surface`) and from Tailwind's
+	   `--muted` fill; `--publy-input-border` keeps the field hairline one
+	   step lighter than the general border. */
+	--publy-background: #f7f7f7;
+	--publy-surface: #f7f7f7;
+	--publy-card: #f2f2f2;
+	--publy-surface-raised: #f6f6f6;
+	--publy-surface-muted: #f2f2f2;
+	--publy-surface-hover: #f2f2f2;
+	--publy-surface-active: #ffffff;
+	--publy-muted: #f7f7f7;
 	--publy-table-header: #fcfcfd;
 	--publy-foreground: #18181b;
 	--publy-foreground-secondary: #3f3f46;
-	--publy-foreground-muted: #71717a;
+	/* Deliberate gap from Shopkart (#71717a / #7f7f7f): one step darker in
+	   each theme so muted text clears AA 4.5:1 on every surface (page, card,
+	   popover, secondary, raised), not just the page. */
+	--publy-foreground-muted: #6b6b73;
 	--publy-foreground-subtle: #a1a1aa;
 	--publy-disabled: #d4d4d8;
-	--publy-border: #e4e4e7;
+	--publy-border: #e3e3e3;
 	--publy-border-strong: #d4d4d8;
+	--publy-input-border: #e4e4e7;
 	--publy-row-border: #f1f1f3;
 	/* W4-GUARDS: #ca8a04 measured 2.94:1 against #ffffff, under the 3:1
 	   focus-indicator floor; darkened to the amber-700 step to clear it
@@ -391,20 +402,23 @@ html.dark {
 	--publy-marketing-eyebrow-accent: #d97706;
 	--publy-background: #18181b;
 	--publy-surface: #18181b;
-	--publy-surface-raised: #1f1f23;
-	--publy-surface-muted: #27272a;
-	--publy-surface-hover: #2f2f33;
-	--publy-surface-active: #37373d;
+	--publy-card: #1f1f23;
+	--publy-surface-raised: #18181b;
+	--publy-surface-muted: #222226;
+	--publy-surface-hover: #222226;
+	--publy-surface-active: #27272a;
+	--publy-muted: #1f1f23;
 	--publy-focus-ring: #facc15;
-	--publy-foreground: #fafafa;
+	--publy-foreground: #feffff;
 	--publy-foreground-secondary: #d4d4d8;
-	--publy-foreground-muted: #a1a1aa;
+	--publy-foreground-muted: #898989;
 	--publy-foreground-subtle: #71717a;
 	--publy-disabled: #52525b;
 	--publy-table-header: #212124;
 	--publy-row-border: #27272a;
-	--publy-border: rgba(255, 255, 255, 0.1);
+	--publy-border: #323234;
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
+	--publy-input-border: #27272a;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
@@ -414,7 +428,6 @@ html.dark {
 	   #18181b in dark, so an overlay-surface pinned to --publy-surface would
 	   be visually indistinguishable from the page it floats over). */
 	--publy-overlay-surface: rgba(31, 31, 35, 0.97);
-	--popover: var(--publy-surface-raised);
 	/* Elevation shadows re-based on black: the light-mode values (rgba tinted
 	   toward --publy-foreground, #18181b) composite to zero visible
 	   separation once the page itself is #18181b (see --publy-backdrop
@@ -505,6 +518,16 @@ html.dark {
 .publy-avatar-initials {
 	color: var(--publy-avatar-foreground);
 	background: var(--publy-avatar-1);
+	letter-spacing: 0.01em;
+}
+
+/* `text-box-trim` applies to block containers and inline boxes, not to flex
+   containers. AvatarFallback is flex, so its inner text span carries the trim
+   (#2271 §2.5) and the flex parent centres that span. */
+.publy-avatar-fallback-text {
+	line-height: 1;
+	text-box-trim: trim-both;
+	text-box-edge: cap alphabetic;
 }
 
 .publy-avatar-initials[data-palette='1'] {
@@ -539,11 +562,98 @@ html.dark {
 	background: var(--publy-avatar-8);
 }
 
+/* Open menu triggers (#2271 §2.9): every `[aria-haspopup]` trigger that is
+   open carries the same 5% foreground mix as the outline/ghost hover. Kept
+   unlayered so it beats the trigger's own `bg-*` utility (a layered rule
+   would lose to the utilities layer regardless of specificity); the Select
+   trigger is excluded because §2.9 gives it its own muted-based mix. */
+[aria-haspopup][aria-expanded='true']:not([data-slot='select-trigger']) {
+	background-color: color-mix(
+		in oklch,
+		var(--background),
+		var(--foreground) 5%
+	);
+}
+
 @layer base {
 	*,
 	::before,
 	::after {
 		border-color: var(--publy-border);
+	}
+}
+
+/* Shopkart OS scrollbars (owner decision 2026-10-30, #2271): no track, a thin
+   rounded thumb that only shows while its scroll area is hovered or holds the
+   focus, at 32% foreground, rising to 55% under the pointer. Fine pointers
+   only — a touch screen keeps its system overlay bar. */
+@media (pointer: fine) {
+	* {
+		--scrollbar-thumb: transparent;
+	}
+
+	:where(
+		html,
+		textarea,
+		select,
+		[class*='overflow-'],
+		[data-slot='table-container'],
+		.app-shell-main,
+		.app-shell-secondary-nav,
+		.publy-drawer-body,
+		.publy-perm-matrix-col,
+		.simplebar-content-wrapper
+	):hover,
+	:where(
+		html,
+		textarea,
+		select,
+		[class*='overflow-'],
+		[data-slot='table-container'],
+		.app-shell-main,
+		.app-shell-secondary-nav,
+		.publy-drawer-body,
+		.publy-perm-matrix-col,
+		.simplebar-content-wrapper
+	):focus-within {
+		--scrollbar-thumb: color-mix(
+			in srgb,
+			var(--publy-foreground) 32%,
+			transparent
+		);
+	}
+
+	::-webkit-scrollbar {
+		width: 11px;
+		height: 11px;
+	}
+
+	::-webkit-scrollbar-track,
+	::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		border: 3px solid transparent;
+		/* 11px box − 3px transparent border each side = a 5px pill. */
+		border-radius: 5px;
+		background-clip: padding-box;
+		background-color: var(--scrollbar-thumb);
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background-color: color-mix(
+			in srgb,
+			var(--publy-foreground) 55%,
+			transparent
+		);
+	}
+
+	@supports not selector(::-webkit-scrollbar) {
+		* {
+			scrollbar-width: thin;
+			scrollbar-color: var(--scrollbar-thumb) transparent;
+		}
 	}
 }
 
@@ -1384,6 +1494,9 @@ html.dark {
 	.app-shell-main {
 		@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
 		padding: 20px 28px 32px;
+		/* Reserve the scrollbar's width so a page that grows past the viewport
+		   does not shift its content sideways (#2271 §2.6). */
+		scrollbar-gutter: stable;
 		/* Query container for .publy-detail-grid: the rail/panel/no-panel width
 	   is only known here, not at the viewport, so the detail grid's two-
 	   column split must react to this element's content width. */
@@ -1463,7 +1576,9 @@ html.dark {
 
 @layer components {
 	.publy-type-page-title {
-		@apply text-xl font-semibold leading-7;
+		/* Shopkart's Page: 28px / 600 / tight (#2271 §2.5). */
+		@apply text-[28px] font-semibold leading-9;
+		letter-spacing: -0.02em;
 		color: var(--publy-foreground);
 	}
 
@@ -1995,7 +2110,7 @@ html.dark {
 		border-radius: var(--publy-radius-control);
 		font-size: 18px;
 		font-weight: 600;
-		line-height: 1;
+		letter-spacing: 0.01em;
 		color: var(--publy-avatar-foreground);
 		background: var(--publy-avatar-1);
 		object-fit: cover;

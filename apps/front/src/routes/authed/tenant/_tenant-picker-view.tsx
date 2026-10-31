@@ -100,7 +100,7 @@ export const TenantPortalPickerView = ({
 
 	return (
 		<div data-testid="tenant-portal-picker">
-			<h1 className="text-center text-2xl font-semibold tracking-[-0.01em] text-foreground">
+			<h1 className="publy-type-page-title text-center">
 				{t('select-organization')}
 			</h1>
 			<p className="mt-1 text-center text-sm text-muted-foreground">

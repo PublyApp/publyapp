@@ -29,9 +29,7 @@ export const TenantUserEditHeader = ({
 					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-user')}
 				</Link>
-				<h2 className="text-2xl font-semibold text-foreground">
-					{t('edit-tenant-user')}
-				</h2>
+				<h2 className="publy-type-page-title">{t('edit-tenant-user')}</h2>
 			</div>
 			<p className="text-sm text-muted-foreground">
 				{t('edit-tenant-user-description')}

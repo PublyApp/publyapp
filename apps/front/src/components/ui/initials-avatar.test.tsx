@@ -95,10 +95,12 @@ describe('AvatarStack', () => {
 		expect(container.querySelector('img')?.getAttribute('src')).toBe(
 			'https://example.com/ada.png',
 		);
-		expect(
-			container.querySelector('[data-slot="person-avatar-fallback"]'),
-		).not.toBeNull();
-		expect(screen.getByText('GH').getAttribute('data-palette')).toBe('6');
+		const fallback = container.querySelector(
+			'[data-slot="person-avatar-fallback"]',
+		);
+		expect(fallback).not.toBeNull();
+		expect(fallback?.textContent).toBe('GH');
+		expect(fallback?.getAttribute('data-palette')).toBe('6');
 	});
 
 	test('renders nothing for an empty name list', () => {

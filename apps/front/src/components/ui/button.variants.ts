@@ -7,12 +7,17 @@ export const buttonVariants = cva(
 			variant: {
 				default:
 					'btn-primary-chrome bg-primary text-primary-foreground hover:bg-primary/80',
+				// #2271 §2.9: the light theme's --muted equals --background, so
+				// `hover:bg-muted` was invisible. Outline/ghost hover paints a 5%
+				// foreground mix instead, in both themes. Open menu triggers get the
+				// same fill from the global [aria-haspopup][aria-expanded] rule; a
+				// neutral disclosure stays neutral at rest.
 				outline:
-					'border-(--publy-border-strong) bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-input/20 dark:hover:bg-input/30',
+					'border-(--publy-border-strong) bg-background hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground',
 				secondary:
-					'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
 				ghost:
-					'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
+					'hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground',
 				destructive:
 					'bg-(--publy-destructive-soft) text-destructive hover:bg-(--publy-destructive-soft-hover)',
 				link: 'text-primary underline-offset-4 hover:underline',

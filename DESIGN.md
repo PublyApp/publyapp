@@ -71,17 +71,20 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 | Primary foreground | `--publy-primary-foreground #733e0a` | `#1a0d00` | Solid-button text on `--publy-primary`. |
 | Primary soft | `#fffbeb` | `#2a2400` | Chips / soft pill background. |
 | Primary soft foreground | `#733e0a` | `#fbbf24` | Text on primary-soft; the value swaps to yellow in dark. |
-| Background / surface | `#ffffff` | `#18181b` | `--publy-background`, `--publy-surface` identical in both themes. |
-| Surface raised | `#fafafa` | `#1f1f23` | Overlay/popup base canvases. |
-| Surface muted | `#f4f4f5` | `#27272a` | `--publy-surface-muted` (secondary/accent fills). |
-| Surface hover | `#fafafa` | `#2f2f33` | |
-| Surface active | `#ececee` | `#37373d` | |
-| Foreground | `#18181b` | `#fafafa` | Body text. |
+| Background / surface | `#f7f7f7` | `#18181b` | `--publy-background`, `--publy-surface` identical in both themes. |
+| Card / popover | `#f2f2f2` | `#1f1f23` | `--publy-card`; the raised card/popover fill. |
+| Muted | `#f7f7f7` | `#1f1f23` | Tailwind `muted`; equals `background` in light. |
+| Surface raised | `#f6f6f6` | `#18181b` | Dark equals `background`; use `card`/`popover` for an elevated panel. |
+| Surface muted | `#f2f2f2` | `#222226` | `--publy-surface-muted` (secondary/accent fills). |
+| Surface hover | `#f2f2f2` | `#222226` | |
+| Surface active | `#ffffff` | `#27272a` | Active navigation row. |
+| Foreground | `#18181b` | `#feffff` | Body text. |
 | Foreground secondary | `#3f3f46` | `#d4d4d8` | Real content text. |
-| Foreground muted | `#71717a` | `#a1a1aa` | Secondary body text (4.5:1 floor — see Contrast). |
+| Foreground muted | `#6b6b73` | `#898989` | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast). |
 | Foreground subtle | `#a1a1aa` | `#71717a` | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons). |
-| Border | `#e4e4e7` | `rgba(255,255,255,0.1)` | Hairline ring colour; full opacity in light. |
+| Border | `#e3e3e3` | `#323234` | Hairline ring colour. |
 | Border strong | `#d4d4d8` | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes). |
+| Input border | `#e4e4e7` | `#27272a` | `--publy-input-border`; field hairline, one step lighter than the general border. |
 | Danger | `#dc2626` | `#f87171` | `--publy-danger`; destructive actions/alerts. |
 | Success | `#047857` | `#34d399` | |
 | Warning | `#b45309` | `#fbbf24` | |
@@ -90,7 +93,16 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 
 The avatar identity palette `--publy-avatar-1…8` (teal, violet, pink, rose, orange, sky, cyan,
 magenta) is **theme-invariant** (no `html.dark` counterpart) — WCAG-pinned against fixed white
-initials text. — source: `apps/front/src/styles/app.css`, `apps/front/scripts/guards/check-design-system.mts` (`THEME_INVARIANT_TOKENS`), `apps/front/src/styles/avatar-fallback-contrast.test.ts`
+initials text. This is also the identity tint for a person or organisation with no photo; there is
+no separate thumb-tint set (the avatar palette already carries the identity hue). — source: `apps/front/src/styles/app.css`, `apps/front/scripts/guards/check-design-system.mts` (`THEME_INVARIANT_TOKENS`), `apps/front/src/styles/avatar-fallback-contrast.test.ts`
+
+**Owner decision 2026-10-30 (#2271):** the Shopkart OS / Gray UI values above are **global** — staff
+space, tenant space and auth/marketing pages share them; they are not scoped to one surface. The
+brand yellow `--publy-primary` stays PublyApp's `#fdc700`.
+
+**Deliberate gap from Shopkart (owner decision, 30/10):** muted foreground is `#6b6b73` light /
+`#898989` dark instead of Shopkart's `#71717a` / `#7f7f7f`, because those measured 4.32–4.51:1 on
+our card, popover and secondary fills. AA contrast wins over pixel parity.
 
 Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / `#d97706` dark) is
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`
@@ -99,8 +111,16 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - Fonts: **Geist** (sans, weights 400/500/600) and **Geist Mono** (weights 400/500), self-hosted
   woff2 under `apps/front/public/fonts/geist`, with system fallbacks. — source: `apps/front/src/styles/app.css` (`@font-face`, `--publy-font-sans`, `--publy-font-mono`)
 - UI text is dense: the app shell and table body use **13px** (`md:text-[13px]`); badges 11–12px;
-  section headings 14–15px; page/modal titles use `text-2xl font-semibold` for dialogs and
-  `text-xl font-semibold` for cards. — source: `apps/front/src/styles/app.css` (font-size rules), `apps/front/src/components/ui/card.tsx`
+  section headings 14–15px; modal titles use `text-2xl font-semibold` and cards `text-xl
+  font-semibold`. — source: `apps/front/src/styles/app.css` (font-size rules), `apps/front/src/components/ui/card.tsx`
+- **Page title** (`.publy-type-page-title`, used by `PageHeader` and every page `h1`/`h2`):
+  **28px / 600 / `letter-spacing: -0.02em`**. — source: `app.css`, `apps/front/src/components/ui/product-page.tsx`
+- **Initials avatars** (`.publy-avatar-initials`, `PersonAvatar`): list/default size **30px with
+  11px initials**; the topbar account avatar stays **28px**. Initials are optically centred on
+  Geist's capitals: the flex fallback hosts an inner text span carrying
+  `line-height: 1; text-box-trim: trim-both; text-box-edge: cap alphabetic;` (`text-box-trim` does
+  not apply to flex containers). — source: `apps/front/src/components/ui/avatar.tsx`,
+  `apps/front/src/components/ui/person-avatar.tsx`, `app.css`, `apps/front/src/components/app-shell/user-menu.tsx`
 - No bespoke type scale beyond Tailwind utilities mapped to the `--publy-font-*` tokens.
 
 ### Spacing & radius
@@ -149,6 +169,25 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   destructive ring that must not replace the compliant one). — source:
   `apps/front/src/styles/focus-ring-contrast.test.ts`
 
+### Hover states
+- **Outline and ghost buttons** — and any open menu trigger
+  (`[aria-haspopup][aria-expanded='true']`) — paint
+  `color-mix(in oklch, var(--background), var(--foreground) 5%)`, in **both** themes. `bg-muted`
+  is not a hover fill: in light the redesign's `muted` equals `background`, so it is invisible.
+  A neutral disclosure (e.g. "Collapse stats") stays neutral at rest.
+- The **Select trigger** uses the same idea on a muted base:
+  `color-mix(in oklch, var(--muted), var(--foreground) 5%)` on hover and while
+  `data-popup-open`. — source: `apps/front/src/components/ui/button.variants.ts`, `select.tsx`, `app.css`
+
+### Scrollbars
+- On fine pointers, every scroll area has **no track** and a thin rounded thumb: **11px** wide with
+  a **3px transparent border** (5px painted pill), visible only while the area is hovered or
+  focused, at **32% foreground**, rising to **55%** under the pointer. Touch screens keep the system
+  overlay bar. `.app-shell-main` reserves the bar with `scrollbar-gutter: stable`.
+- SimpleBar is still the popup scroller in this change (its native bar is intentionally hidden by
+  the engine); native scrollbar styling therefore applies to the app's own scroll containers.
+  — source: `app.css`
+
 ### Contrast floors
 - Body text: **4.5:1** against its surface (enforced for avatar fallback initials, drawer
   descriptions, and marketing text pairs). — source: `apps/front/src/styles/avatar-fallback-contrast.test.ts`, `drawer-description-contrast.test.ts`, `marketing-contrast.test.ts`
@@ -156,6 +195,11 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - `--publy-foreground-subtle` (~2.5:1) is a **known intentional failure** and is legitimate only for
   non-text or de-emphasised roles (placeholders, eyebrows, helpers, inline metadata/separators). It
   must never be standalone body-size readable text. — source: `docs/guides/front/conventions.md` (Subtle text token), `app.css`
+- `--publy-foreground-muted` clears **4.5:1 on every text surface** in both themes (page, card,
+  popover, secondary and raised), so it is safe for body-size secondary text. That is why it is a
+  deliberate AA step away from Shopkart's `#71717a` / `#7f7f7f` (see Colour tokens). — source:
+  `app.css`, `apps/front/src/routes/authed/staff/tenants/$tenantId/profiles/_profile-tenant-band-contrast.test.tsx`,
+  `apps/front/src/styles/marketing-contrast.test.ts`
 
 ---
 
@@ -180,9 +224,9 @@ scaffolding/CSS-import dependency only, not a runtime library. — source: `docs
 | `card.tsx` | Sectioned surface (no cva; `size` prop) | `size`: default/sm; slots: Header/Title/Description/Action/Content/Footer | `--publy-shadow-ring`, `--publy-radius-card` |
 | `input.tsx` / `textarea.tsx` | Text entry | none (utility classes) | `--publy-radius-input`, `--publy-shadow-input`, `ring-ring`, `--publy-destructive-soft` |
 | `select.tsx` | Trigger-anchored dropdown select | none; `size` data attr | `--publy-radius-input`, `ring-ring`; `alignItemWithTrigger` defaults `false` |
-| `dropdown-menu.tsx` | Menu / context menu / submenu | item radius 9px; `showCheckbox` prop | `--publy-radius-menu-item`, `bg-muted` (hover) |
+| `dropdown-menu.tsx` | Menu / context menu / submenu | item radius 9px; `showCheckbox` prop | `--publy-radius-menu-item`, 5% foreground mix on `--popover` (hover/focus/highlight) |
 | `switch.tsx` / `checkbox.tsx` | Toggles | `size`: default/sm | `--publy-radius-small-control`, `bg-primary` (checked) |
-| `tabs.tsx` | Tab list | `variant`: default/line | `bg-muted`, `border-border` |
+| `tabs.tsx` | Tab list | `variant`: default/line | `bg-muted`, `border-border`; labels 14px/400 muted, active 500 foreground with a 2px foreground underline and 12px inline padding |
 | `table.tsx` | Data grid primitives (`TableContainer`, etc.) | none | `--publy-table-header`, `--publy-row-border` |
 | `skeleton.tsx` | Loading placeholder | none (allows `rounded-full` for circular shimmer) | surface-muted |
 | `tooltip.tsx` | Hover/focus hint | none | `bg-popover` |
@@ -200,7 +244,7 @@ scaffolding/CSS-import dependency only, not a runtime library. — source: `docs
 | `toast-variants.ts` | Toast variant tokens/tints (success/error/info/warning/loading/default) | none | semantic alert tokens |
 | `status-tone.ts` | Status→tone map + `StatusPillTone` type for status pills | none | danger/info/neutral/primary/success/warning |
 | `initials-avatar.tsx` | `EntityAvatar`, `AvatarStack`, `BrandTile` (org/people aggregations) | none | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
-| `avatar.tsx` / `initials-avatar.tsx` / `person-avatar.tsx` | Identity surfaces | `PersonAvatar` sizes: default/xs/sm/md/lg | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
+| `avatar.tsx` / `initials-avatar.tsx` / `person-avatar.tsx` | Identity surfaces | `PersonAvatar` sizes: default/xs/sm/md/lg (default 30px/11px) | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
 
 Avatars: `Avatar`/`AvatarImage`/`AvatarFallback` is the neutral primitive; `PersonAvatar`/`EntityAvatar`
 applies the deterministic name-hashed `--publy-avatar-N` palette; `BrandTile`/`AvatarStack` are org/people
@@ -234,6 +278,13 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 - **URL state is snake_case**: `q`, `sort_id`, `sort_order`, `cursor`, `size`. Convert between
   internal state and URL at explicit parse/serialize boundaries. — source: `conventions.md` (URL State), `AGENTS.md` (API contract naming split)
 - Cursor/keyset pagination (not offset) for list data. — source: `AGENTS.md` (Cursor/keyset pagination guide)
+
+### Tabs
+- One tab style, both the router-link tab rows on detail pages and Base UI `Tabs`: label **14px /
+  400 / muted**, foreground on hover; the active tab is **foreground / 500**, with a **2px
+  underline in the text colour** (not the brand yellow) and **12px horizontal padding**.
+- A tab is active only on its **own exact route**, never because its path prefixes a sibling's.
+  — source: `apps/front/src/components/ui/tabs.tsx`, `apps/front/src/routes/authed/staff/tenants/$tenantId/_tenant-details-shell.tsx`, `.../profiles/_profile-section-nav-link.tsx`
 
 ### Selection mode & bulk actions
 - Row selection renders a **floating bottom-center action bar** (`FloatingSelectionBar`), portalled to
