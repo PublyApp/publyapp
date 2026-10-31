@@ -182,7 +182,7 @@ const StaffTenantsPage = () => {
 					<TenantStatCards rows={rows} t={t} known={countsKnown} />
 				)
 			}
-			totals={buildTenantTotals(t)}
+			totals={buildTenantTotals(t, countsKnown)}
 			onOpen={(row) =>
 				void navigate({
 					to: '/staff/tenants/$tenantId',

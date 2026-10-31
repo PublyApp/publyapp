@@ -57,9 +57,13 @@ export const buildTenantFilters = (
 	},
 ];
 
-/** The totals row: one summary per column of the filtered rows. */
+/** The totals row: one summary per column of the filtered rows.
+ *
+ * `known` is the list page's `countsKnown`: when the loaded page is not the
+ * whole collection, every cell shows « — » instead of a page-local sum
+ * presented as a total (issue #2274 review round 2). */
 export const buildTenantTotals =
-	(t: Translate) =>
+	(t: Translate, known = true) =>
 	(visible: StaffTenantRow[]): Map<string, string> => {
 		let members = 0;
 		let seats = 0;
@@ -127,6 +131,11 @@ export const buildTenantTotals =
 			'lastActivityAt',
 			t('list-total-active-week', { count: activeThisWeek }),
 		);
+		if (!known) {
+			for (const id of map.keys()) {
+				map.set(id, DASH);
+			}
+		}
 		return map;
 	};
 

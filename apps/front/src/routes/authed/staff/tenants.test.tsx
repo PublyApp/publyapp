@@ -178,7 +178,15 @@ const TRANSLATIONS = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			let text = TRANSLATIONS[key as keyof typeof TRANSLATIONS] ?? key;
+			// i18next's French plural rule: 0 and 1 are `_one`, above is `_other`.
+			let plural = '';
+			if (typeof options?.count === 'number') {
+				plural = options.count > 1 ? '_other' : '_one';
+			}
+			let text =
+				TRANSLATIONS[`${key}${plural}` as keyof typeof TRANSLATIONS] ??
+				TRANSLATIONS[key as keyof typeof TRANSLATIONS] ??
+				key;
 			for (const [name, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${name}}}`, String(value));
 			}
@@ -222,7 +230,16 @@ vi.mock('~/utils/download-file', () => ({
 	formatExportDateStamp: () => '2026-10-27',
 }));
 
+import { buildTenantTotals } from './_tenants-list-config';
 import { Route } from './tenants';
+
+const translate = (key: string, options?: Record<string, unknown>) => {
+	let text = TRANSLATIONS[key as keyof typeof TRANSLATIONS] ?? key;
+	for (const [name, value] of Object.entries(options ?? {})) {
+		text = text.replaceAll(`{{${name}}}`, String(value));
+	}
+	return text;
+};
 
 const rows = [
 	{
@@ -383,6 +400,9 @@ describe('staff tenants route (organisations list)', () => {
 		expect(within(statusGroup as HTMLElement).getAllByText('1')).toHaveLength(
 			2,
 		);
+		const summary = screen.getByRole('table', { name: 'Récapitulatif' });
+		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+		expect(within(summary).getByText('21 membres')).toBeTruthy();
 	});
 
 	test('counters show « — » when the API has more pages, never the page', async () => {
@@ -407,6 +427,21 @@ describe('staff tenants route (organisations list)', () => {
 		expect(within(statusGroup as HTMLElement).getAllByText('—')).toHaveLength(
 			3,
 		);
+		// The pinned footer is labelled as totals, so it must not present the
+		// loaded page's sums either: every labelled cell is « — ».
+		const summary = screen.getByRole('table', { name: 'Récapitulatif' });
+		expect(within(summary).queryByText('2 organisations')).toBeNull();
+		const labelled = [...summary.querySelectorAll('td')].filter(
+			(cell) => cell.textContent !== '',
+		);
+		expect(labelled).toHaveLength(14);
+		expect(labelled.every((cell) => cell.textContent === '—')).toBe(true);
+	});
+
+	test('the totals builder dashes every cell when the collection is not known', () => {
+		const totals = buildTenantTotals(translate, false)([]);
+		expect(totals.size).toBeGreaterThan(0);
+		expect([...totals.values()].every((value) => value === '—')).toBe(true);
 	});
 
 	test('the dead Langues and Invitations filters are not rendered', () => {

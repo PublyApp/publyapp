@@ -72,7 +72,10 @@ const filters: ListFilter<Row>[] = [
 	},
 ];
 
-const renderPage = (active: Record<string, string[]> = {}) =>
+const renderPage = (
+	active: Record<string, string[]> = {},
+	options: { countsKnown?: boolean; inset?: boolean } = {},
+) =>
 	render(
 		<>
 			<div id="app-shell-page-panel" />
@@ -91,6 +94,8 @@ const renderPage = (active: Record<string, string[]> = {}) =>
 				filters={filters}
 				filtersValue={active}
 				onFiltersChange={vi.fn()}
+				countsKnown={options.countsKnown ?? true}
+				inset={options.inset ? {} : undefined}
 				totals={(visible) =>
 					new Map([
 						['name', `${visible.length} organisations`],
@@ -136,7 +141,29 @@ describe('ListPage', () => {
 
 	test('totals are computed from the filtered rows', () => {
 		renderPage({ status: ['active'] });
-		expect(screen.getByText('2 organisations')).toBeTruthy();
+		const summary = screen.getByRole('table', { name: 'list-summary' });
+		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+	});
+
+	test('the totals footer shows « — » when the collection is not fully known', () => {
+		renderPage({}, { countsKnown: false });
+		const summary = screen.getByRole('table', { name: 'list-summary' });
+		expect(within(summary).queryByText('3 organisations')).toBeNull();
+		expect(within(summary).queryByText('15 membres')).toBeNull();
+		expect(within(summary).getAllByText('—')).toHaveLength(2);
+	});
+
+	test('the inset count pill shows the row count when the collection is known', () => {
+		renderPage({}, { inset: true });
+		const heading = screen.getByRole('heading', { name: /Organisations/ });
+		expect(within(heading).getByText('3')).toBeTruthy();
+	});
+
+	test('the inset count pill shows « — » when the collection is not fully known', () => {
+		renderPage({}, { countsKnown: false, inset: true });
+		const heading = screen.getByRole('heading', { name: /Organisations/ });
+		expect(within(heading).queryByText('3')).toBeNull();
+		expect(within(heading).getByText('—')).toBeTruthy();
 	});
 
 	test('the statistics fold toggles', () => {

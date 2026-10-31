@@ -36,6 +36,9 @@ import { SortMenu } from './sort-menu';
 
 const PANEL_TARGET_ID = 'app-shell-page-panel';
 
+/** The unknown-total convention (§4.1 item 11): « — », never a page sum. */
+const DASH = '—';
+
 export type ListPageProps<T extends { id: string }> = {
 	testId?: string;
 	ariaLabel: string;
@@ -57,10 +60,10 @@ export type ListPageProps<T extends { id: string }> = {
 	filtersValue: ListFiltersValue;
 	onFiltersChange: (next: ListFiltersValue) => void;
 	/**
-	 * Whether the counters (panel groups, filter-menu badges, tabs) describe
-	 * the whole collection. Pass `false` when the consumer keeps cursor
-	 * pagination and the API exposes no count source: the counters then show
-	 * « — » instead of counting the loaded page.
+	 * Whether the counters (panel groups, filter-menu badges, tabs) and the
+	 * pinned totals footer describe the whole collection. Pass `false` when the
+	 * consumer keeps cursor pagination and the API exposes no count source: the
+	 * counters and totals then show « — » instead of summing the loaded page.
 	 */
 	countsKnown?: boolean;
 	/** The empty state's text (the generic page has no resource noun). */
@@ -216,6 +219,16 @@ export const ListPage = <T extends { id: string }>({
 		specs,
 	});
 
+	// The footer labels these cells as totals, so it obeys the same rule as the
+	// counters: when the collection is not fully known, « — » instead of the
+	// loaded page's sums (issue #2274 review round 2).
+	const totalCells = totals(displayed);
+	if (!countsKnown) {
+		for (const id of totalCells.keys()) {
+			totalCells.set(id, DASH);
+		}
+	}
+
 	// The same per-choice counts feed the filter menu and the side panel (the
 	// Shopkart faceted rule: count within the other filters). `null` means the
 	// collection is not fully loaded and the API exposes no count source.
@@ -323,7 +336,7 @@ export const ListPage = <T extends { id: string }>({
 						<h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
 							{title}
 							<span className="flex h-5 items-center rounded-[var(--publy-radius-chip)] bg-secondary px-2 text-xs font-medium text-secondary-foreground tabular-nums">
-								{rows.length}
+								{countsKnown ? rows.length : DASH}
 							</span>
 						</h2>
 						{inset.description ? (
@@ -473,7 +486,7 @@ export const ListPage = <T extends { id: string }>({
 					ids={ids}
 					rows={tableRows}
 					head={head}
-					totals={totals(displayed)}
+					totals={totalCells}
 					onOpen={onOpen}
 					openLabel={openLabel}
 					selection={selection}
