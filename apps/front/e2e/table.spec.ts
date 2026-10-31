@@ -25,7 +25,7 @@ test.describe(
 				page.getByTestId(`${TABLE}-page-size-trigger`),
 			).toBeVisible();
 			await expect(page.getByTestId(`${TABLE}-rows`)).toHaveClass(
-				/publy-data-table/,
+				/overflow-auto/,
 			);
 			const pageSizeTag = await page
 				.getByTestId(`${TABLE}-page-size`)
@@ -60,6 +60,45 @@ test.describe(
 			await expect(page).not.toHaveURL(/[?&]q=/);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 			await expect(page.getByText('staff-user@example.com')).toBeVisible();
+		});
+
+		test('shows the eleven columns, staff StatCards and the Team panel', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+
+			for (const header of [
+				'Member',
+				'Email',
+				'Level',
+				'Status',
+				'Profiles',
+				'Two-factor authentication',
+				'Open sessions',
+				'Language',
+				'Last login',
+				'Invited by',
+				'Member since',
+			]) {
+				await expect(
+					page.getByRole('columnheader', { name: header }),
+				).toBeVisible();
+			}
+
+			await expect(page.getByTestId('staff-user-stat-total')).toBeVisible();
+			await expect(page.getByTestId('staff-user-stat-admins')).toBeVisible();
+
+			const panel = page.getByTestId('app-shell-secondary-panel');
+			await expect(
+				panel.getByRole('button', { name: /Staff members\s+3/ }),
+			).toBeVisible();
+			await expect(
+				panel.getByRole('button', { name: /Audit logs/ }),
+			).toBeVisible();
+
+			await panel.getByRole('button', { name: /Active\s+3/ }).click();
+			await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
 		});
 
 		test('sorting the Level column flips row order', async ({ page }) => {
@@ -109,20 +148,16 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-			// Adapted grid: SPEC 2b's Role/Profiles/2FA/Last-active columns aren't
-			// implemented yet, so Email (the longest free-text field) is the fluid
-			// column instead of the SPEC's unbuilt Profiles column.
-			await expect(page.getByRole('columnheader', { name: 'Name' })).toHaveCSS(
-				'width',
-				'200px',
-			);
+			await expect(
+				page.getByRole('columnheader', { name: 'Member' }),
+			).toHaveCSS('width', '260px');
 			await expect(page.getByRole('columnheader', { name: 'Level' })).toHaveCSS(
 				'width',
-				'104px',
+				'160px',
 			);
 			await expect(
 				page.getByRole('columnheader', { name: 'Status' }),
-			).toHaveCSS('width', '122px');
+			).toHaveCSS('width', '130px');
 
 			const tableScrollWidth = await page
 				.getByTestId(`${TABLE}-rows`)
@@ -143,7 +178,7 @@ test.describe(
 			await expect(lastRowCell).toHaveCSS('border-bottom-width', '1px');
 			await expect(lastRowCell).toHaveCSS(
 				'border-bottom-color',
-				'rgb(241, 241, 243)',
+				'rgb(227, 227, 227)',
 			);
 		});
 

@@ -11,12 +11,14 @@ import { cn } from '~/lib/utils';
  * (#2274 §2.10).
  */
 export const ListToolbar = ({
+	testId,
 	top,
 	tabs = false,
 	search,
 	children,
 	onHeightChange,
 }: {
+	testId?: string;
 	top: RefObject<HTMLElement | null>;
 	/** Whether the tabs stand above it (it then takes their place in the scroll). */
 	tabs?: boolean;
@@ -45,6 +47,7 @@ export const ListToolbar = ({
 	return (
 		<section
 			ref={top}
+			data-testid={testId ? `${testId}-toolbar` : undefined}
 			data-list-toolbar=""
 			data-tabs={tabs || undefined}
 			className={cn(

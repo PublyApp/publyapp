@@ -81,6 +81,19 @@ vi.mock('~/lib/query/staff-users', async (importOriginal) => {
 });
 
 // The export surface pulls XLSX machinery irrelevant to this suite.
+vi.mock('../_staff-list-team', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../_staff-list-team')>();
+	return {
+		...actual,
+		useStaffTeamOverview: () => ({
+			counts: { staff: 10, invitations: 10, profiles: 7 },
+			staff: [],
+			invitations: [],
+			profiles: [],
+		}),
+	};
+});
+
 vi.mock('~/routes/authed/staff/staff-list-export-selected', () => ({
 	StaffListExportSelectedAction: () => null,
 	StaffListExportSelectedButton: () => null,

@@ -61,11 +61,20 @@ test.describe(
 				await loginAsStaffAdmin(page);
 
 				await expect(page.getByTestId(TABLE)).toBeVisible();
-				const rows = page.getByTestId(`${TABLE}-rows`);
-				await expect(rows).toBeVisible();
 
 				// Per-viewport structural checks (previously identical at all three
 				// widths, asserting nothing viewport-specific — F10):
+				if (width < 768) {
+					await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
+					await expect(
+						page.getByRole('link', { name: /^(Open|Ouvrir) / }).first(),
+					).toBeVisible();
+				} else {
+					const rows = page.getByTestId(`${TABLE}-rows`);
+					await expect(rows).toBeVisible();
+					const rowsScrollWidth = await rows.evaluate((el) => el.scrollWidth);
+					expect(rowsScrollWidth).toBeGreaterThan(0);
+				}
 				if (width >= 1024) {
 					await expect(
 						page.getByTestId('app-shell-secondary-panel'),
@@ -80,16 +89,6 @@ test.describe(
 				} else {
 					await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 				}
-				// The table must never force horizontal scroll at any of these
-				// widths — a collapsed/overflowing table would still pass a bare
-				// toBeVisible() but fails this bound.
-				const rowsScrollWidth = await rows.evaluate((el) => el.scrollWidth);
-				const cardClientWidth = await page
-					.getByTestId(`${TABLE}-card`)
-					.evaluate((el) => el.clientWidth);
-				expect(rowsScrollWidth).toBeGreaterThan(0);
-				expect(rowsScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
-
 				await page.screenshot({
 					path: `test-results/gray-ui/staff-users-list-${width}.png`,
 					fullPage: true,

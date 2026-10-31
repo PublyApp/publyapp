@@ -92,23 +92,45 @@ test.describe(
 	'staff invitations list',
 	{ tag: ['@staff-invitations', '@742'] },
 	() => {
-		test('All statuses resets and closes without a persistent square checkbox', async ({
+		test('toggles status filters through the generic filter menu and clears them', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockStaffInvitations(page, seededInvitationsPayload);
-			await page.goto('/staff/invitations?status=pending,accepted');
+			await page.goto('/staff/invitations');
 
-			const trigger = page.getByRole('button', { name: /Pending, Accepted/i });
+			const trigger = page.getByRole('button', { name: /^Filters/ });
 			await trigger.click();
-			const allStatuses = page.getByRole('menuitemcheckbox', {
-				name: 'All statuses',
+			const pending = page.getByRole('checkbox', {
+				name: 'Pending',
+				exact: true,
 			});
+			const accepted = page.getByRole('checkbox', {
+				name: 'Accepted',
+				exact: true,
+			});
+
+			await pending.click();
+			await expect(pending).toBeChecked();
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get('status'))
+				.toBe('pending');
+
+			await accepted.click();
+			await expect(accepted).toBeChecked();
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get('status'))
+				.toBe('pending,accepted');
 			await expect(
-				allStatuses.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
-			).toHaveCount(0);
-			await allStatuses.click();
-			await expect(page.getByRole('menu')).toBeHidden();
+				page.getByRole('button', { name: /Remove Statuses:?\s*Pending/ }),
+			).toBeVisible();
+
+			await pending.click();
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get('status'))
+				.toBe('accepted');
+
+			await page.getByRole('button', { name: 'Clear all' }).first().click();
 			await expect
 				.poll(() => new URL(page.url()).searchParams.has('status'))
 				.toBe(false);
@@ -126,24 +148,23 @@ test.describe(
 			await expect(
 				page.getByRole('columnheader', { name: 'Invitee' }),
 			).toBeVisible();
-			// No `Role` column: the invitations API carries no role for an invitee, so
-			// the column rendered a fabricated constant (review-r3-users-auth.md F1,
-			// removed in W3-E `a709628f`). Assert its absence — it was restored once
-			// already by an unrelated fix.
 			await expect(
-				page.getByRole('columnheader', { name: 'Role' }),
-			).toHaveCount(0);
+				page.getByRole('columnheader', { name: 'Status' }),
+			).toBeVisible();
 			await expect(
-				page.getByRole('columnheader', { name: 'Profiles' }),
+				page.getByRole('columnheader', { name: 'Profile' }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('columnheader', { name: 'Invited by' }),
 			).toBeVisible();
 			await expect(
-				page.getByRole('columnheader', { name: 'Expires' }),
+				page.getByRole('columnheader', { name: 'Sent on' }),
 			).toBeVisible();
 			await expect(
-				page.getByRole('columnheader', { name: 'Status' }),
+				page.getByRole('columnheader', { name: 'Expires on' }),
+			).toBeVisible();
+			await expect(
+				page.getByRole('columnheader', { name: 'Accepted at' }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('columnheader', { name: 'Actions' }),
@@ -157,6 +178,22 @@ test.describe(
 				page
 					.getByTestId(`${TABLE}-rows`)
 					.getByText('Accepted', { exact: true }),
+			).toBeVisible();
+		});
+
+		test('shows the Team panel with a real invitations count', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockStaffInvitations(page, seededInvitationsPayload);
+			await page.goto('/staff/invitations');
+
+			const panel = page.getByTestId('app-shell-secondary-panel');
+			await expect(
+				panel.getByRole('button', { name: /Invitations\s+2/ }),
+			).toBeVisible();
+			await expect(
+				panel.getByRole('button', { name: /Audit logs/ }),
 			).toBeVisible();
 		});
 
@@ -175,7 +212,7 @@ test.describe(
 			await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
 		});
 
-		test('invite users entry navigates to the create route', async ({
+		test('invite member entry navigates to the create route', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -186,7 +223,7 @@ test.describe(
 
 			await Promise.all([
 				page.waitForURL(/\/staff\/invitations\/new$/),
-				page.getByRole('link', { name: /invite user/i }).click(),
+				page.getByRole('link', { name: 'Invite member' }).click(),
 			]);
 
 			await expect(
@@ -242,9 +279,5 @@ test.describe(
 			).toBeVisible();
 			await expect(errorToasts).toHaveCount(1);
 		});
-
-		// The request-counter test that used to live here moved to its own file
-		// and dependency-ordered project — see e2e/request-counter.spec.ts and
-		// review-r1-tests.md F11.
 	},
 );

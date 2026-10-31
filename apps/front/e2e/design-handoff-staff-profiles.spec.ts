@@ -158,10 +158,10 @@ test.describe(
 
 			const tableRows = page.getByTestId('staff-profiles-table-rows');
 			const firstRow = tableRows.locator('[data-slot="table-row"]').first();
-			await expect(firstRow).toHaveCSS('height', '56px');
+			await expect(firstRow).toHaveCSS('height', '48px');
 
 			const firstCell = firstRow.locator('[data-slot="table-cell"]').nth(1);
-			await expect(firstCell).toHaveCSS('height', '56px');
+			await expect(firstCell).toHaveCSS('height', '48px');
 
 			const iconTile = firstRow.locator('.publy-profile-icon-tile');
 			await expect(iconTile).toHaveCSS('width', '32px');
@@ -236,10 +236,14 @@ test.describe(
 			// canvas), not something a spec should quietly re-pin.
 			await expect(
 				page.getByRole('columnheader', { name: 'Profile' }),
-			).toHaveCSS('width', '240px');
+			).toHaveCSS('width', '260px');
+			await expect(page.getByRole('columnheader', { name: 'Type' })).toHaveCSS(
+				'width',
+				'140px',
+			);
 			await expect(
 				page.getByRole('columnheader', { name: 'Members' }),
-			).toHaveCSS('width', '104px');
+			).toHaveCSS('width', '120px');
 			await expect(
 				page.getByRole('columnheader', { name: 'Permissions' }),
 			).toHaveCount(0);
@@ -261,9 +265,7 @@ test.describe(
 			const descriptionText = tableRows
 				.locator('[data-slot="table-row"]')
 				.first()
-				.locator('[data-slot="table-cell"]')
-				.nth(1)
-				.locator('span');
+				.getByText(longDescription);
 			await expect(descriptionText).toHaveCSS('text-overflow', 'ellipsis');
 			await expect(descriptionText).toHaveAttribute('title', longDescription);
 
@@ -277,8 +279,35 @@ test.describe(
 			await expect(lastRowCell).toHaveCSS('border-bottom-width', '1px');
 			await expect(lastRowCell).toHaveCSS(
 				'border-bottom-color',
-				'rgb(241, 241, 243)',
+				'rgb(227, 227, 227)',
 			);
+		});
+
+		test('renders the profile users inset with its count and three columns', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await page.setViewportSize({ width: 1440, height: 900 });
+			await setupProfilesMocks(page);
+
+			await page.goto(PROFILE_USERS_PATH(HANDOFF_PROFILE_ID));
+			await expect(page.getByTestId('staff-profile-users-table')).toBeVisible({
+				timeout: 10_000,
+			});
+			await expect(page.getByRole('tab', { name: /Users/ })).toContainText('1');
+			await expect(
+				page.getByRole('columnheader', { name: 'Member' }),
+			).toBeVisible();
+			await expect(
+				page.getByRole('columnheader', { name: 'Email' }),
+			).toBeVisible();
+			await expect(
+				page.getByRole('columnheader', { name: 'Status' }),
+			).toBeVisible();
+			await expect(page.getByText('Maya Chen').first()).toBeVisible();
+			await expect(
+				page.getByRole('link', { name: 'Assign members' }),
+			).toBeVisible();
 		});
 
 		test('asserts profile detail identity block and permission matrix per handoff 2h', async ({

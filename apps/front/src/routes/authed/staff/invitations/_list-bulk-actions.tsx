@@ -26,7 +26,7 @@ import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { getBulkRevokeEligibleIds } from './bulk-revoke-eligibility';
-import type { InvitationRow } from './table-columns';
+import type { StaffInvitationRow } from './list-helpers';
 
 /** Route-local bulk-revoke action for the staff invitations list (#1387): the
  * selection toolbar offered only Export even though the API already ships
@@ -96,7 +96,7 @@ export const InvitationsListBulkActions = ({
 	selection,
 	onSessionExpired,
 }: {
-	rows: InvitationRow[];
+	rows: StaffInvitationRow[];
 	selection: UseRowSelectionResult;
 	onSessionExpired: () => void;
 }) => {
