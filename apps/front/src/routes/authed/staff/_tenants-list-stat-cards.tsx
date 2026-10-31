@@ -6,7 +6,7 @@ import {
 import { StatCard } from '~/components/ui/stat-card';
 import type { StaffTenantRow } from '~/lib/query/staff-tenants';
 
-import { occupancyBand } from './_tenants-list-model';
+import { occupancyBand } from './_tenants-list-config';
 
 const Dash = () => <span className="text-muted-foreground">—</span>;
 

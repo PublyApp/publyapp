@@ -19,16 +19,17 @@ import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { TenantBulkActions } from './_tenants-list-bulk-actions';
+import { tenantColumns } from './_tenants-list-columns';
 import {
 	buildTenantFilters,
 	buildTenantMobileCard,
 	buildTenantTotals,
+	DEFAULT_TENANT_COLUMNS,
 	exportTenantRows,
 	selectedTenantIds,
 	toggleAllTenantSelection,
 	toggleTenantSelection,
 } from './_tenants-list-config';
-import { DEFAULT_TENANT_COLUMNS, tenantColumns } from './_tenants-list-model';
 import { TenantLifecycleActionsCell } from './_tenants-list-row-actions';
 import { TenantStatCards } from './_tenants-list-stat-cards';
 import {

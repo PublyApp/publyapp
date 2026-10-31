@@ -8,19 +8,76 @@ import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { formatShortDate, getRelativeTimeParts } from '~/utils/format-time';
 
-import {
-	occupancyBand,
-	occupancyPercent,
-	StatusIcon,
-	TENANT_STATUS_ORDER,
-	tenantColumns,
-	tenantStatusKey,
-} from './_tenants-list-model';
+import { tenantColumns } from './_tenants-list-columns';
+import { StatusIcon, type TenantStatusFilterKey } from './_tenants-list-model';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** The missing-value convention (§4.1 item 11): « — », never a fabricated 0. */
 const DASH = '—';
+
+type OccupancyBand = 'full' | 'high' | 'available';
+
+const TENANT_STATUS_ORDER = [
+	'active',
+	'pending',
+	'suspended',
+] as const satisfies readonly TenantStatusFilterKey[];
+
+export const tenantStatusKey = (
+	status: string | null,
+): TenantStatusFilterKey | null => {
+	const normalized = status?.trim().toLowerCase();
+	if (
+		normalized === 'active' ||
+		normalized === 'pending' ||
+		normalized === 'suspended'
+	) {
+		return normalized;
+	}
+	return null;
+};
+
+/** The occupancy ratio (0–100), or `null` when the API has no seat cap. */
+export const occupancyPercent = (row: StaffTenantRow): number | null => {
+	if (row.maxUsers <= 0) {
+		return null;
+	}
+	return Math.min(100, Math.round((row.usersCount / row.maxUsers) * 100));
+};
+
+/** Full at 100%, high from 80% (the list's « Presque pleines » rule). */
+export const occupancyBand = (row: StaffTenantRow): OccupancyBand | null => {
+	const percent = occupancyPercent(row);
+	if (percent === null) {
+		return null;
+	}
+	if (percent >= 100) {
+		return 'full';
+	}
+	if (percent >= 80) {
+		return 'high';
+	}
+	return 'available';
+};
+
+/** The 14 columns shown by default, in the design's order. */
+export const DEFAULT_TENANT_COLUMNS = [
+	'name',
+	'code',
+	'status',
+	'members',
+	'occupancy',
+	'projects',
+	'channels',
+	'postsMonth',
+	'invitations',
+	'owners',
+	'locale',
+	'timezone',
+	'createdAt',
+	'lastActivityAt',
+] as const;
 
 /** The organisations list's filters: statuses and seats in the side panel.
  *

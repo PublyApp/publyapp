@@ -1,26 +1,18 @@
-import {
-	IconChevronDown,
-	IconChevronUp,
-	IconDots,
-	IconDownload,
-	type Icon as TablerIcon,
-} from '@tabler/icons-react';
+import type { Icon as TablerIcon } from '@tabler/icons-react';
 import type { SortingState } from '@tanstack/react-table';
-import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableStates } from '~/components/table/data-table-states';
-import { resolveTableBodyState } from '~/components/table/table-body-state';
-import { Button } from '~/components/ui/button';
 import { Collapse } from '~/components/ui/collapse';
-import { PageHeader } from '~/components/ui/product-page';
 
 import { ColumnsPicker } from './columns-picker';
-import { FilterChips, FilterMenu, type FilterCounts } from './filter-menu';
+import { FilterChips, FilterMenu } from './filter-menu';
 import { ListFilterPanel, type ListPanelGroup } from './filter-panel';
 import { HomeTabs } from './home-tabs';
 import { CardFoot, ListCard, ListCards } from './list-card';
-import { moveColumn } from './list-columns';
-import { ListTable, useListTable } from './list-table';
+import { ListPageHeader } from './list-page-header';
+import { useListPage } from './list-page-state';
+import { ListTable } from './list-table';
 import { ListToolbar } from './list-toolbar';
 import type {
 	ListColumn,
@@ -30,14 +22,10 @@ import type {
 	ListSelection,
 	ListTab,
 } from './list-types';
-import { listValueHas } from './list-types';
 import { SearchField } from './search-field';
 import { SortMenu } from './sort-menu';
 
 const PANEL_TARGET_ID = 'app-shell-page-panel';
-
-/** The unknown-total convention (§4.1 item 11): « — », never a page sum. */
-const DASH = '—';
 
 export type ListPageProps<T extends { id: string }> = {
 	testId?: string;
@@ -107,184 +95,16 @@ const FilterGlyph = ({ icon: Icon }: { icon: TablerIcon }) => (
  * the data table with pinned header/totals and meta cards below `md`, and the
  * side panel's filter-shortcut groups with counters. Every admin list —
  * including the ones inside a detail tab through `inset` — renders this.
+ *
+ * Its derived state lives in `useListPage` and its title row in
+ * `ListPageHeader`, so this component stays under the
+ * `react-doctor/no-giant-component` size bound.
  */
-export const ListPage = <T extends { id: string }>({
-	testId = 'list',
-	ariaLabel,
-	title,
-	description,
-	searchPlaceholder,
-	rows,
-	columns,
-	defaultColumns,
-	lockedColumn,
-	sorting,
-	onSortingChange,
-	q,
-	onSearch,
-	locale,
-	filters,
-	filtersValue,
-	onFiltersChange,
-	countsKnown = true,
-	emptyText,
-	tabs = [],
-	currentTab,
-	onTabChange,
-	cards,
-	totals,
-	onOpen,
-	openLabel,
-	mobileCard,
-	selection,
-	renderActions,
-	onExport,
-	newAction,
-	inset,
-	queryState,
-	footer,
-	after,
-	bulkBar,
-}: ListPageProps<T>) => {
+export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	const { t } = useTranslation('common');
-	const top = useRef<HTMLElement>(null);
-	const [shown, setShown] = useState<string[]>(defaultColumns);
-	const [statsOpen, setStatsOpen] = useState(true);
-	const [searchHeight, setSearchHeight] = useState(0);
-	const [tab, setTab] = useState(currentTab ?? tabs[0]?.key ?? 'all');
-
-	const currentTabDef = tabs.find((entry) => entry.key === tab) ?? tabs[0];
-	const inTab = (row: T) => (currentTabDef ? currentTabDef.match(row) : true);
-	const passes = (row: T, except?: string) =>
-		filters.every(
-			(filter) =>
-				filter.key === except ||
-				(filtersValue[filter.key]?.length ?? 0) === 0 ||
-				filtersValue[filter.key].some((value) =>
-					listValueHas(filter.valueOf(row), value),
-				),
-		);
-
-	const filtered = rows.filter((row) => inTab(row) && passes(row));
-	const sort = sorting[0];
-	const sorted = [...filtered];
-	if (sort) {
-		const column = columns.find((entry) => entry.id === sort.id);
-		if (column?.value) {
-			const direction = sort.desc ? -1 : 1;
-			sorted.sort((a, b) => {
-				const left = column.value?.(a) ?? null;
-				const right = column.value?.(b) ?? null;
-				if (left === null && right === null) {
-					return 0;
-				}
-				if (left === null) {
-					return 1;
-				}
-				if (right === null) {
-					return -1;
-				}
-				if (typeof left === 'number' && typeof right === 'number') {
-					return (left - right) * direction;
-				}
-				return String(left).localeCompare(String(right), locale) * direction;
-			});
-		}
-	}
-
-	const displayed = sorted;
-	const shownColumns = shown.flatMap((id) => {
-		const column = columns.find((entry) => entry.id === id);
-		return column ? [column] : [];
-	});
-	const specs = new Map(
-		shownColumns.map((column) => [
-			column.id,
-			{ label: column.header, icon: column.icon, width: column.width },
-		]),
-	);
-	if (renderActions) {
-		specs.set('actions', { label: t('actions'), icon: IconDots, width: 40 });
-	}
-	const {
-		rows: tableRows,
-		ids,
-		head,
-	} = useListTable({
-		data: displayed,
-		columns: shownColumns,
-		actions: renderActions,
-		sorting,
-		onSortingChange,
-		specs,
-	});
-
-	// The footer labels these cells as totals, so it obeys the same rule as the
-	// counters: when the collection is not fully known, « — » instead of the
-	// loaded page's sums (issue #2274 review round 2).
-	const totalCells = totals(displayed);
-	if (!countsKnown) {
-		for (const id of totalCells.keys()) {
-			totalCells.set(id, DASH);
-		}
-	}
-
-	// The same per-choice counts feed the filter menu and the side panel (the
-	// Shopkart faceted rule: count within the other filters). `null` means the
-	// collection is not fully loaded and the API exposes no count source.
-	const countsFor = (filter: ListFilter<T>): Record<string, number | null> =>
-		Object.fromEntries(
-			filter.choices.map((choice) => [
-				choice.value,
-				countsKnown
-					? rows.filter(
-							(row) =>
-								inTab(row) &&
-								passes(row, filter.key) &&
-								listValueHas(filter.valueOf(row), choice.value),
-						).length
-					: null,
-			]),
-		);
-	const counts: FilterCounts = {};
-	for (const filter of filters) {
-		counts[filter.key] = countsFor(filter);
-	}
-
-	const toggleFilter = (key: string, value: string) => {
-		const current = filtersValue[key] ?? [];
-		onFiltersChange({
-			...filtersValue,
-			[key]: current.includes(value)
-				? current.filter((entry) => entry !== value)
-				: [...current, value],
-		});
-	};
-	const clearFilter = (key: string) => {
-		onFiltersChange({ ...filtersValue, [key]: [] });
-	};
-	const clearAllFilters = () => {
-		const cleared: ListFiltersValue = {};
-		for (const filter of filters) {
-			cleared[filter.key] = [];
-		}
-		onFiltersChange(cleared);
-	};
-	const shortcut = (key: string, value: string) => {
-		if (filtersValue[key]?.includes(value)) {
-			onFiltersChange({
-				...filtersValue,
-				[key]: (filtersValue[key] ?? []).filter((entry) => entry !== value),
-			});
-			return;
-		}
-		const next: ListFiltersValue = {};
-		for (const filter of filters) {
-			next[filter.key] = [];
-		}
-		next[key] = [value];
-		onFiltersChange(next);
-	};
+	const page = useListPage(props);
+	const { filters, filtersValue, rows } = props;
+	const countsKnown = props.countsKnown ?? true;
 
 	const panelGroups: ListPanelGroup[] = [];
 	for (const filter of filters) {
@@ -298,103 +118,17 @@ export const ListPage = <T extends { id: string }>({
 				key: `${filter.key}:${choice.value}`,
 				label: choice.label,
 				icon: choice.icon ?? <FilterGlyph icon={filter.icon} />,
-				count: counts[filter.key]?.[choice.value] ?? null,
+				count: page.counts[filter.key]?.[choice.value] ?? null,
 				active: filtersValue[filter.key]?.includes(choice.value) ?? false,
-				onClick: () => shortcut(filter.key, choice.value),
+				onClick: () => page.shortcut(filter.key, choice.value),
 			})),
 		});
 	}
 
-	let activeFilterCount = 0;
-	for (const filter of filters) {
-		activeFilterCount += filtersValue[filter.key]?.length ?? 0;
-	}
-	const hasActiveSearch = q.length > 0 || activeFilterCount > 0;
-	const bodyState = resolveTableBodyState({
-		isPending: queryState.isPending,
-		isError: queryState.isError,
-		rowCount: displayed.length,
-		hasActiveSearch,
-	});
-	const emptyContent = emptyText ?? t('list-empty');
-	// A search with no match gets its own wording (already keyed, the same
-	// sentence the table states use); filters keep the consumer's text. The
-	// table body is the only body that rendered the wrong sentence (#2280).
-	const bodyContent =
-		bodyState === 'no-match' && q.length > 0
-			? t('list-no-match-title')
-			: emptyContent;
 	const emptyNode = (
 		<p className="py-10 text-center text-sm text-muted-foreground">
-			{bodyContent}
+			{page.bodyContent}
 		</p>
-	);
-
-	const tabDefs = tabs.map((entry) => ({
-		key: entry.key,
-		label: entry.label,
-		count: countsKnown ? rows.filter(entry.match).length : null,
-	}));
-	const titleRow = (
-		<>
-			{inset ? (
-				<div className="flex flex-wrap items-end justify-between gap-3">
-					<div className="flex min-w-0 flex-col gap-1">
-						<h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-							{title}
-							<span className="flex h-5 items-center rounded-[var(--publy-radius-chip)] bg-secondary px-2 text-xs font-medium text-secondary-foreground tabular-nums">
-								{countsKnown ? rows.length : DASH}
-							</span>
-						</h2>
-						{inset.description ? (
-							<p className="text-sm text-muted-foreground">
-								{inset.description}
-							</p>
-						) : null}
-					</div>
-					{newAction}
-				</div>
-			) : (
-				<PageHeader
-					title={title}
-					description={description}
-					actions={
-						<>
-							{onExport ? (
-								<Button
-									variant="outline"
-									aria-label={t('list-export')}
-									onClick={onExport}
-								>
-									<IconDownload data-icon="inline-start" />
-									<span className="hidden md:inline">{t('list-export')}</span>
-								</Button>
-							) : null}
-							{newAction}
-							{cards ? (
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									aria-expanded={statsOpen}
-									aria-label={
-										statsOpen
-											? t('list-stats-collapse')
-											: t('list-stats-expand')
-									}
-									onClick={() => setStatsOpen((open) => !open)}
-								>
-									{statsOpen ? (
-										<IconChevronUp aria-hidden="true" />
-									) : (
-										<IconChevronDown aria-hidden="true" />
-									)}
-								</Button>
-							) : null}
-						</>
-					}
-				/>
-			)}
-		</>
 	);
 
 	return (
@@ -404,61 +138,73 @@ export const ListPage = <T extends { id: string }>({
 			// then owns the rows' scroll and the pager stays on screen (#2280).
 			className="publy-page-fill"
 			data-list-page=""
-			style={{ '--search-height': `${searchHeight}px` } as CSSProperties}
+			style={{ '--search-height': `${page.searchHeight}px` } as CSSProperties}
 		>
-			{titleRow}
-			{cards ? (
-				<Collapse open={statsOpen} axis="y">
+			<ListPageHeader
+				title={props.title}
+				description={props.description}
+				inset={props.inset}
+				count={countsKnown ? rows.length : null}
+				onExport={props.onExport}
+				newAction={props.newAction}
+				cards={props.cards}
+				statsOpen={page.statsOpen}
+				onToggleStats={page.toggleStats}
+			/>
+			{props.cards ? (
+				<Collapse open={page.statsOpen} axis="y">
 					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-3">
-						{cards}
+						{props.cards}
 					</div>
 				</Collapse>
 			) : null}
-			{tabs.length > 1 ? (
+			{(props.tabs?.length ?? 0) > 1 ? (
 				<HomeTabs
-					tabs={tabDefs}
-					current={tab}
-					label={title}
-					onPick={(key) => {
-						setTab(key);
-						onTabChange?.(key);
-					}}
+					tabs={page.tabDefs}
+					current={page.tab}
+					label={props.title}
+					onPick={page.pickTab}
 				/>
 			) : null}
 			<ListToolbar
-				top={top}
-				onHeightChange={setSearchHeight}
-				tabs={tabs.length > 1}
+				top={page.top}
+				onHeightChange={page.setSearchHeight}
+				tabs={(props.tabs?.length ?? 0) > 1}
 				search={
 					<SearchField
-						q={q}
-						onSearch={onSearch}
-						placeholder={searchPlaceholder}
-						disabled={selection !== undefined && selection.selectedIds.size > 0}
+						q={props.q}
+						onSearch={props.onSearch}
+						placeholder={props.searchPlaceholder}
+						disabled={
+							props.selection !== undefined &&
+							props.selection.selectedIds.size > 0
+						}
 					/>
 				}
 			>
 				<SortMenu
-					sort={sort && specs.has(sort.id) ? sort : undefined}
-					onSort={(next) => onSortingChange(next)}
-					columns={specs}
-					ids={shown}
+					sort={
+						page.sort && page.specs.has(page.sort.id) ? page.sort : undefined
+					}
+					onSort={props.onSortingChange}
+					columns={page.specs}
+					ids={page.shown}
 					defaultLabel={t('list-sort-default')}
 				/>
 				<FilterMenu
 					filters={filters}
 					active={filtersValue}
-					counts={counts}
-					onToggle={toggleFilter}
-					onClear={clearFilter}
+					counts={page.counts}
+					onToggle={page.toggleFilter}
+					onClear={page.clearFilter}
 				/>
 				<ColumnsPicker
-					shown={shown}
-					onChange={setShown}
-					onReset={() => setShown(defaultColumns)}
+					shown={page.shown}
+					onChange={page.setShown}
+					onReset={page.resetColumns}
 					columns={
 						new Map(
-							columns.map((column) => [
+							props.columns.map((column) => [
 								column.id,
 								{
 									label: column.header,
@@ -468,57 +214,53 @@ export const ListPage = <T extends { id: string }>({
 							]),
 						)
 					}
-					locked={lockedColumn}
-					isDefault={shown.join() === defaultColumns.join()}
+					locked={props.lockedColumn}
+					isDefault={page.isDefaultColumns}
 				/>
 			</ListToolbar>
 			<FilterChips
 				filters={filters}
 				active={filtersValue}
-				onToggle={toggleFilter}
-				onClearAll={clearAllFilters}
+				onToggle={page.toggleFilter}
+				onClearAll={page.clearAllFilters}
 			/>
-			{bulkBar}
-			{bodyState === 'loading' || bodyState === 'error' ? (
+			{props.bulkBar}
+			{page.bodyState === 'loading' || page.bodyState === 'error' ? (
 				<DataTableStates
-					testId={testId}
-					bodyState={bodyState}
+					testId={props.testId ?? 'list'}
+					bodyState={page.bodyState}
 					resolvedRowHeight={48}
-					onRetry={queryState.onRetry}
+					onRetry={props.queryState.onRetry}
 					errorContent={t('list-error-default-description')}
-					emptyContent={emptyContent}
+					emptyContent={page.emptyContent}
 					noMatchContent={t('list-no-match-default-description')}
 				/>
 			) : (
 				<ListTable
-					ariaLabel={ariaLabel}
-					specs={specs}
-					ids={ids}
-					rows={tableRows}
-					head={head}
-					totals={totalCells}
-					onOpen={onOpen}
-					openLabel={openLabel}
-					selection={selection}
+					ariaLabel={props.ariaLabel}
+					specs={page.specs}
+					ids={page.ids}
+					rows={page.tableRows}
+					head={page.head}
+					totals={page.totalCells}
+					onOpen={props.onOpen}
+					openLabel={props.openLabel}
+					selection={props.selection}
 					empty={emptyNode}
-					onMove={(from, before) =>
-						setShown((current) =>
-							moveColumn(current, from, before, lockedColumn),
-						)
-					}
+					onMove={page.moveShown}
 					cards={
 						<ListCards
-							count={displayed.length}
+							count={page.displayed.length}
 							empty={emptyNode}
 							summary={undefined}
 						>
-							{displayed.map((row) => {
-								const card = mobileCard(row);
+							{page.displayed.map((row) => {
+								const card = props.mobileCard(row);
 								return (
 									<ListCard
 										key={row.id}
-										onOpen={() => onOpen(row)}
-										openLabel={openLabel(row)}
+										onOpen={() => props.onOpen(row)}
+										openLabel={props.openLabel(row)}
 										code={card.code}
 										badges={card.badges}
 										end={card.end}
@@ -535,9 +277,9 @@ export const ListPage = <T extends { id: string }>({
 					}
 				/>
 			)}
-			{footer}
+			{props.footer}
 			<ListFilterPanel groups={panelGroups} targetId={PANEL_TARGET_ID} />
-			{after}
+			{props.after}
 		</div>
 	);
 };
