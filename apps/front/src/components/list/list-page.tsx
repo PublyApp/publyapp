@@ -1,6 +1,7 @@
 import type { Icon as TablerIcon } from '@tabler/icons-react';
 import type { SortingState } from '@tanstack/react-table';
 import type { CSSProperties, ReactNode } from 'react';
+import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableStates } from '~/components/table/data-table-states';
 import { Collapse } from '~/components/ui/collapse';
@@ -84,9 +85,9 @@ export type ListPageProps<T extends { id: string }> = {
 	bulkBar?: ReactNode;
 };
 
-const FilterGlyph = ({ icon: Icon }: { icon: TablerIcon }) => (
-	<Icon aria-hidden="true" className="size-4 shrink-0" />
-);
+// createElement, not <Icon />: the drawer-description guard cannot attribute a JSX tag bound to a parameter.
+const FilterGlyph = ({ icon }: { icon: TablerIcon }) =>
+	createElement(icon, { 'aria-hidden': true, className: 'size-4 shrink-0' });
 
 /**
  * The one generic list page (Shopkart OS `sk-orgs/list-page.tsx` +
