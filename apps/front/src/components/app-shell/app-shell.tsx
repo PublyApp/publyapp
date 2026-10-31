@@ -200,6 +200,17 @@ const AuthedWorkspaceShell = ({
 			tenantPermissions !== undefined ? new Set(tenantPermissions) : undefined,
 	});
 	const secondaryItems = getSecondaryPanelItems(pathname);
+	// List pages own their secondary panel: it repeats the section links with
+	// API counts and appends the page's filter shortcuts. The static nav would
+	// otherwise render the same links twice, without counters.
+	const pageOwnsSecondaryNav = useMatches({
+		select: (matches) =>
+			matches.some(
+				(match) =>
+					(match.staticData as { pageOwnsSecondaryPanel?: boolean } | undefined)
+						?.pageOwnsSecondaryPanel === true,
+			),
+	});
 	// The logo is the scope home: a tenant user must never land on a staff
 	// destination (review #1131 round 2 — MAJOR). `/tenant` re-resolves the
 	// workspace (or shows the picker), so it is the tenant scope's root.
@@ -322,19 +333,21 @@ const AuthedWorkspaceShell = ({
 						<SecondaryPanelHeader
 							title={activeRoute ? t(activeRoute.labelKey) : null}
 						/>
-						<nav
-							className="app-shell-secondary-nav"
-							aria-label={t('nav-secondary')}
-						>
-							{secondaryItems.map((item) => (
-								<SecondaryPanelNavItem
-									key={item.id}
-									item={item}
-									pathname={pathname}
-									search={search}
-								/>
-							))}
-						</nav>
+						{pageOwnsSecondaryNav ? null : (
+							<nav
+								className="app-shell-secondary-nav"
+								aria-label={t('nav-secondary')}
+							>
+								{secondaryItems.map((item) => (
+									<SecondaryPanelNavItem
+										key={item.id}
+										item={item}
+										pathname={pathname}
+										search={search}
+									/>
+								))}
+							</nav>
+						)}
 						{/* A list page's filter-shortcut groups portal here (#2274
 						    §4.1): page-owned runtime counters cannot live in the route
 						    metadata, so the page mounts its own panel content. */}

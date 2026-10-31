@@ -131,7 +131,7 @@ test.describe(
 				'OPTIONS',
 			);
 
-			await page.getByRole('link', { name: 'All users' }).click();
+			await page.getByRole('button', { name: /Staff members/ }).click();
 			await expect(page.getByTestId('staff-users-table')).toBeVisible();
 
 			const unexpectedGetResponse = page

@@ -10,33 +10,37 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: (props: { children?: ReactNode }) => props.children ?? null,
 }));
 
-import { buildColumns } from './_profile-columns';
+import { staffProfileColumns } from './_profile-columns';
 
 const t = (key: string): string => key;
 
 describe('staff profiles column grid', () => {
-	// `StaffProfileItem` carries only description/id/name/userAccountCount —
-	// no permission count, no updated_at (packages/client-ts/src/models/index.ts).
-	// Per docs/guides/front/conventions.md's data-honesty rule, a column with
-	// no backing field must not exist rather than render a fabricated "—".
-	test('applies the column grid across the columns the contract can back', () => {
-		const columns = buildColumns(t);
-		const widthById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.width]),
-		);
+	test('uses the four designed columns in order', () => {
+		const columns = staffProfileColumns(t);
+		expect(columns.map((column) => column.id)).toEqual([
+			'name',
+			'type',
+			'members',
+			'description',
+		]);
+	});
 
-		expect(widthById).toEqual({
-			name: '240px',
-			description: undefined,
-			members: '104px',
-			actions: '40px',
+	test('applies the Shopkart column widths', () => {
+		const columns = staffProfileColumns(t);
+		expect(
+			Object.fromEntries(columns.map((column) => [column.id, column.width])),
+		).toEqual({
+			name: 260,
+			type: 140,
+			members: 120,
+			description: 380,
 		});
 	});
 
-	test('never renders a permissions or updated column the API does not back', () => {
-		const columns = buildColumns(t);
-		const ids = columns.map((column) => column.id);
-
-		expect(ids).toEqual(['name', 'description', 'members', 'actions']);
+	test('renders Type as a dash because StaffProfileItem has no system flag', () => {
+		const columns = staffProfileColumns(t);
+		const typeColumn = columns.find((column) => column.id === 'type');
+		expect(typeColumn?.value).toBeUndefined();
+		expect(typeColumn?.sortable).toBe(false);
 	});
 });

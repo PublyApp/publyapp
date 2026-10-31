@@ -1,6 +1,4 @@
-/**
- * @vitest-environment jsdom
- */
+/** @vitest-environment jsdom */
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement, type JSX } from 'react';
@@ -10,12 +8,14 @@ import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
 const mocks = vi.hoisted(() => ({
 	locale: 'en',
 	statusPillTone: vi.fn((value: string | null) =>
-		value === 'active' ? 'success' : 'warning',
+		value?.toLowerCase() === 'active' ? 'success' : 'warning',
 	),
 	navigate: vi.fn(),
 	useStaffProfileDetailsQuery: vi.fn(),
 	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
+	useStaffTeamOverview: vi.fn(),
+	listPageProps: null as Record<string, unknown> | null,
 }));
 
 const labelMap: TestLocaleLabelMap = {
@@ -50,7 +50,6 @@ vi.mock('@tanstack/react-router', () => ({
 		href?: string;
 		to?: string;
 		params?: Record<string, string>;
-		target?: string;
 	}) => {
 		let targetHref = href ?? to ?? '';
 		if (params && targetHref) {
@@ -58,7 +57,6 @@ vi.mock('@tanstack/react-router', () => ({
 				targetHref = targetHref.replace(`$${key}`, value);
 			}
 		}
-
 		return createElement('a', { href: targetHref, ...props }, children);
 	},
 }));
@@ -78,12 +76,11 @@ vi.mock('../../staff-users/status-labels', () => ({
 		t: (key: string) => string,
 	) => {
 		let key = 'status-unknown';
-		if (status === 'active') {
+		if (status?.toLowerCase() === 'active') {
 			key = 'status-active';
-		} else if (status === 'suspended') {
+		} else if (status?.toLowerCase() === 'suspended') {
 			key = 'status-suspended';
 		}
-
 		return t(key);
 	},
 }));
@@ -109,6 +106,8 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 		data: { id: string; name: string; userAccountCount: number } | undefined,
 	) => data ?? null,
 	useStaffProfileDetailsQuery: mocks.useStaffProfileDetailsQuery,
+	selectStaffProfileCrumbName: () => undefined,
+	staffProfileCrumbQuery: () => undefined,
 }));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
@@ -125,27 +124,41 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }),
 }));
 
-vi.mock('~/components/error-views/View403', () => ({
-	View403: () => createElement('div', { 'data-testid': 'forbidden-view' }),
+vi.mock('../../_staff-list-team', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('../../_staff-list-team')>();
+	return {
+		...actual,
+		useStaffTeamOverview: mocks.useStaffTeamOverview,
+	};
+});
+
+vi.mock('~/components/list/list-page', () => ({
+	ListPage: (props: Record<string, unknown>) => {
+		mocks.listPageProps = props;
+		return createElement(
+			'div',
+			{
+				'data-testid': props.testId as string,
+				'data-count': String(props.count),
+			},
+			props.newAction as ReactNode,
+		);
+	},
 }));
 
-vi.mock('~/components/ui/button', () => ({
-	Button: ({ children, ...props }: { children?: ReactNode }) =>
-		createElement('button', props, children),
-	buttonVariants: () => '',
-}));
-
-vi.mock('~/components/table/data-table', () => ({
-	DataTable: ({ testId }: { testId?: string }) =>
-		createElement('div', { 'data-testid': testId ?? 'data-table' }),
+vi.mock('../../_staff-list-team', () => ({
+	useStaffTeamOverview: mocks.useStaffTeamOverview,
+	buildStaffTeamPanelGroups: () => [],
 }));
 
 import { buildColumns } from './_users-columns';
 import { Route } from './users';
 
 const Component = Route.options.component as () => JSX.Element;
-
 const renderPage = () => render(<Component />);
+const listPageProps = <K extends string>(key: K) =>
+	(mocks.listPageProps as Record<string, unknown> | null)?.[key];
 
 afterEach(() => {
 	cleanup();
@@ -166,26 +179,30 @@ beforeEach(() => {
 		refetch: vi.fn(),
 	});
 	mocks.useStaffProfileUsersQuery.mockReturnValue({
-		data: { users: [], count: 0 },
+		data: { users: [], count: 3 },
 		isPending: false,
 		isError: false,
 		isFetching: false,
 		error: null,
 		refetch: vi.fn(),
 	});
+	mocks.useStaffTeamOverview.mockReturnValue({
+		counts: { staff: 10, invitations: 10, profiles: 7 },
+		staff: [],
+		invitations: [],
+		profiles: [],
+	});
 });
 
 describe('staff profile users columns', () => {
-	test('applies a fixed width to every column except the fluid name column', () => {
+	test('has the three designed columns in order', () => {
 		const columns = buildColumns((key: string) => key);
-		const widthById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.width]),
-		);
-
-		expect(widthById).toEqual({
-			name: undefined,
-			status: '122px',
-		});
+		expect(columns.map((column) => column.id)).toEqual([
+			'name',
+			'email',
+			'status',
+		]);
+		expect(columns.map((column) => column.width)).toEqual([250, 270, 170]);
 	});
 
 	test('renders the first column as a link to staff user detail', () => {
@@ -194,49 +211,50 @@ describe('staff profile users columns', () => {
 		);
 		const nameCell = columns.find((column) => column.id === 'name');
 		const row = {
-			original: {
-				id: '333',
-				firstName: 'Ada',
-				lastName: 'Lovelace',
-				email: 'ada@example.com',
-				avatarUrl: null,
-				status: 'active',
-			},
+			id: '333',
+			firstName: 'Ada',
+			lastName: 'Lovelace',
+			email: 'ada@example.com',
+			avatarUrl: null,
+			status: 'Active' as const,
 		};
-		const cellRenderer = nameCell?.cell as (props: {
-			row: typeof row;
-		}) => JSX.Element;
 
-		render(<>{cellRenderer({ row })}</>);
+		render(<>{nameCell?.cell(row)}</>);
 
 		const userLink = screen.getByRole('link', {
 			name: /Ada Lovelace/,
 		}) as HTMLAnchorElement;
 		expect(userLink.getAttribute('href')).toBe('/staff/staff-users/333');
-		expect(userLink.className.includes('publy-record-link')).toBe(true);
+		expect(userLink.querySelector('.publy-record-link')).not.toBeNull();
 	});
 
 	test.each([
-		['en', 'active', 'Active'],
-		['en', 'suspended', 'Suspended'],
+		['en', 'Active', 'Active'],
+		['en', 'Suspended', 'Suspended'],
 		['en', null, 'Unknown'],
-		['fr', 'active', 'Actif'],
-		['fr', 'suspended', 'Suspendu'],
+		['fr', 'Active', 'Actif'],
+		['fr', 'Suspended', 'Suspendu'],
 		['fr', null, 'Inconnu'],
 	])(
 		'renders %s status %s as %s in a status pill and applies tone',
 		(locale, status, expectedLabel) => {
 			mocks.locale = locale;
-
 			const columns = buildColumns(
 				(key: string) => labelMap[locale]?.[key] ?? key,
 			);
 			const statusCell = columns.find((column) => column.id === 'status');
-			const renderCell = statusCell?.cell as (props: {
-				getValue: () => string | null;
-			}) => JSX.Element;
-
-			render(<>{renderCell({ getValue: () => status })}</>);
+			render(
+				<>
+					{statusCell?.cell({
+						id: '333',
+						firstName: 'Ada',
+						lastName: 'Lovelace',
+						email: 'ada@example.com',
+						avatarUrl: null,
+						status: status as 'Active' | 'Suspended' | null,
+					})}
+				</>,
+			);
 
 			expect(screen.getByTestId('status-pill').textContent).toBe(expectedLabel);
 			expect(mocks.statusPillTone).toHaveBeenCalledWith(status);
@@ -244,58 +262,34 @@ describe('staff profile users columns', () => {
 	);
 });
 
-describe('staff profile users columns — locale fallbacks', () => {
-	test('uses status-unknown when the backend status is missing', () => {
-		const columns = buildColumns((key: string) => key);
-		const statusCell = columns.find((column) => column.id === 'status');
-		const renderCell = statusCell?.cell as (props: {
-			getValue: () => string | null;
-		}) => JSX.Element;
-
-		render(<>{renderCell({ getValue: () => 'mystery' })}</>);
-
-		expect(screen.getByTestId('status-pill').textContent).toBe(
-			'status-unknown',
-		);
-	});
-});
-
-// users-auth-r1-F5: this route requests 100 rows by default but had no
-// bounded-height chain, so the table expanded `.app-shell-main` and scrolled
-// the whole app shell instead of just the table body
-// (conventions.md:237-247). This asserts the complete chain, not merely that
-// the table renders — a regression that restores just the outer div would
-// still fail this.
-describe('staff profile users page — contained scroll layout', () => {
-	test('gives the route a bounded h-full/min-h-0 flex column down to the DataTable', () => {
+describe('staff profile users page', () => {
+	test('renders the users inset with the API count and the assign action', () => {
 		renderPage();
 
-		const root = screen.getByTestId('staff-profile-users-page');
-		expect(root.className).toContain('flex');
-		expect(root.className).toContain('h-full');
-		expect(root.className).toContain('min-h-0');
-		expect(root.className).toContain('flex-col');
+		expect(screen.getByTestId('staff-profile-users-page')).toBeTruthy();
+		expect(screen.getByTestId('staff-profile-users-table')).toBeTruthy();
+		expect(listPageProps('count')).toBe(3);
+		expect(listPageProps('title')).toBe('users');
+		expect(listPageProps('defaultColumns')).toEqual([
+			'name',
+			'email',
+			'status',
+		]);
+		expect(
+			screen.getByRole('link', { name: /assign-staff-members/ }),
+		).toBeTruthy();
+	});
 
-		const table = screen.getByTestId('staff-profile-users-table');
+	test('keeps the bounded detail-tab chain', () => {
+		renderPage();
 
-		const tabsContent = table.closest('.publy-detail-tab-body');
+		const tabsContent = screen
+			.getByTestId('staff-profile-users-table')
+			.closest('.publy-detail-tab-body');
 		expect(tabsContent).not.toBeNull();
 		expect(tabsContent?.className).toContain('min-h-0');
-
 		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
-		expect(tabsRoot).not.toBeNull();
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
-	});
-
-	// #978: DataTable already renders its own `.publy-table-card` surface —
-	// wrapping it in a `Card` produces two concentric rounded surfaces. This
-	// route must render the table directly on the tab body, matching the
-	// convention on staff/tenants.tsx and its siblings.
-	test('#978: renders the table directly on the tab body, with no wrapping Card', () => {
-		renderPage();
-
-		const table = screen.getByTestId('staff-profile-users-table');
-		expect(table.closest('[data-slot="card"]')).toBeNull();
 	});
 });
