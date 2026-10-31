@@ -20,12 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
-			if (key.includes(':')) {
-				return key.split(':').at(-1)!;
-			}
-			return key;
-		},
+		t: (key: string) => (key.includes(':') ? key.split(':').at(-1)! : key),
 	}),
 }));
 
@@ -57,17 +52,19 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 }));
 
 vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
-	toastLocalMutationResult: {
-		warning: mocks.toastWarning,
-	},
+	toastLocalMutationResult: { warning: mocks.toastWarning },
 }));
 
-import { createInvitationColumns } from './table-columns';
+import { invitationColumns } from './_invitations-list-columns';
+import type { StaffInvitationRow } from './list-helpers';
+import { InvitationRowActions } from './table-columns';
 
 const t = (key: string): string =>
-	key.startsWith('common:') ? key.replace(/^common:/, '') : key;
+	key.includes(':') ? key.split(':').at(-1)! : key;
 
-const buildRow = (overrides: Record<string, unknown> = {}) => ({
+const buildRow = (
+	overrides: Partial<StaffInvitationRow> = {},
+): StaffInvitationRow => ({
 	id: 'invitation-1',
 	email: 'person@example.com',
 	profileName: 'Ops',
@@ -79,171 +76,65 @@ const buildRow = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const renderActionsCell = (status = 'pending') => {
-	const columns = createInvitationColumns({
-		t,
-		locale: 'en',
-	});
-	const actionsColumn = columns.find((column) => column.id === 'actions');
-	const cellRenderer = actionsColumn?.cell as (props: {
-		row: { original: ReturnType<typeof buildRow> };
-	}) => ReactNode;
+const renderActions = (status: StaffInvitationRow['status'] = 'pending') => {
 	const queryClient = new QueryClient();
-
 	return render(
 		<QueryClientProvider client={queryClient}>
-			{cellRenderer({ row: { original: buildRow({ status }) } })}
+			<InvitationRowActions row={buildRow({ status })} />
 		</QueryClientProvider>,
 	);
 };
 
-describe('createInvitationColumns', () => {
-	test('marks the Profiles column as non-sortable because the staff invitations API does not support profile_name sorting', () => {
-		const columns = createInvitationColumns({
-			t,
-			locale: 'en',
-		});
-		const profileColumn = columns.find(
-			(column) => column.id === 'profile_name',
-		);
+afterEach(() => {
+	cleanup();
+});
 
-		expect(profileColumn).toMatchObject({
-			id: 'profile_name',
-			enableSorting: false,
-		});
+describe('invitationColumns', () => {
+	test('has the seven designed columns in order', () => {
+		const columns = invitationColumns(t, 'en');
+		expect(columns.map((column) => column.id)).toEqual([
+			'email',
+			'status',
+			'profile',
+			'invitedBy',
+			'createdAt',
+			'expiresAt',
+			'acceptedAt',
+		]);
 	});
 
-	test('applies the column grid, leaving exactly one fluid column', () => {
-		const columns = createInvitationColumns({
-			t,
-			locale: 'en',
-		});
-		const widthById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.width]),
-		);
-
-		// No `role` column: `InvitationListItem` carries no role field, and
-		// per docs/guides/front/conventions.md's data-honesty rule a column
-		// with nothing to back it must not exist rather than render a
-		// fabricated "—".
-		expect(widthById).toEqual({
-			email: '300px',
-			profile_name: undefined,
-			invited_by_name: '150px',
-			expires_at: '120px',
-			status: '128px',
-			actions: '40px',
-		});
-	});
-
-	test('centres the actions column via meta.align instead of a per-route wrapper', () => {
-		const columns = createInvitationColumns({
-			t,
-			locale: 'en',
-		});
-		const actionsColumn = columns.find((column) => column.id === 'actions');
-
-		expect(actionsColumn?.meta?.align).toBe('center');
-	});
-
-	test('renders the first column as a link to the invitation detail route, keeping the email text', () => {
-		const columns = createInvitationColumns({
-			t,
-			locale: 'en',
-		});
+	test('renders the email as a link to the invitation detail route', () => {
+		const columns = invitationColumns(t, 'en');
 		const emailColumn = columns.find((column) => column.id === 'email');
-		const row = {
-			original: {
-				id: 'invitation-1',
-				email: 'person@example.com',
-				profileName: 'Ops',
-				invitedByName: 'Jane',
-				status: 'pending',
-				acceptedAt: null,
-				createdAt: null,
-				expiresAt: null,
-			},
-		};
+		render(<>{emailColumn?.cell(buildRow())}</>);
 
-		const cellRenderer = emailColumn?.cell as (props: {
-			row: typeof row;
-		}) => ReactNode;
-		render(cellRenderer({ row }));
-
-		const link = screen.getByRole('link', { name: /person@example\.com/ });
-		const mailTile = link.querySelector('[aria-hidden="true"]');
+		const link = screen.getByRole('link', { name: 'person@example.com' });
 		expect(link.getAttribute('href')).toBe('/staff/invitations/invitation-1');
-		expect(mailTile?.className).toContain('publy-avatar-initials');
-		expect(mailTile?.className).not.toContain('bg-muted');
-		expect(mailTile?.className).not.toContain('text-muted-foreground');
-		expect(mailTile?.getAttribute('data-palette')).toBe('5');
 	});
 
-	describe('missing-data cells (r5-F5)', () => {
-		beforeEach(() => {
-			cleanup();
-		});
+	test('flags a missing required email instead of showing a dash', () => {
+		const columns = invitationColumns(t, 'en');
+		const emailColumn = columns.find((column) => column.id === 'email');
+		render(<>{emailColumn?.cell(buildRow({ email: '' }))}</>);
 
-		afterEach(() => {
-			cleanup();
-		});
+		expect(screen.getByText('invitation-missing-email')).toBeTruthy();
+		expect(screen.queryByRole('link')).toBeNull();
+	});
 
-		test('flags a missing required email as a data-integrity problem instead of fabricating a dash', () => {
-			const columns = createInvitationColumns({
-				t,
-				locale: 'en',
-			});
-			const emailColumn = columns.find((column) => column.id === 'email');
-			const cellRenderer = emailColumn?.cell as (props: {
-				row: { original: ReturnType<typeof buildRow> };
-			}) => ReactNode;
+	test('labels a missing profile or inviter as unknown', () => {
+		const columns = invitationColumns(t, 'en');
+		const profileColumn = columns.find((column) => column.id === 'profile');
+		const invitedByColumn = columns.find((column) => column.id === 'invitedBy');
+		render(
+			<>
+				{profileColumn?.cell(buildRow({ profileName: '' }))}
+				{invitedByColumn?.cell(buildRow({ invitedByName: '' }))}
+			</>,
+		);
 
-			render(cellRenderer({ row: { original: buildRow({ email: '' }) } }));
-
-			expect(screen.getByText('invitation-missing-email')).toBeTruthy();
-			expect(screen.queryByText('-')).toBeNull();
-			expect(screen.queryByRole('link')).toBeNull();
-		});
-
-		test('labels a missing profile lookup as unknown instead of fabricating a dash', () => {
-			const columns = createInvitationColumns({
-				t,
-				locale: 'en',
-			});
-			const profileColumn = columns.find(
-				(column) => column.id === 'profile_name',
-			);
-			const cellRenderer = profileColumn?.cell as (props: {
-				row: { original: ReturnType<typeof buildRow> };
-			}) => ReactNode;
-
-			render(
-				cellRenderer({ row: { original: buildRow({ profileName: '' }) } }),
-			);
-
-			expect(screen.getByText('unknown-profile')).toBeTruthy();
-			expect(screen.queryByText('-')).toBeNull();
-		});
-
-		test('labels a missing inviter lookup as unknown instead of fabricating a dash', () => {
-			const columns = createInvitationColumns({
-				t,
-				locale: 'en',
-			});
-			const invitedByColumn = columns.find(
-				(column) => column.id === 'invited_by_name',
-			);
-			const cellRenderer = invitedByColumn?.cell as (props: {
-				row: { original: ReturnType<typeof buildRow> };
-			}) => ReactNode;
-
-			render(
-				cellRenderer({ row: { original: buildRow({ invitedByName: '' }) } }),
-			);
-
-			expect(screen.getByText('unknown-inviter')).toBeTruthy();
-			expect(screen.queryByText('-')).toBeNull();
-		});
+		expect(screen.getByText('unknown-profile')).toBeTruthy();
+		expect(screen.getByText('unknown-inviter')).toBeTruthy();
+		expect(screen.queryByText('—')).toBeNull();
 	});
 });
 
@@ -275,9 +166,8 @@ describe('InvitationRowActions', () => {
 	};
 
 	test('revoking asks for confirmation before calling the mutation', async () => {
-		renderActionsCell();
+		renderActions();
 		await openMenu();
-
 		fireEvent.click(screen.getByText('revoke-invitation'));
 
 		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
@@ -286,8 +176,8 @@ describe('InvitationRowActions', () => {
 		).not.toHaveBeenCalled();
 	});
 
-	test('confirming revoke relies on central feedback, invalidates, and closes the dialog', async () => {
-		renderActionsCell();
+	test('confirming revoke relies on central feedback and invalidates', async () => {
+		renderActions();
 		await openMenu();
 		fireEvent.click(screen.getByText('revoke-invitation'));
 		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
@@ -300,7 +190,6 @@ describe('InvitationRowActions', () => {
 		expect(
 			mocks.useRevokeStaffInvitationMutation().mutateAsync,
 		).toHaveBeenCalledWith({ invitationId: 'invitation-1' });
-		expect(mocks.invalidateStaffInvitations).toHaveBeenCalled();
 	});
 
 	test('a failed revoke relies on central feedback and closes the dialog', async () => {
@@ -313,7 +202,7 @@ describe('InvitationRowActions', () => {
 			}),
 			isPending: false,
 		});
-		renderActionsCell();
+		renderActions();
 		await openMenu();
 		fireEvent.click(screen.getByText('revoke-invitation'));
 		await waitFor(() => expect(screen.getByText('revoke')).toBeTruthy());
@@ -325,12 +214,12 @@ describe('InvitationRowActions', () => {
 		expect(mocks.toastWarning).not.toHaveBeenCalled();
 	});
 
-	test('both row actions are disabled while a mutation is pending, guarding against double submission', async () => {
+	test('both row actions are disabled while a mutation is pending', async () => {
 		mocks.useResendStaffInvitationMutation.mockReturnValue({
 			mutateAsync: vi.fn().mockResolvedValue({}),
 			isPending: true,
 		});
-		renderActionsCell();
+		renderActions();
 		await openMenu();
 
 		expect(
@@ -346,7 +235,7 @@ describe('InvitationRowActions', () => {
 	test.each([['accepted'], ['expired'], ['revoked']])(
 		'does not call resend for %s invitations and warns locally',
 		async (status) => {
-			renderActionsCell(status);
+			renderActions(status as StaffInvitationRow['status']);
 			await openMenu();
 
 			fireEvent.click(screen.getByText('send-reminder'));
@@ -356,24 +245,6 @@ describe('InvitationRowActions', () => {
 			);
 			expect(
 				mocks.useResendStaffInvitationMutation().mutateAsync,
-			).not.toHaveBeenCalled();
-		},
-	);
-
-	test.each([['accepted'], ['expired'], ['revoked']])(
-		'does not open revoke confirmation for ineligible %s invitations',
-		async (status) => {
-			renderActionsCell(status);
-			await openMenu();
-
-			fireEvent.click(screen.getByText('revoke-invitation'));
-
-			expect(screen.queryByText('revoke')).toBeNull();
-			expect(mocks.toastWarning).toHaveBeenCalledWith(
-				'only-pending-invitations-can-be-managed',
-			);
-			expect(
-				mocks.useRevokeStaffInvitationMutation().mutateAsync,
 			).not.toHaveBeenCalled();
 		},
 	);

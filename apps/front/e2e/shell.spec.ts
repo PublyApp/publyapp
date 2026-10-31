@@ -285,11 +285,13 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		const panel = page.getByTestId('app-shell-secondary-panel');
 		await expect(panel).toBeVisible();
 		await expect(panel.getByRole('heading', { name: 'Staff' })).toBeVisible();
-		await expect(panel.getByRole('link', { name: 'All users' })).toBeVisible();
 		await expect(
-			panel.getByRole('link', { name: 'Invitations' }),
+			panel.getByRole('button', { name: /Staff members/ }),
 		).toBeVisible();
-		await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
+		await expect(
+			panel.getByRole('button', { name: /Invitations/ }),
+		).toBeVisible();
+		await expect(panel.getByRole('button', { name: /Profiles/ })).toBeVisible();
 	});
 
 	test('secondary panel follows persisted preference on detail routes', async ({

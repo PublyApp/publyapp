@@ -76,6 +76,19 @@ vi.mock('~/lib/query/staff-profiles', () => ({
 
 // The export action pulls CSV machinery irrelevant to this suite; stubbed so
 // the harness stays free of the export surface.
+vi.mock('../_staff-list-team', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../_staff-list-team')>();
+	return {
+		...actual,
+		useStaffTeamOverview: () => ({
+			counts: { staff: 10, invitations: 10, profiles: 7 },
+			staff: [],
+			invitations: [],
+			profiles: [],
+		}),
+	};
+});
+
 vi.mock('~/routes/authed/staff/staff-list-export-selected', () => ({
 	StaffListExportSelectedAction: () => null,
 	StaffListExportSelectedButton: () => null,
@@ -98,6 +111,8 @@ vi.mock('react-i18next', () => ({
 				actions: 'Actions',
 				'view-profile': 'View profile',
 				'select-row-named': 'Select {{name}}',
+				'list-select-row': 'Select {{name}}',
+				'list-select-all': 'Select all rows',
 				search: 'Search',
 				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
@@ -233,7 +248,9 @@ const renderAtList = async () => {
 	await waitFor(() =>
 		expect(screen.getByTestId('staff-profiles-table')).toBeTruthy(),
 	);
-	await waitFor(() => expect(screen.getByText('Recruiter')).toBeTruthy());
+	await waitFor(() =>
+		expect(screen.getAllByText('Recruiter').length).toBeGreaterThan(0),
+	);
 
 	return harness;
 };
@@ -298,9 +315,7 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 	test('selection mode exposes Delete selected, not only export', async () => {
 		await renderAtList();
 
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
-		);
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Recruiter' }));
 
 		await openBulkActionsMenu();
 
@@ -312,9 +327,7 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 	test('a confirmed delete drives the real route component into the bulk mutation', async () => {
 		await renderAtList();
 
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
-		);
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Recruiter' }));
 
 		await openBulkActionsMenu();
 
@@ -337,7 +350,7 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 	test('typing a search draft outside selection mode behaves as before', async () => {
 		await renderAtList();
 
-		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		const searchBox = screen.getByTestId('staff-profiles-table-search');
 		fireEvent.change(searchBox, { target: { value: 'rec' } });
 
 		expect((searchBox as HTMLInputElement).value).toBe('rec');
@@ -353,23 +366,18 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 	test('entering selection mode discards an uncommitted table-search draft', async () => {
 		await renderAtList();
 
-		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		const searchBox = screen.getByTestId('staff-profiles-table-search');
 		fireEvent.change(searchBox, { target: { value: 'recruiter' } });
 		expect((searchBox as HTMLInputElement).value).toBe('recruiter');
 
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
-		);
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Recruiter' }));
 
 		expect(
 			await screen.findByRole('button', { name: 'Clear selection' }),
 		).toBeTruthy();
 		expect(
-			(
-				screen.getByRole('searchbox', {
-					name: 'Search',
-				}) as HTMLInputElement
-			).value,
+			(screen.getByTestId('staff-profiles-table-search') as HTMLInputElement)
+				.value,
 		).toBe('');
 	});
 });

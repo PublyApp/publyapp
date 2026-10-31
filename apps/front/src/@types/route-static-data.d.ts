@@ -11,5 +11,8 @@ import type { SupportedNamespace } from '@org/shared-ts/lib/i18n/namespaces';
 declare module '@tanstack/react-router' {
 	interface StaticDataRouteOption {
 		i18nNamespaces?: readonly SupportedNamespace[];
+		/** The page portals its own section links (with API counts) into the
+		 * secondary panel, so the shell must not render the static nav too. */
+		pageOwnsSecondaryPanel?: boolean;
 	}
 }

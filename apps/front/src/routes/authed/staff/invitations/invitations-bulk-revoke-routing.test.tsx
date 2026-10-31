@@ -96,6 +96,19 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 
 // The export action pulls XLSX/CSV download machinery irrelevant to this
 // suite; stubbed so the harness stays free of the export surface.
+vi.mock('../_staff-list-team', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../_staff-list-team')>();
+	return {
+		...actual,
+		useStaffTeamOverview: () => ({
+			counts: { staff: 10, invitations: 10, profiles: 7 },
+			staff: [],
+			invitations: [],
+			profiles: [],
+		}),
+	};
+});
+
 vi.mock('~/routes/authed/staff/staff-list-export-selected', () => ({
 	StaffListExportSelectedAction: () => null,
 	StaffListExportSelectedButton: () => null,
@@ -127,6 +140,8 @@ vi.mock('react-i18next', () => ({
 				'no-invitations-found': 'No invitations found.',
 				'no-invitations-match-your-search': 'No invitations match your search.',
 				'select-row-named': 'Select {{name}}',
+				'list-select-row': 'Select {{name}}',
+				'list-select-all': 'Select all rows',
 				'selected-count': '{{count}} selected',
 				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
@@ -284,7 +299,9 @@ const renderAtList = async () => {
 		expect(screen.getByTestId('staff-invitations-table')).toBeTruthy(),
 	);
 	await waitFor(() =>
-		expect(screen.getByText('pending@example.com')).toBeTruthy(),
+		expect(screen.getAllByText('pending@example.com').length).toBeGreaterThan(
+			0,
+		),
 	);
 
 	return harness;
@@ -430,7 +447,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 
 		const trigger = await screen.findByRole('button', {
@@ -449,7 +466,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 
 		const trigger = await screen.findByRole('button', {
@@ -465,10 +482,10 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		// One pending + one accepted invitation selected: eligibility scoping is
 		// asserted on the wire format — the accepted id must never reach the API.
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+			screen.getByRole('checkbox', { name: 'Select accepted@example.com' }),
 		);
 
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
@@ -509,10 +526,10 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			).toBe(false);
 
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+				screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 			);
 			fireEvent.click(
-				screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+				screen.getByRole('checkbox', { name: 'Select accepted@example.com' }),
 			);
 			expect(await screen.findByText('2 selected')).toBeTruthy();
 
@@ -553,12 +570,12 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			await waitFor(() => {
 				expect(
 					screen
-						.getByRole('checkbox', { name: `Select ${PENDING_A}` })
+						.getByRole('checkbox', { name: 'Select pending@example.com' })
 						.getAttribute('data-checked'),
 				).toBeNull();
 				expect(
 					screen
-						.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` })
+						.getByRole('checkbox', { name: 'Select accepted@example.com' })
 						.getAttribute('data-checked'),
 				).toBeNull();
 			});
@@ -573,7 +590,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+			screen.getByRole('checkbox', { name: 'Select accepted@example.com' }),
 		);
 
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
@@ -593,7 +610,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
@@ -637,10 +654,10 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+			screen.getByRole('checkbox', { name: 'Select accepted@example.com' }),
 		);
 
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
@@ -674,7 +691,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
@@ -705,7 +722,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
@@ -732,7 +749,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 		await chooseBulkAction('Revoke selected', 'Bulk actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
@@ -757,7 +774,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await renderAtList();
 
 		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			screen.getByRole('checkbox', { name: 'Select pending@example.com' }),
 		);
 
 		await chooseBulkAction('Revoke selected', 'Bulk actions');

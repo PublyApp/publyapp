@@ -1,294 +1,300 @@
-import {
-	IconCircleDot,
-	IconEye,
-	IconIdBadge2,
-	IconMail,
-	IconUser,
-	IconUserPlus,
-} from '@tabler/icons-react';
+import { IconEye, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import type { ColumnDef } from '~/components/table/column-type';
-import { DataTable } from '~/components/table/data-table';
+import { ListPage } from '~/components/list/list-page';
+import type { ListFiltersValue } from '~/components/list/list-types';
+import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import type { TableSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { PageHeader, StatusPill } from '~/components/ui/product-page';
-import { statusPillTone } from '~/components/ui/status-tone';
-import {
-	toStaffUserRows,
-	type StaffUserRow,
-	useStaffUsersQuery,
-} from '~/lib/query/staff-users';
-import {
-	parseTableSearchParams,
-	serializeTableSearchParams,
-	validateTableSearchParams,
-} from '~/lib/url-state/table-search-params';
-import type {
-	TableSearchParamInput,
-	TableSearchParams,
-} from '~/lib/url-state/table-search-params';
+import { toStaffUserRows, useStaffUsersQuery } from '~/lib/query/staff-users';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
-import {
-	formatAccountLevelLabel,
-	formatStaffStatusLabel,
-} from '~/routes/authed/staff/staff-users/status-labels';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { StaffUserNameCell } from './_staff-user-name-cell';
+import { buildListSelection, selectedListIds } from './_staff-list-selection';
+import {
+	buildStaffTeamPanelGroups,
+	useStaffTeamOverview,
+} from './_staff-list-team';
+import {
+	buildStaffUserFilters,
+	buildStaffUserMobileCard,
+	buildStaffUserTotals,
+	DEFAULT_STAFF_USER_COLUMNS,
+	exportStaffUserRows,
+	staffUserColumns,
+} from './_staff-users-list-config';
+import { StaffUsersStatCards } from './_staff-users-list-stat-cards';
 import { StaffUsersListBulkActions } from './staff-users/_list-bulk-actions';
+import {
+	parseStaffUserListSearchParams,
+	serializeStaffUserListSearchParams,
+	type StaffUserListSearchParamInput,
+	type StaffUserListSearchParams,
+} from './staff-users/list-helpers';
+
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-// Locked contract default (docs/records/2026-07-29-spec-front-parity-contract.md): 100,
-// matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
 
-// Name is not backend-sortable (parity contract); Level/Status map 1:1 to sort_id values.
-const buildColumns = (
-	t: (key: string, options?: Record<string, unknown>) => string,
-): ColumnDef<StaffUserRow>[] => [
-	{
-		id: 'name',
-		header: t('common:name'),
-		enableSorting: false,
-		meta: { headerIcon: <IconUser />, width: '200px', pinWidthAbove: 768 },
-		cell: ({ row }) => <StaffUserNameCell row={row.original} />,
-	},
-	{
-		id: 'email',
-		header: t('common:email'),
-		accessorKey: 'email',
-		enableSorting: false,
-		meta: { headerIcon: <IconMail />, hideBelow: 768 },
-		cell: ({ getValue }) => {
-			const email = getValue<string>() || t('common:no-email-address');
-			return (
-				<span className="block truncate font-normal" title={email}>
-					{email}
-				</span>
-			);
-		},
-	},
-	{
-		id: 'level',
-		header: t('common:level'),
-		accessorKey: 'level',
-		meta: { headerIcon: <IconIdBadge2 />, width: '104px', hideBelow: 768 },
-		cell: ({ getValue }) => (
-			<StatusPill tone="neutral">
-				{formatAccountLevelLabel(getValue<string | null>(), t)}
-			</StatusPill>
-		),
-	},
-	{
-		id: 'status',
-		header: t('common:status'),
-		accessorKey: 'status',
-		meta: { headerIcon: <IconCircleDot />, width: '122px' },
-		cell: ({ getValue }) => {
-			const status = getValue<string | null>();
-			return (
-				<StatusPill tone={statusPillTone(status)}>
-					{formatStaffStatusLabel(status, t)}
-				</StatusPill>
-			);
-		},
-	},
-	{
-		id: 'actions',
-		// Visually chromeless per the handoff, but the columnheader needs an
-		// accessible name (axe empty-table-header, parity contract).
-		header: () => <span className="sr-only">{t('common:actions')}</span>,
-		enableSorting: false,
-		meta: { width: '40px', align: 'center' },
-		cell: ({ row }) => (
-			<DataTableRowActions
-				ariaLabel={t('common:actions-for', {
-					name: row.original.displayName,
-				})}
-				testId={`staff-user-actions-${row.original.id}`}
-			>
-				<DropdownMenuItem
-					render={
-						<Link
-							to="/staff/staff-users/$userId"
-							params={{ userId: row.original.id }}
-						/>
-					}
-				>
-					<IconEye />
-					{t('common:view-profile')}
-				</DropdownMenuItem>
-			</DataTableRowActions>
-		),
-	},
-];
-
 const StaffUsersPage = () => {
-	const [shouldLogout, setShouldLogout] = useState(false);
+	const { t, i18n } = useTranslation('common');
+	const { t: tStaff } = useTranslation('staff-users');
 	const navigate = Route.useNavigate();
-	const search = parseTableSearchParams(
-		Route.useSearch() as TableSearchParamInput,
+	const [shouldLogout, setShouldLogout] = useState(false);
+	const search = parseStaffUserListSearchParams(
+		Route.useSearch() as StaffUserListSearchParamInput,
 	);
-	const { t } = useTranslation(['staff-users', 'common']);
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeTableSearchParams(next),
+			search: serializeStaffUserListSearchParams({ ...search, ...next }),
 			replace: true,
 		});
 	};
 
-	// apiVariables (incl. the client-only cursor) drives the query; the query's
-	// rows drive selection pruning — see use-table-controller.ts's doc comment
-	// for why these stay separate hooks instead of one fused controller.
 	const controller = useTableController({
 		search,
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
+		cursorResetKey: [
+			search.status.join(','),
+			search.level.join(','),
+			search.sortId ?? DEFAULT_SORT.id,
+			search.sortOrder ?? DEFAULT_SORT.order,
+		].join('|'),
 	});
-	const query = useStaffUsersQuery(controller.apiVariables);
+
+	const query = useStaffUsersQuery({
+		...controller.apiVariables,
+		status: search.status.length > 0 ? search.status.join(',') : undefined,
+	});
+	const team = useStaffTeamOverview();
 	const rows = toStaffUserRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
-	const columns = useMemo(() => buildColumns(t), [t]);
+	const listSelection = buildListSelection(
+		rows,
+		selection,
+		controller.search.resetDraftToCommitted,
+	);
+	const selectedIds = selectedListIds(rows, selection);
 
-	// Entering selection mode discards an uncommitted table-search draft (the
-	// search box is locked while rows are selected, so a live draft would sit
-	// hidden until exit). Handled inside the selection-change path below rather
-	// than a render-side effect — see the no-event-handler React Doctor rule.
-	const { resetDraftToCommitted } = controller.search;
-	const baseOnSelectionChange = selection.onSelectionChange;
-	const onSelectionChange = useCallback(
-		(next: TableSelection) => {
-			if (!selection.isSelectionMode) {
-				resetDraftToCommitted();
-			}
-			baseOnSelectionChange(next);
+	// The cursor API exposes no total: totals and filter counts are exact only
+	// when the loaded page is the whole collection and no server-side status
+	// filter narrowed it. The StatCards use the independent team overview, so
+	// they stay whole-collection figures even under a search.
+	const collectionComplete =
+		query.data !== undefined &&
+		query.data.nextCursor == null &&
+		!controller.cursor.hasPreviousPage;
+	const countsKnown = collectionComplete && search.status.length === 0;
+
+	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const navigateToTeam = useCallback(
+		(
+			toBe:
+				| '/staff/staff-users'
+				| '/staff/invitations'
+				| '/staff/profiles'
+				| '/staff/audit-logs',
+		) => {
+			void navigate({ to: toBe });
 		},
-		[selection.isSelectionMode, baseOnSelectionChange, resetDraftToCommitted],
-	);
-	const wrappedSelection = useMemo(
-		() => ({ ...selection, onSelectionChange }),
-		[selection, onSelectionChange],
+		[navigate],
 	);
 
-	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
-	// the DataTable carries the loading/error slots (exempt from QueryDisplay).
+	const filtersValue: ListFiltersValue = {
+		status: search.status,
+		level: search.level,
+	};
+
+	const setFilters = (next: ListFiltersValue): void => {
+		selection.clearSelection();
+		void navigate({
+			search: serializeStaffUserListSearchParams({
+				...search,
+				status: (next.status ?? []) as StaffUserListSearchParams['status'],
+				level: (next.level ?? []) as StaffUserListSearchParams['level'],
+				cursor: undefined,
+			}),
+			replace: true,
+		});
+	};
+
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
 		return <LogoutRedirect />;
 	}
 
-	// A bulk mutation hit an auth failure mid-session — log out through the
-	// same central path as every other surface.
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
-	const hasNextPage = query.data?.nextCursor != null;
-
 	return (
-		<div className="publy-page-fill">
-			<PageHeader
-				title={t('staff-users-page-title')}
-				description={t('staff-users-page-description')}
-				actions={
-					<Link
-						to="/staff/invitations/new"
-						className={buttonVariants({ variant: 'default' })}
+		<ListPage
+			testId="staff-users-table"
+			ariaLabel={tStaff('staff-users-page-title')}
+			title={tStaff('staff-users-page-title')}
+			description={tStaff('staff-users-page-description')}
+			searchPlaceholder={t('search-staff-users')}
+			rows={rows}
+			columns={staffUserColumns(t)}
+			defaultColumns={[...DEFAULT_STAFF_USER_COLUMNS]}
+			lockedColumn="name"
+			sorting={[
+				{ id: controller.sort.id, desc: controller.sort.order === 'desc' },
+			]}
+			onSortingChange={(next) =>
+				controller.onSortChange(
+					next[0]
+						? { id: next[0].id, order: next[0].desc ? 'desc' : 'asc' }
+						: undefined,
+				)
+			}
+			q={search.q ?? ''}
+			onSearch={(next) => {
+				if (selection.selectedCount > 0) {
+					return;
+				}
+				onSearchChange({ ...search, q: next, cursor: undefined });
+			}}
+			filters={buildStaffUserFilters(t, {
+				includeLevels: countsKnown || search.level.length > 0,
+			})}
+			filtersValue={filtersValue}
+			onFiltersChange={setFilters}
+			countsKnown={countsKnown}
+			emptyText={t('list-empty-staff-users')}
+			locale={i18n.language}
+			cards={
+				<StaffUsersStatCards
+					rows={team.staff}
+					t={t}
+					known={team.counts.staff !== null}
+				/>
+			}
+			totals={(visible) => buildStaffUserTotals(t, visible)}
+			panelGroups={buildStaffTeamPanelGroups(
+				t,
+				'staff',
+				team.counts,
+				navigateToTeam,
+			)}
+			onOpen={(row) =>
+				void navigate({
+					to: '/staff/staff-users/$userId',
+					params: { userId: row.id },
+				})
+			}
+			openLabel={(row) => t('list-open-row', { name: row.displayName })}
+			rowLabel={(row) => row.displayName}
+			mobileCard={buildStaffUserMobileCard(t)}
+			selection={listSelection}
+			renderActions={(row) => (
+				<DataTableRowActions
+					ariaLabel={t('actions-for', { name: row.displayName })}
+					testId={`staff-user-actions-${row.id}`}
+				>
+					<DropdownMenuItem
+						render={
+							<Link
+								to="/staff/staff-users/$userId"
+								params={{ userId: row.id }}
+							/>
+						}
 					>
-						<IconUserPlus aria-hidden="true" className="size-4" />
-						{t('common:invite-users')}
-					</Link>
-				}
-			/>
-			<DataTable
-				testId="staff-users-table"
-				ariaLabel={t('staff-users-page-title')}
-				columns={columns}
-				rows={rows}
-				queryState={{
-					isPending: query.isPending,
-					isError: query.isError,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: Boolean(controller.search.committed),
-				}}
-				pagination={{
-					pageIndex: controller.cursor.pageIndex,
-					hasPreviousPage: controller.cursor.hasPreviousPage,
-					hasNextPage: hasNextPage,
-					isPaginationPending: query.isFetching,
-					onNextPage: () =>
-						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
-					onPreviousPage: controller.cursor.onPreviousPage,
-				}}
-				sort={controller.sort}
-				onSortChange={controller.onSortChange}
-				size={controller.size}
-				onSizeChange={controller.onSizeChange}
-				searchDraft={controller.search.draft}
-				onSearchDraftChange={controller.search.onDraftChange}
-				selection={wrappedSelection}
-				searchPlaceholder={t('search-staff-users')}
-			/>
-			<FloatingSelectionBar
-				selectedCount={selection.selectedCount}
-				visibleCount={rows.length}
-				allVisibleSelected={
-					rows.length > 0 && rows.every((row) => selection.rowSelection[row.id])
-				}
-				onClear={selection.clearSelection}
-				onSelectAllVisible={() =>
-					wrappedSelection.onSelectionChange(new Set(rows.map((row) => row.id)))
-				}
-			>
-				<StaffUsersListBulkActions
-					rows={rows}
-					selection={selection}
-					onSessionExpired={() => setShouldLogout(true)}
-				/>
-				<StaffListExportSelectedButton
-					rows={rows}
-					selection={selection}
-					fileNamePrefix="staff-users"
-					columns={[
-						{
-							header: t('common:name'),
-							getValue: (row) => row.displayName,
-						},
-						{
-							header: t('common:email'),
-							getValue: (row) => row.email,
-						},
-						{
-							header: t('common:level'),
-							getValue: (row) => formatAccountLevelLabel(row.level, t),
-						},
-						{
-							header: t('common:status'),
-							getValue: (row) => formatStaffStatusLabel(row.status, t),
-						},
-					]}
-				/>
-			</FloatingSelectionBar>
-		</div>
+						<IconEye />
+						{t('view-profile')}
+					</DropdownMenuItem>
+				</DataTableRowActions>
+			)}
+			onExport={() => exportStaffUserRows(rows, t)}
+			newAction={
+				<Link to="/staff/invitations/new" className={buttonVariants()}>
+					<IconPlus aria-hidden="true" data-icon="inline-start" />
+					{t('invite-member')}
+				</Link>
+			}
+			queryState={{
+				isPending: query.isPending,
+				isError: query.isError,
+				onRetry: () => void query.refetch(),
+			}}
+			footer={
+				rows.length > 0 ? (
+					<DataTableCursorFooter
+						testId="staff-users-table"
+						pageIndex={controller.cursor.pageIndex}
+						size={controller.size}
+						onSizeChange={controller.onSizeChange}
+						pageRowCount={rows.length}
+						hasPreviousPage={controller.cursor.hasPreviousPage}
+						hasNextPage={query.data?.nextCursor != null}
+						isPaginationPending={query.isFetching}
+						onNextPage={() =>
+							controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
+						}
+						onPreviousPage={controller.cursor.onPreviousPage}
+						variant="flat"
+					/>
+				) : null
+			}
+			bulkBar={
+				<FloatingSelectionBar
+					selectedCount={selection.selectedCount}
+					visibleCount={rows.length}
+					allVisibleSelected={
+						rows.length > 0 && selectedIds.size === rows.length
+					}
+					onClear={selection.clearSelection}
+					onSelectAllVisible={() =>
+						selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+					}
+				>
+					<StaffUsersListBulkActions
+						rows={rows}
+						selection={selection}
+						onSessionExpired={onSessionExpired}
+					/>
+					<StaffListExportSelectedButton
+						rows={rows}
+						selection={selection}
+						fileNamePrefix="staff-users"
+						columns={[
+							{ header: t('name'), getValue: (row) => row.displayName },
+							{ header: t('email'), getValue: (row) => row.email },
+							{
+								header: t('level'),
+								getValue: (row) => row.level ?? '',
+							},
+							{
+								header: t('status'),
+								getValue: (row) => row.status ?? '',
+							},
+						]}
+					/>
+				</FloatingSelectionBar>
+			}
+		/>
 	);
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 	staticData: {
 		i18nNamespaces: ['staff-users'],
+		pageOwnsSecondaryPanel: true,
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-breadcrumb' }],
 	},
 	validateSearch: (search) =>
-		validateTableSearchParams(search as TableSearchParamInput),
+		serializeStaffUserListSearchParams(
+			parseStaffUserListSearchParams(search as StaffUserListSearchParamInput),
+		),
 	component: StaffUsersPage,
 });

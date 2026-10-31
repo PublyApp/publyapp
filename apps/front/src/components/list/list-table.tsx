@@ -24,6 +24,8 @@ import { cn } from '~/lib/utils';
 import type { ColumnSpecs, ListColumn, ListSelection } from './list-types';
 
 const TABLE = 'w-full table-fixed border-separate border-spacing-0 text-sm';
+const defaultRowLabel = <T,>(row: T): string =>
+	(row as { name?: string }).name ?? (row as { id: string }).id;
 const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const;
 const SORTED_ICON = { asc: IconArrowUp, desc: IconArrowDown };
 
@@ -310,6 +312,7 @@ export const ListTable = <T extends { id: string }>({
 	totals,
 	onOpen,
 	openLabel,
+	rowLabel,
 	selection,
 	empty,
 	cards,
@@ -324,12 +327,14 @@ export const ListTable = <T extends { id: string }>({
 	totals: ReadonlyMap<string, string>;
 	onOpen: (row: T) => void;
 	openLabel: (row: T) => string;
+	rowLabel?: (row: T) => string;
 	selection?: ListSelection;
 	empty: ReactNode;
 	cards: ReactNode;
 	onMove: (from: string, before: string) => void;
 }) => {
 	const { t } = useTranslation('common');
+	const getRowLabel = rowLabel ?? defaultRowLabel;
 	const headBox = useRef<HTMLDivElement>(null);
 	const footBox = useRef<HTMLDivElement>(null);
 	let minWidth = 0;
@@ -406,9 +411,7 @@ export const ListTable = <T extends { id: string }>({
 										selection={selection}
 										selected={selection?.selectedIds.has(row.id) ?? false}
 										onToggle={() => selection?.onToggle(row.id)}
-										rowLabel={
-											(row.original as { name?: string }).name ?? row.id
-										}
+										rowLabel={getRowLabel(row.original)}
 									/>
 								))
 							)}

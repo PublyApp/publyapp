@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
-import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const STAFF_PROFILES_PATH = '/staff/profiles';
 const TABLE = 'staff-profiles-table';
@@ -90,10 +89,13 @@ test.describe(
 				page.getByRole('columnheader', { name: 'Profile' }),
 			).toBeVisible();
 			await expect(
-				page.getByRole('columnheader', { name: 'Description' }),
+				page.getByRole('columnheader', { name: 'Type' }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('columnheader', { name: 'Members' }),
+			).toBeVisible();
+			await expect(
+				page.getByRole('columnheader', { name: 'Description' }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('columnheader', { name: 'Actions' }),
@@ -117,6 +119,21 @@ test.describe(
 			for (const profile of profiles.slice(0, 3)) {
 				await expect(profileRow(page, profile.name)).toBeVisible();
 			}
+		});
+
+		test('filters profiles by member presence through the Team panel', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await page.goto(STAFF_PROFILES_PATH);
+			await expect(page.getByTestId(TABLE)).toBeVisible();
+
+			const panel = page.getByTestId('app-shell-secondary-panel');
+			await expect(
+				panel.getByRole('button', { name: /Profiles\s+\d+/ }),
+			).toBeVisible();
+			await panel.getByRole('button', { name: /With members/ }).click();
+			await expect(page).toHaveURL(/[?&]members=with(?:&|$)/);
 		});
 
 		test('search filters seeded profiles and clearing search restores the list', async ({
@@ -196,18 +213,40 @@ test.describe(
 	},
 );
 
-for (const width of [768, 390]) {
-	test.describe(
-		`staff profiles table responsive at ${width}px`,
-		{ tag: ['@staff-profiles', '@744'] },
-		() => {
-			test.use({ viewport: { width, height: 800 } });
+test.describe(
+	'staff profiles responsive',
+	{ tag: ['@staff-profiles', '@744'] },
+	() => {
+		test.use({ viewport: { width: 768, height: 800 } });
 
-			test('table never overflows its card', async ({ page }) => {
-				await loginAsStaffAdmin(page);
-				await page.goto(STAFF_PROFILES_PATH);
-				await expectTableFitsCard(page, TABLE);
-			});
-		},
-	);
-}
+		test('the table keeps a real, horizontally scrollable body at md', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await page.goto(STAFF_PROFILES_PATH);
+			const rows = page.getByTestId(`${TABLE}-rows`);
+			await expect(rows).toBeVisible();
+			const scrollWidth = await rows.evaluate((el) => el.scrollWidth);
+			expect(scrollWidth).toBeGreaterThan(0);
+		});
+	},
+);
+
+test.describe(
+	'staff profiles mobile cards',
+	{ tag: ['@staff-profiles', '@744'] },
+	() => {
+		test.use({ viewport: { width: 390, height: 800 } });
+
+		test('replaces the table with the list cards below md', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await page.goto(STAFF_PROFILES_PATH);
+			await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
+			await expect(
+				page.getByRole('link', { name: /^(Open|Ouvrir) / }).first(),
+			).toBeVisible();
+		});
+	},
+);

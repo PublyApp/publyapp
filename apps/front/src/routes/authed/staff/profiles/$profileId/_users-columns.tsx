@@ -1,58 +1,78 @@
+import {
+	IconCircleDashed,
+	IconMail,
+	IconUserCircle,
+} from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import type { ColumnDef } from '~/components/table/column-type';
+import type { ListColumn } from '~/components/list/list-types';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
-import type { toStaffProfileUserRows } from '~/lib/query/staff-profile-users';
+import type { StaffProfileUserRow } from '~/lib/query/staff-profile-users';
 
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { formatStaffStatusLabel } from '../../staff-users/status-labels';
 
-/** Column definitions for the profile-members table. Lives outside the
- * route file so `users.tsx` exports only its route (react-doctor rung 2,
- * #1417); tests import it directly from here. */
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+const displayName = (row: StaffProfileUserRow, t: Translate): string =>
+	getUserFullName({ firstName: row.firstName, lastName: row.lastName }) ||
+	row.email ||
+	t('no-email-address');
+
+/** The inset list's three §4.6 columns. */
 export const buildColumns = (
-	t: (key: string, options?: Record<string, unknown>) => string,
-): ColumnDef<ReturnType<typeof toStaffProfileUserRows>[number]>[] => [
+	t: Translate,
+): ListColumn<StaffProfileUserRow>[] => [
 	{
 		id: 'name',
-		header: t('name'),
-		enableSorting: false,
-		cell: ({ row }) => (
+		header: t('list-column-member'),
+		icon: IconUserCircle,
+		width: 250,
+		value: (row) => displayName(row, t),
+		cell: (row) => (
 			<Link
 				to="/staff/staff-users/$userId"
-				params={{ userId: row.original.id }}
-				className="publy-record-link"
+				params={{ userId: row.id }}
+				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				<div className="space-y-1">
-					<p className="font-medium text-foreground">
-						{getUserFullName({
-							firstName: row.original.firstName,
-							lastName: row.original.lastName,
-						}) ||
-							row.original.email ||
-							t('no-email-address')}
-					</p>
-					<p className="text-xs text-muted-foreground">
-						{row.original.email || t('no-email-address')}
-					</p>
-				</div>
+				<PersonAvatar name={displayName(row, t)} avatarUrl={row.avatarUrl} />
+				<span className="publy-record-link min-w-0 truncate">
+					{displayName(row, t)}
+				</span>
 			</Link>
 		),
+		sortable: false,
+	},
+	{
+		id: 'email',
+		header: t('list-column-email'),
+		icon: IconMail,
+		width: 270,
+		value: (row) => row.email,
+		cell: (row) =>
+			row.email ? (
+				<span
+					className="block truncate text-muted-foreground"
+					title={row.email}
+				>
+					{row.email}
+				</span>
+			) : (
+				<span className="text-muted-foreground">—</span>
+			),
 	},
 	{
 		id: 'status',
 		header: t('status'),
-		accessorKey: 'status',
-		meta: { width: '122px' },
-		cell: ({ getValue }) => {
-			const status = getValue<string | null>();
-
-			return (
-				<StatusPill tone={statusPillTone(status)}>
-					{formatStaffStatusLabel(status, t)}
-				</StatusPill>
-			);
-		},
+		icon: IconCircleDashed,
+		width: 170,
+		value: (row) => row.status,
+		cell: (row) => (
+			<StatusPill tone={statusPillTone(row.status)}>
+				{formatStaffStatusLabel(row.status, t)}
+			</StatusPill>
+		),
 	},
 ];
