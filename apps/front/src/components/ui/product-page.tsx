@@ -26,7 +26,12 @@ export const PageHeader = ({
 				<h1 className="publy-type-page-title">{title}</h1>
 			)}
 			{description ? (
-				<p className="publy-type-helper mt-1">{description}</p>
+				// `text-muted-foreground` overrides `.publy-type-helper`'s subtle
+				// token: #a1a1aa on the page surface is 2.39:1, below WCAG AA for
+				// 12px body text (the redesign's page descriptions exposed it).
+				<p className="publy-type-helper mt-1 text-muted-foreground">
+					{description}
+				</p>
 			) : null}
 		</div>
 		{actions ? <div className="publy-action-cluster">{actions}</div> : null}

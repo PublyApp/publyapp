@@ -145,6 +145,7 @@ const TableHead = ({
 
 const TableRow = ({
 	cells,
+	rowIndex,
 	onOpen,
 	openLabel,
 	selection,
@@ -152,7 +153,8 @@ const TableRow = ({
 	onToggle,
 	rowLabel,
 }: {
-	cells: { id: string; node: ReactNode }[];
+	cells: { id: string; columnId: string; node: ReactNode }[];
+	rowIndex: number;
 	onOpen: () => void;
 	openLabel: string;
 	selection?: ListSelection;
@@ -166,8 +168,34 @@ const TableRow = ({
 			tabIndex={0}
 			data-slot="table-row"
 			onKeyDown={(event) => {
-				if (event.key === 'Enter' && event.target === event.currentTarget) {
+				if (event.target !== event.currentTarget) {
+					return;
+				}
+				if (event.key === 'Enter') {
 					onOpen();
+					return;
+				}
+				// Vertical arrow navigation (shell F3): the rows are the grid's
+				// keyboard stops, so ArrowDown/ArrowUp/Home/End walk them.
+				const rows = event.currentTarget
+					.closest('tbody')
+					?.querySelectorAll<HTMLElement>('tr[data-slot="table-row"]');
+				if (!rows) {
+					return;
+				}
+				let next: HTMLElement | null = null;
+				if (event.key === 'ArrowDown') {
+					next = rows.item(rowIndex + 1);
+				} else if (event.key === 'ArrowUp') {
+					next = rows.item(rowIndex - 1);
+				} else if (event.key === 'Home') {
+					next = rows.item(0);
+				} else if (event.key === 'End') {
+					next = rows.item(rows.length - 1);
+				}
+				if (next) {
+					event.preventDefault();
+					next.focus();
 				}
 			}}
 			className="group/row h-12 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring/50"
@@ -178,6 +206,10 @@ const TableRow = ({
 					data-slot="table-cell"
 					className={cn(
 						'truncate border-r border-b bg-background px-2 last:border-r-0 group-hover/row:bg-card group-focus-visible/row:bg-card',
+						// The 40px actions column holds a 28px trigger: 6px of
+						// padding each side centres it instead of the 8px default,
+						// which pushed it 2px right of the cell centre (#806).
+						cell.columnId === 'actions' && 'px-1.5',
 						index === 0 && 'sticky left-0 z-(--publy-z-sticky-cell)',
 					)}
 				>
@@ -279,6 +311,7 @@ export const useListTable = <T extends { id: string }>({
 			original: row.original,
 			cells: row.getAllCells().map((cell) => ({
 				id: cell.id,
+				columnId: cell.column.id,
 				node: flexRender(cell.column.columnDef.cell, cell.getContext()),
 			})),
 		})),
@@ -322,7 +355,11 @@ export const ListTable = <T extends { id: string }>({
 	testId?: string;
 	specs: ColumnSpecs;
 	ids: string[];
-	rows: { id: string; original: T; cells: { id: string; node: ReactNode }[] }[];
+	rows: {
+		id: string;
+		original: T;
+		cells: { id: string; columnId: string; node: ReactNode }[];
+	}[];
 	head: HeadCell[];
 	totals: ReadonlyMap<string, string>;
 	onOpen: (row: T) => void;
@@ -349,7 +386,7 @@ export const ListTable = <T extends { id: string }>({
 	const cols = (
 		<colgroup>
 			{ids.map((id) => (
-				<col key={id} style={{ width: specs.get(id)?.width ?? 120 }} />
+				<col key={id} style={{ width: specs.get(id)?.width }} />
 			))}
 		</colgroup>
 	);
@@ -402,10 +439,11 @@ export const ListTable = <T extends { id: string }>({
 									</td>
 								</tr>
 							) : (
-								rows.map((row) => (
+								rows.map((row, rowIndex) => (
 									<TableRow
 										key={row.id}
 										cells={row.cells}
+										rowIndex={rowIndex}
 										onOpen={() => onOpen(row.original)}
 										openLabel={openLabel(row.original)}
 										selection={selection}

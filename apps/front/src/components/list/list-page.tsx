@@ -5,6 +5,10 @@ import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableStates } from '~/components/table/data-table-states';
 import { Collapse } from '~/components/ui/collapse';
+import {
+	NoMatchStateSurface,
+	StateSurface,
+} from '~/components/ui/state-surface';
 
 import { ColumnsPicker } from './columns-picker';
 import { FilterChips, FilterMenu } from './filter-menu';
@@ -139,10 +143,32 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 
 	const panelGroups = [...(props.panelGroups ?? []), ...filterPanelGroups];
 
-	const emptyNode = (
-		<p className="py-10 text-center text-sm text-muted-foreground">
-			{page.bodyContent}
-		</p>
+	// The table keeps its shell and shows the same flat state family the old
+	// DataTable rendered (owner decision R3-4b): a search miss gets the
+	// primary glyph, an empty collection (or a filter miss, which keeps the
+	// consumer's wording) the neutral one. Only the desktop copy carries the
+	// test id — the mobile card list renders the same node, and a duplicated
+	// id would make every locator ambiguous.
+	const isSearchMiss = page.bodyState === 'no-match' && props.q.length > 0;
+	const emptyState = (testId?: string) =>
+		isSearchMiss ? (
+			<NoMatchStateSurface
+				title={t('list-no-match-title')}
+				description={t('list-no-match-default-description')}
+				testId={testId}
+			/>
+		) : (
+			<StateSurface
+				title={t('list-empty-title')}
+				description={page.emptyContent}
+				testId={testId}
+			/>
+		);
+	const emptyNode = emptyState();
+	const tableEmptyNode = emptyState(
+		props.testId
+			? `${props.testId}-${isSearchMiss ? 'no-match' : 'empty'}`
+			: undefined,
 	);
 
 	return (
@@ -280,7 +306,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 						((row: T) => (row as { name?: string }).name ?? row.id)
 					}
 					selection={props.selection}
-					empty={emptyNode}
+					empty={tableEmptyNode}
 					onMove={page.moveShown}
 					cards={
 						<ListCards

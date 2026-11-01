@@ -192,13 +192,6 @@ export const useListPage = <T extends { id: string }>({
 		hasActiveSearch,
 	});
 	const emptyContent = emptyText ?? t('list-empty');
-	// A search with no match gets its own wording (already keyed, the same
-	// sentence the table states use); filters keep the consumer's text. The
-	// table body is the only body that rendered the wrong sentence (#2280).
-	const bodyContent =
-		bodyState === 'no-match' && q.length > 0
-			? t('list-no-match-title')
-			: emptyContent;
 
 	const tabDefs = tabs.map((entry) => ({
 		key: entry.key,
@@ -238,6 +231,5 @@ export const useListPage = <T extends { id: string }>({
 		shortcut,
 		bodyState,
 		emptyContent,
-		bodyContent,
 	};
 };

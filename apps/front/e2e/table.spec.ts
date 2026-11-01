@@ -1,11 +1,21 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { API_BASE_URL, getSessionTokenFromBrowser } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
-import { expectTableFitsCard } from './helpers/table-fits-card';
 
 const TABLE = 'staff-users-table';
+const rowsOf = (page: Page) => page.getByTestId(`${TABLE}-rows`);
+const dataRows = (page: Page) =>
+	rowsOf(page).locator('[data-slot="table-row"]');
+const escapeRegExp = (value: string) =>
+	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// The first header's accessible name carries the select-all checkbox label
+// ("Select all rows Member"), so anchor at the end rather than at the start.
+const headerOf = (page: Page, name: string) =>
+	page.getByRole('columnheader', {
+		name: new RegExp(`${escapeRegExp(name)}$`),
+	});
 
 test.describe(
 	'staff users table',
@@ -17,8 +27,12 @@ test.describe(
 			await loginAsStaffAdmin(page);
 
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
-			await expect(page.getByText('staff-admin@example.com')).toBeVisible();
-			await expect(page.getByText('staff-user@example.com')).toBeVisible();
+			await expect(
+				rowsOf(page).getByText('staff-admin@example.com'),
+			).toBeVisible();
+			await expect(
+				rowsOf(page).getByText('staff-user@example.com'),
+			).toBeVisible();
 
 			await expect(page.getByTestId(`${TABLE}-toolbar`)).toBeVisible();
 			await expect(
@@ -49,17 +63,26 @@ test.describe(
 			const search = page.getByTestId(`${TABLE}-search`);
 			await search.fill('staff-admin');
 			await expect(page).toHaveURL(/[?&]q=staff-admin/);
-			await expect(page.getByText('staff-admin@example.com')).toBeVisible();
-			await expect(page.getByText('staff-user@example.com')).toBeHidden();
+			await expect(
+				rowsOf(page).getByText('staff-admin@example.com'),
+			).toBeVisible();
+			await expect(
+				rowsOf(page).getByText('staff-user@example.com'),
+			).toBeHidden();
 
 			await search.fill('zzz-no-match-xyz');
 			await expect(page.getByTestId(`${TABLE}-no-match`)).toBeVisible();
-			await expect(page.getByTestId(`${TABLE}-rows`)).toBeHidden();
+			// The generic table keeps its shell and renders the state inside the
+			// body: the guard is that no data row survives, not that the scroller
+			// itself disappears.
+			await expect(dataRows(page)).toHaveCount(0);
 
 			await search.fill('');
 			await expect(page).not.toHaveURL(/[?&]q=/);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
-			await expect(page.getByText('staff-user@example.com')).toBeVisible();
+			await expect(
+				rowsOf(page).getByText('staff-user@example.com'),
+			).toBeVisible();
 		});
 
 		test('shows the eleven columns, staff StatCards and the Team panel', async ({
@@ -81,9 +104,7 @@ test.describe(
 				'Invited by',
 				'Member since',
 			]) {
-				await expect(
-					page.getByRole('columnheader', { name: header }),
-				).toBeVisible();
+				await expect(headerOf(page, header)).toBeVisible();
 			}
 
 			await expect(page.getByTestId('staff-user-stat-total')).toBeVisible();
@@ -142,31 +163,36 @@ test.describe(
 			expect(secondOrder).not.toEqual(firstOrder);
 		});
 
-		test('column widths follow the P3 grid and the table never overflows its card', async ({
+		test('column widths follow the P3 grid and the wide table scrolls inside its card', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-			await expect(
-				page.getByRole('columnheader', { name: 'Member' }),
-			).toHaveCSS('width', '260px');
-			await expect(page.getByRole('columnheader', { name: 'Level' })).toHaveCSS(
-				'width',
-				'160px',
-			);
-			await expect(
-				page.getByRole('columnheader', { name: 'Status' }),
-			).toHaveCSS('width', '130px');
+			await expect(headerOf(page, 'Member')).toHaveCSS('width', '260px');
+			await expect(headerOf(page, 'Level')).toHaveCSS('width', '160px');
+			await expect(headerOf(page, 'Status')).toHaveCSS('width', '130px');
 
-			const tableScrollWidth = await page
-				.getByTestId(`${TABLE}-rows`)
-				.evaluate((el) => el.scrollWidth);
-			const cardClientWidth = await page
-				.getByTestId(`${TABLE}-card`)
-				.evaluate((el) => el.clientWidth);
-			expect(tableScrollWidth).toBeGreaterThan(0);
-			expect(tableScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+			// The 11-column default grid is wider than the card at 1280px, so
+			// the horizontal scroll belongs to the rows scroller inside the card,
+			// never to the page (the same contract as the tenants grid, #2280).
+			const scroller = rowsOf(page);
+			const { scrollWidth, clientWidth } = await scroller.evaluate((el) => ({
+				scrollWidth: el.scrollWidth,
+				clientWidth: el.clientWidth,
+			}));
+			expect(scrollWidth).toBeGreaterThan(clientWidth);
+			const cardBox = await page.getByTestId(`${TABLE}-card`).boundingBox();
+			const viewport = page.viewportSize();
+			expect(cardBox).not.toBeNull();
+			if (cardBox && viewport) {
+				expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewport.width);
+			}
+			expect(
+				await page.evaluate(() => document.documentElement.scrollWidth),
+			).toBeLessThanOrEqual(
+				(await page.evaluate(() => document.documentElement.clientWidth)) + 1,
+			);
 
 			// Owner decision 15b: the last row keeps its bottom border.
 			const lastRowCell = page
@@ -252,7 +278,9 @@ test.describe(
 
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 			await expect(page.getByTestId(`${TABLE}-error`)).toHaveCount(0);
-			await expect(page.getByText('staff-admin@example.com')).toBeVisible();
+			await expect(
+				rowsOf(page).getByText('staff-admin@example.com'),
+			).toBeVisible();
 		});
 
 		// The front-end clamp only protects this table's own UI — anyone with a
@@ -309,8 +337,11 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-			const firstCell = page.getByTestId(`${TABLE}-rows`).locator('td').first();
-			await firstCell.click();
+			// The generic table's rows are the keyboard stops (Enter opens the
+			// row); the old click-a-cell gesture is gone because the first cell
+			// is now the row's link.
+			const firstRow = dataRows(page).first();
+			await firstRow.focus();
 
 			const activeCellBefore = await page.evaluate(
 				() => document.activeElement?.closest('tr')?.rowIndex,
@@ -341,10 +372,37 @@ for (const width of [1280, 768, 390]) {
 			const toolbar = page.getByTestId(`${TABLE}-toolbar`);
 			await expect(toolbar).toBeVisible();
 
-			await expectTableFitsCard(page, TABLE);
+			const pageOverflows = await page.evaluate(
+				() =>
+					document.documentElement.scrollWidth >
+					document.documentElement.clientWidth + 1,
+			);
+			expect(pageOverflows).toBe(false);
+
+			if (width < 768) {
+				// The generic table shows mobile cards below md and keeps the
+				// desktop table mounted but hidden.
+				await expect(page.getByTestId(`${TABLE}-rows`)).toBeHidden();
+				await expect(
+					page.getByRole('link', { name: /^(Open|Ouvrir) / }).first(),
+				).toBeVisible();
+				return;
+			}
+
+			const rows = page.getByTestId(`${TABLE}-rows`);
+			await expect(rows).toBeVisible();
+			expect(await dataRows(page).count()).toBeGreaterThan(0);
+
+			// The 11-column grid is wider than the card: the rows scroller owns
+			// that horizontal overflow, never the page.
+			const { scrollWidth, clientWidth } = await rows.evaluate((el) => ({
+				scrollWidth: el.scrollWidth,
+				clientWidth: el.clientWidth,
+			}));
+			expect(scrollWidth).toBeGreaterThan(clientWidth);
 		});
 
-		test('footer stacks below 640px and never overflows its card', async ({
+		test('footer stacks below 640px and never overflows its surface', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -361,11 +419,15 @@ for (const width of [1280, 768, 390]) {
 				expect(flexDirection).toBe('row');
 			}
 
+			// The cursor footer is a sibling of the card, so its width is the
+			// page content width (the card is 1px narrower per border). Compare
+			// against the list page itself: a footer wider than the surface it
+			// sits on is the overflow this guards.
 			const footerScrollWidth = await footer.evaluate((el) => el.scrollWidth);
-			const cardClientWidth = await page
-				.getByTestId(`${TABLE}-card`)
+			const listClientWidth = await page
+				.getByTestId(TABLE)
 				.evaluate((el) => el.clientWidth);
-			expect(footerScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+			expect(footerScrollWidth).toBeLessThanOrEqual(listClientWidth + 1);
 		});
 	});
 }

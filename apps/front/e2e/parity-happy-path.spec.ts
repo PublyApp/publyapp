@@ -175,7 +175,9 @@ const assertColumnHeaders = (page: Page) =>
 	Promise.all([
 		expect(
 			page.getByRole('columnheader', {
-				name: /^Member$/,
+				// The first header's accessible name carries the select-all
+				// checkbox label ("Select all rows Member").
+				name: /Member$/,
 			}),
 		).toBeVisible(),
 		expect(

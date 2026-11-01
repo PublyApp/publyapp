@@ -169,8 +169,16 @@ test.describe(
 			await expect(
 				page.getByRole('columnheader', { name: 'Actions' }),
 			).toBeAttached();
-			await expect(page.getByText('pending-staff@example.com')).toBeVisible();
-			await expect(page.getByText('accepted-staff@example.com')).toBeVisible();
+			await expect(
+				page
+					.getByTestId(`${TABLE}-rows`)
+					.getByText('pending-staff@example.com'),
+			).toBeVisible();
+			await expect(
+				page
+					.getByTestId(`${TABLE}-rows`)
+					.getByText('accepted-staff@example.com'),
+			).toBeVisible();
 			await expect(
 				page.getByTestId(`${TABLE}-rows`).getByText('Pending', { exact: true }),
 			).toBeVisible();
@@ -209,7 +217,11 @@ test.describe(
 			await page.goto('/staff/invitations');
 
 			await expect(page.getByTestId(`${TABLE}-empty`)).toBeVisible();
-			await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
+			// The generic table keeps its shell and renders the empty state in
+			// the body: no data row may survive.
+			await expect(
+				page.getByTestId(`${TABLE}-rows`).locator('[data-slot="table-row"]'),
+			).toHaveCount(0);
 		});
 
 		test('invite member entry navigates to the create route', async ({

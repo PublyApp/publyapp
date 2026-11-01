@@ -34,19 +34,17 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(topbar).toHaveCSS('height', '64px');
 		await expect(topbar).toHaveCSS('border-bottom-width', '0px');
 
-		await expect(page.getByRole('link', { name: /invite users/i })).toHaveCSS(
+		await expect(page.getByRole('link', { name: /invite member/i })).toHaveCSS(
 			'background-color',
 			'rgb(253, 199, 0)',
 		);
 		const tableCard = page.getByTestId(`${TABLE_TEST_ID}-card`);
 		await expect(tableCard).toHaveCSS('border-radius', '14px');
 		await expect(page.getByTestId(`${TABLE_TEST_ID}-rows`)).toBeVisible();
-		await expect(
-			page
-				.getByTestId(`${TABLE_TEST_ID}-rows`)
-				.locator('[data-slot="table-sortable-column-header"]')
-				.first(),
-		).toHaveCSS('height', '40px');
+		await expect(tableCard.locator('thead th').first()).toHaveCSS(
+			'height',
+			'40px',
+		);
 		await expect(
 			page
 				.getByTestId(`${TABLE_TEST_ID}-rows`)
@@ -62,11 +60,11 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 			'48px',
 		);
 
-		const tableContainer = tableCard.locator('[data-slot="table-container"]');
+		const tableContainer = page.getByTestId(`${TABLE_TEST_ID}-rows`);
 		await expect(tableContainer).toHaveCSS('overflow-y', 'auto');
 		const scrollContract = await tableCard.evaluate((card) => {
 			const container = card.querySelector<HTMLElement>(
-				'[data-slot="table-container"]',
+				'[data-testid$="-rows"]',
 			);
 			const cardRect = card.getBoundingClientRect();
 			const containerRect = container?.getBoundingClientRect();
@@ -101,15 +99,22 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		expect(searchWrapperWidth).toBeGreaterThan(200);
 		expect(searchWrapperWidth).toBeLessThanOrEqual(420);
 
-		const selectionCell = page
-			.getByTestId(`${TABLE_TEST_ID}-rows`)
-			.locator('[data-slot="table-selection-cell"]')
-			.first();
-		await expect(selectionCell).toBeVisible();
-		const selectionCellWidth = await selectionCell.evaluate((el) =>
-			Math.round(el.getBoundingClientRect().width),
+		// The generic table folds selection into the first column (the old
+		// separate 40px selection cell is gone) and pins the actions column at
+		// 40px. Guard both affordances instead of the removed cell.
+		await expect(
+			tableCard.getByRole('checkbox', { name: /Select all rows/ }),
+		).toBeVisible();
+		await expect(
+			page
+				.getByTestId(`${TABLE_TEST_ID}-rows`)
+				.getByRole('checkbox', { name: /^Select / })
+				.first(),
+		).toBeVisible();
+		await expect(tableCard.locator('thead th').last()).toHaveCSS(
+			'width',
+			'40px',
 		);
-		expect(selectionCellWidth).toBe(40);
 
 		const firstAction = page
 			.getByRole('button', { name: /Actions for/ })
@@ -171,7 +176,7 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 
 		await page.goto(STAFF_INVITATIONS_PATH);
 
-		const filterButton = page.locator('.publy-data-table-filter-button');
+		const filterButton = page.getByRole('button', { name: /^Filters/ });
 		await expect(filterButton).toBeVisible();
 		await expect(filterButton).toHaveCSS('height', '36px');
 		// default-size (36px) button radius is 12px per the owner-ratified per-size
