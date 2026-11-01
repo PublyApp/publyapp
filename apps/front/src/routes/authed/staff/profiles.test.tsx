@@ -25,7 +25,7 @@ describe('staff profiles column grid', () => {
 		]);
 	});
 
-	test('applies the Shopkart column widths', () => {
+	test('applies the Shopkart column widths, leaving Description fluid', () => {
 		const columns = staffProfileColumns(t);
 		expect(
 			Object.fromEntries(columns.map((column) => [column.id, column.width])),
@@ -33,7 +33,9 @@ describe('staff profiles column grid', () => {
 			name: 260,
 			type: 140,
 			members: 120,
-			description: 380,
+			// SPEC 2g's `1fr`: no fixed width, the column absorbs the rest of
+			// the card so the other three keep their handoff pixels.
+			description: undefined,
 		});
 	});
 

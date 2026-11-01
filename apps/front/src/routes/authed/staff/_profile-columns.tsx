@@ -85,7 +85,9 @@ export const staffProfileColumns = (
 		id: 'description',
 		header: t('description'),
 		icon: IconTextCaption,
-		width: 380,
+		// The grid's fluid slot (1fr): the other columns keep their handoff
+		// pixel widths, and a long description truncates inside the rest of
+		// the card instead of stretching them (SPEC 2g).
 		value: (row) => row.description,
 		cell: (row) =>
 			row.description ? (
