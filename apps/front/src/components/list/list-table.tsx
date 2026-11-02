@@ -10,7 +10,7 @@ import {
 	functionalUpdate,
 	type SortingState,
 } from '@tanstack/react-table';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
 	getCoreRowModel,
@@ -330,10 +330,13 @@ export const useListTable = <T extends { id: string }>({
  * below stays on screen instead of after a hundred rows.
  *
  * The header and totals tables are outside the sideways scroller (any overflow
- * would be the box a sticky header sticks in) and follow its `scrollLeft`. The
- * body's first column pins with `--publy-z-sticky-cell`, below the toolbar and
- * header's `--publy-z-raised`: a cell sliding under them must never paint over
- * them (#2280).
+ * would be the box a sticky header sticks in) and follow its `scrollLeft`.
+ * Their inline size is narrowed by the width the rows scroller actually gives
+ * to its vertical scrollbar: a fixed gutter left every short list 11px short
+ * of the box (lot 4a), and no gutter at all left the header 11px wider than
+ * the rows once a scrollbar appeared. The body's first column pins with
+ * `--publy-z-sticky-cell`, below the toolbar and header's `--publy-z-raised`:
+ * a cell sliding under them must never paint over them (#2280).
  */
 export const ListTable = <T extends { id: string }>({
 	ariaLabel,
@@ -374,10 +377,31 @@ export const ListTable = <T extends { id: string }>({
 	const getRowLabel = rowLabel ?? defaultRowLabel;
 	const headBox = useRef<HTMLDivElement>(null);
 	const footBox = useRef<HTMLDivElement>(null);
+	const scroller = useRef<HTMLDivElement>(null);
 	let minWidth = 0;
 	for (const id of ids) {
 		minWidth += specs.get(id)?.width ?? 120;
 	}
+	// The header and totals are siblings of the scroller, so they do not share
+	// its scrollbar: measure the gutter it actually takes and narrow them by
+	// the same amount. ResizeObserver re-syncs when a scrollbar appears or
+	// disappears (its content box changes); overlay scrollbars measure 0.
+	const [gutter, setGutter] = useState(0);
+	useEffect(() => {
+		const rowsBox = scroller.current;
+		if (!rowsBox || typeof ResizeObserver === 'undefined') {
+			return;
+		}
+		const sync = () => {
+			const next = rowsBox.offsetWidth - rowsBox.clientWidth;
+			setGutter((previous) => (previous === next ? previous : next));
+		};
+		sync();
+		const observer = new ResizeObserver(sync);
+		observer.observe(rowsBox);
+		return () => observer.disconnect();
+	}, []);
+
 	const allSelected =
 		rows.length > 0 &&
 		selection !== undefined &&
@@ -391,6 +415,8 @@ export const ListTable = <T extends { id: string }>({
 		</colgroup>
 	);
 
+	const hasTotals = ids.some((id) => totals.has(id));
+
 	return (
 		<>
 			<div
@@ -400,7 +426,8 @@ export const ListTable = <T extends { id: string }>({
 				<div
 					ref={headBox}
 					data-pinned-head=""
-					className="sticky top-[calc(var(--search-height,0px)-var(--page-pad-top))] z-(--publy-z-raised) shrink-0 overflow-hidden [scrollbar-gutter:stable]"
+					className="sticky top-[calc(var(--search-height,0px)-var(--page-pad-top))] z-(--publy-z-raised) shrink-0 overflow-hidden"
+					style={{ borderRight: `${gutter}px solid transparent` }}
 				>
 					<table aria-label={ariaLabel} className={TABLE} style={{ minWidth }}>
 						{cols}
@@ -416,7 +443,8 @@ export const ListTable = <T extends { id: string }>({
 					</table>
 				</div>
 				<div
-					className="min-h-0 flex-1 overflow-auto [container-type:inline-size] [scrollbar-gutter:stable]"
+					ref={scroller}
+					className="min-h-0 flex-1 overflow-auto [container-type:inline-size]"
 					data-testid={testId ? `${testId}-rows` : undefined}
 					onScroll={(event) => {
 						for (const pinned of [headBox.current, footBox.current]) {
@@ -468,36 +496,41 @@ export const ListTable = <T extends { id: string }>({
 					</table>
 				</div>
 				{/* Pinned to the bottom of the scroll area, after the scroller: no
-				    partial row can show under it (#2280). */}
-				<div
-					ref={footBox}
-					data-pinned-foot=""
-					className="sticky bottom-0 z-(--publy-z-raised) shrink-0 overflow-hidden bg-background [scrollbar-gutter:stable]"
-				>
-					<table
-						aria-label={t('list-summary')}
-						className={TABLE}
-						style={{ minWidth }}
+				    partial row can show under it (#2280). No totals, no foot: an
+				    empty 40px bar with rules and no text is not a summary. */}
+				{hasTotals ? (
+					<div
+						ref={footBox}
+						data-pinned-foot=""
+						className="sticky bottom-0 z-(--publy-z-raised) shrink-0 overflow-hidden bg-background"
+						style={{ borderRight: `${gutter}px solid transparent` }}
 					>
-						{cols}
-						<tbody>
-							<tr className="h-10 text-xs whitespace-nowrap text-muted-foreground">
-								{ids.map((id, index) => (
-									<td
-										key={id}
-										title={totals.get(id)}
-										className={cn(
-											'truncate border-t border-r bg-background px-2 last:border-r-0',
-											index === 0 && 'sticky left-0 z-(--publy-z-sticky-cell)',
-										)}
-									>
-										{totals.get(id)}
-									</td>
-								))}
-							</tr>
-						</tbody>
-					</table>
-				</div>
+						<table
+							aria-label={t('list-summary')}
+							className={TABLE}
+							style={{ minWidth }}
+						>
+							{cols}
+							<tbody>
+								<tr className="h-10 text-xs whitespace-nowrap text-muted-foreground">
+									{ids.map((id, index) => (
+										<td
+											key={id}
+											title={totals.get(id)}
+											className={cn(
+												'truncate border-t border-r bg-background px-2 last:border-r-0',
+												index === 0 &&
+													'sticky left-0 z-(--publy-z-sticky-cell)',
+											)}
+										>
+											{totals.get(id)}
+										</td>
+									))}
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				) : null}
 			</div>
 			{cards}
 		</>
