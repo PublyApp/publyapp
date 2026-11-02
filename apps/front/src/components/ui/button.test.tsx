@@ -3,11 +3,14 @@ import { describe, expect, test } from 'vitest';
 import { buttonVariants } from './button.variants';
 
 const SIZE_RADIUS_TOKENS = [
-	['default', 'var(--publy-radius-medium-control)'],
+	// #2292: default, sm and the 36px icon button all use the 14px control
+	// radius (the prototype's one-step-larger scale). xs/icon-xs and
+	// icon-sm keep their deliberate smaller steps.
+	['default', 'var(--publy-radius-control)'],
 	['xs', 'var(--publy-radius-chip)'],
-	['sm', 'var(--publy-radius-small-control)'],
+	['sm', 'var(--publy-radius-control)'],
 	['lg', 'var(--publy-radius-control)'],
-	['icon', 'var(--publy-radius-medium-control)'],
+	['icon', 'var(--publy-radius-control)'],
 	['icon-xs', 'var(--publy-radius-chip)'],
 	['icon-sm', 'var(--publy-radius-small-control)'],
 	['icon-lg', 'var(--publy-radius-control)'],

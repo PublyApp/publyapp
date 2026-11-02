@@ -34,9 +34,10 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(topbar).toHaveCSS('height', '64px');
 		await expect(topbar).toHaveCSS('border-bottom-width', '0px');
 
+		// #2292: the primary fill is the prototype's #FECD00 in both themes.
 		await expect(page.getByRole('link', { name: /invite member/i })).toHaveCSS(
 			'background-color',
-			'rgb(253, 199, 0)',
+			'rgb(254, 205, 0)',
 		);
 		const tableCard = page.getByTestId(`${TABLE_TEST_ID}-card`);
 		await expect(tableCard).toHaveCSS('border-radius', '14px');
@@ -97,13 +98,14 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		// Upper bound alone passes at width 0 (a collapsed/hidden wrapper) — pair
 		// with a real minimum (review-r1-tests.md F25).
 		expect(searchWrapperWidth).toBeGreaterThan(200);
-		expect(searchWrapperWidth).toBeLessThanOrEqual(420);
+		// #2292: the list search wrapper matches the prototype's 448px field.
+		expect(searchWrapperWidth).toBeLessThanOrEqual(448);
 
 		// The generic table folds selection into the first column (the old
 		// separate 40px selection cell is gone) and pins the actions column at
 		// 40px. Guard both affordances instead of the removed cell.
 		await expect(
-			tableCard.getByRole('checkbox', { name: /Select all rows/ }),
+			tableCard.getByRole('checkbox', { name: /Select all/ }),
 		).toBeVisible();
 		await expect(
 			page
@@ -129,7 +131,8 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		);
 		await expect(rowMenu).toBeVisible();
 		await expect(rowMenu).toHaveCSS('width', '196px');
-		await expect(rowMenu).toHaveCSS('border-radius', '14px');
+		// #2292: every menu surface is the prototype's 10px popover radius.
+		await expect(rowMenu).toHaveCSS('border-radius', '10px');
 		await expect(rowMenu.getByRole('menuitem').first()).toHaveCSS(
 			'height',
 			'32px',
@@ -179,9 +182,9 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		const filterButton = page.getByRole('button', { name: /^Filters/ });
 		await expect(filterButton).toBeVisible();
 		await expect(filterButton).toHaveCSS('height', '36px');
-		// default-size (36px) button radius is 12px per the owner-ratified per-size
-		// scale (xs 8 / sm 10 / default 12 / lg 14) — see conventions.md.
-		await expect(filterButton).toHaveCSS('border-radius', '12px');
+		// #2292: default-size (36px) button radius is 14px per the prototype's
+		// radius scale (default/sm 14, icon 36px/14).
+		await expect(filterButton).toHaveCSS('border-radius', '14px');
 	});
 
 	test('asserts confirm modal geometry uses handoff radius', async ({
@@ -341,7 +344,7 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(icon).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 		await expect(icon).toHaveCSS('box-shadow', 'none');
 		await expect(icon).toHaveCSS('border-radius', '0px');
-		await expect(icon).toHaveCSS('color', 'rgb(253, 199, 0)');
+		await expect(icon).toHaveCSS('color', 'rgb(254, 205, 0)');
 
 		// Owner decision R3-4b (reaffirmed 2026-07-11): the inline empty/no-match
 		// scale now matches the page error scale exactly — the glyph fills the

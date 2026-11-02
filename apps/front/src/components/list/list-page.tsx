@@ -9,6 +9,7 @@ import {
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
+import { resolveQueryError } from '~/lib/server/query-error-resolver';
 
 import { ColumnsPicker } from './columns-picker';
 import { FilterChips, FilterMenu } from './filter-menu';
@@ -36,7 +37,6 @@ export type ListPageProps<T extends { id: string }> = {
 	testId?: string;
 	ariaLabel: string;
 	title: string;
-	description?: string;
 	/** Omit when the API has no search parameter: the toolbar then has no
 	 * text field rather than one that silently filters nothing. */
 	searchPlaceholder?: string;
@@ -101,10 +101,14 @@ export type ListPageProps<T extends { id: string }> = {
 	queryState: {
 		isPending: boolean;
 		isError: boolean;
+		/** The query's error, when the consumer has it. Resolves the ONE error
+		 * state (#2291): 5xx paints « Impossible de charger » + Réessayer, 403
+		 * paints « Accès refusé » with no retry action. */
+		error?: unknown;
 		onRetry: () => void;
 	};
 	/** Extra content in the error state (e.g. a 403 explanation); falls back to
-	 * the generic description when omitted. */
+	 * the resolved description when omitted. */
 	errorContent?: ReactNode;
 	/** Extra content under the table (a cursor pager). */
 	footer?: ReactNode;
@@ -135,6 +139,12 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	const page = useListPage(props);
 	const { filters, filtersValue } = props;
 	const countsKnown = props.countsKnown ?? true;
+	// #2291: one error state. The shared resolver owns the 5xx/4xx copy and
+	// whether a Retry action belongs on the surface (403 and 404 do not).
+	const resolvedError =
+		props.queryState.error === undefined
+			? undefined
+			: resolveQueryError(props.queryState.error, t);
 
 	const filterPanelGroups: ListPanelGroup[] = [];
 	for (const filter of filters) {
@@ -197,7 +207,6 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 		>
 			<ListPageHeader
 				title={props.title}
-				description={props.description}
 				inset={props.inset}
 				count={
 					props.count ??
@@ -211,7 +220,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 			/>
 			{props.cards ? (
 				<Collapse open={page.statsOpen} axis="y">
-					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-3">
+					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-4">
 						{props.cards}
 					</div>
 				</Collapse>
@@ -301,8 +310,12 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					bodyState={page.bodyState}
 					resolvedRowHeight={48}
 					onRetry={props.queryState.onRetry}
+					errorTitle={resolvedError?.title}
+					errorRetryable={resolvedError?.supportsRetry}
 					errorContent={
-						props.errorContent ?? t('list-error-default-description')
+						props.errorContent ??
+						resolvedError?.description ??
+						t('list-error-default-description')
 					}
 					emptyContent={page.emptyContent}
 					noMatchContent={t('list-no-match-default-description')}

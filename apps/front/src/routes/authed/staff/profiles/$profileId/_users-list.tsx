@@ -41,6 +41,7 @@ type StaffProfileUsersListProps = {
 		isPending: boolean;
 		isError: boolean;
 		isFetching: boolean;
+		error?: unknown;
 	};
 	/** Replaces the generic list error description (a 403 explanation). */
 	errorContent?: ReactNode;
@@ -153,7 +154,7 @@ export const StaffProfileUsersList = ({
 					sub: row.email,
 				})}
 				selection={selection}
-				queryState={{ isPending, isError, onRetry }}
+				queryState={{ isPending, isError, error: queryState.error, onRetry }}
 				errorContent={errorContent}
 				footer={
 					rows.length > 0 ? (

@@ -144,7 +144,6 @@ const StaffUsersPage = () => {
 			testId="staff-users-table"
 			ariaLabel={tStaff('staff-users-page-title')}
 			title={tStaff('staff-users-page-title')}
-			description={tStaff('staff-users-page-description')}
 			searchPlaceholder={t('search-staff-users')}
 			rows={rows}
 			columns={staffUserColumns(t)}
@@ -232,6 +231,7 @@ const StaffUsersPage = () => {
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={

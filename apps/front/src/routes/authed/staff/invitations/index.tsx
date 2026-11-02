@@ -152,7 +152,6 @@ const StaffInvitationsPage = () => {
 			testId="staff-invitations-table"
 			ariaLabel={t('staff-invitations')}
 			title={t('invitations')}
-			description={tInvitations('invite-staff-users-to-the-platform')}
 			rows={rows}
 			columns={invitationColumns(t, i18n.language)}
 			defaultColumns={[...DEFAULT_INVITATION_COLUMNS]}
@@ -220,6 +219,7 @@ const StaffInvitationsPage = () => {
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={

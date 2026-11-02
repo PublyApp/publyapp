@@ -132,7 +132,6 @@ const StaffProfilesPage = () => {
 			testId="staff-profiles-table"
 			ariaLabel={t('profiles')}
 			title={t('profiles')}
-			description={t('staff-profiles-page-description')}
 			searchPlaceholder={t('search-profiles')}
 			rows={rows}
 			columns={staffProfileColumns(t)}
@@ -208,6 +207,7 @@ const StaffProfilesPage = () => {
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={

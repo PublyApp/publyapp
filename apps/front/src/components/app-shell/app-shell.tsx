@@ -399,11 +399,17 @@ const AuthedWorkspaceShell = ({
 						>
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;
+								// #2291: label crumbs ellipsize like the entity crumb and
+								// expose their full text on hover. The entity crumb owns its
+								// own `title` (it is the user-supplied name), so the wrapper
+								// only titles the i18n label crumbs.
+								const labelText =
+									item.kind === 'entity' ? undefined : t(item.labelKey);
 								const label: ReactNode =
 									item.kind === 'entity' ? (
 										<EntityCrumb spec={item} params={breadcrumbParams} />
 									) : (
-										t(item.labelKey)
+										labelText
 									);
 								const path = item.to;
 								let content: ReactNode;
@@ -412,19 +418,29 @@ const AuthedWorkspaceShell = ({
 										<span
 											aria-current="page"
 											className="app-shell-breadcrumb-current"
+											title={labelText}
 										>
 											{label}
 										</span>
 									);
 								} else if (path) {
 									content = (
-										<Link to={path} className="app-shell-breadcrumb-link">
+										<Link
+											to={path}
+											className="app-shell-breadcrumb-link"
+											title={labelText}
+										>
 											{label}
 										</Link>
 									);
 								} else {
 									content = (
-										<span className="app-shell-breadcrumb-muted">{label}</span>
+										<span
+											className="app-shell-breadcrumb-muted"
+											title={labelText}
+										>
+											{label}
+										</span>
 									);
 								}
 								return (

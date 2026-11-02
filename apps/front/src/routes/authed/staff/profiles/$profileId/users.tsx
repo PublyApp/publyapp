@@ -248,6 +248,7 @@ const StaffProfileUsersPage = () => {
 							isPending: usersQuery.isPending,
 							isError: usersQuery.isError,
 							isFetching: usersQuery.isFetching,
+							error: usersQuery.error,
 						}}
 						errorContent={usersErrorContent}
 						q={search.q ?? ''}

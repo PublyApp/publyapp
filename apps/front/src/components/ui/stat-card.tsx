@@ -42,7 +42,7 @@ export const StatCard = ({
 	return (
 		<div
 			className={cn(
-				'@container flex h-full min-w-0 flex-col rounded-[var(--publy-radius-control)] bg-card p-1 text-card-foreground shadow-[var(--publy-shadow-chrome)]',
+				'@container flex h-full min-w-0 flex-col rounded-[16px] bg-card p-1 text-card-foreground shadow-[var(--effect-raised-control)]',
 				className,
 			)}
 			data-testid={testId}

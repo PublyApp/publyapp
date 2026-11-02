@@ -4,12 +4,12 @@ import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 import { loginAsStaffAdmin } from './helpers/login';
 import { waitForBoundingBoxToSettle } from './helpers/settle';
 
-// #d4d4d8 (light --publy-border-strong) vs the old, too-faint #e4e4e7
-// (--publy-border). #f0bd00 (dark --publy-primary/accent, the amber that was
-// leaking into menu-item hover).
-const LIGHT_BORDER_STRONG = 'rgb(212, 212, 216)';
-const DARK_BORDER_STRONG = 'rgba(255, 255, 255, 0.15)';
-const DARK_ACCENT_AMBER = 'rgb(240, 189, 0)';
+// #2292: an outline button's edge is the 1px `--effect-raised-control` ring
+// (`0 0 0 1px var(--border)`) on a transparent border — light --publy-border
+// #e3e3e3, dark #323234. The primary fill is #FECD00 in both themes.
+const LIGHT_RAISED_RING = /rgb\(227, 227, 227\)/;
+const DARK_RAISED_RING = /rgb\(50, 50, 52\)/;
+const DARK_ACCENT_AMBER = 'rgb(254, 205, 0)';
 
 // DESIGN.md "Hover states": a menu item highlights with a 5% foreground mix
 // over the popover base. The item is compared against a probe carrying that
@@ -58,16 +58,21 @@ test.describe(
 			const filterTrigger = page.getByRole('button', { name: /^Filters/ });
 			await expect(filterTrigger).toBeVisible();
 
+			// The ring is the edge (no visible border): transparent 1px border
+			// plus a 1px outset shadow in the theme's border colour.
 			await expect(filterTrigger).toHaveCSS(
 				'border-top-color',
-				LIGHT_BORDER_STRONG,
+				'rgba(0, 0, 0, 0)',
 			);
+			await expect(filterTrigger).toHaveCSS('box-shadow', LIGHT_RAISED_RING);
 
 			await seedDarkTheme(page);
-			await expect(page.getByRole('button', { name: /^Filters/ })).toHaveCSS(
+			const darkTrigger = page.getByRole('button', { name: /^Filters/ });
+			await expect(darkTrigger).toHaveCSS(
 				'border-top-color',
-				DARK_BORDER_STRONG,
+				'rgba(0, 0, 0, 0)',
 			);
+			await expect(darkTrigger).toHaveCSS('box-shadow', DARK_RAISED_RING);
 		});
 
 		test('multi-select filter menu items are 9px-radius with muted (never amber) hover, and carry a visible end-aligned checkbox (#5, #7)', async ({
@@ -219,16 +224,23 @@ test.describe(
 			// mid-transition one (review-r1-tests.md F26).
 			const firstPopupBox = await waitForBoundingBoxToSettle(popup);
 			expect(firstPopupBox).not.toBeNull();
+			// #2292: the owner-mandated spacing rhythm (32px main padding, 24px
+			// page gap) can leave the trigger just below the fold at 1280x720, so
+			// clicking it auto-scrolls the shell — re-read the trigger AFTER the
+			// click so the assertion still measures popup-vs-trigger adjacency
+			// (a popup centered over the trigger would still be ~50px away).
+			const openTriggerBox = await waitForBoundingBoxToSettle(trigger);
+			expect(openTriggerBox).not.toBeNull();
 
-			if (triggerBox && firstPopupBox) {
+			if (openTriggerBox && firstPopupBox) {
 				// Adjacent to the trigger's top or bottom edge (whichever side
 				// floating-ui picked for collision avoidance) — never centered
 				// somewhere in the middle to align a selected item.
 				const distanceBelow = Math.abs(
-					firstPopupBox.y - (triggerBox.y + triggerBox.height),
+					firstPopupBox.y - (openTriggerBox.y + openTriggerBox.height),
 				);
 				const distanceAbove = Math.abs(
-					firstPopupBox.y + firstPopupBox.height - triggerBox.y,
+					firstPopupBox.y + firstPopupBox.height - openTriggerBox.y,
 				);
 				expect(Math.min(distanceBelow, distanceAbove)).toBeLessThan(12);
 			}

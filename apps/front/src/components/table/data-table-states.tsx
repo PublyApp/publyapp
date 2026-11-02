@@ -32,6 +32,10 @@ export type DataTableStatesProps = {
 	noMatchContent?: ReactNode;
 	errorIcon?: TablerIcon;
 	errorTitle?: string;
+	/** Whether the error surface offers a Retry action. `false` for 403/404,
+	 * which the shared resolver marks non-retryable (#2291); omitted keeps the
+	 * historical always-retry behaviour. */
+	errorRetryable?: boolean;
 	emptyIcon?: TablerIcon;
 	emptyTitle?: string;
 	emptyActions?: ReactNode;
@@ -52,6 +56,7 @@ export const DataTableStates = ({
 	noMatchContent,
 	errorIcon,
 	errorTitle,
+	errorRetryable = true,
 	emptyIcon,
 	emptyTitle,
 	emptyActions: emptyActionsProp,
@@ -116,12 +121,16 @@ export const DataTableStates = ({
 					title={errorTitle ?? t('list-unavailable-title')}
 					description={errorDescription}
 					actions={
-						<>
-							{errorActions}
-							<Button variant="outline" onClick={onRetry} type="button">
-								{t('retry')}
-							</Button>
-						</>
+						errorRetryable || errorActions ? (
+							<>
+								{errorActions}
+								{errorRetryable ? (
+									<Button variant="outline" onClick={onRetry} type="button">
+										{t('retry')}
+									</Button>
+								) : null}
+							</>
+						) : undefined
 					}
 					testId={`${testId}-error`}
 				/>

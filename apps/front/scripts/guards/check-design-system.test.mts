@@ -2283,15 +2283,14 @@ test('primary button chrome is on .btn-primary-chrome, with no border-radius ove
 	assert.ok(chromeRuleMatch, '.btn-primary-chrome rule not found');
 	const chromeRuleBody = chromeRuleMatch[1];
 
-	// F3: the border literal moved into a named, theme-invariant token
-	// (--publy-chrome-border) so no-raw-visual-color's border-shorthand scan
-	// doesn't flag the bevel as an unrouted raw rgba() literal.
-	assert.match(chromeRuleBody, /border:\s*var\(--publy-chrome-border\)/);
-	assert.match(chromeRuleBody, /box-shadow:\s*var\(--publy-shadow-chrome\)/);
-
+	// #2292: the primary CTA is a transparent 1px border plus the measured
+	// dark-yellow ring (`--effect-primary-raised`) — the handoff's bevel
+	// (`--publy-chrome-border`/`--publy-shadow-chrome`) is gone.
+	assert.match(chromeRuleBody, /border:\s*1px\s+solid\s+transparent/);
+	assert.match(chromeRuleBody, /box-shadow:\s*var\(--effect-primary-raised\)/);
 	assert.match(
 		css,
-		/--publy-chrome-border:\s*1\.33px\s+solid\s+rgba\(255,\s*255,\s*255,\s*0\.12\)/,
+		/--effect-primary-raised:\s*0\s+0\s+0\s+1px\s+rgb\(120\s+96\s+0\s*\/\s*30%\)/,
 	);
 
 	// F6: no border-radius here. This class is un-layered (must beat
@@ -2309,15 +2308,17 @@ test('handoff design tokens are present in app.css', async () => {
 	);
 
 	assert.match(css, /--publy-font-sans:\s*Geist, ui-sans-serif/);
-	assert.match(css, /--publy-primary:\s*#fdc700/i);
-	assert.match(css, /--publy-primary-foreground:\s*#733e0a/i);
+	assert.match(css, /--publy-primary:\s*#fecd00/i);
+	assert.match(css, /--publy-primary-foreground:\s*#423600/i);
 	assert.match(css, /--publy-shell-rail-width:\s*49px/);
 	assert.match(css, /--publy-shell-panel-width:\s*272px/);
 	assert.match(css, /--publy-shell-topbar-height:\s*64px/);
 	assert.match(
 		css,
-		/--publy-shadow-chrome:\s*0\s+0\s+0\s+0\.67px\s+rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\.2\s*\)\s+inset,?\s*0\s+2px\s+2px\s+rgba\(\s*255,\s*255,\s*255,\s*0\.1\s*\)\s+inset,?\s*0\s+2px\s+2\.67px\s+-0\.67px\s+rgba\(\s*42,\s*42,\s*42,\s*0\.1\s*\),?\s*0\s+0\.67px\s+0\.67px\s+rgba\(\s*42,\s*42,\s*42,\s*0\.08\s*\)/,
+		/--effect-raised-control:\s*0\s+0\s+0\s+1px\s+var\(--border\)/,
 	);
+	assert.match(css, /--popover-surface:\s*#ffffff/i);
+	assert.match(css, /--effect-popover:/);
 	assert.match(css, /--publy-modal-radius:\s*28px/);
 });
 
@@ -3964,7 +3965,6 @@ test('F3: token-theme-parity does not flag the documented theme-invariant allowl
 			':root {',
 			'\t--publy-avatar-1: #0f766e;',
 			'\t--publy-auth-panel-bg: #18181b;',
-			'\t--publy-shadow-chrome: 0 2px 2px rgba(255, 255, 255, 0.1) inset;',
 			'\t--publy-background: #ffffff;',
 			'}',
 			'',

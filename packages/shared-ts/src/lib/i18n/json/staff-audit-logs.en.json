@@ -25,7 +25,7 @@
 	"exporting": "Exporting…",
 	"failed-to-load-activity": "Couldn't load recent activity",
 	"failed-to-load-activity-description": "The latest audit events could not be loaded. Try again.",
-	"format": "Format",
+	"format": "Export format",
 	"loading-actions": "Loading actions…",
 	"no-audit-logs-description": "Nothing has happened in the workspace yet. Actions across organizations will appear here.",
 	"no-audit-logs-yet": "No activity yet",

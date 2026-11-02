@@ -37,7 +37,7 @@ const PanelGroup = ({ group }: { group: ListPanelGroup }) => {
 					type="button"
 					data-active={entry.active || undefined}
 					onClick={entry.onClick}
-					className="flex h-11 items-center gap-2 rounded-[var(--publy-radius-md)] px-2 text-sm text-sidebar-foreground hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground data-active:shadow-[var(--publy-shadow-chrome)] md:h-8 [&_svg]:size-4 [&_svg]:shrink-0"
+					className="flex h-11 items-center gap-2 rounded-[var(--publy-radius-md)] px-2 text-sm text-sidebar-foreground hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground data-active:shadow-[var(--effect-raised-control)] md:h-8 [&_svg]:size-4 [&_svg]:shrink-0"
 				>
 					{entry.icon}
 					<span className="truncate">{entry.label}</span>

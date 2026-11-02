@@ -13,7 +13,6 @@ const DASH = '—';
 
 type ListPageHeaderProps = {
 	title: string;
-	description?: string;
 	inset?: { description?: string };
 	/** The whole-collection count, or `null` when it is not fully known. */
 	count: number | null;
@@ -30,7 +29,6 @@ type ListPageHeaderProps = {
  * stays under the `react-doctor/no-giant-component` size bound. */
 export const ListPageHeader = ({
 	title,
-	description,
 	inset,
 	count,
 	onExport,
@@ -63,7 +61,6 @@ export const ListPageHeader = ({
 	return (
 		<PageHeader
 			title={title}
-			description={description}
 			actions={
 				<>
 					{onExport ? (
@@ -80,7 +77,7 @@ export const ListPageHeader = ({
 					{cards ? (
 						<Button
 							variant="ghost"
-							size="icon-sm"
+							size="icon"
 							aria-expanded={statsOpen}
 							aria-label={
 								statsOpen ? t('list-stats-collapse') : t('list-stats-expand')

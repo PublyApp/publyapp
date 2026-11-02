@@ -120,6 +120,7 @@
 	--color-card-foreground: var(--card-foreground);
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
+	--color-popover-surface: var(--popover-surface);
 	--color-primary: var(--primary);
 	--color-primary-active: var(--publy-primary-active);
 	--color-primary-foreground: var(--primary-foreground);
@@ -153,7 +154,7 @@
 	--foreground: var(--publy-foreground);
 	--card: var(--publy-card);
 	--card-foreground: var(--publy-foreground);
-	--popover: var(--publy-card);
+	--popover: var(--popover-surface);
 	--popover-foreground: var(--publy-foreground);
 	--primary: var(--publy-primary);
 	--primary-foreground: var(--publy-primary-foreground);
@@ -172,10 +173,10 @@
 	--publy-font-mono:
 		'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
-	--publy-primary: #fdc700;
+	--publy-primary: #fecd00;
 	--publy-primary-active: #d9aa00;
 	--publy-primary-soft: #fffbeb;
-	--publy-primary-foreground: #733e0a;
+	--publy-primary-foreground: #423600;
 	/* Text colour for content painted on --publy-primary-soft (chips, the
 	   'primary' status pill tone) — distinct from --publy-primary-foreground,
 	   which is the text colour for the *solid* primary button fill and pairs
@@ -210,19 +211,20 @@
 	--publy-border-strong: #d4d4d8;
 	--publy-input-border: #e4e4e7;
 	--publy-row-border: #f1f1f3;
-	/* W4-GUARDS: #ca8a04 measured 2.94:1 against #ffffff, under the 3:1
-	   focus-indicator floor; darkened to the amber-700 step to clear it
-	   (see focus-ring-contrast.test.ts). */
-	--publy-focus-ring: #a16207;
+	/* #2292: the focus indicator is the near-black foreground in light mode
+	   and the light grey border in dark — both far above the 3:1 floor
+	   (see focus-ring-contrast.test.ts). The pre-redesign amber existed only
+	   to lift #ca8a04 over that floor and is retired with it. */
+	--publy-focus-ring: #18181b;
 	--publy-danger: #dc2626;
 	--publy-danger-soft: rgba(220, 38, 38, 0.08);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.2);
 	--publy-success: #047857;
 	--publy-warning: #b45309;
-	--publy-chip-active-border: #a7f3d0;
-	--publy-chip-active-bg: #ecfdf5;
-	--publy-chip-active-text: #047857;
+	--publy-chip-active-border: #bbf7d0;
+	--publy-chip-active-bg: #dcfce7;
+	--publy-chip-active-text: #166534;
 	--publy-chip-invited-border: #bae6fd;
 	--publy-chip-invited-bg: #f0f9ff;
 	--publy-chip-invited-text: #0369a1;
@@ -230,8 +232,8 @@
 	--publy-chip-suspended-bg: #fff1f2;
 	--publy-chip-suspended-text: #be123c;
 	--publy-chip-pending-border: #fde68a;
-	--publy-chip-pending-bg: #fffbeb;
-	--publy-chip-pending-text: #b45309;
+	--publy-chip-pending-bg: #fef3c7;
+	--publy-chip-pending-text: #92400e;
 	/* Floating selection bar: inverted pill chrome (dark pill on light theme,
 	   light pill on dark theme — see html.dark for the counterpart values). */
 	--publy-selection-bar-bg: #09090b;
@@ -340,12 +342,16 @@
 	--publy-shadow-modal: 0 24px 64px rgba(24, 24, 27, 0.28);
 	--publy-shadow-drawer: -16px 0 40px rgba(24, 24, 27, 0.14);
 	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.03);
-	--publy-shadow-chrome:
-		0 0 0 0.67px rgba(0, 0, 0, 0.2) inset,
-		0 2px 2px rgba(255, 255, 255, 0.1) inset,
-		0 2px 2.67px -0.67px rgba(42, 42, 42, 0.1),
-		0 0.67px 0.67px rgba(42, 42, 42, 0.08);
-	--publy-chrome-border: 1.33px solid rgba(255, 255, 255, 0.12);
+	/* Shopkart OS / Gray UI effects (#2292). A raised control's edge is ONE
+	   1 px ring — never a visible border plus an inset bevel, which is what
+	   drew the second line under the list search field. */
+	--effect-raised-control: 0 0 0 1px var(--border);
+	--effect-primary-raised: 0 0 0 1px rgb(120 96 0 / 30%);
+	/* "Net" menus and popovers: a solid popover surface, no border. */
+	--popover-surface: #ffffff;
+	--effect-popover:
+		0 0 0 1px rgb(0 0 0 / 6%), 0 4px 8px -2px rgb(0 0 0 / 6%),
+		0 12px 24px -6px rgb(0 0 0 / 12%);
 	--publy-shadow-selection-bar:
 		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -398,10 +404,12 @@
 
 html.dark {
 	color-scheme: dark;
-	--publy-primary: #f0bd00;
+	/* The shop yellow and its label are theme-invariant by owner decision
+	   (#2292): the reference keeps #FECD00 / #423600 in both themes. */
+	--publy-primary: #fecd00;
 	--publy-primary-active: #c49700;
 	--publy-primary-soft: #2a2400;
-	--publy-primary-foreground: #1a0d00;
+	--publy-primary-foreground: #423600;
 	--publy-primary-soft-foreground: #fbbf24;
 	--publy-marketing-eyebrow-accent: #d97706;
 	--publy-background: #18181b;
@@ -412,7 +420,7 @@ html.dark {
 	--publy-surface-hover: #222226;
 	--publy-surface-active: #27272a;
 	--publy-muted: #1f1f23;
-	--publy-focus-ring: #facc15;
+	--publy-focus-ring: #d4d4d8;
 	--publy-foreground: #feffff;
 	--publy-foreground-secondary: #d4d4d8;
 	--publy-foreground-muted: #898989;
@@ -442,6 +450,14 @@ html.dark {
 	--publy-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
 	--publy-shadow-drawer: -16px 0 40px rgba(0, 0, 0, 0.35);
 	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.3);
+	/* Restated, not inherited: the dark ring is the same translucent dark
+	   yellow, and stating it here keeps the token-theme-parity guard's
+	   contract ("every colour-valued :root token has a dark counterpart")
+	   literal instead of allowlisted. */
+	--effect-primary-raised: 0 0 0 1px rgb(120 96 0 / 30%);
+	--popover-surface: #1f1f23;
+	--effect-popover:
+		0 0 0 1px rgb(255 255 255 / 8%), 0 12px 24px -6px rgb(0 0 0 / 60%);
 	/* The selection-bar pill itself inverts per theme (light pill on this
 	   dark theme — see --publy-selection-bar-bg below), so its drop shadow
 	   needs more contrast than the light-mode value to read against a dark
@@ -466,18 +482,18 @@ html.dark {
 	--publy-alert-success-bg: rgba(4, 120, 87, 0.18);
 	--publy-alert-success-border: rgba(4, 120, 87, 0.36);
 	--publy-alert-success-text: #34d399;
-	--publy-chip-active-border: #065f46;
-	--publy-chip-active-bg: #052e22;
-	--publy-chip-active-text: #34d399;
+	--publy-chip-active-border: #226344;
+	--publy-chip-active-bg: #123524;
+	--publy-chip-active-text: #86efac;
 	--publy-chip-invited-border: #075985;
 	--publy-chip-invited-bg: #082f49;
 	--publy-chip-invited-text: #38bdf8;
 	--publy-chip-suspended-border: #9f1239;
 	--publy-chip-suspended-bg: #4c0519;
 	--publy-chip-suspended-text: #fb7185;
-	--publy-chip-pending-border: #92400e;
-	--publy-chip-pending-bg: #451a03;
-	--publy-chip-pending-text: #fbbf24;
+	--publy-chip-pending-border: #78551b;
+	--publy-chip-pending-bg: #382b12;
+	--publy-chip-pending-text: #fcd34d;
 	--publy-selection-bar-bg: #f4f4f5;
 	--publy-selection-bar-fg: #18181b;
 	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);
@@ -1247,9 +1263,10 @@ html.dark {
 			transform var(--publy-motion-medium) var(--publy-motion-ease);
 	}
 
-	/* Shopkart FilterPanel group title (#2273 §2.2): mono 14/500, muted at
-	   65%, a 32px row with no separator rule of its own — the group's links
-	   own the bottom border. */
+	/* Shopkart FilterPanel group title (#2273 §2.2): mono 14/500, a 32px row
+	   with no separator rule of its own — the group's links own the bottom
+	   border. The heading is the AA secondary grey (#2291 owner decision):
+	   muted-at-65% measured under 4.5:1, so it is stated at full strength. */
 	.app-shell-secondary-header {
 		@apply flex items-center px-6;
 		padding-top: 8px;
@@ -1262,8 +1279,7 @@ html.dark {
 		font-family: var(--publy-font-mono);
 		font-size: 14px;
 		font-weight: 500;
-		color: var(--publy-foreground-muted);
-		opacity: 0.65;
+		color: var(--publy-foreground-secondary);
 	}
 
 	/* Same horizontal inset as .app-shell-secondary-nav so the search input
@@ -1327,7 +1343,7 @@ html.dark {
 		@apply flex items-center gap-2;
 		height: 32px;
 		padding-inline: 8px;
-		border-radius: 8px;
+		border-radius: 10px;
 		font-size: 14px;
 		color: var(--publy-foreground-muted);
 		transition:
@@ -1444,7 +1460,7 @@ html.dark {
 	   (see `_staff-user-name-cell.tsx`, `staff-users.tsx`'s email cell) — see
 	   docs/guides/front/conventions.md's "Long descriptions… truncate" rule. */
 	.app-shell-breadcrumb-link {
-		@apply min-w-0;
+		@apply min-w-0 truncate;
 		color: var(--publy-foreground-muted);
 	}
 
@@ -1453,13 +1469,13 @@ html.dark {
 	}
 
 	.app-shell-breadcrumb-current {
-		@apply min-w-0;
+		@apply min-w-0 truncate;
 		color: var(--publy-foreground);
 		font-weight: 500;
 	}
 
 	.app-shell-breadcrumb-muted {
-		@apply min-w-0;
+		@apply min-w-0 truncate;
 		color: var(--publy-foreground-muted);
 	}
 
@@ -1506,11 +1522,11 @@ html.dark {
 
 	.app-shell-main {
 		@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
-		padding: 20px 28px 32px;
+		padding: 32px;
 		/* The real page padding, exposed to pinned list chrome (#2274 §2.10):
 		   a sticky search bar / table header offsets itself by this instead of
 		   a hard-coded 32px that only matched Shopkart's own layout. */
-		--page-pad-top: 20px;
+		--page-pad-top: 32px;
 		--page-pad-bottom: 32px;
 		/* Reserve the scrollbar's width so a page that grows past the viewport
 		   does not shift its content sideways (#2271 §2.6). */
@@ -1605,9 +1621,9 @@ html.dark {
 
 @layer components {
 	.publy-type-page-title {
-		/* Shopkart's Page: 28px / 600 / tight (#2271 §2.5). */
-		@apply text-[28px] font-semibold leading-9;
-		letter-spacing: -0.02em;
+		/* Shopkart's Page: 28px / 600 / 42px, -0.025em (#2292). */
+		@apply text-[28px] font-semibold leading-[42px];
+		letter-spacing: -0.025em;
 		color: var(--publy-foreground);
 	}
 
@@ -1642,21 +1658,23 @@ html.dark {
 	/* ---- Product primitives ---- */
 
 	.publy-page-header {
-		@apply flex items-start justify-between gap-4;
+		@apply flex items-start justify-between gap-3;
 	}
 
 	.publy-action-cluster {
 		@apply flex flex-wrap items-center gap-2;
 	}
 
+	/* Shopkart OS status badge (#2292): a pill, 12/16 text, 2 px vertical
+	   padding inside the 20 px row. */
 	.publy-status-pill {
 		@apply inline-flex shrink-0 items-center;
-		border-radius: var(--publy-radius-chip);
+		border-radius: 999px;
 		height: 20px;
-		padding: 0 8px;
-		font-size: 11px;
+		padding: 2px 8px;
+		font-size: 12px;
 		font-weight: 500;
-		line-height: 1;
+		line-height: 16px;
 		white-space: nowrap;
 		border: 1px solid var(--publy-border);
 		background: var(--publy-surface);
@@ -2298,7 +2316,7 @@ html.dark {
 	/* Page wrapper for list routes: caps the page at the viewport so the
 	   table body scrolls inside its card (like the Gray UI template). */
 	.publy-page-fill {
-		@apply flex h-full min-h-0 flex-col gap-4;
+		@apply flex h-full min-h-0 flex-col gap-6;
 	}
 
 	.publy-data-table-shell {
@@ -2625,9 +2643,9 @@ html.dark {
 	.publy-row-actions-menu {
 		width: 196px;
 		min-width: 196px;
-		border-radius: var(--publy-radius-control);
-		background: var(--publy-overlay-surface);
-		box-shadow: var(--publy-shadow-menu);
+		border-radius: 10px;
+		background: var(--popover-surface);
+		box-shadow: var(--effect-popover);
 	}
 }
 
@@ -2684,7 +2702,7 @@ html.dark {
 .publy-row-actions-menu[data-slot='dropdown-menu-content'] {
 	width: 196px;
 	min-width: 196px;
-	border-radius: var(--publy-radius-control);
+	border-radius: 10px;
 }
 
 .publy-row-actions-menu [data-slot='dropdown-menu-item'] {
@@ -2698,15 +2716,16 @@ html.dark {
 	color: var(--publy-danger);
 }
 
-/* Gray UI primary "chrome" treatment (design handoff §Design Tokens). No
+/* Gray UI primary "chrome" treatment (#2292): a transparent 1 px border plus
+   one dark-yellow ring — the reference's `--effect-primary-raised`. No
    border-radius here: this class stacks with a Tailwind `rounded-[...]`
    size utility on `Button`'s `default` variant, and (being un-layered)
    would otherwise always beat it, forcing every primary button — xs/sm/lg
-   included — to the same 14px `--publy-radius-button` regardless of size
-   (F6). The size variant already supplies the correct per-size radius. */
+   included — to the same radius regardless of size (F6). The size variant
+   already supplies the correct per-size radius. */
 .btn-primary-chrome {
-	border: var(--publy-chrome-border);
-	box-shadow: var(--publy-shadow-chrome);
+	border: 1px solid transparent;
+	box-shadow: var(--effect-primary-raised);
 }
 
 /* W6-GUARDS ui-F1: the unlayered chrome rule above sets `border`/`box-shadow`
@@ -2716,11 +2735,11 @@ html.dark {
    keyboard focus indicator at all. Restore both properties, at the
    already-verified-3:1 `--ring` token, specifically for the focus-visible
    state so it wins the same unlayered-vs-layered fight the chrome rule
-   itself depends on. */
+   itself depends on. The raised ring is preserved, as the reference does. */
 .btn-primary-chrome:focus-visible {
 	border-color: var(--ring);
 	box-shadow:
-		var(--publy-shadow-chrome),
+		var(--effect-primary-raised),
 		0 0 0 3px var(--ring);
 }
 

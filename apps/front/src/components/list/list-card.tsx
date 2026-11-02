@@ -77,7 +77,7 @@ export const ListCard = ({
 				onOpen();
 			}
 		}}
-		className="cursor-pointer rounded-[var(--publy-radius-medium-control)] bg-card p-1 shadow-[var(--publy-shadow-chrome)] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+		className="cursor-pointer rounded-[var(--publy-radius-control)] bg-card p-1 shadow-[var(--effect-raised-control)] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 	>
 		<div className="flex items-center gap-2 px-2 py-1.5">
 			<span className="text-sm font-medium whitespace-nowrap text-muted-foreground">
@@ -106,7 +106,7 @@ const SummaryCard = ({
 }) => {
 	const { t } = useTranslation('common');
 	return (
-		<div className="rounded-[var(--publy-radius-medium-control)] bg-card p-1 shadow-[var(--publy-shadow-chrome)]">
+		<div className="rounded-[var(--publy-radius-control)] bg-card p-1 shadow-[var(--effect-raised-control)]">
 			<div className="px-3 pt-1 pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
 				{t('list-summary')}
 			</div>

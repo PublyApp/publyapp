@@ -215,6 +215,7 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 
 		expect(html).toMatch(/<html[^>]*lang="fr"/);
 		expect(html).toContain('Une erreur s&#x27;est produite');
-		expect(html).toContain('>Ré-essayer<');
+		// #2291 owner copy: « Réessayer » (one word), not the legacy hyphenated form.
+		expect(html).toContain('>Réessayer<');
 	});
 });

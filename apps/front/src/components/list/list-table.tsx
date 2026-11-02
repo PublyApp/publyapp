@@ -229,7 +229,7 @@ const TableRow = ({
 							</div>
 							<Button
 								variant="outline"
-								className="h-7 shrink-0 gap-1 rounded-[var(--publy-radius-small-control)] px-2.5 text-xs text-muted-foreground opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:text-foreground [&_svg]:size-3.5"
+								className="h-7 shrink-0 gap-1 rounded-[var(--publy-radius-control)] px-2.5 text-xs text-muted-foreground opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:text-foreground [&_svg]:size-3.5"
 								onClick={onOpen}
 								aria-label={openLabel}
 							>

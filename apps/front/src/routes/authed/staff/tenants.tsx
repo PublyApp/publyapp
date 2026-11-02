@@ -146,7 +146,6 @@ const StaffTenantsPage = () => {
 			testId="staff-tenants-table"
 			ariaLabel={t('list-aria')}
 			title={t('tenants')}
-			description={t('tenants-list-description')}
 			searchPlaceholder={t('list-search-placeholder')}
 			rows={rows}
 			columns={tenantColumns(t, locale)}
@@ -213,6 +212,7 @@ const StaffTenantsPage = () => {
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={

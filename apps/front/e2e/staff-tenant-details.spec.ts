@@ -462,7 +462,7 @@ test.describe(
 				page.getByTestId('staff-tenant-profiles-page'),
 			).toBeVisible();
 
-			// #8 — "New profile" is primary (--publy-primary, #fdc700), not outline,
+			// #8 — "New profile" is primary (--publy-primary, #fecd00 since #2292), not outline,
 			// per the owner's cross-app consistency ruling (docs/guides/front/conventions.md).
 			const newProfileButton = page.getByRole('button', {
 				name: 'New profile',
@@ -470,7 +470,7 @@ test.describe(
 			await expect(newProfileButton).toBeVisible();
 			await expect(newProfileButton).toHaveCSS(
 				'background-color',
-				'rgb(253, 199, 0)',
+				'rgb(254, 205, 0)',
 			);
 
 			// #4 — checkbox is corner-positioned relative to the icon tile, not an
@@ -503,7 +503,7 @@ test.describe(
 			// itself, not just a checked checkbox.
 			await checkbox.click();
 			await expect(card).toHaveClass(/publy-profile-card--selected/);
-			await expect(card).toHaveCSS('box-shadow', /rgb\(253, 199, 0\)/);
+			await expect(card).toHaveCSS('box-shadow', /rgb\(254, 205, 0\)/);
 		});
 
 		test("the default (System) profile's Delete action is visible but disabled, with a tooltip explaining why", async ({
@@ -664,7 +664,7 @@ test.describe(
 			await expect(
 				page.getByTestId('staff-tenant-users-table-footer'),
 			).toBeVisible();
-			await expect(page.getByLabel('Select all rows')).toBeVisible();
+			await expect(page.getByLabel('Select all')).toBeVisible();
 		});
 
 		test('Users tab level filter offers an "All levels" entry that clears the filter and closes the menu', async ({
@@ -847,7 +847,7 @@ test.describe(
 				page.getByTestId('staff-tenant-invitations-page'),
 			).toBeVisible();
 
-			const selectAll = page.getByLabel('Select all rows');
+			const selectAll = page.getByLabel('Select all');
 			await expect(selectAll).toBeVisible();
 			await page
 				.getByRole('checkbox', { name: 'Select sam@example.com' })
@@ -878,7 +878,7 @@ test.describe(
 				page.getByTestId('staff-tenant-invitations-page'),
 			).toBeVisible();
 
-			await page.getByLabel('Select all rows').click();
+			await page.getByLabel('Select all').click();
 			const bar = page.getByTestId('floating-selection-bar');
 			await expect(bar).toContainText('2 selected');
 
