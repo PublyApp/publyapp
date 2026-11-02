@@ -10,7 +10,7 @@
   <ItemGroup>
     <!-- ASP.NET Core packages -->
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
-    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.14" />
     <PackageVersion Include="Microsoft.OpenApi" Version="2.12.2" />
     <!-- Third-party packages -->
     <PackageVersion Include="Bogus" Version="35.6.5" />
