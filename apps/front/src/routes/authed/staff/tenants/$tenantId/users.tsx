@@ -1,6 +1,6 @@
 import { IconAlertCircle } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -66,6 +66,8 @@ const StaffTenantUsersPage = () => {
 	);
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
+	// #2291 M5: the drawer's Escape/close returns focus to this button.
+	const inviteButtonRef = useRef<HTMLButtonElement>(null);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
@@ -245,6 +247,7 @@ const StaffTenantUsersPage = () => {
 						<TenantUsersPageHeader
 							usersCount={tenant.usersCount}
 							onInvite={() => setInviteDrawerOpen(true)}
+							inviteButtonRef={inviteButtonRef}
 						/>
 
 						<TenantUsersTable
@@ -305,6 +308,7 @@ const StaffTenantUsersPage = () => {
 							isOpen={isInviteDrawerOpen}
 							onOpenChange={setInviteDrawerOpen}
 							onSessionExpired={() => setShouldLogout(true)}
+							finalFocusRef={inviteButtonRef}
 						/>
 					</TenantDetailsPageShell>
 				);

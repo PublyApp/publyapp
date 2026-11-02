@@ -115,6 +115,8 @@ vi.mock('@tanstack/react-router', () => ({
 
 const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
+	'common:default-profile-name': 'Default profile',
+	'common:default-profile-description': 'Default profile with no permissions',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
 	users: 'Users',
@@ -405,8 +407,10 @@ describe('staff tenant profiles route', () => {
 			screen.getByText('Profiles', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
 		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
-		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
-		expect(screen.getByText('Can review approvals')).toBeTruthy();
+		expect(screen.getAllByText('Default profile').length).toBeGreaterThan(0);
+		expect(
+			screen.getAllByText('Default profile with no permissions').length,
+		).toBeGreaterThan(0);
 		expect(screen.getByText('System')).toBeTruthy();
 		expect(screen.getByText('Custom')).toBeTruthy();
 		expect(screen.getByText('7 members · 12 permissions')).toBeTruthy();
@@ -791,7 +795,7 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
-		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
+		expect(screen.getAllByText('Default profile').length).toBeGreaterThan(0);
 		expect(
 			screen.getByRole('checkbox', { name: 'Select all rows' }),
 		).toBeTruthy();

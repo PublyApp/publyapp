@@ -27,17 +27,6 @@ const isProblemStatus = (
 	);
 };
 
-const getFailureDescription = (
-	failure: ReturnType<typeof toApiFailure>,
-	fallback: string,
-): string => {
-	if (failure.kind === 'problem') {
-		return failure.detail || fallback;
-	}
-
-	return fallback;
-};
-
 export const ProfileDetailsLoading = () => {
 	const { t } = useTranslation('common');
 
@@ -54,19 +43,15 @@ export const ProfileDetailsLoading = () => {
 	);
 };
 
-export const MissingProfileView = ({ error }: { error: unknown }) => {
+export const MissingProfileView = () => {
 	const { t } = useTranslation('common');
-	const failure = toApiFailure(error);
 
 	return (
 		<AppErrorView
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code={t('error-404-code')}
 			title={t('staff-profile-not-found')}
-			description={getFailureDescription(
-				failure,
-				t('staff-profile-not-found-description'),
-			)}
+			description={t('staff-profile-not-found-description')}
 			testId="staff-profile-users-not-found"
 			actions={
 				<Link
@@ -93,7 +78,7 @@ export const ProfileDetailsError = ({
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
 	) {
-		return <MissingProfileView error={error} />;
+		return <MissingProfileView />;
 	}
 
 	if (isProblemStatus(error, 403)) {

@@ -104,9 +104,11 @@ export const resolveQueryError = (
 		return {
 			code: t('error-403-code'),
 			title: t('no-access-title'),
-			description,
+			// Owner decision #2291: 403 and 404 paint their own translated
+			// message, never the API's English `detail`.
+			description: fallbackMessage,
 			supportsRetry: false,
-			fallback: !hasCause,
+			fallback: true,
 			silent: false,
 		};
 	}
@@ -115,9 +117,9 @@ export const resolveQueryError = (
 		return {
 			code: t('error-404-code'),
 			title: t('page-not-found'),
-			description,
+			description: fallbackMessage,
 			supportsRetry: false,
-			fallback: !hasCause,
+			fallback: true,
 			silent: false,
 		};
 	}

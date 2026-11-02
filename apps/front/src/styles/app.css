@@ -1652,7 +1652,11 @@ html.dark {
 
 	.publy-type-helper {
 		@apply text-xs leading-4;
-		color: var(--publy-foreground-subtle);
+		/* 12px helper copy is still text: `--publy-foreground-subtle` measured
+		   2.39:1 on the light surface (#2291 H2). The muted token is the
+		   lowest neutral that clears WCAG AA at this size in both themes
+		   without changing any token value. */
+		color: var(--publy-foreground-muted);
 	}
 
 	/* ---- Product primitives ---- */

@@ -67,6 +67,7 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const labels: TestLabelMap = {
 				'log-out': 'Log out',
+				'account-menu': 'Account menu',
 				'un-named': 'No name',
 				language: 'Language',
 				'switch-to-light-mode': 'Switch to light mode',
@@ -110,6 +111,13 @@ describe('AppShellUserMenu', () => {
 		render(<AppShellUserMenu />);
 
 		expect(screen.queryByTestId('app-shell-user-menu')).toBeNull();
+		// #2291 H6: the visible name is hidden below 640px and the avatar is
+		// aria-hidden, so the trigger needs a width-independent accessible name.
+		expect(
+			screen
+				.getByTestId('app-shell-user-menu-trigger')
+				.getAttribute('aria-label'),
+		).toBe('Account menu');
 		fireEvent.click(screen.getByTestId('app-shell-user-menu-trigger'));
 
 		const menu = await screen.findByTestId('app-shell-user-menu');

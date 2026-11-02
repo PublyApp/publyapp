@@ -26,11 +26,9 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
-		expect(resolution.description).toBe(
-			'Your profile no longer has access to this tenant.',
-		);
+		expect(resolution.description).toBe('t(forbidden-description)');
 		expect(resolution.supportsRetry).toBe(false);
-		expect(resolution.fallback).toBe(false);
+		expect(resolution.fallback).toBe(true);
 	});
 
 	test('maps a 404 ServerFailure to the not-found copy and disables retry', () => {
@@ -47,9 +45,10 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBe('t(error-404-code)');
 		expect(resolution.title).toBe('t(page-not-found)');
-		expect(resolution.description).toBe('The resource was deleted.');
+		// The API's English `detail` must not leak under a French title.
+		expect(resolution.description).toBe('t(not-found-sentence)');
 		expect(resolution.supportsRetry).toBe(false);
-		expect(resolution.fallback).toBe(false);
+		expect(resolution.fallback).toBe(true);
 	});
 
 	test('maps a 500 ServerFailure to the server-error copy and keeps retry', () => {
@@ -227,7 +226,7 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
-		expect(resolution.description).toBe('No access.');
+		expect(resolution.description).toBe('t(forbidden-description)');
 	});
 
 	test('reads nested problem details carried by an API client error', () => {
@@ -243,7 +242,7 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
-		expect(resolution.description).toBe('The tenant permission was revoked.');
+		expect(resolution.description).toBe('t(forbidden-description)');
 	});
 });
 

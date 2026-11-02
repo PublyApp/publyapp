@@ -56,6 +56,7 @@ export const AppShellUserMenu = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger
 				className="app-shell-user-chip"
+				aria-label={t('account-menu')}
 				data-testid="app-shell-user-menu-trigger"
 			>
 				<PersonAvatar

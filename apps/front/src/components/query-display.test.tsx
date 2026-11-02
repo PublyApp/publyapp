@@ -85,7 +85,7 @@ describe('QueryDisplay', () => {
 	test('renders the default error through the shared state surface path', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		const announcement = screen.getByRole('status');
+		const announcement = screen.getByRole('alert');
 		expect(announcement.className).toContain('publy-state-surface');
 		expect(
 			announcement.querySelector('.publy-state-icon-cluster'),
@@ -193,9 +193,7 @@ describe('QueryDisplay', () => {
 			screen.queryByText('An error occurred while loading data.'),
 		).toBeNull();
 		expect(screen.getByText('Access denied')).toBeTruthy();
-		expect(
-			screen.getByText('Your profile no longer has access to this tenant.'),
-		).toBeTruthy();
+		expect(screen.getByText('The page is restricted.')).toBeTruthy();
 	});
 
 	test('default error surfaces a 404 ServerFailure cause with the not-found copy', () => {
@@ -305,8 +303,8 @@ describe('QueryDisplay', () => {
 	test('default error branch announces itself to assistive tech', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		const announcement = screen.getByRole('status');
-		expect(announcement.getAttribute('aria-live')).toBe('polite');
+		const announcement = screen.getByRole('alert');
+		expect(announcement.getAttribute('aria-live')).toBe('assertive');
 	});
 
 	// Unknown failures still carry a useful message. The resolver must surface

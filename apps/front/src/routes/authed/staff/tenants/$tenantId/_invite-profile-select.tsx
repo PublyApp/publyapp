@@ -182,7 +182,9 @@ export const InviteProfileSelect = ({
 									/>
 								}
 							>
-								<span className="truncate">{triggerLabel}</span>
+								<span className="min-w-0 flex-1 truncate text-left">
+									{triggerLabel}
+								</span>
 								{profilesIsPending ? (
 									<LoadingSpinner />
 								) : (

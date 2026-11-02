@@ -70,8 +70,10 @@ describe('state-surface', () => {
 		);
 
 		const surface = screen.getByTestId('error-surface');
-		expect(surface.getAttribute('role')).toBe('status');
-		expect(surface.getAttribute('aria-live')).toBe('polite');
+		// #2291 owner decision: an error state is `role="alert"`, not a polite
+		// status update.
+		expect(surface.getAttribute('role')).toBe('alert');
+		expect(surface.getAttribute('aria-live')).toBe('assertive');
 	});
 
 	test('ErrorStateSurface and NoMatchStateSurface accept an icon override while keeping their tone', () => {

@@ -26,16 +26,6 @@ const isProblemStatus = (
 	);
 };
 
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
-};
-
 export const StaffUserDetailsError = ({
 	error,
 	onRetry,
@@ -54,10 +44,7 @@ export const StaffUserDetailsError = ({
 				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 				code={t('common:error-404-code')}
 				title={t('staff-user-not-found-title')}
-				description={getFailureDescription(
-					error,
-					t('staff-user-not-found-description'),
-				)}
+				description={t('staff-user-not-found-description')}
 				testId="staff-user-details-not-found"
 				actions={
 					<Link

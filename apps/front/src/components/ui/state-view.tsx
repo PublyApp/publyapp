@@ -9,6 +9,9 @@ type StateViewProps = {
 	tone?: StateViewTone;
 	scale: StateViewScale;
 	ariaLive?: 'polite' | 'assertive' | 'off';
+	/** Explicit ARIA role. Error surfaces use `alert` (owner decision #2291);
+	 * everything else keeps the historical `status` derived from ariaLive. */
+	role?: 'alert' | 'status';
 	/** Eyebrow line above the title (e.g. an error code). Omitted entirely
 	 * when absent — that is the only structural difference the page and
 	 * inline scales are allowed beyond typography (owner decision R3-4b). */
@@ -37,6 +40,7 @@ export const StateView = ({
 	tone = 'neutral',
 	scale,
 	ariaLive,
+	role,
 	eyebrow,
 	title,
 	belowTitle,
@@ -64,7 +68,7 @@ export const StateView = ({
 
 	return (
 		<div
-			role={ariaLive ? 'status' : undefined}
+			role={role ?? (ariaLive ? 'status' : undefined)}
 			aria-live={ariaLive}
 			className={cn(
 				isPage

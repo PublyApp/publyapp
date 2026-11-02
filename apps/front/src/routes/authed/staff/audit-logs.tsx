@@ -21,7 +21,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { Input } from '~/components/ui/input';
 import { PageHeader } from '~/components/ui/product-page';
 import {
 	toStaffAuditLogRows,
@@ -43,6 +42,7 @@ import {
 	type AuditLogsListSearchParamInput,
 	type AuditLogsListSearchParams,
 } from './audit-logs/_list-search-params';
+import { LocalizedDateInput } from './audit-logs/_localized-date-input';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -256,29 +256,25 @@ const StaffAuditLogsPage = () => {
 							className="flex items-center gap-1.5"
 							data-testid="staff-audit-logs-date-range-filter"
 						>
-							<Input
-								type="date"
-								aria-label={t('common:start-date')}
-								data-testid="staff-audit-logs-start-date"
-								value={search.startDate ?? ''}
+							<LocalizedDateInput
+								locale={locale}
+								ariaLabel={t('common:start-date')}
+								testId="staff-audit-logs-start-date"
+								value={search.startDate}
 								max={search.endDate ?? undefined}
-								onChange={(event) =>
-									setDateFilter('startDate', event.target.value)
-								}
+								onChange={(value) => setDateFilter('startDate', value ?? '')}
 								className="h-9 w-37"
 							/>
 							<span aria-hidden="true" className="text-muted-foreground">
 								–
 							</span>
-							<Input
-								type="date"
-								aria-label={t('common:end-date')}
-								data-testid="staff-audit-logs-end-date"
-								value={search.endDate ?? ''}
+							<LocalizedDateInput
+								locale={locale}
+								ariaLabel={t('common:end-date')}
+								testId="staff-audit-logs-end-date"
+								value={search.endDate}
 								min={search.startDate ?? undefined}
-								onChange={(event) =>
-									setDateFilter('endDate', event.target.value)
-								}
+								onChange={(value) => setDateFilter('endDate', value ?? '')}
 								className="h-9 w-37"
 							/>
 						</div>

@@ -267,7 +267,7 @@ const ProfileRouteErrorBoundary = ({
 	}
 
 	if (surface === 'not-found') {
-		return <MissingTenantProfileView error={error} />;
+		return <MissingTenantProfileView />;
 	}
 
 	if (surface === 'forbidden') {

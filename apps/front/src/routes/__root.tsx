@@ -668,27 +668,12 @@ const RootShell = ({ children }: { children: React.ReactNode }) => {
 				<HeadContent />
 				<meta name="csp-nonce" content={cspNonce || undefined} />
 				<title>{t(isLogin ? 'seo-login-title' : 'seo-default-title')}</title>
-				<link
-					rel="preload"
-					href="/fonts/geist/geist-sans-latin-400.woff2"
-					as="font"
-					type="font/woff2"
-					crossOrigin="anonymous"
-				/>
-				<link
-					rel="preload"
-					href="/fonts/geist/geist-sans-latin-500.woff2"
-					as="font"
-					type="font/woff2"
-					crossOrigin="anonymous"
-				/>
-				<link
-					rel="preload"
-					href="/fonts/geist/geist-sans-latin-600.woff2"
-					as="font"
-					type="font/woff2"
-					crossOrigin="anonymous"
-				/>
+				{/* #2291 L1: no font preloads. The three self-hosted Geist
+				    weights are declared by @font-face and requested by the
+				    stylesheet when a rendered weight needs them; preloading
+				    them unconditionally made Chromium warn that the preloaded
+				    resource went unused on pages that render none of those
+				    weights. */}
 				<script
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning

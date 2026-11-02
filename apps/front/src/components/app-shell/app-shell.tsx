@@ -200,6 +200,22 @@ const AuthedWorkspaceShell = ({
 			tenantPermissions !== undefined ? new Set(tenantPermissions) : undefined,
 	});
 	const secondaryItems = getSecondaryPanelItems(pathname);
+	// #2291 M4: the panel heading names the page the user is actually on
+	// (« Membres du personnel », « Profils », « Rapports » …), never the
+	// broader module label (« Équipe », « Tableau de bord ») that the H1 does
+	// not repeat. Filter-shortcut variants carry a `search` and are skipped:
+	// their label describes a filter, not the section.
+	const activeSecondaryItem = secondaryItems.find(
+		(item) =>
+			item.search === undefined &&
+			isSecondaryPanelItemActive(item, pathname, search),
+	);
+	let secondaryPanelTitle: string | null = null;
+	if (activeSecondaryItem) {
+		secondaryPanelTitle = t(activeSecondaryItem.labelKey);
+	} else if (activeRoute) {
+		secondaryPanelTitle = t(activeRoute.labelKey);
+	}
 	// List pages own their secondary panel: it repeats the section links with
 	// API counts and appends the page's filter shortcuts. The static nav would
 	// otherwise render the same links twice, without counters.
@@ -330,9 +346,7 @@ const AuthedWorkspaceShell = ({
 					inert={showSecondaryPanel ? undefined : true}
 				>
 					<div className="app-shell-secondary-panel-inner">
-						<SecondaryPanelHeader
-							title={activeRoute ? t(activeRoute.labelKey) : null}
-						/>
+						<SecondaryPanelHeader title={secondaryPanelTitle} />
 						{pageOwnsSecondaryNav ? null : (
 							<nav
 								className="app-shell-secondary-nav"
