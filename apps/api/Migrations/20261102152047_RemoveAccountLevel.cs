@@ -65,13 +65,21 @@ namespace PublyApp.Api.Migrations
                 """);
 
             // B) One tenant-scope full-access profile per tenant, named "Owner" — the same
-            //    name TenantAsStaffService now creates for new tenants.
+            //    name TenantAsStaffService now creates for new tenants. A tenant may already
+            //    own a custom, limited profile called "Owner": never promote it (that would
+            //    silently grant full access to its members). In that case the new system
+            //    profile is named "Owner (full access)" instead.
             migrationBuilder.Sql(
                 """
                 INSERT INTO profiles
                     (name, description, scope, tenant_id, is_default, is_full_access, created_at, updated_at, is_deleted)
                 SELECT
-                    'Owner',
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM profiles p
+                        WHERE p.scope = 1
+                          AND p.tenant_id = t.id
+                          AND p.name = 'Owner'
+                    ) THEN 'Owner (full access)' ELSE 'Owner' END,
                     'Organization owner with full access',
                     1,
                     t.id,
@@ -80,21 +88,7 @@ namespace PublyApp.Api.Migrations
                     now(),
                     now(),
                     false
-                FROM tenants t
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM profiles p
-                    WHERE p.scope = 1
-                      AND p.tenant_id = t.id
-                      AND p.name = 'Owner'
-                      AND p.is_deleted = false
-                );
-
-                UPDATE profiles
-                SET is_full_access = true,
-                    updated_at = now()
-                WHERE scope = 1
-                  AND name = 'Owner'
-                  AND is_deleted = false;
+                FROM tenants t;
                 """);
 
             // C) Every former Admin keeps full access as a profile assignment.
@@ -108,7 +102,7 @@ namespace PublyApp.Api.Migrations
                 FROM user_accounts ua
                 JOIN profiles p
                   ON p.scope = 0
-                 AND p.name = 'Staff Owner'
+                 AND p.is_full_access = true
                  AND p.is_deleted = false
                 WHERE ua.level = 50
                   AND ua.scope = 0
@@ -124,7 +118,7 @@ namespace PublyApp.Api.Migrations
                 JOIN profiles p
                   ON p.scope = 1
                  AND p.tenant_id = ua.tenant_id
-                 AND p.name = 'Owner'
+                 AND p.is_full_access = true
                  AND p.is_deleted = false
                 WHERE ua.level = 50
                   AND ua.scope = 1
@@ -146,7 +140,7 @@ namespace PublyApp.Api.Migrations
                 JOIN profiles p
                   ON p.scope = 1
                  AND p.tenant_id = i.tenant_id
-                 AND p.name = 'Owner'
+                 AND p.is_full_access = true
                  AND p.is_deleted = false
                 WHERE i.account_level = 50
                   AND i.status = 0
@@ -227,6 +221,26 @@ namespace PublyApp.Api.Migrations
                 SET account_level = i.account_level
                 FROM invitations i
                 WHERE o.invitation_id = i.id;
+                """);
+
+            // Remove the tenant-scope system profiles Up() added. They are exactly the
+            // scope=1 rows carrying is_full_access: the column only exists because Up()
+            // created it, and only Up() (then the new seeder) ever sets it. Leaving them
+            // behind makes a later Up() abort on ux_profiles_tenant_name — a partial
+            // unique index on (tenant_id, name) — because the "Owner" profile it wants to
+            // insert is still there. Assignments cascade from profiles; invitation links
+            // are Restrict.
+            migrationBuilder.Sql(
+                """
+                DELETE FROM invitation_profiles ip
+                USING profiles p
+                WHERE p.id = ip.profile_id
+                  AND p.scope = 1
+                  AND p.is_full_access = true;
+
+                DELETE FROM profiles
+                WHERE scope = 1
+                  AND is_full_access = true;
                 """);
 
             migrationBuilder.DropColumn(
