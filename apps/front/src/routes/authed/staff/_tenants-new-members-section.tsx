@@ -1,12 +1,17 @@
 import {
+	IconDownload,
 	IconFileCheck,
 	IconFileSpreadsheet,
 	IconPlus,
+	IconTrash,
+	IconUpload,
 	IconX,
 } from '@tabler/icons-react';
+import { useState } from 'react';
 import { Controller, type Control } from 'react-hook-form';
 import { Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
+import { cn } from '~/lib/utils';
 
 import { type TranslateFn } from './_tenant-form-shared';
 import { MemberLevelSelect } from './_tenants-new-fields';
@@ -25,59 +30,95 @@ const MemberImportDropzone = ({
 	t,
 	fileInputRef,
 	onFiles,
+	isDisabled,
 }: {
 	t: TranslateFn;
 	fileInputRef: MemberImport['fileInputRef'];
 	onFiles: (files: FileList | null) => void;
-}) => (
-	<div
-		className="flex flex-col items-center gap-1.5 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-6 text-center"
-		data-testid="tenant-member-dropzone"
-		onDragOver={(event) => {
-			event.preventDefault();
-		}}
-		onDrop={(event) => {
-			event.preventDefault();
-			onFiles(event.dataTransfer.files);
-		}}
-	>
-		<IconFileSpreadsheet
-			aria-hidden="true"
-			className="size-6 text-muted-foreground"
-		/>
-		<label
-			htmlFor="tenant-member-file-input"
-			className="cursor-pointer text-[13px] font-medium text-foreground"
-		>
-			{t('drag-csv-file')}
-		</label>
-		<p className="publy-type-helper">
-			{t('csv-columns-hint')}
-			{' · '}
-			<Button
-				type="button"
-				variant="link"
-				size="xs"
-				className="h-auto p-0 align-baseline"
-				onClick={downloadTemplateCsv}
-			>
-				{t('download-template')}
-			</Button>
-		</p>
-		<input
-			ref={fileInputRef}
-			id="tenant-member-file-input"
-			type="file"
-			accept=".csv"
-			aria-label={t('drag-csv-file')}
-			className="sr-only"
-			onChange={(event) => {
-				onFiles(event.target.files);
-				event.target.value = '';
+	isDisabled?: boolean;
+}) => {
+	const [isDragOver, setIsDragOver] = useState(false);
+	const surface = cn(
+		'group/drop border-[1.5px] border-dashed border-input bg-[color-mix(in_srgb,var(--foreground)_6%,var(--background))] outline-none transition-[background-color,border-color,box-shadow] duration-150',
+		'hover:border-[color-mix(in_srgb,var(--foreground)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--foreground)_9%,var(--background))]',
+		'focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30',
+		isDragOver &&
+			'border-solid border-primary bg-[color-mix(in_srgb,var(--primary)_14%,var(--background))] hover:border-primary hover:bg-[color-mix(in_srgb,var(--primary)_14%,var(--background))]',
+	);
+	return (
+		<div
+			className={cn(
+				'relative flex flex-col items-center gap-1.5 rounded-[14px] px-4 py-3.5 text-center',
+				surface,
+				isDisabled && 'pointer-events-none opacity-60',
+			)}
+			data-testid="tenant-member-dropzone"
+			onDragOver={(event) => {
+				event.preventDefault();
+				if (!isDisabled) {
+					setIsDragOver(true);
+				}
 			}}
-		/>
-	</div>
-);
+			onDragLeave={() => setIsDragOver(false)}
+			onDrop={(event) => {
+				event.preventDefault();
+				setIsDragOver(false);
+				if (!isDisabled) {
+					onFiles(event.dataTransfer.files);
+				}
+			}}
+		>
+			<input
+				ref={fileInputRef}
+				id="tenant-member-file-input"
+				type="file"
+				accept=".csv"
+				aria-label={t('choose-csv-file-aria')}
+				className="absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+				disabled={isDisabled}
+				onChange={(event) => {
+					onFiles(event.target.files);
+					event.target.value = '';
+				}}
+			/>
+			<span className="pointer-events-none flex items-center gap-2">
+				<span className="flex size-7 items-center justify-center rounded-lg bg-background shadow-raised-control">
+					{isDragOver ? (
+						<IconUpload aria-hidden="true" className="size-3.5" />
+					) : (
+						<IconFileSpreadsheet aria-hidden="true" className="size-3.5" />
+					)}
+				</span>
+				<span className="text-[13px] font-semibold">
+					{isDragOver ? t('drop-file-here') : t('import-members-title')}
+				</span>
+			</span>
+			<span
+				aria-hidden="true"
+				className="pointer-events-none inline-flex h-7 items-center gap-1.5 rounded-[var(--publy-radius-small-control)] border bg-background px-2.5 text-xs font-medium shadow-sm"
+			>
+				<IconUpload aria-hidden="true" data-icon="inline-start" />
+				{t('choose-csv-file')}
+			</span>
+			<span className="pointer-events-none flex flex-wrap items-center justify-center gap-x-2 text-xs text-muted-foreground transition-colors group-hover/drop:text-foreground">
+				<span>
+					{t('or-drag-here')} · {t('csv-columns-hint')}
+				</span>
+				<button
+					type="button"
+					className="pointer-events-auto relative inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-sm text-xs font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+					onClick={(event) => {
+						event.stopPropagation();
+						downloadTemplateCsv();
+					}}
+				>
+					<IconDownload aria-hidden="true" className="size-3.5" />
+					{t('download-template')}
+				</button>
+			</span>
+		</div>
+	);
+};
 
 const MemberImportSummary = ({
 	t,
@@ -91,38 +132,36 @@ const MemberImportSummary = ({
 	onRemove: () => void;
 }) => (
 	<div
-		className="flex items-center justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border border-(--publy-chip-active-border) bg-(--publy-chip-active-bg) px-3.5 py-2.5"
+		className="flex items-center gap-3 rounded-[12px] border bg-background px-3 py-2.5"
 		data-testid="tenant-member-parsed-summary"
 	>
-		<div className="flex min-w-0 items-center gap-2">
-			<IconFileCheck
-				aria-hidden="true"
-				className="size-4 shrink-0 text-(--publy-chip-active-text)"
-			/>
-			<div className="min-w-0 text-[13px]">
-				<p className="truncate font-medium text-foreground">{fileName}</p>
-				<p className="publy-type-helper">
-					{t('parsed-file-summary', {
-						detected: outcome.detectedCount,
-						valid: outcome.valid.length,
-					})}
-				</p>
-				{outcome.invalidCount > 0 ? (
-					<p className="publy-type-helper text-(--publy-danger)">
-						{t('parsed-file-invalid-rows', { count: outcome.invalidCount })}
-					</p>
-				) : null}
-				{outcome.duplicateCount > 0 ? (
-					<p className="publy-type-helper">
-						{t('parsed-file-duplicate-rows', {
-							count: outcome.duplicateCount,
-						})}
-					</p>
-				) : null}
-			</div>
-		</div>
-		<Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-			{t('remove')}
+		<span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-[var(--status-resolved-foreground)]">
+			<IconFileCheck aria-hidden="true" className="size-5" />
+		</span>
+		<span className="flex min-w-0 flex-col">
+			<span className="truncate text-sm font-medium">{fileName}</span>
+			<span className="text-xs text-muted-foreground">
+				{t('parsed-file-summary', {
+					detected: outcome.detectedCount,
+					valid: outcome.valid.length,
+				})}
+				{outcome.invalidCount > 0
+					? ` · ${t('parsed-file-invalid-rows', { count: outcome.invalidCount })}`
+					: ''}
+				{outcome.duplicateCount > 0
+					? ` · ${t('parsed-file-duplicate-rows', { count: outcome.duplicateCount })}`
+					: ''}
+			</span>
+		</span>
+		<Button
+			type="button"
+			variant="ghost"
+			size="icon-sm"
+			className="ml-auto"
+			aria-label={t('remove')}
+			onClick={onRemove}
+		>
+			<IconTrash aria-hidden="true" className="size-4" />
 		</Button>
 	</div>
 );
@@ -149,18 +188,6 @@ export const TenantCreateMembersSection = ({
 	<section className="flex flex-col gap-4">
 		<p className="publy-type-eyebrow">{t('initial-members-optional')}</p>
 
-		<MemberImportDropzone
-			t={t}
-			fileInputRef={memberImport.fileInputRef}
-			onFiles={(files) => {
-				void memberImport.handleFiles(files);
-			}}
-		/>
-
-		{memberImport.importError ? (
-			<p className="publy-field-error">{memberImport.importError}</p>
-		) : null}
-
 		{memberImport.parsedFile && memberImport.parsedOutcome ? (
 			<MemberImportSummary
 				t={t}
@@ -168,6 +195,19 @@ export const TenantCreateMembersSection = ({
 				outcome={memberImport.parsedOutcome}
 				onRemove={memberImport.clearParsedFile}
 			/>
+		) : (
+			<MemberImportDropzone
+				t={t}
+				fileInputRef={memberImport.fileInputRef}
+				isDisabled={isFormLocked}
+				onFiles={(files) => {
+					void memberImport.handleFiles(files);
+				}}
+			/>
+		)}
+
+		{memberImport.importError ? (
+			<p className="publy-field-error">{memberImport.importError}</p>
 		) : null}
 
 		<div className="flex items-center gap-3">

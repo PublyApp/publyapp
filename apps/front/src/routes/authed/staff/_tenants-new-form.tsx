@@ -22,20 +22,23 @@ import { TenantCreatePreviewCard } from './_tenants-new-preview';
 import { buildCreateTenantSchema } from './_tenants-new-schema';
 import {
 	TenantCreateActionBar,
-	TenantCreateDetailsSection,
+	TenantCreateDetailsFold,
 	TenantCreateHeader,
 	TenantCreateOrganizationSection,
 	TenantCreateOwnersSection,
 	TenantCreateRootError,
-	TenantCreateSetupSection,
 } from './_tenants-new-sections';
 import { filterFilledEmails } from './_tenants-new-submit';
 import {
 	DEFAULT_VALUES,
+	SEATS_FROM_VALUE,
 	type TenantCreateFormValues,
 } from './_tenants-new-types';
 import { UnsavedChangesDialog } from './_unsaved-changes-dialog';
-import { slugifyTenantNamePlaceholder } from './tenants-new-helpers';
+import {
+	slugifyTenantNamePlaceholder,
+	slugifyTenantCode,
+} from './tenants-new-helpers';
 import { getWebsiteHostname } from './tenants/tenant-organization-profile-fields';
 
 export const TenantCreateForm = ({
@@ -85,15 +88,24 @@ export const TenantCreateForm = ({
 
 	const name = useWatch({ control, name: 'name' }) ?? '';
 	const code = useWatch({ control, name: 'code' }) ?? '';
-	const maxUsers = useWatch({ control, name: 'maxUsers' }) ?? 0;
+	const codeEdited = useWatch({ control, name: 'codeEdited' }) ?? false;
+	const seats = useWatch({ control, name: 'seats' }) ?? DEFAULT_VALUES.seats;
+	const customSeats =
+		useWatch({ control, name: 'customSeats' }) ?? DEFAULT_VALUES.customSeats;
+	const maxUsers =
+		SEATS_FROM_VALUE(seats, customSeats) || DEFAULT_VALUES.maxUsers;
 	const owners = useWatch({ control, name: 'owners' }) ?? DEFAULT_VALUES.owners;
 	const manualMembers =
 		useWatch({ control, name: 'manualMembers' }) ??
 		DEFAULT_VALUES.manualMembers;
-	const seedDefaultProfile =
-		useWatch({ control, name: 'seedDefaultProfile' }) ?? true;
 	const websiteUrl = useWatch({ control, name: 'websiteUrl' }) ?? '';
 	const logoUrl = useWatch({ control, name: 'logoUrl' }) ?? '';
+	const legalName = useWatch({ control, name: 'legalName' }) ?? '';
+	const description = useWatch({ control, name: 'description' }) ?? '';
+	const legalNameTrimmed = legalName.trim();
+	const websiteTrimmed = websiteUrl.trim();
+	const locale = useWatch({ control, name: 'defaultLocale' }) ?? '';
+	const timezone = useWatch({ control, name: 'timezone' }) ?? '';
 
 	const localeOptions = useTenantLocaleOptions(t);
 	const timezoneOptions = useTenantTimezoneOptions(t);
@@ -113,8 +125,22 @@ export const TenantCreateForm = ({
 	const { parsedValidMembers } = memberImport;
 
 	useEffect(() => {
+		methods.setValue('maxUsers', maxUsers, { shouldValidate: false });
+	}, [maxUsers, methods]);
+
+	useEffect(() => {
 		parsedMembersCountRef.current = parsedValidMembers.length;
 	}, [parsedValidMembers.length]);
+
+	// Slug auto-generates from the name until the user edits it.
+	useEffect(() => {
+		if (!codeEdited) {
+			const next = slugifyTenantCode(name);
+			if (next !== code) {
+				methods.setValue('code', next, { shouldValidate: code.length > 0 });
+			}
+		}
+	}, [name, codeEdited, code, methods]);
 
 	// tenants-r6-F3: `isDirty` only tracks RHF-registered fields — the CSV
 	// import populates `parsedFile`, state that lives OUTSIDE the form, so a
@@ -178,23 +204,48 @@ export const TenantCreateForm = ({
 		return <LogoutRedirect />;
 	}
 
+	let localeLabel = '';
+	if (locale === 'fr') {
+		localeLabel = 'Français';
+	} else if (locale === 'en') {
+		localeLabel = 'English';
+	}
+	const detailsSummary = [
+		legalNameTrimmed,
+		websiteTrimmed,
+		localeLabel,
+		timezone,
+		description.trim(),
+	]
+		.filter(Boolean)
+		.join(' · ');
+
 	return (
-		<FormPageLayout width={960} data-testid="staff-tenant-create-page">
+		<FormPageLayout width={1080} data-testid="staff-tenant-create-page">
 			<TenantCreateHeader t={t} />
 
 			<Form methods={methods} onSubmit={onSubmit}>
-				<div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:gap-9">
-					<div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1">
+				<div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+					<div className="order-2 flex min-w-0 flex-col gap-6 lg:order-1">
 						<TenantCreateOrganizationSection
 							t={t}
 							isFormLocked={isFormLocked}
 							name={name}
-						/>
-						<TenantCreateDetailsSection
-							t={t}
-							isFormLocked={isFormLocked}
-							localeOptions={localeOptions}
-							timezoneOptions={timezoneOptions}
+							seatsValue={seats}
+							customSeats={customSeats}
+							onSeatsChange={(value) => {
+								methods.setValue('seats', value, { shouldValidate: true });
+								if (value !== 'custom') {
+									methods.setValue('customSeats', '', {
+										shouldValidate: false,
+									});
+								}
+							}}
+							onCustomSeatsChange={(value) => {
+								methods.setValue('customSeats', value, {
+									shouldValidate: true,
+								});
+							}}
 						/>
 						<TenantCreateOwnersSection
 							t={t}
@@ -224,10 +275,15 @@ export const TenantCreateForm = ({
 							}}
 							onRemoveManualMember={removeManualMember}
 						/>
-						<TenantCreateSetupSection
+						<p className="-mb-2 font-mono text-sm font-medium text-muted-foreground opacity-80">
+							{t('later-or-now')}
+						</p>
+						<TenantCreateDetailsFold
 							t={t}
 							isFormLocked={isFormLocked}
-							seedDefaultProfileError={errors.seedDefaultProfile?.message}
+							localeOptions={localeOptions}
+							timezoneOptions={timezoneOptions}
+							summary={detailsSummary}
 						/>
 					</div>
 
@@ -242,7 +298,6 @@ export const TenantCreateForm = ({
 						}
 						websiteHostname={getWebsiteHostname(websiteUrl)}
 						maxUsers={maxUsers}
-						seedDefaultProfile={seedDefaultProfile}
 						counts={{
 							ownersCount,
 							membersCount,

@@ -235,6 +235,26 @@ test.describe(
 			await expect(page.getByTestId('preview-members')).toHaveText('1');
 			await expect(page.getByTestId('preview-seats')).toHaveText('2 / 5');
 		});
+
+		test('Essentiel seats Segmented changes the preview denominator', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await loginAsStaffAdmin(page);
+			await mockCreateStaffTenant(page);
+
+			await page.goto('/staff/tenants/new');
+			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+			await page
+				.getByRole('textbox', { name: /organization/i })
+				.fill('Acme Corporation');
+			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
+
+			await expect(page.getByTestId('preview-seats')).toHaveText('1 / 5');
+			await page.getByRole('button', { name: '10' }).click();
+			await expect(page.getByTestId('preview-seats')).toHaveText('1 / 10');
+		});
 	},
 );
 
@@ -284,7 +304,7 @@ test.describe(
 	'staff create-tenant Organization details optional section',
 	{ tag: ['@staff-tenants', '@806'] },
 	() => {
-		test('renders between Organization and Owners, and submits its trimmed values without changing the rest of the create flow', async ({
+		test('renders as a collapsed Fold per Essentiel and submits its trimmed values without changing the rest of the create flow', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -293,7 +313,16 @@ test.describe(
 			await page.goto('/staff/tenants/new');
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
-			await expect(page.getByText('Organization details')).toBeVisible();
+			const foldButton = page.getByRole('button', {
+				name: /Organization details/,
+			});
+			await expect(foldButton).toBeVisible();
+			await expect(foldButton).toHaveAttribute('aria-expanded', 'false');
+			// Fields are collapsed initially — open the Fold first.
+			await foldButton.click();
+			await expect(
+				page.getByRole('textbox', { name: 'Legal name' }),
+			).toBeVisible();
 			await expect(
 				page.getByText('Optional — add these details now or edit them later.'),
 			).toBeVisible();

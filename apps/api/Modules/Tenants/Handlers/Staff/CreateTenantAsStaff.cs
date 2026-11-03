@@ -95,11 +95,13 @@ public class CreateTenantAsStaffBody {
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
-	// Defaults to true to preserve current behavior when the field is omitted.
+	// No default profile is seeded when the field is omitted — the
+	// "Profil par défaut" switch was removed (refonte §4.3). Creating an empty
+	// "Default profile" for non-admin invitees is no longer wanted.
 	public bool GetSeedDefaultProfile() {
 		var kind = this.SeedDefaultProfile?.ValueKind;
 		if (kind is null or JsonValueKind.Null or JsonValueKind.Undefined) {
-			return true;
+			return false;
 		}
 		return this.SeedDefaultProfile.GetValueAsBoolean();
 	}

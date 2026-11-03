@@ -12,7 +12,7 @@ const FormPageLayout = ({
 	width = 860,
 	className,
 	...props
-}: React.ComponentProps<'div'> & { width?: 760 | 860 | 960 }) => {
+}: React.ComponentProps<'div'> & { width?: 760 | 860 | 960 | 1080 }) => {
 	return (
 		<div
 			data-slot="form-page"

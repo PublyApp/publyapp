@@ -1,15 +1,27 @@
-import { IconArrowLeft, IconPlus, IconX } from '@tabler/icons-react';
+import {
+	IconArrowLeft,
+	IconChevronDown,
+	IconPlus,
+	IconX,
+} from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import {
 	Field,
 	FormActionBar,
 	type FieldSelectOption,
 } from '~/components/field';
 import { Button } from '~/components/ui/button';
+import { Collapse } from '~/components/ui/collapse';
+import { Segmented } from '~/components/ui/segmented';
 import { cn } from '~/lib/utils';
 
 import { type TranslateFn } from './_tenant-form-shared';
 import { SlugField } from './_tenants-new-fields';
+import {
+	type TenantCreateSeatsValue,
+	SEAT_OPTIONS,
+} from './_tenants-new-types';
 
 export const TenantCreateHeader = ({ t }: { t: TranslateFn }) => (
 	<div className="space-y-2">
@@ -28,13 +40,24 @@ export const TenantCreateOrganizationSection = ({
 	t,
 	isFormLocked,
 	name,
+	seatsValue,
+	customSeats,
+	onSeatsChange,
+	onCustomSeatsChange,
 }: {
 	t: TranslateFn;
 	isFormLocked: boolean;
 	name: string;
+	seatsValue: TenantCreateSeatsValue;
+	customSeats: string;
+	onSeatsChange: (value: TenantCreateSeatsValue) => void;
+	onCustomSeatsChange: (value: string) => void;
 }) => (
 	<section className="flex flex-col gap-4">
-		<p className="publy-type-eyebrow">{t('organization')}</p>
+		<div className="space-y-1">
+			<p className="publy-type-eyebrow">{t('organization')}</p>
+			<p className="publy-type-helper">{t('organization-section-hint')}</p>
+		</div>
 		<Field.Text
 			name="name"
 			label={t('organization-name')}
@@ -42,102 +65,148 @@ export const TenantCreateOrganizationSection = ({
 			fullWidth
 			isDisabled={isFormLocked}
 		/>
-		<div className="grid grid-cols-[1fr_128px] items-start gap-3">
-			<SlugField
-				label={t('workspace-slug')}
-				hint={t('workspace-slug-hint')}
-				isDisabled={isFormLocked}
-				t={t}
-			/>
-			<Field.Text
-				name="maxUsers"
-				type="number"
-				min={1}
-				label={t('seats')}
-				isDisabled={isFormLocked}
-			/>
+		<SlugField
+			label={t('workspace-slug')}
+			hint={t('workspace-slug-hint')}
+			isDisabled={isFormLocked}
+			t={t}
+		/>
+		<div className="flex flex-col gap-2">
+			<span className="text-[13px] leading-none font-medium">{t('seats')}</span>
+			<div className="flex flex-wrap items-center gap-2">
+				<Segmented
+					value={seatsValue}
+					options={SEAT_OPTIONS}
+					label={(value) => (value === 'custom' ? t('seats-custom') : value)}
+					onChange={onSeatsChange}
+					ariaLabel={t('seats')}
+					className="w-fit"
+					itemClassName="min-w-9"
+				/>
+				{seatsValue === 'custom' ? (
+					<input
+						type="text"
+						inputMode="numeric"
+						value={customSeats}
+						placeholder={t('seats-custom-placeholder')}
+						disabled={isFormLocked}
+						onChange={(event) => {
+							onCustomSeatsChange(event.target.value.replace(/\D/g, ''));
+						}}
+						className="h-9 w-28 rounded-[var(--publy-radius-input)] border border-border bg-input/50 px-3 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50"
+					/>
+				) : null}
+			</div>
 		</div>
 		<Field.ImageUpload
 			name="logoUrl"
 			label={t('logo')}
+			helperText={t('logo-optional-hint')}
 			previewName={name || t('untitled-organization')}
 			isDisabled={isFormLocked}
 		/>
 	</section>
 );
 
-export const TenantCreateDetailsSection = ({
+export const TenantCreateDetailsFold = ({
 	t,
 	isFormLocked,
 	localeOptions,
 	timezoneOptions,
+	summary,
 }: {
 	t: TranslateFn;
 	isFormLocked: boolean;
 	localeOptions: FieldSelectOption[];
 	timezoneOptions: FieldSelectOption[];
-}) => (
-	<section className="flex flex-col gap-4">
-		<div className="flex flex-wrap items-center justify-between gap-2">
-			<p className="publy-type-eyebrow">{t('organization-details')}</p>
-			<p className="publy-type-helper">
-				{t('organization-details-optional-hint')}
-			</p>
+	summary: string;
+}) => {
+	const [open, setOpen] = useState(false);
+	return (
+		<div className="flex flex-col gap-2.5">
+			<button
+				type="button"
+				aria-expanded={open}
+				onClick={() => setOpen(!open)}
+				className="flex items-center gap-2 rounded-[14px] border bg-background px-3.5 py-3 text-left hover:bg-card"
+			>
+				<span className="text-sm font-medium">{t('organization-details')}</span>
+				<span className="truncate text-xs text-muted-foreground">
+					{summary}
+				</span>
+				<span className="ml-1 shrink-0 text-xs text-muted-foreground">
+					{t('optional')}
+				</span>
+				<IconChevronDown
+					aria-hidden="true"
+					className={cn(
+						'ml-auto size-4 shrink-0 text-muted-foreground transition-transform',
+						open && 'rotate-180',
+					)}
+				/>
+			</button>
+			<Collapse axis="y" open={open}>
+				<div className="flex flex-col gap-4 pt-2">
+					<p className="publy-type-helper">
+						{t('organization-details-optional-hint')}
+					</p>
+					<Field.Text
+						name="legalName"
+						label={t('legal-name')}
+						fullWidth
+						isDisabled={isFormLocked}
+					/>
+					<Field.Textarea
+						name="description"
+						label={t('description')}
+						rows={3}
+						isDisabled={isFormLocked}
+					/>
+					<Field.Text
+						name="websiteUrl"
+						label={t('website-url')}
+						placeholder="https://example.com"
+						fullWidth
+						isDisabled={isFormLocked}
+					/>
+					<div className="grid grid-cols-2 gap-3">
+						<Field.Email
+							name="billingEmail"
+							label={t('billing-email')}
+							isDisabled={isFormLocked}
+						/>
+						<Field.Email
+							name="supportEmail"
+							label={t('support-email')}
+							isDisabled={isFormLocked}
+						/>
+					</div>
+					<div className="grid grid-cols-2 gap-3">
+						<Field.Select
+							name="defaultLocale"
+							label={t('default-locale')}
+							options={localeOptions}
+							isDisabled={isFormLocked}
+						/>
+						<Field.Select
+							name="timezone"
+							label={t('timezone')}
+							options={timezoneOptions}
+							isDisabled={isFormLocked}
+						/>
+					</div>
+					<Field.Textarea
+						name="notes"
+						label={t('internal-notes')}
+						helperText={t('internal-notes-hint')}
+						rows={3}
+						isDisabled={isFormLocked}
+					/>
+				</div>
+			</Collapse>
 		</div>
-		<Field.Text
-			name="legalName"
-			label={t('legal-name')}
-			fullWidth
-			isDisabled={isFormLocked}
-		/>
-		<Field.Textarea
-			name="description"
-			label={t('description')}
-			rows={3}
-			isDisabled={isFormLocked}
-		/>
-		<Field.Text
-			name="websiteUrl"
-			label={t('website-url')}
-			placeholder="https://example.com"
-			fullWidth
-			isDisabled={isFormLocked}
-		/>
-		<div className="grid grid-cols-2 gap-3">
-			<Field.Email
-				name="billingEmail"
-				label={t('billing-email')}
-				isDisabled={isFormLocked}
-			/>
-			<Field.Email
-				name="supportEmail"
-				label={t('support-email')}
-				isDisabled={isFormLocked}
-			/>
-		</div>
-		<div className="grid grid-cols-2 gap-3">
-			<Field.Select
-				name="defaultLocale"
-				label={t('default-locale')}
-				options={localeOptions}
-				isDisabled={isFormLocked}
-			/>
-			<Field.Select
-				name="timezone"
-				label={t('timezone')}
-				options={timezoneOptions}
-				isDisabled={isFormLocked}
-			/>
-		</div>
-		<Field.Textarea
-			name="notes"
-			label={t('internal-notes')}
-			helperText={t('internal-notes-hint')}
-			rows={3}
-			isDisabled={isFormLocked}
-		/>
-	</section>
-);
+	);
+};
 
 export const TenantCreateOwnersSection = ({
 	t,
@@ -213,28 +282,6 @@ export const TenantCreateOwnersSection = ({
 			<IconPlus aria-hidden="true" className="size-3.5" />
 			{t('add-owner')}
 		</Button>
-	</section>
-);
-
-export const TenantCreateSetupSection = ({
-	t,
-	isFormLocked,
-	seedDefaultProfileError,
-}: {
-	t: TranslateFn;
-	isFormLocked: boolean;
-	seedDefaultProfileError: string | undefined;
-}) => (
-	<section className="flex flex-col divide-y divide-(--publy-row-border)">
-		<p className="publy-type-eyebrow pb-3">{t('setup')}</p>
-		<Field.Switch
-			name="seedDefaultProfile"
-			label={t('seed-default-profiles')}
-			isDisabled={isFormLocked}
-		/>
-		{seedDefaultProfileError ? (
-			<p className="publy-field-error">{seedDefaultProfileError}</p>
-		) : null}
 	</section>
 );
 

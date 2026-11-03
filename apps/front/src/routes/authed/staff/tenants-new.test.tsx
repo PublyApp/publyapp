@@ -37,10 +37,24 @@ const LABELS: TestLabelMap = {
 	organization: 'Organization',
 	'organization-name': 'Organization name',
 	seats: 'Seats',
+	'seats-custom': 'Other',
+	'seats-custom-placeholder': 'Number',
 	'workspace-slug': 'Workspace slug',
 	'workspace-slug-hint': 'Optional — leave blank to auto-generate',
 	'workspace-slug-invalid':
 		'Use lowercase letters, numbers, and hyphens only (3-40 characters).',
+	'organization-section-hint':
+		'The name is shown everywhere; the slug is used in addresses and can’t be changed later.',
+	'organization-logo-title': 'Organization logo',
+	'logo-optional-hint': 'optional',
+	optional: 'optional',
+	'later-or-now': 'Later, or now',
+	'or-drag-here': 'or drag it here',
+	'drop-file-here': 'Drop the file here',
+	'choose-image': 'Choose an image',
+	'choose-csv-file': 'Choose a CSV file',
+	'choose-csv-file-aria': 'Choose a CSV file',
+	'import-members-title': 'Import members',
 	owners: 'Owners',
 	'owners-hint': 'Full access · at least one required',
 	'add-owner': 'Add owner',
@@ -553,26 +567,33 @@ describe('staff tenant create route', () => {
 		).toBeTruthy();
 	});
 
-	test('renders one owner row tagged Primary by default, and the members/setup sections', () => {
+	test('renders one owner row tagged Primary by default, and the members/details sections', () => {
 		renderPage();
 
 		expect(screen.getAllByText('Owners').length).toBeGreaterThan(0);
 		expect(screen.getByText('Primary')).toBeTruthy();
 		expect(getEmailInputs()).toHaveLength(1);
 		expect(screen.getByText('Initial members (optional)')).toBeTruthy();
-		expect(screen.getByText('Setup')).toBeTruthy();
+		expect(screen.getByText('Organization details')).toBeTruthy();
+		// Per §4.3 the Setup/seeding switch is removed; details live in a Fold.
+		expect(screen.queryByText('Setup')).toBeNull();
 		expect(
-			screen.getByRole('button', { name: 'Download template' }),
-		).toBeTruthy();
+			screen.queryByRole('checkbox', { name: 'Seed default profiles' }),
+		).toBeNull();
 	});
 
-	test('renders the optional Organization details section between Organization and Owners with the legal name, description, website, contact, regional, and notes fields', () => {
+	test('renders Organization details as a collapsed Fold (not inline fields)', () => {
 		renderPage();
 
 		expect(screen.getByText('Organization details')).toBeTruthy();
-		expect(
-			screen.getByText('Optional — add these details now or edit them later.'),
-		).toBeTruthy();
+		// Fields are collapsed initially — hidden until the Fold is opened.
+		expect(screen.queryByRole('textbox', { name: 'Legal name' })).toBeNull();
+		const foldButton = screen.getByRole('button', {
+			name: /Organization details/,
+		});
+		expect(foldButton.getAttribute('aria-expanded')).toBe('false');
+
+		fireEvent.click(foldButton);
 		expect(screen.getByRole('textbox', { name: 'Legal name' })).toBeTruthy();
 		expect(screen.getByRole('textbox', { name: 'Description' })).toBeTruthy();
 		expect(screen.getByRole('textbox', { name: 'Website URL' })).toBeTruthy();
@@ -588,15 +609,6 @@ describe('staff tenant create route', () => {
 				'Visible to staff only — never shown to tenant members.',
 			),
 		).toBeTruthy();
-	});
-
-	test('seed default profiles defaults on', () => {
-		renderPage();
-
-		const seedSwitch = screen.getByRole('checkbox', {
-			name: 'Seed default profiles',
-		}) as HTMLInputElement;
-		expect(seedSwitch.checked).toBe(true);
 	});
 
 	test('adds and removes owner rows, tagging only the first as Primary', () => {
@@ -640,7 +652,10 @@ describe('staff tenant create route', () => {
 	test('disables Add owner once owners + manual members reach the seat cap (F10)', () => {
 		renderPage();
 
-		fireEvent.change(screen.getByLabelText('Seats'), {
+		// Seats is now a Segmented control; "Other" exposes a numeric input.
+		// Use 3 via custom so the cap is hit at 1 owner + 2 members = 3.
+		fireEvent.click(screen.getByRole('button', { name: 'Other' }));
+		fireEvent.change(screen.getByPlaceholderText('Number'), {
 			target: { value: '3' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Add member' }));
@@ -721,29 +736,8 @@ describe('staff tenant create route', () => {
 		expect(
 			screen.getByTestId('preview-checklist-owners').textContent,
 		).toContain('1 owners get full access');
-		expect(screen.getByTestId('preview-checklist-profile').textContent).toBe(
-			'Default profile seeded',
-		);
-	});
-
-	test('unchecking seed default profiles flips the preview checklist row to unchecked', () => {
-		renderPage();
-
-		expect(
-			screen
-				.getByTestId('preview-checklist-profile')
-				.getAttribute('data-checked'),
-		).toBe('true');
-
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: 'Seed default profiles' }),
-		);
-
-		expect(
-			screen
-				.getByTestId('preview-checklist-profile')
-				.getAttribute('data-checked'),
-		).toBe('false');
+		// Per §4.3 the default-profile switch/checklist row was removed.
+		expect(screen.queryByTestId('preview-checklist-profile')).toBeNull();
 	});
 
 	test('the sticky bar summary is plural-aware for owners and members', () => {
@@ -792,7 +786,8 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[1]!, {
 			target: { value: 'member@acme.com' },
 		});
-		fireEvent.change(screen.getByRole('spinbutton', { name: 'Seats' }), {
+		fireEvent.click(screen.getByRole('button', { name: 'Other' }));
+		fireEvent.change(screen.getByPlaceholderText('Number'), {
 			target: { value: '1' },
 		});
 
@@ -811,8 +806,10 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[0]!, {
 			target: { value: 'owner@acme.com' },
 		});
+		// Slug input auto-slugifies typed input; validate via a direct code that bypasses the filter.
+		// Use non-slugifiable server rejection path by submitting a too-short code after auto-slug.
 		fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
-			target: { value: 'Not Valid!' },
+			target: { value: 'ab' },
 		});
 
 		submitForm();
@@ -899,8 +896,15 @@ describe('staff tenant create route', () => {
 		await expectFormSubmissionBlocked();
 	});
 
+	const openDetailsFold = () => {
+		fireEvent.click(
+			screen.getByRole('button', { name: /Organization details/ }),
+		);
+	};
+
 	test('blocks submission when the website URL is invalid (websiteUrl schema rule)', async () => {
 		renderPage();
+		openDetailsFold();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
@@ -917,6 +921,7 @@ describe('staff tenant create route', () => {
 
 	test('blocks submission when the billing email is invalid (billingEmail schema rule)', async () => {
 		renderPage();
+		openDetailsFold();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
@@ -933,6 +938,7 @@ describe('staff tenant create route', () => {
 
 	test('blocks submission when the support email is invalid (supportEmail schema rule)', async () => {
 		renderPage();
+		openDetailsFold();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
@@ -956,6 +962,7 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[0]!, {
 			target: { value: 'owner@acme.com' },
 		});
+		// Auto-slug now populates from name; overwrite it explicitly.
 		fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
 			target: { value: 'acme-corp' },
 		});
@@ -973,7 +980,6 @@ describe('staff tenant create route', () => {
 				name: 'Acme Corporation',
 				maxUsers: 5,
 				code: 'acme-corp',
-				seedDefaultProfile: true,
 				initialUsers: [
 					{ email: 'owner@acme.com', accountLevel: 'Admin' },
 					{ email: 'member@acme.com', accountLevel: 'User' },
@@ -1005,6 +1011,7 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[0]!, {
 			target: { value: 'owner@acme.com' },
 		});
+		// Field.ImageUpload in test harness is a bare text input registered as "logoUrl"
 		fireEvent.change(screen.getByLabelText('Logo'), {
 			target: { value: 'https://cdn.example.com/logo.png' },
 		});
@@ -1053,6 +1060,7 @@ describe('staff tenant create route', () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
 
 		renderPage();
+		openDetailsFold();
 
 		fillOrganizationName('Acme Corporation');
 		fireEvent.change(getEmailInputs()[0]!, {
@@ -1113,12 +1121,16 @@ describe('staff tenant create route', () => {
 		expect(body.notes).toBeUndefined();
 	});
 
-	test('omits the code field from the submit body when the slug is left blank', async () => {
+	test('omits the code from the submit body when the slug is cleared (codeEdited resets the auto-slug)', async () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
 
 		renderPage();
 
 		fillOrganizationName('Acme Corporation');
+		// Auto-slug populates on name edit; clear it to exercise the absent-code path.
+		fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
+			target: { value: '' },
+		});
 		fireEvent.change(getEmailInputs()[0]!, {
 			target: { value: 'owner@acme.com' },
 		});
@@ -1313,13 +1325,17 @@ describe('staff tenant create route', () => {
 		});
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV file, or browse',
+			'Choose a CSV file',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 
 		await waitFor(() => expect(screen.getByText('members.csv')).toBeTruthy());
-		expect(screen.getByText('2 members detected · 1 valid')).toBeTruthy();
-		expect(screen.getByText('1 rows skipped (invalid email)')).toBeTruthy();
+		// Summary text now lives in a single line with · separators spanning the line
+		await waitFor(() =>
+			expect(screen.getByText(/2 members detected/)).toBeTruthy(),
+		);
+		expect(screen.getByText(/1 valid/)).toBeTruthy();
+		expect(screen.getByText(/1 rows skipped \(invalid email\)/)).toBeTruthy();
 		expect(screen.getByTestId('preview-members').textContent).toBe('1');
 
 		submitForm();
@@ -1353,13 +1369,15 @@ describe('staff tenant create route', () => {
 		});
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV file, or browse',
+			'Choose a CSV file',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 
 		await waitFor(() => expect(screen.getByText('members.csv')).toBeTruthy());
-		expect(screen.getByText('2 members detected · 1 valid')).toBeTruthy();
-		expect(screen.getByText('1 rows skipped (already added)')).toBeTruthy();
+		await waitFor(() =>
+			expect(screen.getByText(/2 members detected/)).toBeTruthy(),
+		);
+		expect(screen.getByText(/1 rows skipped \(already added\)/)).toBeTruthy();
 	});
 
 	test('rejects an oversized import file via the file input without reading it', () => {
@@ -1372,7 +1390,7 @@ describe('staff tenant create route', () => {
 		Object.defineProperty(file, 'text', { value: textSpy });
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV file, or browse',
+			'Choose a CSV file',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -1393,7 +1411,7 @@ describe('staff tenant create route', () => {
 		Object.defineProperty(file, 'text', { value: textSpy });
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV file, or browse',
+			'Choose a CSV file',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -1413,7 +1431,7 @@ describe('staff tenant create route', () => {
 		Object.defineProperty(file, 'text', { value: textSpy });
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV file, or browse',
+			'Choose a CSV file',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -1479,7 +1497,7 @@ describe('staff tenant create route', () => {
 		});
 
 		const fileInput = screen.getByLabelText(
-			'Drag a CSV file, or browse',
+			'Choose a CSV file',
 		) as HTMLInputElement;
 		fireEvent.change(fileInput, { target: { files: [file] } });
 

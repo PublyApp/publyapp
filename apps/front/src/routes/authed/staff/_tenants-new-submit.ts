@@ -2,6 +2,7 @@ import { type CreateStaffTenantInput } from '~/lib/query/staff-tenants';
 
 import {
 	isCreateTenantFormField,
+	SEATS_FROM_VALUE,
 	type ManualMemberSlotValues,
 	type OwnerSlotValues,
 	type TenantCreateFormValues,
@@ -30,10 +31,10 @@ export const buildCreateTenantInput = ({
 	parsedMembers: ImportedMember[];
 }): CreateStaffTenantInput => {
 	const trimmedCode = values.code.trim();
+	const effectiveMaxUsers = SEATS_FROM_VALUE(values.seats, values.customSeats);
 	const input: CreateStaffTenantInput = {
 		name: values.name.trim(),
-		maxUsers: values.maxUsers,
-		seedDefaultProfile: values.seedDefaultProfile,
+		maxUsers: effectiveMaxUsers > 0 ? effectiveMaxUsers : values.maxUsers,
 		initialUsers: mergeInitialUsers({
 			owners: values.owners,
 			parsedMembers,

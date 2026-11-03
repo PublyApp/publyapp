@@ -15,13 +15,17 @@ export const isValidTenantCode = (code: string): boolean => {
 	);
 };
 
-/** Preview-only fallback (never submitted) when the slug field is left blank. */
-export const slugifyTenantNamePlaceholder = (name: string): string =>
-	name
+export const slugifyTenantCode = (value: string): string =>
+	value
 		.trim()
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '');
+		.replace(/^-+|-+$/g, '')
+		.slice(0, 40);
+
+/** Preview-only fallback (never submitted) when the slug field is left blank. */
+export const slugifyTenantNamePlaceholder = (name: string): string =>
+	slugifyTenantCode(name);
 
 export type ImportedMemberRole = 'Admin' | 'User';
 

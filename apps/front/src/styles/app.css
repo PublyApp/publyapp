@@ -1946,6 +1946,10 @@ html.dark {
 		max-width: 960px;
 	}
 
+	.publy-form-page[data-width='1080'] {
+		max-width: 1080px;
+	}
+
 	/* Placed as the last child of .app-shell-main: the horizontal negative
 	   margin bleeds the bar to the column edges. Vertically, a sticky
 	   element can only be pulled *earlier* than its natural (static) flow

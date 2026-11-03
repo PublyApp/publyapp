@@ -1,6 +1,5 @@
 import {
 	createUntypedArray,
-	createUntypedBoolean,
 	createUntypedNumber,
 	createUntypedObject,
 	createUntypedString,
@@ -126,7 +125,6 @@ export type CreateStaffTenantInput = {
 	name: string;
 	maxUsers: number;
 	code?: string;
-	seedDefaultProfile?: boolean;
 	initialUsers: StaffTenantInitialUserInput[];
 	logoUrl?: string;
 	legalName?: string;
@@ -338,12 +336,6 @@ export const buildCreateStaffTenantBody = (
 	const code = normalizeString(input.code);
 	if (code) {
 		body.code = createUntypedString(code) as typeof body.code;
-	}
-
-	if (typeof input.seedDefaultProfile === 'boolean') {
-		body.seedDefaultProfile = createUntypedBoolean(
-			input.seedDefaultProfile,
-		) as typeof body.seedDefaultProfile;
 	}
 
 	const legalName = normalizeString(input.legalName);

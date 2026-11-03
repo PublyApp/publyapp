@@ -1,6 +1,6 @@
 import { IconCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
-import { Controller } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import {
 	Select,
 	SelectContent,
@@ -16,6 +16,7 @@ import {
 	USER_ROLE_OPTIONS,
 	type NewTenantAccountLevel,
 } from './_tenants-new-types';
+import { slugifyTenantCode } from './tenants-new-helpers';
 
 /** Compact select styled as the honesty-override "Admin → amber, User →
  * neutral" chip (reuses the same tone classes as the Users-tab role chip). */
@@ -113,7 +114,9 @@ export const ChecklistRow = ({
 
 /** Workspace slug field: a muted `publyapp.com/` prefix + mono slug input
  * inside a single bordered container, matching the design's path-segment
- * treatment. Optional — an empty value lets the server generate a code. */
+ * treatment. Optional — an empty value lets the server generate a code.
+ * Auto-slugifies the typed value and marks `codeEdited` so a later name edit
+ * doesn't overwrite a manual slug. */
 export const SlugField = ({
 	isDisabled,
 	label,
@@ -128,9 +131,12 @@ export const SlugField = ({
 	const fieldId = 'tenant-create-code';
 	const helperId = `${fieldId}-helper`;
 
+	const { control: formControl } = useFormContext();
+
 	return (
 		<Controller
 			name="code"
+			control={formControl}
 			render={({ field, fieldState: { error } }) => (
 				<div className="space-y-1.5">
 					<label
@@ -148,20 +154,30 @@ export const SlugField = ({
 						<span className="shrink-0 font-mono text-[13px] text-muted-foreground">
 							publyapp.com/
 						</span>
-						<input
-							id={fieldId}
-							aria-label={label}
-							aria-invalid={Boolean(error) || undefined}
-							aria-describedby={helperId}
-							className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-muted-foreground"
-							value={field.value}
-							onChange={(event) => {
-								field.onChange(event.target.value);
-							}}
-							onBlur={field.onBlur}
-							disabled={isDisabled}
-							autoComplete="off"
-							placeholder={t('assigned-after-creation')}
+						<Controller
+							name="codeEdited"
+							control={formControl}
+							render={({ field: editedField }) => (
+								<input
+									id={fieldId}
+									aria-label={label}
+									aria-invalid={Boolean(error) || undefined}
+									aria-describedby={helperId}
+									className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-muted-foreground"
+									value={field.value}
+									onChange={(event) => {
+										const raw = event.target.value;
+										field.onChange(slugifyTenantCode(raw));
+										if (!editedField.value) {
+											editedField.onChange(true);
+										}
+									}}
+									onBlur={field.onBlur}
+									disabled={isDisabled}
+									autoComplete="off"
+									placeholder={t('assigned-after-creation')}
+								/>
+							)}
 						/>
 					</div>
 					<p

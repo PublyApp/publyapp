@@ -16,10 +16,12 @@ export type ManualMemberSlotValues = {
 export type TenantCreateFormValues = {
 	name: string;
 	code: string;
+	codeEdited: boolean;
+	seats: TenantCreateSeatsValue;
+	customSeats: string;
 	maxUsers: number;
 	owners: OwnerSlotValues[];
 	manualMembers: ManualMemberSlotValues[];
-	seedDefaultProfile: boolean;
 	logoUrl: string;
 	legalName: string;
 	description: string;
@@ -31,13 +33,34 @@ export type TenantCreateFormValues = {
 	notes: string;
 };
 
+export type TenantCreateSeatsValue = '5' | '10' | '25' | '50' | 'custom';
+export const SEAT_OPTIONS: readonly TenantCreateSeatsValue[] = [
+	'5',
+	'10',
+	'25',
+	'50',
+	'custom',
+];
+export const SEATS_FROM_VALUE = (
+	value: TenantCreateSeatsValue,
+	customSeats: string,
+): number => {
+	if (value === 'custom') {
+		const parsed = Number.parseInt(customSeats, 10);
+		return Number.isNaN(parsed) ? 0 : parsed;
+	}
+	return Number.parseInt(value, 10);
+};
+
 export const DEFAULT_VALUES: TenantCreateFormValues = {
 	name: '',
 	code: '',
+	codeEdited: false,
+	seats: '5',
+	customSeats: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	owners: [{ email: '' }],
 	manualMembers: [],
-	seedDefaultProfile: true,
 	logoUrl: '',
 	legalName: '',
 	description: '',
@@ -53,7 +76,6 @@ const CREATE_TENANT_API_FORM_FIELDS = new Set<keyof TenantCreateFormValues>([
 	'name',
 	'code',
 	'maxUsers',
-	'seedDefaultProfile',
 	'logoUrl',
 	'legalName',
 	'description',
