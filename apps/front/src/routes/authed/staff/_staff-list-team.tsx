@@ -1,8 +1,8 @@
 import {
-	IconClipboardList,
-	IconHistory,
-	IconMail,
+	IconFileSearch,
+	IconShieldLock,
 	IconUsers,
+	IconUserPlus,
 } from '@tabler/icons-react';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
@@ -33,6 +33,8 @@ export type StaffTeamOverview = {
 	/** Whole-collection facets behind the StatCards (never the page filters). */
 	staffCounts: StaffUserListCounts | null;
 	invitationCounts: StaffInvitationListCounts | null;
+	/** Every staff profile with its assignment count (the panel's Profils). */
+	profiles: { id: string; name: string; memberCount: number }[];
 };
 
 /**
@@ -43,7 +45,7 @@ export type StaffTeamOverview = {
 export const useStaffTeamOverview = (): StaffTeamOverview => {
 	const staffQuery = useStaffUsersQuery({ size: 1 });
 	const invitationsQuery = useStaffInvitationsQuery({ size: 1 });
-	const profilesQuery = useStaffProfilesQuery({ limit: 1 });
+	const profilesQuery = useStaffProfilesQuery({ limit: 100 });
 
 	return {
 		counts: {
@@ -53,6 +55,17 @@ export const useStaffTeamOverview = (): StaffTeamOverview => {
 		},
 		staffCounts: staffQuery?.data?.counts ?? null,
 		invitationCounts: invitationsQuery?.data?.counts ?? null,
+		profiles: (profilesQuery?.data?.data ?? []).flatMap((profile) =>
+			profile.id
+				? [
+						{
+							id: profile.id,
+							name: profile.name ?? '',
+							memberCount: profile.userAccountCount ?? 0,
+						},
+					]
+				: [],
+		),
 	};
 };
 
@@ -80,7 +93,7 @@ export const buildStaffTeamPanelGroups = (
 			{
 				key: 'invitations',
 				label: t('nav-staff-invitations'),
-				icon: <IconMail />,
+				icon: <IconUserPlus />,
 				count: counts.invitations,
 				active: current === 'invitations',
 				onClick: () => onSelect('/staff/invitations'),
@@ -88,7 +101,7 @@ export const buildStaffTeamPanelGroups = (
 			{
 				key: 'profiles',
 				label: t('nav-staff-profiles'),
-				icon: <IconClipboardList />,
+				icon: <IconShieldLock />,
 				count: counts.profiles,
 				active: current === 'profiles',
 				onClick: () => onSelect('/staff/profiles'),
@@ -96,11 +109,36 @@ export const buildStaffTeamPanelGroups = (
 			{
 				key: 'audit',
 				label: t('nav-staff-audit-logs'),
-				icon: <IconHistory />,
+				icon: <IconFileSearch />,
 				// A view, not a collection: no counter (§2.8).
 				active: current === 'audit',
 				onClick: () => onSelect('/staff/audit-logs'),
 			},
 		],
+	},
+];
+
+/**
+ * The staff list's « Profils » shortcuts: every staff profile with its
+ * assignment count, as the prototype's panel. The staff-list API exposes no
+ * profile facet, so an entry opens the profile's own member list rather than
+ * pretending to filter rows it cannot see.
+ */
+export const buildStaffProfilesPanelGroup = (
+	t: Translate,
+	profiles: StaffTeamOverview['profiles'],
+	onSelect: (profileId: string) => void,
+): ListPanelGroup[] => [
+	{
+		key: 'staff-profiles',
+		title: t('profiles'),
+		entries: profiles.map((profile) => ({
+			key: `profile:${profile.id}`,
+			label: profile.name,
+			icon: <IconShieldLock />,
+			count: profile.memberCount,
+			active: false,
+			onClick: () => onSelect(profile.id),
+		})),
 	},
 ];

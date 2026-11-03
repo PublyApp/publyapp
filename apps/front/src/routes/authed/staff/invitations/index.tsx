@@ -43,11 +43,23 @@ import {
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
+	type StaffInvitationRow,
 } from './list-helpers';
 import { InvitationRowActions } from './table-columns';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+const countInvitationProfiles = (rows: StaffInvitationRow[]) => {
+	const counts: Record<string, number> = {};
+	for (const row of rows) {
+		if (row.profileName.length === 0) {
+			continue;
+		}
+		counts[row.profileName] = (counts[row.profileName] ?? 0) + 1;
+	}
+	return counts;
+};
 
 const StaffInvitationsPage = () => {
 	const { t, i18n } = useTranslation('common');
@@ -95,6 +107,12 @@ const StaffInvitationsPage = () => {
 
 	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
 	const countsKnown = query.data !== undefined;
+	// A profile facet exists nowhere in the API: its counts are exact only when
+	// the loaded page is the whole collection.
+	const profileCounts: Record<string, number> | null =
+		query.data !== undefined && rows.length === query.data.totalCount
+			? countInvitationProfiles(rows)
+			: null;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -166,7 +184,7 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, rows, selectedProfiles)}
+			filters={buildInvitationFilters(t, rows, selectedProfiles, profileCounts)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			counts={{

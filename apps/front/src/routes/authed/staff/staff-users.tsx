@@ -20,6 +20,7 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 
 import { buildListSelection, selectedListIds } from './_staff-list-selection';
 import {
+	buildStaffProfilesPanelGroup,
 	buildStaffTeamPanelGroups,
 	useStaffTeamOverview,
 } from './_staff-list-team';
@@ -92,6 +93,15 @@ const StaffUsersPage = () => {
 	const counts = query.data?.counts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const navigateToProfile = useCallback(
+		(profileId: string) => {
+			void navigate({
+				to: '/staff/profiles/$profileId/users',
+				params: { profileId },
+			});
+		},
+		[navigate],
+	);
 	const navigateToTeam = useCallback(
 		(
 			toBe:
@@ -179,12 +189,11 @@ const StaffUsersPage = () => {
 			locale={i18n.language}
 			cards={<StaffUsersStatCards counts={team.staffCounts} t={t} />}
 			totals={() => buildStaffUserTotals(t, counts)}
-			panelGroups={buildStaffTeamPanelGroups(
-				t,
-				'staff',
-				team.counts,
-				navigateToTeam,
-			)}
+			panelGroups={[
+				...buildStaffTeamPanelGroups(t, 'staff', team.counts, navigateToTeam),
+				...buildStaffProfilesPanelGroup(t, team.profiles, navigateToProfile),
+			]}
+			panelOrder={['team', 'status', 'staff-profiles', 'level']}
 			onOpen={(row) =>
 				void navigate({
 					to: '/staff/staff-users/$userId',

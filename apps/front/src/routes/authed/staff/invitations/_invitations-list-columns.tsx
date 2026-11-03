@@ -8,13 +8,15 @@ import {
 	IconUserPlus,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import type { ListColumn } from '~/components/list/list-types';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
-import { statusPillTone } from '~/components/ui/status-tone';
-import { formatDateTime } from '~/utils/format-time';
+import { formatNumericDay, getRelativeTimeParts } from '~/utils/format-time';
 
 import {
 	getInvitationStatusLabelKey,
+	invitationStatusTone,
 	type StaffInvitationRow,
 } from './list-helpers';
 
@@ -23,12 +25,24 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 const DASH = '—';
 const Dash = () => <span className="text-muted-foreground">{DASH}</span>;
 
-const when = (value: Date | null, locale: string) =>
-	value ? (
-		<span className="tabular-nums">{formatDateTime(value, locale)}</span>
-	) : (
-		<Dash />
-	);
+const when =
+	(t: Translate, locale: string) =>
+	(value: Date | null): ReactNode => {
+		if (!value) {
+			return <Dash />;
+		}
+		const relative = getRelativeTimeParts(value);
+		return (
+			<span className="tabular-nums">
+				{formatNumericDay(value, locale)}{' '}
+				{relative ? (
+					<span className="text-xs text-muted-foreground">
+						· {t(`common:${relative.key}`, { count: relative.count })}
+					</span>
+				) : null}
+			</span>
+		);
+	};
 
 /** The seven invitation columns of §4.6; the action column is the list page's
  * `renderActions` slot, so it stays pinned and sortable-free. */
@@ -40,17 +54,20 @@ export const invitationColumns = (
 		id: 'email',
 		header: t('common:invitee'),
 		icon: IconMail,
-		width: 300,
+		width: 330,
 		value: (row) => row.email,
 		cell: (row) =>
 			row.email ? (
 				<Link
 					to="/staff/invitations/$invitationId"
 					params={{ invitationId: row.id }}
-					className="publy-record-link block min-w-0 truncate text-left"
+					className="flex min-w-0 items-center gap-2 no-underline"
 					title={row.email}
 				>
-					{row.email}
+					<PersonAvatar name={row.email} size="xs" />
+					<span className="publy-record-link min-w-0 truncate font-medium text-left">
+						{row.email}
+					</span>
 				</Link>
 			) : (
 				<span className="flex min-w-0 items-center text-destructive">
@@ -65,7 +82,7 @@ export const invitationColumns = (
 		width: 140,
 		value: (row) => row.status,
 		cell: (row) => (
-			<StatusPill tone={statusPillTone(row.status)}>
+			<StatusPill tone={invitationStatusTone(row.status)}>
 				{t(getInvitationStatusLabelKey(row.status))}
 			</StatusPill>
 		),
@@ -102,7 +119,7 @@ export const invitationColumns = (
 		icon: IconSend,
 		width: 170,
 		value: (row) => row.createdAt?.getTime() ?? null,
-		cell: (row) => when(row.createdAt, locale),
+		cell: (row) => when(t, locale)(row.createdAt),
 	},
 	{
 		id: 'expiresAt',
@@ -110,7 +127,8 @@ export const invitationColumns = (
 		icon: IconClock,
 		width: 170,
 		value: (row) => row.expiresAt?.getTime() ?? null,
-		cell: (row) => when(row.expiresAt, locale),
+		cell: (row) =>
+			row.status === 'pending' ? when(t, locale)(row.expiresAt) : <Dash />,
 	},
 	{
 		id: 'acceptedAt',
@@ -118,6 +136,6 @@ export const invitationColumns = (
 		icon: IconCircleCheck,
 		width: 170,
 		value: (row) => row.acceptedAt?.getTime() ?? null,
-		cell: (row) => when(row.acceptedAt, locale),
+		cell: (row) => when(t, locale)(row.acceptedAt),
 	},
 ];

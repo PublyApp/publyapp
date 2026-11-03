@@ -3,10 +3,12 @@ import {
 	IconAlertTriangle,
 	IconBuilding,
 	IconCalendar,
+	IconCircleCheck,
 	IconCircleDashed,
 	IconClock,
 	IconHash,
 	IconLock,
+	IconPlayerPause,
 	IconRefresh,
 	IconRepeat,
 	IconSettingsAutomation,
@@ -188,6 +190,20 @@ const errorCell =
 		);
 	};
 
+const deadLetterStateIcon = (state: DeadLetterState): ReactNode => {
+	if (state === 'open') {
+		return (
+			<IconAlertTriangle className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
+		);
+	}
+	if (state === 'requeued') {
+		return (
+			<IconRefresh className="size-4 shrink-0 text-[var(--publy-chip-invited-text)]" />
+		);
+	}
+	return <IconCircleCheck className="size-4 shrink-0 text-muted-foreground" />;
+};
+
 const familyChoices = (t: Translate) =>
 	JOB_FAMILY_ORDER.map((family) => {
 		const Icon = JOB_FAMILY_META[family].icon;
@@ -203,14 +219,14 @@ const queueStatusChoices = (t: Translate) => [
 		value: 'pending',
 		label: t('staff-jobs:queue-status-pending'),
 		icon: (
-			<IconCircleDashed className="size-4 shrink-0 text-[var(--publy-chip-pending-text)]" />
+			<IconClock className="size-4 shrink-0 text-[var(--publy-chip-pending-text)]" />
 		),
 	},
 	{
 		value: 'processing',
 		label: t('staff-jobs:queue-status-processing'),
 		icon: (
-			<IconCircleDashed className="size-4 shrink-0 text-[var(--publy-chip-invited-text)]" />
+			<IconRefresh className="size-4 shrink-0 text-[var(--publy-chip-invited-text)]" />
 		),
 	},
 ];
@@ -234,6 +250,7 @@ export const queueFilters = (t: Translate): ListFilter<StaffJobQueueRow>[] => [
 		key: 'retry',
 		label: t('staff-jobs:jobs-filter-retries'),
 		icon: IconRepeat,
+		panel: false,
 		choices: [
 			{ value: 'retry', label: t('staff-jobs:jobs-retry-retry') },
 			{ value: 'first', label: t('staff-jobs:jobs-retry-first') },
@@ -253,12 +270,7 @@ export const deadLetterFilters = (
 			(state) => ({
 				value: state,
 				label: t(DEAD_LETTER_STATE_LABEL[state]),
-				icon:
-					state === 'open' ? (
-						<IconAlertTriangle className="size-4 shrink-0 text-[var(--publy-chip-pending-text)]" />
-					) : (
-						<IconCircleDashed className="size-4 shrink-0 text-muted-foreground" />
-					),
+				icon: deadLetterStateIcon(state),
 			}),
 		),
 		valueOf: (row) => deadLetterState(row),
@@ -284,14 +296,14 @@ export const systemJobFilters = (
 				value: 'true',
 				label: t('staff-jobs:jobs-status-enabled'),
 				icon: (
-					<IconCircleDashed className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
+					<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
 				),
 			},
 			{
 				value: 'false',
 				label: t('staff-jobs:jobs-status-disabled'),
 				icon: (
-					<IconCircleDashed className="size-4 shrink-0 text-[var(--publy-chip-pending-text)]" />
+					<IconPlayerPause className="size-4 shrink-0 text-muted-foreground" />
 				),
 			},
 		],
@@ -373,7 +385,7 @@ export const queueColumns = (
 		whatColumn(t, (row) => row.jobType),
 		{
 			id: 'status',
-			header: t('staff-jobs:jobs-column-state'),
+			header: t('staff-jobs:jobs-column-status'),
 			icon: IconCircleDashed,
 			width: 140,
 			value: (row) => row.status ?? '',

@@ -110,6 +110,8 @@
 	"jobs-job-dispatch-due-posts-label": "Dispatch due posts",
 	"jobs-job-dispatch-due-posts-description": "Queues every publication whose scheduled time has arrived.",
 	"jobs-job-tenant-invitation-label": "Organization invitation",
+	"jobs-job-staff-invitation-label": "Staff member invitation",
+	"jobs-job-staff-invitation-description": "Sends the link to join the staff console.",
 	"jobs-job-tenant-invitation-description": "Sends the link to join an organization.",
 	"jobs-job-verify-email-label": "Address verification",
 	"jobs-job-verify-email-description": "Sends the confirmation link for an email address.",

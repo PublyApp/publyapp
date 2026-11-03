@@ -1696,6 +1696,7 @@ html.dark {
 	   padding inside the 20 px row. */
 	.publy-status-pill {
 		@apply inline-flex shrink-0 items-center;
+		gap: 4px;
 		border-radius: 999px;
 		height: 20px;
 		padding: 2px 8px;

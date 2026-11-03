@@ -110,6 +110,8 @@
 	"jobs-job-dispatch-due-posts-label": "Distribuer les posts à l’heure",
 	"jobs-job-dispatch-due-posts-description": "Met en file chaque publication dont l’heure est arrivée.",
 	"jobs-job-tenant-invitation-label": "Invitation à une organisation",
+	"jobs-job-staff-invitation-label": "Invitation d’un membre du staff",
+	"jobs-job-staff-invitation-description": "Envoie le lien pour rejoindre la console staff.",
 	"jobs-job-tenant-invitation-description": "Envoie le lien pour rejoindre une organisation.",
 	"jobs-job-verify-email-label": "Vérification d’adresse",
 	"jobs-job-verify-email-description": "Envoie le lien de confirmation d’une adresse e-mail.",

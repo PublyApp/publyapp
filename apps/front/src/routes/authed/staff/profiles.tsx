@@ -65,7 +65,7 @@ const StaffProfilesPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: search.members.join(','),
+		cursorResetKey: [search.members.join(','), search.type.join(',')].join('|'),
 	});
 	const query = useStaffProfilesQuery({
 		q: controller.apiVariables.q,
@@ -101,7 +101,10 @@ const StaffProfilesPage = () => {
 		[navigate],
 	);
 
-	const filtersValue: ListFiltersValue = { members: search.members };
+	const filtersValue: ListFiltersValue = {
+		members: search.members,
+		type: search.type,
+	};
 
 	const setFilters = (next: ListFiltersValue): void => {
 		selection.clearSelection();
@@ -110,6 +113,7 @@ const StaffProfilesPage = () => {
 				...search,
 				members: (next.members ??
 					[]) as StaffProfileListSearchParams['members'],
+				type: (next.type ?? []) as StaffProfileListSearchParams['type'],
 				cursor: undefined,
 			}),
 			replace: true,

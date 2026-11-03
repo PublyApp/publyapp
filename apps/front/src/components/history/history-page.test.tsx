@@ -70,7 +70,8 @@ describe('HistoryPage', () => {
 		expect(screen.getByText('history-action-tenant-suspended')).toBeTruthy();
 		expect(screen.getByText('history-category-tenant')).toBeTruthy();
 		expect(screen.getByText('history-sensitive')).toBeTruthy();
-		expect(screen.getByText(/0197b8f0/)).toBeTruthy();
+		// The prototype's activity lines carry no raw target id.
+		expect(screen.queryByText(/0197b8f0/)).toBeNull();
 	});
 
 	test('groups events by local day and counts each day', () => {

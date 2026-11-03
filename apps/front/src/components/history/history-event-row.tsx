@@ -21,8 +21,6 @@ const DASH = '—';
 
 /** The target reference, shortened to what fits one row; the title carries the
  * whole identifier. */
-const shortId = (value: string): string => value.slice(0, 8);
-
 /**
  * One event line of the shared history (§5.1 « Par jour »): the actor's round
  * avatar, the sentence, the « Sensible » pill, the category pill, the IP, the
@@ -65,12 +63,6 @@ export const HistoryEventRow = ({
 				)}
 				{showOrganisation && event.organisationName ? (
 					<span> · {event.organisationName}</span>
-				) : null}
-				{event.targetId ? (
-					<span className="font-mono text-xs" title={event.targetId}>
-						{' '}
-						· {shortId(event.targetId)}
-					</span>
 				) : null}
 			</p>
 			{isSensitiveHistoryAction(event.action) ? (

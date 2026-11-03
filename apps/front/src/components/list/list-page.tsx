@@ -42,6 +42,10 @@ export type ListPageProps<T extends { id: string }> = {
 	searchPlaceholder?: string;
 	/** Page-owned navigation groups, before the filter-shortcut groups. */
 	panelGroups?: ListPanelGroup[];
+	/** Explicit side-panel group order (keys), so a page's group can sit
+	 * between two filter groups as the prototype's does. Unlisted groups keep
+	 * their default order after the listed ones. */
+	panelOrder?: readonly string[];
 	/** The row's accessible name for its selection checkbox. */
 	rowLabel?: (row: T) => string;
 	/** An exact total for the inset count badge, when the API provides one. */
@@ -169,6 +173,16 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	}
 
 	const panelGroups = [...(props.panelGroups ?? []), ...filterPanelGroups];
+	if (props.panelOrder) {
+		const rank = new Map(
+			props.panelOrder.map((key, index) => [key, index] as const),
+		);
+		panelGroups.sort(
+			(a, b) =>
+				(rank.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+				(rank.get(b.key) ?? Number.MAX_SAFE_INTEGER),
+		);
+	}
 
 	// The table keeps its shell and shows the same flat state family the old
 	// DataTable rendered (owner decision R3-4b): a search miss gets the

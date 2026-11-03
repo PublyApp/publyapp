@@ -1,7 +1,9 @@
 import {
 	IconActivity,
 	IconCalendar,
+	IconCircleCheck,
 	IconCircleDashed,
+	IconCircleX,
 	IconCrown,
 	IconDeviceDesktop,
 	IconLanguage,
@@ -182,14 +184,14 @@ export const buildStaffUserFilters = (
 					value: 'active',
 					label: t('list-staff-status-active'),
 					icon: (
-						<IconCircleDashed className="size-4 shrink-0 text-[var(--status-resolved-foreground)]" />
+						<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
 					),
 				},
 				{
 					value: 'suspended',
 					label: t('list-staff-status-suspended'),
 					icon: (
-						<IconCircleDashed className="size-4 shrink-0 text-[var(--status-breached-foreground)]" />
+						<IconCircleX className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
 					),
 				},
 			],

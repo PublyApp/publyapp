@@ -1,7 +1,7 @@
 import {
 	IconAlertTriangle,
-	IconList,
 	IconSettingsAutomation,
+	IconStack2,
 } from '@tabler/icons-react';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
 import type {
@@ -61,7 +61,7 @@ export const buildJobsPanelGroups = <T,>({
 			{
 				key: 'queue',
 				label: t('common:nav-staff-jobs-queue'),
-				icon: <IconList />,
+				icon: <IconStack2 />,
 				count: overview.counts.queue,
 				active: current === 'queue',
 				onClick: () => onSection('queue'),

@@ -11,6 +11,7 @@ import { ListFilterPanel, type ListPanelGroup } from '../list/filter-panel';
 import { ListPageHeader } from '../list/list-page-header';
 import { ListToolbar } from '../list/list-toolbar';
 import type { ListFilter, ListFiltersValue } from '../list/list-types';
+import { SearchField } from '../list/search-field';
 import { HistoryBody } from './history-body';
 import type { HistoryEvent, HistoryFilter } from './history-types';
 
@@ -30,6 +31,11 @@ type HistoryPageProps = {
 	header?: ReactNode;
 	/** The exact whole-collection event count, or `null` when it is not known. */
 	totalCount?: number | null;
+	/** Toolbar search; omitted when the backend exposes no text filter. */
+	searchPlaceholder?: string;
+	q?: string;
+	onSearch?: (q: string | undefined) => void;
+	searchTestId?: string;
 	/** The figures above the history; a toggle folds them. */
 	cards?: ReactNode;
 	onExport?: () => void;
@@ -49,6 +55,8 @@ type HistoryPageProps = {
 	onFiltersChange?: (next: ListFiltersValue) => void;
 	/** Page-owned navigation groups, before the filter-shortcut groups. */
 	panelGroups?: ListPanelGroup[];
+	/** Page-owned groups that belong after the filter shortcuts (Acteurs). */
+	panelGroupsAfter?: ListPanelGroup[];
 	queryState: { isPending: boolean; isError: boolean; onRetry: () => void };
 	errorText?: string;
 	/** The cursor pager, under the history. */
@@ -87,6 +95,10 @@ export const HistoryPage = ({
 	inset,
 	header,
 	totalCount = null,
+	searchPlaceholder,
+	q = '',
+	onSearch,
+	searchTestId,
 	cards,
 	onExport,
 	exportTestId,
@@ -103,6 +115,7 @@ export const HistoryPage = ({
 	filtersValue = EMPTY_FILTERS_VALUE,
 	onFiltersChange,
 	panelGroups = [],
+	panelGroupsAfter = [],
 	queryState,
 	errorText,
 	pager,
@@ -202,7 +215,19 @@ export const HistoryPage = ({
 			{banner}
 			{filters.length > 0 ? (
 				<>
-					<ListToolbar top={toolbar} search={null}>
+					<ListToolbar
+						top={toolbar}
+						search={
+							onSearch ? (
+								<SearchField
+									q={q}
+									onSearch={onSearch}
+									placeholder={searchPlaceholder ?? ''}
+									testId={searchTestId}
+								/>
+							) : null
+						}
+					>
 						<FilterMenu
 							filters={listFilters}
 							active={filtersValue}
@@ -237,7 +262,7 @@ export const HistoryPage = ({
 				queryState={queryState}
 			/>
 			<ListFilterPanel
-				groups={[...panelGroups, ...filterGroups]}
+				groups={[...panelGroups, ...filterGroups, ...panelGroupsAfter]}
 				targetId={PANEL_TARGET_ID}
 			/>
 		</div>

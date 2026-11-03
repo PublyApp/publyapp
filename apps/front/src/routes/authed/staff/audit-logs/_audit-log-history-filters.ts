@@ -106,10 +106,14 @@ export const buildAuditLogFilters = ({
 	t,
 	catalog,
 	search,
+	categoryCounts = null,
 }: {
 	t: Translate;
 	catalog: AuditActionCatalog;
 	search: AuditLogsListSearchParams;
+	/** Per-category counts, only when the loaded history is the whole
+	 * collection (the API exposes no category facet). */
+	categoryCounts?: Record<string, number> | null;
 }): HistoryFilter[] => {
 	const categories: HistoryFilter['choices'][number][] = [];
 	for (const category of HISTORY_CATEGORIES) {
@@ -119,6 +123,7 @@ export const buildAuditLogFilters = ({
 		categories.push({
 			value: category,
 			label: t(historyCategoryLabelKey(category)),
+			count: categoryCounts?.[category] ?? null,
 			icon: createElement(historyCategoryIcon(category), {
 				'aria-hidden': true,
 				className: 'size-4 shrink-0 text-muted-foreground',

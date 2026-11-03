@@ -16,6 +16,7 @@ import {
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffAuditLogsQueryVariables = {
+	q?: string;
 	actions?: string[];
 	startDate?: string;
 	endDate?: string;
@@ -137,6 +138,7 @@ const normalizeActions = (
 };
 
 type StaffAuditLogsQueryParameters = {
+	q?: string;
 	actions?: string;
 	startDate?: string;
 	endDate?: string;
@@ -152,6 +154,7 @@ export const buildFindStaffAuditLogsQueryParameters = (
 	const actions = normalizeActions(variables.actions);
 
 	return {
+		q: normalizeString(variables.q),
 		// The backend binds multi-value action filters as a single CSV string
 		// (Kiota exposes the param as a primitive — see the FindAuditLogs
 		// handler's AuditLogActionsCsv).

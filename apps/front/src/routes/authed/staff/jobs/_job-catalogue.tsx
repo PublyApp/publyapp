@@ -73,6 +73,12 @@ const JOBS = {
 		icon: IconCalendarDue,
 		family: 'publishing',
 	},
+	'email.staff-invitation.v1': {
+		labelKey: 'staff-jobs:jobs-job-staff-invitation-label',
+		descriptionKey: 'staff-jobs:jobs-job-staff-invitation-description',
+		icon: IconUserPlus,
+		family: 'email',
+	},
 	'email.tenant-invitation.v1': {
 		labelKey: 'staff-jobs:jobs-job-tenant-invitation-label',
 		descriptionKey: 'staff-jobs:jobs-job-tenant-invitation-description',

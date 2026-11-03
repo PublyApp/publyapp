@@ -1,12 +1,15 @@
+import { IconUser } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { historyCategory } from '~/components/history/history-actions';
 import { HistoryPage } from '~/components/history/history-page';
 import type {
 	HistoryCategory,
 	HistoryEvent,
 } from '~/components/history/history-types';
+import type { ListPanelGroup } from '~/components/list/filter-panel';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -71,6 +74,47 @@ const activePeriod = (search: AuditLogsListSearchParams): string[] => {
 	return [];
 };
 
+const countAuditCategories = (rows: ReturnType<typeof toStaffAuditLogRows>) => {
+	const counts: Record<string, number> = {};
+	for (const row of rows) {
+		if (!row.action) {
+			continue;
+		}
+		const category = historyCategory(row.action);
+		counts[category] = (counts[category] ?? 0) + 1;
+	}
+	return counts;
+};
+
+const buildActorPanelGroup = (
+	rows: ReturnType<typeof toStaffAuditLogRows>,
+	t: (key: string) => string,
+	onSelect: (actor: string) => void,
+): ListPanelGroup[] => {
+	const counts = new Map<string, number>();
+	for (const row of rows) {
+		const actor = row.userName ?? t('common:history-system');
+		counts.set(actor, (counts.get(actor) ?? 0) + 1);
+	}
+	const entries = [...counts.entries()].sort((a, b) =>
+		a[0].localeCompare(b[0], 'fr'),
+	);
+	return [
+		{
+			key: 'audit-actors',
+			title: t('common:history-filter-actors'),
+			entries: entries.map(([actor, count]) => ({
+				key: `actor:${actor}`,
+				label: actor,
+				icon: <IconUser />,
+				count,
+				active: false,
+				onClick: () => onSelect(actor),
+			})),
+		},
+	];
+};
+
 const StaffAuditLogsPage = () => {
 	const navigate = Route.useNavigate();
 	const search = parseAuditLogsListSearchParams(
@@ -119,6 +163,7 @@ const StaffAuditLogsPage = () => {
 
 	const query = useStaffAuditLogsQuery(
 		{
+			q: search.q,
 			actions: selection.actions?.split(','),
 			startDate: selection.startDate,
 			endDate: selection.endDate,
@@ -138,10 +183,22 @@ const StaffAuditLogsPage = () => {
 		: toHistoryEvents(rows);
 	const team = useStaffTeamOverview();
 
-	const filters = useMemo(
-		() => buildAuditLogFilters({ t: tCommon, catalog, search }),
-		[tCommon, catalog, search],
-	);
+	const collectionComplete =
+		query.data !== undefined &&
+		query.data.nextCursor == null &&
+		!controller.cursor.hasPreviousPage;
+	const categoryCounts = collectionComplete ? countAuditCategories(rows) : null;
+	const filters = buildAuditLogFilters({
+		t: tCommon,
+		catalog,
+		search,
+		categoryCounts,
+	});
+	const actorGroup = collectionComplete
+		? buildActorPanelGroup(rows, tCommon, (actor) =>
+				onSearchChange({ ...search, q: actor, cursor: undefined }),
+			)
+		: [];
 
 	const filtersValue: ListFiltersValue = {
 		category: categories,
@@ -191,10 +248,6 @@ const StaffAuditLogsPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
 	const totalCount = collectionComplete ? events.length : null;
 	// The filter pair can exclude each other (a category with no sensitive
 	// action): the page then renders the no-match state and never queries the
@@ -215,6 +268,12 @@ const StaffAuditLogsPage = () => {
 				testId={TEST_ID}
 				title={t('audit-logs-page-title')}
 				totalCount={totalCount}
+				searchPlaceholder={tCommon('history-search-placeholder')}
+				q={search.q ?? ''}
+				onSearch={(next) =>
+					onSearchChange({ ...search, q: next, cursor: undefined })
+				}
+				searchTestId="staff-audit-logs-search"
 				cards={<AuditLogStatCards />}
 				onExport={() => setIsExportOpen(true)}
 				exportTestId="staff-audit-logs-export-trigger"
@@ -264,6 +323,7 @@ const StaffAuditLogsPage = () => {
 					team.counts,
 					navigateToTeam,
 				)}
+				panelGroupsAfter={actorGroup}
 				queryState={{
 					isPending,
 					isError,

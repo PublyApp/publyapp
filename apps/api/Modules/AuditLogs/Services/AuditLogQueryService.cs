@@ -18,7 +18,8 @@ public record FindAuditLogsArgs(
 	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
-	DateTime? EndDate
+	DateTime? EndDate,
+	string? Search = null
 );
 
 public record ExportAuditLogsArgs(
@@ -148,12 +149,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var query = this._BaseQuery();
 
 		query = AuditLogQueryService._ApplyFilters(
+			this._DbContext,
 			query,
 			args.UserId,
 			args.Actions,
 			args.TargetId,
 			args.StartDate,
-			args.EndDate
+			args.EndDate,
+			args.Search
 		);
 
 		// Whole filtered collection, cursor excluded.
@@ -289,6 +292,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var query = this._BaseQuery();
 
 		query = AuditLogQueryService._ApplyFilters(
+			this._DbContext,
 			query,
 			args.UserId,
 			args.Actions,
@@ -315,6 +319,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var query = this._BaseQuery();
 
 		query = AuditLogQueryService._ApplyFilters(
+			this._DbContext,
 			query,
 			args.UserId,
 			args.Actions,
@@ -370,12 +375,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 	}
 
 	private static IQueryable<AuditLog> _ApplyFilters(
+		AppDbContext dbContext,
 		IQueryable<AuditLog> query,
 		Guid? userId,
 		IReadOnlyList<string>? actions,
 		Guid? targetId,
 		DateTime? startDate,
-		DateTime? endDate
+		DateTime? endDate,
+		string? search = null
 	) {
 		if (userId.HasValue) {
 			query =
@@ -405,6 +412,23 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			query =
 				from auditLog in query
 				where auditLog.CreatedAt <= endDate.Value
+				select auditLog;
+		}
+		if (!string.IsNullOrWhiteSpace(search)) {
+			var pattern = "%" + search.Trim() + "%";
+			query =
+				from auditLog in query
+				where EF.Functions.ILike(auditLog.Action, pattern)
+					|| (auditLog.IpAddress != null
+						&& EF.Functions.ILike(auditLog.IpAddress, pattern))
+					|| dbContext.User
+						.IgnoreQueryFilters()
+						.Any(user => user.Id == auditLog.UserId
+							&& ((user.FirstName != null
+									&& EF.Functions.ILike(user.FirstName, pattern))
+								|| (user.LastName != null
+									&& EF.Functions.ILike(user.LastName, pattern))
+								|| EF.Functions.ILike(user.Email, pattern)))
 				select auditLog;
 		}
 		return query;
