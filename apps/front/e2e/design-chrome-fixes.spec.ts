@@ -196,15 +196,12 @@ test.describe(
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
+			// The staff home is the dashboard since the admin redesign: the page-size
+			// trigger only exists on the staff-members list.
+			await page.goto('/staff/staff-users');
 
 			const trigger = page.getByTestId('staff-users-table-page-size-trigger');
 			await expect(trigger).toBeVisible();
-			// Every geometry read in this test goes through waitForBoundingBoxToSettle,
-			// never a raw boundingBox(): the trigger can briefly detach while the table
-			// re-renders (see the second read below), and a raw read then returns null.
-			const triggerBox = await waitForBoundingBoxToSettle(trigger);
-			expect(triggerBox).not.toBeNull();
-
 			await trigger.click();
 			const popup = page.locator('[data-slot="select-content"]');
 			// Cold-stack headroom: on the gate's freshly-built run 1 the staff-users
@@ -219,29 +216,29 @@ test.describe(
 			// mid-transition one (review-r1-tests.md F26).
 			const firstPopupBox = await waitForBoundingBoxToSettle(popup);
 			expect(firstPopupBox).not.toBeNull();
+			// Measure the trigger at the SAME settled moment as the popup: the
+			// list's async rows can still move the footer after the first
+			// visibility check, and a pre-click read then compares the popup to a
+			// stale anchor. Every geometry read goes through
+			// waitForBoundingBoxToSettle, never a raw boundingBox().
+			const firstTriggerBox = await waitForBoundingBoxToSettle(trigger);
+			expect(firstTriggerBox).not.toBeNull();
 
-			if (triggerBox && firstPopupBox) {
+			if (firstTriggerBox && firstPopupBox) {
 				// Adjacent to the trigger's top or bottom edge (whichever side
 				// floating-ui picked for collision avoidance) — never centered
 				// somewhere in the middle to align a selected item.
 				const distanceBelow = Math.abs(
-					firstPopupBox.y - (triggerBox.y + triggerBox.height),
+					firstPopupBox.y - (firstTriggerBox.y + firstTriggerBox.height),
 				);
 				const distanceAbove = Math.abs(
-					firstPopupBox.y + firstPopupBox.height - triggerBox.y,
+					firstPopupBox.y + firstPopupBox.height - firstTriggerBox.y,
 				);
 				expect(Math.min(distanceBelow, distanceAbove)).toBeLessThan(12);
 			}
 
 			await page.getByRole('option', { name: '50', exact: true }).click();
 			await expect(popup).toBeHidden();
-
-			// Selecting 50 re-renders the table with a different row count, which
-			// can move the trigger itself — anchoring is judged relative to the
-			// trigger, so re-measure it before the second open. Settle-wait rather
-			// than a raw boundingBox(): the re-render can detach the trigger mid-read.
-			const secondTriggerBox = await waitForBoundingBoxToSettle(trigger);
-			expect(secondTriggerBox).not.toBeNull();
 
 			// The reopen click can race the previous close's focus-settle on a cold
 			// stack, landing during the transition and being dropped — the popup then
@@ -253,21 +250,31 @@ test.describe(
 			}).toPass({ timeout: 15000 });
 			const secondPopupBox = await waitForBoundingBoxToSettle(popup);
 			expect(secondPopupBox).not.toBeNull();
+			// Selecting 50 re-renders the table with a different row count, which
+			// moves the trigger. Measure it at the same settled moment as the
+			// popup, exactly like the first open.
+			const secondTriggerBox = await waitForBoundingBoxToSettle(trigger);
+			expect(secondTriggerBox).not.toBeNull();
 
 			// The popup must keep the same offset FROM ITS TRIGGER regardless of
 			// which value (10 vs. 50, i.e. first item vs. a later one) is
 			// currently selected — alignItemWithTrigger must not reposition it
 			// over the selected item.
-			if (triggerBox && firstPopupBox && secondTriggerBox && secondPopupBox) {
+			if (
+				firstTriggerBox &&
+				firstPopupBox &&
+				secondTriggerBox &&
+				secondPopupBox
+			) {
 				// A generous but still tight tolerance: if alignItemWithTrigger were
 				// re-centering the popup over the newly-selected item, moving from
 				// the 1st option (10) to the 3rd (50) would shift its trigger-
 				// relative offset by roughly two item heights (~64px), far outside
 				// this window.
-				const firstOffsetY = firstPopupBox.y - triggerBox.y;
+				const firstOffsetY = firstPopupBox.y - firstTriggerBox.y;
 				const secondOffsetY = secondPopupBox.y - secondTriggerBox.y;
 				expect(Math.abs(secondOffsetY - firstOffsetY)).toBeLessThan(8);
-				const firstOffsetX = firstPopupBox.x - triggerBox.x;
+				const firstOffsetX = firstPopupBox.x - firstTriggerBox.x;
 				const secondOffsetX = secondPopupBox.x - secondTriggerBox.x;
 				expect(Math.abs(secondOffsetX - firstOffsetX)).toBeLessThan(8);
 			}
