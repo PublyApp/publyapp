@@ -260,6 +260,10 @@ const StaffTenantsPage = () => {
 export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 	staticData: {
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-tenants' }],
+		// The list page owns the whole side panel (its filter-shortcut groups,
+		// #2274 §4.1): the shell must not stack its static section nav above
+		// them, as the prototype's Organisations list does not (PROMPT §4.2).
+		pageOwnsSecondaryPanel: true,
 	},
 	validateSearch: (search) =>
 		serializeTenantListSearchParams(

@@ -1374,6 +1374,13 @@ html.dark {
 		opacity: 0.7;
 	}
 
+	/* A page-owned panel (a list's filter-shortcut groups, #2274 §4.1) is the
+	   panel's only child once it owns the navigation: it is the scroller, as
+	   Shopkart's FilterPanel group column is. */
+	.app-shell-page-panel {
+		@apply flex min-h-0 flex-1 flex-col overflow-y-auto;
+	}
+
 	.app-shell-secondary-nav-count[data-tone='warning'] {
 		color: var(--publy-chip-pending-text);
 		border: 1px solid var(--publy-chip-pending-border);
@@ -1535,6 +1542,18 @@ html.dark {
 	   is only known here, not at the viewport, so the detail grid's two-
 	   column split must react to this element's content width. */
 		container-type: inline-size;
+	}
+
+	/* The pages built from Shopkart's list page (the generic ListPage) use its
+	   32px frame on every side, as the prototype does — its pinned toolbar and
+	   table header offsets are calibrated on that padding through
+	   --page-pad-top. Legacy detail pages keep the 20px frame above. */
+	@media (min-width: 768px) {
+		.app-shell-main:has(> [data-list-page]) {
+			padding: 32px;
+			--page-pad-top: 32px;
+			--page-pad-bottom: 32px;
+		}
 	}
 
 	@media (max-width: 767px) {
@@ -3411,5 +3430,24 @@ html[data-theme-changing] * {
 		[data-collapse] > div > div {
 			transition: none;
 		}
+	}
+}
+
+@layer utilities {
+	/* The prototype's outline theme button keeps the Button's
+	   `dark:bg-input/20` / `dark:hover:bg-input/30` fill, so it reads as a
+	   raised control in dark mode instead of melting into the page. The
+	   prototype's `--input` is its dark `--border` (#323234), not PublyApp's
+	   one-step-darker `--publy-input-border` (#27272a): the fill must use the
+	   same base to composite to the same colour.
+	   These live in the utilities layer — same layer as the Button's own
+	   `bg-background` / `dark:hover:bg-input/30`, so the higher-specificity
+	   selector wins on specificity alone. */
+	html.dark .app-shell-topbar-action-btn {
+		background-color: color-mix(in oklab, var(--publy-border) 20%, transparent);
+	}
+
+	html.dark .app-shell-topbar-action-btn:hover {
+		background-color: color-mix(in oklab, var(--publy-border) 30%, transparent);
 	}
 }

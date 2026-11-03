@@ -347,26 +347,39 @@ const AuthedWorkspaceShell = ({
 					inert={showSecondaryPanel ? undefined : true}
 				>
 					<div className="app-shell-secondary-panel-inner">
-						<SecondaryPanelHeader title={secondaryPanelTitle} />
-						{pageOwnsSecondaryNav ? null : (
-							<nav
-								className="app-shell-secondary-nav"
-								aria-label={t('nav-secondary')}
-							>
-								{secondaryItems.map((item) => (
-									<SecondaryPanelNavItem
-										key={item.id}
-										item={item}
-										pathname={pathname}
-										search={search}
-									/>
-								))}
-							</nav>
+						{pageOwnsSecondaryNav ? (
+							<>
+								{/* The page's panel already repeats the section links (with
+								    their real counters) and its filter groups: it owns the
+								    whole panel, so no separate section header above it. The
+								    heading survives for assistive tech only. */}
+								<h2 id="app-shell-secondary-heading" className="sr-only">
+									{secondaryPanelTitle}
+								</h2>
+								<div
+									id="app-shell-page-panel"
+									className="app-shell-page-panel"
+								/>
+							</>
+						) : (
+							<>
+								<SecondaryPanelHeader title={secondaryPanelTitle} />
+								<nav
+									className="app-shell-secondary-nav"
+									aria-label={t('nav-secondary')}
+								>
+									{secondaryItems.map((item) => (
+										<SecondaryPanelNavItem
+											key={item.id}
+											item={item}
+											pathname={pathname}
+											search={search}
+										/>
+									))}
+								</nav>
+								<div id="app-shell-page-panel" />
+							</>
 						)}
-						{/* A list page's filter-shortcut groups portal here (#2274
-						    §4.1): page-owned runtime counters cannot live in the route
-						    metadata, so the page mounts its own panel content. */}
-						<div id="app-shell-page-panel" />
 					</div>
 				</aside>
 			) : null}
