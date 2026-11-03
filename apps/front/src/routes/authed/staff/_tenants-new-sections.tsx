@@ -101,7 +101,6 @@ export const TenantCreateOrganizationSection = ({
 		<Field.ImageUpload
 			name="logoUrl"
 			label={t('logo')}
-			helperText={t('logo-optional-hint')}
 			previewName={name || t('untitled-organization')}
 			isDisabled={isFormLocked}
 		/>

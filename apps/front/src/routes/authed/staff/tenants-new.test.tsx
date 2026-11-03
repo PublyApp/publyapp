@@ -567,6 +567,12 @@ describe('staff tenant create route', () => {
 		).toBeTruthy();
 	});
 
+	test('shows the logo optional marker once, next to the label', () => {
+		renderPage();
+
+		expect(screen.getAllByText('optional')).toHaveLength(1);
+	});
+
 	test('renders one owner row tagged Primary by default, and the members/details sections', () => {
 		renderPage();
 

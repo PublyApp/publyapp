@@ -41,6 +41,11 @@ import {
 } from './tenants-new-helpers';
 import { getWebsiteHostname } from './tenants/tenant-organization-profile-fields';
 
+const LOCALE_LABELS: Record<string, string> = {
+	fr: 'Français',
+	en: 'English',
+};
+
 export const TenantCreateForm = ({
 	navigate,
 }: {
@@ -204,12 +209,7 @@ export const TenantCreateForm = ({
 		return <LogoutRedirect />;
 	}
 
-	let localeLabel = '';
-	if (locale === 'fr') {
-		localeLabel = 'Français';
-	} else if (locale === 'en') {
-		localeLabel = 'English';
-	}
+	const localeLabel = LOCALE_LABELS[locale] ?? '';
 	const detailsSummary = [
 		legalNameTrimmed,
 		websiteTrimmed,
