@@ -290,8 +290,11 @@ describe('ListPage', () => {
 			},
 		);
 
+		// Owner decision #2291: a 403 paints the translated copy, never the API's
+		// English `detail`.
 		expect(screen.getByText('no-access-title')).toBeTruthy();
-		expect(screen.getByText('Permission revoked.')).toBeTruthy();
+		expect(screen.getByText('forbidden-description')).toBeTruthy();
+		expect(screen.queryByText('Permission revoked.')).toBeNull();
 		expect(screen.queryByRole('button', { name: 'retry' })).toBeNull();
 	});
 

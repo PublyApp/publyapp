@@ -42,7 +42,10 @@ export const StatCard = ({
 	return (
 		<div
 			className={cn(
-				'@container flex h-full min-w-0 flex-col rounded-[16px] bg-card p-1 text-card-foreground shadow-[var(--effect-raised-control)]',
+				// `shadow-(--token)`, not `shadow-[var(--token)]`: the v4 shorthand
+				// is unambiguous so a caller's `className` can override it through
+				// tailwind-merge (the bracket form never merges).
+				'@container flex h-full min-w-0 flex-col rounded-[16px] bg-card p-1 text-card-foreground shadow-(--effect-raised-control)',
 				className,
 			)}
 			data-testid={testId}

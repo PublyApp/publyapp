@@ -814,11 +814,11 @@ describe('staff tenant profile details route', () => {
 			openTenantLink.querySelector('.tabler-icon-arrow-right'),
 		).toBeTruthy();
 		expect(identity.querySelector('.publy-profile-detail-tile')).toBeTruthy();
-		expect(identity.textContent).toContain('Default profile');
+		// A renamed default profile keeps its own name (display-profile.ts): only
+		// the untouched seeded copy is translated at render time.
+		expect(identity.textContent).toContain('Approvers');
 		expect(identity.textContent).toContain('System profile');
-		expect(identity.textContent).toContain(
-			'Default profile with no permissions',
-		);
+		expect(identity.textContent).toContain('Can review approvals');
 		expect(identity.textContent).toContain('7 members · 2 permissions');
 		// #1023 (review-ui-fidelity.md MINOR): the accessible-name assertion
 		// alone still passes if the pencil icon or the size="sm" treatment is

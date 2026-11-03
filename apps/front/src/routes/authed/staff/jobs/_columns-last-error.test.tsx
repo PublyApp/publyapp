@@ -23,11 +23,10 @@
  * (a second mechanism masking a missing line-level assertion).
  */
 import { cleanup, render, screen } from '@testing-library/react';
-import type { ReactElement } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 
-import { makeDeadLetterColumns } from './_columns-dead-letter';
+import { deadLetterColumns } from './_jobs-list-config';
 
 const translations = {
 	'common:column-last-error': 'Last error',
@@ -64,17 +63,13 @@ const buildRow = (
 });
 
 const renderCell = (row: StaffDeadLetterRow) => {
-	const onInspect = vi.fn();
-	const onRequeue = vi.fn();
-	const columns = makeDeadLetterColumns(t, 'en', onInspect, onRequeue);
-	const column = columns.find((c) => c.id === 'last_error');
+	const columns = deadLetterColumns(t, 'en', null);
+	const column = columns.find((c) => c.id === 'error');
 	expect(column).toBeDefined();
-	const ui = (
-		column!.cell as (ctx: {
-			row: { original: StaffDeadLetterRow };
-		}) => ReactElement
-	)({ row: { original: row } });
-	render(ui);
+	if (!column) {
+		throw new Error('error column missing');
+	}
+	render(<>{column.cell(row)}</>);
 };
 
 afterEach(() => {
@@ -146,20 +141,19 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 	});
 
 	test('non-regression: column order is preserved exactly (no displacement)', () => {
-		const onInspect = vi.fn();
-		const onRequeue = vi.fn();
-		const columns = makeDeadLetterColumns(t, 'en', onInspect, onRequeue);
+		const columns = deadLetterColumns(t, 'en', null);
 		const ids = columns.map((c) => c.id);
 
 		// Exact order — not just `toContain`, which would miss a displacement.
 		expect(ids).toEqual([
-			'job_type',
-			'external_state_status',
+			'type',
+			'what',
+			'state',
+			'org',
 			'attempts',
-			'failed_at',
-			'last_error',
-			'requeued_at',
-			'actions',
+			'error',
+			'failedAt',
+			'externalState',
 		]);
 	});
 
@@ -178,17 +172,13 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 		});
 
 		tCalls.length = 0;
-		const onInspect = vi.fn();
-		const onRequeue = vi.fn();
-		const columns = makeDeadLetterColumns(t_fr, 'en', onInspect, onRequeue);
-		const column = columns.find((c) => c.id === 'last_error');
+		const columns = deadLetterColumns(t_fr, 'en', null);
+		const column = columns.find((c) => c.id === 'error');
 		expect(column).toBeDefined();
-		const ui = (
-			column!.cell as (ctx: {
-				row: { original: StaffDeadLetterRow };
-			}) => ReactElement
-		)({ row: { original: buildRow({ lastError: null }) } });
-		render(ui);
+		if (!column) {
+			throw new Error('error column missing');
+		}
+		render(<>{column.cell(buildRow({ lastError: null }))}</>);
 
 		// The marker must be the French control value, NOT the English literal
 		const cell = screen.getByTestId('cell-last-error-dl-1');

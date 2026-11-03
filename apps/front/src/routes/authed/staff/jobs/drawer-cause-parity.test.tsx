@@ -263,6 +263,7 @@ vi.mock('~/components/table/data-table', () => ({
 				),
 			),
 		]),
+	DataTableCursorFooter: () => null,
 }));
 
 vi.mock('./_permissions', () => ({
@@ -281,12 +282,21 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
 }));
 
-vi.mock('@tabler/icons-react', () => ({
-	IconActivity: () => createElement('span', {}, 'icon-activity'),
-	IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
-	IconDots: () => createElement('span', {}, 'icon-dots'),
-	IconX: () => createElement('span', { 'aria-hidden': 'true' }, '×'),
-}));
+vi.mock('@tabler/icons-react', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@tabler/icons-react')>();
+	return {
+		...actual,
+		IconActivity: () => createElement('span', {}, 'icon-activity'),
+		IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
+		IconDots: () => createElement('span', {}, 'icon-dots'),
+		IconX: () => createElement('span', { 'aria-hidden': 'true' }, '×'),
+	};
+});
+
+vi.mock('~/components/list/list-page', async () => {
+	const { FakeListPage } = await import('~/lib/testing/fake-list-page');
+	return { ListPage: FakeListPage };
+});
 
 import { Route } from './dead-letter';
 
@@ -657,20 +667,19 @@ describe('dead-letter drawer: cause display parity with column (brief #1720 rond
 	test('the detail query is enabled and keyed to the inspected dead-letter row', async () => {
 		renderPage();
 
-		// Clear useQuery mock after initial render (column query only)
-		mocks.useQuery.mockClear();
-
 		const drawer = await openDrawer();
 		expect(drawer.getAttribute('role')).toBe('dialog');
 
-		// useQuery was called for the detail fetch with enabled: true
-		// and the queryKey containing the inspected row's ID ('dl-1')
-		expect(mocks.useQuery).toHaveBeenCalledTimes(1);
-		const useQueryArgs = mocks.useQuery.mock.calls[0][0] as {
-			queryKey: unknown[];
-			enabled: boolean;
-		};
-		expect(useQueryArgs.enabled).toBe(true);
+		// The detail fetch is the enabled query; the page's overview also
+		// calls useQuery, so select the enabled call instead of assuming an
+		// exact call count (the old page had no overview queries).
+		const useQueryArgs = mocks.useQuery.mock.calls
+			.map((call) => call[0] as { queryKey: unknown[]; enabled: boolean })
+			.find((args) => args.enabled === true);
+		expect(useQueryArgs).toBeTruthy();
+		if (!useQueryArgs) {
+			throw new Error('detail query was not enabled');
+		}
 		expect(useQueryArgs.queryKey).toEqual([
 			'staff',
 			'staff-jobs',

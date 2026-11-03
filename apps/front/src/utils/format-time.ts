@@ -72,6 +72,13 @@ const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 	dateStyle: 'medium',
 };
 
+/** « 24/10/2026 » — the compact numeric day used in list cells (§4.1). */
+const NUMERIC_DAY_OPTIONS: Intl.DateTimeFormatOptions = {
+	day: '2-digit',
+	month: '2-digit',
+	year: 'numeric',
+};
+
 const MONTH_YEAR_OPTIONS: Intl.DateTimeFormatOptions = {
 	month: 'short',
 	year: 'numeric',
@@ -96,6 +103,12 @@ export const formatShortDate = (
 	locale: string,
 	options?: FormatTimeOptions,
 ): string => formatDate(value, locale, SHORT_DATE_OPTIONS, options?.timeZone);
+
+export const formatNumericDay = (
+	value: DateValue,
+	locale: string,
+	options?: FormatTimeOptions,
+): string => formatDate(value, locale, NUMERIC_DAY_OPTIONS, options?.timeZone);
 
 export const formatMonthYear = (
 	value: DateValue,

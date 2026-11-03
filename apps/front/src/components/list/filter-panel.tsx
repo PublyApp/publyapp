@@ -36,6 +36,7 @@ const PanelGroup = ({ group }: { group: ListPanelGroup }) => {
 					key={entry.key}
 					type="button"
 					data-active={entry.active || undefined}
+					aria-current={entry.active ? 'page' : undefined}
 					onClick={entry.onClick}
 					className="flex h-11 items-center gap-2 rounded-[10px] px-2 text-sm text-muted-foreground hover:text-foreground data-active:bg-(--publy-surface-active) data-active:font-medium data-active:text-foreground data-active:shadow-[var(--effect-raised-control)] md:h-8 [&_svg]:size-4 [&_svg]:shrink-0"
 				>

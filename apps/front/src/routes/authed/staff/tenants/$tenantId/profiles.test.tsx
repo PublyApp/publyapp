@@ -407,10 +407,12 @@ describe('staff tenant profiles route', () => {
 			screen.getByText('Profiles', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
 		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
-		expect(screen.getAllByText('Default profile').length).toBeGreaterThan(0);
-		expect(
-			screen.getAllByText('Default profile with no permissions').length,
-		).toBeGreaterThan(0);
+		// A renamed default profile keeps its own name (display-profile.ts): only
+		// the untouched seeded copy is translated at render time.
+		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
+		expect(screen.getAllByText('Can review approvals').length).toBeGreaterThan(
+			0,
+		);
 		expect(screen.getByText('System')).toBeTruthy();
 		expect(screen.getByText('Custom')).toBeTruthy();
 		expect(screen.getByText('7 members · 12 permissions')).toBeTruthy();
@@ -795,7 +797,7 @@ describe('staff tenant profiles route', () => {
 		renderPage();
 
 		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
-		expect(screen.getAllByText('Default profile').length).toBeGreaterThan(0);
+		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
 		expect(
 			screen.getByRole('checkbox', { name: 'Select all rows' }),
 		).toBeTruthy();

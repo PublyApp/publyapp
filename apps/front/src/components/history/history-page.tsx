@@ -16,6 +16,10 @@ import type { HistoryEvent, HistoryFilter } from './history-types';
 
 const PANEL_TARGET_ID = 'app-shell-page-panel';
 
+/** Stable identity: a `{}` default parameter re-creates the value on every
+ * render and defeats memoization (React Doctor `rerender-memo-with-default-value`). */
+const EMPTY_FILTERS_VALUE: ListFiltersValue = {};
+
 type HistoryPageProps = {
 	testId: string;
 	/** The page title row (28px) or, inside a detail tab, the section heading
@@ -96,7 +100,7 @@ export const HistoryPage = ({
 	noMatchTitle,
 	noMatchText,
 	filters = [],
-	filtersValue = {},
+	filtersValue = EMPTY_FILTERS_VALUE,
 	onFiltersChange,
 	panelGroups = [],
 	queryState,
@@ -141,9 +145,12 @@ export const HistoryPage = ({
 		onFiltersChange(next);
 	};
 
-	const filterGroups: ListPanelGroup[] = filters
-		.filter((filter) => filter.panel)
-		.map((filter) => ({
+	const filterGroups: ListPanelGroup[] = [];
+	for (const filter of filters) {
+		if (!filter.panel) {
+			continue;
+		}
+		filterGroups.push({
 			key: filter.key,
 			title: filter.label,
 			entries: filter.choices.map((choice) => ({
@@ -159,7 +166,8 @@ export const HistoryPage = ({
 				active: filtersValue[filter.key]?.includes(choice.value) ?? false,
 				onClick: () => toggle(filter.key, choice.value),
 			})),
-		}));
+		});
+	}
 
 	const footnote =
 		totalCount === null
