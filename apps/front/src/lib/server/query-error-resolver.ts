@@ -108,7 +108,7 @@ export const resolveQueryError = (
 			// message, never the API's English `detail`.
 			description: fallbackMessage,
 			supportsRetry: false,
-			fallback: true,
+			fallback: !hasCause,
 			silent: false,
 		};
 	}
@@ -119,7 +119,7 @@ export const resolveQueryError = (
 			title: t('page-not-found'),
 			description: fallbackMessage,
 			supportsRetry: false,
-			fallback: true,
+			fallback: !hasCause,
 			silent: false,
 		};
 	}

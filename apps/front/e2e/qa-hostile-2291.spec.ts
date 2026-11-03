@@ -400,17 +400,40 @@ test.describe(
 			).toBeVisible();
 		});
 
-		test('H6: the user-menu trigger keeps an accessible name at 390px', async ({
+		test('H6: the user-menu trigger keeps the visible name in its accessible name', async ({
 			page,
 		}) => {
 			await openFrench(page);
-			await page.setViewportSize({ width: 390, height: 844 });
+			await page.setViewportSize({ width: 1440, height: 900 });
 			await page.goto('/staff/dashboard');
 			await expect(
 				page.getByTestId('app-shell-user-menu-trigger'),
-			).toHaveAttribute('aria-label', 'Menu du compte');
+			).toBeVisible();
+			const visibleName =
+				(await page.locator('.app-shell-user-name').textContent())?.trim() ??
+				'';
+			expect(
+				visibleName.length,
+				'the desktop trigger must visibly show a display name',
+			).toBeGreaterThan(0);
+
+			// WCAG 2.5.3: the visible name is part of the accessible name.
+			const accessibleLabel = `Menu du compte — ${visibleName}`;
 			await expect(
-				page.getByRole('button', { name: 'Menu du compte' }),
+				page.getByTestId('app-shell-user-menu-trigger'),
+			).toHaveAttribute('aria-label', accessibleLabel);
+			await expect(
+				page.getByRole('button', { name: accessibleLabel }),
+			).toBeVisible();
+
+			// At 390px the name is visually hidden, but the accessible name
+			// still carries it and remains width-independent.
+			await page.setViewportSize({ width: 390, height: 844 });
+			await expect(
+				page.getByTestId('app-shell-user-menu-trigger'),
+			).toHaveAttribute('aria-label', accessibleLabel);
+			await expect(
+				page.getByRole('button', { name: accessibleLabel }),
 			).toBeVisible();
 		});
 	},
@@ -449,6 +472,33 @@ test.describe(
 			await expect(tenantView).toBeVisible();
 			await expect(tenantView).toContainText('Organisation introuvable');
 			await expect(tenantView).not.toContainText('Tenant not found');
+			// Owner decision #2291: a page-scale 404 is announced assertively.
+			await expect(tenantView.getByRole('alert')).toBeVisible();
+
+			await mockTenantWorkspace(page);
+			await page.route('**/staff/tenants/**', async (route) => {
+				if (
+					isApiPath(
+						route.request().url(),
+						`/staff/tenants/${TENANT_ID}/users/${UNKNOWN_ID}`,
+					)
+				) {
+					await route.fulfill(problem('Tenant user not found'));
+					return;
+				}
+				await route.fallback();
+			});
+			await page.goto(`/staff/tenants/${TENANT_ID}/users/${UNKNOWN_ID}`);
+			const tenantUserView = page.getByTestId(
+				'staff-tenant-user-details-not-found',
+			);
+			await expect(tenantUserView).toBeVisible();
+			await expect(tenantUserView).toContainText(
+				"Utilisateur de l'organisation introuvable",
+			);
+			await expect(tenantUserView).not.toContainText('Tenant user not found');
+			await expect(tenantUserView.getByRole('alert')).toBeVisible();
+			await page.unroute('**/staff/tenants/**');
 
 			await page.route('**/staff/profiles/**', async (route) => {
 				if (isApiPath(route.request().url(), `/staff/profiles/${UNKNOWN_ID}`)) {
@@ -672,6 +722,51 @@ test.describe(
 			).toBeVisible();
 		});
 
+		test('M6b: page-scale 403/404/500 views are role=alert surfaces', async ({
+			page,
+		}) => {
+			await openFrench(page);
+
+			const mockTenantFailure = async (status: number, title: string) => {
+				await page.route('**/staff/tenants/**', async (route) => {
+					if (isApiPath(route.request().url(), `/staff/tenants/${TENANT_ID}`)) {
+						await route.fulfill({
+							status,
+							contentType: 'application/problem+json',
+							body: JSON.stringify({
+								type: 'about:blank',
+								title,
+								status,
+								detail: 'Access denied by upstream',
+								translationKey: status === 403 ? 'forbidden' : 'request-failed',
+							}),
+						});
+						return;
+					}
+					await route.fallback();
+				});
+			};
+
+			await mockTenantFailure(403, 'Forbidden');
+			await page.goto(`/staff/tenants/${TENANT_ID}`);
+			const forbidden = page.getByTestId('view-403');
+			await expect(forbidden).toBeVisible();
+			await expect(forbidden.getByRole('alert')).toContainText('Accès refusé');
+			await expect(forbidden).not.toContainText('Access denied by upstream');
+			await page.unroute('**/staff/tenants/**');
+
+			await mockTenantFailure(500, 'Internal Server Error');
+			await page.goto(`/staff/tenants/${TENANT_ID}`);
+			const failure = page.getByTestId('staff-tenant-details-error');
+			await expect(failure).toBeVisible();
+			await expect(failure.getByRole('alert')).toContainText(
+				'Impossible de charger',
+			);
+			await expect(
+				page.getByRole('button', { name: 'Réessayer' }),
+			).toBeVisible();
+		});
+
 		test('M7: the profile selector label can ellipsize instead of clipping its last letters', async ({
 			page,
 		}) => {
@@ -706,6 +801,18 @@ test.describe(
 			await start.press('Tab');
 			await expect(page).toHaveURL(/[?&]start_date=2026-11-02(?:&|$)/);
 			await expect(start).toHaveValue('02/11/2026');
+
+			// An unparseable date shows a visible, associated error and leaves
+			// the URL (the filter of record) untouched.
+			await start.fill('31/02/2026');
+			await start.press('Tab');
+			await expect(start).toHaveAttribute('aria-invalid', 'true');
+			await expect(page.getByText('Saisissez une date valide.')).toBeVisible();
+			await expect(page).toHaveURL(/[?&]start_date=2026-11-02(?:&|$)/);
+
+			// Clearing keeps focus in the field the user is typing in.
+			await start.fill('');
+			await expect(start).toBeFocused();
 		});
 
 		test('M9 + L2: the default profile is translated and list cells truncate with an ellipsis', async ({
@@ -722,6 +829,25 @@ test.describe(
 				'Profil par défaut sans autorisations',
 			);
 			await expect(defaultCard).not.toContainText('Default profile');
+
+			// The invite drawer's profile dropdown is the same flow: it must
+			// show the translated default name too, never the raw seeded copy.
+			await page.goto(`/staff/tenants/${TENANT_ID}/users?invite=1`);
+			const drawer = page.locator('[data-slot="drawer"]');
+			await expect(drawer).toBeVisible();
+			const profileTrigger = drawer
+				.locator('button')
+				.filter({ hasText: 'Sélectionner les profils' })
+				.first();
+			await expect(profileTrigger).toBeEnabled();
+			await profileTrigger.click();
+			await expect(
+				page.getByRole('menuitemcheckbox', { name: /Profil par défaut/ }),
+			).toBeVisible();
+			await expect(
+				page.getByRole('menuitemcheckbox', { name: /Default profile/ }),
+			).toHaveCount(0);
+			await page.keyboard.press('Escape');
 
 			await page.goto('/staff/tenants');
 			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();

@@ -28,7 +28,9 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.title).toBe('t(no-access-title)');
 		expect(resolution.description).toBe('t(forbidden-description)');
 		expect(resolution.supportsRetry).toBe(false);
-		expect(resolution.fallback).toBe(true);
+		// A real cause existed, so the generic fallback flag stays false even
+		// though the owner decision paints our translated copy instead of it.
+		expect(resolution.fallback).toBe(false);
 	});
 
 	test('maps a 404 ServerFailure to the not-found copy and disables retry', () => {
@@ -48,7 +50,7 @@ describe('resolveQueryError (#2043)', () => {
 		// The API's English `detail` must not leak under a French title.
 		expect(resolution.description).toBe('t(not-found-sentence)');
 		expect(resolution.supportsRetry).toBe(false);
-		expect(resolution.fallback).toBe(true);
+		expect(resolution.fallback).toBe(false);
 	});
 
 	test('maps a 500 ServerFailure to the server-error copy and keeps retry', () => {

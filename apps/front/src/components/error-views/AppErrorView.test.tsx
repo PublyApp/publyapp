@@ -31,4 +31,12 @@ describe('AppErrorView', () => {
 		expect(container.querySelector('main')).not.toBeNull();
 		expect(screen.getByTestId('error').tagName).toBe('MAIN');
 	});
+
+	test('announces page-scale error views assertively (owner decision #2291)', () => {
+		render(<AppErrorView icon={<span />} title="Not found" testId="error" />);
+
+		const alert = screen.getByRole('alert');
+		expect(alert.getAttribute('aria-live')).toBe('assertive');
+		expect(alert.textContent).toContain('Not found');
+	});
 });

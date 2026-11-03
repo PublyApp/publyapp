@@ -47,6 +47,11 @@ export const AppShellUserMenu = () => {
 	const isDarkMode = colorScheme === 'dark';
 
 	const displayName = currentUser?.displayName || t('un-named');
+	// WCAG 2.5.3: the visible name must be part of the accessible name at
+	// desktop. At <=639px the name is hidden, where the plain label is enough.
+	const accountMenuLabel = currentUser?.displayName
+		? t('account-menu-with-name', { name: displayName })
+		: t('account-menu');
 	const avatarSeed = currentUser?.displayName || currentUser?.email || '?';
 	const currentLocale = isSupportedLanguage(i18n.resolvedLanguage)
 		? i18n.resolvedLanguage
@@ -56,7 +61,7 @@ export const AppShellUserMenu = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger
 				className="app-shell-user-chip"
-				aria-label={t('account-menu')}
+				aria-label={accountMenuLabel}
 				data-testid="app-shell-user-menu-trigger"
 			>
 				<PersonAvatar

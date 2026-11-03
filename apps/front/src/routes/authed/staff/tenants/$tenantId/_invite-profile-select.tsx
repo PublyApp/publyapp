@@ -20,6 +20,7 @@ import {
 } from '~/components/ui/dropdown-menu';
 import { Input } from '~/components/ui/input';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { displayProfileName } from '~/lib/profiles/display-profile';
 import {
 	toStaffTenantProfileRows,
 	useStaffTenantProfilesQuery,
@@ -56,15 +57,16 @@ const toStringArray = (value: unknown): string[] => {
 };
 
 /** Resolves chip labels for selections whose rows are not on the currently
- * loaded page: names are remembered from every page this session fetched. */
-const buildKnownNameLookup = (
+ * loaded page: profiles are remembered from every page this session fetched,
+ * so a renamed or default row keeps its translated display name. */
+const buildKnownProfileLookup = (
 	rows: StaffTenantProfileRow[],
-	knownNames: Map<string, string>,
-): Map<string, string> => {
-	const lookup = new Map(knownNames);
+	knownProfiles: Map<string, StaffTenantProfileRow>,
+): Map<string, StaffTenantProfileRow> => {
+	const lookup = new Map(knownProfiles);
 
 	for (const row of rows) {
-		lookup.set(row.id, row.name);
+		lookup.set(row.id, row);
 	}
 
 	return lookup;
@@ -86,7 +88,9 @@ export const InviteProfileSelect = ({
 	const labelId = useId();
 	const helperId = `${labelId}-helper`;
 	const [profileSearch, setProfileSearch] = useState('');
-	const [knownNames, setKnownNames] = useState(() => new Map<string, string>());
+	const [knownProfiles, setKnownProfiles] = useState(
+		() => new Map<string, StaffTenantProfileRow>(),
+	);
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const isProfileSearchSettled = profileSearch.trim() === deferredProfileSearch;
 
@@ -115,8 +119,8 @@ export const InviteProfileSelect = ({
 	const profilesError = profilesQuery.error;
 
 	useEffect(() => {
-		setKnownNames((previous) => {
-			const lookup = buildKnownNameLookup(profiles, previous);
+		setKnownProfiles((previous) => {
+			const lookup = buildKnownProfileLookup(profiles, previous);
 			if (lookup.size === previous.size) {
 				return previous;
 			}
@@ -213,24 +217,31 @@ export const InviteProfileSelect = ({
 									) : null}
 								</div>
 								{profiles.length > 0 ? (
-									profiles.map((profile) => (
-										<DropdownMenuCheckboxItem
-											key={profile.id}
-											checked={selectedIdSet.has(profile.id)}
-											closeOnClick={false}
-											showCheckbox
-											onCheckedChange={(checked) => {
-												toggleProfile(profile.id, Boolean(checked));
-											}}
-										>
-											<span className="min-w-0 flex-1 truncate">
-												{profile.name}
-											</span>
-											{profile.isDefault ? (
-												<Badge variant="secondary">{t('default')}</Badge>
-											) : null}
-										</DropdownMenuCheckboxItem>
-									))
+									profiles.map((profile) => {
+										const profileName = displayProfileName(profile, t);
+
+										return (
+											<DropdownMenuCheckboxItem
+												key={profile.id}
+												checked={selectedIdSet.has(profile.id)}
+												closeOnClick={false}
+												showCheckbox
+												onCheckedChange={(checked) => {
+													toggleProfile(profile.id, Boolean(checked));
+												}}
+											>
+												<span
+													className="min-w-0 flex-1 truncate"
+													title={profileName}
+												>
+													{profileName}
+												</span>
+												{profile.isDefault ? (
+													<Badge variant="secondary">{t('default')}</Badge>
+												) : null}
+											</DropdownMenuCheckboxItem>
+										);
+									})
 								) : (
 									<p className="px-3 py-2 text-[13px] text-muted-foreground">
 										{profilesIsPending
@@ -273,14 +284,20 @@ export const InviteProfileSelect = ({
 
 						{selectedIds.length > 0 ? (
 							<div className="flex flex-wrap gap-1.5">
-								{selectedIds.map((selectedId) => (
-									<span
-										key={selectedId}
-										className="publy-detail-chip publy-detail-chip--outline"
-									>
-										{knownNames.get(selectedId) ?? selectedId}
-									</span>
-								))}
+								{selectedIds.map((selectedId) => {
+									const knownProfile = knownProfiles.get(selectedId);
+
+									return (
+										<span
+											key={selectedId}
+											className="publy-detail-chip publy-detail-chip--outline"
+										>
+											{knownProfile
+												? displayProfileName(knownProfile, t)
+												: selectedId}
+										</span>
+									);
+								})}
 							</div>
 						) : null}
 

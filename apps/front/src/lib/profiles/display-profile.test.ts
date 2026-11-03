@@ -35,4 +35,17 @@ describe('default system profile display (#2291 M9)', () => {
 			'Read-only support access',
 		);
 	});
+
+	test('keeps a renamed default profile’s own copy', () => {
+		const profile = {
+			name: 'Profil maison',
+			description: 'Notre profil par défaut renommé',
+			isDefault: true,
+		};
+
+		expect(displayProfileName(profile, t)).toBe('Profil maison');
+		expect(displayProfileDescription(profile, t)).toBe(
+			'Notre profil par défaut renommé',
+		);
+	});
 });

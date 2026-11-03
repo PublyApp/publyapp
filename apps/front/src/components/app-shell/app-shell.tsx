@@ -204,7 +204,8 @@ const AuthedWorkspaceShell = ({
 	// (« Membres du personnel », « Profils », « Rapports » …), never the
 	// broader module label (« Équipe », « Tableau de bord ») that the H1 does
 	// not repeat. Filter-shortcut variants carry a `search` and are skipped:
-	// their label describes a filter, not the section.
+	// their label describes a filter, not the section, so a filtered URL
+	// deliberately falls back to the rail item's section label.
 	const activeSecondaryItem = secondaryItems.find(
 		(item) =>
 			item.search === undefined &&

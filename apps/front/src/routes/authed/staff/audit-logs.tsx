@@ -259,6 +259,7 @@ const StaffAuditLogsPage = () => {
 							<LocalizedDateInput
 								locale={locale}
 								ariaLabel={t('common:start-date')}
+								errorMessage={t('common:invalid-date')}
 								testId="staff-audit-logs-start-date"
 								value={search.startDate}
 								max={search.endDate ?? undefined}
@@ -271,6 +272,7 @@ const StaffAuditLogsPage = () => {
 							<LocalizedDateInput
 								locale={locale}
 								ariaLabel={t('common:end-date')}
+								errorMessage={t('common:invalid-date')}
 								testId="staff-audit-logs-end-date"
 								value={search.endDate}
 								min={search.startDate ?? undefined}

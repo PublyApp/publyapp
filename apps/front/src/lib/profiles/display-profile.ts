@@ -15,16 +15,27 @@ type DefaultableProfile = {
 
 type Translate = (key: string) => string;
 
+/*
+ * Only the untouched seeded copy is translated. A default profile can be
+ * renamed (the API PATCHes its name), and its rename must stay visible.
+ */
+const SEEDED_DEFAULT_PROFILE_NAME = 'Default profile';
+const SEEDED_DEFAULT_PROFILE_DESCRIPTION =
+	'Default profile with no permissions';
+
 export const displayProfileName = (
 	profile: Pick<DefaultableProfile, 'name' | 'isDefault'>,
 	t: Translate,
 ): string =>
-	profile.isDefault ? t('common:default-profile-name') : profile.name;
+	profile.isDefault && profile.name === SEEDED_DEFAULT_PROFILE_NAME
+		? t('common:default-profile-name')
+		: profile.name;
 
 export const displayProfileDescription = (
 	profile: DefaultableProfile,
 	t: Translate,
 ): string | null =>
-	profile.isDefault
+	profile.isDefault &&
+	profile.description === SEEDED_DEFAULT_PROFILE_DESCRIPTION
 		? t('common:default-profile-description')
 		: profile.description;

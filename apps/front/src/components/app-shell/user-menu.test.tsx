@@ -64,16 +64,21 @@ vi.mock('~/lib/query/auth', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
+		t: (key: string, options?: Record<string, unknown>) => {
 			const labels: TestLabelMap = {
 				'log-out': 'Log out',
 				'account-menu': 'Account menu',
+				'account-menu-with-name': 'Account menu — {{name}}',
 				'un-named': 'No name',
 				language: 'Language',
 				'switch-to-light-mode': 'Switch to light mode',
 				'switch-to-dark-mode': 'Switch to dark mode',
 			};
-			return labels[key] ?? key;
+			const label = labels[key] ?? key;
+			if (typeof options?.name === 'string') {
+				return label.replace('{{name}}', options.name);
+			}
+			return label;
 		},
 		i18n: { resolvedLanguage: mocks.resolvedLanguage },
 	}),
@@ -113,11 +118,15 @@ describe('AppShellUserMenu', () => {
 		expect(screen.queryByTestId('app-shell-user-menu')).toBeNull();
 		// #2291 H6: the visible name is hidden below 640px and the avatar is
 		// aria-hidden, so the trigger needs a width-independent accessible name.
+		// WCAG 2.5.3: at desktop the visible name is part of that name.
 		expect(
 			screen
 				.getByTestId('app-shell-user-menu-trigger')
 				.getAttribute('aria-label'),
-		).toBe('Account menu');
+		).toBe('Account menu — Jane Doe');
+		expect(
+			screen.getByRole('button', { name: 'Account menu — Jane Doe' }),
+		).toBeTruthy();
 		fireEvent.click(screen.getByTestId('app-shell-user-menu-trigger'));
 
 		const menu = await screen.findByTestId('app-shell-user-menu');
@@ -131,6 +140,11 @@ describe('AppShellUserMenu', () => {
 		render(<AppShellUserMenu />);
 
 		expect(screen.getAllByText('No name').length).toBeGreaterThan(0);
+		expect(
+			screen
+				.getByTestId('app-shell-user-menu-trigger')
+				.getAttribute('aria-label'),
+		).toBe('Account menu');
 	});
 
 	test('clicking Logout clears the query cache and server session, then navigates to /login without redirect_cause', async () => {

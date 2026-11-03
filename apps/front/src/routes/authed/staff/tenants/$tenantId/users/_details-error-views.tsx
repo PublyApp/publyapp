@@ -28,17 +28,7 @@ const isProblemStatus = (
 	);
 };
 
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
-};
-
-const MissingTenantUserView = ({ error }: { error: unknown }) => {
+const MissingTenantUserView = () => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -46,10 +36,7 @@ const MissingTenantUserView = ({ error }: { error: unknown }) => {
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code={t('error-404-code')}
 			title={t('tenant-user-not-found-title')}
-			description={getFailureDescription(
-				error,
-				t('tenant-user-not-found-description'),
-			)}
+			description={t('tenant-user-not-found-description')}
 			testId="staff-tenant-user-details-not-found"
 			actions={<BackToTenantsLink />}
 		/>
@@ -69,7 +56,7 @@ export const StaffTenantUserDetailsError = ({
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
 	) {
-		return <MissingTenantUserView error={error} />;
+		return <MissingTenantUserView />;
 	}
 
 	if (isProblemStatus(error, 403)) {
