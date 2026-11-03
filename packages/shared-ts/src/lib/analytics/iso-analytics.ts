@@ -4,6 +4,7 @@ import type { EventMessage, IdentifyMessage, PostHog } from 'posthog-node';
 import { isServer } from '../constants';
 import { logger } from '../logger/iso-logger';
 import type {
+	AnalyticsProperties,
 	CaptureEventParams,
 	CaptureExceptionParams,
 	IAnalytics,
@@ -167,7 +168,7 @@ export class IsoAnalytics implements IAnalytics {
 				return;
 			}
 			// Server-side: posthog-node IdentifyMessage format
-			const properties: Record<string, unknown> = {};
+			const properties: AnalyticsProperties = {};
 			if (params.properties) {
 				properties.$set = params.properties;
 			}

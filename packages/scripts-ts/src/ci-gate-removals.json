@@ -999,6 +999,356 @@
 			"step_id": "ci.yml::api::Run OpenAPI contract spec",
 			"reason": "#1947: the API lane is now a 4-way shard matrix, and every shard job must execute the same step set. OpenApiContractSpec is a class of the API suite, so the shard that owns it by class-name hash already runs it exactly once; a separate always-on step would run it a second time in each of the four shards. The spec still runs in every PR's API lane and in the local `just ci-spec-drift`; no verification was dropped.",
 			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Assert exact pins",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Assert exact pins\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Audit .NET packages",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Audit .NET packages\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Build .NET solution",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Build .NET solution\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Build front",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Build front\" runs unchanged in the `front-build` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check action SHA bindings",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check action SHA bindings\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check action versions",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check action versions\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check CI drift",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check CI drift\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check complexity bounds",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check complexity bounds\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check dependency health contract",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/dependency-health-pin-location.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check deploy environment documentation",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check deploy environment documentation\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check doc links",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check doc links\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check docs prune inventory",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check docs prune inventory\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check formatter scope",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/check-formatter-scope.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check formatting",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check formatting\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check front column-type imports",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check front column-type imports\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check front design system",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check front design system\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check front React Compiler artifacts",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check front React Compiler artifacts\" runs unchanged in the `front-build` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check front static imports",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check front static imports\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check no dockerignore shadow files",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check no dockerignore shadow files\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check no ignored tracked files",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check no ignored tracked files\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check unused exports and dependencies",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check unused exports and dependencies\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Check Vitest shard coverage",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Check Vitest shard coverage\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Checkout",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::CI lane not applicable (docs)",
+			"reason": "The serial `verification` job was split into parallel jobs: \"CI lane not applicable (docs)\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::CI lane not applicable (front)",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`front-build`, `front-quality`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::CI lane not applicable (quality)",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::CI lane not applicable (react)",
+			"reason": "The serial `verification` job was split into parallel jobs: \"CI lane not applicable (react)\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Collect ci-lane-result",
+			"reason": "The serial `verification` job was split into parallel jobs, so the lane-evidence collector now runs once per successor job (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`) and writes that job's own `ci-lane-result` record instead of one aggregate record. No evidence was dropped: every moved lane keeps its exact ordered step list and every step's outcome, and the aggregate gate requires all seven records.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Install Git hooks",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Install pnpm",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Install workspace dependencies",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Lint front",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Lint front\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Lint repository",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Lint repository\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Materialize .env.development",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Resolve React Doctor base",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Resolve React Doctor base\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Restore .NET solution",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Restore .NET solution\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Run analyzer tests",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Run analyzer tests\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Run React Doctor",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Run React Doctor\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Run trusted first-party postinstall",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Setup .NET",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Setup just",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Setup Node",
+			"reason": "The serial `verification` job was split into parallel jobs, so this shared step now runs once in each successor job that needs it (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), with an unchanged run command, env, if-condition, and continue-on-error. Only the job boundaries and the per-job `ci-lane-result` artifact names changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Smoke front production server",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Smoke front production server\" runs unchanged in the `front-build` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test .NET audit fixtures",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test .NET audit fixtures\" runs unchanged in the `quality-dotnet` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test action version guard",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/check-actions-pinned.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test API path-filter coverage",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test API path-filter coverage\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test CI changed-path classifier",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/ci-changed-paths.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test CI contracts",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test CI contracts\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test CI drift contracts",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/check-ci-drift.test.ts and src/artifact-version-compat.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test CI guard fixtures",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/ci-e2e-rerun-guard.test.ts, src/require-linked-issue.test.ts, src/codeowners-contract.test.ts, src/gen-reason-ref.test.ts and src/check-no-floating-promises.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed. It also no longer re-runs src/check-api-tests-path-coverage.test.ts: that file keeps its own unconditional \"Test API path-filter coverage\" step, so it now runs once instead of twice.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test CI referenced paths",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/ci-referenced-paths.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test complexity guard",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/check-cyclomatic-bound.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test doc-links guard",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test doc-links guard\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test docs prune guard",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test docs prune guard\" runs unchanged in the `docs-react` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test front (non-vitest report-all)",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test front (non-vitest report-all)\" runs unchanged in the `front-build` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test front lint guard",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/lint-front.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test lint plugin",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test lint plugin\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test npm audit runner",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/npm-audit-runner.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test production audit threshold",
+			"reason": "The serial `verification` job was split into parallel jobs and its per-file guard spawns were batched: this step's src/prod-audit-bites.test.ts now runs inside the single `Test CI guard suite` vitest invocation in the `guards` job instead of in its own vitest process. The same guard file(s) still run on every quality-relevant run, with the same arguments; only the process granularity changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test project closure adapter",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test project closure adapter\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Test shared TypeScript",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Test shared TypeScript\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Typecheck front",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Typecheck front\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Typecheck generated client",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Typecheck generated client\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Typecheck lint plugin",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Typecheck lint plugin\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Typecheck shared TypeScript",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Typecheck shared TypeScript\" runs unchanged in the `quality-js` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Upload ci-lane-result",
+			"reason": "The serial `verification` job was split into parallel jobs, so the result upload now runs once per successor job (`docs-react`, `front-build`, `front-quality`, `guards`, `quality-dotnet`, `quality-js`), each naming its own `ci-lane-result-<run>-<attempt>-<job>` container. The aggregate gate still requires exactly one verified artifact per job key.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Verify API path-filter coverage",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Verify API path-filter coverage\" runs unchanged in the `guards` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Verify front CSS asset",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Verify front CSS asset\" runs unchanged in the `front-build` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Verify front font bundle",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Verify front font bundle\" runs unchanged in the `front-build` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::verification::Verify paired red proofs",
+			"reason": "The serial `verification` job was split into parallel jobs: \"Verify paired red proofs\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
+			"removed_at": "2026-10-28"
 		}
 	]
 }

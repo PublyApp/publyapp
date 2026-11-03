@@ -20,7 +20,7 @@ import {
 	KNOWN_TENANT_USER_STATUSES,
 	type KnownTenantUserLevel,
 	type KnownTenantUserStatus,
-} from './_users-list-search';
+} from './_users-search-params';
 
 export const TenantUsersFilterMenus = ({
 	selectedLevels,

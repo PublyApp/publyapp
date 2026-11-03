@@ -1,4 +1,7 @@
-import { getShellScope } from '~/lib/navigation/route-metadata';
+import {
+	getActiveRailItem,
+	getShellScope,
+} from '~/lib/navigation/route-metadata';
 import type { AppRoutePath } from '~/lib/navigation/route-metadata';
 
 import type {
@@ -88,13 +91,43 @@ export type MatchForBreadcrumbs = {
 	staticData: { crumbs: RouteCrumbs };
 };
 
+/**
+ * The trail root is the page's SECTION, not the scope (#2273 §2.3): the
+ * organisations section roots at "Organisations", the dashboard at
+ * "Tableau de bord", the staff-members section at "Équipe", the jobs
+ * section at "Tâches". `nav-root-staff` is only the fallback for an orphan
+ * staff path that belongs to no rail section (e.g. the legacy global
+ * tenant-user details route tracked in #2273 §8.2).
+ */
 const rootCrumbForScope = (pathname: string): BreadcrumbRootItem => {
 	const scope = getShellScope(pathname);
 
 	if (scope === 'tenant') {
 		return { labelKey: 'nav-root-workspace', path: '/tenant' };
 	}
+
+	const section = getActiveRailItem(pathname);
+	if (section) {
+		return { labelKey: section.labelKey, path: section.path };
+	}
 	return { labelKey: 'nav-root-staff', path: '/staff' };
+};
+
+/**
+ * Routes declare their whole tail after the scope root, and many begin with
+ * their own section label (legacy shape: "Équipe › Organisations"). Now that
+ * the root IS that section, the duplicated leading label is dropped in one
+ * place rather than edited into every route declaration.
+ */
+const stripRepeatedRoot = (
+	tail: readonly CrumbSpec[],
+	root: BreadcrumbRootItem,
+): readonly CrumbSpec[] => {
+	const [first] = tail;
+	if (first?.kind === 'label' && first.labelKey === root.labelKey) {
+		return tail.slice(1);
+	}
+	return tail;
 };
 
 /**
@@ -117,7 +150,7 @@ export const deriveBreadcrumbTrail = (
 
 		return {
 			root,
-			tail: match.staticData.crumbs(match.params),
+			tail: stripRepeatedRoot(match.staticData.crumbs(match.params), root),
 			params: match.params,
 		};
 	}

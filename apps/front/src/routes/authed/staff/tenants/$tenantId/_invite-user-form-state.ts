@@ -2,6 +2,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
+import type { ResolveTenantProfileNameResolution } from '~/lib/query/staff-tenant-profiles';
 
 /**
  * Invite-drawer row state: one invited person, whether they came from the
@@ -51,11 +52,10 @@ export type InvalidCell = {
 	kind: 'boolean' | 'formula-error';
 };
 
-export type ProfileNameResolution = {
-	name: string;
-	profileId: string | null;
-	reason: 'not-found' | 'ambiguous' | null;
-};
+/** The named-profile resolution rows this drawer receives come straight
+ * from the resolve mutation, so the shape has one home in
+ * `~/lib/query/staff-tenant-profiles`. */
+export type ProfileNameResolution = ResolveTenantProfileNameResolution;
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

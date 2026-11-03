@@ -11,7 +11,7 @@
  * (same `.update()` wiring as `routeTree.gen.ts`, same harness precedent as
  * `staff-users-bulk-routing.test.tsx`) and the REAL production i18n init
  * helper (`createI18nFromResources` from `~/lib/i18n/shared`) fed the REAL
- * shipped `en/common.json` and `fr/common.json` bundles — the same instance
+ * shipped `common` bundle (shared-ts `common.{en,fr}.json`) — the same instance
  * shape `__root.tsx` serves in production. `react-i18next` is NEVER mocked
  * here: the FR bundle is genuinely loaded (fallbackLng disabled by the shared
  * helper), so a missing key surfaces as the raw key string and fails loudly
@@ -47,13 +47,14 @@ import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import resourceEN from '~/i18n/locales/en/common.json';
-import resourceFR from '~/i18n/locales/fr/common.json';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
 import {
-	createI18nFromResources,
 	type I18nResources,
 	type SupportedLanguage,
-} from '~/lib/i18n/shared';
+} from '@org/shared-ts/lib/i18n/shared';
 
 const mocks = vi.hoisted(() => ({
 	toGlobalTenantUserCompanyRows: vi.fn(),
@@ -132,8 +133,8 @@ vi.mock('./$userId-organizations-drawer', () => ({
 import { Route } from './$userId-organizations';
 
 const RESOURCES: I18nResources = {
-	en: { common: resourceEN },
-	fr: { common: resourceFR },
+	en: { common: enLocale.common },
+	fr: { common: frLocale.common },
 };
 
 const USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -163,10 +164,9 @@ const widen = <T,>(value: unknown): T => value as T;
  * language (`select-row-named`: "Select {{name}}" / "Sélectionner {{name}}")
  * — never hardcoded English. */
 const rowCheckboxName = (language: SupportedLanguage): string =>
-	(language === 'en' ? resourceEN : resourceFR)['select-row-named'].replace(
-		'{{name}}',
-		TENANT_ID,
-	);
+	(language === 'en' ? enLocale.common : frLocale.common)[
+		'select-row-named'
+	].replace('{{name}}', TENANT_ID);
 
 describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real router, real bundles)', () => {
 	let i18n: I18nInstance;

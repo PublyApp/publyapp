@@ -1,21 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import type { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
-const LOCALES_DIR = join(import.meta.dirname, '../../i18n/locales');
-
+// The `staff-jobs` catalogue lives in shared-ts with every other namespace (issue #2250), so the
+// shipped bundle is read through the same shared barrel the rest of this file already uses.
 const I18N_KEYS_PER_LOCALE = {
-	en: JSON.parse(
-		readFileSync(join(LOCALES_DIR, 'en/staff-jobs.json'), 'utf8'),
-	) as Record<string, string>,
-	fr: JSON.parse(
-		readFileSync(join(LOCALES_DIR, 'fr/staff-jobs.json'), 'utf8'),
-	) as Record<string, string>,
+	en: sharedEn['staff-jobs'] as Record<string, string>,
+	fr: sharedFr['staff-jobs'] as Record<string, string>,
 };
 
 const mocks = vi.hoisted(() => ({

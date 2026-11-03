@@ -12,7 +12,7 @@ import {
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
-import type { SortOrder } from '~/lib/url-state/table-search-params';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
@@ -29,13 +29,9 @@ import {
 export const TENANT_POSTS_QUERY_KEY = ['tenant-posts'] as const;
 const TENANT_POST_DETAILS_QUERY_KEY = ['tenant-posts', 'detail'] as const;
 
-export type TenantPostsQueryVariables = {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	size?: number;
-};
+/** The posts table's query variables ARE the shared table search contract
+ * (`~/lib/url-state/table-search-params`). */
+export type TenantPostsQueryVariables = TableSearchParams;
 
 export type TenantPostRow = {
 	id: string;

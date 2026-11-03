@@ -55,6 +55,7 @@ export type StaffTenantRow = {
 	usersCount: number;
 	projectsCount: number;
 	maxUsers: number;
+	lastActivityAt: Date | null;
 };
 
 export type StaffTenantDetailsQueryVariables = {
@@ -252,6 +253,7 @@ export const toStaffTenantRows = (
 			usersCount: item.usersCount ?? 0,
 			projectsCount: item.projectsCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,
+			lastActivityAt: normalizeDate(item.lastActivityAt),
 		});
 	}
 

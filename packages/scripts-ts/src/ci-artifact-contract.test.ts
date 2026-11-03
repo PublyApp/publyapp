@@ -7,6 +7,7 @@ import { test } from 'vitest';
 
 import {
 	EXPECTED_UPSTREAM_JOB_KEYS,
+	FRONT_REPORT_JOB_ID,
 	aggregateCiGate,
 	getExpectedJobLanes,
 	readRecords,
@@ -90,7 +91,7 @@ const makeCompleteRecords = (runAttempt: number = context.runAttempt) =>
 					]),
 				),
 				report:
-					jobKey === 'verification' && lane.lane === 'front'
+					jobKey === FRONT_REPORT_JOB_ID && lane.lane === 'front'
 						? {
 								front: {
 									non_vitest: {
@@ -110,7 +111,7 @@ const makeCompleteRecords = (runAttempt: number = context.runAttempt) =>
 		for (const lane of contracts.slice(1)) {
 			result.job.lanes[lane.lane] = makeLane(lane).job.lanes[lane.lane];
 		}
-		if (jobKey === 'verification') {
+		if (jobKey === FRONT_REPORT_JOB_ID) {
 			result.job.report = {
 				front: {
 					non_vitest: {
@@ -150,7 +151,12 @@ const completeAggregateInput = () => {
 		artifact_filenames: records.map((record) => record.artifact_filename),
 		central_results: Object.fromEntries(
 			[
-				'verification',
+				'quality-js',
+				'quality-dotnet',
+				'guards',
+				'docs-react',
+				'front-build',
+				'front-quality',
 				'audit-development',
 				'audit-production',
 				'api',
@@ -232,9 +238,9 @@ test.each([
 		/unknown field/,
 	],
 	[
-		'nested report on non-verification job',
+		'nested report on a job without the report lane',
 		(record: MutableObject) => (mutableObject(record.job).report = {}),
-		/only allowed on verification/,
+		/only allowed on front-build/,
 	],
 	[
 		'unknown lane mode',
@@ -264,9 +270,12 @@ test.each([
 
 test('omitted front nested report is rejected when the front lane is relevant', () => {
 	const record = createCiLaneResult({
-		jobKey: 'verification',
+		jobKey: FRONT_REPORT_JOB_ID,
 		lane: 'front',
-		expectedSteps: ['verification.front', 'verification.front.not-applicable'],
+		expectedSteps: [
+			`${FRONT_REPORT_JOB_ID}.front`,
+			`${FRONT_REPORT_JOB_ID}.front.not-applicable`,
+		],
 		mode: 'relevant',
 		runId: context.runId,
 		runAttempt: context.runAttempt,
@@ -275,8 +284,8 @@ test('omitted front nested report is rejected when the front lane is relevant', 
 		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
-			'verification.front': { outcome: 'success' },
-			'verification.front.not-applicable': { outcome: 'skipped' },
+			[`${FRONT_REPORT_JOB_ID}.front`]: { outcome: 'success' },
+			[`${FRONT_REPORT_JOB_ID}.front.not-applicable`]: { outcome: 'skipped' },
 		},
 	});
 	const failures: string[] = [];
@@ -287,9 +296,12 @@ test('omitted front nested report is rejected when the front lane is relevant', 
 
 test('irrelevant front lane rejects an unexpected nested report', () => {
 	const record = createCiLaneResult({
-		jobKey: 'verification',
+		jobKey: FRONT_REPORT_JOB_ID,
 		lane: 'front',
-		expectedSteps: ['verification.front', 'verification.front.not-applicable'],
+		expectedSteps: [
+			`${FRONT_REPORT_JOB_ID}.front`,
+			`${FRONT_REPORT_JOB_ID}.front.not-applicable`,
+		],
 		mode: 'not_applicable',
 		runId: context.runId,
 		runAttempt: context.runAttempt,
@@ -298,8 +310,8 @@ test('irrelevant front lane rejects an unexpected nested report', () => {
 		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
-			'verification.front': { outcome: 'skipped' },
-			'verification.front.not-applicable': { outcome: 'success' },
+			[`${FRONT_REPORT_JOB_ID}.front`]: { outcome: 'skipped' },
+			[`${FRONT_REPORT_JOB_ID}.front.not-applicable`]: { outcome: 'success' },
 		},
 		report: {},
 	});
@@ -311,9 +323,12 @@ test('irrelevant front lane rejects an unexpected nested report', () => {
 
 test('front nested report requires the exact ordered non-Vitest command ABI', () => {
 	const record = createCiLaneResult({
-		jobKey: 'verification',
+		jobKey: FRONT_REPORT_JOB_ID,
 		lane: 'front',
-		expectedSteps: ['verification.front', 'verification.front.not-applicable'],
+		expectedSteps: [
+			`${FRONT_REPORT_JOB_ID}.front`,
+			`${FRONT_REPORT_JOB_ID}.front.not-applicable`,
+		],
 		mode: 'relevant',
 		runId: context.runId,
 		runAttempt: context.runAttempt,
@@ -322,8 +337,8 @@ test('front nested report requires the exact ordered non-Vitest command ABI', ()
 		workflowRef: context.workflowRef,
 		workflowEvent: context.workflowEvent,
 		stepResults: {
-			'verification.front': { outcome: 'success' },
-			'verification.front.not-applicable': { outcome: 'skipped' },
+			[`${FRONT_REPORT_JOB_ID}.front`]: { outcome: 'success' },
+			[`${FRONT_REPORT_JOB_ID}.front.not-applicable`]: { outcome: 'skipped' },
 		},
 		report: {
 			front: {
@@ -380,11 +395,11 @@ test('aggregation rejects duplicate upstream records and duplicate artifact file
 	assert.match(aggregate.failures.join('\n'), /artifact filename set/);
 });
 
-test('aggregation rejects valid api and verification contents swapped between observed artifacts', () => {
+test('aggregation rejects valid api and front-report contents swapped between observed artifacts', () => {
 	const input = completeAggregateInput();
 	const api = input.records.find((record) => record.job.key === 'api/1');
 	const verification = input.records.find(
-		(record) => record.job.key === 'verification',
+		(record) => record.job.key === FRONT_REPORT_JOB_ID,
 	);
 	assert.ok(api);
 	assert.ok(verification);
@@ -518,7 +533,7 @@ test('aggregation rejects duplicate observed artifact containers', () => {
 
 test('relevant front report requires non-Vitest ok true even when failed commands explain false', () => {
 	const record = makeCompleteRecords().find(
-		(candidate) => candidate.job.key === 'verification',
+		(candidate) => candidate.job.key === FRONT_REPORT_JOB_ID,
 	);
 	assert.ok(record);
 	const report = mutableObject(record.job).report as MutableObject;
@@ -534,7 +549,7 @@ test('relevant front report requires non-Vitest ok true even when failed command
 
 test('nested non-Vitest diagnostics reject invalid optional types', () => {
 	const record = makeCompleteRecords().find(
-		(candidate) => candidate.job.key === 'verification',
+		(candidate) => candidate.job.key === FRONT_REPORT_JOB_ID,
 	);
 	assert.ok(record);
 	const report = mutableObject(record.job).report as MutableObject;
@@ -602,14 +617,14 @@ test('partial re-run: lanes from attempt 1 plus a lane re-run in the current att
 test('partial re-run: several lanes re-run across attempts 2 and 3 keep the highest attempt', () => {
 	const input = completeAggregateInput();
 	const attempt1 = makeCompleteRecords(1).map((record) =>
-		record.job.key === 'api/1' || record.job.key === 'verification'
+		record.job.key === 'api/1' || record.job.key === FRONT_REPORT_JOB_ID
 			? failLane(record)
 			: record,
 	);
 	const attempt2 = makeCompleteRecords(2)
 		.filter(
 			(record) =>
-				record.job.key === 'api/1' || record.job.key === 'verification',
+				record.job.key === 'api/1' || record.job.key === FRONT_REPORT_JOB_ID,
 		)
 		.map((record) => (record.job.key === 'api/1' ? failLane(record) : record));
 	const attempt3 = makeCompleteRecords(3).filter(
@@ -729,7 +744,7 @@ test('selectLatestAttemptArtifacts keeps the highest attempt per lane and foreig
 			make('ci-lane-result-42-1-api'),
 			make('ci-lane-result-42-3-api'),
 			make('ci-lane-result-42-2-api'),
-			make('ci-lane-result-42-2-verification'),
+			make(`ci-lane-result-42-2-${FRONT_REPORT_JOB_ID}`),
 			make('ci-lane-result-41-9-api'),
 			make('unrelated-container'),
 		],
@@ -738,7 +753,7 @@ test('selectLatestAttemptArtifacts keeps the highest attempt per lane and foreig
 
 	assert.deepEqual(selected, [
 		'ci-lane-result-42-3-api',
-		'ci-lane-result-42-2-verification',
+		`ci-lane-result-42-2-${FRONT_REPORT_JOB_ID}`,
 		'ci-lane-result-41-9-api',
 		'unrelated-container',
 	]);

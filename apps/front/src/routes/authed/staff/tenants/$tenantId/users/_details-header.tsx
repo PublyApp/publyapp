@@ -34,9 +34,7 @@ export const TenantUserDetailsHeader = ({
 			</Link>
 
 			<div className="space-y-2">
-				<h1 className="text-2xl font-semibold tracking-tight text-foreground">
-					{displayName}
-				</h1>
+				<h1 className="publy-type-page-title">{displayName}</h1>
 				<p className="max-w-3xl text-sm text-muted-foreground">
 					{email || t('no-email-available')}
 				</p>

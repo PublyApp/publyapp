@@ -7,6 +7,8 @@ import { parse } from 'yaml';
 import {
 	EXPECTED_JOB_LANES,
 	EXPECTED_UPSTREAM_JOB_KEYS,
+	EXPECTED_VERIFICATION_JOB_KEYS,
+	FRONT_REPORT_JOB_ID,
 } from './check-ci-gate-aggregation.ts';
 import type { JsonObject, JsonValue } from './json-value.ts';
 
@@ -1205,7 +1207,12 @@ export const findRequiredContextCollisionProblems = async ({
 
 export const CENTRAL_VISIBLE_CHECKS = [
 	'CI classifier',
-	'CI verification',
+	'CI quality (JS)',
+	'CI quality (.NET)',
+	'CI guard battery',
+	'CI docs and React Doctor',
+	'CI front build',
+	'CI front checks',
 	'Audit development dependencies',
 	'Audit production dependencies',
 	'API contract and suite (1/4)',
@@ -1227,7 +1234,7 @@ export const CENTRAL_VISIBLE_CHECKS = [
 
 const CENTRAL_JOB_IDS = [
 	'classify',
-	'verification',
+	...EXPECTED_VERIFICATION_JOB_KEYS,
 	'audit-development',
 	'audit-production',
 	'api',
@@ -1240,7 +1247,12 @@ const CENTRAL_JOB_IDS = [
 
 const CENTRAL_PERMISSIONS = {
 	classify: { contents: 'read', 'pull-requests': 'read' },
-	verification: { contents: 'read' },
+	'quality-js': { contents: 'read' },
+	'quality-dotnet': { contents: 'read' },
+	guards: { contents: 'read' },
+	'docs-react': { contents: 'read' },
+	'front-build': { contents: 'read' },
+	'front-quality': { contents: 'read' },
 	'audit-development': { contents: 'read' },
 	'audit-production': { contents: 'read' },
 	api: { contents: 'read' },
@@ -1312,12 +1324,16 @@ const EXPECTED_CENTRAL_CLASSIFIER_OUTPUTS = {
 } as const;
 
 const EXPECTED_CENTRAL_COLLECTOR_CLASSIFIER_OUTPUTS = {
-	verification: {
+	'quality-js': { quality: '${{ needs.classify.outputs.quality }}' },
+	'quality-dotnet': { quality: '${{ needs.classify.outputs.quality }}' },
+	guards: { quality: '${{ needs.classify.outputs.quality }}' },
+	'docs-react': {
 		quality: '${{ needs.classify.outputs.quality }}',
-		front: '${{ needs.classify.outputs.front }}',
 		docs: '${{ needs.classify.outputs.docs }}',
 		react: '${{ needs.classify.outputs.react }}',
 	},
+	'front-build': { front: '${{ needs.classify.outputs.front }}' },
+	'front-quality': { front: '${{ needs.classify.outputs.front }}' },
 	'audit-development': {
 		audit: '${{ needs.classify.outputs.quality }}',
 	},
@@ -1341,7 +1357,12 @@ const EXPECTED_CENTRAL_GATE_CLASSIFIER_OUTPUTS = {
 } as const;
 
 const EXPECTED_CENTRAL_PARENT_RESULTS = {
-	verification: '${{ needs.verification.result }}',
+	'quality-js': '${{ needs.quality-js.result }}',
+	'quality-dotnet': '${{ needs.quality-dotnet.result }}',
+	guards: '${{ needs.guards.result }}',
+	'docs-react': '${{ needs.docs-react.result }}',
+	'front-build': '${{ needs.front-build.result }}',
+	'front-quality': '${{ needs.front-quality.result }}',
 	'audit-development': '${{ needs.audit-development.result }}',
 	'audit-production': '${{ needs.audit-production.result }}',
 	api: '${{ needs.api.result }}',
@@ -1507,13 +1528,18 @@ const checkCentralTopologyInvariants = (
 	}
 	if (!deepEqualJson(expandedCentralNames(jobs), CENTRAL_VISIBLE_CHECKS)) {
 		findings.push(
-			'ci.yml: expanded display-name set is not exactly the pinned 19 labels',
+			`ci.yml: expanded display-name set is not exactly the pinned ${CENTRAL_VISIBLE_CHECKS.length} labels`,
 		);
 	}
 
 	const expectedPermissionsByJob = {
 		classify: CENTRAL_PERMISSIONS.classify,
-		verification: CENTRAL_PERMISSIONS.verification,
+		'quality-js': CENTRAL_PERMISSIONS['quality-js'],
+		'quality-dotnet': CENTRAL_PERMISSIONS['quality-dotnet'],
+		guards: CENTRAL_PERMISSIONS.guards,
+		'docs-react': CENTRAL_PERMISSIONS['docs-react'],
+		'front-build': CENTRAL_PERMISSIONS['front-build'],
+		'front-quality': CENTRAL_PERMISSIONS['front-quality'],
 		'audit-development': CENTRAL_PERMISSIONS['audit-development'],
 		'audit-production': CENTRAL_PERMISSIONS['audit-production'],
 		api: CENTRAL_PERMISSIONS.api,
@@ -1602,7 +1628,7 @@ const checkCentralTopologyInvariants = (
 
 	const expectedNeeds = [
 		'classify',
-		'verification',
+		...EXPECTED_VERIFICATION_JOB_KEYS,
 		'audit-development',
 		'audit-production',
 		'api',
@@ -2069,31 +2095,46 @@ const checkCentralVerificationSpecifics = (
 			'ci.yml: legacy CI_EXPECTED_STEPS artifact contract is not allowed',
 		);
 	}
-	const verificationSteps = jobs.verification?.steps ?? [];
-	const frontReportStep = verificationSteps.find((step) =>
-		String(step.run).includes('run-non-vitest-report-all.mts'),
+	// The serial `verification` job was split into the parallel jobs below.
+	// Every check formerly pinned against that one job is still pinned, now
+	// against the whole split set so no part can quietly lose its guarantees.
+	const verificationJobs = EXPECTED_VERIFICATION_JOB_KEYS.map(
+		(jobId) => [jobId, jobs[jobId]] as const,
+	);
+	const verificationSteps = verificationJobs.flatMap(([, job]) =>
+		Array.isArray(job?.steps) ? job.steps : [],
+	);
+	const frontReportStep = (jobs[FRONT_REPORT_JOB_ID]?.steps ?? []).find(
+		(step) => String(step.run).includes('run-non-vitest-report-all.mts'),
 	);
 	if (frontReportStep?.['working-directory'] !== 'apps/front') {
 		findings.push(
-			'verification: report-all runner must execute with apps/front as its working directory',
+			`${FRONT_REPORT_JOB_ID}: report-all runner must execute with apps/front as its working directory`,
 		);
 	}
-	const verificationCheckout = verificationSteps.find(
-		(step) => step.id === 'checkout',
-	);
-	if (verificationCheckout?.with?.['fetch-depth'] !== 0) {
-		findings.push(
-			'verification: React Doctor checkout must fetch full history',
+	for (const [jobId, job] of verificationJobs) {
+		const checkout = (Array.isArray(job?.steps) ? job.steps : []).find(
+			(step) => step.id === 'checkout',
 		);
-	}
-	for (const step of verificationSteps) {
-		if (step['continue-on-error'] !== true) {
-			continue;
-		}
-		if (step.if !== 'always()' && !String(step.if).startsWith('always() &&')) {
+		if (checkout?.with?.['fetch-depth'] !== 0) {
 			findings.push(
-				`verification: independent step ${String(step.name)} must have an always() condition`,
+				`${jobId}: checkout must fetch full history for the drift, React Doctor, and report-all git reads`,
 			);
+		}
+	}
+	for (const [jobId, job] of verificationJobs) {
+		for (const step of Array.isArray(job?.steps) ? job.steps : []) {
+			if (step['continue-on-error'] !== true) {
+				continue;
+			}
+			if (
+				step.if !== 'always()' &&
+				!String(step.if).startsWith('always() &&')
+			) {
+				findings.push(
+					`${jobId}: independent step ${String(step.name)} must have an always() condition`,
+				);
+			}
 		}
 	}
 	for (const name of [
@@ -2227,7 +2268,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 	});
 	const expected: UploadContract[] = [
 		laneUpload('classify', 'classify'),
-		laneUpload('verification', 'verification'),
+		...EXPECTED_VERIFICATION_JOB_KEYS.map((jobId) => laneUpload(jobId, jobId)),
 		laneUpload('audit-development', 'audit-development'),
 		laneUpload('audit-production', 'audit-production'),
 		laneUpload('api', 'api-\${{ matrix.shard }}'),

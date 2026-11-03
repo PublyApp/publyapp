@@ -32,9 +32,9 @@ import { I18nextProvider } from 'react-i18next';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { UseTableControllerResult } from '~/components/table/use-table-controller';
-import resourceEN from '~/i18n/locales/en/common.json';
-import resourceFR from '~/i18n/locales/fr/common.json';
-import { createI18nFromResources } from '~/lib/i18n/shared';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 
 // The cards themselves pull in `<Link>`, which needs a router context this
@@ -141,7 +141,7 @@ const renderCardGrid = (i18n: I18nInstance): void => {
 
 test('card grid: the range upper bound is the rendered card count, not the page size', () => {
 	const i18n = createI18nFromResources('en', ['common'], {
-		en: { common: resourceEN },
+		en: { common: enLocale.common },
 	});
 	renderCardGrid(i18n);
 
@@ -153,7 +153,7 @@ test('card grid: the range upper bound is the rendered card count, not the page 
 
 test('card grid: the honest bound holds in French too', () => {
 	const i18n = createI18nFromResources('fr', ['common'], {
-		fr: { common: resourceFR },
+		fr: { common: frLocale.common },
 	});
 	renderCardGrid(i18n);
 

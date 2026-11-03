@@ -201,13 +201,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 		}
 
 		// Get the staff user ID who is inviting
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		// Create the invitation. Persists a durable email outbox row in the same
 		// transaction as the invitation (round-5 API F3); InvitationEmailOutboxDispatcher

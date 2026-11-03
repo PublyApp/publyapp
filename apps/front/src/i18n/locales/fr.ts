@@ -1,38 +1,10 @@
 import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
 import type { LooseResource } from './en';
-import account from './fr/account.json';
-import auth from './fr/auth.json';
-import common from './fr/common.json';
-import landing from './fr/landing.json';
-import organizations from './fr/organizations.json';
-import posts from './fr/posts.json';
-import settings from './fr/settings.json';
-import socialAccounts from './fr/social-accounts.json';
-import staffAuditLogs from './fr/staff-audit-logs.json';
-import staffInvitations from './fr/staff-invitations.json';
-import staffJobs from './fr/staff-jobs.json';
-import staffTenantActivity from './fr/staff-tenant-activity.json';
-import staffTenantProfiles from './fr/staff-tenant-profiles.json';
-import staffUsers from './fr/staff-users.json';
 
-const resourceFR = {
-	common,
-	zod: sharedFr.zod,
-	'response-message': sharedFr['response-message'],
-	auth,
-	account,
-	settings,
-	organizations,
-	posts,
-	'social-accounts': socialAccounts,
-	'staff-tenant-profiles': staffTenantProfiles,
-	'staff-users': staffUsers,
-	'staff-invitations': staffInvitations,
-	'staff-audit-logs': staffAuditLogs,
-	'staff-jobs': staffJobs,
-	'staff-tenant-activity': staffTenantActivity,
-	landing,
-} as const satisfies LooseResource;
+// `satisfies` keeps the EN/FR type-parity assertion this barrel has always carried, even though
+// neither side is authored here any more: a namespace (or a key) added on one side and not the
+// other still fails typecheck.
+const resourceFR = sharedFr satisfies LooseResource;
 
 export default resourceFR;

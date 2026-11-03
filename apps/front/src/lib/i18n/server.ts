@@ -1,12 +1,11 @@
 import { parse as parseCookie } from 'cookie';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
-
 import {
 	FALLBACK_LANGUAGE,
 	isSupportedLanguage,
 	type SupportedLanguage,
-} from './shared';
+} from '@org/shared-ts/lib/i18n/shared';
 
 const normalizeLocale = (
 	value: string | null | undefined,

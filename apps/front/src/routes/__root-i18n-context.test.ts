@@ -2,6 +2,14 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { LOCALE_COOKIE_KEY } from '@org/shared-ts/lib/constants';
+import type {
+	I18nRouteMatch,
+	SupportedNamespace,
+} from '@org/shared-ts/lib/i18n/namespaces';
+import type {
+	I18nResources,
+	SupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 
 const mocks = vi.hoisted(() => ({
 	createBackendI18n: vi.fn(),
@@ -9,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 	loadI18nForRequest: vi.fn(),
 }));
 
-vi.mock('~/lib/i18n/backend', () => ({
+vi.mock('@org/shared-ts/lib/i18n/backend', () => ({
 	createBackendI18n: mocks.createBackendI18n,
 	loadI18nContext: mocks.loadI18nContext,
 }));
@@ -18,9 +26,6 @@ vi.mock('~/server/i18n-locale', () => ({
 	loadI18nForRequest: mocks.loadI18nForRequest,
 	setLocale: vi.fn(),
 }));
-
-import type { I18nRouteMatch, SupportedNamespace } from '~/lib/i18n/namespaces';
-import type { I18nResources, SupportedLanguage } from '~/lib/i18n/shared';
 
 import { Route as RootRoute } from './__root';
 

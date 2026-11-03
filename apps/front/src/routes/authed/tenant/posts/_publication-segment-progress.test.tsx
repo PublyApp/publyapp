@@ -10,12 +10,11 @@ import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, test } from 'vitest';
-import resourceEN from '~/i18n/locales/en/posts.json';
-import resourceFR from '~/i18n/locales/fr/posts.json';
-import {
-	createI18nFromResources,
-	type SupportedLanguage,
-} from '~/lib/i18n/shared';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
+import { type SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
 
 import { PublicationSegmentProgress } from './_publication-segment-progress';
 
@@ -23,7 +22,7 @@ afterEach(cleanup);
 
 const createI18n = (language: SupportedLanguage): I18nInstance =>
 	createI18nFromResources(language, ['posts'], {
-		[language]: { posts: language === 'en' ? resourceEN : resourceFR },
+		[language]: { posts: language === 'en' ? enLocale.posts : frLocale.posts },
 	});
 
 const labelOf = (

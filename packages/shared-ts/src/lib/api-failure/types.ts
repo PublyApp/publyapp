@@ -1,3 +1,5 @@
+import type { JsonObject } from '../../types/json.types';
+
 export type ProblemFailure = {
 	kind: 'problem';
 	status: number;
@@ -5,8 +7,10 @@ export type ProblemFailure = {
 	detail: string | undefined;
 	title: string | undefined;
 	/** The problem's machine-readable extension members (`destination`,
-	 * `segmentNumber`, `reason`, ...), when the API sent any. */
-	extensions?: Record<string, unknown>;
+	 * `segmentNumber`, `reason`, ...), when the API sent any. A problem response
+	 * is external JSON, so its members are read as {@link JsonValue}s rather
+	 * than asserted into a shape the API never promised. */
+	extensions?: JsonObject;
 };
 
 export type ValidationFailure = {
@@ -15,7 +19,7 @@ export type ValidationFailure = {
 	translationKey: string | undefined;
 	detail: string | undefined;
 	title: string | undefined;
-	extensions?: Record<string, unknown>;
+	extensions?: JsonObject;
 	fieldErrors: Record<string, string[]>;
 };
 

@@ -20,6 +20,26 @@ describe('PageHeader', () => {
 
 		expect(screen.getByText('12')).toBeTruthy();
 	});
+
+	// #2280: at 390px the action cluster painted over the end of the title.
+	// Under md the title takes its own row and the actions drop below it.
+	test('drops the actions below the title under md', () => {
+		const { container } = render(
+			<PageHeader
+				title="Organisations"
+				actions={<button type="button">Exporter</button>}
+			/>,
+		);
+
+		const header = container.querySelector('header');
+		expect(header?.className).toContain('max-md:flex-col');
+		expect(header?.className).toContain('max-md:items-stretch');
+
+		const actions = screen.getByRole('button', {
+			name: 'Exporter',
+		}).parentElement;
+		expect(header?.lastElementChild).toBe(actions);
+	});
 });
 
 describe('StatusPill', () => {

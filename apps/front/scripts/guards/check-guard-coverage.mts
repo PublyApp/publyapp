@@ -39,7 +39,7 @@
  * guard deleted) is a loud failure, never a compliant green.
  *
  * CI: runs inside `pnpm --filter front test` from the central workflow's
- * `verification` job, "Test front (non-vitest report-all)" step, as `pnpm
+ * `front-build` job, "Test front (non-vitest report-all)" step, as `pnpm
  * check:guard-coverage`; its
  * own unit tests run as `test:guard-coverage-guard` in the same chain.
  */

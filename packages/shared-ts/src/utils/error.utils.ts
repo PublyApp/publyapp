@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 
 import type { NameSpace } from '../lib/i18n/resources';
+import type { JsonObject } from '../types/json.types';
 
 const GENERIC_FALLBACK = 'An error occurred';
 
@@ -40,7 +41,9 @@ export const getSerializedErrorMessage = (
 	}
 
 	if (typeof error === 'object') {
-		const obj = error as Record<string, unknown>;
+		// A serialized error arrives as JSON: read its two i18n keys rather
+		// than asserting a shape the caller never promised.
+		const obj = error as JsonObject;
 		const translationKey = obj.translationKey || obj.key;
 		if (typeof translationKey === 'string' && translationKey.length > 0) {
 			// Missing keys render the key itself; naming it as defaultValue

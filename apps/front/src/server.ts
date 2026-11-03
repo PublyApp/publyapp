@@ -4,6 +4,12 @@ import {
 	defaultStreamHandler,
 } from '@tanstack/react-start/server';
 
+import {
+	createBackendI18n,
+	loadNamespacesStrict,
+} from '@org/shared-ts/lib/i18n/backend';
+import { GLOBAL_I18N_NAMESPACES } from '@org/shared-ts/lib/i18n/namespaces';
+import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 import {
@@ -11,10 +17,7 @@ import {
 	classifyBadResponse,
 } from './lib/analytics/analytics';
 import { getPublicEnv, getServerEnv, isDevelopmentRuntime } from './lib/env';
-import { createBackendI18n, loadNamespacesStrict } from './lib/i18n/backend';
-import { GLOBAL_I18N_NAMESPACES } from './lib/i18n/namespaces';
 import { resolveLocaleFromCookie } from './lib/i18n/server';
-import type { SupportedLanguage } from './lib/i18n/shared';
 import { applyCspHeaders } from './server/csp';
 import { seo } from './utils/seo';
 

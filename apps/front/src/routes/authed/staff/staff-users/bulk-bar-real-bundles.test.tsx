@@ -4,13 +4,9 @@ import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import resourceEN from '~/i18n/locales/en/common.json';
-import resourceFR from '~/i18n/locales/fr/common.json';
-import {
-	createI18nFromResources,
-	type I18nResources,
-	type SupportedLanguage,
-} from '~/lib/i18n/shared';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 
 /**
  * #1400 — the bulk-actions trigger must speak the app's REAL locale bundles.
@@ -21,7 +17,7 @@ import {
  * to them; FR coverage relied on the static key-coverage gate alone (issue
  * finding 2). This suite mounts `StaffUsersListBulkActions` through the REAL
  * production init helper (`createI18nFromResources` from `~/lib/i18n/shared`)
- * fed the REAL shipped `en/common.json` and `fr/common.json` bundles — the
+ * fed the REAL shipped `common` bundle (shared-ts `common.{en,fr}.json`) — the
  * same instance shape `__root.tsx` serves in production, no synthetic `t`
  * anywhere — and pins the bar's texts per language. (The tenants bar joins
  * this suite once #1400 extracts the shared trigger and exports the
@@ -41,6 +37,10 @@ import {
 	AccountLevelObject,
 	UserStatusObject,
 } from '@org/client-ts/models/index';
+import {
+	type I18nResources,
+	type SupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 
 import { StaffUsersListBulkActions } from './_list-bulk-actions';
 
@@ -89,8 +89,8 @@ vi.mock('~/routes/authed/staff/staff-list-export-selected', () => ({
 /** REAL init helper, REAL shipped bundles — never re-states production init
  * (same discipline as `src/lib/i18n/trans-render.guard.test.tsx`). */
 const RESOURCES: I18nResources = {
-	en: { common: resourceEN },
-	fr: { common: resourceFR },
+	en: { common: enLocale.common },
+	fr: { common: frLocale.common },
 };
 
 const USER_A = '11111111-1111-1111-1111-111111111111';

@@ -13,8 +13,9 @@ import { I18nextProvider } from 'react-i18next';
 import { describe, expect, test } from 'vitest';
 import resourceEN from '~/i18n/locales/en';
 import resourceFR from '~/i18n/locales/fr';
-import { createI18nFromResources } from '~/lib/i18n/shared';
-import type { SupportedLanguage } from '~/lib/i18n/shared';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
+import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
 
 import { useResponseMessageTranslator } from './use-response-message-translator';
 

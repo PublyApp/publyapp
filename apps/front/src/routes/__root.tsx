@@ -29,20 +29,7 @@ import { isAuthPath } from '~/lib/auth/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
-import { createBackendI18n, loadI18nContext } from '~/lib/i18n/backend';
-import {
-	collectI18nNamespaces,
-	type I18nRouteMatch,
-	type SupportedNamespace,
-} from '~/lib/i18n/namespaces';
-import {
-	createI18nFromResources,
-	dirForLocale,
-	FALLBACK_LANGUAGE,
-	type I18nResources,
-	isSupportedLanguage,
-	type SupportedLanguage,
-} from '~/lib/i18n/shared';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 import { registerMutationToastI18n } from '~/lib/mutation-feedback/mutation-toast';
 import {
 	hasExactAuthedRouteMatch,
@@ -68,6 +55,22 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import {
+	createBackendI18n,
+	loadI18nContext,
+} from '@org/shared-ts/lib/i18n/backend';
+import {
+	collectI18nNamespaces,
+	type I18nRouteMatch,
+	type SupportedNamespace,
+} from '@org/shared-ts/lib/i18n/namespaces';
+import {
+	dirForLocale,
+	FALLBACK_LANGUAGE,
+	type I18nResources,
+	isSupportedLanguage,
+	type SupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 import { withSessionValidationTimeout } from '@org/shared-ts/lib/session-validation';
 

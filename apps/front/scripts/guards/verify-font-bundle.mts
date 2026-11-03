@@ -10,7 +10,15 @@ import process from 'node:process';
 import { brotliDecompressSync } from 'node:zlib';
 
 const DEFAULT_DIST = resolve(process.cwd(), 'dist');
-const DEFAULT_LOCALES_DIR = resolve(process.cwd(), 'src/i18n/locales');
+// Every catalogue moved to `packages/shared-ts` (issue #2250) — this guard keeps proving the same
+// thing (the shipped font subset covers every codepoint the shipped translations use), it just
+// walks the directory the translations now live in. That directory also holds the `zod` and
+// `response-message` catalogues, which ship to the app too; measured before the move, they
+// contribute no codepoint the other catalogues do not already require.
+const DEFAULT_LOCALES_DIR = resolve(
+	process.cwd(),
+	'../../packages/shared-ts/src/lib/i18n/json',
+);
 const DEFAULT_FONTS_DIR = 'client/fonts/geist';
 const WOFF2_SIGNATURE = 0x774f4632;
 

@@ -14,12 +14,25 @@ import { isServer } from '../constants';
 import { defaultLocale, type AppLocale } from '../i18n/resources';
 
 /**
+ * The options InterZod hands a translator: the namespace to resolve in, the
+ * fallback sentence, and that message's placeholder substitutions
+ * (`expected`, `received`, `value`, `minimum`, ...). Every one of them is
+ * placeholder text, so the bag is a string map — naming it stops InterZod from
+ * claiming it accepts arbitrary option values it never builds.
+ */
+type TranslateOptions = {
+	ns?: string;
+	defaultValue?: string;
+	[key: string]: string | undefined;
+};
+
+/**
  * Structural stand-in for i18next's branded `TFunction`: InterZod only ever
  * calls `t(key, options)` with plain-string results, and requiring the brand
  * forced every hand-rolled translator (e.g. server-side identity stubs) to
  * carry i18next's internal `$TFunctionBrand` marker.
  */
-type TranslateLike = (key: string, options?: Record<string, unknown>) => string;
+type TranslateLike = (key: string, options?: TranslateOptions) => string;
 
 export type InterZodTranslator = TranslateLike;
 
@@ -29,7 +42,7 @@ type I18nLike = {
 };
 
 /** Options for dynamically-built translation calls (key not statically known). */
-type DynamicTOptions = Record<string, unknown> & { defaultValue: string };
+type DynamicTOptions = TranslateOptions & { defaultValue: string };
 
 /** Call a translation function with a runtime-computed key/options pair. */
 const callT = (

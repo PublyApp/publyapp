@@ -13,7 +13,7 @@ import {
 } from './check-ci-gate-aggregation.ts';
 import { createCiLaneResult } from './ci-lane-result.ts';
 
-// Proves the central gate's artifact aggregation fails closed: all 15 expected
+// Proves the central gate's artifact aggregation fails closed: all 23 expected
 // lane artifacts must exist, carry the exact run identity and step set, match
 // classifier relevance, and report successful required work. It also checks
 // that ci.yml invokes this aggregator from the sole final-gate topology.
@@ -25,11 +25,16 @@ const repoRoot = path.resolve(
 
 const workflowsDirectory = path.join(repoRoot, '.github/workflows');
 
-test('requires the exact 18 upstream artifact keys', () => {
-	assert.equal(EXPECTED_UPSTREAM_JOB_KEYS.length, 18);
+test('requires the exact 23 upstream artifact keys', () => {
+	assert.equal(EXPECTED_UPSTREAM_JOB_KEYS.length, 23);
 	assert.deepEqual(EXPECTED_UPSTREAM_JOB_KEYS, [
 		'classify',
-		'verification',
+		'quality-js',
+		'quality-dotnet',
+		'guards',
+		'docs-react',
+		'front-build',
+		'front-quality',
 		'audit-development',
 		'audit-production',
 		'api/1',
@@ -59,7 +64,7 @@ test('fails closed when a result artifact is missing or has incomplete step evid
 
 	assert.equal(result.ok, false);
 	assert.ok(
-		result.failures.some((failure) => /missing|exactly 15/i.test(failure)),
+		result.failures.some((failure) => /missing|exactly 23/i.test(failure)),
 	);
 });
 

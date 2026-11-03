@@ -226,8 +226,8 @@ const StaffJobsSystemJobsPage = () => {
 					onPreviousPage: controller.cursor.onPreviousPage,
 				}}
 				emptyIcon={IconActivity}
-				emptyTitle={t('common:no-audit-logs-yet')}
-				emptyContent={t('common:no-audit-logs-description')}
+				emptyTitle={t('system-empty-title')}
+				emptyContent={t('system-empty-description')}
 				noMatchTitle={t('no-rows-match-title')}
 				noMatchContent={t('no-rows-match-description')}
 				sort={controller.sort}

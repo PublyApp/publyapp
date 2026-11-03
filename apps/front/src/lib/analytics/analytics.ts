@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 
+import type { AnalyticsProperties } from '@org/shared-ts/lib/analytics/analytics.types';
 import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
@@ -65,12 +66,15 @@ const buildBadResponseProperties = ({
 	method,
 	status,
 	locale,
-}: BadResponseCaptureArgs) => ({
-	path,
-	method,
-	status,
-	locale,
-});
+}: BadResponseCaptureArgs): AnalyticsProperties => {
+	const properties: AnalyticsProperties = { path, method, status };
+	// PostHog properties are JSON, which has no `undefined`: an absent locale is
+	// omitted rather than carried as a value JSON serialisation would drop.
+	if (locale !== undefined) {
+		properties.locale = locale;
+	}
+	return properties;
+};
 
 export type BadResponseDisposition = 'debug' | 'drop' | 'error';
 

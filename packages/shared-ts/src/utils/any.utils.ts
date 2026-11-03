@@ -40,8 +40,10 @@ export const isPromise = (input: unknown): input is Promise<unknown> => {
 		(typeof Promise !== 'undefined' && input instanceof Promise) ||
 		(input !== null &&
 			typeof input === 'object' &&
-			typeof (input as Record<string, unknown>).then === 'function' &&
-			typeof (input as Record<string, unknown>).catch === 'function')
+			'then' in input &&
+			typeof input.then === 'function' &&
+			'catch' in input &&
+			typeof input.catch === 'function')
 	);
 };
 

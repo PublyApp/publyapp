@@ -436,7 +436,7 @@ test("the repo's own workflows are fully reconciled with the local gate", async 
 });
 
 // The CODEOWNERS contract must stay wired into `just ci-drift` and the
-// central verification lane. Those wiring facts are
+// central guard battery lane. Those wiring facts are
 // asserted HERE as well as inside codeowners-contract.test.mjs, because the
 // CODEOWNERS suite cannot be the only witness to its own wiring: it is
 // itself invoked by the exact recipe line the assertion protects, so
@@ -453,13 +453,16 @@ const ciDriftRecipe = readFileSync(
 	'utf8',
 ).match(/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m)?.[1];
 
+// The serial `verification` job was split into parallel jobs; the guard
+// battery job is the one that runs the scripts-ts guard suite, so it is the
+// lane these wiring checks read.
 const centralVerificationRunBlock = (
 	parse(
 		readFileSync(path.join(repoRoot, '.github/workflows/ci.yml'), 'utf8'),
 	) as {
 		jobs?: Record<string, { steps?: Array<{ name?: string; run?: string }> }>;
 	}
-).jobs?.verification?.steps
+).jobs?.guards?.steps
 	?.filter((step) => typeof step.run === 'string')
 	.map((step) => step.run)
 	.join('\n');
@@ -501,21 +504,21 @@ test('a commented-out ci-drift invocation fails this independent wiring check', 
 	);
 });
 
-test('the central verification lane runs the CODEOWNERS contract', () => {
+test('the central guard battery lane runs the CODEOWNERS contract', () => {
 	assert.ok(
 		typeof centralVerificationRunBlock === 'string',
-		'ci.yml must define the central verification lane',
+		'ci.yml must define the central guard battery lane',
 	);
 	assertRunsCodeownersContract(
 		centralVerificationRunBlock!,
-		'central verification',
+		'central guard battery',
 	);
 });
 
 test('a commented-out central CODEOWNERS invocation fails this independent wiring check', () => {
 	assert.ok(
 		typeof centralVerificationRunBlock === 'string',
-		'ci.yml must define the central verification lane',
+		'ci.yml must define the central guard battery lane',
 	);
 	assert.throws(
 		() =>
@@ -524,14 +527,14 @@ test('a commented-out central CODEOWNERS invocation fails this independent wirin
 					'src/codeowners-contract.test.ts',
 					'ci-contracts.test.ts',
 				),
-				'central verification',
+				'central guard battery',
 			),
-		/central verification must run the CODEOWNERS contract from an executable line/,
+		/central guard battery must run the CODEOWNERS contract from an executable line/,
 	);
 });
 
 // The artifact-version-compat guard (#1728) must stay wired into `just ci-drift`
-// and the central verification lane. The same anti-rot
+// and the central guard battery lane. The same anti-rot
 // reasoning as the CODEOWNERS block above applies: the guard cannot be the only
 // witness to its own wiring, because commenting out its invocation would remove
 // the detector along with the command it guards.
@@ -572,21 +575,21 @@ test('a commented-out ci-drift artifact-compat invocation fails this independent
 	);
 });
 
-test('the central verification lane runs the artifact version compat guard', () => {
+test('the central guard battery lane runs the artifact version compat guard', () => {
 	assert.ok(
 		typeof centralVerificationRunBlock === 'string',
-		'ci.yml must define the central verification lane',
+		'ci.yml must define the central guard battery lane',
 	);
 	assert.ok(
 		centralVerificationRunBlock.includes(centralArtifactCompatTestInvocation),
-		'central verification must run the artifact version compat test from an executable line',
+		'central guard battery must run the artifact version compat test from an executable line',
 	);
 });
 
 test('a commented-out central artifact-compat invocation fails this independent wiring check', () => {
 	assert.ok(
 		typeof centralVerificationRunBlock === 'string',
-		'ci.yml must define the central verification lane',
+		'ci.yml must define the central guard battery lane',
 	);
 	assert.throws(() => {
 		const mutated = centralVerificationRunBlock.replace(
@@ -595,9 +598,9 @@ test('a commented-out central artifact-compat invocation fails this independent 
 		);
 		assert.ok(
 			mutated.includes(centralArtifactCompatTestInvocation),
-			'central verification must run the artifact version compat test from an executable line',
+			'central guard battery must run the artifact version compat test from an executable line',
 		);
-	}, /central verification must run the artifact version compat test from an executable line/);
+	}, /central guard battery must run the artifact version compat test from an executable line/);
 });
 
 // --- Reason guard tests (#1725, #1732) ---

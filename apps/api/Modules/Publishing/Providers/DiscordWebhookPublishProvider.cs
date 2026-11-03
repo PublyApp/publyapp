@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
+using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 
@@ -169,13 +170,13 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		CancellationToken cancellationToken
 	) {
 		var body = await DiscordWebhookPublishProvider._ReadJsonAsync(response, cancellationToken);
-		var id = DiscordWebhookPublishProvider._String(body, "id");
+		var id = body.GetStringPropertyOrNull("id");
 		if (id is null) {
 			return new PublishResult.Ambiguous("Discord accepted the message but returned no id");
 		}
 
 		// PdsHost is the https://discord.com/channels/{guild} prefix, empty when no link can be built.
-		var channel = DiscordWebhookPublishProvider._String(body, "channel_id");
+		var channel = body.GetStringPropertyOrNull("channel_id");
 		var url = request.Session.PdsHost.Length > 0 && channel is not null
 			? $"{request.Session.PdsHost}/{channel}/{id}"
 			: string.Empty;
@@ -194,7 +195,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 			// Status only.
 		}
 
-		var detail = payload is { } body ? DiscordWebhookPublishProvider._String(body, "message") : null;
+		var detail = payload is { } body ? body.GetStringPropertyOrNull("message") : null;
 		// Belt and braces: an answer that echoes a webhook path is never copied.
 		detail = detail is not null && detail.Contains("webhooks/", StringComparison.OrdinalIgnoreCase) ? null : detail;
 		var cause = DiscordWebhookPublishProvider._Clean($"Discord answered {status}" + (detail is null ? string.Empty : $": {detail}"));
@@ -235,15 +236,6 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		}
 
 		return delay.Value > TimeSpan.FromHours(1) ? TimeSpan.FromHours(1) : delay;
-	}
-
-	private static string? _String(JsonElement payload, string name) {
-		return payload.ValueKind == JsonValueKind.Object
-			&& payload.TryGetProperty(name, out var value)
-			&& value.ValueKind == JsonValueKind.String
-			&& !string.IsNullOrWhiteSpace(value.GetString())
-				? value.GetString()
-				: null;
 	}
 
 	private static async Task<JsonElement> _ReadJsonAsync(

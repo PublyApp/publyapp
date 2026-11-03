@@ -15,6 +15,20 @@ public interface IRequestAuthContext {
 	string? TenantId { get; set; }
 	UserAccount? AccountTenant { get; set; }
 	bool IsTenantAuthorized { get; }
+
+	/// <summary>
+	/// Gets the staff account with a null check. Throws InvalidOperationException if no
+	/// staff principal is in the context, which means the endpoint is missing
+	/// .WithPermission() middleware. The same safe-accessor shape as GetRequiredId().
+	/// </summary>
+	UserAccount GetRequiredStaffAccount();
+
+	/// <summary>
+	/// Gets the tenant account with a null check. Throws InvalidOperationException if no
+	/// tenant principal is in the context, which means the endpoint is missing
+	/// .WithTenantPermission(...) middleware. The same safe-accessor shape as GetRequiredId().
+	/// </summary>
+	UserAccount GetRequiredTenantAccount();
 }
 
 public class RequestAuthContext : IRequestAuthContext {
@@ -41,5 +55,27 @@ public class RequestAuthContext : IRequestAuthContext {
 		!this.AccountTenant.IsSuspended() &&
 		this.AccountTenant.Scope == AccountScope.Tenant;
 		}
+	}
+
+	public UserAccount GetRequiredStaffAccount() {
+		var account = this.AccountStaff;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Staff account not found in auth context. "
+				+ "Ensure the endpoint has .WithPermission() middleware."
+			);
+		}
+		return account;
+	}
+
+	public UserAccount GetRequiredTenantAccount() {
+		var account = this.AccountTenant;
+		if (account is null) {
+			throw new InvalidOperationException(
+				"Tenant account not found in auth context. "
+				+ "Ensure the endpoint has .WithTenantPermission(...) middleware."
+			);
+		}
+		return account;
 	}
 }

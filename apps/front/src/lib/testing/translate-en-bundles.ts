@@ -1,5 +1,4 @@
-import common from '~/i18n/locales/en/common.json';
-import posts from '~/i18n/locales/en/posts.json';
+import enLocale from '~/i18n/locales/en';
 
 import type { TestLocaleLabelMap } from './test-label-map';
 
@@ -10,7 +9,10 @@ import type { TestLocaleLabelMap } from './test-label-map';
  * the test wrote for itself. Interpolates `{{name}}` and picks `_one`/`_other`
  * for a `count`.
  */
-const BUNDLES: TestLocaleLabelMap = { posts, common };
+const BUNDLES: TestLocaleLabelMap = {
+	posts: enLocale.posts,
+	common: enLocale.common,
+};
 
 export const translateEnBundles = (
 	key: string,

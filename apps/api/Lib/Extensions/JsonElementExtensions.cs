@@ -30,39 +30,18 @@ public static class JsonElementExtensions {
 		[CallerArgumentExpression(nameof(element))]
 		string? propertyName = null
 	) {
-		if (element?.ValueKind != JsonValueKind.String) {
+		if (element is not { } value) {
 			throw new InvalidOperationException(
 				$"{propertyName} is not a string"
 			);
 		}
-		var value = element.Value.GetString();
-		if (value is null) {
-			throw new InvalidOperationException(
-				$"{propertyName} is not a string"
-			);
-		}
-		return value;
+		return value.GetValueAsString(propertyName);
 	}
 
 	public static string? GetValueAsStringOrNull(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element?.ValueKind switch {
-			null => null,
-			JsonValueKind.Null => null,
-			JsonValueKind.Undefined => null,
-			JsonValueKind.String => element?.GetString(),
-			JsonValueKind.Object
-				or JsonValueKind.Array
-				or JsonValueKind.Number
-				or JsonValueKind.True
-				or JsonValueKind.False => throw new InvalidOperationException(
-					$"{propertyName} must be a string or null"
-				),
-			_ => throw new ArgumentOutOfRangeException(
-				nameof(element),
-				element?.ValueKind,
-				$"Unhandled JsonValueKind: {element?.ValueKind}"
-			)
-		};
+		return element is null
+			? null
+			: element.Value.GetValueAsStringOrNull(propertyName);
 	}
 
 	public static string? GetValueAsStringOrNull(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
@@ -86,24 +65,7 @@ public static class JsonElementExtensions {
 	}
 
 	public static bool GetValueAsBoolean(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element?.ValueKind switch {
-			null => false,
-			JsonValueKind.Null => false,
-			JsonValueKind.Undefined => false,
-			JsonValueKind.True => true,
-			JsonValueKind.False => false,
-			JsonValueKind.Object
-				or JsonValueKind.Array
-				or JsonValueKind.String
-				or JsonValueKind.Number => throw new InvalidOperationException(
-					$"{propertyName} must be a boolean or null"
-				),
-			_ => throw new ArgumentOutOfRangeException(
-				nameof(element),
-				element?.ValueKind,
-				$"Unhandled JsonValueKind: {element?.ValueKind}"
-			)
-		};
+		return element is not null && element.Value.GetValueAsBoolean(propertyName);
 	}
 
 	public static bool GetValueAsBoolean(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
@@ -150,27 +112,15 @@ public static class JsonElementExtensions {
 		[CallerArgumentExpression(nameof(element))]
 		string? propertyName = null
 	) {
-		if (element is null
-			|| element.Value.ValueKind
+		if (element is not { } value
+			|| value.ValueKind
 				is JsonValueKind.Null
 				or JsonValueKind.Undefined) {
 			throw new InvalidOperationException(
 				$"{propertyName} is not a guid"
 			);
 		}
-		if (element.Value.ValueKind
-			!= JsonValueKind.String) {
-			throw new InvalidOperationException(
-				$"{propertyName} must be a guid"
-			);
-		}
-		var guidStr = element.Value.GetString();
-		if (guidStr is null) {
-			throw new InvalidOperationException(
-				$"{propertyName} is not a guid"
-			);
-		}
-		return Guid.Parse(guidStr);
+		return value.GetValueAsGuid(propertyName);
 	}
 
 	public static Guid? GetValueAsGuidOrNull(
@@ -206,29 +156,9 @@ public static class JsonElementExtensions {
 		[CallerArgumentExpression(nameof(element))]
 		string? propertyName = null
 	) {
-		return element?.ValueKind switch {
-			null => null,
-			JsonValueKind.Undefined => null,
-			JsonValueKind.Null => null,
-			JsonValueKind.String => element.Value.GetString()
-				is { } raw && Guid.TryParse(raw, out var guid)
-				? guid
-				: throw new InvalidOperationException(
-					$"{propertyName} must be a valid GUID"
-				),
-			JsonValueKind.Object
-				or JsonValueKind.Array
-				or JsonValueKind.Number
-				or JsonValueKind.True
-				or JsonValueKind.False => throw new InvalidOperationException(
-					$"{propertyName} must be a valid GUID or null"
-				),
-			_ => throw new ArgumentOutOfRangeException(
-				nameof(element),
-				element?.ValueKind,
-				$"Unhandled JsonValueKind: {element?.ValueKind}"
-			),
-		};
+		return element is null
+			? null
+			: element.Value.GetValueAsGuidOrNull(propertyName);
 	}
 
 	public static int GetValueAsInt32(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
@@ -252,24 +182,9 @@ public static class JsonElementExtensions {
 	}
 
 	public static int? GetValueAsInt32OrNull(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element?.ValueKind switch {
-			null => null,
-			JsonValueKind.Null => null,
-			JsonValueKind.Undefined => null,
-			JsonValueKind.Number => element?.GetInt32(),
-			JsonValueKind.Object
-				or JsonValueKind.Array
-				or JsonValueKind.String
-				or JsonValueKind.True
-				or JsonValueKind.False => throw new InvalidOperationException(
-					$"{propertyName} must be a number or null"
-				),
-			_ => throw new ArgumentOutOfRangeException(
-				nameof(element),
-				element?.ValueKind,
-				$"Unhandled JsonValueKind: {element?.ValueKind}"
-			)
-		};
+		return element is null
+			? null
+			: element.Value.GetValueAsInt32OrNull(propertyName);
 	}
 
 	public static int? GetValueAsInt32OrNull(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
@@ -309,26 +224,9 @@ public static class JsonElementExtensions {
 	}
 
 	public static DateTime? GetValueAsDateTimeOrNull(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
-		return element?.ValueKind switch {
-			null => null,
-			JsonValueKind.Null => null,
-			JsonValueKind.Undefined => null,
-			JsonValueKind.String => JsonElementExtensions._ParseDateTimeUtcOrThrow(
-				element?.GetString(), propertyName
-			),
-			JsonValueKind.Object
-				or JsonValueKind.Array
-				or JsonValueKind.Number
-				or JsonValueKind.True
-				or JsonValueKind.False => throw new InvalidOperationException(
-				$"{propertyName} must be a valid date or null"
-			),
-			_ => throw new ArgumentOutOfRangeException(
-				nameof(element),
-				element?.ValueKind,
-				$"Unhandled JsonValueKind: {element?.ValueKind}"
-			)
-		};
+		return element is null
+			? null
+			: element.Value.GetValueAsDateTimeOrNull(propertyName);
 	}
 
 	public static DateTime? GetValueAsDateTimeOrNull(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
@@ -351,6 +249,29 @@ public static class JsonElementExtensions {
 				$"Unhandled JsonValueKind: {element.ValueKind}"
 			)
 		};
+	}
+
+	/// <summary>
+	/// Reads a non-blank string property out of a JSON object payload. Returns null
+	/// when the payload is not an object, the property is absent, or the property is
+	/// not a non-blank string — the shape provider HTTP clients need when probing a
+	/// success/error envelope.
+	/// </summary>
+	public static string? GetStringPropertyOrNull(this JsonElement payload, string name) {
+		if (payload.ValueKind != JsonValueKind.Object) {
+			return null;
+		}
+
+		if (!payload.TryGetProperty(name, out var value)) {
+			return null;
+		}
+
+		if (value.ValueKind != JsonValueKind.String) {
+			return null;
+		}
+
+		var text = value.GetString();
+		return string.IsNullOrWhiteSpace(text) ? null : text;
 	}
 
 	private static DateTime _ParseDateTimeUtcOrThrow(

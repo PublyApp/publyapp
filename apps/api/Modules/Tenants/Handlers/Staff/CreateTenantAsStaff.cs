@@ -383,13 +383,7 @@ public sealed class CreateTenantAsStaff {
 		[FromServices] ILogger<CreateTenantAsStaff> logger,
 		CancellationToken cancellationToken
 	) {
-		var staffAccount = authContext.AccountStaff;
-		if (staffAccount is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var staffAccount = authContext.GetRequiredStaffAccount();
 
 		var tenantName = body.GetName();
 		var maxUsers = body.GetMaxUsers();

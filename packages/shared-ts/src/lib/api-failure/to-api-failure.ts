@@ -1,3 +1,4 @@
+import type { JsonObject } from '../../types/json.types';
 import type {
 	AbortFailure,
 	ApiFailure,
@@ -7,14 +8,18 @@ import type {
 	ValidationFailure,
 } from './types';
 
-type StringRecord = Record<string, unknown>;
-
-const asRecord = (value: unknown): StringRecord | undefined => {
+/**
+ * Read an untyped value as a JSON object. This file is the parse boundary for
+ * problem payloads: whatever the API/transport sent arrives as `unknown`, and
+ * narrowing it to `JsonObject` before probing members is the honest claim —
+ * the members really are JSON values, not a shape we know.
+ */
+const asRecord = (value: unknown): JsonObject | undefined => {
 	if (!value || typeof value !== 'object') {
 		return undefined;
 	}
 
-	return value as StringRecord;
+	return value as JsonObject;
 };
 
 const toNumber = (value: unknown): number | undefined => {
@@ -65,7 +70,7 @@ const toRecordOfStringArrays = (
 		return undefined;
 	}
 
-	const rows = Object.entries(value as StringRecord);
+	const rows = Object.entries(value as JsonObject);
 	if (rows.length === 0) {
 		return undefined;
 	}
@@ -97,7 +102,7 @@ type ProblemLike = {
 	status: number | undefined;
 	responseStatusCode: number | undefined;
 	errors: Record<string, string[]> | undefined;
-	extensions: StringRecord | undefined;
+	extensions: JsonObject | undefined;
 };
 
 const hasMeaningfulProblemDetails = (problem: ProblemLike): boolean =>
@@ -271,11 +276,9 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 		error != null &&
 		typeof error === 'object' &&
 		'responseStatusCode' in error &&
-		typeof (error as Record<string, unknown>).responseStatusCode === 'number'
+		typeof error.responseStatusCode === 'number'
 	) {
-		const statusCode = toNumber(
-			(error as { responseStatusCode: number }).responseStatusCode,
-		);
+		const statusCode = toNumber(error.responseStatusCode);
 		const httpErrorLabel =
 			statusCode === undefined ? 'HTTP Error 500' : `HTTP Error ${statusCode}`;
 		return {
@@ -316,7 +319,7 @@ type GetFailureMessageOptions = {
 	 */
 	translate?: (
 		translationKey: string,
-		extensions: Record<string, unknown>,
+		extensions: JsonObject,
 	) => string | undefined;
 };
 

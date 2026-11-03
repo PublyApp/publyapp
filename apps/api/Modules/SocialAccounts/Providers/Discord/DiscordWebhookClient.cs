@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using PublyApp.Api.Lib.Extensions;
+
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 
 /// <summary>What <c>GET /webhooks/{id}/{token}</c> tells us about a webhook.</summary>
@@ -47,10 +49,10 @@ public sealed class DiscordWebhookClient {
 			await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 			using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 			var root = document.RootElement;
-			var name = DiscordWebhookClient._String(root, "name");
+			var name = root.GetStringPropertyOrNull("name");
 			return name is null
 				? new DiscordVerifyResult.Unreachable()
-				: new DiscordVerifyResult.Ok(new DiscordWebhookInfo(name, DiscordWebhookClient._String(root, "guild_id")));
+				: new DiscordVerifyResult.Ok(new DiscordWebhookInfo(name, root.GetStringPropertyOrNull("guild_id")));
 		} catch (JsonException) {
 			return new DiscordVerifyResult.Unreachable();
 		} catch (HttpRequestException) {
@@ -58,14 +60,5 @@ public sealed class DiscordWebhookClient {
 		} catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
 			return new DiscordVerifyResult.Unreachable();
 		}
-	}
-
-	private static string? _String(JsonElement payload, string name) {
-		return payload.ValueKind == JsonValueKind.Object
-			&& payload.TryGetProperty(name, out var value)
-			&& value.ValueKind == JsonValueKind.String
-			&& !string.IsNullOrWhiteSpace(value.GetString())
-				? value.GetString()
-				: null;
 	}
 }

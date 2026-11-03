@@ -8,9 +8,13 @@ import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import type { SortState } from '~/components/table/sort-descriptor';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
-import type { SupportedNamespace } from '~/lib/i18n/namespaces';
-import type { I18nResources, SupportedLanguage } from '~/lib/i18n/shared';
-import { createI18nFromResources } from '~/lib/i18n/shared';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
+import type { SupportedNamespace } from '@org/shared-ts/lib/i18n/namespaces';
+import type {
+	I18nResources,
+	SupportedLanguage,
+} from '@org/shared-ts/lib/i18n/shared';
 
 /**
  * Loaded ONLY via `vite.ssrLoadModule()` from
@@ -30,8 +34,8 @@ import { createI18nFromResources } from '~/lib/i18n/shared';
  * directly out of the `Checkbox` primitive and the real `IconCheck`
  * icon — the spec measures the live contract, not a copy of it.
  *
- * The i18n instance is built from the REAL `common.json` translation
- * file on disk rather than a hand-written key/value map, so the SSR
+ * The i18n instance is built from the REAL shared-ts `common.en.json`
+ * translation file on disk rather than a hand-written key/value map, so the SSR
  * render never fabricates a missing key the production app would have
  * — every pluralized form (`range-of-total_one` /
  * `range-of-total_other`, etc.) is the actual production resource.
@@ -43,7 +47,10 @@ import { createI18nFromResources } from '~/lib/i18n/shared';
 const FRONT_ROOT = path.resolve(import.meta.dirname, '../..');
 
 const loadCommonResources = (): I18nResources => {
-	const filePath = path.join(FRONT_ROOT, 'src/i18n/locales/en/common.json');
+	const filePath = path.join(
+		FRONT_ROOT,
+		'../../packages/shared-ts/src/lib/i18n/json/common.en.json',
+	);
 	const raw = readFileSync(filePath, 'utf8');
 	// The i18n type is constrained to `SupportedNamespace` keys, but the
 	// local map is constructed directly from the on-disk translation

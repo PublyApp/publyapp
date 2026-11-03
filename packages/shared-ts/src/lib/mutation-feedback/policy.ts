@@ -1,3 +1,4 @@
+import type { JsonObject } from '../../types/json.types';
 import type { ApiFailure } from '../api-failure/types';
 import type {
 	MutationFailureFeedback,
@@ -15,7 +16,9 @@ const extractSuccessResponseFields = (data: unknown): SuccessResponseFields => {
 		return {};
 	}
 
-	const response = data as Record<string, unknown>;
+	// A mutation's success payload is external JSON; probe its two known
+	// string members instead of asserting a shape the API never promised.
+	const response = data as JsonObject;
 	const fields: SuccessResponseFields = {};
 
 	if (typeof response.translationKey === 'string') {

@@ -182,7 +182,7 @@ react-doctor base="origin/develop":
   cd {{front_dir}} && pnpm dlx react-doctor@0.9.12 --scope files --base {{base}} --blocking warning --no-telemetry --verbose
 
 # NuGet vulnerability audit (issue #1187 rung 3). Mirrors
-# .github/workflows/ci.yml::verification::Audit .NET packages. Uses the
+# .github/workflows/ci.yml::quality-dotnet::Audit .NET packages. Uses the
 # machine-readable `--format json` output (not the
 # text format that TreatWarningsAsErrors breaks by converting NU1903 into an
 # error before the grep pattern can match). Scans EVERY .csproj (via
@@ -191,8 +191,8 @@ react-doctor base="origin/develop":
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   node packages/scripts-ts/src/nuget-audit.ts
   pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
-  # Mirrors .github/workflows/ci.yml::verification::Check dependency health contract
-  # contract test (#1334 fix round 1).
+  # Mirrors the src/dependency-health-pin-location.test.ts case inside
+  # ci.yml::guards::Test CI guard suite (#1334 fix round 1).
   pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
 
 # =============================================================================
@@ -325,14 +325,14 @@ ci-drift:
   # ratchet guarding against silent step erasure is itself unverified —
   # exactly the #1709 finding that file-by-file enumeration left a 463-line
   # test suite with no CI consumer. Mirrored by the
-  # ci.yml::verification::Test CI guard fixtures step so this line cannot
-  # silently drop.
+  # ci.yml::guards::Test CI guard suite step so this line cannot silently
+  # drop.
   pnpm --filter scripts-ts exec vitest run src/gen-reason-ref.test.ts
   pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
   # #1679: the no-floating-promises ratchet's own suite. ci.yml's
-  # verification::Test CI guard fixtures step runs it; without this line the local mirror would be
-  # missing a command CI actually runs — exactly the drift this recipe exists
-  # to make impossible.
+  # guards::Test CI guard suite step runs it; without this line the local
+  # mirror would be missing a command CI actually runs — exactly the drift
+  # this recipe exists to make impossible.
   pnpm --filter scripts-ts exec vitest run src/check-no-floating-promises.test.ts
   node ./packages/scripts-ts/src/check-ci-drift.ts
   pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
@@ -342,7 +342,7 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
   # #1975 round 2: live-tree coverage guard — every project the API suite
   # compiles (slnx projects + spec-referenced projects) must be reached by a
-  # workflow path filter. Mirrors the ci.yml::verification::Test CI guard fixtures step.
+  # workflow path filter. Mirrors the ci.yml::guards::Test CI guard suite step.
   pnpm --filter scripts-ts exec vitest run src/check-api-tests-path-coverage.test.ts
   node ./packages/scripts-ts/src/check-ci-gate-structure.ts
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
@@ -430,7 +430,7 @@ ci-no-ignored-tracked:
 # .worktrees in that build context (see #1832/#1836). Walks the real working
 # tree — git tracked/untracked status is irrelevant to what a Docker build
 # context sees, and `.dockerignore` contents are never parsed — and names
-# every offending path. Mirrors .github/workflows/ci.yml::verification::Check no dockerignore shadow files
+# every offending path. Mirrors .github/workflows/ci.yml::guards::Check no dockerignore shadow files
 # (unconditioned job, same binary).
 ci-dockerignore-shadow:
   @echo "=== [gate] no .dockerignore shadow files (#1849) ==="
@@ -449,7 +449,8 @@ ci-install:
 # which files each package.json format glob would process against the real
 # .oxfmtrc.json, so an ignorePatterns entry that silently swallows a directory
 # the globs enumerate fails the gate naming the directory. Mirrors
-# .github/workflows/ci.yml::verification::Check formatter scope (#1875).
+# the src/check-formatter-scope.test.ts case inside
+# .github/workflows/ci.yml::guards::Test CI guard suite (#1875).
 ci-format: format
   pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
   @echo "=== [gate] format (done) ==="
@@ -472,7 +473,7 @@ ci-lint:
 
 # Knip (issue #455): unused files/deps/devDeps/binary invocations, unlisted
 # deps, unused exports/types, and duplicate exports. Mirrors the
-# `.github/workflows/ci.yml::verification::Check unused exports and dependencies` step (same `pnpm exec knip`, same root
+# `.github/workflows/ci.yml::quality-js::Check unused exports and dependencies` step (same `pnpm exec knip`, same root
 # knip.ts). Exit 0 is the contract; every exception must be a scoped entry
 # with a reason in knip.ts, never a blanket ignore.
 ci-knip:
@@ -533,13 +534,13 @@ ci-front:
   # Built-artifact guard (#1234): proves the React Compiler actually ran on
   # the dist produced above (runtime chunk present, compiled-module count
   # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
-  # front test` AND an explicit ci.yml::verification::Test front (non-vitest report-all) step.
+  # front test` AND an explicit ci.yml::front-build::Test front (non-vitest report-all) step.
   pnpm --filter front check:react-compiler
   pnpm --filter front test
   # #1948: the 4-way vitest shard matrix must partition the suite exactly
   # once. Reads the REAL discovery of every shard (`vitest list --shard=i/n`)
   # and the unsharded suite, and fails if any file is lost, duplicated, or
-  # invented by the matrix. Mirrors ci.yml::verification::Check Vitest shard coverage.
+  # invented by the matrix. Mirrors ci.yml::front-quality::Check Vitest shard coverage.
   pnpm --filter front test:vitest-shard-coverage
   just test-preuves
 
@@ -572,7 +573,7 @@ ci-npm-audit-development:
 # `pnpm run prepare` runs first: it wires core.hooksPath to the versioned
 # .husky dir (packages/scripts-ts/src/install-git-hooks.ts), so the replay
 # exercises the real pre-commit pipeline on real worktrees — mirroring the
-# ci.yml::verification::Install Git hooks step.
+# ci.yml::quality-js::Install Git hooks step (one such step per split verification job).
 test-preuves:
   @echo "=== [gate] paired red proofs (expected to fail) ==="
   pnpm run prepare

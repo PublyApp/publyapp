@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import resourceEN from '~/i18n/locales/en/common.json';
-import resourceFR from '~/i18n/locales/fr/common.json';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
+import { createI18nFromResources } from '~/lib/i18n/react-i18n';
+
 import {
-	createI18nFromResources,
 	type I18nResources,
 	type SupportedLanguage,
-} from '~/lib/i18n/shared';
+} from '@org/shared-ts/lib/i18n/shared';
 
 import {
 	renderInvalidCellMessage,
@@ -13,8 +14,8 @@ import {
 } from './_invite-user-form-state';
 
 const RESOURCES: I18nResources = {
-	en: { common: resourceEN },
-	fr: { common: resourceFR },
+	en: { common: enLocale.common },
+	fr: { common: frLocale.common },
 };
 
 const makeT = (language: SupportedLanguage) =>

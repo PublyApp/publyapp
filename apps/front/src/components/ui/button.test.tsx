@@ -17,7 +17,7 @@ const VARIANT_CHROME_FRAGMENTS = [
 	['default', 'bg-primary'],
 	['outline', 'bg-background'],
 	['secondary', 'bg-secondary'],
-	['ghost', 'hover:bg-muted'],
+	['ghost', 'hover:bg-[color-mix('],
 	['destructive', 'bg-(--publy-destructive-soft)'],
 	['link', 'text-primary'],
 ] as const;

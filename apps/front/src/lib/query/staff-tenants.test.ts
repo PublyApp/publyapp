@@ -652,6 +652,7 @@ describe('toStaffTenantRows', () => {
 				usersCount: 12,
 				projectsCount: 4,
 				maxUsers: 50,
+				lastActivityAt: null,
 			},
 		]);
 	});

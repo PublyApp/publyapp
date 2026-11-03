@@ -175,12 +175,12 @@ export const Route = createFileRoute(
 	staticData: {
 		i18nNamespaces: ['staff-tenant-activity', 'common'],
 		crumbs: () => [
-			{ kind: 'label', labelKey: 'common:activity' },
 			{
 				kind: 'entity',
 				query: staffTenantCrumbQuery,
 				select: selectStaffTenantCrumbName,
 			},
+			{ kind: 'label', labelKey: 'common:activity' },
 		],
 	},
 	validateSearch: (search) =>

@@ -71,12 +71,7 @@ public sealed class BulkRemoveTenantUsersAsStaff {
 		[FromServices] ILogger<BulkRemoveTenantUsersAsStaff> logger,
 		CancellationToken cancellationToken = default
 	) {
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. Ensure the endpoint has .WithPermission()."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
 			return TypedProblems.BadRequest(
