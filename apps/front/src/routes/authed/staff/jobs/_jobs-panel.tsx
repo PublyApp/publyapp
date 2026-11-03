@@ -8,7 +8,6 @@ import type {
 	ListFilter,
 	ListFiltersValue,
 } from '~/components/list/list-types';
-import { listValueHas } from '~/components/list/list-types';
 
 import type { JobsOverview } from './_jobs-overview';
 
@@ -38,7 +37,7 @@ export const buildJobsPanelGroups = <T,>({
 	t,
 	current,
 	overview,
-	filterRows,
+	filterCounts,
 	filters,
 	filtersValue,
 	onSection,
@@ -47,8 +46,9 @@ export const buildJobsPanelGroups = <T,>({
 	t: Translate;
 	current: JobsSection;
 	overview: JobsOverview;
-	/** The page's whole collection, already narrowed by the search only. */
-	filterRows: T[] | null;
+	/** API facet counts for the page's filter shortcuts, keyed filter/value.
+	 * `null` is a genuinely unavailable facet (« — »), not a page sum. */
+	filterCounts: Record<string, Record<string, number | null>>;
 	filters: ListFilter<T>[];
 	filtersValue: ListFiltersValue;
 	onSection: (section: JobsSection) => void;
@@ -97,12 +97,7 @@ export const buildJobsPanelGroups = <T,>({
 				key: `${filter.key}:${choice.value}`,
 				label: choice.label,
 				icon: choice.icon,
-				count:
-					filterRows === null
-						? null
-						: filterRows.filter((row) =>
-								listValueHas(filter.valueOf(row), choice.value),
-							).length,
+				count: filterCounts[filter.key]?.[choice.value] ?? null,
 				active: filtersValue[filter.key]?.includes(choice.value) ?? false,
 				onClick: () => onShortcut(filter.key, choice.value),
 			})),

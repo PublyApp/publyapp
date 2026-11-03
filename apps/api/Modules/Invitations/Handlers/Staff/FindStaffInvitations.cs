@@ -12,10 +12,33 @@ using PublyApp.Api.Modules.Invitations.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
-public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem> { }
+public class StaffInvitationListCounts {
+	public int Total { get; set; }
+	public int Pending { get; set; }
+	public int Accepted { get; set; }
+	public int Expired { get; set; }
+	public int Revoked { get; set; }
+	public int ExpiringSoon { get; set; }
+}
+
+public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem> {
+	public int TotalCount { get; set; }
+	public StaffInvitationListCounts Counts { get; set; } = new();
+}
 
 public class FindStaffInvitationsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "status")] public string? Status { get; set; }
+
+	[FromQuery(Name = "q")] public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (this.Search is null) {
+			return null;
+		}
+
+		var trimmed = this.Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 
 	// Returns null (not throws) on unparseable tokens because the validator is
 	// the single rejection point for malformed input — by the time this runs,
@@ -66,6 +89,7 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 		string.Join(", ", FindStaffInvitationsQueryValidator._AllowedStatuses.Select(s => s.ToLowerInvariant()).Order());
 
 	public FindStaffInvitationsQueryValidator() {
+		this.RuleFor(x => x.Search).MaximumLength(200);
 		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
@@ -110,6 +134,7 @@ public sealed class FindStaffInvitations {
 			SortId = sortId,
 			SortOrder = sortOrder,
 			Statuses = statuses,
+			Search = findStaffInvitationsQuery.GetSearchNormalized(),
 		};
 
 		var serviceResult = await invitationQueryService.FindStaffInvitationsAsync(
@@ -136,6 +161,15 @@ public sealed class FindStaffInvitations {
 			return TypedResults.Ok(new FindStaffInvitationsResult {
 				Data = success.Data.Data,
 				NextCursor = success.Data.NextCursor,
+				TotalCount = success.Counts.Total,
+				Counts = new StaffInvitationListCounts {
+					Total = success.Counts.Total,
+					Pending = success.Counts.Pending,
+					Accepted = success.Counts.Accepted,
+					Expired = success.Counts.Expired,
+					Revoked = success.Counts.Revoked,
+					ExpiringSoon = success.Counts.ExpiringSoon,
+				},
 			});
 		}
 

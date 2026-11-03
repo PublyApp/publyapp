@@ -12,7 +12,7 @@ import {
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
 
 import { ColumnsPicker } from './columns-picker';
-import { FilterChips, FilterMenu } from './filter-menu';
+import { type FilterCounts, FilterChips, FilterMenu } from './filter-menu';
 import { ListFilterPanel, type ListPanelGroup } from './filter-panel';
 import { HomeTabs } from './home-tabs';
 import { CardFoot, ListCard, ListCards } from './list-card';
@@ -60,6 +60,9 @@ export type ListPageProps<T extends { id: string }> = {
 	filters: ListFilter<T>[];
 	filtersValue: ListFiltersValue;
 	onFiltersChange: (next: ListFiltersValue) => void;
+	/** API facet counts for the filter menu and panel shortcuts. Keys are
+	 * filter ids and choice values; a missing/null entry renders « — ». */
+	counts?: FilterCounts;
 	/**
 	 * Whether the counters (panel groups, filter-menu badges, tabs) describe the
 	 * whole collection. Pass `false` when the counter source is not fully loaded

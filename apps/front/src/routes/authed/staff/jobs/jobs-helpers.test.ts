@@ -56,7 +56,7 @@ describe('isPayloadRedacted', () => {
 
 describe('queueColumns', () => {
 	test('exposes the contract-backed column set with widths', () => {
-		const columns = queueColumns(t, 'en', null);
+		const columns = queueColumns(t, 'en');
 		const widths = Object.fromEntries(
 			columns.map((column) => [column.id, column.width]),
 		);

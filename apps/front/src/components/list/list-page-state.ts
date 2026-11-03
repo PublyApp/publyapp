@@ -34,6 +34,7 @@ export const useListPage = <T extends { id: string }>({
 	countsKnown = true,
 	countRows,
 	totalsKnown = countsKnown,
+	counts: apiCounts,
 	emptyText,
 	tabs = [],
 	currentTab,
@@ -154,8 +155,9 @@ export const useListPage = <T extends { id: string }>({
 	const counts: FilterCounts = {};
 	const panelCounts: FilterCounts = {};
 	for (const filter of filters) {
-		counts[filter.key] = countChoices(filter, true);
-		panelCounts[filter.key] = countChoices(filter, false);
+		counts[filter.key] = apiCounts?.[filter.key] ?? countChoices(filter, true);
+		panelCounts[filter.key] =
+			apiCounts?.[filter.key] ?? countChoices(filter, false);
 	}
 
 	const toggleFilter = (key: string, value: string) => {

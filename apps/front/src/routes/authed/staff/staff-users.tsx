@@ -86,17 +86,10 @@ const StaffUsersPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	// The cursor API exposes no total: the counters come from the independent
-	// team overview query (whole collection), while the table page is narrowed
-	// by a server-side status filter. Totals sum the displayed filtered rows, so
-	// they are exact as soon as the loaded page is the whole filtered collection.
-	// The StatCards use the same team overview, so they stay whole-collection
-	// figures even under a search.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = team.counts.staff !== null;
+	// The list response carries `totalCount`/`counts` for the whole filtered
+	// collection, so the totals row and filter badges never sum the page.
+	const countsKnown = query.data !== undefined;
+	const counts = query.data?.counts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -167,26 +160,25 @@ const StaffUsersPage = () => {
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
 			filters={buildStaffUserFilters(t, {
-				// Level filtering is client-side: offer it while the team overview
-				// holds the whole collection (or one is already active), whatever
-				// the server-side status filter does to the page.
-				includeLevels: team.staff !== null || search.level.length > 0,
+				includeLevels: countsKnown || search.level.length > 0,
 			})}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={{
+				status: {
+					active: team.staffCounts?.active ?? null,
+					suspended: team.staffCounts?.suspended ?? null,
+				},
+				level: {
+					admin: team.staffCounts?.admins ?? null,
+					user: team.staffCounts?.users ?? null,
+				},
+			}}
 			countsKnown={countsKnown}
-			countRows={team.staff ?? []}
-			totalsKnown={collectionComplete}
 			emptyText={t('list-empty-staff-users')}
 			locale={i18n.language}
-			cards={
-				<StaffUsersStatCards
-					rows={team.staff}
-					t={t}
-					known={team.counts.staff !== null}
-				/>
-			}
-			totals={(visible) => buildStaffUserTotals(t, visible)}
+			cards={<StaffUsersStatCards counts={team.staffCounts} t={t} />}
+			totals={() => buildStaffUserTotals(t, counts)}
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'staff',

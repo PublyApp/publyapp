@@ -4,6 +4,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Quartz;
@@ -13,12 +14,20 @@ namespace PublyApp.Api.Modules.Jobs.Services;
 public record FindSystemJobDefinitionsArgs(
 	Guid Cursor,
 	int? Limit,
-	bool? IsEnabled
+	bool? IsEnabled,
+	string? Search
+);
+
+public sealed record SystemJobCounts(
+	int Total,
+	int Enabled,
+	int Disabled
 );
 
 public abstract record FindSystemJobDefinitionsResult {
 	public sealed record Success(
-		CursorPaginatedResult<SystemJobDefinitionListItem> Data
+		CursorPaginatedResult<SystemJobDefinitionListItem> Data,
+		SystemJobCounts Counts
 	) : FindSystemJobDefinitionsResult;
 }
 
@@ -167,6 +176,39 @@ public class SystemJobDefinitionQueryService(
 				select definition;
 		}
 
+		if (args.Search is { } search) {
+			var trimmed = search.Trim();
+			if (trimmed.Length > 0) {
+				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
+				query = query.Where(definition =>
+					EF.Functions.ILike(definition.JobKey, pattern, LikePatternUtils.LikeEscapeChar)
+					|| EF.Functions.ILike(definition.CronExpression, pattern, LikePatternUtils.LikeEscapeChar)
+				);
+			}
+		}
+
+		// Facets over the whole filtered collection (cursor/limit excluded).
+		var facetRows = await (
+			from definition in query
+			group definition by definition.IsEnabled into g
+			select new { IsEnabled = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var enabled = 0;
+		foreach (var facet in facetRows) {
+			total += facet.Count;
+			if (facet.IsEnabled) {
+				enabled += facet.Count;
+			}
+		}
+
+		var counts = new SystemJobCounts(
+			Total: total,
+			Enabled: enabled,
+			Disabled: total - enabled
+		);
+
 		IQueryable<SystemJobDefinition> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
@@ -179,7 +221,8 @@ public class SystemJobDefinitionQueryService(
 			).FirstOrDefaultAsync(cancellationToken);
 			if (cursorRow is null || cursorRow.Id is null) {
 				return new FindSystemJobDefinitionsResult.Success(
-					new CursorPaginatedResult<SystemJobDefinitionListItem>()
+					new CursorPaginatedResult<SystemJobDefinitionListItem>(),
+					counts
 				);
 			}
 
@@ -222,7 +265,8 @@ public class SystemJobDefinitionQueryService(
 					UpdatedAt = row.UpdatedAt,
 				}).ToList(),
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 

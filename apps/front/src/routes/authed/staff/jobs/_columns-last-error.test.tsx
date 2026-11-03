@@ -63,7 +63,7 @@ const buildRow = (
 });
 
 const renderCell = (row: StaffDeadLetterRow) => {
-	const columns = deadLetterColumns(t, 'en', null);
+	const columns = deadLetterColumns(t, 'en');
 	const column = columns.find((c) => c.id === 'error');
 	expect(column).toBeDefined();
 	if (!column) {
@@ -141,7 +141,7 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 	});
 
 	test('non-regression: column order is preserved exactly (no displacement)', () => {
-		const columns = deadLetterColumns(t, 'en', null);
+		const columns = deadLetterColumns(t, 'en');
 		const ids = columns.map((c) => c.id);
 
 		// Exact order — not just `toContain`, which would miss a displacement.
@@ -172,7 +172,7 @@ describe('dead-letter last_error column on the row (brief #1720)', () => {
 		});
 
 		tCalls.length = 0;
-		const columns = deadLetterColumns(t_fr, 'en', null);
+		const columns = deadLetterColumns(t_fr, 'en');
 		const column = columns.find((c) => c.id === 'error');
 		expect(column).toBeDefined();
 		if (!column) {

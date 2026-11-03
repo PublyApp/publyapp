@@ -84,10 +84,8 @@ const StaffProfilesPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
+	// `totalCount`/`totalAssignments` cover the whole filtered collection.
+	const countsKnown = query.data !== undefined;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -157,12 +155,16 @@ const StaffProfilesPage = () => {
 			filters={buildStaffProfileFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			countsKnown={team.counts.profiles !== null}
-			countRows={team.profiles ?? []}
-			totalsKnown={collectionComplete}
+			countsKnown={countsKnown}
 			emptyText={t('list-empty-staff-profiles')}
 			locale={i18n.language}
-			totals={(visible) => buildStaffProfileTotals(t, visible)}
+			totals={() =>
+				buildStaffProfileTotals(
+					t,
+					query.data?.totalCount,
+					query.data?.totalAssignments,
+				)
+			}
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'profiles',

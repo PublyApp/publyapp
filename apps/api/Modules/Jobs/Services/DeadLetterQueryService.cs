@@ -6,6 +6,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 namespace PublyApp.Api.Modules.Jobs.Services;
@@ -15,12 +16,22 @@ public record FindDeadLetterItemsArgs(
 	int? Limit,
 	Guid? TenantId,
 	string? ExternalStateStatusCsv,
-	string? JobType
+	string? JobType,
+	string? Search
+);
+
+public sealed record DeadLetterCounts(
+	int Total,
+	int Open,
+	int Triaged,
+	int Requeued,
+	int Recent
 );
 
 public abstract record FindDeadLetterItemsResult {
 	public sealed record Success(
-		CursorPaginatedResult<DeadLetterListItem> Data
+		CursorPaginatedResult<DeadLetterListItem> Data,
+		DeadLetterCounts Counts
 	) : FindDeadLetterItemsResult;
 
 	public sealed record InvalidStatusCsv(
@@ -34,6 +45,7 @@ public record DeadLetterListItem {
 	public required string JobType { get; init; }
 	public required int Attempts { get; init; }
 	public Guid? TenantId { get; init; }
+	public string? TenantName { get; init; }
 	public string? LastError { get; init; }
 	public required int ExternalStateStatus { get; init; }
 	public Guid? RequeuedAsJobId { get; init; }
@@ -165,6 +177,61 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			this._BaseQuery(), args.TenantId, statuses, args.JobType
 		);
 
+		if (args.Search is { } search) {
+			var trimmed = search.Trim();
+			if (trimmed.Length > 0) {
+				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
+				query = query.Where(item =>
+					EF.Functions.ILike(item.JobType, pattern, LikePatternUtils.LikeEscapeChar)
+					|| (item.LastError != null && EF.Functions.ILike(item.LastError, pattern, LikePatternUtils.LikeEscapeChar))
+					|| (item.TenantId.HasValue && dbContext.Tenant.Any(tenant =>
+						tenant.Id == item.TenantId
+						&& EF.Functions.ILike(tenant.Name, pattern, LikePatternUtils.LikeEscapeChar)))
+				);
+			}
+		}
+
+		// Facets describe the whole filtered collection (cursor/limit excluded).
+		var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
+		var facetRows = await (
+			from item in query
+			group item by new {
+				item.RequeuedAsJobId,
+				item.TriagedAt,
+			} into g
+			select new {
+				g.Key.RequeuedAsJobId,
+				g.Key.TriagedAt,
+				Count = g.Count(),
+				Recent = g.Count(item => item.FailedAt >= sevenDaysAgo),
+			}
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var open = 0;
+		var triaged = 0;
+		var requeued = 0;
+		var recent = 0;
+		foreach (var facet in facetRows) {
+			total += facet.Count;
+			recent += facet.Recent;
+			if (facet.RequeuedAsJobId is not null) {
+				requeued += facet.Count;
+			} else if (facet.TriagedAt is not null) {
+				triaged += facet.Count;
+			} else {
+				open += facet.Count;
+			}
+		}
+
+		var counts = new DeadLetterCounts(
+			Total: total,
+			Open: open,
+			Triaged: triaged,
+			Requeued: requeued,
+			Recent: recent
+		);
+
 		IQueryable<JobDeadLetter> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
@@ -175,7 +242,8 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			if (cursorRow is null) {
 				// The anchor row was swept: an empty tail instead of a fabricated window.
 				return new FindDeadLetterItemsResult.Success(
-					new CursorPaginatedResult<DeadLetterListItem>()
+					new CursorPaginatedResult<DeadLetterListItem>(),
+					counts
 				);
 			}
 
@@ -197,6 +265,10 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			item.JobType,
 			item.Attempts,
 			item.TenantId,
+			TenantName = dbContext.Tenant
+				.Where(tenant => tenant.Id == item.TenantId)
+				.Select(tenant => tenant.Name)
+				.FirstOrDefault(),
 			item.LastError,
 			item.ExternalStateStatus,
 			item.RequeuedAsJobId,
@@ -218,6 +290,7 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			JobType = row.JobType,
 			Attempts = row.Attempts,
 			TenantId = row.TenantId,
+			TenantName = row.TenantName,
 			LastError = row.LastError,
 			ExternalStateStatus = row.ExternalStateStatus,
 			RequeuedAsJobId = row.RequeuedAsJobId,
@@ -231,7 +304,8 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			new CursorPaginatedResult<DeadLetterListItem> {
 				Data = items,
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 

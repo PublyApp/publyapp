@@ -1167,6 +1167,26 @@ public sealed class FindTenantsAsStaffSpec
 		return tenant.GetRequiredId();
 	}
 
+	private async Task<Guid> _SeedTenantWithNameAndStatusAsync(
+		string name,
+		TenantStatus status
+	) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = name,
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+		return tenant.GetRequiredId();
+	}
+
 	private async Task<Guid> _SeedTenantWithStatusAsync(
 		TenantStatus status
 	) {
@@ -1186,6 +1206,38 @@ public sealed class FindTenantsAsStaffSpec
 		return tenant.GetRequiredId();
 	}
 
+	[Fact]
+	public async Task ItShouldReturnWholeFilteredCollectionCounts() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"counts-tenant-{Guid.NewGuid():N}";
+		_ = await this._SeedTenantWithNameAndStatusAsync(
+			$"{marker}-active",
+			TenantStatus.Active
+		);
+		_ = await this._SeedTenantWithNameAndStatusAsync(
+			$"{marker}-pending",
+			TenantStatus.Pending
+		);
+
+		var url = TenantTestHelper.GetFindUrl(q: marker, limit: 1);
+		using var request = new HttpRequestMessage(HttpMethod.Get, url)
+			.WithSessionToken(token);
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// limit=1 proves the counters cover the filtered collection.
+		result.Data.Should().HaveCount(1);
+		result.TotalCount.Should().Be(2);
+		result.Counts.Total.Should().Be(2);
+		result.Counts.Active.Should().Be(1);
+		result.Counts.Pending.Should().Be(1);
+		result.Counts.Suspended.Should().Be(0);
+	}
+
 	private record StaffProfileCreatedResponse {
 		public Guid ProfileId { get; init; }
 	}
@@ -1193,6 +1245,21 @@ public sealed class FindTenantsAsStaffSpec
 	private record FindResponse {
 		public List<TenantListItem> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+		public int TotalCount { get; init; }
+		public TenantCountsDto Counts { get; init; } = new();
+	}
+
+	private record TenantCountsDto {
+		public int Total { get; init; }
+		public int Active { get; init; }
+		public int Pending { get; init; }
+		public int Suspended { get; init; }
+		public int Members { get; init; }
+		public int Seats { get; init; }
+		public int Projects { get; init; }
+		public int AlmostFull { get; init; }
+		public int Full { get; init; }
+		public int ActiveThisWeek { get; init; }
 	}
 
 	private record TenantListItem {

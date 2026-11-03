@@ -171,28 +171,35 @@ export const useTenantCreateFormState = (navigate: Navigate) => {
 		parsedMembers: parsedValidMembers,
 	});
 
-	const performCreate = async (values: TenantCreateFormValues) => {
-		const outcome = await submitCreate(values);
-		setPendingCreateValues(null);
+	const performCreate = useCallback(
+		async (values: TenantCreateFormValues) => {
+			const outcome = await submitCreate(values);
+			setPendingCreateValues(null);
 
-		if (outcome.kind === 'logout') {
-			setShouldLogout(true);
-			return;
-		}
-		if (outcome.kind !== 'created') {
-			return;
-		}
+			if (outcome.kind === 'logout') {
+				setShouldLogout(true);
+				return;
+			}
+			if (outcome.kind !== 'created') {
+				return;
+			}
 
-		hasCreatedRef.current = true;
-		void navigate(
-			outcome.tenantId
-				? {
-						to: '/staff/tenants/$tenantId',
-						params: { tenantId: outcome.tenantId },
-					}
-				: { to: '/staff/tenants' },
-		);
-	};
+			hasCreatedRef.current = true;
+			void navigate(
+				outcome.tenantId
+					? {
+							to: '/staff/tenants/$tenantId',
+							params: { tenantId: outcome.tenantId },
+						}
+					: { to: '/staff/tenants' },
+			);
+		},
+		[submitCreate, navigate],
+	);
+
+	const goToTenants = useCallback(() => {
+		void navigate({ to: '/staff/tenants' });
+	}, [navigate]);
 
 	const onSubmit = methods.handleSubmit((values) => {
 		methods.clearErrors('root.server');
@@ -261,9 +268,7 @@ export const useTenantCreateFormState = (navigate: Navigate) => {
 		setCustomSeats: (value: string) => {
 			methods.setValue('customSeats', value, { shouldValidate: true });
 		},
-		goToTenants: () => {
-			void navigate({ to: '/staff/tenants' });
-		},
+		goToTenants,
 		websiteHostname: getWebsiteHostname(websiteUrl),
 		accountLevelUser: AccountLevelObject.User,
 	};

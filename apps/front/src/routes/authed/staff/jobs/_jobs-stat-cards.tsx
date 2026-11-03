@@ -5,7 +5,6 @@ import {
 } from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
 
-import { deadLetterState } from './_job-catalogue';
 import type { JobsOverview } from './_jobs-overview';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -17,12 +16,10 @@ const Dash = () => <span className="text-muted-foreground">—</span>;
 const STAT_CARD_CLASS =
 	'rounded-[16px] text-sm shadow-[0_0_0_1px_var(--border)]';
 
-const sevenDaysAgo = (): number => Date.now() - 7 * 86_400_000;
-
 /**
  * The three StatCards shared by every job page (§4.8). Every figure is a
- * whole-collection count from `useJobsOverview`; when a list's first page is
- * not the whole collection the card shows « — », never the loaded page's sum.
+ * whole-collection count from `useJobsOverview` (issue #2301); « — » only when
+ * the API has not answered yet.
  */
 export const JobsStatCards = ({
 	overview,
@@ -31,44 +28,9 @@ export const JobsStatCards = ({
 	overview: JobsOverview;
 	t: Translate;
 }) => {
-	const queue = overview.queue;
-	let processing = 0;
-	let retrying = 0;
-	if (queue) {
-		for (const row of queue) {
-			if (row.status === 'processing') {
-				processing += 1;
-			}
-			if ((row.attempts ?? 0) > 0) {
-				retrying += 1;
-			}
-		}
-	}
-
-	const deadLetters = overview.deadLetters;
-	let open = 0;
-	let recent = 0;
-	if (deadLetters) {
-		const cutoff = sevenDaysAgo();
-		for (const row of deadLetters) {
-			if (deadLetterState(row) === 'open') {
-				open += 1;
-			}
-			if (row.failedAt && row.failedAt.getTime() >= cutoff) {
-				recent += 1;
-			}
-		}
-	}
-
-	const systemJobs = overview.systemJobs;
-	let enabled = 0;
-	if (systemJobs) {
-		for (const row of systemJobs) {
-			if (row.isEnabled) {
-				enabled += 1;
-			}
-		}
-	}
+	const queue = overview.queueCounts;
+	const deadLetters = overview.deadLetterCounts;
+	const systemJobs = overview.systemJobCounts;
 
 	return (
 		<>
@@ -77,12 +39,17 @@ export const JobsStatCards = ({
 				className={STAT_CARD_CLASS}
 				label={t('staff-jobs:jobs-stat-queue')}
 				icon={<IconStack2 />}
-				value={queue ? queue.length : <Dash />}
+				value={queue ? (queue.total ?? 0) : <Dash />}
 				footer={
 					queue ? (
 						<>
-							{t('staff-jobs:jobs-stat-processing', { count: processing })} ·{' '}
-							{t('staff-jobs:jobs-stat-retrying', { count: retrying })}
+							{t('staff-jobs:jobs-stat-processing', {
+								count: queue.processing ?? 0,
+							})}{' '}
+							·{' '}
+							{t('staff-jobs:jobs-stat-retrying', {
+								count: queue.retrying ?? 0,
+							})}
 						</>
 					) : (
 						<Dash />
@@ -94,11 +61,13 @@ export const JobsStatCards = ({
 				className={STAT_CARD_CLASS}
 				label={t('staff-jobs:jobs-stat-dead')}
 				icon={<IconAlertTriangle />}
-				value={deadLetters ? open : <Dash />}
+				value={deadLetters ? (deadLetters.open ?? 0) : <Dash />}
 				footer={
 					deadLetters ? (
 						<span className="text-[var(--publy-chip-suspended-text)]">
-							{t('staff-jobs:jobs-stat-dead-window', { count: recent })}
+							{t('staff-jobs:jobs-stat-dead-window', {
+								count: deadLetters.recent ?? 0,
+							})}
 						</span>
 					) : (
 						<Dash />
@@ -110,13 +79,13 @@ export const JobsStatCards = ({
 				className={STAT_CARD_CLASS}
 				label={t('staff-jobs:jobs-stat-system')}
 				icon={<IconSettingsAutomation />}
-				value={systemJobs ? enabled : <Dash />}
-				unit={systemJobs ? `/ ${systemJobs.length}` : undefined}
+				value={systemJobs ? (systemJobs.enabled ?? 0) : <Dash />}
+				unit={systemJobs ? `/ ${systemJobs.total ?? 0}` : undefined}
 				footer={
 					systemJobs ? (
 						<>
 							{t('staff-jobs:jobs-stat-system-footer', {
-								count: systemJobs.length - enabled,
+								count: systemJobs.disabled ?? 0,
 							})}
 						</>
 					) : (

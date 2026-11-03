@@ -12,13 +12,33 @@ using PublyApp.Api.Modules.Jobs.Services;
 
 namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 
+public class JobQueueListCounts {
+	public int Total { get; set; }
+	public int Pending { get; set; }
+	public int Processing { get; set; }
+	public int Retrying { get; set; }
+}
+
 public class FindJobQueueItemsResponse
-	: CursorPaginatedResult<JobQueueListItem> { }
+	: CursorPaginatedResult<JobQueueListItem> {
+	public int TotalCount { get; set; }
+	public JobQueueListCounts Counts { get; set; } = new();
+}
 
 public class FindJobQueueItemsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "tenant_id")] public string? TenantId { get; set; }
 	[FromQuery(Name = "status")] public string? Status { get; set; }
 	[FromQuery(Name = "job_type")] public string? JobType { get; set; }
+	[FromQuery(Name = "q")] public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (this.Search is null) {
+			return null;
+		}
+
+		var trimmed = this.Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 
 	public Guid? GetTenantId() {
 		return QueryPredicates.ParseNullableGuid(this.TenantId);
@@ -49,6 +69,8 @@ public class FindJobQueueItemsQuery : CursorPaginatedQuery {
 public class FindJobQueueItemsQueryValidator
 	: CursorPaginatedQueryValidator<FindJobQueueItemsQuery> {
 	public FindJobQueueItemsQueryValidator() {
+		this.RuleFor(x => x.Search).MaximumLength(200);
+
 		this.RuleFor(x => x.TenantId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage("tenant_id must be a valid GUID");
@@ -117,7 +139,8 @@ public sealed class FindJobQueueItemsForStaff {
 				Limit: query.GetLimit(),
 				TenantId: query.GetTenantId(),
 				StatusCsv: query.Status,
-				JobType: query.GetJobType()
+				JobType: query.GetJobType(),
+				Search: query.GetSearchNormalized()
 			),
 			cancellationToken
 		);
@@ -135,6 +158,13 @@ public sealed class FindJobQueueItemsForStaff {
 		return TypedResults.Ok(new FindJobQueueItemsResponse {
 			Data = success.Data.Data,
 			NextCursor = success.Data.NextCursor,
+			TotalCount = success.Counts.Total,
+			Counts = new JobQueueListCounts {
+				Total = success.Counts.Total,
+				Pending = success.Counts.Pending,
+				Processing = success.Counts.Processing,
+				Retrying = success.Counts.Retrying,
+			},
 		});
 	}
 }

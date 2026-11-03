@@ -11,7 +11,10 @@ using PublyApp.Api.Modules.Profiles.Services;
 
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
-public class FindStaffProfilesResult : CursorPaginatedResult<StaffProfileItem> { }
+public class FindStaffProfilesResult : CursorPaginatedResult<StaffProfileItem> {
+	public int TotalCount { get; set; }
+	public int TotalAssignments { get; set; }
+}
 
 public class FindStaffProfilesQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
@@ -85,6 +88,8 @@ public sealed class FindStaffProfiles {
 			return TypedResults.Ok(new FindStaffProfilesResult {
 				Data = success.Data.Data,
 				NextCursor = success.Data.NextCursor,
+				TotalCount = success.TotalCount,
+				TotalAssignments = success.TotalAssignments,
 			});
 		}
 

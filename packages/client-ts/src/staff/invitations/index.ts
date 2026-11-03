@@ -75,6 +75,7 @@ export interface InvitationsRequestBuilder extends BaseRequestBuilder<Invitation
 export interface InvitationsRequestBuilderGetQueryParameters {
     cursor?: string;
     limit?: string;
+    q?: string;
     sortId?: string;
     sortOrder?: string;
     status?: string;
@@ -82,7 +83,7 @@ export interface InvitationsRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const InvitationsRequestBuilderUriTemplate = "{+baseurl}/staff/invitations{?cursor*,limit*,sort_id*,sort_order*,status*}";
+export const InvitationsRequestBuilderUriTemplate = "{+baseurl}/staff/invitations{?cursor*,limit*,q*,sort_id*,sort_order*,status*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */

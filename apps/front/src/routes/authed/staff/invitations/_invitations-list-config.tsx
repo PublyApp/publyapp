@@ -6,6 +6,8 @@ import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { formatShortDate } from '~/utils/format-time';
 
+import type { StaffInvitationListCounts } from '@org/client-ts/models/index';
+
 import { invitationColumns } from './_invitations-list-columns';
 import {
 	getInvitationStatusLabelKey,
@@ -76,23 +78,21 @@ export const buildInvitationFilters = (
 	];
 };
 
-const countStatus = (
-	rows: StaffInvitationRow[],
-	status: StaffInvitationRow['status'],
-): number => rows.filter((row) => row.status === status).length;
-
 export const buildInvitationTotals =
-	(t: Translate): ((rows: StaffInvitationRow[]) => Map<string, string>) =>
-	(rows) => {
+	(t: Translate, counts: StaffInvitationListCounts | null | undefined) =>
+	(): Map<string, string> => {
 		const totals = new Map<string, string>();
-		totals.set('email', t('list-total-invitations', { count: rows.length }));
+		totals.set(
+			'email',
+			t('list-total-invitations', { count: counts?.total ?? 0 }),
+		);
 		totals.set(
 			'status',
 			t('list-total-invitation-statuses', {
-				pending: countStatus(rows, 'pending'),
-				accepted: countStatus(rows, 'accepted'),
-				expired: countStatus(rows, 'expired'),
-				revoked: countStatus(rows, 'revoked'),
+				pending: counts?.pending ?? 0,
+				accepted: counts?.accepted ?? 0,
+				expired: counts?.expired ?? 0,
+				revoked: counts?.revoked ?? 0,
 			}),
 		);
 		for (const id of [

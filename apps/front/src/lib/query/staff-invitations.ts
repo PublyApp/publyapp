@@ -48,11 +48,8 @@ export type BulkCreateStaffInvitationsInput = {
 	invitations: StaffInvitationInput[];
 };
 
-// users-auth-r6-F2: no `q` field — FindStaffInvitations (apps/api/Modules/
-// Invitations/Handlers/Staff/FindStaffInvitations.cs) has no search
-// parameter, so a `q` field here would either silently do nothing (the old
-// bug) or, worse, look load-bearing to a future caller.
 export type StaffInvitationsQueryVariables = {
+	q?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -87,12 +84,14 @@ export const buildFindStaffInvitationsQueryParameters = (
 	const sortId = normalizeString(variables.sortId);
 	const sortOrder = variables.sortOrder;
 	const status = normalizeString(variables.status);
+	const q = normalizeString(variables.q);
 	const limit =
 		typeof variables.size === 'number' ? String(variables.size) : undefined;
 
 	return {
 		cursor,
 		limit,
+		q,
 		sortId,
 		sortOrder,
 		status,

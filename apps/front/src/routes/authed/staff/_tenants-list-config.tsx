@@ -8,6 +8,8 @@ import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { formatShortDate, getRelativeTimeParts } from '~/utils/format-time';
 
+import type { TenantListCountsResponse } from '@org/client-ts/models/index';
+
 import { tenantColumns } from './_tenants-list-columns';
 import { StatusIcon, type TenantStatusFilterKey } from './_tenants-list-model';
 
@@ -120,33 +122,15 @@ export const buildTenantFilters = (
  * whole collection, every cell shows « — » instead of a page-local sum
  * presented as a total (issue #2274 review round 2). */
 export const buildTenantTotals =
-	(t: Translate, known = true) =>
-	(visible: StaffTenantRow[]): Map<string, string> => {
-		let members = 0;
-		let seats = 0;
-		let projects = 0;
-		let active = 0;
-		let pending = 0;
-		let suspended = 0;
-		let activeThisWeek = 0;
-		const weekAgo = Date.now() - 7 * 86_400_000;
-
-		for (const row of visible) {
-			members += row.usersCount;
-			seats += row.maxUsers;
-			projects += row.projectsCount;
-			const status = tenantStatusKey(row.status);
-			if (status === 'active') {
-				active += 1;
-			} else if (status === 'pending') {
-				pending += 1;
-			} else if (status === 'suspended') {
-				suspended += 1;
-			}
-			if (row.lastActivityAt && row.lastActivityAt.getTime() >= weekAgo) {
-				activeThisWeek += 1;
-			}
-		}
+	(t: Translate, counts: TenantListCountsResponse | null) =>
+	(): Map<string, string> => {
+		const members = counts?.members ?? 0;
+		const seats = counts?.seats ?? 0;
+		const projects = counts?.projects ?? 0;
+		const active = counts?.active ?? 0;
+		const pending = counts?.pending ?? 0;
+		const suspended = counts?.suspended ?? 0;
+		const activeThisWeek = counts?.activeThisWeek ?? 0;
 
 		const statusParts = [
 			active > 0 ? t('list-total-active', { count: active }) : '',
@@ -156,7 +140,10 @@ export const buildTenantTotals =
 
 		const dash = '—';
 		const map = new Map<string, string>();
-		map.set('name', t('list-total-organisations', { count: visible.length }));
+		map.set(
+			'name',
+			t('list-total-organisations', { count: counts?.total ?? 0 }),
+		);
 		map.set('code', dash);
 		map.set('status', statusParts.join(' · '));
 		map.set('members', t('list-total-members', { count: members }));
@@ -188,11 +175,6 @@ export const buildTenantTotals =
 			'lastActivityAt',
 			t('list-total-active-week', { count: activeThisWeek }),
 		);
-		if (!known) {
-			for (const id of map.keys()) {
-				map.set(id, DASH);
-			}
-		}
 		return map;
 	};
 

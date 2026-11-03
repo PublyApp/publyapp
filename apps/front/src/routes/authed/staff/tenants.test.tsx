@@ -264,8 +264,21 @@ const rows = [
 	},
 ];
 
+const counts = {
+	total: 2,
+	active: 1,
+	pending: 1,
+	suspended: 0,
+	members: 21,
+	seats: 60,
+	projects: 5,
+	almostFull: 1,
+	full: 0,
+	activeThisWeek: 1,
+};
+
 const queryResult = (overrides: Record<string, unknown> = {}) => ({
-	data: { data: rows, nextCursor: null },
+	data: { data: rows, nextCursor: null, totalCount: 2, counts },
 	error: null,
 	isPending: false,
 	isError: false,
@@ -405,15 +418,17 @@ describe('staff tenants route (organisations list)', () => {
 		expect(within(summary).getByText('21 membres')).toBeTruthy();
 	});
 
-	test('counters show « — » when the API has more pages, never the page', async () => {
+	test('counters and totals still use the API counts when more pages exist', async () => {
 		mocks.useStaffTenantsQuery.mockReturnValue(
-			queryResult({ data: { data: rows, nextCursor: 'next-page' } }),
+			queryResult({
+				data: { data: rows, nextCursor: 'next-page', totalCount: 2, counts },
+			}),
 		);
 		renderPage();
 
-		expect(screen.getByTestId('tenant-stat-total').textContent).toContain('—');
+		expect(screen.getByTestId('tenant-stat-total').textContent).toContain('2');
 		expect(screen.getByTestId('tenant-stat-members').textContent).toContain(
-			'—',
+			'21',
 		);
 		const panel = document.getElementById('app-shell-page-panel');
 		if (!panel) {
@@ -423,25 +438,38 @@ describe('staff tenants route (organisations list)', () => {
 		if (!statusGroup) {
 			throw new Error('status group missing');
 		}
-		// « — » for each of the three status entries, not the page's counts.
-		expect(within(statusGroup as HTMLElement).getAllByText('—')).toHaveLength(
-			3,
-		);
-		// The pinned footer is labelled as totals, so it must not present the
-		// loaded page's sums either: every labelled cell is « — ».
+		// API facet counts, never the loaded page's sums (active + pending = 1).
+		expect(
+			within(statusGroup as HTMLElement).getAllByText('1').length,
+		).toBeGreaterThanOrEqual(2);
 		const summary = screen.getByRole('table', { name: 'Récapitulatif' });
-		expect(within(summary).queryByText('2 organisations')).toBeNull();
-		const labelled = [...summary.querySelectorAll('td')].filter(
-			(cell) => cell.textContent !== '',
-		);
-		expect(labelled).toHaveLength(14);
-		expect(labelled.every((cell) => cell.textContent === '—')).toBe(true);
+		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+		expect(within(summary).getByText('21 membres')).toBeTruthy();
 	});
 
-	test('the totals builder dashes every cell when the collection is not known', () => {
-		const totals = buildTenantTotals(translate, false)([]);
-		expect(totals.size).toBeGreaterThan(0);
-		expect([...totals.values()].every((value) => value === '—')).toBe(true);
+	test('counters show « — » only when the API has no counts', async () => {
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			queryResult({
+				data: {
+					data: rows,
+					nextCursor: null,
+					totalCount: null,
+					counts: null,
+				},
+			}),
+		);
+		renderPage();
+
+		expect(screen.getByTestId('tenant-stat-total').textContent).toContain('—');
+		expect(screen.getByTestId('tenant-stat-members').textContent).toContain(
+			'—',
+		);
+	});
+
+	test('the totals builder reads the API counts, not the visible rows', () => {
+		const totals = buildTenantTotals(translate, counts)();
+		expect(totals.get('name')).toBe('list-total-organisations');
+		expect(totals.get('members')).toBe('list-total-members');
 	});
 
 	test('the dead Langues and Invitations filters are not rendered', () => {

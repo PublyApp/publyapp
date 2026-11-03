@@ -77,10 +77,9 @@ const StaffInvitationsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: search.status ?? '',
 	});
-	// users-auth-r6-F2: FindStaffInvitations has no search parameter, so the
-	// generic page renders no search field rather than one that does nothing.
 	const query = useStaffInvitationsQuery({
 		...controller.apiVariables,
+		q: search.q,
 		status: search.status,
 	});
 	const team = useStaffTeamOverview();
@@ -94,15 +93,8 @@ const StaffInvitationsPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	// No total count on the cursor endpoint: the three cards and the panel
-	// counters use the team overview query (whole collection), while the table
-	// page is narrowed by the server-side status filter. Totals sum the
-	// displayed filtered rows, exact once the page is the whole filtered set.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = team.counts.invitations !== null;
+	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
+	const countsKnown = query.data !== undefined;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -166,28 +158,30 @@ const StaffInvitationsPage = () => {
 						: undefined,
 				)
 			}
+			searchPlaceholder={t('common:search-invitations')}
 			q={search.q ?? ''}
-			onSearch={() => undefined}
-			filters={buildInvitationFilters(
-				t,
-				team.invitations ?? rows,
-				selectedProfiles,
-			)}
+			onSearch={(next) => {
+				if (selection.selectedCount > 0) {
+					return;
+				}
+				onSearchChange({ ...search, q: next, cursor: undefined });
+			}}
+			filters={buildInvitationFilters(t, rows, selectedProfiles)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={{
+				status: {
+					pending: team.invitationCounts?.pending ?? null,
+					accepted: team.invitationCounts?.accepted ?? null,
+					expired: team.invitationCounts?.expired ?? null,
+					revoked: team.invitationCounts?.revoked ?? null,
+				},
+			}}
 			countsKnown={countsKnown}
-			countRows={team.invitations ?? []}
-			totalsKnown={collectionComplete}
 			emptyText={tInvitations('no-invitations-found')}
 			locale={i18n.language}
-			cards={
-				<InvitationsStatCards
-					rows={team.invitations}
-					t={t}
-					known={team.counts.invitations !== null}
-				/>
-			}
-			totals={buildInvitationTotals(t)}
+			cards={<InvitationsStatCards counts={team.invitationCounts} t={t} />}
+			totals={buildInvitationTotals(t, query.data?.counts)}
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'invitations',

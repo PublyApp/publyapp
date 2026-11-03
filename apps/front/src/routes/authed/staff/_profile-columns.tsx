@@ -124,18 +124,18 @@ export const buildStaffProfileFilters = (
 
 export const buildStaffProfileTotals = (
 	t: Translate,
-	rows: StaffProfileRow[],
+	totalCount: number | null | undefined,
+	totalAssignments: number | null | undefined,
 ): Map<string, string> => {
-	let assignments = 0;
-	for (const row of rows) {
-		assignments += row.userAccountCount ?? 0;
-	}
 	const totals = new Map<string, string>();
-	totals.set('name', t('list-total-staff-profiles', { count: rows.length }));
+	totals.set(
+		'name',
+		t('list-total-staff-profiles', { count: totalCount ?? 0 }),
+	);
 	totals.set('type', DASH);
 	totals.set(
 		'members',
-		t('list-total-profile-members', { count: assignments }),
+		t('list-total-profile-members', { count: totalAssignments ?? 0 }),
 	);
 	totals.set('description', DASH);
 	return totals;

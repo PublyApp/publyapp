@@ -29,12 +29,10 @@ import { jobLabel } from './_job-catalogue';
 import { formatFailureCause } from './_jobs-helpers';
 import {
 	exportJobRows,
-	filterRowsBySearch,
 	queueColumns,
 	queueFilters,
 	queueMobileCard,
 	queueTotals,
-	searchTextForQueue,
 } from './_jobs-list-config';
 import { useJobsOverview } from './_jobs-overview';
 import {
@@ -44,7 +42,6 @@ import {
 } from './_jobs-panel';
 import { QueueRowActions } from './_jobs-row-actions';
 import { JobsStatCards } from './_jobs-stat-cards';
-import { useJobTenantNames } from './_jobs-tenant-names';
 import {
 	buildStaffJobsCursorResetKey,
 	parseStaffJobsListSearchParams,
@@ -83,6 +80,7 @@ const StaffJobsQueuePage = () => {
 	});
 
 	const query = useStaffJobQueueQuery({
+		q: search.q,
 		status: search.status,
 		jobType: search.jobType,
 		tenantId: search.tenantId,
@@ -90,27 +88,32 @@ const StaffJobsQueuePage = () => {
 		size: controller.apiVariables.size,
 	});
 	const rows = toStaffJobQueueRows(query.data?.data);
-	const tenantNames = useJobTenantNames();
 	const overview = useJobsOverview();
+	const counts = query.data?.counts;
+	const globalCounts = overview.queueCounts;
+	const filterCounts = {
+		status: {
+			pending: globalCounts?.pending ?? null,
+			processing: globalCounts?.processing ?? null,
+			completed: 0,
+			failed: 0,
+		},
+		retry: {
+			retry: globalCounts?.retrying ?? null,
+			first:
+				globalCounts === null
+					? null
+					: (globalCounts.total ?? 0) - (globalCounts.retrying ?? 0),
+		},
+		family: {},
+	};
 
 	const filtersValue: ListFiltersValue = {
 		status: splitFilter(search.status),
 		family: splitFilter(search.family),
 		retry: splitFilter(search.retry),
 	};
-	const columns = queueColumns(t, locale, tenantNames);
-	const visibleRows = filterRowsBySearch(
-		rows,
-		search.q ?? '',
-		searchTextForQueue(t, tenantNames),
-	);
-	const overviewRows = overview.queue
-		? filterRowsBySearch(
-				overview.queue,
-				search.q ?? '',
-				searchTextForQueue(t, tenantNames),
-			)
-		: null;
+	const columns = queueColumns(t, locale);
 
 	const setFilters = (next: ListFiltersValue): void => {
 		void navigate({
@@ -137,17 +140,8 @@ const StaffJobsQueuePage = () => {
 		void navigate({ to: jobsSectionPath(section) });
 	};
 
-	// The cursor API has no total and no `q`: counters are exact only when the
-	// first page is the whole collection and no server-side filter narrowed it.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown =
-		collectionComplete &&
-		search.status === undefined &&
-		search.jobType === undefined &&
-		search.tenantId === undefined;
+	// `totalCount`/`counts` describe the whole filtered collection (#2301).
+	const countsKnown = query.data !== undefined;
 
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
@@ -160,7 +154,7 @@ const StaffJobsQueuePage = () => {
 			ariaLabel={t('queue-page-title')}
 			title={t('queue-page-title')}
 			searchPlaceholder={t('jobs-search-placeholder')}
-			rows={visibleRows}
+			rows={rows}
 			columns={columns}
 			defaultColumns={[
 				'type',
@@ -193,12 +187,12 @@ const StaffJobsQueuePage = () => {
 			emptyText={t('queue-empty-description')}
 			locale={locale}
 			cards={<JobsStatCards overview={overview} t={t} />}
-			totals={queueTotals(t)}
+			totals={queueTotals(t, counts)}
 			panelGroups={buildJobsPanelGroups({
 				t,
 				current: 'queue',
 				overview,
-				filterRows: overviewRows,
+				filterCounts,
 				filters: queueFilters(t),
 				filtersValue,
 				onSection,
@@ -209,13 +203,11 @@ const StaffJobsQueuePage = () => {
 				t('common:list-open-row', { name: jobLabel(t, row.jobType) })
 			}
 			rowLabel={(row) => jobLabel(t, row.jobType)}
-			mobileCard={queueMobileCard(t, tenantNames)}
+			mobileCard={queueMobileCard(t)}
 			renderActions={(row) => (
 				<QueueRowActions row={row} t={t} onInspect={setInspected} />
 			)}
-			onExport={() =>
-				exportJobRows(visibleRows, columns, t, 'jobs-export-queue')
-			}
+			onExport={() => exportJobRows(rows, columns, t, 'jobs-export-queue')}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
