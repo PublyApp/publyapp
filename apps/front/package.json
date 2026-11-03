@@ -194,8 +194,8 @@
 	"dependencies": {
 		"@base-ui/react": "1.9.0",
 		"@hookform/resolvers": "6.0.0",
-		"@microsoft/kiota-abstractions": "1.0.0-preview.107",
-		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.103",
+		"@microsoft/kiota-abstractions": "1.0.0-preview.111",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.111",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"@tabler/icons-react": "3.49.0",
@@ -223,7 +223,7 @@
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.14.0",
-		"@microsoft/kiota-serialization-json": "1.0.0-preview.103",
+		"@microsoft/kiota-serialization-json": "1.0.0-preview.111",
 		"@playwright/test": "1.64.1",
 		"@tailwindcss/node": "4.3.3",
 		"@tailwindcss/oxide": "4.3.3",
