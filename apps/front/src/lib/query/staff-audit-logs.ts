@@ -282,10 +282,12 @@ export const exportStaffAuditLogsMutationOptions = buildStaffMutationOptions<
 
 export const useStaffAuditLogsQuery = (
 	variables: StaffAuditLogsQueryVariables,
+	options?: { enabled?: boolean },
 ) =>
 	useQuery({
 		queryKey: staffAuditLogsQueryOptions.queryKey(variables),
 		queryFn: () => staffAuditLogsQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
 	});
 
 /** Entity-crumb query for the `/staff/audit-logs/$logId` detail route — same

@@ -18,6 +18,9 @@ type ListPageHeaderProps = {
 	/** The whole-collection count, or `null` when it is not fully known. */
 	count: number | null;
 	onExport?: () => void;
+	/** The established test id of the page's export control (the audit log's
+	 * export drawer spec opens it by id). */
+	exportTestId?: string;
 	/** The primary action element (a link to the create page, or a button). */
 	newAction?: ReactNode;
 	cards?: ReactNode;
@@ -34,6 +37,7 @@ export const ListPageHeader = ({
 	inset,
 	count,
 	onExport,
+	exportTestId,
 	newAction,
 	cards,
 	statsOpen,
@@ -71,6 +75,7 @@ export const ListPageHeader = ({
 							variant="outline"
 							aria-label={t('list-export')}
 							onClick={onExport}
+							data-testid={exportTestId}
 						>
 							<IconDownload data-icon="inline-start" />
 							<span className="hidden md:inline">{t('list-export')}</span>

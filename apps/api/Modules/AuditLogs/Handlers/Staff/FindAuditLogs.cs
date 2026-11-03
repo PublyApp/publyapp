@@ -158,8 +158,15 @@ internal static class AuditLogActionsCsv {
 			}
 		}
 
-		if (actions.Count > 50) {
-			return "At most 50 actions can be filtered at once.";
+		// The redesigned audit log filters by history category, so one request
+		// may legitimately list every action of several categories. The bound is
+		// the registry's own size (a request cannot name more distinct valid
+		// actions than exist), not a fixed 50 that a real category selection
+		// already exceeds (#2286).
+		if (actions.Count > AuditActionsRegistry.All.Count) {
+			return "At most "
+				+ AuditActionsRegistry.All.Count
+				+ " actions can be filtered at once.";
 		}
 
 		foreach (var action in actions) {

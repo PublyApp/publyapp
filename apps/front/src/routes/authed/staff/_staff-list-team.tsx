@@ -14,7 +14,7 @@ import { toStaffUserRows, useStaffUsersQuery } from '~/lib/query/staff-users';
 
 import { toStaffInvitationRows } from './invitations/list-helpers';
 
-export type StaffTeamSection = 'staff' | 'invitations' | 'profiles';
+export type StaffTeamSection = 'staff' | 'invitations' | 'profiles' | 'audit';
 
 export type StaffTeamPath =
 	| '/staff/staff-users'
@@ -128,7 +128,7 @@ export const buildStaffTeamPanelGroups = (
 				label: t('nav-staff-audit-logs'),
 				icon: <IconHistory />,
 				// A view, not a collection: no counter (§2.8).
-				active: false,
+				active: current === 'audit',
 				onClick: () => onSelect('/staff/audit-logs'),
 			},
 		],
