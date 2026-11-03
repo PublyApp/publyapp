@@ -111,7 +111,23 @@ public class FindTenantsAsStaffQueryValidator
 	}
 }
 
-public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffListItem> { }
+public class TenantListCountsResponse {
+	public int Total { get; set; }
+	public int Active { get; set; }
+	public int Pending { get; set; }
+	public int Suspended { get; set; }
+	public int Members { get; set; }
+	public int Seats { get; set; }
+	public int Projects { get; set; }
+	public int AlmostFull { get; set; }
+	public int Full { get; set; }
+	public int ActiveThisWeek { get; set; }
+}
+
+public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffListItem> {
+	public int TotalCount { get; set; }
+	public TenantListCountsResponse Counts { get; set; } = new();
+}
 
 public sealed class FindTenantsAsStaff {
 	public static async Task<Results<Ok<FindTenantsAsStaffResponse>, AppBadRequestHttpResult>>
@@ -169,6 +185,19 @@ public sealed class FindTenantsAsStaff {
 			return TypedResults.Ok(new FindTenantsAsStaffResponse {
 				Data = success.Data.Data,
 				NextCursor = success.Data.NextCursor,
+				TotalCount = success.Counts.Total,
+				Counts = new TenantListCountsResponse {
+					Total = success.Counts.Total,
+					Active = success.Counts.Active,
+					Pending = success.Counts.Pending,
+					Suspended = success.Counts.Suspended,
+					Members = success.Counts.Members,
+					Seats = success.Counts.Seats,
+					Projects = success.Counts.Projects,
+					AlmostFull = success.Counts.AlmostFull,
+					Full = success.Counts.Full,
+					ActiveThisWeek = success.Counts.ActiveThisWeek,
+				},
 			});
 		}
 

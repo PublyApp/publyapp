@@ -13,7 +13,9 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
 public class FindAuditLogsResponse
-	: CursorPaginatedResult<AuditLogListItem> { }
+	: CursorPaginatedResult<AuditLogListItem> {
+	public int TotalCount { get; set; }
+}
 
 public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "user_id")] public string? UserId { get; set; }
@@ -248,6 +250,7 @@ public sealed class FindAuditLogs {
 					Data = success.Data.Data,
 					NextCursor =
 						success.Data.NextCursor,
+					TotalCount = success.TotalCount,
 				}
 			);
 		}

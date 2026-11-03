@@ -86,15 +86,10 @@ const StaffUsersPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	// The cursor API exposes no total: totals and filter counts are exact only
-	// when the loaded page is the whole collection and no server-side status
-	// filter narrowed it. The StatCards use the independent team overview, so
-	// they stay whole-collection figures even under a search.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = collectionComplete && search.status.length === 0;
+	// The list response carries `totalCount`/`counts` for the whole filtered
+	// collection, so the totals row and filter badges never sum the page.
+	const countsKnown = query.data !== undefined;
+	const counts = query.data?.counts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -170,17 +165,21 @@ const StaffUsersPage = () => {
 			})}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={{
+				status: {
+					active: team.staffCounts?.active ?? null,
+					suspended: team.staffCounts?.suspended ?? null,
+				},
+				level: {
+					admin: team.staffCounts?.admins ?? null,
+					user: team.staffCounts?.users ?? null,
+				},
+			}}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty-staff-users')}
 			locale={i18n.language}
-			cards={
-				<StaffUsersStatCards
-					rows={team.staff}
-					t={t}
-					known={team.counts.staff !== null}
-				/>
-			}
-			totals={(visible) => buildStaffUserTotals(t, visible)}
+			cards={<StaffUsersStatCards counts={team.staffCounts} t={t} />}
+			totals={() => buildStaffUserTotals(t, counts)}
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'staff',

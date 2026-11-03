@@ -100,11 +100,9 @@ const StaffTenantsPage = () => {
 	// loaded page is the whole collection (first page, no next cursor) and no
 	// server-side status filter narrows it; otherwise they show « — », never a
 	// page-scoped number presented as the total (issue #2275).
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = collectionComplete && search.status.length === 0;
+	// `totalCount`/`counts` describe the whole filtered collection (#2301).
+	const countsKnown = query.data !== undefined;
+	const counts = query.data?.counts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 
@@ -175,15 +173,33 @@ const StaffTenantsPage = () => {
 			filters={buildTenantFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={{
+				status: {
+					active: counts?.active ?? null,
+					pending: counts?.pending ?? null,
+					suspended: counts?.suspended ?? null,
+				},
+				occupancy: {
+					full: counts?.full ?? null,
+					high:
+						counts == null
+							? null
+							: (counts.almostFull ?? 0) - (counts.full ?? 0),
+					available:
+						counts == null
+							? null
+							: (counts.total ?? 0) - (counts.almostFull ?? 0),
+				},
+			}}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty')}
 			locale={locale}
 			cards={
 				query.isPending ? undefined : (
-					<TenantStatCards rows={rows} t={t} known={countsKnown} />
+					<TenantStatCards counts={counts ?? null} t={t} />
 				)
 			}
-			totals={buildTenantTotals(t, countsKnown)}
+			totals={buildTenantTotals(t, counts ?? null)}
 			onOpen={(row) =>
 				void navigate({
 					to: '/staff/tenants/$tenantId',

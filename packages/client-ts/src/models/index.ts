@@ -1090,6 +1090,15 @@ export function createDeadLetterEventItemFromDiscriminatorValue(parseNode: Parse
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DeadLetterListCounts}
+ */
+// @ts-ignore
+export function createDeadLetterListCountsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDeadLetterListCounts;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {DeadLetterListItem}
  */
 // @ts-ignore
@@ -1559,6 +1568,15 @@ export function createInvitationListItemFromDiscriminatorValue(parseNode: ParseN
 // @ts-ignore
 export function createJobQueueItemDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoJobQueueItemDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JobQueueListCounts}
+ */
+// @ts-ignore
+export function createJobQueueListCountsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoJobQueueListCounts;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2109,6 +2127,15 @@ export function createStaffInvitationDetailsFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffInvitationListCounts}
+ */
+// @ts-ignore
+export function createStaffInvitationListCountsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffInvitationListCounts;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {StaffInvitationProfile}
  */
 // @ts-ignore
@@ -2207,6 +2234,15 @@ export function createStaffUserItemFromDiscriminatorValue(parseNode: ParseNode |
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffUserListCounts}
+ */
+// @ts-ignore
+export function createStaffUserListCountsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffUserListCounts;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {StaffUserProfileItem}
  */
 // @ts-ignore
@@ -2284,6 +2320,15 @@ export function createSystemJobDefinitionListItemFromDiscriminatorValue(parseNod
 // @ts-ignore
 export function createSystemJobDefinitionUpdatedResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoSystemJobDefinitionUpdatedResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SystemJobListCounts}
+ */
+// @ts-ignore
+export function createSystemJobListCountsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSystemJobListCounts;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2446,6 +2491,15 @@ export interface CreateTenantAsStaffResult extends AdditionalDataHolder, Parsabl
 // @ts-ignore
 export function createTenantForPickerItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenantForPickerItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantListCountsResponse}
+ */
+// @ts-ignore
+export function createTenantListCountsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantListCountsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2925,6 +2979,28 @@ export interface DeadLetterEventItem extends AdditionalDataHolder, Parsable {
      */
     priorStatus?: number | null;
 }
+export interface DeadLetterListCounts extends AdditionalDataHolder, Parsable {
+    /**
+     * The open property
+     */
+    open?: number | null;
+    /**
+     * The recent property
+     */
+    recent?: number | null;
+    /**
+     * The requeued property
+     */
+    requeued?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
+    /**
+     * The triaged property
+     */
+    triaged?: number | null;
+}
 export interface DeadLetterListItem extends AdditionalDataHolder, Parsable {
     /**
      * The attempts property
@@ -2970,6 +3046,10 @@ export interface DeadLetterListItem extends AdditionalDataHolder, Parsable {
      * The tenantId property
      */
     tenantId?: Guid | null;
+    /**
+     * The tenantName property
+     */
+    tenantName?: string | null;
     /**
      * The triagedAt property
      */
@@ -3765,6 +3845,21 @@ export function deserializeIntoDeadLetterEventItem(deadLetterEventItem: Partial<
 }
 /**
  * The deserialization information for the current model
+ * @param DeadLetterListCounts The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDeadLetterListCounts(deadLetterListCounts: Partial<DeadLetterListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "open": n => { deadLetterListCounts.open = n.getNumberValue(); },
+        "recent": n => { deadLetterListCounts.recent = n.getNumberValue(); },
+        "requeued": n => { deadLetterListCounts.requeued = n.getNumberValue(); },
+        "total": n => { deadLetterListCounts.total = n.getNumberValue(); },
+        "triaged": n => { deadLetterListCounts.triaged = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param DeadLetterListItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3782,6 +3877,7 @@ export function deserializeIntoDeadLetterListItem(deadLetterListItem: Partial<De
         "requeuedAsJobId": n => { deadLetterListItem.requeuedAsJobId = n.getGuidValue(); },
         "requeuedAt": n => { deadLetterListItem.requeuedAt = n.getDateValue(); },
         "tenantId": n => { deadLetterListItem.tenantId = n.getGuidValue(); },
+        "tenantName": n => { deadLetterListItem.tenantName = n.getStringValue(); },
         "triagedAt": n => { deadLetterListItem.triagedAt = n.getDateValue(); },
     }
 }
@@ -3848,6 +3944,7 @@ export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Part
     return {
         "data": n => { findAuditLogsResponse.data = n.getCollectionOfObjectValues<AuditLogListItem>(createAuditLogListItemFromDiscriminatorValue); },
         "nextCursor": n => { findAuditLogsResponse.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findAuditLogsResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -3858,8 +3955,10 @@ export function deserializeIntoFindAuditLogsResponse(findAuditLogsResponse: Part
 // @ts-ignore
 export function deserializeIntoFindDeadLettersResponse(findDeadLettersResponse: Partial<FindDeadLettersResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findDeadLettersResponse.counts = n.getObjectValue<DeadLetterListCounts>(createDeadLetterListCountsFromDiscriminatorValue); },
         "data": n => { findDeadLettersResponse.data = n.getCollectionOfObjectValues<DeadLetterListItem>(createDeadLetterListItemFromDiscriminatorValue); },
         "nextCursor": n => { findDeadLettersResponse.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findDeadLettersResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -3882,8 +3981,10 @@ export function deserializeIntoFindInvitationsForTenantAsStaffResult(findInvitat
 // @ts-ignore
 export function deserializeIntoFindJobQueueItemsResponse(findJobQueueItemsResponse: Partial<FindJobQueueItemsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findJobQueueItemsResponse.counts = n.getObjectValue<JobQueueListCounts>(createJobQueueListCountsFromDiscriminatorValue); },
         "data": n => { findJobQueueItemsResponse.data = n.getCollectionOfObjectValues<JobQueueListItem>(createJobQueueListItemFromDiscriminatorValue); },
         "nextCursor": n => { findJobQueueItemsResponse.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findJobQueueItemsResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -3964,8 +4065,10 @@ export function deserializeIntoFindSocialAccountsForTenantResponse(findSocialAcc
 // @ts-ignore
 export function deserializeIntoFindStaffInvitationsResult(findStaffInvitationsResult: Partial<FindStaffInvitationsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findStaffInvitationsResult.counts = n.getObjectValue<StaffInvitationListCounts>(createStaffInvitationListCountsFromDiscriminatorValue); },
         "data": n => { findStaffInvitationsResult.data = n.getCollectionOfObjectValues<InvitationListItem>(createInvitationListItemFromDiscriminatorValue); },
         "nextCursor": n => { findStaffInvitationsResult.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findStaffInvitationsResult.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -3989,6 +4092,8 @@ export function deserializeIntoFindStaffProfilesResult(findStaffProfilesResult: 
     return {
         "data": n => { findStaffProfilesResult.data = n.getCollectionOfObjectValues<StaffProfileItem>(createStaffProfileItemFromDiscriminatorValue); },
         "nextCursor": n => { findStaffProfilesResult.nextCursor = n.getStringValue(); },
+        "totalAssignments": n => { findStaffProfilesResult.totalAssignments = n.getNumberValue(); },
+        "totalCount": n => { findStaffProfilesResult.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -4011,8 +4116,10 @@ export function deserializeIntoFindStaffProfileUsersResult(findStaffProfileUsers
 // @ts-ignore
 export function deserializeIntoFindStaffUsersResponse(findStaffUsersResponse: Partial<FindStaffUsersResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findStaffUsersResponse.counts = n.getObjectValue<StaffUserListCounts>(createStaffUserListCountsFromDiscriminatorValue); },
         "data": n => { findStaffUsersResponse.data = n.getCollectionOfObjectValues<StaffUserItem>(createStaffUserItemFromDiscriminatorValue); },
         "nextCursor": n => { findStaffUsersResponse.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findStaffUsersResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -4023,8 +4130,10 @@ export function deserializeIntoFindStaffUsersResponse(findStaffUsersResponse: Pa
 // @ts-ignore
 export function deserializeIntoFindSystemJobDefinitionsResponse(findSystemJobDefinitionsResponse: Partial<FindSystemJobDefinitionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findSystemJobDefinitionsResponse.counts = n.getObjectValue<SystemJobListCounts>(createSystemJobListCountsFromDiscriminatorValue); },
         "data": n => { findSystemJobDefinitionsResponse.data = n.getCollectionOfObjectValues<SystemJobDefinitionListItem>(createSystemJobDefinitionListItemFromDiscriminatorValue); },
         "nextCursor": n => { findSystemJobDefinitionsResponse.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findSystemJobDefinitionsResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -4094,8 +4203,10 @@ export function deserializeIntoFindTenantProfileUsersAsStaffResult(findTenantPro
 // @ts-ignore
 export function deserializeIntoFindTenantsAsStaffResponse(findTenantsAsStaffResponse: Partial<FindTenantsAsStaffResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findTenantsAsStaffResponse.counts = n.getObjectValue<TenantListCountsResponse>(createTenantListCountsResponseFromDiscriminatorValue); },
         "data": n => { findTenantsAsStaffResponse.data = n.getCollectionOfObjectValues<TenantAsStaffListItem>(createTenantAsStaffListItemFromDiscriminatorValue); },
         "nextCursor": n => { findTenantsAsStaffResponse.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findTenantsAsStaffResponse.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -4455,6 +4566,20 @@ export function deserializeIntoJobQueueItemDetail(jobQueueItemDetail: Partial<Jo
 }
 /**
  * The deserialization information for the current model
+ * @param JobQueueListCounts The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoJobQueueListCounts(jobQueueListCounts: Partial<JobQueueListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "pending": n => { jobQueueListCounts.pending = n.getNumberValue(); },
+        "processing": n => { jobQueueListCounts.processing = n.getNumberValue(); },
+        "retrying": n => { jobQueueListCounts.retrying = n.getNumberValue(); },
+        "total": n => { jobQueueListCounts.total = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param JobQueueListItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4473,6 +4598,7 @@ export function deserializeIntoJobQueueListItem(jobQueueListItem: Partial<JobQue
         "priority": n => { jobQueueListItem.priority = n.getNumberValue(); },
         "status": n => { jobQueueListItem.status = n.getStringValue(); },
         "tenantId": n => { jobQueueListItem.tenantId = n.getGuidValue(); },
+        "tenantName": n => { jobQueueListItem.tenantName = n.getStringValue(); },
         "updatedAt": n => { jobQueueListItem.updatedAt = n.getDateValue(); },
     }
 }
@@ -5262,6 +5388,22 @@ export function deserializeIntoStaffInvitationDetails(staffInvitationDetails: Pa
 }
 /**
  * The deserialization information for the current model
+ * @param StaffInvitationListCounts The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffInvitationListCounts(staffInvitationListCounts: Partial<StaffInvitationListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accepted": n => { staffInvitationListCounts.accepted = n.getNumberValue(); },
+        "expired": n => { staffInvitationListCounts.expired = n.getNumberValue(); },
+        "expiringSoon": n => { staffInvitationListCounts.expiringSoon = n.getNumberValue(); },
+        "pending": n => { staffInvitationListCounts.pending = n.getNumberValue(); },
+        "revoked": n => { staffInvitationListCounts.revoked = n.getNumberValue(); },
+        "total": n => { staffInvitationListCounts.total = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param StaffInvitationProfile The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5382,6 +5524,21 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
         "lastName": n => { staffUserItem.lastName = n.getStringValue(); },
         "level": n => { staffUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "status": n => { staffUserItem.status = n.getEnumValue<UserStatus>(UserStatusObject); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffUserListCounts The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffUserListCounts(staffUserListCounts: Partial<StaffUserListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "active": n => { staffUserListCounts.active = n.getNumberValue(); },
+        "admins": n => { staffUserListCounts.admins = n.getNumberValue(); },
+        "suspended": n => { staffUserListCounts.suspended = n.getNumberValue(); },
+        "total": n => { staffUserListCounts.total = n.getNumberValue(); },
+        "users": n => { staffUserListCounts.users = n.getNumberValue(); },
     }
 }
 /**
@@ -5516,6 +5673,19 @@ export function deserializeIntoSystemJobDefinitionUpdatedResponse(systemJobDefin
 }
 /**
  * The deserialization information for the current model
+ * @param SystemJobListCounts The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSystemJobListCounts(systemJobListCounts: Partial<SystemJobListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "disabled": n => { systemJobListCounts.disabled = n.getNumberValue(); },
+        "enabled": n => { systemJobListCounts.enabled = n.getNumberValue(); },
+        "total": n => { systemJobListCounts.total = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param SystemJobOccurrenceItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5640,6 +5810,26 @@ export function deserializeIntoTenantForPickerItem(tenantForPickerItem: Partial<
         "id": n => { tenantForPickerItem.id = n.getGuidValue(); },
         "name": n => { tenantForPickerItem.name = n.getStringValue(); },
         "status": n => { tenantForPickerItem.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantListCountsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantListCountsResponse(tenantListCountsResponse: Partial<TenantListCountsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "active": n => { tenantListCountsResponse.active = n.getNumberValue(); },
+        "activeThisWeek": n => { tenantListCountsResponse.activeThisWeek = n.getNumberValue(); },
+        "almostFull": n => { tenantListCountsResponse.almostFull = n.getNumberValue(); },
+        "full": n => { tenantListCountsResponse.full = n.getNumberValue(); },
+        "members": n => { tenantListCountsResponse.members = n.getNumberValue(); },
+        "pending": n => { tenantListCountsResponse.pending = n.getNumberValue(); },
+        "projects": n => { tenantListCountsResponse.projects = n.getNumberValue(); },
+        "seats": n => { tenantListCountsResponse.seats = n.getNumberValue(); },
+        "suspended": n => { tenantListCountsResponse.suspended = n.getNumberValue(); },
+        "total": n => { tenantListCountsResponse.total = n.getNumberValue(); },
     }
 }
 /**
@@ -6186,8 +6376,16 @@ export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindDeadLettersResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The counts property
+     */
+    counts?: DeadLetterListCounts | null;
     /**
      * The data property
      */
@@ -6196,6 +6394,10 @@ export interface FindDeadLettersResponse extends AdditionalDataHolder, Parsable 
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindInvitationsForTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
@@ -6209,6 +6411,10 @@ export interface FindInvitationsForTenantAsStaffResult extends AdditionalDataHol
 }
 export interface FindJobQueueItemsResponse extends AdditionalDataHolder, Parsable {
     /**
+     * The counts property
+     */
+    counts?: JobQueueListCounts | null;
+    /**
      * The data property
      */
     data?: JobQueueListItem[] | null;
@@ -6216,6 +6422,10 @@ export interface FindJobQueueItemsResponse extends AdditionalDataHolder, Parsabl
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindNeedsReconnectAccountsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -6271,6 +6481,10 @@ export interface FindSocialAccountsForTenantResponse extends AdditionalDataHolde
 }
 export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
     /**
+     * The counts property
+     */
+    counts?: StaffInvitationListCounts | null;
+    /**
      * The data property
      */
     data?: InvitationListItem[] | null;
@@ -6278,6 +6492,10 @@ export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsab
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindStaffProfilePermissionsResult extends AdditionalDataHolder, Parsable {
     /**
@@ -6294,6 +6512,14 @@ export interface FindStaffProfilesResult extends AdditionalDataHolder, Parsable 
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalAssignments property
+     */
+    totalAssignments?: number | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindStaffProfileUsersResult extends AdditionalDataHolder, Parsable {
     /**
@@ -6307,6 +6533,10 @@ export interface FindStaffProfileUsersResult extends AdditionalDataHolder, Parsa
 }
 export interface FindStaffUsersResponse extends AdditionalDataHolder, Parsable {
     /**
+     * The counts property
+     */
+    counts?: StaffUserListCounts | null;
+    /**
      * The data property
      */
     data?: StaffUserItem[] | null;
@@ -6314,8 +6544,16 @@ export interface FindStaffUsersResponse extends AdditionalDataHolder, Parsable {
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindSystemJobDefinitionsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The counts property
+     */
+    counts?: SystemJobListCounts | null;
     /**
      * The data property
      */
@@ -6324,6 +6562,10 @@ export interface FindSystemJobDefinitionsResponse extends AdditionalDataHolder, 
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindSystemNoticesResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -6373,6 +6615,10 @@ export interface FindTenantProfileUsersAsStaffResult extends AdditionalDataHolde
 }
 export interface FindTenantsAsStaffResponse extends AdditionalDataHolder, Parsable {
     /**
+     * The counts property
+     */
+    counts?: TenantListCountsResponse | null;
+    /**
      * The data property
      */
     data?: TenantAsStaffListItem[] | null;
@@ -6380,6 +6626,10 @@ export interface FindTenantsAsStaffResponse extends AdditionalDataHolder, Parsab
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindTenantUserCompaniesForStaffResult extends AdditionalDataHolder, Parsable {
     /**
@@ -6893,6 +7143,24 @@ export interface JobQueueItemDetail extends AdditionalDataHolder, Parsable {
      */
     updatedAt?: Date | null;
 }
+export interface JobQueueListCounts extends AdditionalDataHolder, Parsable {
+    /**
+     * The pending property
+     */
+    pending?: number | null;
+    /**
+     * The processing property
+     */
+    processing?: number | null;
+    /**
+     * The retrying property
+     */
+    retrying?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
+}
 export interface JobQueueListItem extends AdditionalDataHolder, Parsable {
     /**
      * The attempts property
@@ -6942,6 +7210,10 @@ export interface JobQueueListItem extends AdditionalDataHolder, Parsable {
      * The tenantId property
      */
     tenantId?: Guid | null;
+    /**
+     * The tenantName property
+     */
+    tenantName?: string | null;
     /**
      * The updatedAt property
      */
@@ -8614,6 +8886,22 @@ export function serializeDeadLetterEventItem(writer: SerializationWriter, deadLe
 }
 /**
  * Serializes information the current object
+ * @param DeadLetterListCounts The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDeadLetterListCounts(writer: SerializationWriter, deadLetterListCounts: Partial<DeadLetterListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!deadLetterListCounts || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("open", deadLetterListCounts.open);
+    writer.writeNumberValue("recent", deadLetterListCounts.recent);
+    writer.writeNumberValue("requeued", deadLetterListCounts.requeued);
+    writer.writeNumberValue("total", deadLetterListCounts.total);
+    writer.writeNumberValue("triaged", deadLetterListCounts.triaged);
+    writer.writeAdditionalData(deadLetterListCounts.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param DeadLetterListItem The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -8632,6 +8920,7 @@ export function serializeDeadLetterListItem(writer: SerializationWriter, deadLet
     writer.writeGuidValue("requeuedAsJobId", deadLetterListItem.requeuedAsJobId);
     writer.writeDateValue("requeuedAt", deadLetterListItem.requeuedAt);
     writer.writeGuidValue("tenantId", deadLetterListItem.tenantId);
+    writer.writeStringValue("tenantName", deadLetterListItem.tenantName);
     writer.writeDateValue("triagedAt", deadLetterListItem.triagedAt);
     writer.writeAdditionalData(deadLetterListItem.additionalData);
 }
@@ -8703,6 +8992,7 @@ export function serializeFindAuditLogsResponse(writer: SerializationWriter, find
     if (!findAuditLogsResponse || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<AuditLogListItem>("data", findAuditLogsResponse.data, serializeAuditLogListItem);
     writer.writeStringValue("nextCursor", findAuditLogsResponse.nextCursor);
+    writer.writeNumberValue("totalCount", findAuditLogsResponse.totalCount);
     writer.writeAdditionalData(findAuditLogsResponse.additionalData);
 }
 /**
@@ -8714,8 +9004,10 @@ export function serializeFindAuditLogsResponse(writer: SerializationWriter, find
 // @ts-ignore
 export function serializeFindDeadLettersResponse(writer: SerializationWriter, findDeadLettersResponse: Partial<FindDeadLettersResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findDeadLettersResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<DeadLetterListCounts>("counts", findDeadLettersResponse.counts, serializeDeadLetterListCounts);
     writer.writeCollectionOfObjectValues<DeadLetterListItem>("data", findDeadLettersResponse.data, serializeDeadLetterListItem);
     writer.writeStringValue("nextCursor", findDeadLettersResponse.nextCursor);
+    writer.writeNumberValue("totalCount", findDeadLettersResponse.totalCount);
     writer.writeAdditionalData(findDeadLettersResponse.additionalData);
 }
 /**
@@ -8740,8 +9032,10 @@ export function serializeFindInvitationsForTenantAsStaffResult(writer: Serializa
 // @ts-ignore
 export function serializeFindJobQueueItemsResponse(writer: SerializationWriter, findJobQueueItemsResponse: Partial<FindJobQueueItemsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findJobQueueItemsResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<JobQueueListCounts>("counts", findJobQueueItemsResponse.counts, serializeJobQueueListCounts);
     writer.writeCollectionOfObjectValues<JobQueueListItem>("data", findJobQueueItemsResponse.data, serializeJobQueueListItem);
     writer.writeStringValue("nextCursor", findJobQueueItemsResponse.nextCursor);
+    writer.writeNumberValue("totalCount", findJobQueueItemsResponse.totalCount);
     writer.writeAdditionalData(findJobQueueItemsResponse.additionalData);
 }
 /**
@@ -8829,8 +9123,10 @@ export function serializeFindSocialAccountsForTenantResponse(writer: Serializati
 // @ts-ignore
 export function serializeFindStaffInvitationsResult(writer: SerializationWriter, findStaffInvitationsResult: Partial<FindStaffInvitationsResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findStaffInvitationsResult || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<StaffInvitationListCounts>("counts", findStaffInvitationsResult.counts, serializeStaffInvitationListCounts);
     writer.writeCollectionOfObjectValues<InvitationListItem>("data", findStaffInvitationsResult.data, serializeInvitationListItem);
     writer.writeStringValue("nextCursor", findStaffInvitationsResult.nextCursor);
+    writer.writeNumberValue("totalCount", findStaffInvitationsResult.totalCount);
     writer.writeAdditionalData(findStaffInvitationsResult.additionalData);
 }
 /**
@@ -8856,6 +9152,8 @@ export function serializeFindStaffProfilesResult(writer: SerializationWriter, fi
     if (!findStaffProfilesResult || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<StaffProfileItem>("data", findStaffProfilesResult.data, serializeStaffProfileItem);
     writer.writeStringValue("nextCursor", findStaffProfilesResult.nextCursor);
+    writer.writeNumberValue("totalAssignments", findStaffProfilesResult.totalAssignments);
+    writer.writeNumberValue("totalCount", findStaffProfilesResult.totalCount);
     writer.writeAdditionalData(findStaffProfilesResult.additionalData);
 }
 /**
@@ -8880,8 +9178,10 @@ export function serializeFindStaffProfileUsersResult(writer: SerializationWriter
 // @ts-ignore
 export function serializeFindStaffUsersResponse(writer: SerializationWriter, findStaffUsersResponse: Partial<FindStaffUsersResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findStaffUsersResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<StaffUserListCounts>("counts", findStaffUsersResponse.counts, serializeStaffUserListCounts);
     writer.writeCollectionOfObjectValues<StaffUserItem>("data", findStaffUsersResponse.data, serializeStaffUserItem);
     writer.writeStringValue("nextCursor", findStaffUsersResponse.nextCursor);
+    writer.writeNumberValue("totalCount", findStaffUsersResponse.totalCount);
     writer.writeAdditionalData(findStaffUsersResponse.additionalData);
 }
 /**
@@ -8893,8 +9193,10 @@ export function serializeFindStaffUsersResponse(writer: SerializationWriter, fin
 // @ts-ignore
 export function serializeFindSystemJobDefinitionsResponse(writer: SerializationWriter, findSystemJobDefinitionsResponse: Partial<FindSystemJobDefinitionsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findSystemJobDefinitionsResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<SystemJobListCounts>("counts", findSystemJobDefinitionsResponse.counts, serializeSystemJobListCounts);
     writer.writeCollectionOfObjectValues<SystemJobDefinitionListItem>("data", findSystemJobDefinitionsResponse.data, serializeSystemJobDefinitionListItem);
     writer.writeStringValue("nextCursor", findSystemJobDefinitionsResponse.nextCursor);
+    writer.writeNumberValue("totalCount", findSystemJobDefinitionsResponse.totalCount);
     writer.writeAdditionalData(findSystemJobDefinitionsResponse.additionalData);
 }
 /**
@@ -8970,8 +9272,10 @@ export function serializeFindTenantProfileUsersAsStaffResult(writer: Serializati
 // @ts-ignore
 export function serializeFindTenantsAsStaffResponse(writer: SerializationWriter, findTenantsAsStaffResponse: Partial<FindTenantsAsStaffResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findTenantsAsStaffResponse || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<TenantListCountsResponse>("counts", findTenantsAsStaffResponse.counts, serializeTenantListCountsResponse);
     writer.writeCollectionOfObjectValues<TenantAsStaffListItem>("data", findTenantsAsStaffResponse.data, serializeTenantAsStaffListItem);
     writer.writeStringValue("nextCursor", findTenantsAsStaffResponse.nextCursor);
+    writer.writeNumberValue("totalCount", findTenantsAsStaffResponse.totalCount);
     writer.writeAdditionalData(findTenantsAsStaffResponse.additionalData);
 }
 /**
@@ -9356,6 +9660,21 @@ export function serializeJobQueueItemDetail(writer: SerializationWriter, jobQueu
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param JobQueueListCounts The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeJobQueueListCounts(writer: SerializationWriter, jobQueueListCounts: Partial<JobQueueListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!jobQueueListCounts || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("pending", jobQueueListCounts.pending);
+    writer.writeNumberValue("processing", jobQueueListCounts.processing);
+    writer.writeNumberValue("retrying", jobQueueListCounts.retrying);
+    writer.writeNumberValue("total", jobQueueListCounts.total);
+    writer.writeAdditionalData(jobQueueListCounts.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param JobQueueListItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -9374,6 +9693,7 @@ export function serializeJobQueueListItem(writer: SerializationWriter, jobQueueL
     writer.writeNumberValue("priority", jobQueueListItem.priority);
     writer.writeStringValue("status", jobQueueListItem.status);
     writer.writeGuidValue("tenantId", jobQueueListItem.tenantId);
+    writer.writeStringValue("tenantName", jobQueueListItem.tenantName);
     writer.writeDateValue("updatedAt", jobQueueListItem.updatedAt);
     writer.writeAdditionalData(jobQueueListItem.additionalData);
 }
@@ -10218,6 +10538,23 @@ export function serializeStaffInvitationDetails(writer: SerializationWriter, sta
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffInvitationListCounts The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffInvitationListCounts(writer: SerializationWriter, staffInvitationListCounts: Partial<StaffInvitationListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffInvitationListCounts || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("accepted", staffInvitationListCounts.accepted);
+    writer.writeNumberValue("expired", staffInvitationListCounts.expired);
+    writer.writeNumberValue("expiringSoon", staffInvitationListCounts.expiringSoon);
+    writer.writeNumberValue("pending", staffInvitationListCounts.pending);
+    writer.writeNumberValue("revoked", staffInvitationListCounts.revoked);
+    writer.writeNumberValue("total", staffInvitationListCounts.total);
+    writer.writeAdditionalData(staffInvitationListCounts.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param StaffInvitationProfile The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -10346,6 +10683,22 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
     writer.writeEnumValue<AccountLevel>("level", staffUserItem.level);
     writer.writeEnumValue<UserStatus>("status", staffUserItem.status);
     writer.writeAdditionalData(staffUserItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffUserListCounts The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffUserListCounts(writer: SerializationWriter, staffUserListCounts: Partial<StaffUserListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffUserListCounts || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("active", staffUserListCounts.active);
+    writer.writeNumberValue("admins", staffUserListCounts.admins);
+    writer.writeNumberValue("suspended", staffUserListCounts.suspended);
+    writer.writeNumberValue("total", staffUserListCounts.total);
+    writer.writeNumberValue("users", staffUserListCounts.users);
+    writer.writeAdditionalData(staffUserListCounts.additionalData);
 }
 /**
  * Serializes information the current object
@@ -10489,6 +10842,20 @@ export function serializeSystemJobDefinitionUpdatedResponse(writer: Serializatio
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SystemJobListCounts The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSystemJobListCounts(writer: SerializationWriter, systemJobListCounts: Partial<SystemJobListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!systemJobListCounts || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("disabled", systemJobListCounts.disabled);
+    writer.writeNumberValue("enabled", systemJobListCounts.enabled);
+    writer.writeNumberValue("total", systemJobListCounts.total);
+    writer.writeAdditionalData(systemJobListCounts.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param SystemJobOccurrenceItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -10621,6 +10988,27 @@ export function serializeTenantForPickerItem(writer: SerializationWriter, tenant
     writer.writeStringValue("name", tenantForPickerItem.name);
     writer.writeEnumValue<TenantStatus>("status", tenantForPickerItem.status);
     writer.writeAdditionalData(tenantForPickerItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantListCountsResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantListCountsResponse(writer: SerializationWriter, tenantListCountsResponse: Partial<TenantListCountsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantListCountsResponse || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("active", tenantListCountsResponse.active);
+    writer.writeNumberValue("activeThisWeek", tenantListCountsResponse.activeThisWeek);
+    writer.writeNumberValue("almostFull", tenantListCountsResponse.almostFull);
+    writer.writeNumberValue("full", tenantListCountsResponse.full);
+    writer.writeNumberValue("members", tenantListCountsResponse.members);
+    writer.writeNumberValue("pending", tenantListCountsResponse.pending);
+    writer.writeNumberValue("projects", tenantListCountsResponse.projects);
+    writer.writeNumberValue("seats", tenantListCountsResponse.seats);
+    writer.writeNumberValue("suspended", tenantListCountsResponse.suspended);
+    writer.writeNumberValue("total", tenantListCountsResponse.total);
+    writer.writeAdditionalData(tenantListCountsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11306,6 +11694,32 @@ export interface StaffInvitationDetails extends AdditionalDataHolder, Parsable {
      */
     status?: InvitationEffectiveStatus | null;
 }
+export interface StaffInvitationListCounts extends AdditionalDataHolder, Parsable {
+    /**
+     * The accepted property
+     */
+    accepted?: number | null;
+    /**
+     * The expired property
+     */
+    expired?: number | null;
+    /**
+     * The expiringSoon property
+     */
+    expiringSoon?: number | null;
+    /**
+     * The pending property
+     */
+    pending?: number | null;
+    /**
+     * The revoked property
+     */
+    revoked?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
+}
 export interface StaffInvitationProfile extends AdditionalDataHolder, Parsable {
     /**
      * The id property
@@ -11498,6 +11912,28 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      */
     status?: UserStatus | null;
 }
+export interface StaffUserListCounts extends AdditionalDataHolder, Parsable {
+    /**
+     * The active property
+     */
+    active?: number | null;
+    /**
+     * The admins property
+     */
+    admins?: number | null;
+    /**
+     * The suspended property
+     */
+    suspended?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
+    /**
+     * The users property
+     */
+    users?: number | null;
+}
 export interface StaffUserProfileItem extends AdditionalDataHolder, Parsable {
     /**
      * The description property
@@ -11678,6 +12114,20 @@ export interface SystemJobDefinitionUpdatedResponse extends AdditionalDataHolder
      * The scheduleEpoch property
      */
     scheduleEpoch?: Guid | null;
+}
+export interface SystemJobListCounts extends AdditionalDataHolder, Parsable {
+    /**
+     * The disabled property
+     */
+    disabled?: number | null;
+    /**
+     * The enabled property
+     */
+    enabled?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
 }
 export interface SystemJobOccurrenceItem extends AdditionalDataHolder, Parsable {
     /**
@@ -11886,6 +12336,48 @@ export interface TenantForPickerItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: TenantStatus | null;
+}
+export interface TenantListCountsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The active property
+     */
+    active?: number | null;
+    /**
+     * The activeThisWeek property
+     */
+    activeThisWeek?: number | null;
+    /**
+     * The almostFull property
+     */
+    almostFull?: number | null;
+    /**
+     * The full property
+     */
+    full?: number | null;
+    /**
+     * The members property
+     */
+    members?: number | null;
+    /**
+     * The pending property
+     */
+    pending?: number | null;
+    /**
+     * The projects property
+     */
+    projects?: number | null;
+    /**
+     * The seats property
+     */
+    seats?: number | null;
+    /**
+     * The suspended property
+     */
+    suspended?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
 }
 export interface TenantListItem extends AdditionalDataHolder, Parsable {
     /**

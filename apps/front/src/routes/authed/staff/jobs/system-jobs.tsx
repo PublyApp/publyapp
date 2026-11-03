@@ -16,8 +16,6 @@ import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 import { jobLabel } from './_job-catalogue';
 import {
 	exportJobRows,
-	filterRowsBySearch,
-	searchTextForSystemJob,
 	systemJobColumns,
 	systemJobFilters,
 	systemJobMobileCard,
@@ -86,12 +84,22 @@ const StaffJobsSystemJobsPage = () => {
 	const serverEnabled =
 		enabledFilters.length === 1 ? enabledFilters[0] : undefined;
 	const query = useStaffSystemJobDefinitionsQuery({
+		q: search.q,
 		isEnabled: serverEnabled,
 		cursor: controller.apiVariables.cursor,
 		size: controller.apiVariables.size,
 	});
 	const rows = toStaffSystemJobDefinitionRows(query.data?.data);
 	const overview = useJobsOverview();
+	const counts = query.data?.counts;
+	const globalCounts = overview.systemJobCounts;
+	const filterCounts = {
+		state: {
+			true: globalCounts?.enabled ?? null,
+			false: globalCounts?.disabled ?? null,
+		},
+		family: {},
+	};
 
 	const filtersValue: ListFiltersValue = {
 		state: enabledFilters,
@@ -110,18 +118,6 @@ const StaffJobsSystemJobsPage = () => {
 		explanation,
 		onToggleEnabled: actions.onToggleEnabled,
 	});
-	const visibleRows = filterRowsBySearch(
-		rows,
-		search.q ?? '',
-		searchTextForSystemJob(t),
-	);
-	const overviewRows = overview.systemJobs
-		? filterRowsBySearch(
-				overview.systemJobs,
-				search.q ?? '',
-				searchTextForSystemJob(t),
-			)
-		: null;
 
 	const setFilters = (next: ListFiltersValue): void => {
 		void navigate({
@@ -147,13 +143,8 @@ const StaffJobsSystemJobsPage = () => {
 		void navigate({ to: jobsSectionPath(section) });
 	};
 
-	// The cursor API has no total and no `q`: counters are exact only when the
-	// first page is the whole collection and no server-side filter narrowed it.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = collectionComplete && serverEnabled === undefined;
+	// `totalCount`/`counts` describe the whole filtered collection (#2301).
+	const countsKnown = query.data !== undefined;
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -165,7 +156,7 @@ const StaffJobsSystemJobsPage = () => {
 			ariaLabel={t('system-page-title')}
 			title={t('system-page-title')}
 			searchPlaceholder={t('jobs-search-placeholder')}
-			rows={visibleRows}
+			rows={rows}
 			columns={columns}
 			defaultColumns={['type', 'what', 'state', 'cron', 'last', 'updatedAt']}
 			lockedColumn="type"
@@ -190,12 +181,12 @@ const StaffJobsSystemJobsPage = () => {
 			emptyText={t('system-empty-description')}
 			locale={locale}
 			cards={<JobsStatCards overview={overview} t={t} />}
-			totals={systemJobTotals(t)}
+			totals={systemJobTotals(t, counts)}
 			panelGroups={buildJobsPanelGroups({
 				t,
 				current: 'system',
 				overview,
-				filterRows: overviewRows,
+				filterCounts,
 				filters: systemJobFilters(t),
 				filtersValue,
 				onSection,
@@ -217,9 +208,7 @@ const StaffJobsSystemJobsPage = () => {
 					onTriggerNow={actions.onTriggerNow}
 				/>
 			)}
-			onExport={() =>
-				exportJobRows(visibleRows, columns, t, 'jobs-export-system')
-			}
+			onExport={() => exportJobRows(rows, columns, t, 'jobs-export-system')}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,

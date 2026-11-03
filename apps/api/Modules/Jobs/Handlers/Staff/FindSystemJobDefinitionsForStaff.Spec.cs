@@ -128,6 +128,32 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnWholeFilteredCountsAndSearchByJobKey() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var jobKey = await this._SeedDefinitionAsync(isEnabled: true);
+
+		try {
+			var url = $"{FindSystemJobDefinitionsForStaffSpec._Url()}?q={Uri.EscapeDataString(jobKey)}&limit=1";
+			using var request = new HttpRequestMessage(HttpMethod.Get, url)
+				.WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
+			Assert.NotNull(document);
+			var root = document.RootElement;
+
+			root.GetProperty("data").GetArrayLength().Should().Be(1);
+			root.GetProperty("totalCount").GetInt32().Should().Be(1);
+			root.GetProperty("counts").GetProperty("enabled").GetInt32().Should().Be(1);
+			root.GetProperty("counts").GetProperty("disabled").GetInt32().Should().Be(0);
+			root.GetProperty("data")[0].GetProperty("jobKey").GetString().Should().Be(jobKey);
+		} finally {
+			await this._CleanupAsync(jobKey);
+		}
+	}
+
 	// --- helpers ------------------------------------------------------------------------
 
 	private async Task<string> _SeedDefinitionAsync(bool isEnabled) {

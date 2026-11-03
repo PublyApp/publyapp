@@ -139,9 +139,24 @@ public record CreateTenantWithInitialUsersArgs(
 	string? Notes
 );
 
+public sealed record TenantListCounts(
+	int Total,
+	int Active,
+	int Pending,
+	int Suspended,
+	int Members,
+	int Seats,
+	int Projects,
+	int AlmostFull,
+	int Full,
+	int ActiveThisWeek
+);
+
 public abstract record FindTenantsAsStaffServiceResult {
-	public sealed record Success(CursorPaginatedResult<TenantAsStaffListItem> Data)
-		: FindTenantsAsStaffServiceResult;
+	public sealed record Success(
+		CursorPaginatedResult<TenantAsStaffListItem> Data,
+		TenantListCounts Counts
+	) : FindTenantsAsStaffServiceResult;
 
 	public sealed record CursorNotFound(string Cursor)
 		: FindTenantsAsStaffServiceResult;
@@ -357,6 +372,84 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			baseQuery = baseQuery.Where(t => statuses.Contains(t.Status));
 		}
 
+		// Facets describe the whole filtered collection (cursor and limit are
+		// pagination only). Occupancy needs the per-tenant member count; the
+		// grouped projection loads two ints per tenant, never whole rows.
+		var occupancyRows = await (
+			from tenant in baseQuery
+			join ua in this._DbContext.UserAccount.AsNoTracking()
+				on tenant.Id equals ua.TenantId
+			where ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			group ua by new { tenant.Id, tenant.MaxUsers } into g
+			select new { g.Key.MaxUsers, Members = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var seats = await baseQuery.SumAsync(t => t.MaxUsers, cancellationToken);
+		var weekAgo = DateTime.UtcNow.AddDays(-7);
+		var activeThisWeek = await baseQuery.CountAsync(
+			t => t.LastActivityAt != null && t.LastActivityAt >= weekAgo,
+			cancellationToken
+		);
+		var projects = await (
+			from project in this._DbContext.Project.AsNoTracking()
+			where !project.IsDeleted
+				&& baseQuery.Any(tenant => tenant.Id == project.TenantId)
+			select project
+		).CountAsync(cancellationToken);
+
+		var members = 0;
+		var almostFull = 0;
+		var full = 0;
+		foreach (var row in occupancyRows) {
+			members += row.Members;
+			if (row.MaxUsers <= 0) {
+				continue;
+			}
+			var percent = Math.Min(100, (int)Math.Round(row.Members * 100.0 / row.MaxUsers));
+			if (percent >= 100) {
+				full += 1;
+			}
+			if (percent >= 80) {
+				almostFull += 1;
+			}
+		}
+
+		var statusFacets = await (
+			from tenant in baseQuery
+			group tenant by tenant.Status into g
+			select new { Status = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var active = 0;
+		var pending = 0;
+		var suspended = 0;
+		foreach (var facet in statusFacets) {
+			total += facet.Count;
+			if (facet.Status == TenantStatus.Active) {
+				active += facet.Count;
+			} else if (facet.Status == TenantStatus.Pending) {
+				pending += facet.Count;
+			} else if (facet.Status == TenantStatus.Suspended) {
+				suspended += facet.Count;
+			}
+		}
+
+		var counts = new TenantListCounts(
+			Total: total,
+			Active: active,
+			Pending: pending,
+			Suspended: suspended,
+			Members: members,
+			Seats: seats,
+			Projects: projects,
+			AlmostFull: almostFull,
+			Full: full,
+			ActiveThisWeek: activeThisWeek
+		);
+
 		// Apply cursor filter
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(args.Cursor);
@@ -437,7 +530,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			new CursorPaginatedResult<TenantAsStaffListItem> {
 				Data = items,
 				NextCursor = nextCursor
-			}
+			},
+			counts
 		);
 	}
 

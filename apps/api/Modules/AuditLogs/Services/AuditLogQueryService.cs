@@ -31,7 +31,8 @@ public record ExportAuditLogsArgs(
 
 public abstract record FindAuditLogsResult {
 	public sealed record Success(
-		CursorPaginatedResult<AuditLogListItem> Data
+		CursorPaginatedResult<AuditLogListItem> Data,
+		int TotalCount
 	) : FindAuditLogsResult;
 
 	public sealed record CursorNotFound(
@@ -155,6 +156,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.EndDate
 		);
 
+		// Whole filtered collection, cursor excluded.
+		var totalCount = await query.CountAsync(cancellationToken);
+
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue =
 				await handler.GetCursorValue(args.Cursor);
@@ -220,7 +224,8 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			new CursorPaginatedResult<AuditLogListItem> {
 				Data = results,
 				NextCursor = nextCursor,
-			}
+			},
+			totalCount
 		);
 	}
 

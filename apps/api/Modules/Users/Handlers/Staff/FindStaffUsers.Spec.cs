@@ -968,6 +968,83 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnWholeFilteredCollectionCountsWithMixedData() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"counts-{Guid.NewGuid():N}";
+
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-admin@example.com",
+			firstName: marker,
+			lastName: "Admin",
+			accountLevel: AccountLevel.Admin
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-user@example.com",
+			firstName: marker,
+			lastName: "User"
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-suspended@example.com",
+			firstName: marker,
+			lastName: "Suspended",
+			status: UserStatus.Suspended
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: 1, q: marker)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// limit=1 proves the counts are not the page length.
+		result.Data.Should().HaveCount(1);
+		result.TotalCount.Should().Be(3);
+		result.Counts.Total.Should().Be(3);
+		result.Counts.Active.Should().Be(2);
+		result.Counts.Suspended.Should().Be(1);
+		result.Counts.Admins.Should().Be(1);
+		result.Counts.Users.Should().Be(2);
+	}
+
+	[Fact]
+	public async Task ItShouldMatchTheRoleNamedByTheSearchPlaceholder() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"role-{Guid.NewGuid():N}";
+
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-admin@example.com",
+			firstName: marker,
+			lastName: "Admin",
+			accountLevel: AccountLevel.Admin
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: 100, q: "admin")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Should().Contain(user =>
+			user.Email == $"{marker}-admin@example.com"
+		);
+	}
+
 	private static string _GetFindUrl(
 		string? cursor = null,
 		int? limit = null,
@@ -1106,6 +1183,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	private record FindResponse {
 		public List<StaffUserItemDto> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+		public int TotalCount { get; init; }
+		public StaffUserCountsDto Counts { get; init; } = new();
+	}
+
+	private record StaffUserCountsDto {
+		public int Total { get; init; }
+		public int Active { get; init; }
+		public int Suspended { get; init; }
+		public int Admins { get; init; }
+		public int Users { get; init; }
 	}
 
 	private record StaffUserItemDto {

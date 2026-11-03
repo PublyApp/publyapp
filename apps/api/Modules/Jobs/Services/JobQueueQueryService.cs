@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 namespace PublyApp.Api.Modules.Jobs.Services;
@@ -12,12 +13,21 @@ public record FindJobQueueItemsArgs(
 	int? Limit,
 	Guid? TenantId,
 	string? StatusCsv,
-	string? JobType
+	string? JobType,
+	string? Search
+);
+
+public sealed record JobQueueCounts(
+	int Total,
+	int Pending,
+	int Processing,
+	int Retrying
 );
 
 public abstract record FindJobQueueItemsResult {
 	public sealed record Success(
-		CursorPaginatedResult<JobQueueListItem> Data
+		CursorPaginatedResult<JobQueueListItem> Data,
+		JobQueueCounts Counts
 	) : FindJobQueueItemsResult;
 
 	public sealed record InvalidStatusCsv(
@@ -33,6 +43,7 @@ public record JobQueueListItem {
 	public required int Attempts { get; init; }
 	public required int MaxAttempts { get; init; }
 	public Guid? TenantId { get; init; }
+	public string? TenantName { get; init; }
 	public string? LockedBy { get; init; }
 	public string? LastError { get; init; }
 	public required DateTime NextAttemptAt { get; init; }
@@ -108,6 +119,52 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 
 		query = JobQueueQueryService._ApplyFilters(query, args.TenantId, statuses, args.JobType);
 
+		if (args.Search is { } search) {
+			var trimmed = search.Trim();
+			if (trimmed.Length > 0) {
+				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
+				query = query.Where(item =>
+					EF.Functions.ILike(item.JobType, pattern, LikePatternUtils.LikeEscapeChar)
+					|| (item.LastError != null && EF.Functions.ILike(item.LastError, pattern, LikePatternUtils.LikeEscapeChar))
+					|| (item.TenantId.HasValue && dbContext.Tenant.Any(tenant =>
+						tenant.Id == item.TenantId
+						&& EF.Functions.ILike(tenant.Name, pattern, LikePatternUtils.LikeEscapeChar)))
+				);
+			}
+		}
+
+		// Facets describe the whole filtered collection: cursor and limit are
+		// pagination only.
+		var statusFacets = await (
+			from item in query
+			group item by item.Status into g
+			select new { Status = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var pending = 0;
+		var processing = 0;
+		foreach (var facet in statusFacets) {
+			total += facet.Count;
+			if (facet.Status == JobQueueStatus.Pending) {
+				pending += facet.Count;
+			} else if (facet.Status == JobQueueStatus.Processing) {
+				processing += facet.Count;
+			}
+		}
+
+		var retrying = await query.CountAsync(
+			item => item.Attempts > 0,
+			cancellationToken
+		);
+
+		var counts = new JobQueueCounts(
+			Total: total,
+			Pending: pending,
+			Processing: processing,
+			Retrying: retrying
+		);
+
 		IQueryable<JobQueueItem> page = query;
 		if (args.Cursor != Guid.Empty) {
 			var cursorRow = await (
@@ -119,7 +176,8 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 				// The anchor row is gone (hard delete on success/failure): report an
 				// empty tail instead of fabricating a window.
 				return new FindJobQueueItemsResult.Success(
-					new CursorPaginatedResult<JobQueueListItem>()
+					new CursorPaginatedResult<JobQueueListItem>(),
+					counts
 				);
 			}
 
@@ -148,6 +206,10 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 				item.Attempts,
 				item.MaxAttempts,
 				item.TenantId,
+				TenantName = dbContext.Tenant
+					.Where(tenant => tenant.Id == item.TenantId)
+					.Select(tenant => tenant.Name)
+					.FirstOrDefault(),
 				item.LockedBy,
 				item.LastError,
 				item.NextAttemptAt,
@@ -171,6 +233,7 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			Attempts = row.Attempts,
 			MaxAttempts = row.MaxAttempts,
 			TenantId = row.TenantId,
+			TenantName = row.TenantName,
 			LockedBy = row.LockedBy,
 			LastError = row.LastError,
 			NextAttemptAt = row.NextAttemptAt,
@@ -183,7 +246,8 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			new CursorPaginatedResult<JobQueueListItem> {
 				Data = items,
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 

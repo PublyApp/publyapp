@@ -34,6 +34,12 @@ import {
 	type RelativeTimeParts,
 } from '~/utils/format-time';
 
+import type {
+	DeadLetterListCounts,
+	JobQueueListCounts,
+	SystemJobListCounts,
+} from '@org/client-ts/models/index';
+
 import {
 	cronText,
 	DEAD_LETTER_STATE_LABEL,
@@ -45,7 +51,6 @@ import {
 	jobDescription,
 	jobLabel,
 	jobOf,
-	jobSearchText,
 } from './_job-catalogue';
 import { formatFailureCause } from './_jobs-helpers';
 import {
@@ -56,21 +61,8 @@ import {
 } from './_jobs-status';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
-type TenantNames = Map<string, string> | null;
 
 const dash = <span className="text-muted-foreground">—</span>;
-
-export const filterRowsBySearch = <T,>(
-	rows: T[],
-	q: string,
-	textOf: (row: T) => string,
-): T[] => {
-	const needle = q.trim().toLowerCase();
-	if (needle.length === 0) {
-		return rows;
-	}
-	return rows.filter((row) => textOf(row).toLowerCase().includes(needle));
-};
 
 const relativeText = (
 	t: Translate,
@@ -103,18 +95,13 @@ export const jobWhen = (t: Translate, locale: string) => {
 	return render;
 };
 
-const orgName = (
-	tenantNames: TenantNames,
-	tenantId: string | null,
-): string | null => (tenantId ? (tenantNames?.get(tenantId) ?? null) : null);
-
 const OrgCell = ({
 	tenantId,
-	tenantNames,
+	tenantName,
 	t,
 }: {
 	tenantId: string | null;
-	tenantNames: TenantNames;
+	tenantName: string | null;
 	t: Translate;
 }) => {
 	if (!tenantId) {
@@ -125,17 +112,16 @@ const OrgCell = ({
 		);
 	}
 
-	const name = orgName(tenantNames, tenantId);
-	if (name) {
+	if (tenantName) {
 		return (
-			<span className="truncate" title={name}>
-				{name}
+			<span className="truncate" title={tenantName}>
+				{tenantName}
 			</span>
 		);
 	}
 
-	// No name source for this row (incomplete organisation list or deleted
-	// organisation): show the technical id, never a made-up name.
+	// The API returned no organisation name (deleted organisation): show the
+	// technical id, never a made-up name.
 	return (
 		<span
 			className="block truncate font-mono text-xs text-muted-foreground"
@@ -314,16 +300,16 @@ const whatColumn = <T,>(
 
 const organisationColumn = <T,>(
 	t: Translate,
-	tenantNames: TenantNames,
 	tenantOf: (row: T) => string | null,
+	tenantNameOf: (row: T) => string | null,
 ): ListColumn<T> => ({
 	id: 'org',
 	header: t('staff-jobs:jobs-column-organization'),
 	icon: IconBuilding,
 	width: 190,
-	value: (row) => orgName(tenantNames, tenantOf(row)) ?? '',
+	value: (row) => tenantNameOf(row) ?? '',
 	cell: (row) => (
-		<OrgCell tenantId={tenantOf(row)} tenantNames={tenantNames} t={t} />
+		<OrgCell tenantId={tenantOf(row)} tenantName={tenantNameOf(row)} t={t} />
 	),
 });
 
@@ -344,7 +330,6 @@ const attemptsCell = (attempts: number | null): ReactNode =>
 export const queueColumns = (
 	t: Translate,
 	locale: string,
-	tenantNames: TenantNames,
 ): ListColumn<StaffJobQueueRow>[] => {
 	const when = jobWhen(t, locale);
 	return [
@@ -362,7 +347,11 @@ export const queueColumns = (
 				</StatusPill>
 			),
 		},
-		organisationColumn(t, tenantNames, (row) => row.tenantId),
+		organisationColumn(
+			t,
+			(row) => row.tenantId,
+			(row) => row.tenantName ?? null,
+		),
 		{
 			id: 'attempts',
 			header: t('staff-jobs:jobs-column-attempts'),
@@ -433,7 +422,6 @@ export const queueColumns = (
 export const deadLetterColumns = (
 	t: Translate,
 	locale: string,
-	tenantNames: TenantNames,
 ): ListColumn<StaffDeadLetterRow>[] => {
 	const when = jobWhen(t, locale);
 	const error = errorCell(t);
@@ -461,7 +449,11 @@ export const deadLetterColumns = (
 				);
 			},
 		},
-		organisationColumn(t, tenantNames, (row) => row.tenantId),
+		organisationColumn(
+			t,
+			(row) => row.tenantId,
+			(row) => row.tenantName ?? null,
+		),
 		{
 			id: 'attempts',
 			header: t('staff-jobs:jobs-column-attempts'),
@@ -581,30 +573,22 @@ export const systemJobColumns = (
 };
 
 export const queueTotals =
-	(t: Translate) =>
-	(visible: StaffJobQueueRow[]): Map<string, string> => {
-		let processing = 0;
-		let retrying = 0;
-		for (const row of visible) {
-			if (row.status === 'processing') {
-				processing += 1;
-			}
-			if ((row.attempts ?? 0) > 0) {
-				retrying += 1;
-			}
-		}
+	(t: Translate, counts: JobQueueListCounts | null | undefined) =>
+	(): Map<string, string> => {
 		const map = new Map<string, string>();
 		map.set(
 			'type',
-			t('staff-jobs:jobs-total-queue', { count: visible.length }),
+			t('staff-jobs:jobs-total-queue', { count: counts?.total ?? 0 }),
 		);
 		map.set(
 			'status',
-			t('staff-jobs:jobs-total-processing', { count: processing }),
+			t('staff-jobs:jobs-total-processing', {
+				count: counts?.processing ?? 0,
+			}),
 		);
 		map.set(
 			'attempts',
-			t('staff-jobs:jobs-total-retrying', { count: retrying }),
+			t('staff-jobs:jobs-total-retrying', { count: counts?.retrying ?? 0 }),
 		);
 		for (const id of ['what', 'org', 'priority', 'next', 'error', 'worker']) {
 			map.set(id, '');
@@ -613,17 +597,17 @@ export const queueTotals =
 	};
 
 export const deadLetterTotals =
-	(t: Translate) =>
-	(visible: StaffDeadLetterRow[]): Map<string, string> => {
-		let open = 0;
-		for (const row of visible) {
-			if (deadLetterState(row) === 'open') {
-				open += 1;
-			}
-		}
+	(t: Translate, counts: DeadLetterListCounts | null | undefined) =>
+	(): Map<string, string> => {
 		const map = new Map<string, string>();
-		map.set('type', t('staff-jobs:jobs-total-dead', { count: visible.length }));
-		map.set('state', t('staff-jobs:jobs-total-open', { count: open }));
+		map.set(
+			'type',
+			t('staff-jobs:jobs-total-dead', { count: counts?.total ?? 0 }),
+		);
+		map.set(
+			'state',
+			t('staff-jobs:jobs-total-open', { count: counts?.open ?? 0 }),
+		);
 		for (const id of [
 			'what',
 			'org',
@@ -638,20 +622,17 @@ export const deadLetterTotals =
 	};
 
 export const systemJobTotals =
-	(t: Translate) =>
-	(visible: StaffSystemJobDefinitionRow[]): Map<string, string> => {
-		let active = 0;
-		for (const row of visible) {
-			if (row.isEnabled) {
-				active += 1;
-			}
-		}
+	(t: Translate, counts: SystemJobListCounts | null | undefined) =>
+	(): Map<string, string> => {
 		const map = new Map<string, string>();
 		map.set(
 			'type',
-			t('staff-jobs:jobs-total-queue', { count: visible.length }),
+			t('staff-jobs:jobs-total-queue', { count: counts?.total ?? 0 }),
 		);
-		map.set('state', t('staff-jobs:jobs-total-enabled', { count: active }));
+		map.set(
+			'state',
+			t('staff-jobs:jobs-total-enabled', { count: counts?.enabled ?? 0 }),
+		);
 		for (const id of ['what', 'cron', 'last', 'updatedAt']) {
 			map.set(id, '');
 		}
@@ -666,7 +647,7 @@ const mobileRelative = (t: Translate, value: Date | null): ReactNode => {
 };
 
 export const queueMobileCard =
-	(t: Translate, tenantNames: TenantNames) =>
+	(t: Translate) =>
 	(row: StaffJobQueueRow): ListMobileCard => ({
 		code: row.jobType ?? '',
 		badges: (
@@ -675,7 +656,7 @@ export const queueMobileCard =
 			</StatusPill>
 		),
 		end: mobileRelative(t, row.nextAttemptAt),
-		title: orgName(tenantNames, row.tenantId) ?? t('staff-jobs:jobs-platform'),
+		title: row.tenantName ?? t('staff-jobs:jobs-platform'),
 		sub: row.lastError ? formatFailureCause(row.lastError, t) : '',
 		foot: [
 			t('staff-jobs:jobs-column-attempts'),
@@ -684,7 +665,7 @@ export const queueMobileCard =
 	});
 
 export const deadLetterMobileCard =
-	(t: Translate, tenantNames: TenantNames) =>
+	(t: Translate) =>
 	(row: StaffDeadLetterRow): ListMobileCard => {
 		const state = deadLetterState(row);
 		return {
@@ -695,8 +676,7 @@ export const deadLetterMobileCard =
 				</StatusPill>
 			),
 			end: mobileRelative(t, row.failedAt),
-			title:
-				orgName(tenantNames, row.tenantId) ?? t('staff-jobs:jobs-platform'),
+			title: row.tenantName ?? t('staff-jobs:jobs-platform'),
 			sub: row.lastError ? formatFailureCause(row.lastError, t) : '',
 			foot: [
 				t('staff-jobs:jobs-column-attempts'),
@@ -746,18 +726,3 @@ export const exportJobRows = <T,>(
 		mimeType: 'text/csv;charset=utf-8',
 	});
 };
-
-export const searchTextForQueue =
-	(t: Translate, tenantNames: TenantNames) =>
-	(row: StaffJobQueueRow): string =>
-		`${jobSearchText(t, row.jobType)} ${orgName(tenantNames, row.tenantId) ?? ''} ${row.lastError ?? ''} ${row.status ?? ''}`;
-
-export const searchTextForDeadLetter =
-	(t: Translate, tenantNames: TenantNames) =>
-	(row: StaffDeadLetterRow): string =>
-		`${jobSearchText(t, row.jobType)} ${orgName(tenantNames, row.tenantId) ?? ''} ${row.lastError ?? ''} ${deadLetterState(row)}`;
-
-export const searchTextForSystemJob =
-	(t: Translate) =>
-	(row: StaffSystemJobDefinitionRow): string =>
-		`${jobSearchText(t, row.jobKey)} ${row.cronExpression ?? ''}`;

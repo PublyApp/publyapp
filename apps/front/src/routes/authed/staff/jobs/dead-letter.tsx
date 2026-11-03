@@ -32,8 +32,6 @@ import {
 	deadLetterMobileCard,
 	deadLetterTotals,
 	exportJobRows,
-	filterRowsBySearch,
-	searchTextForDeadLetter,
 } from './_jobs-list-config';
 import { useJobsOverview } from './_jobs-overview';
 import {
@@ -43,7 +41,6 @@ import {
 } from './_jobs-panel';
 import { DeadLetterRowActions } from './_jobs-row-actions';
 import { JobsStatCards } from './_jobs-stat-cards';
-import { useJobTenantNames } from './_jobs-tenant-names';
 import {
 	buildStaffJobsCursorResetKey,
 	parseStaffJobsListSearchParams,
@@ -91,6 +88,7 @@ const StaffJobsDeadLetterPage = () => {
 	});
 
 	const query = useStaffDeadLettersQuery({
+		q: search.q,
 		externalStateStatus: search.externalStateStatus,
 		jobType: search.jobType,
 		tenantId: search.tenantId,
@@ -98,8 +96,17 @@ const StaffJobsDeadLetterPage = () => {
 		size: controller.apiVariables.size,
 	});
 	const rows = toStaffDeadLetterRows(query.data?.data);
-	const tenantNames = useJobTenantNames();
 	const overview = useJobsOverview();
+	const counts = query.data?.counts;
+	const globalCounts = overview.deadLetterCounts;
+	const filterCounts = {
+		state: {
+			open: globalCounts?.open ?? null,
+			triaged: globalCounts?.triaged ?? null,
+			requeued: globalCounts?.requeued ?? null,
+		},
+		family: {},
+	};
 
 	const detailQuery = useStaffDeadLetterDetailQuery(inspected?.id);
 	const detail = detailQuery.data;
@@ -109,19 +116,7 @@ const StaffJobsDeadLetterPage = () => {
 		state: splitFilter(search.state),
 		family: splitFilter(search.family),
 	};
-	const columns = deadLetterColumns(t, locale, tenantNames);
-	const visibleRows = filterRowsBySearch(
-		rows,
-		search.q ?? '',
-		searchTextForDeadLetter(t, tenantNames),
-	);
-	const overviewRows = overview.deadLetters
-		? filterRowsBySearch(
-				overview.deadLetters,
-				search.q ?? '',
-				searchTextForDeadLetter(t, tenantNames),
-			)
-		: null;
+	const columns = deadLetterColumns(t, locale);
 
 	const setFilters = (next: ListFiltersValue): void => {
 		void navigate({
@@ -183,17 +178,8 @@ const StaffJobsDeadLetterPage = () => {
 		closeRequeueDialog();
 	};
 
-	// The cursor API has no total and no `q`: counters are exact only when the
-	// first page is the whole collection and no server-side filter narrowed it.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown =
-		collectionComplete &&
-		search.externalStateStatus === undefined &&
-		search.jobType === undefined &&
-		search.tenantId === undefined;
+	// `totalCount`/`counts` describe the whole filtered collection (#2301).
+	const countsKnown = query.data !== undefined;
 
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
@@ -212,7 +198,7 @@ const StaffJobsDeadLetterPage = () => {
 			ariaLabel={t('dl-page-title')}
 			title={t('dl-page-title')}
 			searchPlaceholder={t('jobs-search-placeholder')}
-			rows={visibleRows}
+			rows={rows}
 			columns={columns}
 			defaultColumns={[
 				'type',
@@ -245,12 +231,12 @@ const StaffJobsDeadLetterPage = () => {
 			emptyText={t('dl-empty-description')}
 			locale={locale}
 			cards={<JobsStatCards overview={overview} t={t} />}
-			totals={deadLetterTotals(t)}
+			totals={deadLetterTotals(t, counts)}
 			panelGroups={buildJobsPanelGroups({
 				t,
 				current: 'dead',
 				overview,
-				filterRows: overviewRows,
+				filterCounts,
 				filters: deadLetterFilters(t),
 				filtersValue,
 				onSection,
@@ -261,7 +247,7 @@ const StaffJobsDeadLetterPage = () => {
 				t('common:list-open-row', { name: jobLabel(t, row.jobType) })
 			}
 			rowLabel={(row) => jobLabel(t, row.jobType)}
-			mobileCard={deadLetterMobileCard(t, tenantNames)}
+			mobileCard={deadLetterMobileCard(t)}
 			renderActions={(row) => (
 				<DeadLetterRowActions
 					row={row}
@@ -277,9 +263,7 @@ const StaffJobsDeadLetterPage = () => {
 					}
 				/>
 			)}
-			onExport={() =>
-				exportJobRows(visibleRows, columns, t, 'jobs-export-dead')
-			}
+			onExport={() => exportJobRows(rows, columns, t, 'jobs-export-dead')}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,

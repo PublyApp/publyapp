@@ -22,7 +22,18 @@ public class StaffUserItem {
 	public AccountLevel Level { get; set; }
 }
 
-public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
+public class StaffUserListCounts {
+	public int Total { get; set; }
+	public int Active { get; set; }
+	public int Suspended { get; set; }
+	public int Admins { get; set; }
+	public int Users { get; set; }
+}
+
+public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> {
+	public int TotalCount { get; set; }
+	public StaffUserListCounts Counts { get; set; } = new();
+}
 
 public class FindStaffUsersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
@@ -163,6 +174,14 @@ public sealed class FindStaffUsers {
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,
+					TotalCount = success.Counts.Total,
+					Counts = new StaffUserListCounts {
+						Total = success.Counts.Total,
+						Active = success.Counts.Active,
+						Suspended = success.Counts.Suspended,
+						Admins = success.Counts.Admins,
+						Users = success.Counts.Users,
+					},
 				}
 			);
 		}

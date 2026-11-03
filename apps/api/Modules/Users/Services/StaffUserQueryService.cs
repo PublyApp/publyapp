@@ -13,9 +13,18 @@ public class StaffUserData {
 	public required AccountLevel AccountLevel { get; set; }
 }
 
+public sealed record StaffUserCounts(
+	int Total,
+	int Active,
+	int Suspended,
+	int Admins,
+	int Users
+);
+
 public abstract record FindStaffUsersResult {
 	public sealed record Success(
-		CursorPaginatedResult<StaffUserData> Data
+		CursorPaginatedResult<StaffUserData> Data,
+		StaffUserCounts Counts
 	) : FindStaffUsersResult;
 
 	public sealed record CursorNotFound(
@@ -201,11 +210,19 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				// Search is intentionally substring-based so staff can quickly find
 				// records by partial email or name fragments.
 				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
+				// The search box names the role too: "admin" / "user" match the
+				// account level, not only a name fragment.
+				var wantsAdmin = string.Equals(trimmed, "admin", StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(trimmed, nameof(AccountLevel.Admin), StringComparison.OrdinalIgnoreCase);
+				var wantsUser = string.Equals(trimmed, "user", StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(trimmed, nameof(AccountLevel.User), StringComparison.OrdinalIgnoreCase);
 				query =
 					from ua in query
 					where (ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar))
 						|| (ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar))
 						|| EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
+						|| (wantsAdmin && ua.Level == AccountLevel.Admin)
+						|| (wantsUser && ua.Level == AccountLevel.User)
 					select ua;
 			}
 		}
@@ -216,6 +233,38 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				where statuses.Contains(ua.User.Status)
 				select ua;
 		}
+
+		// Facets cover the whole filtered collection (cursor and page size are
+		// pagination only, never a filter).
+		var facetRows = await (
+			from ua in query
+			group ua by new { ua.User.Status, ua.Level } into g
+			select new { g.Key.Status, g.Key.Level, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var active = 0;
+		var suspended = 0;
+		var admins = 0;
+		foreach (var facet in facetRows) {
+			total += facet.Count;
+			if (facet.Status == UserStatus.Active) {
+				active += facet.Count;
+			} else if (facet.Status == UserStatus.Suspended) {
+				suspended += facet.Count;
+			}
+			if (facet.Level == AccountLevel.Admin) {
+				admins += facet.Count;
+			}
+		}
+
+		var counts = new StaffUserCounts(
+			Total: total,
+			Active: active,
+			Suspended: suspended,
+			Admins: admins,
+			Users: total - admins
+		);
 
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(args.Cursor);
@@ -250,7 +299,8 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			new CursorPaginatedResult<StaffUserData> {
 				Data = results,
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 }

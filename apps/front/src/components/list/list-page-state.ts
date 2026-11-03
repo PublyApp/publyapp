@@ -32,6 +32,7 @@ export const useListPage = <T extends { id: string }>({
 	filtersValue,
 	onFiltersChange,
 	countsKnown = true,
+	counts: apiCounts,
 	emptyText,
 	tabs = [],
 	currentTab,
@@ -142,7 +143,7 @@ export const useListPage = <T extends { id: string }>({
 		);
 	const counts: FilterCounts = {};
 	for (const filter of filters) {
-		counts[filter.key] = countsFor(filter);
+		counts[filter.key] = apiCounts?.[filter.key] ?? countsFor(filter);
 	}
 
 	const toggleFilter = (key: string, value: string) => {

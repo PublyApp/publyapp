@@ -6,13 +6,13 @@ import {
 } from '@tabler/icons-react';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import {
-	toStaffProfileRows,
-	useStaffProfilesQuery,
-} from '~/lib/query/staff-profiles';
-import { toStaffUserRows, useStaffUsersQuery } from '~/lib/query/staff-users';
+import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
+import { useStaffUsersQuery } from '~/lib/query/staff-users';
 
-import { toStaffInvitationRows } from './invitations/list-helpers';
+import type {
+	StaffInvitationListCounts,
+	StaffUserListCounts,
+} from '@org/client-ts/models/index';
 
 export type StaffTeamSection = 'staff' | 'invitations' | 'profiles';
 
@@ -30,59 +30,29 @@ export type StaffTeamOverview = {
 		invitations: number | null;
 		profiles: number | null;
 	};
-	/** The complete collection, or `null` when the API returned a next cursor. */
-	staff: ReturnType<typeof toStaffUserRows> | null;
-	invitations: ReturnType<typeof toStaffInvitationRows> | null;
-	profiles: ReturnType<typeof toStaffProfileRows> | null;
+	/** Whole-collection facets behind the StatCards (never the page filters). */
+	staffCounts: StaffUserListCounts | null;
+	invitationCounts: StaffInvitationListCounts | null;
 };
 
-const countWhenComplete = (
-	data: { data?: unknown[] | null; nextCursor?: string | null } | undefined,
-): number | null =>
-	data !== undefined && data.nextCursor == null
-		? (data.data?.length ?? 0)
-		: null;
-
 /**
- * The side panel's « Équipe » counts, from the same list APIs the pages render.
- * A count is shown only when the API proves the first page is the whole
- * collection (`nextCursor == null`); otherwise it is `null` and renders « — ».
- * No count endpoint exists yet (#2281).
+ * The side panel's « Équipe » counters, from the lists' own `totalCount`
+ * (issue #2301) — one row per list instead of a 100-row page whose length was
+ * only a total when the page happened to be the whole collection.
  */
 export const useStaffTeamOverview = (): StaffTeamOverview => {
-	const staffQuery = useStaffUsersQuery({
-		sortId: 'created_at',
-		sortOrder: 'desc',
-		size: 100,
-	});
-	const invitationsQuery = useStaffInvitationsQuery({
-		sortId: 'created_at',
-		sortOrder: 'desc',
-		size: 100,
-	});
-	const profilesQuery = useStaffProfilesQuery({
-		sortId: 'created_at',
-		sortOrder: 'desc',
-		limit: 100,
-	});
-
-	const staffComplete = staffQuery.data?.nextCursor == null;
-	const invitationsComplete = invitationsQuery.data?.nextCursor == null;
-	const profilesComplete = profilesQuery.data?.nextCursor == null;
+	const staffQuery = useStaffUsersQuery({ size: 1 });
+	const invitationsQuery = useStaffInvitationsQuery({ size: 1 });
+	const profilesQuery = useStaffProfilesQuery({ limit: 1 });
 
 	return {
 		counts: {
-			staff: countWhenComplete(staffQuery.data),
-			invitations: countWhenComplete(invitationsQuery.data),
-			profiles: countWhenComplete(profilesQuery.data),
+			staff: staffQuery?.data?.totalCount ?? null,
+			invitations: invitationsQuery?.data?.totalCount ?? null,
+			profiles: profilesQuery?.data?.totalCount ?? null,
 		},
-		staff: staffComplete ? toStaffUserRows(staffQuery.data?.data) : null,
-		invitations: invitationsComplete
-			? toStaffInvitationRows(invitationsQuery.data?.data)
-			: null,
-		profiles: profilesComplete
-			? toStaffProfileRows(profilesQuery.data?.data)
-			: null,
+		staffCounts: staffQuery?.data?.counts ?? null,
+		invitationCounts: invitationsQuery?.data?.counts ?? null,
 	};
 };
 

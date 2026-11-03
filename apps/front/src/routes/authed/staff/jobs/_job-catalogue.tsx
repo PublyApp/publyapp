@@ -182,13 +182,6 @@ export const jobDescription = (
 export const familyLabel = (t: Translate, family: JobFamily): string =>
 	t(JOB_FAMILY_META[family].labelKey);
 
-/** Free-text haystack for the client-side search (the list endpoints have no
- * `q` parameter — see `.report-4b.md`). */
-export const jobSearchText = (
-	t: Translate,
-	key: string | null | undefined,
-): string => `${key ?? ''} ${jobLabel(t, key)} ${jobDescription(t, key)}`;
-
 /** The job cell: the family's tinted tile with its icon, the label, and the
  * technical key in mono below (Shopkart `job-types.tsx`). */
 export const JobCell = ({

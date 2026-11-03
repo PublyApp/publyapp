@@ -19,6 +19,8 @@ import type { StaffUserRow } from '~/lib/query/staff-users';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 
+import type { StaffUserListCounts } from '@org/client-ts/models/index';
+
 import { StaffUserNameCell } from './_staff-user-name-cell';
 import {
 	deriveStaffUserLevelKey,
@@ -225,27 +227,18 @@ export const buildStaffUserFilters = (
  * collection is not fully known. */
 export const buildStaffUserTotals = (
 	t: Translate,
-	rows: StaffUserRow[],
+	counts: StaffUserListCounts | null | undefined,
 ): Map<string, string> => {
-	let admins = 0;
-	let users = 0;
-	let active = 0;
-	let suspended = 0;
-	for (const row of rows) {
-		if (deriveStaffUserLevelKey(row.level) === 'admin') {
-			admins += 1;
-		} else {
-			users += 1;
-		}
-		if (deriveStaffUserStatusKey(row.status) === 'active') {
-			active += 1;
-		} else if (deriveStaffUserStatusKey(row.status) === 'suspended') {
-			suspended += 1;
-		}
-	}
+	const active = counts?.active ?? 0;
+	const suspended = counts?.suspended ?? 0;
+	const admins = counts?.admins ?? 0;
+	const users = counts?.users ?? 0;
 
 	const totals = new Map<string, string>();
-	totals.set('name', t('list-total-staff-members', { count: rows.length }));
+	totals.set(
+		'name',
+		t('list-total-staff-members', { count: counts?.total ?? 0 }),
+	);
 	totals.set('email', DASH);
 	totals.set(
 		'level',

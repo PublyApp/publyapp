@@ -39,13 +39,14 @@ export interface SystemJobsRequestBuilderGetQueryParameters {
     cursor?: string;
     isEnabled?: string;
     limit?: string;
+    q?: string;
     sortId?: string;
     sortOrder?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const SystemJobsRequestBuilderUriTemplate = "{+baseurl}/staff/jobs/system-jobs{?cursor*,is_enabled*,limit*,sort_id*,sort_order*}";
+export const SystemJobsRequestBuilderUriTemplate = "{+baseurl}/staff/jobs/system-jobs{?cursor*,is_enabled*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
