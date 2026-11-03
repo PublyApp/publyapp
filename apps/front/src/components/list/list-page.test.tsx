@@ -9,6 +9,7 @@ import {
 	screen,
 	within,
 } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('react-i18next', () => ({
@@ -76,9 +77,13 @@ const renderPage = (
 	active: Record<string, string[]> = {},
 	options: {
 		countsKnown?: boolean;
+		countRows?: Row[];
+		totalsKnown?: boolean;
 		inset?: boolean;
 		q?: string;
 		data?: Row[];
+		isError?: boolean;
+		errorContent?: ReactNode;
 	} = {},
 ) =>
 	render(
@@ -100,6 +105,8 @@ const renderPage = (
 				filtersValue={active}
 				onFiltersChange={vi.fn()}
 				countsKnown={options.countsKnown ?? true}
+				countRows={options.countRows}
+				totalsKnown={options.totalsKnown}
 				inset={options.inset ? {} : undefined}
 				totals={(visible) =>
 					new Map([
@@ -111,7 +118,12 @@ const renderPage = (
 				openLabel={(row) => `Ouvrir ${row.name}`}
 				mobileCard={(row) => ({ code: row.status, title: row.name })}
 				cards={<div data-testid="stats" />}
-				queryState={{ isPending: false, isError: false, onRetry: vi.fn() }}
+				queryState={{
+					isPending: false,
+					isError: options.isError ?? false,
+					onRetry: vi.fn(),
+				}}
+				errorContent={options.errorContent}
 			/>
 		</>,
 	);
@@ -148,6 +160,47 @@ describe('ListPage', () => {
 		renderPage({ status: ['active'] });
 		const summary = screen.getByRole('table', { name: 'list-summary' });
 		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+	});
+
+	// The API narrows the page server-side; the counters come from the whole
+	// collection (the team overview query) while the table shows the filtered
+	// rows. Before the fix every counter and every total went « — » on a filter.
+	test('a server-side filter keeps the whole-collection counters', () => {
+		renderPage(
+			{ status: ['active'] },
+			{
+				data: rows.filter((row) => row.status === 'active'),
+				countRows: rows,
+			},
+		);
+		const panel = document.getElementById('app-shell-page-panel');
+		if (!panel) {
+			throw new Error('panel missing');
+		}
+		expect(within(panel).getByText('Active')).toBeTruthy();
+		expect(within(panel).getByText('En attente')).toBeTruthy();
+		// 2 active + 1 pending over the whole collection, not 2 + 0 over the page.
+		expect(within(panel).getAllByText('2')).toHaveLength(1);
+		expect(within(panel).getAllByText('1')).toHaveLength(1);
+		const summary = screen.getByRole('table', { name: 'list-summary' });
+		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+	});
+
+	// A filter does not make the totals unknown: the displayed page is the whole
+	// filtered collection, so it sums it (the prototype's rule). Only an
+	// incomplete page (cursor) dashes them.
+	test('totals stay exact on a filter even when the counters are unknown', () => {
+		renderPage(
+			{ status: ['active'] },
+			{
+				data: rows.filter((row) => row.status === 'active'),
+				countsKnown: false,
+				totalsKnown: true,
+			},
+		);
+		const summary = screen.getByRole('table', { name: 'list-summary' });
+		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+		expect(within(summary).getByText('15 membres')).toBeTruthy();
 	});
 
 	test('the totals footer shows « — » when the collection is not fully known', () => {
@@ -208,5 +261,19 @@ describe('ListPage', () => {
 		);
 		expect(screen.getAllByText('list-empty').length).toBeGreaterThan(0);
 		expect(screen.queryByText('list-no-match-title')).toBeNull();
+	});
+
+	test('consumer error content replaces the generic error description', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				errorContent: <p>403 specific explanation</p>,
+			},
+		);
+
+		expect(screen.getByText('403 specific explanation')).toBeTruthy();
+		expect(screen.queryByText('list-error-default-description')).toBeNull();
+		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
 	});
 });

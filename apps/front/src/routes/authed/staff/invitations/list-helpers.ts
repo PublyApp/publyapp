@@ -6,6 +6,8 @@ import {
 	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
+import type { InvitationListItem } from '@org/client-ts/models/index';
+
 export const KNOWN_INVITATION_STATUSES = [
 	'pending',
 	'accepted',
@@ -29,10 +31,12 @@ const KNOWN_INVITATION_ACCOUNT_LEVEL_SET = new Set<string>(
 
 export type InvitationListSearchParams = TableSearchParams & {
 	status?: string;
+	profile?: string;
 };
 
 export type InvitationListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
+	profile?: unknown;
 };
 
 const normalizeString = (value: unknown): string | undefined => {
@@ -52,6 +56,42 @@ const toSnakeLower = (value: string): string => {
 		.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
 		.replace(/[\s-]+/g, '_')
 		.toLowerCase();
+};
+
+export type StaffInvitationRow = {
+	id: string;
+	email: string;
+	profileName: string;
+	invitedByName: string;
+	status: InvitationDisplayStatus;
+	acceptedAt: Date | null;
+	createdAt: Date | null;
+	expiresAt: Date | null;
+};
+
+export const toStaffInvitationRows = (
+	items: InvitationListItem[] | null | undefined,
+): StaffInvitationRow[] => {
+	const rows: StaffInvitationRow[] = [];
+
+	for (const item of items ?? []) {
+		if (typeof item.id !== 'string' || item.id.length === 0) {
+			continue;
+		}
+
+		rows.push({
+			id: item.id,
+			email: item.email ?? '',
+			profileName: item.profileName?.trim() ?? '',
+			invitedByName: item.invitedByName?.trim() ?? '',
+			status: normalizeInvitationStatus(item.status),
+			acceptedAt: item.acceptedAt ?? null,
+			createdAt: item.createdAt ?? null,
+			expiresAt: item.expiresAt ?? null,
+		});
+	}
+
+	return rows;
 };
 
 export const normalizeInvitationStatus = (
@@ -135,6 +175,40 @@ export const serializeInvitationAccountLevelFilter = (
 	levels: KnownInvitationAccountLevel[],
 ): string | undefined => (levels.length > 0 ? levels.join(',') : undefined);
 
+export const parseInvitationProfileFilter = (value: unknown): string[] => {
+	const normalized = normalizeString(value);
+	if (!normalized) {
+		return [];
+	}
+	const seen = new Set<string>();
+	const profiles: string[] = [];
+	for (const part of normalized.split(',')) {
+		const name = part.trim();
+		if (name.length === 0 || seen.has(name)) {
+			continue;
+		}
+		seen.add(name);
+		profiles.push(name);
+	}
+	return profiles;
+};
+
+export const serializeInvitationProfileFilter = (
+	profiles: readonly string[],
+): string | undefined => {
+	const seen = new Set<string>();
+	const unique: string[] = [];
+	for (const name of profiles) {
+		const trimmed = name.trim();
+		if (trimmed.length === 0 || seen.has(trimmed)) {
+			continue;
+		}
+		seen.add(trimmed);
+		unique.push(trimmed);
+	}
+	return unique.length > 0 ? unique.join(',') : undefined;
+};
+
 export const parseInvitationListSearchParams = (
 	search: InvitationListSearchParamInput,
 ): InvitationListSearchParams => {
@@ -142,12 +216,20 @@ export const parseInvitationListSearchParams = (
 	const status = serializeInvitationStatusFilter(
 		parseInvitationStatusFilter(search.status),
 	);
+	const profile = serializeInvitationProfileFilter(
+		parseInvitationProfileFilter(search.profile),
+	);
 
-	return { ...base, status: status || undefined };
+	return {
+		...base,
+		status: status || undefined,
+		profile: profile || undefined,
+	};
 };
 
 export type InvitationListWireParams = {
 	status?: string;
+	profile?: string;
 } & TableSearchWireParams;
 
 export const serializeInvitationListSearchParams = (
@@ -157,8 +239,15 @@ export const serializeInvitationListSearchParams = (
 	const status = serializeInvitationStatusFilter(
 		parseInvitationStatusFilter(params.status),
 	);
+	const profile = serializeInvitationProfileFilter(
+		parseInvitationProfileFilter(params.profile),
+	);
 
-	return { ...next, status: status || undefined };
+	return {
+		...next,
+		status: status || undefined,
+		profile: profile || undefined,
+	};
 };
 
 const INVITATION_STATUS_LABEL_KEYS = {

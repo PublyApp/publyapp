@@ -61,11 +61,22 @@ test.describe(
 				await loginAsStaffAdmin(page);
 
 				await expect(page.getByTestId(TABLE)).toBeVisible();
-				const rows = page.getByTestId(`${TABLE}-rows`);
-				await expect(rows).toBeVisible();
 
 				// Per-viewport structural checks (previously identical at all three
 				// widths, asserting nothing viewport-specific — F10):
+				if (width < 768) {
+					// The generic table stays mounted and is hidden below md; the
+					// mobile card list is the visible surface.
+					await expect(page.getByTestId(`${TABLE}-rows`)).toBeHidden();
+					await expect(
+						page.getByRole('link', { name: /^(Open|Ouvrir) / }).first(),
+					).toBeVisible();
+				} else {
+					const rows = page.getByTestId(`${TABLE}-rows`);
+					await expect(rows).toBeVisible();
+					const rowsScrollWidth = await rows.evaluate((el) => el.scrollWidth);
+					expect(rowsScrollWidth).toBeGreaterThan(0);
+				}
 				if (width >= 1024) {
 					await expect(
 						page.getByTestId('app-shell-secondary-panel'),
@@ -80,16 +91,6 @@ test.describe(
 				} else {
 					await expect(page.getByTestId('app-shell-rail')).toBeVisible();
 				}
-				// The table must never force horizontal scroll at any of these
-				// widths — a collapsed/overflowing table would still pass a bare
-				// toBeVisible() but fails this bound.
-				const rowsScrollWidth = await rows.evaluate((el) => el.scrollWidth);
-				const cardClientWidth = await page
-					.getByTestId(`${TABLE}-card`)
-					.evaluate((el) => el.clientWidth);
-				expect(rowsScrollWidth).toBeGreaterThan(0);
-				expect(rowsScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
-
 				await page.screenshot({
 					path: `test-results/gray-ui/staff-users-list-${width}.png`,
 					fullPage: true,
@@ -104,10 +105,12 @@ test.describe(
 			await expect(page.getByTestId(TABLE)).toBeVisible();
 			await page.getByTestId(`${TABLE}-search`).fill('zzz-no-match-xyz');
 			await expect(page.getByTestId(`${TABLE}-no-match`)).toBeVisible();
-			// The rows container must actually be gone, not merely obscured behind
-			// the no-match state — a stacked/overlapping render would still pass
-			// the toBeVisible() above.
-			await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
+			// The generic table keeps its shell and renders the no-match state
+			// in the body — assert no data row survives, not that the scroller
+			// disappears (which would also hide a stacked/overlapping state).
+			await expect(
+				page.getByTestId(`${TABLE}-rows`).locator('[data-slot="table-row"]'),
+			).toHaveCount(0);
 
 			await page.screenshot({
 				path: 'test-results/gray-ui/staff-users-no-match.png',

@@ -36,7 +36,9 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 /** The staff users table's query variables ARE the shared table search
  * contract (`~/lib/url-state/table-search-params`) — re-declaring the five
  * fields here is what let a fourth field drift in earlier. */
-export type StaffUsersQueryVariables = TableSearchParams;
+export type StaffUsersQueryVariables = TableSearchParams & {
+	status?: string;
+};
 
 export type StaffUserDetailsQueryVariables = {
 	userId: string;
@@ -176,6 +178,7 @@ export const buildFindStaffUsersQueryParameters = (
 ) => {
 	return {
 		q: normalizeString(variables.q),
+		status: normalizeString(variables.status),
 		sortId: normalizeString(variables.sortId),
 		sortOrder: variables.sortOrder,
 		cursor: normalizeString(variables.cursor),

@@ -85,6 +85,19 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 
 // The export action pulls XLSX machinery irrelevant to this suite; stubbed so
 // the harness stays free of the export surface.
+vi.mock('../_staff-list-team', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../_staff-list-team')>();
+	return {
+		...actual,
+		useStaffTeamOverview: () => ({
+			counts: { staff: 10, invitations: 10, profiles: 7 },
+			staff: [],
+			invitations: [],
+			profiles: [],
+		}),
+	};
+});
+
 vi.mock('~/routes/authed/staff/staff-list-export-selected', () => ({
 	StaffListExportSelectedAction: () => null,
 	StaffListExportSelectedButton: () => null,
@@ -115,6 +128,8 @@ vi.mock('react-i18next', () => ({
 				'view-profile': 'View profile',
 				'no-email-address': 'No email address',
 				'select-row-named': 'Select {{name}}',
+				'list-select-row': 'Select {{name}}',
+				'list-select-all': 'Select all rows',
 				search: 'Search',
 				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
@@ -259,7 +274,9 @@ const renderAtList = async () => {
 	await waitFor(() =>
 		expect(screen.getByTestId('staff-users-table')).toBeTruthy(),
 	);
-	await waitFor(() => expect(screen.getByText('Alex User')).toBeTruthy());
+	await waitFor(() =>
+		expect(screen.getAllByText('Alex User').length).toBeGreaterThan(0),
+	);
 
 	return harness;
 };
@@ -322,7 +339,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 	test('selection mode exposes the bulk management actions, not only export', async () => {
 		await renderAtList();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 
 		const trigger = await screen.findByRole('button', {
 			name: 'Bulk actions',
@@ -350,7 +367,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 	test('the bulk trigger accessible name equals its visible Bulk actions label', async () => {
 		await renderAtList();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 
 		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
 		expect(trigger.getAttribute('aria-label')).toBe('Bulk actions');
@@ -360,7 +377,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 	test('a confirmed suspend drives the real route component into the bulk mutation', async () => {
 		await renderAtList();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 
 		await chooseBulkAction('Suspend selected', 'Bulk actions');
 
@@ -382,7 +399,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 	test('typing a search draft outside selection mode behaves as before', async () => {
 		await renderAtList();
 
-		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		const searchBox = screen.getByTestId('staff-users-table-search');
 		fireEvent.change(searchBox, { target: { value: 'ale' } });
 
 		expect((searchBox as HTMLInputElement).value).toBe('ale');
@@ -397,31 +414,28 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 	test('entering selection mode discards an uncommitted table-search draft', async () => {
 		await renderAtList();
 
-		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		const searchBox = screen.getByTestId('staff-users-table-search');
 		fireEvent.change(searchBox, { target: { value: 'alex' } });
 		expect((searchBox as HTMLInputElement).value).toBe('alex');
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 
 		expect(
 			await screen.findByRole('button', { name: 'Clear selection' }),
 		).toBeTruthy();
 		expect(
-			(
-				screen.getByRole('searchbox', {
-					name: 'Search',
-				}) as HTMLInputElement
-			).value,
+			(screen.getByTestId('staff-users-table-search') as HTMLInputElement)
+				.value,
 		).toBe('');
 	});
 
 	test('after leaving selection mode the search draft starts empty again', async () => {
 		await renderAtList();
 
-		fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
+		fireEvent.change(screen.getByTestId('staff-users-table-search'), {
 			target: { value: 'alex' },
 		});
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		fireEvent.click(
 			await screen.findByRole('button', { name: 'Clear selection' }),
 		);
@@ -432,7 +446,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 			).toBeNull(),
 		);
 
-		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		const searchBox = screen.getByTestId('staff-users-table-search');
 		fireEvent.change(searchBox, { target: { value: 'blake' } });
 		expect((searchBox as HTMLInputElement).value).toBe('blake');
 	});

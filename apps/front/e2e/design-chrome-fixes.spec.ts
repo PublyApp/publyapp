@@ -52,7 +52,10 @@ test.describe(
 			// rule). Use a genuine toolbar `variant="outline"` filter button instead.
 			await loginAsStaffAdmin(page);
 			await page.goto('/staff/invitations');
-			const filterTrigger = page.getByRole('button', { name: 'All statuses' });
+			// The generic filter menu's outline trigger replaces the old
+			// per-filter "All statuses" button; its aria-label starts with
+			// "Filters" and appends the active count.
+			const filterTrigger = page.getByRole('button', { name: /^Filters/ });
 			await expect(filterTrigger).toBeVisible();
 
 			await expect(filterTrigger).toHaveCSS(
@@ -61,9 +64,10 @@ test.describe(
 			);
 
 			await seedDarkTheme(page);
-			await expect(
-				page.getByRole('button', { name: 'All statuses' }),
-			).toHaveCSS('border-top-color', DARK_BORDER_STRONG);
+			await expect(page.getByRole('button', { name: /^Filters/ })).toHaveCSS(
+				'border-top-color',
+				DARK_BORDER_STRONG,
+			);
 		});
 
 		test('multi-select filter menu items are 9px-radius with muted (never amber) hover, and carry a visible end-aligned checkbox (#5, #7)', async ({

@@ -5,6 +5,10 @@ import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableStates } from '~/components/table/data-table-states';
 import { Collapse } from '~/components/ui/collapse';
+import {
+	NoMatchStateSurface,
+	StateSurface,
+} from '~/components/ui/state-surface';
 
 import { ColumnsPicker } from './columns-picker';
 import { FilterChips, FilterMenu } from './filter-menu';
@@ -33,7 +37,15 @@ export type ListPageProps<T extends { id: string }> = {
 	ariaLabel: string;
 	title: string;
 	description?: string;
-	searchPlaceholder: string;
+	/** Omit when the API has no search parameter: the toolbar then has no
+	 * text field rather than one that silently filters nothing. */
+	searchPlaceholder?: string;
+	/** Page-owned navigation groups, before the filter-shortcut groups. */
+	panelGroups?: ListPanelGroup[];
+	/** The row's accessible name for its selection checkbox. */
+	rowLabel?: (row: T) => string;
+	/** An exact total for the inset count badge, when the API provides one. */
+	count?: number | null;
 	/** After the API search, before the page's tabs and filters. */
 	rows: T[];
 	columns: ListColumn<T>[];
@@ -49,12 +61,26 @@ export type ListPageProps<T extends { id: string }> = {
 	filtersValue: ListFiltersValue;
 	onFiltersChange: (next: ListFiltersValue) => void;
 	/**
-	 * Whether the counters (panel groups, filter-menu badges, tabs) and the
-	 * pinned totals footer describe the whole collection. Pass `false` when the
-	 * consumer keeps cursor pagination and the API exposes no count source: the
-	 * counters and totals then show « — » instead of summing the loaded page.
+	 * Whether the counters (panel groups, filter-menu badges, tabs) describe the
+	 * whole collection. Pass `false` when the counter source is not fully loaded
+	 * (cursor pagination with no count endpoint): the counters then show « — »
+	 * instead of summing a partial page. The totals have their own flag
+	 * (`totalsKnown`).
 	 */
 	countsKnown?: boolean;
+	/**
+	 * The whole collection the counters count, when `rows` is a page the API has
+	 * already narrowed (a server-side filter or search). Defaults to `rows`.
+	 * The side panel keeps these whole-collection counters under a filter, as
+	 * the prototype does; the filter menu still facets them per choice.
+	 */
+	countRows?: T[];
+	/**
+	 * Whether `rows` is the complete filtered collection, so the pinned totals
+	 * may sum it. Defaults to `countsKnown`. A filter does not make the totals
+	 * unknown: a complete filtered page has exact filtered totals.
+	 */
+	totalsKnown?: boolean;
 	/** The empty state's text (the generic page has no resource noun). */
 	emptyText?: string;
 	tabs?: ListTab<T>[];
@@ -77,6 +103,9 @@ export type ListPageProps<T extends { id: string }> = {
 		isError: boolean;
 		onRetry: () => void;
 	};
+	/** Extra content in the error state (e.g. a 403 explanation); falls back to
+	 * the generic description when omitted. */
+	errorContent?: ReactNode;
 	/** Extra content under the table (a cursor pager). */
 	footer?: ReactNode;
 	/** Extra content after the page (a drawer). */
@@ -104,32 +133,56 @@ const FilterGlyph = ({ icon }: { icon: TablerIcon }) =>
 export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	const { t } = useTranslation('common');
 	const page = useListPage(props);
-	const { filters, filtersValue, rows } = props;
+	const { filters, filtersValue } = props;
 	const countsKnown = props.countsKnown ?? true;
 
-	const panelGroups: ListPanelGroup[] = [];
+	const filterPanelGroups: ListPanelGroup[] = [];
 	for (const filter of filters) {
 		if (!filter.panel) {
 			continue;
 		}
-		panelGroups.push({
+		filterPanelGroups.push({
 			key: filter.key,
 			title: filter.label,
 			entries: filter.choices.map((choice) => ({
 				key: `${filter.key}:${choice.value}`,
 				label: choice.label,
 				icon: choice.icon ?? <FilterGlyph icon={filter.icon} />,
-				count: page.counts[filter.key]?.[choice.value] ?? null,
+				count: page.panelCounts[filter.key]?.[choice.value] ?? null,
 				active: filtersValue[filter.key]?.includes(choice.value) ?? false,
 				onClick: () => page.shortcut(filter.key, choice.value),
 			})),
 		});
 	}
 
-	const emptyNode = (
-		<p className="py-10 text-center text-sm text-muted-foreground">
-			{page.bodyContent}
-		</p>
+	const panelGroups = [...(props.panelGroups ?? []), ...filterPanelGroups];
+
+	// The table keeps its shell and shows the same flat state family the old
+	// DataTable rendered (owner decision R3-4b): a search miss gets the
+	// primary glyph, an empty collection (or a filter miss, which keeps the
+	// consumer's wording) the neutral one. Only the desktop copy carries the
+	// test id — the mobile card list renders the same node, and a duplicated
+	// id would make every locator ambiguous.
+	const isSearchMiss = page.bodyState === 'no-match' && props.q.length > 0;
+	const emptyState = (testId?: string) =>
+		isSearchMiss ? (
+			<NoMatchStateSurface
+				title={t('list-no-match-title')}
+				description={t('list-no-match-default-description')}
+				testId={testId}
+			/>
+		) : (
+			<StateSurface
+				title={t('list-empty-title')}
+				description={page.emptyContent}
+				testId={testId}
+			/>
+		);
+	const emptyNode = emptyState();
+	const tableEmptyNode = emptyState(
+		props.testId
+			? `${props.testId}-${isSearchMiss ? 'no-match' : 'empty'}`
+			: undefined,
 	);
 
 	return (
@@ -138,6 +191,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 			// scroll inside the table, never the page): the table's flex-1 box
 			// then owns the rows' scroll and the pager stays on screen (#2280).
 			className="publy-page-fill"
+			data-testid={props.testId}
 			data-list-page=""
 			style={{ '--search-height': `${page.searchHeight}px` } as CSSProperties}
 		>
@@ -145,7 +199,10 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 				title={props.title}
 				description={props.description}
 				inset={props.inset}
-				count={countsKnown ? rows.length : null}
+				count={
+					props.count ??
+					(countsKnown ? (props.countRows ?? props.rows).length : null)
+				}
 				onExport={props.onExport}
 				newAction={props.newAction}
 				cards={props.cards}
@@ -168,20 +225,29 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 				/>
 			) : null}
 			<ListToolbar
+				testId={props.testId}
 				top={page.top}
 				onHeightChange={page.setSearchHeight}
 				tabs={(props.tabs?.length ?? 0) > 1}
 				search={
-					<SearchField
-						q={props.q}
-						onSearch={props.onSearch}
-						placeholder={props.searchPlaceholder}
-						testId={props.testId ? `${props.testId}-search` : undefined}
-						disabled={
-							props.selection !== undefined &&
-							props.selection.selectedIds.size > 0
-						}
-					/>
+					props.searchPlaceholder ? (
+						<SearchField
+							key={
+								props.selection !== undefined &&
+								props.selection.selectedIds.size > 0
+									? 'selection'
+									: 'browse'
+							}
+							q={props.q}
+							onSearch={props.onSearch}
+							placeholder={props.searchPlaceholder}
+							testId={props.testId ? `${props.testId}-search` : undefined}
+							disabled={
+								props.selection !== undefined &&
+								props.selection.selectedIds.size > 0
+							}
+						/>
+					) : null
 				}
 			>
 				<SortMenu
@@ -193,13 +259,15 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					ids={page.shown}
 					defaultLabel={t('list-sort-default')}
 				/>
-				<FilterMenu
-					filters={filters}
-					active={filtersValue}
-					counts={page.counts}
-					onToggle={page.toggleFilter}
-					onClear={page.clearFilter}
-				/>
+				{filters.length > 0 ? (
+					<FilterMenu
+						filters={filters}
+						active={filtersValue}
+						counts={page.counts}
+						onToggle={page.toggleFilter}
+						onClear={page.clearFilter}
+					/>
+				) : null}
 				<ColumnsPicker
 					shown={page.shown}
 					onChange={page.setShown}
@@ -233,7 +301,9 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					bodyState={page.bodyState}
 					resolvedRowHeight={48}
 					onRetry={props.queryState.onRetry}
-					errorContent={t('list-error-default-description')}
+					errorContent={
+						props.errorContent ?? t('list-error-default-description')
+					}
 					emptyContent={page.emptyContent}
 					noMatchContent={t('list-no-match-default-description')}
 				/>
@@ -248,8 +318,12 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					totals={page.totalCells}
 					onOpen={props.onOpen}
 					openLabel={props.openLabel}
+					rowLabel={
+						props.rowLabel ??
+						((row: T) => (row as { name?: string }).name ?? row.id)
+					}
 					selection={props.selection}
-					empty={emptyNode}
+					empty={tableEmptyNode}
 					onMove={page.moveShown}
 					cards={
 						<ListCards

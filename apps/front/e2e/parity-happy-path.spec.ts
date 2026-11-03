@@ -175,7 +175,9 @@ const assertColumnHeaders = (page: Page) =>
 	Promise.all([
 		expect(
 			page.getByRole('columnheader', {
-				name: /^Name$/,
+				// The first header's accessible name carries the select-all
+				// checkbox label ("Select all rows Member").
+				name: /Member$/,
 			}),
 		).toBeVisible(),
 		expect(
@@ -357,7 +359,7 @@ test.describe(
 
 			await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
 			await expect(getInviteStaffUserButton(page)).toHaveText(
-				'Inviter des utilisateurs',
+				'Inviter un membre',
 			);
 		});
 	},

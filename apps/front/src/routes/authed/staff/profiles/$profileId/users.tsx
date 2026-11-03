@@ -4,13 +4,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
-import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
-import {
-	type TableSelection,
-	useRowSelection,
-} from '~/components/table/use-row-selection';
+import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
@@ -37,14 +32,20 @@ import type {
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { ProfileUsersListBulkActions } from './_users-bulk-actions';
+import {
+	buildListSelection,
+	selectedListIds,
+} from '../../_staff-list-selection';
+import { useStaffTeamOverview } from '../../_staff-list-team';
 import { buildColumns } from './_users-columns';
+import { StaffProfileUsersList } from './_users-list';
 import {
 	ProfileDetailsError,
 	ProfileDetailsLoading,
 } from './_users-page-states';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
+const DASH = '—';
 const DEFAULT_SIZE = 100;
 
 const StaffProfileUsersPage = () => {
@@ -55,6 +56,8 @@ const StaffProfileUsersPage = () => {
 	);
 	const { t } = useTranslation('common');
 	const [pageIndex, setPageIndex] = useState(0);
+	const [shouldLogout, setShouldLogout] = useState(false);
+
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
 			search: serializeTableSearchParams(next),
@@ -79,42 +82,18 @@ const StaffProfileUsersPage = () => {
 		},
 		{ enabled: profileId.length > 0 },
 	);
+	const team = useStaffTeamOverview();
 	const rows = toStaffProfileUserRows(usersQuery.data?.users);
 	const columns = useMemo(() => buildColumns(t), [t]);
 	const details = toStaffProfileDetails(detailQuery.data);
-	const [shouldLogout, setShouldLogout] = useState(false);
 	const selection = useRowSelection(rows.map((row) => row.id));
-
-	// Entering selection mode discards an uncommitted table-search draft (the
-	// search box is locked while rows are selected, so a live draft would sit
-	// hidden until exit). Handled inside the selection-change path below rather
-	// than a render-side effect — see the no-event-handler React Doctor rule.
-	const { resetDraftToCommitted } = controller.search;
-	const baseOnSelectionChange = selection.onSelectionChange;
-	const onSelectionChange = useCallback(
-		(next: TableSelection) => {
-			if (!selection.isSelectionMode) {
-				resetDraftToCommitted();
-			}
-			baseOnSelectionChange(next);
-		},
-		[selection.isSelectionMode, baseOnSelectionChange, resetDraftToCommitted],
+	const listSelection = buildListSelection(
+		rows,
+		selection,
+		controller.search.resetDraftToCommitted,
 	);
-	const wrappedSelection = useMemo(
-		() => ({ ...selection, onSelectionChange }),
-		[selection, onSelectionChange],
-	);
+	const selectedIds = selectedListIds(rows, selection);
 
-	// A deliberate reset (profile identity, search, sort, or size change)
-	// must always win over a clamp derived from the destination query's
-	// count - including an already-warm cached count, not just a missing
-	// one (#999 review follow-up). `useOffsetPageClamp` is now a pure
-	// derivation: it returns the value the pageIndex should hold, and the
-	// caller commits it during render via React's documented
-	// adjust-state-while-rendering pattern. That replaces the previous
-	// `useEffect(setPageIndex(clamped))` pattern, which violated
-	// no-pass-data-to-parent / no-pass-live-state-to-parent and
-	// re-rendered the parent one frame late (#691).
 	const clampedPageIndex = useOffsetPageClamp({
 		pageIndex,
 		size: controller.size,
@@ -131,7 +110,20 @@ const StaffProfileUsersPage = () => {
 		setPageIndex(clampedPageIndex);
 	}
 
-	// Hoisted so the fatal-error gate reads plain locals, not query flags.
+	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const navigateToTeam = useCallback(
+		(
+			toBe:
+				| '/staff/staff-users'
+				| '/staff/invitations'
+				| '/staff/profiles'
+				| '/staff/audit-logs',
+		) => {
+			void navigate({ to: toBe });
+		},
+		[navigate],
+	);
+
 	const detailIsPending = detailQuery.isPending;
 	const detailIsError = detailQuery.isError;
 	const detailError = detailQuery.error;
@@ -144,8 +136,6 @@ const StaffProfileUsersPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	// A bulk mutation hit an auth failure mid-session — log out through the
-	// same central path as every other surface.
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
@@ -183,13 +173,17 @@ const StaffProfileUsersPage = () => {
 		);
 	}
 
+	const totalCount = usersQuery.data?.count ?? null;
 	const hasPreviousPage = pageIndex > 0;
 	const hasNextPage =
-		(pageIndex + 1) * controller.size < (usersQuery.data?.count ?? 0);
+		totalCount !== null && (pageIndex + 1) * controller.size < totalCount;
 	const usersFailure = usersError !== null ? toApiFailure(usersError) : null;
-	// Hoisted locals for the DataTable's table-body-state props.
-	const usersIsPending = usersQuery.isPending;
-	const usersIsError = usersQuery.isError;
+	const usersErrorContent =
+		usersFailure?.kind === 'problem' && usersFailure.status === 403 ? (
+			<p className="text-sm text-muted-foreground">
+				{t('no-permission-to-view-assigned-users')}
+			</p>
+		) : undefined;
 
 	return (
 		<div
@@ -214,14 +208,6 @@ const StaffProfileUsersPage = () => {
 								{t('assigned-users-for-this-staff-profile')}
 							</p>
 						</div>
-						<div className="rounded-large border border-border bg-card p-4">
-							<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-								{t('assigned-users')}
-							</p>
-							<p className="mt-2 text-2xl font-semibold text-foreground">
-								{details.userAccountCount}
-							</p>
-						</div>
 					</div>
 				</div>
 			</div>
@@ -240,91 +226,86 @@ const StaffProfileUsersPage = () => {
 					>
 						{t('basics')}
 					</TabsTrigger>
-					<TabsTrigger value="users">{t('users')}</TabsTrigger>
+					<TabsTrigger value="users">
+						{t('users')}
+						<span className="ml-2 flex h-5 items-center rounded-[var(--publy-radius-chip)] bg-secondary px-2 text-xs font-medium text-secondary-foreground tabular-nums">
+							{totalCount ?? DASH}
+						</span>
+					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="users" className="publy-detail-tab-body min-h-0">
-					{/* DataTable already renders its own `.publy-table-card` surface —
-					no outer Card here, or it's a card inside a card (#978). */}
-					<div className="shrink-0 space-y-1">
-						<p className="text-lg font-semibold text-foreground">
-							{t('assigned-users')}
-						</p>
-						<p className="text-sm text-muted-foreground">
-							{t('staff-profile-users-description')}
-						</p>
-					</div>
-
-					<DataTable
-						testId="staff-profile-users-table"
-						ariaLabel={t('assigned-staff-profile-users')}
-						columns={columns}
+					<StaffProfileUsersList
+						profileId={profileId}
 						rows={rows}
-						queryState={{
-							isPending: usersIsPending,
-							isError: usersIsError,
-							onRetry: () => void usersQuery.refetch(),
-							hasActiveSearch: Boolean(controller.search.committed),
-						}}
-						pagination={{
-							pageIndex: pageIndex,
-							hasPreviousPage: hasPreviousPage,
-							hasNextPage: hasNextPage,
-							// Offset surface: the count is known once the query lands;
-							// while it is in flight the label shows the bare range (#282).
-							totalCount: usersQuery.data?.count,
-							isPaginationPending: usersQuery.isFetching && !usersIsPending,
-							onNextPage: () => {
-								if (hasNextPage) {
-									setPageIndex((current) => current + 1);
-								}
-							},
-							onPreviousPage: () => {
-								if (hasPreviousPage) {
-									setPageIndex((current) => Math.max(current - 1, 0));
-								}
-							},
-						}}
-						errorContent={
-							usersFailure?.kind === 'problem' &&
-							usersFailure.status === 403 ? (
-								<p className="text-sm text-muted-foreground">
-									{t('no-permission-to-view-assigned-users')}
-								</p>
-							) : undefined
-						}
-						emptyContent={t('no-users-assigned-to-profile')}
-						noMatchContent={t('no-assigned-users-match-search')}
-						sort={controller.sort}
-						onSortChange={controller.onSortChange}
+						columns={columns}
+						totalCount={totalCount}
+						pageIndex={pageIndex}
 						size={controller.size}
-						onSizeChange={controller.onSizeChange}
-						searchDraft={controller.search.draft}
-						onSearchDraftChange={controller.search.onDraftChange}
-						selection={wrappedSelection}
-					/>
-
-					<FloatingSelectionBar
-						selectedCount={selection.selectedCount}
-						visibleCount={rows.length}
-						allVisibleSelected={
-							rows.length > 0 &&
-							rows.every((row) => wrappedSelection.rowSelection[row.id])
-						}
-						onClear={wrappedSelection.clearSelection}
-						onSelectAllVisible={() =>
-							wrappedSelection.onSelectionChange(
-								new Set(rows.map((row) => row.id)),
+						hasPreviousPage={hasPreviousPage}
+						hasNextPage={hasNextPage}
+						queryState={{
+							isPending: usersQuery.isPending,
+							isError: usersQuery.isError,
+							isFetching: usersQuery.isFetching,
+						}}
+						errorContent={usersErrorContent}
+						q={search.q ?? ''}
+						sorting={[
+							{
+								id: controller.sort.id,
+								desc: controller.sort.order === 'desc',
+							},
+						]}
+						selection={listSelection}
+						rowSelection={selection}
+						selectedIds={selectedIds}
+						counts={team.counts}
+						onSearch={(next) => {
+							if (selection.selectedCount > 0) {
+								return;
+							}
+							onSearchChange({ ...search, q: next, cursor: undefined });
+							setPageIndex(0);
+						}}
+						onSortingChange={(next) =>
+							controller.onSortChange(
+								next[0]
+									? {
+											id: next[0].id,
+											order: next[0].desc ? 'desc' : 'asc',
+										}
+									: undefined,
 							)
 						}
-					>
-						<ProfileUsersListBulkActions
-							profileId={profileId}
-							rows={rows}
-							selection={selection}
-							onSessionExpired={() => setShouldLogout(true)}
-						/>
-					</FloatingSelectionBar>
+						onClearSelection={selection.clearSelection}
+						onSelectAllVisible={() =>
+							selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+						}
+						onSessionExpired={onSessionExpired}
+						onRetry={() => void usersQuery.refetch()}
+						onPageSizeChange={(nextSize) => {
+							setPageIndex(0);
+							controller.onSizeChange(nextSize);
+						}}
+						onNextPage={() => {
+							if (hasNextPage) {
+								setPageIndex((current) => current + 1);
+							}
+						}}
+						onPreviousPage={() => {
+							if (hasPreviousPage) {
+								setPageIndex((current) => Math.max(current - 1, 0));
+							}
+						}}
+						onOpen={(row) =>
+							void navigate({
+								to: '/staff/staff-users/$userId',
+								params: { userId: row.id },
+							})
+						}
+						onTeamSelect={navigateToTeam}
+					/>
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -335,6 +316,7 @@ export const Route = createFileRoute(
 	'/_authed-layout/staff/profiles/$profileId/users',
 )({
 	staticData: {
+		pageOwnsSecondaryPanel: true,
 		crumbs: (params) => [
 			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
 			{
@@ -343,7 +325,7 @@ export const Route = createFileRoute(
 				query: staffProfileCrumbQuery,
 				select: selectStaffProfileCrumbName,
 			},
-			{ kind: 'label', labelKey: 'common:members' },
+			{ kind: 'label', labelKey: 'common:users' },
 		],
 	},
 	validateSearch: (search) =>
