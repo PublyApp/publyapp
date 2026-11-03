@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
@@ -11,6 +10,7 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { FieldRowsSkeleton } from '~/components/ui/detail-skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -89,8 +89,16 @@ const TenantSettingsGeneralPage = () => {
 		];
 	}, [t]);
 
+	// Language-keyed resolver: the schema (and the resolver around it) are
+	// built once per language, not once per render. The factory used to run
+	// inline here, re-paying ~100 µs of schema construction on every render.
+	const resolver = useLanguageKeyedZodResolver<SettingsGeneralValues>(
+		getSettingsGeneralSchema,
+		['settings', 'common'],
+	);
+
 	const methods = useForm<SettingsGeneralValues>({
-		resolver: zodResolver(getSettingsGeneralSchema(t)),
+		resolver,
 		defaultValues: {
 			name: '',
 			logoUrl: '',

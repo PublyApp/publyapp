@@ -11,8 +11,15 @@ export const isAbsoluteHttpUrl = (value: string): boolean => {
 	}
 };
 
+/** Hoisted to module scope: every email-bearing schema calls this once per
+ * validation pass, and rebuilding the schema per call cost ~26x the parse it
+ * enables. Deliberately NOT `z.compile()`d: this module is in the client
+ * bundle, where the production CSP forbids `new Function` (src/server/csp.ts),
+ * so compiling would fall back to the runtime after paying for the compiler. */
+const EMAIL_ADDRESS_SCHEMA = z.string().trim().pipe(z.email());
+
 export const isValidEmailAddress = (value: string): boolean =>
-	z.string().trim().pipe(z.email()).safeParse(value).success;
+	EMAIL_ADDRESS_SCHEMA.safeParse(value).success;
 
 /** Hostname for the preview card's website row; null for an empty or
  * unparsable URL rather than showing a half-typed value while editing. */

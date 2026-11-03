@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
@@ -17,6 +16,7 @@ import {
 } from '~/components/ui/detail-skeleton';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -71,8 +71,15 @@ const AccountProfilePage = () => {
 	const avatarSeed =
 		profile?.displayName || profile?.email || t('common:un-named');
 
+	// Language-keyed resolver: schema + resolver built once per language, not
+	// once per render.
+	const resolver = useLanguageKeyedZodResolver<AccountProfileValues>(
+		getAccountProfileSchema,
+		['account', 'common'],
+	);
+
 	const methods = useForm<AccountProfileValues>({
-		resolver: zodResolver(getAccountProfileSchema(t)),
+		resolver,
 		defaultValues: {
 			firstName: profile?.firstName ?? '',
 			lastName: profile?.lastName ?? '',

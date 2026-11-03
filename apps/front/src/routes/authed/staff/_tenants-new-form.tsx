@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useBlocker } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -61,9 +61,15 @@ export const TenantCreateForm = ({
 	// Language-keyed resolver: rebuilds when translations change so error
 	// messages stay localized; see use-language-keyed-zod-resolver. The
 	// max-seats check stays live through the ref-getter closed over here.
-	const resolver = useLanguageKeyedZodResolver<TenantCreateFormValues>(
-		(schemaT) =>
+	// `useCallback` keeps the factory's identity stable — an inline arrow would
+	// rebuild the schema on every render, which is the cost being removed.
+	const buildSchema = useCallback(
+		(schemaT: (key: string) => string) =>
 			buildCreateTenantSchema(schemaT, () => parsedMembersCountRef.current),
+		[],
+	);
+	const resolver = useLanguageKeyedZodResolver<TenantCreateFormValues>(
+		buildSchema,
 		'common',
 	);
 

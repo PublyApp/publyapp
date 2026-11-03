@@ -38,18 +38,20 @@ const toastContrastFixtures = (
 	>
 ).filter((type) => type !== 'loading');
 
+/** Static and `t`-free, so it lives at module scope: the resolver used to
+ * rebuild this schema inside the render body on every render. */
+const FIELD_VALIDATION_SCHEMA = z.object({
+	email: z.email(),
+	statusEnabled: z.boolean(),
+});
+const FIELD_VALIDATION_RESOLVER = zodResolver(FIELD_VALIDATION_SCHEMA);
+
 const FieldValidationRoute = () => {
 	const { t } = useTranslation('common');
 	const isHydrated = useHydrated();
-	const resolver = zodResolver(
-		z.object({
-			email: z.email(),
-			statusEnabled: z.boolean(),
-		}),
-	);
 
 	const methods = useForm<FieldValidationValues>({
-		resolver,
+		resolver: FIELD_VALIDATION_RESOLVER,
 		defaultValues: {
 			email: '',
 			statusEnabled: true,

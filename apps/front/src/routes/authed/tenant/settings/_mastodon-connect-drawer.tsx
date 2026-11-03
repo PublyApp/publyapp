@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -72,8 +73,13 @@ export const MastodonConnectDrawer = ({
 	const { t } = useTranslation(['settings']);
 	const copy = COPY[provider];
 	const startMutation = useStartMastodonConnectMutation();
+	// Schema + resolver are built per language and per provider, not per render.
+	const resolver = useMemo(
+		() => zodResolver(getSchema(t(copy.help))),
+		[t, copy.help],
+	);
 	const methods = useForm<FormValues>({
-		resolver: zodResolver(getSchema(t(copy.help))),
+		resolver,
 		defaultValues: { instance: hostOf(account) },
 	});
 
