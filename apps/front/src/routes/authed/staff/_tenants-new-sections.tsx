@@ -17,9 +17,7 @@ export const TenantCreateHeader = ({ t }: { t: TranslateFn }) => (
 			<IconArrowLeft aria-hidden="true" className="size-3" />
 			{t('back-to-staff-tenants')}
 		</Link>
-		<h1 className="text-xl font-semibold tracking-[-0.01em]">
-			{t('create-tenant')}
-		</h1>
+		<h1 className="publy-type-page-title">{t('create-tenant')}</h1>
 		<p className="text-sm text-muted-foreground">
 			{t('create-tenant-description')}
 		</p>

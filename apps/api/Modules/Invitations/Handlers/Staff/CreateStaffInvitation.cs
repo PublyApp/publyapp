@@ -71,14 +71,7 @@ public sealed class CreateStaffInvitation {
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
-		// IMPOSSIBLE STATE: Staff endpoint without staff account
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		// Extract values after validation
 		var email = body.Email.GetValueAsString();

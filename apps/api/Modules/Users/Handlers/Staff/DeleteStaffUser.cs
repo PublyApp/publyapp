@@ -48,12 +48,7 @@ public sealed class DeleteStaffUser {
 			);
 		}
 
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account missing from auth context."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		if (result is not DeleteStaffUserResult.Success success) {
 			throw new InvalidOperationException(

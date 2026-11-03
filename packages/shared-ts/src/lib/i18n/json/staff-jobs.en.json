@@ -12,7 +12,7 @@
 	"system-page-title": "System job definitions",
 	"system-page-description": "Recurring platform jobs and their schedules.",
 	"column-status": "Status",
-	"column-tenant": "Tenant",
+	"column-tenant": "Organization",
 	"column-next-attempt": "Next attempt",
 	"column-last-enqueued": "Last enqueued",
 	"column-updated-at": "Updated at",
@@ -36,5 +36,11 @@
 	"action-permission-checking": "Checking your permissions…",
 	"action-permission-denied": "You don’t have permission for this action.",
 	"no-rows-match-title": "No matching jobs",
-	"no-rows-match-description": "Try adjusting or clearing the filters."
+	"no-rows-match-description": "Try adjusting or clearing the filters.",
+	"queue-empty-title": "No queued jobs",
+	"queue-empty-description": "Jobs waiting or being processed will appear here.",
+	"dl-empty-title": "No dead-letter jobs",
+	"dl-empty-description": "Failed jobs will appear here once they exhaust their attempts.",
+	"system-empty-title": "No system jobs",
+	"system-empty-description": "The platform's recurring jobs will appear here."
 }

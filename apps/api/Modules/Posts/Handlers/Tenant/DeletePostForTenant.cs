@@ -31,14 +31,7 @@ public sealed class DeletePostForTenant {
 			);
 		}
 
-		var account = authContext.AccountTenant;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithTenantPermission(...) middleware."
-			);
-		}
+		var account = authContext.GetRequiredTenantAccount();
 
 		if (!Guid.TryParse(postId, out var postIdGuid)) {
 			return TypedProblems.BadRequest(

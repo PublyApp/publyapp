@@ -42,15 +42,18 @@ describe('PersonAvatar', () => {
 			<PersonAvatar name="Ada Lovelace" avatarUrl={null} />,
 		);
 
-		const fallback = getByText('AL');
-		expect(fallback.getAttribute('data-slot')).toBe('person-avatar-fallback');
-		expect(fallback.className).toContain('publy-avatar-initials');
-		expect(fallback.className).toContain(
+		expect(getByText('AL')).toBeTruthy();
+		const fallback = container.querySelector(
+			'[data-slot="person-avatar-fallback"]',
+		);
+		expect(fallback).not.toBeNull();
+		expect(fallback?.className).toContain('publy-avatar-initials');
+		expect(fallback?.className).toContain(
 			'text-[var(--publy-avatar-foreground)]',
 		);
-		expect(fallback.className).not.toContain('foreground-secondary');
-		expect(fallback.className).not.toContain('text-muted-foreground');
-		expect(fallback.getAttribute('data-palette')).toBe('7');
+		expect(fallback?.className).not.toContain('foreground-secondary');
+		expect(fallback?.className).not.toContain('text-muted-foreground');
+		expect(fallback?.getAttribute('data-palette')).toBe('7');
 		expect(container.querySelector('img')).toBeNull();
 	});
 
@@ -68,9 +71,12 @@ describe('PersonAvatar', () => {
 		act(() => MockImage.instances[0]?.onerror?.());
 
 		expect(container.querySelector('[data-slot="avatar-image"]')).toBeNull();
-		const fallback = getByText('AL');
-		expect(fallback.getAttribute('data-slot')).toBe('person-avatar-fallback');
-		expect(fallback.getAttribute('data-palette')).toBe('7');
+		expect(getByText('AL')).toBeTruthy();
+		const fallback = container.querySelector(
+			'[data-slot="person-avatar-fallback"]',
+		);
+		expect(fallback).not.toBeNull();
+		expect(fallback?.getAttribute('data-palette')).toBe('7');
 	});
 
 	test('is decorative by default but can expose an accessible name when standalone', () => {

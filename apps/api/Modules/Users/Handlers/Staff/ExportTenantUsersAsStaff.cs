@@ -134,13 +134,7 @@ public sealed class ExportTenantUsersAsStaff {
 			return TypedProblems.BadRequest("Invalid tenant ID", ResponseKeys.MalformedId);
 		}
 
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		var maxRows = AppEnvironment.Instance.TENANT_USER_EXPORT_MAX_ROWS;
 		var exportArgs = new ExportTenantUsersArgs(

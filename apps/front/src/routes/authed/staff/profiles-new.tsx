@@ -308,7 +308,7 @@ const NewStaffProfileRoute = () => {
 					<IconArrowLeft aria-hidden="true" className="size-3" />
 					{t('back-to-staff-profiles')}
 				</Link>
-				<h1 className="text-xl font-semibold">
+				<h1 className="publy-type-page-title">
 					{t('new-item', { item: t('profile').toLowerCase() })}
 				</h1>
 			</div>

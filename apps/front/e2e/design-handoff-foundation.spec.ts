@@ -274,7 +274,9 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 
 		const rail = page.getByTestId('app-shell-rail');
 		await expect(rail.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-		await expect(rail.getByRole('link', { name: 'Tenants' })).toBeVisible();
+		await expect(
+			rail.getByRole('link', { name: 'Organizations' }),
+		).toBeVisible();
 		await expect(rail.getByRole('link', { name: 'Staff' })).toBeVisible();
 
 		const panel = page.getByTestId('app-shell-secondary-panel');

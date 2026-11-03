@@ -277,14 +277,7 @@ public sealed class UpdateTenantAsStaff {
 			);
 		}
 
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		if (result is not UpdateTenantResult.Success success) {
 			throw new InvalidOperationException(

@@ -103,7 +103,7 @@ const SectionNavLink = ({
 		return (
 			<span
 				aria-current="page"
-				className="inline-flex items-center border-b-2 border-primary px-3 pb-2.5 text-[13px] font-medium text-foreground"
+				className="inline-flex items-center border-b-2 border-foreground px-3 pb-2.5 text-sm font-medium text-foreground"
 			>
 				{label}
 			</span>
@@ -114,7 +114,10 @@ const SectionNavLink = ({
 		<Link
 			to={to}
 			params={{ tenantId }}
-			className="inline-flex items-center border-b-2 border-transparent px-3 pb-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+			// Sections are mutually exclusive: a tab is active only on its own
+			// exact route, never because its path prefixes another section (#2271 §2.7).
+			activeOptions={{ exact: true }}
+			className="inline-flex items-center border-b-2 border-transparent px-3 pb-2.5 text-sm font-normal text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{label}
 		</Link>

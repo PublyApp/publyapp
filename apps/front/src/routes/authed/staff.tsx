@@ -8,7 +8,7 @@ const StaffIndexRedirect = () => {
 
 	useEffect(() => {
 		void navigate({
-			to: '/staff/staff-users',
+			to: '/staff/dashboard',
 			replace: true,
 		});
 	}, [navigate]);
@@ -19,7 +19,7 @@ const StaffIndexRedirect = () => {
 export const Route = createFileRoute('/_authed-layout/staff')({
 	// Client-side redirect-only stub (no `beforeLoad` short-circuit exists for
 	// `/staff` itself — see `StaffIndexRedirect` above): it always bounces to
-	// `/staff/staff-users` and never sits on screen, so it never supplies a
+	// `/staff/dashboard` and never sits on screen, so it never supplies a
 	// trail.
 	staticData: { crumbs: 'shell' },
 	component: StaffIndexRedirect,

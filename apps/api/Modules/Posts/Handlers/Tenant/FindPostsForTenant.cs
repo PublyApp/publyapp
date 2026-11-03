@@ -56,14 +56,8 @@ public sealed class FindPostsForTenant {
 			);
 		}
 
-		var tenantAccount = authContext.AccountTenant;
-		if (tenantAccount is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. "
-				+ "Ensure the endpoint has "
-				+ ".WithTenantPermission(...) middleware."
-			);
-		}
+		// Guard: this endpoint must stay behind .WithTenantPermission(...).
+		_ = authContext.GetRequiredTenantAccount();
 
 		var cursor = query.GetCursor();
 		var cursorGuid = Guid.Empty;

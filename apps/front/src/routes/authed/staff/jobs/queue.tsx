@@ -111,8 +111,8 @@ const StaffJobsQueuePage = () => {
 					onPreviousPage: controller.cursor.onPreviousPage,
 				}}
 				emptyIcon={IconActivity}
-				emptyTitle={t('common:no-audit-logs-yet')}
-				emptyContent={t('common:no-audit-logs-description')}
+				emptyTitle={t('queue-empty-title')}
+				emptyContent={t('queue-empty-description')}
 				noMatchTitle={t('no-rows-match-title')}
 				noMatchContent={t('no-rows-match-description')}
 				sort={controller.sort}

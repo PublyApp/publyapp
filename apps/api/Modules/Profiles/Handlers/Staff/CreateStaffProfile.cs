@@ -185,12 +185,7 @@ public sealed class CreateStaffProfile {
 		string? tone = body.GetTone();
 
 		// Get current user ID for audit logging and invitations
-		if (authContext.AccountStaff is null) {
-			throw new InvalidOperationException(
-				"User ID not found in auth context"
-			);
-		}
-		var currentUserId = authContext.AccountStaff.UserId;
+		var currentUserId = authContext.GetRequiredStaffAccount().UserId;
 
 		// Create staff profile via service
 		var args = new CreateStaffProfileArgs(

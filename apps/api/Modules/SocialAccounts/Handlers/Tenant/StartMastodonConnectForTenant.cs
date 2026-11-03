@@ -60,12 +60,7 @@ public sealed class StartMastodonConnectForTenant {
 			throw new InvalidOperationException($"{nameof(authContext.TenantId)} is not a GUID");
 		}
 
-		var account = authContext.AccountTenant;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Tenant account not found in auth context. Ensure the endpoint has .WithTenantPermission(...) middleware."
-			);
-		}
+		var account = authContext.GetRequiredTenantAccount();
 
 		var instance = body.GetInstance();
 		var provider = body.GetProvider();

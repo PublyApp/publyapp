@@ -60,8 +60,9 @@ vi.mock('react-i18next', () => ({
 				'queue-drawer-title': 'Details',
 				'no-rows-match-title': 'No matches',
 				'no-rows-match-description': 'No jobs match.',
-				'common:no-audit-logs-yet': 'No audit logs yet',
-				'common:no-audit-logs-description': 'There are no audit logs to show.',
+				'queue-empty-title': 'No queued jobs',
+				'queue-empty-description':
+					'Jobs waiting or being processed will appear here.',
 			};
 
 			let text = labels[key] ?? key;
@@ -225,25 +226,36 @@ vi.mock('~/components/table/data-table', () => ({
 		testId,
 		columns,
 		rows,
+		emptyTitle,
+		emptyContent,
 	}: {
 		testId?: string;
 		columns: Array<{ id: string; cell: (ctx: unknown) => React.ReactNode }>;
 		rows: Array<{ id: string } & Record<string, unknown>>;
+		emptyTitle?: string;
+		emptyContent?: string;
 	}) =>
 		createElement('div', { 'data-testid': testId }, [
-			rows.map((row) =>
-				createElement(
-					'div',
-					{ key: row.id, 'data-testid': `row-${row.id}` },
-					columns.map((col) =>
+			rows.length === 0
+				? createElement(
+						'div',
+						{ key: 'empty' },
+						createElement('p', {}, emptyTitle),
+						createElement('p', {}, emptyContent),
+					)
+				: rows.map((row) =>
 						createElement(
-							'span',
-							{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
-							col.cell({ row: { original: row } }),
+							'div',
+							{ key: row.id, 'data-testid': `row-${row.id}` },
+							columns.map((col) =>
+								createElement(
+									'span',
+									{ key: col.id, 'data-testid': `cell-${col.id}-${row.id}` },
+									col.cell({ row: { original: row } }),
+								),
+							),
 						),
 					),
-				),
-			),
 		]),
 }));
 
@@ -300,6 +312,24 @@ describe('queue drawer: full content with inline portal mocks', () => {
 
 	afterEach(() => {
 		cleanup();
+	});
+
+	test('an empty queue shows its own empty state, not the audit-log copy', () => {
+		mocks.useStaffJobQueueQuery.mockReturnValue({
+			data: { data: [], nextCursor: undefined },
+			isPending: false,
+			isError: false,
+			isFetching: false,
+			error: null,
+		});
+
+		renderPage();
+
+		expect(screen.getByText('No queued jobs')).toBeTruthy();
+		expect(
+			screen.getByText('Jobs waiting or being processed will appear here.'),
+		).toBeTruthy();
+		expect(screen.queryByText('No audit logs yet')).toBeNull();
 	});
 
 	test('clicking Inspect opens the drawer and shows the full cause', async () => {

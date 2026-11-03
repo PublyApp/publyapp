@@ -286,6 +286,7 @@ Form State       → React Hook Form + Zod
 **Backend invariants:**
 - Error responses must be RFC 7807 `application/problem+json` via `TypedProblems.*` and the `App*HttpResult` types.
 - `422` is for validation problems and must include `errors: Dictionary<string, string[]>` with stable keys.
+- A JSON body that omits a `required` member is rejected during binding, before FluentValidation. `RouteHandlerOptions.ThrowOnBadRequest` (set once in `AddWebServices`) plus the global `CustomExceptionHandler` answer it as the same `422` + validator-shaped `errors` keys (`Body`, `TimeZone`, …) — never a bare `400`, and never a per-endpoint exception (#2261).
 - `401` must be reserved for **invalid/missing session** only (frontend treats `401` as "logout now").
 - Tenant header issues should not return `401` (use `400`/`422` as appropriate).
 - Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level.

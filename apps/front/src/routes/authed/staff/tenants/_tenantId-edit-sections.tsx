@@ -26,7 +26,7 @@ export const TenantEditHeader = ({
 			<IconArrowLeft aria-hidden="true" className="size-3" />
 			{t('back-to-tenant')}
 		</Link>
-		<h1 className="text-xl font-semibold tracking-[-0.01em]">
+		<h1 className="publy-type-page-title">
 			{t('edit-item', { item: t('tenant') })}
 		</h1>
 		<p className="text-sm text-muted-foreground">

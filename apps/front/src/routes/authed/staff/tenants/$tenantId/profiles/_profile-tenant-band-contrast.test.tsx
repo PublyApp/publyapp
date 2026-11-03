@@ -317,10 +317,15 @@ describe('ProfileTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)',
 		},
 	);
 
-	test('evasion proof: the pre-fix text-muted-foreground-on-bg-muted pairing is what actually failed in light mode', () => {
+	// The 2026-10-30 redesign (#2271) first remapped `muted` to the page
+	// background and left the muted foreground just under 4.5:1 on the card and
+	// secondary fills; the owner fixed the token itself (#6b6b73 / #898989).
+	// The strictest common pairing — muted text on the secondary fill — must now
+	// clear the floor too.
+	test('text-muted-foreground on the secondary surface clears the light-mode floor', () => {
 		const themeDeclarations = extractDeclarations(extractBlock(':root'));
 		const backgroundHex = resolvePaintedHex(
-			'bg-muted',
+			'bg-secondary',
 			'background-color',
 			themeInlineDeclarations,
 			themeDeclarations,
@@ -333,9 +338,9 @@ describe('ProfileTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)',
 		);
 
 		const ratio = contrastRatio(foregroundHex, backgroundHex);
-		// Documents WHY this guard exists: proves the exact pre-fix pair this
-		// batch shipped is genuinely below the floor this test enforces, so the
-		// floor above is not vacuous.
-		expect(ratio).toBeLessThan(WCAG_AA_NORMAL_TEXT_FLOOR);
+		expect(
+			ratio,
+			`muted on secondary -> ${ratio.toFixed(2)}:1`,
+		).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT_FLOOR);
 	});
 });

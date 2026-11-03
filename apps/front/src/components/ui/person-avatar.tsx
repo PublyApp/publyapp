@@ -6,7 +6,7 @@ import { cn } from '~/lib/utils';
 type PersonAvatarSize = 'xs' | 'sm' | 'md' | 'lg';
 
 const sizeClassNames = {
-	default: 'size-[26px] text-[10px]',
+	default: 'size-[30px] text-[11px]',
 	xs: 'size-5 text-[8px]',
 	sm: 'size-8 text-[11px]',
 	md: 'size-9 text-xs',
@@ -48,7 +48,7 @@ export const PersonAvatar = ({
 			aria-hidden="true"
 			data-slot="person-avatar-fallback"
 			data-palette={paletteIndex(name)}
-			className="publy-avatar-initials text-[var(--publy-avatar-foreground)] font-semibold leading-none text-[length:inherit] select-none"
+			className="publy-avatar-initials text-[var(--publy-avatar-foreground)] font-semibold text-[length:inherit] select-none"
 		>
 			{toInitials(name)}
 		</AvatarFallback>

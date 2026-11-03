@@ -58,13 +58,7 @@ public sealed class SuspendTenantUserIdentityForStaff {
 			);
 		}
 
-		var account = authContext.AccountStaff;
-		if (account is null) {
-			throw new InvalidOperationException(
-				"Staff account not found in auth context. "
-				+ "Ensure the endpoint has .WithPermission() middleware."
-			);
-		}
+		var account = authContext.GetRequiredStaffAccount();
 
 		if (result is not SuspendTenantUserIdentityResult.Success success) {
 			throw new InvalidOperationException(
