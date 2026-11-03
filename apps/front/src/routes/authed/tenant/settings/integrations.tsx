@@ -373,6 +373,7 @@ const TenantSettingsIntegrationsPage = () => {
 							queryState={{
 								isPending: tenantId === null || socialAccountsQuery.isPending,
 								isError: socialAccountsQuery.isError,
+								error: socialAccountsQuery.error,
 								onRetry: () => void socialAccountsQuery.refetch(),
 								hasActiveSearch: false,
 							}}

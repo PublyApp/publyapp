@@ -220,6 +220,7 @@ const StaffTenantProfilesPage = () => {
 					hasActiveSearch: list.hasActiveSearch,
 					isPending: profilesQuery.isPending,
 					isError: profilesQuery.isError,
+					error: profilesQuery.error,
 					isFetching: profilesQuery.isFetching,
 				}}
 				nextCursor={profilesQuery.data?.nextCursor}

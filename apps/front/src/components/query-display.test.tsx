@@ -18,11 +18,11 @@ const TRANSLATION_LABELS: TestLabelMap = {
 	'error-403-code': '403 — Forbidden',
 	'error-404-code': '404 — Not Found',
 	'error-500-code': '500 — Server Error',
-	'no-access-title': "You don't have access",
+	'no-access-title': 'Access denied',
 	'forbidden-description': 'The page is restricted.',
 	'page-not-found': 'Page not found',
 	'not-found-sentence': 'The page could not be found.',
-	'error-500-title': 'Internal Server Error',
+	'error-500-title': 'Unable to load',
 	'error-500-description': 'Something went wrong on our end.',
 };
 
@@ -192,7 +192,7 @@ describe('QueryDisplay', () => {
 		expect(
 			screen.queryByText('An error occurred while loading data.'),
 		).toBeNull();
-		expect(screen.getByText("You don't have access")).toBeTruthy();
+		expect(screen.getByText('Access denied')).toBeTruthy();
 		expect(
 			screen.getByText('Your profile no longer has access to this tenant.'),
 		).toBeTruthy();
@@ -232,7 +232,7 @@ describe('QueryDisplay', () => {
 		render(<QueryDisplay query={serverErrorQuery} />);
 
 		expect(screen.getByText('500 — Server Error')).toBeTruthy();
-		expect(screen.getByText('Internal Server Error')).toBeTruthy();
+		expect(screen.getByText('Unable to load')).toBeTruthy();
 	});
 
 	test('default error surfaces a 400 ServerFailure detail for an unhandled status', () => {

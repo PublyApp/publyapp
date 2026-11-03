@@ -13,6 +13,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '~/components/ui/select';
+import { resolveQueryError } from '~/lib/server/query-error-resolver';
 import { PAGE_SIZE_OPTIONS } from '~/lib/url-state/table-search-params';
 
 import { columnDisplayMeta } from './column-display-meta';
@@ -324,6 +325,10 @@ type DataTableQueryState = {
 	isPending: boolean;
 	/** Query failed; renders the error body state. */
 	isError: boolean;
+	/** The query's error, when the consumer has it. Resolves the ONE error
+	 * state (#2291): 5xx paints « Impossible de charger » + Réessayer, 403
+	 * paints « Accès refusé » with no retry action. */
+	error?: unknown;
 	/** Retry callback surfaced by the error body state. */
 	onRetry: () => void;
 	/** A committed search filter is active; empty rows render "no matches"
@@ -359,7 +364,7 @@ export const DataTable = <TData extends { id: string }>({
 	ariaLabel,
 	columns,
 	rows,
-	queryState: { isPending, isError, onRetry, hasActiveSearch },
+	queryState: { isPending, isError, error, onRetry, hasActiveSearch },
 	pagination: {
 		pageIndex,
 		hasPreviousPage,
@@ -405,6 +410,11 @@ export const DataTable = <TData extends { id: string }>({
 	// component that reads `table.*` during render out of the compiler.
 	'use no memo';
 	const { t } = useTranslation('common');
+	// #2291: one error state. Same resolver as `ListPage` — 5xx keeps Retry,
+	// 403/404 drop it. `undefined` (no error prop) keeps the historical
+	// always-retry default for callers that cannot supply the cause.
+	const resolvedError =
+		error === undefined ? undefined : resolveQueryError(error, t);
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const displayBreakpoints = useMemo(
 		() => collectDisplayBreakpoints(columns),
@@ -467,11 +477,12 @@ export const DataTable = <TData extends { id: string }>({
 				bodyState={bodyState}
 				resolvedRowHeight={resolvedRowHeight}
 				onRetry={onRetry}
-				errorContent={errorContent}
+				errorContent={errorContent ?? resolvedError?.description}
 				emptyContent={emptyContent}
 				noMatchContent={noMatchContent}
 				errorIcon={errorIcon}
-				errorTitle={errorTitle}
+				errorTitle={errorTitle ?? resolvedError?.title}
+				errorRetryable={resolvedError?.supportsRetry}
 				emptyIcon={emptyIcon}
 				emptyTitle={emptyTitle}
 				emptyActions={emptyActions}

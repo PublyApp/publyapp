@@ -21,13 +21,13 @@ const EN_LABELS: TestLabelMap = {
 	'common:title': 'Title',
 	'common:description': 'Description',
 	'error-403-code': '403 — Forbidden',
-	'no-access-title': "You don't have access",
+	'no-access-title': 'Access denied',
 	'forbidden-description': 'The page is restricted.',
 	'error-404-code': '404 — Not Found',
 	'page-not-found': 'Page not found',
 	'not-found-sentence': 'The page could not be found.',
 	'error-500-code': '500 — Server Error',
-	'error-500-title': 'Internal Server Error',
+	'error-500-title': 'Unable to load',
 	'error-500-description': 'Something went wrong on our end.',
 	'query-display-error-cause-unknown':
 		"We couldn't determine what went wrong. Try again in a moment.",
@@ -115,7 +115,7 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 
 		expect(screen.getByTestId('tenant-card-error-500')).toBeTruthy();
 		expect(screen.getByText('500 — Server Error')).toBeTruthy();
-		expect(screen.getByText('Internal Server Error')).toBeTruthy();
+		expect(screen.getByText('Unable to load')).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
 	});
 

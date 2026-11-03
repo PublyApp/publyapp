@@ -43,6 +43,7 @@ export const InvitationsTable = ({
 		queryState={{
 			isPending: invitationsQuery.isPending,
 			isError: invitationsQuery.isError,
+			error: invitationsQuery.error,
 			onRetry: () => void invitationsQuery.refetch(),
 			hasActiveSearch: hasActiveSearch,
 		}}

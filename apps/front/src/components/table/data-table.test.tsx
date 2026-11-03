@@ -24,6 +24,8 @@ vi.mock('react-i18next', () => ({
 					'No records yet. Create one to get started.',
 				'list-no-match-title': 'No matches for that search',
 				'list-no-match-default-description': 'No results match your search.',
+				'no-access-title': 'Access denied',
+				'error-500-title': 'Unable to load',
 				'select-row-named': 'Select {{name}}',
 			};
 
@@ -1153,6 +1155,47 @@ describe('DataTable a11y', () => {
 			fireEvent.keyDown(cellAt(1, 1), { key: 'ArrowUp' });
 			expect(document.activeElement).toBe(cellAt(0, 1));
 		});
+	});
+});
+
+// #2291 / review-tokens BLOCKER 2: a page built directly on DataTable must
+// resolve the query's error, not fall back to the historical always-retry
+// surface. 403 paints « Accès refusé » with no action; 5xx keeps Réessayer.
+describe('DataTable one error state (#2291)', () => {
+	test('a 403 renders the access-denied title without a Retry action', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					error: { status: 403, detail: 'Permission revoked.' },
+				}}
+			/>,
+		);
+
+		expect(screen.getByText('Access denied')).toBeTruthy();
+		expect(screen.getByText('Permission revoked.')).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+	});
+
+	test('a 500 keeps the retry action and renders the server title', () => {
+		const onRetry = vi.fn();
+		render(
+			<DataTable
+				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					error: { status: 500, detail: 'Trace id: abc' },
+					onRetry,
+				}}
+			/>,
+		);
+
+		expect(screen.getByText('Unable to load')).toBeTruthy();
+		expect(screen.getByText('Trace id: abc')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+		expect(onRetry).toHaveBeenCalledTimes(1);
 	});
 });
 

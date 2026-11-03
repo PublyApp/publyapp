@@ -98,6 +98,7 @@ const StaffJobsQueuePage = () => {
 				queryState={{
 					isPending: query.isPending,
 					isError: query.isError,
+					error: query.error,
 					onRetry: () => void query.refetch(),
 					hasActiveSearch: hasActiveFilters,
 				}}

@@ -138,6 +138,7 @@ const StaffTenantActivityPage = () => {
 							queryState={{
 								isPending: activityQuery.isPending,
 								isError: activityQuery.isError,
+								error: activityQuery.error,
 								onRetry: () => void activityQuery.refetch(),
 								hasActiveSearch: false,
 							}}

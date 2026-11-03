@@ -83,6 +83,7 @@ const renderPage = (
 		q?: string;
 		data?: Row[];
 		isError?: boolean;
+		error?: unknown;
 		errorContent?: ReactNode;
 	} = {},
 ) =>
@@ -121,6 +122,7 @@ const renderPage = (
 				queryState={{
 					isPending: false,
 					isError: options.isError ?? false,
+					error: options.error,
 					onRetry: vi.fn(),
 				}}
 				errorContent={options.errorContent}
@@ -274,6 +276,36 @@ describe('ListPage', () => {
 
 		expect(screen.getByText('403 specific explanation')).toBeTruthy();
 		expect(screen.queryByText('list-error-default-description')).toBeNull();
+		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
+	});
+
+	// #2291 / review-tokens non-blocking note 5: the 403-no-retry and
+	// 500-retry branches were wired but had no unit cover.
+	test('a 403 renders the access-denied copy without a retry action', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				error: { status: 403, detail: 'Permission revoked.' },
+			},
+		);
+
+		expect(screen.getByText('no-access-title')).toBeTruthy();
+		expect(screen.getByText('Permission revoked.')).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'retry' })).toBeNull();
+	});
+
+	test('a 500 renders the unable-to-load copy with a retry action', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				error: { status: 500, detail: 'Trace id: abc' },
+			},
+		);
+
+		expect(screen.getByText('error-500-title')).toBeTruthy();
+		expect(screen.getByText('Trace id: abc')).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
 	});
 });

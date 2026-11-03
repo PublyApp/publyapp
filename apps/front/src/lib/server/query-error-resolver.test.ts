@@ -1,8 +1,15 @@
 import { describe, expect, test } from 'vitest';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
 import { ServerFailure } from '~/lib/server/server-failure';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const t = (key: string) => `t(${key})`;
+
+const realTranslator = (common: TestLabelMap) => {
+	return (key: string) => common[key] ?? key;
+};
 
 describe('resolveQueryError (#2043)', () => {
 	test('maps a 403 ServerFailure to the forbidden copy', () => {
@@ -237,5 +244,22 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
 		expect(resolution.description).toBe('The tenant permission was revoked.');
+	});
+});
+
+// review-tokens non-blocking note 4: the unit mocks above pin a local label
+// map, so they cannot catch a bundle rename. This one reads the shipped
+// common bundle through the real resolver.
+describe('shipped one-error-state copy (#2291)', () => {
+	test('the real bundles carry the owner titles, not the old generic copy', () => {
+		const en = realTranslator(enLocale.common);
+		const fr = realTranslator(frLocale.common);
+
+		expect(resolveQueryError({ status: 403 }, en).title).toBe('Access denied');
+		expect(resolveQueryError({ status: 403 }, fr).title).toBe('Accès refusé');
+		expect(resolveQueryError({ status: 500 }, en).title).toBe('Unable to load');
+		expect(resolveQueryError({ status: 500 }, fr).title).toBe(
+			'Impossible de charger',
+		);
 	});
 });

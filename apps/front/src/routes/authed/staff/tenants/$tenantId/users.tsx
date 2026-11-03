@@ -258,6 +258,7 @@ const StaffTenantUsersPage = () => {
 							queryState={{
 								isPending: usersQuery.isPending,
 								isError: usersQuery.isError,
+								error: usersQuery.error,
 								isFetching: usersQuery.isFetching,
 								hasNextPage: usersQuery.data?.nextCursor != null,
 							}}
