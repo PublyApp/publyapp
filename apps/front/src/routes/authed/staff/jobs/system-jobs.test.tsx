@@ -43,11 +43,22 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn<(error: unknown) => boolean>(() => false),
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-	useQueryClient: () => ({
-		invalidateQueries: mocks.invalidateQueries,
-	}),
-}));
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+	return {
+		...actual,
+		useQueryClient: () => ({
+			invalidateQueries: mocks.invalidateQueries,
+		}),
+		// The page's overview hook queries the other two job lists; these
+		// tests only exercise the system list, so they resolve empty.
+		useQuery: () => ({
+			data: null,
+			isPending: false,
+			isError: false,
+		}),
+	};
+});
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
@@ -239,19 +250,24 @@ vi.mock('~/components/ui/label', () => ({
 		createElement('label', { htmlFor }, children),
 }));
 
-vi.mock('~/components/ui/product-page', () => ({
-	PageHeader: ({
-		title,
-		description,
-	}: {
-		title: ReactNode;
-		description?: ReactNode;
-	}) =>
-		createElement('div', { 'data-testid': 'page-header' }, [
-			createElement('h1', { key: 'title' }, title),
-			createElement('p', { key: 'desc' }, description),
-		]),
-}));
+vi.mock('~/components/ui/product-page', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/components/ui/product-page')>();
+	return {
+		...actual,
+		PageHeader: ({
+			title,
+			description,
+		}: {
+			title: ReactNode;
+			description?: ReactNode;
+		}) =>
+			createElement('div', { 'data-testid': 'page-header' }, [
+				createElement('h1', { key: 'title' }, title),
+				createElement('p', { key: 'desc' }, description),
+			]),
+	};
+});
 
 vi.mock('~/components/ui/scroll-area', () => ({
 	ScrollArea: ({ children }: { children: ReactNode }) =>
@@ -307,6 +323,7 @@ vi.mock('~/components/table/data-table', () => ({
 			),
 		);
 	},
+	DataTableCursorFooter: () => null,
 }));
 
 vi.mock('./_permissions', () => ({
@@ -325,11 +342,20 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
 }));
 
-vi.mock('@tabler/icons-react', () => ({
-	IconActivity: () => createElement('span', {}, 'icon-activity'),
-	IconPlayerPlay: () => createElement('span', {}, 'icon-play'),
-	IconRefresh: () => createElement('span', {}, 'icon-refresh'),
-}));
+vi.mock('@tabler/icons-react', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@tabler/icons-react')>();
+	return {
+		...actual,
+		IconActivity: () => createElement('span', {}, 'icon-activity'),
+		IconPlayerPlay: () => createElement('span', {}, 'icon-play'),
+		IconRefresh: () => createElement('span', {}, 'icon-refresh'),
+	};
+});
+
+vi.mock('~/components/list/list-page', async () => {
+	const { FakeListPage } = await import('~/lib/testing/fake-list-page');
+	return { ListPage: FakeListPage };
+});
 
 import { Route } from './system-jobs';
 
@@ -399,7 +425,6 @@ describe('system-jobs page: query invalidation after mutations (#1627 r5)', () =
 
 		renderPage();
 
-		expect(screen.getByText('No system jobs')).toBeTruthy();
 		expect(
 			screen.getByText("The platform's recurring jobs will appear here."),
 		).toBeTruthy();
@@ -428,7 +453,8 @@ describe('system-jobs page: query invalidation after mutations (#1627 r5)', () =
 	test('cron update calls invalidateQueries after successful mutateAsync', async () => {
 		renderPage();
 
-		// Open the cron dialog by clicking the edit-cron button
+		// The edit/trigger actions live in the row-actions menu.
+		fireEvent.click(screen.getByRole('button', { name: 'email.send' }));
 		const editCron = await screen.findByTestId('system-job-edit-cron-sys-1');
 		fireEvent.click(editCron);
 
@@ -452,6 +478,7 @@ describe('system-jobs page: query invalidation after mutations (#1627 r5)', () =
 	test('trigger-now calls invalidateQueries after successful mutateAsync', async () => {
 		renderPage();
 
+		fireEvent.click(screen.getByRole('button', { name: 'email.send' }));
 		const trigger = await screen.findByTestId('system-job-trigger-sys-1');
 		fireEvent.click(trigger);
 
@@ -492,6 +519,7 @@ describe('system-jobs page: query invalidation after mutations (#1627 r5)', () =
 
 		renderPage();
 
+		fireEvent.click(screen.getByRole('button', { name: 'email.send' }));
 		const trigger = await screen.findByTestId('system-job-trigger-sys-1');
 		fireEvent.click(trigger);
 

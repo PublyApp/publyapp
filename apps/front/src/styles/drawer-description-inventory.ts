@@ -110,7 +110,7 @@ export const DRAWER_DESCRIPTION_CONSUMERS = [
 		testId: 'staff-jobs-queue-drawer',
 	},
 	{
-		file: 'src/routes/authed/staff/jobs/dead-letter.tsx',
+		file: 'src/routes/authed/staff/jobs/_dead-letter-drawer.tsx',
 		testId: 'staff-jobs-dead-letter-drawer',
 	},
 ] as const satisfies readonly DrawerDescriptionConsumer[];

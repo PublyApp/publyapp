@@ -211,7 +211,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 			/>
 			{props.cards ? (
 				<Collapse open={page.statsOpen} axis="y">
-					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-3">
+					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-3 md:gap-4">
 						{props.cards}
 					</div>
 				</Collapse>

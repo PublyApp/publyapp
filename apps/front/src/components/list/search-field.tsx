@@ -64,7 +64,7 @@ export const SearchField = ({
 	};
 
 	return (
-		<div className="relative max-w-[420px] flex-[1_1_300px]">
+		<div className="relative max-w-[448px] flex-[1_1_300px]">
 			<IconSearch
 				aria-hidden="true"
 				className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -78,7 +78,7 @@ export const SearchField = ({
 				aria-label={ariaLabel ?? placeholder}
 				data-testid={testId}
 				disabled={disabled}
-				className={`publy-search-input h-11 w-full rounded-[var(--publy-radius-medium-control)] border border-transparent bg-background pl-9 text-sm shadow-[var(--publy-shadow-chrome)] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-60 md:h-10 ${text.length > 0 ? 'pr-9' : 'pr-3'}`}
+				className={`publy-search-input h-11 w-full rounded-[var(--publy-radius-control)] border border-transparent bg-background pl-9 text-sm shadow-(--publy-shadow-ring) outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-60 md:h-10 ${text.length > 0 ? 'pr-9' : 'pr-3'}`}
 			/>
 			{text.length > 0 ? (
 				<button

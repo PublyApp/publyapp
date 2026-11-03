@@ -110,13 +110,15 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		await page.goto('/staff/jobs');
 		await expect(page.getByTestId(QUEUE_TABLE)).toBeVisible();
 		await expect(
-			page.getByTestId(QUEUE_TABLE).getByText('SendEmailJob'),
+			page
+				.getByTestId(QUEUE_TABLE)
+				.getByRole('button', { name: 'SendEmailJob', exact: true }),
 		).toBeVisible();
 		// The index route lights its own panel row even though its pathname is
 		// the section path, and no sibling row claims the current page.
 		const panel = page.getByTestId('app-shell-secondary-panel');
 		await expect(panel.locator('[aria-current="page"]')).toHaveCount(1);
-		await expect(panel.getByRole('link', { name: 'Queue' })).toHaveAttribute(
+		await expect(panel.getByRole('button', { name: /^Queue/ })).toHaveAttribute(
 			'aria-current',
 			'page',
 		);
@@ -204,19 +206,22 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		);
 		await page
 			.getByTestId('app-shell-secondary-panel')
-			.getByRole('link', { name: 'Dead letter' })
+			.getByRole('button', { name: /^Dead letters/ })
 			.click();
 		const url = new URL(page.url());
 		expect(url.pathname).toBe('/staff/jobs/dead-letter');
 		await expect(panel.locator('[aria-current="page"]')).toHaveCount(1);
 		await expect(
-			panel.getByRole('link', { name: 'Dead letter' }),
+			panel.getByRole('button', { name: /^Dead letters/ }),
 		).toHaveAttribute('aria-current', 'page');
 		await expect(
-			panel.getByRole('link', { name: 'Queue' }),
+			panel.getByRole('button', { name: /^Queue/ }),
 		).not.toHaveAttribute('aria-current', 'page');
 		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
-		await page.getByRole('button', { name: 'SendEmailJob' }).first().click();
+		await page
+			.getByTestId(DLQ_TABLE)
+			.getByRole('button', { name: 'SendEmailJob', exact: true })
+			.click();
 		await page.getByTestId(`dead-letter-requeue-${deadLetterId}`).click();
 		await expect(
 			page.getByRole('alertdialog', { name: 'Requeue this job?' }),
@@ -288,9 +293,13 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 
 		await page
 			.getByTestId('app-shell-secondary-panel')
-			.getByRole('link', { name: 'System jobs' })
+			.getByRole('button', { name: /^System jobs/ })
 			.click();
 		await expect(page.getByTestId(SYSTEM_TABLE)).toBeVisible();
+		await page
+			.getByTestId(SYSTEM_TABLE)
+			.getByRole('button', { name: 'retention-sweep', exact: true })
+			.click();
 		await page.getByTestId(`system-job-trigger-${systemJobId}`).click();
 		await expect(page.getByText('System job enqueued')).toBeVisible({
 			timeout: 15_000,

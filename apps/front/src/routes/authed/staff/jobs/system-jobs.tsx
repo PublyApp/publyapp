@@ -1,51 +1,51 @@
-import { IconActivity } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
+import { ListPage } from '~/components/list/list-page';
+import type { ListFiltersValue } from '~/components/list/list-types';
+import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
-import { PageHeader } from '~/components/ui/product-page';
 import {
 	toStaffSystemJobDefinitionRows,
-	useStaffTriggerSystemJobMutation,
-	useStaffUpdateSystemJobEnabledMutation,
-	useStaffUpdateSystemJobCronMutation,
 	useStaffSystemJobDefinitionsQuery,
-	invalidateStaffJobsQueries,
-	type StaffSystemJobDefinitionRow,
 } from '~/lib/query/staff-jobs';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
+import { jobLabel } from './_job-catalogue';
 import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
-
-import { makeSystemJobColumns } from './_columns-system-jobs';
+	exportJobRows,
+	filterRowsBySearch,
+	searchTextForSystemJob,
+	systemJobColumns,
+	systemJobFilters,
+	systemJobMobileCard,
+	systemJobTotals,
+} from './_jobs-list-config';
+import { useJobsOverview } from './_jobs-overview';
 import {
+	buildJobsPanelGroups,
+	jobsSectionPath,
+	type JobsSection,
+} from './_jobs-panel';
+import { SystemJobRowActions } from './_jobs-row-actions';
+import { JobsStatCards } from './_jobs-stat-cards';
+import {
+	buildStaffJobsCursorResetKey,
 	parseStaffJobsListSearchParams,
-	type StaffJobsListSearchParams,
 	serializeStaffJobsListSearchParams,
 	type StaffJobsListSearchParamInput,
 } from './_list-search-params';
 import { useStaffJobPermissions } from './_permissions';
+import { SystemCronDialog } from './_system-cron-dialog';
+import { useSystemJobActions } from './_use-system-job-actions';
 
+const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
-// Server-side ordering for definitions is fixed; sort controls stay hidden
-// because every column sets enableSorting: false.
-const DEFAULT_SORT = { id: 'created_at', order: 'asc' as const };
-const MAX_CRON_LENGTH = 100;
 
-type CronDialogState = {
-	row: StaffSystemJobDefinitionRow;
-	draft: string;
-	error: string | null;
-};
+const splitFilter = (value: string | undefined): string[] =>
+	value ? value.split(',') : [];
 
 const StaffJobsSystemJobsPage = () => {
 	const { t, i18n } = useTranslation(['staff-jobs', 'common']);
@@ -53,15 +53,21 @@ const StaffJobsSystemJobsPage = () => {
 	const queryClient = useQueryClient();
 	const permissions = useStaffJobPermissions();
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const [cronDialog, setCronDialog] = useState<CronDialogState | null>(null);
+	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const actions = useSystemJobActions({
+		t,
+		permissions,
+		queryClient,
+		onSessionExpired,
+	});
 
 	const search = parseStaffJobsListSearchParams(
 		Route.useSearch() as StaffJobsListSearchParamInput,
 	);
 	const navigate = Route.useNavigate();
-	const onSearchChange = (next: StaffJobsListSearchParams): void => {
+	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeStaffJobsListSearchParams(next),
+			search: serializeStaffJobsListSearchParams({ ...search, ...next }),
 			replace: true,
 		});
 	};
@@ -71,223 +77,195 @@ const StaffJobsSystemJobsPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: buildCursorResetKey(search),
+		cursorResetKey: buildStaffJobsCursorResetKey(search),
 	});
 
+	const enabledFilters = splitFilter(search.isEnabled);
+	// The API takes one boolean, so two selected values mean "no server
+	// filter"; the generic list still applies both (i.e. everything).
+	const serverEnabled =
+		enabledFilters.length === 1 ? enabledFilters[0] : undefined;
 	const query = useStaffSystemJobDefinitionsQuery({
-		isEnabled: search.isEnabled,
-		sortId: controller.apiVariables.sortId,
-		sortOrder: controller.apiVariables.sortOrder,
+		isEnabled: serverEnabled,
 		cursor: controller.apiVariables.cursor,
 		size: controller.apiVariables.size,
 	});
 	const rows = toStaffSystemJobDefinitionRows(query.data?.data);
+	const overview = useJobsOverview();
 
-	const enabledMutation = useStaffUpdateSystemJobEnabledMutation();
-	const cronMutation = useStaffUpdateSystemJobCronMutation();
-	const triggerMutation = useStaffTriggerSystemJobMutation();
-
-	const guardSession = (error: unknown): boolean => {
-		if (shouldLogoutForFailure(error)) {
-			setShouldLogout(true);
-			return true;
-		}
-
-		return false;
+	const filtersValue: ListFiltersValue = {
+		state: enabledFilters,
+		family: splitFilter(search.family),
 	};
-
-	const onToggleEnabled = useCallback(
-		(row: StaffSystemJobDefinitionRow, next: boolean): void => {
-			if (!permissions.canUpdateSystemJob) {
-				return;
-			}
-
-			void enabledMutation
-				.mutateAsync({ systemJobId: row.id, isEnabled: next })
-				.then(() => {
-					void invalidateStaffJobsQueries(queryClient);
-				})
-				.catch((error) => {
-					guardSession(error);
-				});
-		},
-		[permissions.canUpdateSystemJob, enabledMutation, queryClient],
+	const updateDenied = permissions.loadError || !permissions.canUpdateSystemJob;
+	const triggerDenied =
+		permissions.loadError || !permissions.canTriggerSystemJob;
+	const explanation = permissions.isPending
+		? t('action-permission-checking')
+		: t('action-permission-denied');
+	const columns = systemJobColumns(t, locale, {
+		permissionsPending: permissions.isPending,
+		updateDenied,
+		isTogglePending: actions.enabledPending,
+		explanation,
+		onToggleEnabled: actions.onToggleEnabled,
+	});
+	const visibleRows = filterRowsBySearch(
+		rows,
+		search.q ?? '',
+		searchTextForSystemJob(t),
 	);
+	const overviewRows = overview.systemJobs
+		? filterRowsBySearch(
+				overview.systemJobs,
+				search.q ?? '',
+				searchTextForSystemJob(t),
+			)
+		: null;
 
-	const openCronDialog = useCallback(
-		(row: StaffSystemJobDefinitionRow): void => {
-			if (!permissions.canUpdateSystemJob) {
-				return;
-			}
-
-			setCronDialog({ row, draft: row.cronExpression ?? '', error: null });
-		},
-		[permissions.canUpdateSystemJob],
-	);
-
-	const closeCronDialog = (): void => setCronDialog(null);
-
-	const confirmCron = async (): Promise<void> => {
-		if (!cronDialog || !permissions.canUpdateSystemJob) {
-			closeCronDialog();
-			return;
-		}
-
-		try {
-			await cronMutation.mutateAsync({
-				systemJobId: cronDialog.row.id,
-				cronExpression: cronDialog.draft,
-			});
-		} catch (error) {
-			setCronDialog({
-				...cronDialog,
-				error: getFailureMessage(toApiFailure(error), {
-					fallback: t('common:an-error-occurred'),
-				}),
-			});
-			guardSession(error);
-			return;
-		}
-
-		void invalidateStaffJobsQueries(queryClient);
-		closeCronDialog();
-	};
-
-	const onTriggerNow = useCallback(
-		async (row: StaffSystemJobDefinitionRow): Promise<void> => {
-			if (!permissions.canTriggerSystemJob) {
-				return;
-			}
-
-			try {
-				await triggerMutation.mutateAsync({ systemJobId: row.id });
-			} catch (error) {
-				guardSession(error);
-				return;
-			}
-
-			void invalidateStaffJobsQueries(queryClient);
-		},
-		[permissions.canTriggerSystemJob, triggerMutation, queryClient],
-	);
-
-	const columns = useMemo(
-		() =>
-			makeSystemJobColumns(t, locale, {
-				canUpdateSystemJob: permissions.canUpdateSystemJob,
-				canTriggerSystemJob: permissions.canTriggerSystemJob,
-				permissionsPending: permissions.isPending,
-				updateDenied: permissions.loadError || !permissions.canUpdateSystemJob,
-				triggerDenied:
-					permissions.loadError || !permissions.canTriggerSystemJob,
-				isTogglePending: enabledMutation.isPending,
-				onToggleEnabled,
-				onTriggerNow: (row) => void onTriggerNow(row),
-				onEditCron: openCronDialog,
+	const setFilters = (next: ListFiltersValue): void => {
+		void navigate({
+			search: serializeStaffJobsListSearchParams({
+				...search,
+				isEnabled: (next.state ?? []).join(',') || undefined,
+				family: (next.family ?? []).join(',') || undefined,
+				cursor: undefined,
 			}),
-		[
-			t,
-			locale,
-			permissions,
-			enabledMutation.isPending,
-			onToggleEnabled,
-			onTriggerNow,
-			openCronDialog,
-		],
-	);
+			replace: true,
+		});
+	};
+
+	const onShortcut = (key: string, value: string): void => {
+		const next: ListFiltersValue = { state: [], family: [] };
+		if (!(filtersValue[key] ?? []).includes(value)) {
+			next[key] = [value];
+		}
+		setFilters(next);
+	};
+
+	const onSection = (section: JobsSection): void => {
+		void navigate({ to: jobsSectionPath(section) });
+	};
+
+	// The cursor API has no total and no `q`: counters are exact only when the
+	// first page is the whole collection and no server-side filter narrowed it.
+	const collectionComplete =
+		query.data !== undefined &&
+		query.data.nextCursor == null &&
+		!controller.cursor.hasPreviousPage;
+	const countsKnown = collectionComplete && serverEnabled === undefined;
+
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
 	return (
-		<div className="publy-page-fill">
-			<PageHeader
-				title={t('system-page-title')}
-				description={t('system-page-description')}
-			/>
-			<DataTable<StaffSystemJobDefinitionRow>
-				testId="staff-jobs-system-table"
-				ariaLabel={t('system-page-title')}
-				columns={columns}
-				rows={rows}
-				queryState={{
-					isPending: query.isPending,
-					isError: query.isError,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: search.isEnabled !== undefined,
-				}}
-				pagination={{
-					pageIndex: controller.cursor.pageIndex,
-					hasPreviousPage: controller.cursor.hasPreviousPage,
-					hasNextPage: query.data?.nextCursor != null,
-					isPaginationPending: query.isFetching,
-					onNextPage: () =>
-						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
-					onPreviousPage: controller.cursor.onPreviousPage,
-				}}
-				emptyIcon={IconActivity}
-				emptyTitle={t('system-empty-title')}
-				emptyContent={t('system-empty-description')}
-				noMatchTitle={t('no-rows-match-title')}
-				noMatchContent={t('no-rows-match-description')}
-				sort={controller.sort}
-				onSortChange={controller.onSortChange}
-				size={controller.size}
-				onSizeChange={controller.onSizeChange}
-			/>
-
-			<ConfirmDialog
-				isOpen={cronDialog !== null}
-				title={t('cron-dialog-title')}
-				description={t('cron-dialog-description', {
-					jobKey: cronDialog?.row.jobKey ?? '',
-				})}
-				confirmLabel={t('action-save-cron')}
-				isPending={cronMutation.isPending}
-				tone="primary"
-				onConfirm={() => void confirmCron()}
-				onOpenChange={(open) => {
-					if (!open) {
-						closeCronDialog();
-					}
-				}}
-			>
-				<div className="space-y-1.5">
-					<Label htmlFor="cron-expression">{t('cron-expression-label')}</Label>
-					<Input
-						id="cron-expression"
-						value={cronDialog?.draft ?? ''}
-						maxLength={MAX_CRON_LENGTH}
-						onChange={(event) =>
-							setCronDialog((current) =>
-								current ? { ...current, draft: event.target.value } : current,
-							)
+		<ListPage
+			testId="staff-jobs-system-table"
+			ariaLabel={t('system-page-title')}
+			title={t('system-page-title')}
+			searchPlaceholder={t('jobs-search-placeholder')}
+			rows={visibleRows}
+			columns={columns}
+			defaultColumns={['type', 'what', 'state', 'cron', 'last', 'updatedAt']}
+			lockedColumn="type"
+			sorting={[
+				{ id: controller.sort.id, desc: controller.sort.order === 'desc' },
+			]}
+			onSortingChange={(next) =>
+				controller.onSortChange(
+					next[0]
+						? { id: next[0].id, order: next[0].desc ? 'desc' : 'asc' }
+						: undefined,
+				)
+			}
+			q={search.q ?? ''}
+			onSearch={(next) =>
+				onSearchChange({ ...search, q: next, cursor: undefined })
+			}
+			filters={systemJobFilters(t)}
+			filtersValue={filtersValue}
+			onFiltersChange={setFilters}
+			countsKnown={countsKnown}
+			emptyText={t('system-empty-description')}
+			locale={locale}
+			cards={<JobsStatCards overview={overview} t={t} />}
+			totals={systemJobTotals(t)}
+			panelGroups={buildJobsPanelGroups({
+				t,
+				current: 'system',
+				overview,
+				filterRows: overviewRows,
+				filters: systemJobFilters(t),
+				filtersValue,
+				onSection,
+				onShortcut,
+			})}
+			onOpen={actions.openCronDialog}
+			openLabel={() => t('action-edit-cron')}
+			rowLabel={(row) => jobLabel(t, row.jobKey)}
+			mobileCard={systemJobMobileCard(t)}
+			renderActions={(row) => (
+				<SystemJobRowActions
+					row={row}
+					t={t}
+					permissionsPending={permissions.isPending}
+					updateDenied={updateDenied}
+					triggerDenied={triggerDenied}
+					explanation={explanation}
+					onEditCron={actions.openCronDialog}
+					onTriggerNow={actions.onTriggerNow}
+				/>
+			)}
+			onExport={() =>
+				exportJobRows(visibleRows, columns, t, 'jobs-export-system')
+			}
+			queryState={{
+				isPending: query.isPending,
+				isError: query.isError,
+				onRetry: () => void query.refetch(),
+			}}
+			footer={
+				rows.length > 0 ? (
+					<DataTableCursorFooter
+						testId="staff-jobs-system-table"
+						pageIndex={controller.cursor.pageIndex}
+						size={controller.size}
+						onSizeChange={controller.onSizeChange}
+						pageRowCount={rows.length}
+						hasPreviousPage={controller.cursor.hasPreviousPage}
+						hasNextPage={query.data?.nextCursor != null}
+						isPaginationPending={query.isFetching}
+						onNextPage={() =>
+							controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
 						}
+						onPreviousPage={controller.cursor.onPreviousPage}
+						variant="flat"
 					/>
-					{cronDialog?.error ? (
-						<p role="alert" className="text-[13px] text-destructive">
-							{cronDialog.error}
-						</p>
-					) : null}
-				</div>
-			</ConfirmDialog>
-		</div>
+				) : null
+			}
+			after={
+				<SystemCronDialog
+					dialog={actions.cronDialog}
+					isPending={actions.cronPending}
+					onDraftChange={actions.updateDraft}
+					onConfirm={actions.confirmCron}
+					onOpenChange={(open) => {
+						if (!open) {
+							actions.closeCronDialog();
+						}
+					}}
+					t={t}
+				/>
+			}
+		/>
 	);
-};
-
-const buildCursorResetKey = (
-	search: ReturnType<typeof parseStaffJobsListSearchParams>,
-): string => {
-	return [
-		search.isEnabled === undefined ? '' : String(search.isEnabled),
-		search.jobType ?? '',
-		search.tenantId ?? '',
-	].join('\u001f');
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/jobs/system-jobs')({
 	staticData: {
 		i18nNamespaces: ['staff-jobs'],
+		pageOwnsSecondaryPanel: true,
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-jobs' }],
 	},
 	validateSearch: (search) =>
