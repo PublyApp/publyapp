@@ -31,5 +31,13 @@
 	"no-audit-logs-yet": "No activity yet",
 	"no-audit-logs-match-description": "No audit logs match your current filters.",
 	"no-audit-logs-match-title": "No matching audit logs",
-	"payload-region-label": "Audit log payload"
+	"payload-region-label": "Audit log payload",
+	"stat-events-today": "Events today",
+	"stat-events-today-footer": "Last 30 days",
+	"stat-sensitive": "Sensitive actions",
+	"stat-sensitive-footer": "suspensions, impersonations, refused sign-ins",
+	"stat-impersonations": "Impersonations",
+	"stat-impersonations-footer": "actor, ticket and duration unavailable",
+	"stat-denied": "Refused sign-ins",
+	"stat-denied-footer": "suspended accounts unavailable"
 }

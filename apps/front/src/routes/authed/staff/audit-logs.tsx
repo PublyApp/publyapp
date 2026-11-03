@@ -1,51 +1,75 @@
-import {
-	IconActivity,
-	IconAlertCircle,
-	IconChevronDown,
-	IconDownload,
-	IconFilter,
-	IconRefresh,
-} from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
+import { HistoryPage } from '~/components/history/history-page';
+import type {
+	HistoryCategory,
+	HistoryEvent,
+} from '~/components/history/history-types';
+import type { ListFiltersValue } from '~/components/list/list-types';
+import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
-import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
-import { PageHeader } from '~/components/ui/product-page';
 import {
 	toStaffAuditLogRows,
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
-	type StaffAuditLogRow,
 } from '~/lib/query/staff-audit-logs';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { makeAuditLogColumns } from './audit-logs/_audit-log-columns';
+import {
+	buildStaffTeamPanelGroups,
+	useStaffTeamOverview,
+	type StaffTeamPath,
+} from './_staff-list-team';
 import { AuditLogExportDrawer } from './audit-logs/_audit-log-export-drawer';
 import {
+	buildAuditActionCatalog,
+	buildAuditLogFilters,
+	resolveAuditLogSelection,
+} from './audit-logs/_audit-log-history-filters';
+import { AuditLogStatCards } from './audit-logs/_audit-log-stat-cards';
+import {
+	auditLogPeriodStart,
 	buildAuditLogsCursorResetKey,
-	parseAuditLogsActionsFilter,
+	parseAuditLogCategories,
 	parseAuditLogsListSearchParams,
-	serializeAuditLogsActionsFilter,
+	serializeAuditLogCategories,
 	serializeAuditLogsListSearchParams,
 	type AuditLogsListSearchParamInput,
 	type AuditLogsListSearchParams,
 } from './audit-logs/_list-search-params';
-import { LocalizedDateInput } from './audit-logs/_localized-date-input';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+const TEST_ID = 'staff-audit-logs-history';
+
+const toHistoryEvents = (
+	rows: ReturnType<typeof toStaffAuditLogRows>,
+): HistoryEvent[] =>
+	rows.map((row) => ({
+		id: row.id,
+		at: row.createdAt,
+		actorName: row.userName,
+		action: row.action,
+		ipAddress: row.ipAddress,
+		targetId: row.targetId,
+	}));
+
+/** The period value shown as active: a preset, a deep-linked custom range, or
+ * nothing when the whole history is shown. */
+const activePeriod = (search: AuditLogsListSearchParams): string[] => {
+	if (search.period) {
+		return [search.period];
+	}
+	if (search.startDate || search.endDate) {
+		return ['custom'];
+	}
+	return [];
+};
 
 const StaffAuditLogsPage = () => {
 	const navigate = Route.useNavigate();
@@ -53,18 +77,17 @@ const StaffAuditLogsPage = () => {
 		Route.useSearch() as AuditLogsListSearchParamInput,
 	);
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);
-	const locale = i18n?.language ?? 'en';
+	// The panel labels, category names and period presets live in `common`; the
+	// page's array-bound `t` resolves in `staff-audit-logs` first, so those keys
+	// would render raw. Bind them to the common namespace explicitly.
+	const { t: tCommon } = useTranslation('common');
+	const locale = i18n.language;
 	const [isExportOpen, setIsExportOpen] = useState(false);
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const selectedActions = parseAuditLogsActionsFilter(search.actions);
-	// O(1) membership for the dropdown checkboxes; rebuilt per render from the
-	// freshly-parsed filter, so it can never go stale.
-	const selectedActionsFilter = new Set(selectedActions);
-
-	const onSearchChange = (next: AuditLogsListSearchParams): void => {
+	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeAuditLogsListSearchParams(next),
+			search: serializeAuditLogsListSearchParams({ ...search, ...next }),
 			replace: true,
 		});
 	};
@@ -76,21 +99,89 @@ const StaffAuditLogsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: buildAuditLogsCursorResetKey(search),
 	});
-	const query = useStaffAuditLogsQuery({
-		actions: selectedActions,
-		startDate: search.startDate,
-		endDate: search.endDate,
-		sortId: controller.apiVariables.sortId,
-		sortOrder: controller.apiVariables.sortOrder,
-		cursor: controller.apiVariables.cursor,
-		size: controller.apiVariables.size,
-	});
-	const rows = toStaffAuditLogRows(query.data?.data);
-	const actionsQuery = useAuditLogActionsQuery();
-	const columns = useMemo(() => makeAuditLogColumns(t, locale), [t, locale]);
 
-	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
-	// the DataTable carries the loading/error slots (exempt from QueryDisplay).
+	const catalogQuery = useAuditLogActionsQuery();
+	const catalog = useMemo(
+		() => buildAuditActionCatalog(catalogQuery.data?.actions ?? []),
+		[catalogQuery.data],
+	);
+
+	const categories = parseAuditLogCategories(search.category);
+	const selection = resolveAuditLogSelection({
+		catalog,
+		categories,
+		sensitivity: search.sensitivity === 'sensitive',
+		startDate: search.period
+			? auditLogPeriodStart(search.period)
+			: search.startDate,
+		endDate: search.period ? undefined : search.endDate,
+	});
+
+	const query = useStaffAuditLogsQuery(
+		{
+			actions: selection.actions?.split(','),
+			startDate: selection.startDate,
+			endDate: selection.endDate,
+			sortId: controller.apiVariables.sortId,
+			sortOrder: controller.apiVariables.sortOrder,
+			cursor: controller.apiVariables.cursor,
+			size: controller.apiVariables.size,
+		},
+		{ enabled: !selection.impossible },
+	);
+	const rows = toStaffAuditLogRows(query.data?.data);
+	// An impossible filter combination must never fall back to a cached
+	// unfiltered page: its query key is the unfiltered one, so reusing its
+	// data would silently render events the filter excludes.
+	const events: HistoryEvent[] = selection.impossible
+		? []
+		: toHistoryEvents(rows);
+	const team = useStaffTeamOverview();
+
+	const filters = useMemo(
+		() => buildAuditLogFilters({ t: tCommon, catalog, search }),
+		[tCommon, catalog, search],
+	);
+
+	const filtersValue: ListFiltersValue = {
+		category: categories,
+		period: activePeriod(search),
+		sensitivity: search.sensitivity === 'sensitive' ? ['sensitive'] : [],
+	};
+
+	const applyFilters = (next: ListFiltersValue): void => {
+		const nextPeriod = (next.period ?? []).at(-1);
+		const preset =
+			nextPeriod === 'today' || nextPeriod === 'week' || nextPeriod === 'month'
+				? nextPeriod
+				: undefined;
+		const keepCustom = nextPeriod === 'custom';
+		void navigate({
+			search: serializeAuditLogsListSearchParams({
+				...search,
+				category: serializeAuditLogCategories(
+					(next.category ?? []) as HistoryCategory[],
+				),
+				period: preset,
+				sensitivity: (next.sensitivity ?? []).includes('sensitive')
+					? 'sensitive'
+					: undefined,
+				startDate: keepCustom ? search.startDate : undefined,
+				endDate: keepCustom ? search.endDate : undefined,
+				cursor: undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
+	const navigateToTeam = useCallback(
+		(to: StaffTeamPath) => {
+			void navigate({ to });
+		},
+		[navigate],
+	);
+
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
 		return <LogoutRedirect />;
@@ -100,215 +191,124 @@ const StaffAuditLogsPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const hasActiveFilters = Boolean(
-		selectedActions.length > 0 || search.startDate || search.endDate,
-	);
-
-	const setActionsFilter = (next: string[]): void => {
-		void navigate({
-			search: serializeAuditLogsListSearchParams({
-				...search,
-				actions: serializeAuditLogsActionsFilter(next),
-				cursor: undefined,
-			}),
-			replace: true,
-		});
-	};
-
-	const toggleAction = (action: string): void => {
-		if (selectedActions.includes(action)) {
-			setActionsFilter(selectedActions.filter((value) => value !== action));
-			return;
-		}
-
-		setActionsFilter([...selectedActions, action]);
-	};
-
-	const actionFilterLabel =
-		selectedActions.length === 0
-			? t('all-actions')
-			: selectedActions.join(', ');
-
-	const setDateFilter = (key: 'startDate' | 'endDate', value: string): void => {
-		const normalized = value.trim();
-		void navigate({
-			search: serializeAuditLogsListSearchParams({
-				...search,
-				[key]: normalized.length > 0 ? normalized : undefined,
-				cursor: undefined,
-			}),
-			replace: true,
-		});
-	};
-
-	const actionsOptions = actionsQuery.data?.actions ?? [];
+	const collectionComplete =
+		query.data !== undefined &&
+		query.data.nextCursor == null &&
+		!controller.cursor.hasPreviousPage;
+	const totalCount = collectionComplete ? events.length : null;
+	// The filter pair can exclude each other (a category with no sensitive
+	// action): the page then renders the no-match state and never queries the
+	// whole history behind an impossible filter.
+	let isPending = query.isPending;
+	let isError = query.isError;
+	// While the action catalog has not fetched yet, an empty category
+	// selection does not prove the pair impossible: keep the skeleton instead
+	// of flashing the no-match state.
+	if (selection.impossible && catalogQuery.isFetched) {
+		isPending = false;
+		isError = false;
+	}
 
 	return (
-		<div className="publy-page-fill">
-			<PageHeader
+		<>
+			<HistoryPage
+				testId={TEST_ID}
 				title={t('audit-logs-page-title')}
-				description={t('audit-logs-page-description')}
-			/>
-			<DataTable<StaffAuditLogRow>
-				testId="staff-audit-logs-table"
-				ariaLabel={t('audit-logs-page-title')}
-				columns={columns}
-				rows={rows}
-				queryState={{
-					isPending: query.isPending,
-					isError: query.isError,
-					error: query.error,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: hasActiveFilters,
-				}}
-				pagination={{
-					pageIndex: controller.cursor.pageIndex,
-					hasPreviousPage: controller.cursor.hasPreviousPage,
-					hasNextPage: query.data?.nextCursor != null,
-					isPaginationPending: query.isFetching,
-					onNextPage: () =>
-						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
-					onPreviousPage: controller.cursor.onPreviousPage,
-				}}
-				emptyIcon={IconActivity}
-				emptyTitle={t('common:no-audit-logs-yet')}
-				emptyContent={t('common:no-audit-logs-description')}
-				noMatchTitle={t('no-audit-logs-match-title')}
-				noMatchContent={t('no-audit-logs-match-description')}
-				sort={controller.sort}
-				onSortChange={controller.onSortChange}
-				size={controller.size}
-				onSizeChange={controller.onSizeChange}
-				toolbarEnd={
-					<div className="flex items-center gap-2">
-						<DropdownMenu>
-							<DropdownMenuTrigger
-								render={
-									<Button
-										type="button"
-										variant="outline"
-										className="publy-data-table-filter-button max-w-72 text-[13px]"
-										data-testid="staff-audit-logs-actions-filter-trigger"
-										disabled={actionsQuery.isPending}
-										title={
-											actionsQuery.isPending ? t('loading-actions') : undefined
-										}
-									/>
-								}
-							>
-								<IconFilter
-									aria-hidden="true"
-									className="size-[15px] text-[var(--publy-foreground-secondary)]"
-								/>
-								<span className="truncate">{actionFilterLabel}</span>
-								<IconChevronDown aria-hidden="true" className="size-3" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" sideOffset={6}>
-								<DropdownMenuCheckboxItem
-									checked={selectedActions.length === 0}
-									closeOnClick
-									data-testid="staff-audit-logs-actions-filter-all"
-									onCheckedChange={() => setActionsFilter([])}
-								>
-									{t('all-actions')}
-								</DropdownMenuCheckboxItem>
-								{actionsQuery.isError ? (
-									<>
-										<div
-											className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-destructive"
-											data-testid="staff-audit-logs-actions-filter-error"
-										>
-											<IconAlertCircle
-												aria-hidden="true"
-												className="size-4 shrink-0"
-											/>
-											<span>{t('actions-filter-error')}</span>
-										</div>
-										<DropdownMenuItem
-											data-testid="staff-audit-logs-actions-filter-retry"
-											onClick={() => void actionsQuery.refetch()}
-										>
-											<IconRefresh aria-hidden="true" className="size-4" />
-											{t('common:try-again')}
-										</DropdownMenuItem>
-									</>
-								) : (
-									actionsOptions.map((action) => (
-										<DropdownMenuCheckboxItem
-											key={action}
-											checked={selectedActionsFilter.has(action)}
-											closeOnClick={false}
-											showCheckbox
-											data-testid={`staff-audit-logs-actions-filter-${action}`}
-											onCheckedChange={() => toggleAction(action)}
-										>
-											<span className="font-mono text-[13px]">{action}</span>
-										</DropdownMenuCheckboxItem>
-									))
-								)}
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={() => setActionsFilter([])}>
-									{t('common:clear')}
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+				totalCount={totalCount}
+				cards={<AuditLogStatCards />}
+				onExport={() => setIsExportOpen(true)}
+				exportTestId="staff-audit-logs-export-trigger"
+				banner={
+					catalogQuery.isError ? (
 						<div
-							className="flex items-center gap-1.5"
-							data-testid="staff-audit-logs-date-range-filter"
+							role="alert"
+							className="flex items-center justify-between gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-danger-border) bg-(--publy-alert-danger-bg) px-3 py-2.5"
 						>
-							<LocalizedDateInput
-								locale={locale}
-								ariaLabel={t('common:start-date')}
-								errorMessage={t('common:invalid-date')}
-								testId="staff-audit-logs-start-date"
-								value={search.startDate}
-								max={search.endDate ?? undefined}
-								onChange={(value) => setDateFilter('startDate', value ?? '')}
-								className="h-9 w-37"
-							/>
-							<span aria-hidden="true" className="text-muted-foreground">
-								–
-							</span>
-							<LocalizedDateInput
-								locale={locale}
-								ariaLabel={t('common:end-date')}
-								errorMessage={t('common:invalid-date')}
-								testId="staff-audit-logs-end-date"
-								value={search.endDate}
-								min={search.startDate ?? undefined}
-								onChange={(value) => setDateFilter('endDate', value ?? '')}
-								className="h-9 w-37"
-							/>
+							<p className="text-sm text-(--publy-alert-danger-text)">
+								{t('actions-filter-error')}
+							</p>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void catalogQuery.refetch()}
+							>
+								{t('common:retry')}
+							</Button>
 						</div>
-						<Button
-							type="button"
-							variant="outline"
-							data-testid="staff-audit-logs-export-trigger"
-							onClick={() => setIsExportOpen(true)}
-						>
-							<IconDownload aria-hidden="true" className="size-[15px]" />
-							{t('export')}
-						</Button>
-					</div>
+					) : null
+				}
+				events={events}
+				locale={locale}
+				onOpen={(event) => {
+					void navigate({
+						to: '/staff/audit-logs/$logId',
+						params: { logId: event.id },
+					});
+				}}
+				openLabel={(event) =>
+					t('common:list-open-row', {
+						name: event.action ?? event.actorName ?? event.id,
+					})
+				}
+				emptyTitle={t('no-audit-logs-yet')}
+				emptyText={t('no-audit-logs-description')}
+				noMatchTitle={t('no-audit-logs-match-title')}
+				noMatchText={t('no-audit-logs-match-description')}
+				filters={filters}
+				filtersValue={filtersValue}
+				onFiltersChange={applyFilters}
+				panelGroups={buildStaffTeamPanelGroups(
+					tCommon,
+					'audit',
+					team.counts,
+					navigateToTeam,
+				)}
+				queryState={{
+					isPending,
+					isError,
+					onRetry: () => void query.refetch(),
+				}}
+				pager={
+					rows.length > 0 ? (
+						<DataTableCursorFooter
+							testId={TEST_ID}
+							pageIndex={controller.cursor.pageIndex}
+							size={controller.size}
+							onSizeChange={controller.onSizeChange}
+							pageRowCount={rows.length}
+							hasPreviousPage={controller.cursor.hasPreviousPage}
+							hasNextPage={query.data?.nextCursor != null}
+							isPaginationPending={query.isFetching}
+							onNextPage={() =>
+								controller.cursor.onNextPage(
+									query.data?.nextCursor ?? undefined,
+								)
+							}
+							onPreviousPage={controller.cursor.onPreviousPage}
+							variant="flat"
+						/>
+					) : null
 				}
 			/>
 			<AuditLogExportDrawer
 				isOpen={isExportOpen}
 				onOpenChange={setIsExportOpen}
-				onAuthFailure={() => setShouldLogout(true)}
+				onAuthFailure={onSessionExpired}
 				filters={{
-					actions: selectedActions,
-					startDate: search.startDate,
-					endDate: search.endDate,
+					actions: selection.actions?.split(','),
+					startDate: selection.startDate,
+					endDate: selection.endDate,
 				}}
 			/>
-		</div>
+		</>
 	);
 };
 
 export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
 	staticData: {
 		i18nNamespaces: ['staff-audit-logs'],
+		pageOwnsSecondaryPanel: true,
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-audit-logs' }],
 	},
 	validateSearch: (search) =>
