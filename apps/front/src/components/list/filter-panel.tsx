@@ -28,7 +28,7 @@ const PanelGroup = ({ group }: { group: ListPanelGroup }) => {
 			className="flex flex-col border-b px-4 py-2"
 			data-list-panel-group={group.key}
 		>
-			<div className="flex h-8 items-center px-2 font-mono text-sm font-medium text-sidebar-foreground opacity-65">
+			<div className="flex h-8 items-center px-2 font-mono text-sm font-medium text-muted-foreground opacity-65">
 				{group.title}
 			</div>
 			{group.entries.map((entry) => (
@@ -36,8 +36,9 @@ const PanelGroup = ({ group }: { group: ListPanelGroup }) => {
 					key={entry.key}
 					type="button"
 					data-active={entry.active || undefined}
+					aria-current={entry.active ? 'page' : undefined}
 					onClick={entry.onClick}
-					className="flex h-11 items-center gap-2 rounded-[var(--publy-radius-md)] px-2 text-sm text-sidebar-foreground hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground data-active:shadow-[var(--publy-shadow-chrome)] md:h-8 [&_svg]:size-4 [&_svg]:shrink-0"
+					className="flex h-11 items-center gap-2 rounded-[var(--publy-radius-small-control)] px-2 text-sm text-muted-foreground hover:text-foreground data-active:bg-[var(--publy-surface-active)] data-active:font-medium data-active:text-foreground data-active:shadow-(--publy-shadow-ring) md:h-8 [&_svg]:size-4 [&_svg]:shrink-0"
 				>
 					{entry.icon}
 					<span className="truncate">{entry.label}</span>
