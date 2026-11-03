@@ -125,23 +125,12 @@ const PasteInviteesSection = ({
 			rows={3}
 			isDisabled={isFormLocked}
 		/>
-		<div className="grid gap-3 sm:grid-cols-2">
-			<Field.Select
-				name="sharedAccountLevel"
-				label={t('shared-account-level')}
-				options={[
-					{ value: 'Admin', label: t('admin') },
-					{ value: 'User', label: t('user') },
-				]}
-				isDisabled={isFormLocked}
-			/>
-			<InviteProfileSelect
-				tenantId={tenantId}
-				name="sharedProfileIds"
-				label={t('shared-profiles')}
-				isDisabled={isFormLocked}
-			/>
-		</div>
+		<InviteProfileSelect
+			tenantId={tenantId}
+			name="sharedProfileIds"
+			label={t('shared-profiles')}
+			isDisabled={isFormLocked}
+		/>
 		<Button
 			type="button"
 			variant="outline"
@@ -460,28 +449,6 @@ const useInviteProfileResolution = ({
 	};
 };
 
-type RowInvalidLevelNoteProps = {
-	invalidLevel: string | null;
-	email: string;
-	t: Translate;
-};
-
-const RowInvalidLevelNote = ({
-	invalidLevel,
-	email,
-	t,
-}: RowInvalidLevelNoteProps) => {
-	if (!invalidLevel) {
-		return null;
-	}
-
-	return (
-		<p className="text-xs text-destructive" role="alert">
-			{t('invite-invalid-level', { email, level: invalidLevel })}
-		</p>
-	);
-};
-
 const RowInvalidEmailNote = ({
 	invalidEmail,
 	t,
@@ -592,15 +559,7 @@ const InviteRowsList = ({
 	t,
 }: InviteRowsListProps) => {
 	const renderInviteRow = (field: { id: string }, index: number) => {
-		const renderRowProfileControl = (row: InviteRow, isAdmin: boolean) => {
-			if (isAdmin) {
-				return (
-					<p className="text-xs text-muted-foreground">
-						{t('invite-admin-full-access')}
-					</p>
-				);
-			}
-
+		const renderRowProfileControl = (row: InviteRow) => {
 			if (row.source === 'manual') {
 				return (
 					<InviteProfileSelect
@@ -619,8 +578,6 @@ const InviteRowsList = ({
 		if (!row) {
 			return null;
 		}
-
-		const isAdmin = row.accountLevel === 'Admin';
 
 		return (
 			<section
@@ -656,24 +613,8 @@ const InviteRowsList = ({
 					isDisabled={isFormLocked}
 					fullWidth
 				/>
-				<Field.Select
-					name={`rows.${index}.accountLevel`}
-					label={t('account-level')}
-					options={[
-						{ value: 'Admin', label: t('admin') },
-						{ value: 'User', label: t('user') },
-					]}
-					isDisabled={isFormLocked}
-				/>
-				{renderRowProfileControl(row, isAdmin)}
-				{!isAdmin ? (
-					<RowUnresolvedNotes unresolved={unresolvedByRowKey[row.key]} t={t} />
-				) : null}
-				<RowInvalidLevelNote
-					invalidLevel={row.invalidLevel}
-					email={row.email || t('invite-blank-row')}
-					t={t}
-				/>
+				{renderRowProfileControl(row)}
+				<RowUnresolvedNotes unresolved={unresolvedByRowKey[row.key]} t={t} />
 				<RowInvalidEmailNote invalidEmail={row.invalidEmail} t={t} />
 				<RowInvalidCellNotes invalidCells={row.invalidCells} t={t} />
 			</section>
@@ -976,7 +917,6 @@ const useInviteSubmit = ({
 				if (row) {
 					failedRows.push({
 						...row,
-						invalidLevel: row.invalidLevel ?? null,
 						invalidEmail: row.invalidEmail ?? null,
 						invalidCells: row.invalidCells ?? [],
 					});
@@ -1096,15 +1036,12 @@ const InviteTenantUserDrawerInner = ({
 			return;
 		}
 
-		const sharedAccountLevel = methods.getValues('sharedAccountLevel');
 		const sharedProfileIds = methods.getValues('sharedProfileIds');
 		const currentRows = methods.getValues('rows');
 		const outcome = buildImportedInvites({
 			parsedRows: emails.map((email) => ({
 				email,
-				accountLevel: sharedAccountLevel,
 				profileNames: [] as string[],
-				invalidLevel: null,
 				invalidEmail: EMAIL_REGEX.test(email) ? null : email,
 				invalidCells: [],
 			})),
@@ -1147,8 +1084,6 @@ const InviteTenantUserDrawerInner = ({
 		rows: rows ?? [],
 		isResolvingProfiles,
 		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
-		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
-			.length,
 		invalidCellCount: (rows ?? []).filter(
 			(row) => (row.invalidCells ?? []).length > 0,
 		).length,

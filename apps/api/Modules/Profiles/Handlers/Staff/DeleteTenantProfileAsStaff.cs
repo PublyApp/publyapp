@@ -14,7 +14,8 @@ public sealed class DeleteTenantProfileAsStaff {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+			AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
@@ -51,6 +52,13 @@ public sealed class DeleteTenantProfileAsStaff {
 				ResponseKeys.NotFound
 			);
 		}
+		if (result is DeleteTenantProfileResult.SystemProfileProtected) {
+			return TypedProblems.Forbidden(
+				"The full-access system profile cannot be deleted",
+				ResponseKeys.Forbidden
+			);
+		}
+
 
 		if (result is DeleteTenantProfileResult.DefaultProfileDeletionNotAllowed) {
 			return TypedProblems.BadRequest(

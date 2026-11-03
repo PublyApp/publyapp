@@ -63,6 +63,8 @@ public abstract record UpdateTenantProfileResult {
 
 	public sealed record ProfileNotFound : UpdateTenantProfileResult;
 
+	public sealed record SystemProfileProtected : UpdateTenantProfileResult;
+
 	public sealed record ProfileNameExists(string Name)
 		: UpdateTenantProfileResult;
 }
@@ -88,6 +90,8 @@ public abstract record DeleteTenantProfileResult {
 
 	public sealed record ProfileNotFound : DeleteTenantProfileResult;
 
+	public sealed record SystemProfileProtected : DeleteTenantProfileResult;
+
 	public sealed record DefaultProfileDeletionNotAllowed : DeleteTenantProfileResult;
 }
 
@@ -106,6 +110,8 @@ public abstract record SetTenantProfilePermissionResult {
 
 	public sealed record ProfileNotFound : SetTenantProfilePermissionResult;
 
+	public sealed record SystemProfileProtected : SetTenantProfilePermissionResult;
+
 	public sealed record PermissionNotFound : SetTenantProfilePermissionResult;
 }
 
@@ -115,7 +121,7 @@ public abstract record SetTenantProfilePermissionResult {
 public sealed record TenantProfileMemberAuditData(
 	Guid UserAccountId,
 	Guid UserId,
-	AccountLevel Level
+	bool IsFullAccess
 );
 
 public sealed record SetTenantProfileUserArgs(
@@ -141,6 +147,9 @@ public abstract record SetTenantProfileUserResult {
 
 	public sealed record MaxProfilesPerUserExceeded(int MaxProfilesPerUser)
 		: SetTenantProfileUserResult;
+
+	/// <summary>Unassigning this link would leave the tenant with no active full-access holder.</summary>
+	public sealed record LastFullAccessRoleAssignment : SetTenantProfileUserResult;
 }
 
 
@@ -374,6 +383,10 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			return new UpdateTenantProfileResult.ProfileNotFound();
 		}
 
+		if (profile.IsFullAccess) {
+			return new UpdateTenantProfileResult.SystemProfileProtected();
+		}
+
 		var previousProfile = new TenantProfileAuditData(
 			profile.GetRequiredId(),
 			profile.Name,
@@ -496,6 +509,10 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		if (profile is null) {
 			return new DeleteTenantProfileResult.ProfileNotFound();
+		}
+
+		if (profile.IsFullAccess) {
+			return new DeleteTenantProfileResult.SystemProfileProtected();
 		}
 
 		if (profile.IsDefault) {
@@ -626,11 +643,13 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 				continue;
 			}
 
-			if (profile.IsDefault) {
+			if (profile.IsDefault || profile.IsFullAccess) {
 				failedItems.Add(
 					new BulkProfileActionFailedItem(
 						requestedProfileId,
-						"Default tenant profile cannot be deleted"
+						profile.IsFullAccess
+							? "Full-access system profile cannot be deleted"
+							: "Default tenant profile cannot be deleted"
 					)
 				);
 			}
@@ -639,7 +658,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// Exclude default profiles from bulk operations to preserve the existing
 		// platform rule that defaults are not deletable.
 		var deletableProfileIds = profiles
-			.Where(profile => !profile.IsDefault)
+			.Where(profile => !profile.IsDefault && !profile.IsFullAccess)
 			.Select(profile => profile.GetRequiredId())
 			.ToList();
 
@@ -675,7 +694,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 		// Keep a single pass over non-default profiles for the actual soft-delete.
 		var profilesToDelete = profileById
 			.Values
-			.Where(profile => !profile.IsDefault)
+			.Where(profile => !profile.IsDefault && !profile.IsFullAccess)
 			.ToList();
 
 		foreach (var profile in profilesToDelete) {
@@ -717,6 +736,10 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 
 		if (profile is null) {
 			return new SetTenantProfilePermissionResult.ProfileNotFound();
+		}
+
+		if (profile.IsFullAccess) {
+			return new SetTenantProfilePermissionResult.SystemProfileProtected();
 		}
 
 		var profileAudit = new TenantProfileAuditData(
@@ -866,10 +889,19 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 			profile.IsDefault
 		);
 
+		var isMemberFullAccess = await (
+			from uap in this._DbContext.UserAccountProfile
+			join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+			where uap.UserAccountId == args.UserAccountId
+				&& p.IsFullAccess
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
 		var memberAudit = new TenantProfileMemberAuditData(
 			member.GetRequiredId(),
 			member.UserId,
-			member.Level
+			isMemberFullAccess
 		);
 
 		// Lock order step 5: both parents are pinned, so junction state read from here is
@@ -892,6 +924,33 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 					),
 					true
 				);
+			}
+
+			if (profile.IsFullAccess) {
+				// Demoting the last owner would leave the tenant with nobody able to grant
+				// access again. This replaces the removed account-level demotion guard: the role
+				// unassign is now the only way to demote.
+				await TenantMembershipLockOrder.LockTenantRowsAsync(
+					this._DbContext,
+					[args.TenantId],
+					cancellationToken
+				);
+				var isActiveMember =
+					member.Status != AccountStatus.Suspended
+					&& await this._DbContext.User.AnyAsync(u =>
+						u.Id == member.UserId
+						&& !u.IsDeleted
+						&& u.Status != UserStatus.Suspended,
+						cancellationToken);
+				var activeFullAccessCount =
+					await FullAccessRoleQueries.CountActiveTenantFullAccessAsync(
+						this._DbContext,
+						args.TenantId,
+						cancellationToken
+					);
+				if (isActiveMember && activeFullAccessCount <= 1) {
+					return (new SetTenantProfileUserResult.LastFullAccessRoleAssignment(), false);
+				}
 			}
 
 			// Junction rows carry no soft-delete state; membership history lives in audit logs.
@@ -1024,7 +1083,7 @@ public sealed class TenantProfileAsStaffService : ITenantProfileAsStaffService {
 				IsDefault = profileAudit.IsDefault,
 				UserAccountId = memberAudit.UserAccountId,
 				UserId = memberAudit.UserId,
-				AccountLevel = memberAudit.Level.ToString()
+				IsFullAccess = memberAudit.IsFullAccess
 			},
 			ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
 			userAgent: httpContext?.Request.Headers.UserAgent.ToString()

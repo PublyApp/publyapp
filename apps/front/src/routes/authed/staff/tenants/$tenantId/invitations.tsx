@@ -82,7 +82,7 @@ const StaffTenantInvitationsPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: `${tenantId}:${search.status ?? ''}:${search.level ?? ''}`,
+		cursorResetKey: `${tenantId}:${search.status ?? ''}`,
 	});
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -94,7 +94,6 @@ const StaffTenantInvitationsPage = () => {
 			tenantId,
 			q: controller.apiVariables.q,
 			status: search.status,
-			level: search.level,
 			sortId: controller.apiVariables.sortId,
 			sortOrder: controller.apiVariables.sortOrder,
 			cursor: controller.apiVariables.cursor,
@@ -151,7 +150,7 @@ const StaffTenantInvitationsPage = () => {
 
 	// tenants-r6-F2 (mirrors invitations/index.tsx, staff-users.tsx,
 	// profiles.tsx): freeze the selection target set — cancel a pending
-	// search commit the moment selection mode starts; the level/status
+	// search commit the moment selection mode starts; the status
 	// filter triggers are disabled for the same reason.
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -237,7 +236,7 @@ const StaffTenantInvitationsPage = () => {
 							invitationsQuery={invitationsQuery}
 							controller={controller}
 							hasActiveSearch={Boolean(
-								controller.search.committed || search.status || search.level,
+								controller.search.committed || search.status,
 							)}
 							filters={filters}
 							onInvite={() => setInviteDrawerOpen(true)}

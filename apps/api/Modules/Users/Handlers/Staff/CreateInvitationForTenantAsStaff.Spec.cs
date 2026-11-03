@@ -60,7 +60,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			tenantId.ToString(),
 			new {
 				email = inviteeEmail,
-				accountLevel = "User",
 			}
 		);
 
@@ -132,7 +131,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = inviteeEmail,
-					accountLevel = "User",
 				}
 			)
 		);
@@ -158,7 +156,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			tenantId.ToString(),
 			new {
 				email = SeedConstants.Tenants.TechStartUserEmail,
-				accountLevel = "User",
 			}
 		);
 
@@ -203,7 +200,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			tenantId.ToString(),
 			new {
 				email = SeedConstants.Tenants.AcmeUserEmail,
-				accountLevel = "User",
 			}
 		);
 
@@ -236,7 +232,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			tenantId.ToString(),
 			new {
 				email = SeedConstants.Staff.UserEmail,
-				accountLevel = "User",
 			}
 		);
 
@@ -276,7 +271,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = inviteeEmail,
-					accountLevel = "User",
 				}
 			)
 		);
@@ -294,76 +288,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldCreateAdminTenantInvitationWithoutDefaultProfile() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await this._GetAcmeTenantIdAsync();
-		var inviteeEmail =
-			$"tenant-admin-invite-{Guid.NewGuid():N}@example.com";
-
-		var responseBody = await this._CreateTenantInvitationAsync(
-			staffToken,
-			tenantId,
-			inviteeEmail,
-			accountLevel: "Admin"
-		);
-
-		using var scope =
-			this._Fixture.Factory.Services.CreateScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		var invitation = await dbContext.Invitation
-			.Where(inv => inv.Id == responseBody.InvitationId)
-			.Include(inv => inv.InvitationProfiles)
-			.SingleAsync();
-
-		invitation.AccountLevel.Should()
-			.Be(AccountLevel.Admin);
-		invitation.InvitationProfiles.Should()
-			.BeEmpty();
-	}
-
-	[Fact]
-	public async Task
-	ItShouldRejectAdminTenantInvitationWithProfiles() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await this._GetAcmeTenantIdAsync();
-		var profileIds =
-			await this._CreateTenantProfilesAsync(tenantId, count: 1);
-		var inviteeEmail =
-			$"tenant-admin-profile-{Guid.NewGuid():N}@example.com";
-
-		using var response = await this._Http.SendAsync(
-			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
-				staffToken,
-				tenantId.ToString(),
-				new {
-					email = inviteeEmail,
-					accountLevel = "Admin",
-					profileIds = profileIds.Select(id => id.ToString()).ToArray(),
-				}
-			)
-		);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.UnprocessableEntity);
-		var problem =
-			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-			.Be(ResponseKeys.AdminInviteeCannotHaveProfiles.Value);
-		(await this._TenantInvitationExistsAsync(tenantId, inviteeEmail))
-			.Should().BeFalse();
-	}
-
-	[Fact]
-	public async Task
-	ItShouldRejectUserTenantInvitationAboveConfiguredProfileCap() {
+	ItShouldRejectMemberTenantInvitationAboveConfiguredProfileCap() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -381,7 +306,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = inviteeEmail,
-					accountLevel = "User",
 					profileIds = profileIds.Select(id => id.ToString()).ToArray(),
 				}
 			)
@@ -435,7 +359,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = inviteeEmail,
-					accountLevel = "User",
 					profileIds = new[] {
 						profileA.GetRequiredId().ToString(),
 						profileB.GetRequiredId().ToString(),
@@ -501,7 +424,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				acmeTenantId.ToString(),
 				new {
 					email = $"tenant-invalid-profile-{Guid.NewGuid():N}@example.com",
-					accountLevel = "User",
 					profileIds = new[] { foreignProfile.GetRequiredId().ToString() },
 				}
 			)
@@ -556,8 +478,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.Should().Be(inviteeEmail);
 		root.GetProperty("TenantId").GetGuid()
 			.Should().Be(tenantId);
-		root.GetProperty("AccountLevel").GetString()
-			.Should().Be("User");
 		root.GetProperty("Scope").GetString()
 			.Should().Be("Tenant");
 	}
@@ -574,7 +494,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				"not-a-guid",
 				new {
 					email = $"tenant-malformed-{Guid.NewGuid():N}@example.com",
-					accountLevel = "User",
 				}
 			)
 		);
@@ -602,7 +521,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				Guid.NewGuid().ToString(),
 				new {
 					email = $"tenant-missing-{Guid.NewGuid():N}@example.com",
-					accountLevel = "User",
 				}
 			)
 		);
@@ -630,7 +548,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = $"tenant-no-session-{Guid.NewGuid():N}@example.com",
-					accountLevel = "User",
 				}
 			)
 		);
@@ -655,7 +572,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = $"tenant-user-forbidden-{Guid.NewGuid():N}@example.com",
-					accountLevel = "User",
 				}
 			)
 		);
@@ -678,7 +594,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = $"staff-no-permission-{Guid.NewGuid():N}@example.com",
-					accountLevel = "User",
 				}
 			)
 		);
@@ -699,9 +614,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 				staffToken,
 				tenantId.ToString(),
-				new {
-					accountLevel = "User",
-				}
+				new Dictionary<string, object>()
 			)
 		);
 
@@ -722,55 +635,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = "not-an-email",
-					accountLevel = "User",
 				}
 			)
 		);
 
 		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "Email");
-	}
-
-	[Fact]
-	public async Task
-	ItShouldReturnUnprocessableEntityWhenAccountLevelIsMissing() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await this._GetAcmeTenantIdAsync();
-
-		using var response = await this._Http.SendAsync(
-			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
-				staffToken,
-				tenantId.ToString(),
-				new {
-					email = $"tenant-missing-level-{Guid.NewGuid():N}@example.com",
-				}
-			)
-		);
-
-		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "AccountLevel");
-	}
-
-	[Fact]
-	public async Task
-	ItShouldReturnUnprocessableEntityWhenAccountLevelIsInvalid() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await this._GetAcmeTenantIdAsync();
-
-		using var response = await this._Http.SendAsync(
-			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
-				staffToken,
-				tenantId.ToString(),
-				new {
-					email = $"tenant-invalid-level-{Guid.NewGuid():N}@example.com",
-					accountLevel = "Owner",
-				}
-			)
-		);
-
-		await CreateInvitationForTenantAsStaffSpec._AssertValidationProblemAsync(response, "AccountLevel");
 	}
 
 	[Fact]
@@ -792,7 +661,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			tenantId.ToString(),
 			new {
 				email = inviteeEmail,
-				accountLevel = "User",
 				profileIds = Array.Empty<string>(),
 			}
 		);
@@ -912,15 +780,13 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		_CreateTenantInvitationAsync(
 			string staffToken,
 			Guid tenantId,
-			string email,
-			string accountLevel = "User"
+			string email
 		) {
 		using var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
 				email,
-				accountLevel,
 			}
 		);
 

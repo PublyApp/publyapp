@@ -48,7 +48,6 @@ public sealed class TenantUserCompanyActionsSpec
 						seeded.NewTenantId,
 						seeded.RemovedTenantId,
 					},
-					level = "User",
 				}
 			)
 		);
@@ -78,14 +77,12 @@ public sealed class TenantUserCompanyActionsSpec
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.NewTenantId,
-			AccountStatus.Active,
-			AccountLevel.User
+			AccountStatus.Active
 		);
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.RemovedTenantId,
-			AccountStatus.Active,
-			AccountLevel.User
+			AccountStatus.Active
 		);
 		await this._AssertDefaultProfileAssignedAsync(
 			seeded.UserId,
@@ -136,14 +133,12 @@ public sealed class TenantUserCompanyActionsSpec
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.PrimaryTenantId,
-			AccountStatus.Suspended,
-			AccountLevel.User
+			AccountStatus.Suspended
 		);
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.SecondaryTenantId,
-			AccountStatus.Suspended,
-			AccountLevel.User
+			AccountStatus.Suspended
 		);
 
 		using var reactivateResponse = await this._Http.SendAsync(
@@ -175,14 +170,12 @@ public sealed class TenantUserCompanyActionsSpec
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.PrimaryTenantId,
-			AccountStatus.Active,
-			AccountLevel.User
+			AccountStatus.Active
 		);
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.SecondaryTenantId,
-			AccountStatus.Active,
-			AccountLevel.User
+			AccountStatus.Active
 		);
 	}
 
@@ -260,33 +253,6 @@ public sealed class TenantUserCompanyActionsSpec
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
-	[Theory]
-	[InlineData("""{ "tenantIds": ["019e00f1-fdc4-7eb5-adb4-7d91dee9f9e8"] }""")]
-	[InlineData("""
-		{
-			"tenantIds": ["019e00f1-fdc4-7eb5-adb4-7d91dee9f9e8"],
-			"level": "Owner"
-		}
-		""")]
-	public async Task
-	ItShouldReturnValidationProblemForInvalidAssignCompanyBody(
-		string body
-	) {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var seeded = await this._SeedTenantUserCompanyScenarioAsync();
-
-		using var response = await this._Http.SendAsync(
-			TenantUserCompanyActionsSpec._CreateRawJsonRequest(
-				HttpMethod.Post,
-				TenantUserCompanyActionsSpec._GetCompaniesUrl(seeded.UserId),
-				staffToken,
-				body
-			)
-		);
-
-		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-	}
-
 	[Fact]
 	public async Task
 	ItShouldReturnValidationProblemWhenBulkCompanyRequestExceedsMaximum() {
@@ -327,7 +293,7 @@ public sealed class TenantUserCompanyActionsSpec
 				HttpMethod.Post,
 				TenantUserCompanyActionsSpec._GetCompanyActionUrl(action, "not-a-guid"),
 				staffToken,
-				TenantUserCompanyActionsSpec._CreateValidCompanyActionBody(action, Guid.NewGuid())
+				TenantUserCompanyActionsSpec._CreateValidCompanyActionBody(Guid.NewGuid())
 			)
 		);
 
@@ -350,7 +316,7 @@ public sealed class TenantUserCompanyActionsSpec
 				HttpMethod.Post,
 				TenantUserCompanyActionsSpec._GetCompanyActionUrl(action, Guid.NewGuid().ToString()),
 				staffToken,
-				TenantUserCompanyActionsSpec._CreateValidCompanyActionBody(action, Guid.NewGuid())
+				TenantUserCompanyActionsSpec._CreateValidCompanyActionBody(Guid.NewGuid())
 			)
 		);
 
@@ -375,7 +341,6 @@ public sealed class TenantUserCompanyActionsSpec
 						seeded.NewTenantId,
 						missingTenantId,
 					},
-					level = "Admin",
 				}
 			)
 		);
@@ -403,8 +368,7 @@ public sealed class TenantUserCompanyActionsSpec
 		await this._AssertTenantMembershipAsync(
 			seeded.UserId,
 			seeded.NewTenantId,
-			AccountStatus.Active,
-			AccountLevel.Admin
+			AccountStatus.Active
 		);
 	}
 
@@ -445,25 +409,20 @@ public sealed class TenantUserCompanyActionsSpec
 		var removedTenantId = removedTenant.GetRequiredId();
 
 		var accounts = new[] {
-			UserAccount.CreateTenantAccount(
-				userId,
-				primaryTenantId,
-				AccountLevel.User
-			),
-			UserAccount.CreateTenantAccount(
-				userId,
-				secondaryTenantId,
-				AccountLevel.User
-			),
-			UserAccount.CreateTenantAccount(
-				userId,
-				removedTenantId,
-				AccountLevel.Admin
-			),
+			UserAccount.CreateTenantAccount(userId, primaryTenantId),
+			UserAccount.CreateTenantAccount(userId, secondaryTenantId),
+			UserAccount.CreateTenantAccount(userId, removedTenantId),
 		};
 
 		await dbContext.UserAccount.AddRangeAsync(accounts);
 		await dbContext.SaveChangesAsync();
+
+		// The removed membership used to be an admin: it held the tenant full-access role.
+		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			dbContext,
+			removedTenantId,
+			accounts[^1].GetRequiredId()
+		);
 
 		var staleProfile = Profile.CreateTenantProfile(
 			removedTenantId,
@@ -506,8 +465,7 @@ public sealed class TenantUserCompanyActionsSpec
 	private async Task _AssertTenantMembershipAsync(
 		Guid userId,
 		Guid tenantId,
-		AccountStatus expectedStatus,
-		AccountLevel expectedLevel
+		AccountStatus expectedStatus
 	) {
 		await using var scope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
@@ -529,7 +487,6 @@ public sealed class TenantUserCompanyActionsSpec
 		account.IsDeleted.Should().BeFalse();
 		account.DeletedAt.Should().BeNull();
 		account.Status.Should().Be(expectedStatus);
-		account.Level.Should().Be(expectedLevel);
 	}
 
 	private async Task _AssertTenantMembershipRemovedAsync(
@@ -742,17 +699,7 @@ public sealed class TenantUserCompanyActionsSpec
 		);
 	}
 
-	private static object _CreateValidCompanyActionBody(
-		string action,
-		Guid tenantId
-	) {
-		if (action == "assign") {
-			return new {
-				tenantIds = new[] { tenantId },
-				level = "User",
-			};
-		}
-
+	private static object _CreateValidCompanyActionBody(Guid tenantId) {
 		return new { tenantIds = new[] { tenantId } };
 	}
 

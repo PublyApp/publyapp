@@ -10,27 +10,22 @@ namespace PublyApp.Api.Localization;
 /// </summary>
 public static partial class ResponseKeys {
 	/// <summary>
-	/// Admin invitees cannot be assigned profiles
-	/// </summary>
-	public static readonly TranslationKey AdminInviteeCannotHaveProfiles = new("admin-invitee-cannot-have-profiles");
-
-	/// <summary>
 	/// Bad request
 	/// </summary>
 	public static readonly TranslationKey BadRequest = new("bad-request");
 
 	/// <summary>
-	/// Cannot demote the last admin from the tenant
+	/// Cannot demote the last admin from the organization
 	/// </summary>
 	public static readonly TranslationKey CannotDemoteLastAdmin = new("cannot-demote-last-admin");
 
 	/// <summary>
-	/// Cannot remove the last admin from the tenant
+	/// Cannot remove the last admin from the organization
 	/// </summary>
 	public static readonly TranslationKey CannotRemoveLastAdmin = new("cannot-remove-last-admin");
 
 	/// <summary>
-	/// Cannot suspend the last admin from the tenant
+	/// Cannot suspend the last admin from the organization
 	/// </summary>
 	public static readonly TranslationKey CannotSuspendLastAdmin = new("cannot-suspend-last-admin");
 
@@ -240,7 +235,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MastodonOauthStateInvalid = new("mastodon-oauth-state-invalid");
 
 	/// <summary>
-	/// Max profiles per user exceeded
+	/// Max roles per user exceeded
 	/// </summary>
 	public static readonly TranslationKey MaxProfilesPerUserExceeded = new("max-profiles-per-user-exceeded");
 
@@ -360,27 +355,27 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostSegmentsLocked = new("post-segments-locked");
 
 	/// <summary>
-	/// profile
+	/// role
 	/// </summary>
 	public static readonly TranslationKey Profile = new("profile");
 
 	/// <summary>
-	/// Profile name already exists
+	/// Role name already exists
 	/// </summary>
 	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
 
 	/// <summary>
-	/// Profile must be a staff profile
+	/// Role must be a staff role
 	/// </summary>
 	public static readonly TranslationKey ProfileNotStaffScope = new("profile-not-staff-scope");
 
 	/// <summary>
-	/// profiles
+	/// roles
 	/// </summary>
 	public static readonly TranslationKey Profiles = new("profiles");
 
 	/// <summary>
-	/// Project not found in this tenant
+	/// Project not found in this organization
 	/// </summary>
 	public static readonly TranslationKey ProjectNotFound = new("project-not-found");
 
@@ -570,27 +565,27 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey SocialAccountReconnected = new("social-account-reconnected");
 
 	/// <summary>
-	/// Staff profile created successfully
+	/// Staff role created successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
-	/// Staff profile deleted successfully
+	/// Staff role deleted successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileDeletedSuccess = new("staff-profile-deleted-success");
 
 	/// <summary>
-	/// Staff profile updated successfully
+	/// Staff role updated successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileUpdatedSuccessfully = new("staff-profile-updated-successfully");
 
 	/// <summary>
-	/// Users unassigned from profile successfully
+	/// Users unassigned from role successfully
 	/// </summary>
 	public static readonly TranslationKey StaffProfileUsersUnassignedSuccess = new("staff-profile-users-unassigned-success");
 
 	/// <summary>
-	/// staff profiles
+	/// staff roles
 	/// </summary>
 	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
 
@@ -680,17 +675,17 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey SystemNoticeUpdatedSuccessfully = new("system-notice-updated-successfully");
 
 	/// <summary>
-	/// Tenant is already suspended
+	/// Organization is already suspended
 	/// </summary>
 	public static readonly TranslationKey TenantAlreadySuspended = new("tenant-already-suspended");
 
 	/// <summary>
-	/// Tenant has been deleted successfully
+	/// Organization deleted successfully
 	/// </summary>
 	public static readonly TranslationKey TenantDeletedSuccess = new("tenant-deleted-success");
 
 	/// <summary>
-	/// Tenant ID required
+	/// Organization ID required
 	/// </summary>
 	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
 
@@ -700,57 +695,57 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantMaxUsersBelowCount = new("tenant-max-users-below-count");
 
 	/// <summary>
-	/// Only active tenants can be suspended
+	/// Only active organizations can be suspended
 	/// </summary>
 	public static readonly TranslationKey TenantNotActiveCannotSuspend = new("tenant-not-active-cannot-suspend");
 
 	/// <summary>
-	/// Tenant not found
+	/// Organization not found
 	/// </summary>
 	public static readonly TranslationKey TenantNotFound = new("tenant-not-found");
 
 	/// <summary>
-	/// Tenant is not currently suspended
+	/// Organization is not currently suspended
 	/// </summary>
 	public static readonly TranslationKey TenantNotSuspended = new("tenant-not-suspended");
 
 	/// <summary>
-	/// Only suspended tenants can be deleted
+	/// Only suspended organizations can be deleted
 	/// </summary>
 	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");
 
 	/// <summary>
-	/// Default tenant profile cannot be deleted
+	/// The default organization role cannot be deleted
 	/// </summary>
 	public static readonly TranslationKey TenantProfileDefaultDeleteNotAllowed = new("tenant-profile-default-delete-not-allowed");
 
 	/// <summary>
-	/// Tenant profile deleted successfully
+	/// Organization role deleted successfully
 	/// </summary>
 	public static readonly TranslationKey TenantProfileDeletedSuccess = new("tenant-profile-deleted-success");
 
 	/// <summary>
-	/// Tenant has been reactivated successfully
+	/// Organization reactivated successfully
 	/// </summary>
 	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");
 
 	/// <summary>
-	/// This tenant has been suspended
+	/// This organization has been suspended
 	/// </summary>
 	public static readonly TranslationKey TenantSuspended = new("tenant-suspended");
 
 	/// <summary>
-	/// Tenant has been suspended successfully
+	/// Organization suspended successfully
 	/// </summary>
 	public static readonly TranslationKey TenantSuspendedSuccess = new("tenant-suspended-success");
 
 	/// <summary>
-	/// Tenant has been updated successfully
+	/// Organization updated successfully
 	/// </summary>
 	public static readonly TranslationKey TenantUpdatedSuccess = new("tenant-updated-success");
 
 	/// <summary>
-	/// This invitee has too many profiles
+	/// This invitee has too many roles
 	/// </summary>
 	public static readonly TranslationKey TooManyProfilesForInvitee = new("too-many-profiles-for-invitee");
 
@@ -805,7 +800,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserAlreadyMemberOfStaff = new("user-already-member-of-staff");
 
 	/// <summary>
-	/// User is already a member of this tenant
+	/// User is already a member of this organization
 	/// </summary>
 	public static readonly TranslationKey UserAlreadyMemberOfTenant = new("user-already-member-of-tenant");
 
@@ -815,12 +810,12 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
 
 	/// <summary>
-	/// This user already has a staff account. Staff and tenant/project accounts are mutually exclusive.
+	/// This user already has a staff account. Staff and organization/project accounts are mutually exclusive.
 	/// </summary>
 	public static readonly TranslationKey UserHasStaffAccount = new("user-has-staff-account");
 
 	/// <summary>
-	/// This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.
+	/// This user already has organization or project accounts. Staff and organization/project accounts are mutually exclusive.
 	/// </summary>
 	public static readonly TranslationKey UserHasTenantOrProjectAccounts = new("user-has-tenant-or-project-accounts");
 
@@ -828,11 +823,6 @@ public static partial class ResponseKeys {
 	/// User ID required
 	/// </summary>
 	public static readonly TranslationKey UserIdRequired = new("user-id-required");
-
-	/// <summary>
-	/// User level has been updated successfully
-	/// </summary>
-	public static readonly TranslationKey UserLevelUpdatedSuccess = new("user-level-updated-success");
 
 	/// <summary>
 	/// User not found
@@ -850,7 +840,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UserNotVerified = new("user-not-verified");
 
 	/// <summary>
-	/// User has been removed from tenant successfully
+	/// User has been removed from the organization successfully
 	/// </summary>
 	public static readonly TranslationKey UserRemovedSuccess = new("user-removed-success");
 

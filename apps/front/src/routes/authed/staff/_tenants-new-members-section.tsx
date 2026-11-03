@@ -14,7 +14,7 @@ import {
 	downloadTemplateCsv,
 	type useTenantMemberImport,
 } from './_tenants-new-import';
-import { getUserLevel } from './_tenants-new-schema';
+import { getUserRole } from './_tenants-new-schema';
 import { type TenantCreateFormValues } from './_tenants-new-types';
 import { type buildMemberImportOutcome } from './tenants-new-helpers';
 
@@ -190,15 +190,15 @@ export const TenantCreateMembersSection = ({
 					/>
 					<Controller
 						control={control}
-						name={`manualMembers.${index}.accountLevel`}
+						name={`manualMembers.${index}.role`}
 						render={({ field: levelField }) => (
 							<MemberLevelSelect
-								name={`manualMembers.${index}.accountLevel`}
-								value={getUserLevel(levelField.value)}
+								name={`manualMembers.${index}.role`}
+								value={getUserRole(levelField.value)}
 								onChange={levelField.onChange}
 								onBlur={levelField.onBlur}
 								disabled={isFormLocked}
-								ariaLabel={t('account-level')}
+								ariaLabel={t('role')}
 								t={t}
 							/>
 						)}

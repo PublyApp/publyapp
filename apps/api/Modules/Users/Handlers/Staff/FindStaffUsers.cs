@@ -19,7 +19,8 @@ public class StaffUserItem {
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
 	public UserStatus Status { get; set; }
-	public AccountLevel Level { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 }
 
 public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
@@ -159,7 +160,8 @@ public sealed class FindStaffUsers {
 							FirstName = staffUser.User.FirstName,
 							AvatarUrl = staffUser.User.AvatarUrl,
 							Status = staffUser.User.Status,
-							Level = staffUser.AccountLevel,
+							IsFullAccess = staffUser.IsFullAccess,
+							Roles = staffUser.Roles,
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,

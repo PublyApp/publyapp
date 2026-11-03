@@ -94,9 +94,8 @@ test.describe(
 			for (const header of [
 				'Member',
 				'Email',
-				'Level',
 				'Status',
-				'Profiles',
+				'Roles',
 				'Two-factor authentication',
 				'Open sessions',
 				'Language',
@@ -122,47 +121,6 @@ test.describe(
 			await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
 		});
 
-		test('sorting the Level column flips row order', async ({ page }) => {
-			await loginAsStaffAdmin(page);
-
-			const levelHeader = page.getByRole('columnheader', { name: 'Level' });
-			await expect(levelHeader).toBeVisible();
-
-			const ascResponse = page.waitForResponse(
-				(response) =>
-					response.url().includes('/staff/users') &&
-					new URL(response.url()).searchParams.get('sort_order') === 'asc',
-			);
-			await levelHeader.click();
-			await expect(page).toHaveURL(/[?&]sort_id=level/);
-			await ascResponse;
-			const firstOrder = await page
-				.getByTestId(`${TABLE}-rows`)
-				.locator('td')
-				.allTextContents();
-
-			const descResponse = page.waitForResponse(
-				(response) =>
-					response.url().includes('/staff/users') &&
-					new URL(response.url()).searchParams.get('sort_order') === 'desc',
-			);
-			await levelHeader.click();
-			// `table-search-params.ts` writes BOTH sort_id and sort_order on the
-			// FIRST click already, so a bare `/sort_order=/` check here is pinned
-			// true regardless of whether the second click actually flips the
-			// direction — assert the flip itself (asc -> desc), and gate the row
-			// snapshot on the matching response instead of merely polling for a
-			// non-empty (possibly still-stale) row count.
-			await expect(page).toHaveURL(/[?&]sort_order=desc/);
-			await descResponse;
-			const secondOrder = await page
-				.getByTestId(`${TABLE}-rows`)
-				.locator('td')
-				.allTextContents();
-
-			expect(secondOrder).not.toEqual(firstOrder);
-		});
-
 		test('column widths follow the P3 grid and the wide table scrolls inside its card', async ({
 			page,
 		}) => {
@@ -170,7 +128,6 @@ test.describe(
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
 			await expect(headerOf(page, 'Member')).toHaveCSS('width', '260px');
-			await expect(headerOf(page, 'Level')).toHaveCSS('width', '160px');
 			await expect(headerOf(page, 'Status')).toHaveCSS('width', '130px');
 
 			// The 11-column default grid is wider than the card at 1280px, so

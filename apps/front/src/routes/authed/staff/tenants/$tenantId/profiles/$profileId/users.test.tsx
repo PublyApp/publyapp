@@ -58,13 +58,13 @@ vi.mock('@tanstack/react-router', () => ({
 const TRANSLATIONS: TestLabelMap = {
 	profile: 'Profile',
 	members: 'Members',
-	level: 'Level',
+	role: 'Role',
 	status: 'Status',
 	'staff-tenant-profiles:other-profiles': 'Other profiles',
 	'staff-tenant-profiles:joined': 'Joined',
 	'staff-tenant-profiles:no-other-profiles': 'No other profiles',
-	admin: 'Admin',
-	user: 'User',
+	'full-access': 'Full access',
+	'standard-access': 'No full access',
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
 	'status-globally-suspended': 'Globally suspended',
@@ -214,7 +214,7 @@ const MEMBER_ROWS = [
 		lastName: 'Lovelace',
 		avatarUrl: null,
 		status: 'Active',
-		level: 'Admin',
+		isFullAccess: true,
 		otherProfiles: [
 			{ id: 'profile-1', name: 'Editors' },
 			{ id: 'profile-2', name: 'Publishers' },
@@ -231,7 +231,7 @@ const MEMBER_ROWS = [
 		lastName: 'Hopper',
 		avatarUrl: null,
 		status: 'Suspended',
-		level: 'User',
+		isFullAccess: false,
 		otherProfiles: [],
 		joinedAt: null,
 		displayName: 'Grace Hopper',
@@ -451,17 +451,17 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 		).toBeNull();
 	});
 
-	test('renders each member row with name, email, level, and status', () => {
+	test('renders each member row with name, email, access, and status', () => {
 		renderPage();
 
 		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
 		expect(screen.getByText('ada@example.com')).toBeTruthy();
-		expect(screen.getByText('Admin')).toBeTruthy();
+		expect(screen.getByText('Full access')).toBeTruthy();
 		expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
 
 		expect(screen.getByText('Grace Hopper')).toBeTruthy();
 		expect(screen.getByText('grace@example.com')).toBeTruthy();
-		expect(screen.getByText('User')).toBeTruthy();
+		expect(screen.getByText('No full access')).toBeTruthy();
 		expect(screen.getByText('Suspended')).toBeTruthy();
 	});
 
@@ -555,36 +555,36 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 		vi.useRealTimers();
 	});
 
-	// step4b-review MAJOR 5: the backend now supports sort_id=level (#875
-	// follow-up) — clicking the Level header must emit it, and the query must
-	// actually be called with it, proving the fix end-to-end from the UI.
-	test('clicking the Level column header navigates with sort_id=level (the now-supported backend sort)', () => {
+	// The access column sorts server-side on the full-access flag
+	// (`sort_id=is_full_access`) — clicking its header must emit it, and the
+	// query must actually be called with it.
+	test('clicking the role column header navigates with sort_id=is_full_access', () => {
 		renderPage();
 
-		fireEvent.click(screen.getByText('Level'));
+		fireEvent.click(screen.getByText('Role'));
 
 		expect(mocks.navigate).toHaveBeenCalledTimes(1);
 		const call = mocks.navigate.mock.calls[0]?.[0] as {
 			search: Record<string, unknown>;
 		};
 		expect(call.search).toMatchObject({
-			sort_id: 'level',
+			sort_id: 'is_full_access',
 			sort_order: 'asc',
 		});
 	});
 
-	// step4b-review MAJOR 5: proves the fix end-to-end — if the URL already
-	// carries sort_id=level (e.g. from the navigate above, or a deep link),
-	// the members query must actually be called with it.
-	test('requests sort_id=level from the members query when the URL already carries it', () => {
-		mocks.search = { sortId: 'level', sortOrder: 'asc' };
+	test('requests sort_id=is_full_access from the members query when the URL already carries it', () => {
+		mocks.search = { sortId: 'is_full_access', sortOrder: 'asc' };
 		renderPage();
 
 		const lastCall =
 			mocks.useStaffTenantProfileMembersQuery.mock.calls[
 				mocks.useStaffTenantProfileMembersQuery.mock.calls.length - 1
 			];
-		expect(lastCall?.[0]).toMatchObject({ sortId: 'level', sortOrder: 'asc' });
+		expect(lastCall?.[0]).toMatchObject({
+			sortId: 'is_full_access',
+			sortOrder: 'asc',
+		});
 	});
 
 	test('clicking next page advances pageIndex on the members query once more results exist', () => {
@@ -762,20 +762,22 @@ describe('makeProfileMemberColumns', () => {
 		);
 	});
 
-	test('renders the level chip using the shared level formatter', () => {
+	test('renders the access chip using the shared access formatter', () => {
 		const columns = makeProfileMemberColumns(
 			TENANT_ID,
 			(key) => TRANSLATIONS[key] ?? key,
 			'en',
 		);
-		const levelColumn = columns.find((column) => column.id === 'level');
-		const cellRenderer = levelColumn?.cell as (props: {
-			getValue: () => string | null;
+		const accessColumn = columns.find(
+			(column) => column.id === 'is_full_access',
+		);
+		const cellRenderer = accessColumn?.cell as (props: {
+			getValue: () => boolean;
 		}) => JSX.Element;
 
-		render(<>{cellRenderer({ getValue: () => 'Admin' })}</>);
+		render(<>{cellRenderer({ getValue: () => true })}</>);
 
-		expect(screen.getByText('Admin')).toBeTruthy();
+		expect(screen.getByText('Full access')).toBeTruthy();
 	});
 
 	test('renders the status pill using the shared status formatter and tone', () => {
@@ -803,7 +805,7 @@ describe('makeProfileMemberColumns', () => {
 
 		expect(columns.map((column) => column.id)).toEqual([
 			'name',
-			'level',
+			'is_full_access',
 			'otherProfiles',
 			'status',
 			'joinedAt',

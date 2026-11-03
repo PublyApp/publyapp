@@ -16,7 +16,6 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
-using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -66,11 +65,11 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 					initialUsers = new[] {
 						new {
 							email = adminEmail,
-							accountLevel = "admin",
+							role = "owner",
 						},
 						new {
 							email = userEmail,
-							accountLevel = "user",
+							role = "member",
 						},
 					},
 				}
@@ -118,14 +117,19 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 
 		invitations.Should().HaveCount(2);
 
-		var adminInvitation = invitations.Single(inv => inv.Email == adminEmail);
-		adminInvitation.Status.Should().Be(InvitationStatus.Pending);
-		adminInvitation.AccountLevel.Should().Be(AccountLevel.Admin);
-		adminInvitation.InvitationProfiles.Should().BeEmpty();
+		var ownerProfileId = await FullAccessProfileTestHelper.EnsureTenantProfileAsync(
+			dbContext,
+			created.Id
+		);
+
+		var ownerInvitation = invitations.Single(inv => inv.Email == adminEmail);
+		ownerInvitation.Status.Should().Be(InvitationStatus.Pending);
+		ownerInvitation.InvitationProfiles.Should().ContainSingle(link =>
+			link.ProfileId == ownerProfileId
+		);
 
 		var userInvitation = invitations.Single(inv => inv.Email == userEmail);
 		userInvitation.Status.Should().Be(InvitationStatus.Pending);
-		userInvitation.AccountLevel.Should().Be(AccountLevel.User);
 		userInvitation.InvitationProfiles.Should().ContainSingle(link =>
 			link.ProfileId == defaultProfile.GetRequiredId()
 		);
@@ -195,7 +199,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 					initialUsers = new[] {
 						new {
 							email = adminEmail,
-							accountLevel = "admin",
+							role = "owner",
 						},
 					},
 				}

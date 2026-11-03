@@ -15,7 +15,6 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
-	AccountLevel,
 	AssignTenantUserCompaniesForStaffBody,
 	FindTenantUserCompaniesForStaffResult,
 	FindTenantsAsStaffResponse,
@@ -62,7 +61,6 @@ export type GlobalTenantUserCompaniesQueryVariables = {
 export type GlobalTenantUserCompaniesLinkInput = {
 	userId: string;
 	tenantIds: string[];
-	level: 'Admin' | 'User';
 };
 
 export type GlobalTenantUserCompaniesBulkUnlinkInput = {
@@ -93,7 +91,7 @@ export type GlobalTenantUserCompanyRow = {
 	id: string;
 	name: string;
 	logoUrl: string | null;
-	level: AccountLevel | null;
+	isFullAccess: boolean;
 	status: TenantUserStatus | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
@@ -295,7 +293,6 @@ const buildAssignCompaniesBody = (
 	variables: GlobalTenantUserCompaniesLinkInput,
 ): AssignTenantUserCompaniesForStaffBody => {
 	return createUntypedObject({
-		level: createUntypedString(variables.level),
 		tenantIds: createUntypedArray(
 			variables.tenantIds.map((tenantId) => createUntypedString(tenantId)),
 		),
@@ -433,7 +430,7 @@ export const toGlobalTenantUserCompanyRows = (
 			id,
 			name,
 			logoUrl: normalizeNullableFileUrl(item.tenantLogoUrl),
-			level: item.level ?? null,
+			isFullAccess: item.isFullAccess === true,
 			status: item.status ?? null,
 			createdAt: normalizeDate(item.createdAt),
 			updatedAt: normalizeDate(item.updatedAt),

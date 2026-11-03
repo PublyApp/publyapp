@@ -20,15 +20,6 @@ export type InvitationDisplayStatus = KnownInvitationStatus | 'unknown';
 
 const KNOWN_INVITATION_STATUS_SET = new Set<string>(KNOWN_INVITATION_STATUSES);
 
-const KNOWN_INVITATION_ACCOUNT_LEVELS = ['admin', 'user'] as const;
-
-export type KnownInvitationAccountLevel =
-	(typeof KNOWN_INVITATION_ACCOUNT_LEVELS)[number];
-
-const KNOWN_INVITATION_ACCOUNT_LEVEL_SET = new Set<string>(
-	KNOWN_INVITATION_ACCOUNT_LEVELS,
-);
-
 export type InvitationListSearchParams = TableSearchParams & {
 	status?: string;
 	profile?: string;
@@ -141,39 +132,6 @@ export const serializeInvitationStatusFilter = (
 	}
 	return undefined;
 };
-
-export const parseInvitationAccountLevelFilter = (
-	value: unknown,
-): KnownInvitationAccountLevel[] => {
-	const normalized = normalizeString(value);
-	if (!normalized) {
-		return [];
-	}
-
-	const seen = new Set<KnownInvitationAccountLevel>();
-	const levels: KnownInvitationAccountLevel[] = [];
-
-	for (const part of normalized.split(',')) {
-		const candidate = part.trim().toLowerCase();
-		if (!KNOWN_INVITATION_ACCOUNT_LEVEL_SET.has(candidate)) {
-			continue;
-		}
-
-		const level = candidate as KnownInvitationAccountLevel;
-		if (seen.has(level)) {
-			continue;
-		}
-
-		seen.add(level);
-		levels.push(level);
-	}
-
-	return levels;
-};
-
-export const serializeInvitationAccountLevelFilter = (
-	levels: KnownInvitationAccountLevel[],
-): string | undefined => (levels.length > 0 ? levels.join(',') : undefined);
 
 export const parseInvitationProfileFilter = (value: unknown): string[] => {
 	const normalized = normalizeString(value);

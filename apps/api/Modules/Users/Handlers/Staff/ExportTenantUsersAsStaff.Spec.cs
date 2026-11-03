@@ -21,6 +21,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
@@ -51,7 +52,6 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		string tenantId,
 		string? search = null,
 		string? status = null,
-		string? level = null,
 		string? ids = null
 	) {
 		var url = PathUtils.Join(
@@ -65,9 +65,6 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		}
 		if (status is not null) {
 			queryParams.Add($"status={Uri.EscapeDataString(status)}");
-		}
-		if (level is not null) {
-			queryParams.Add($"level={Uri.EscapeDataString(level)}");
 		}
 		if (ids is not null) {
 			queryParams.Add($"ids={Uri.EscapeDataString(ids)}");
@@ -199,20 +196,6 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturn422ForInvalidLevel() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
-
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			ExportTenantUsersAsStaffSpec._GetExportUrl(tenantId.ToString(), level: "owner")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-	}
-
-	[Fact]
 	public async Task ItShouldReturn200ForWhitespaceStatus() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
@@ -220,20 +203,6 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			ExportTenantUsersAsStaffSpec._GetExportUrl(tenantId.ToString(), status: " ")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-	}
-
-	[Fact]
-	public async Task ItShouldReturn200ForWhitespaceLevel() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
-
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			ExportTenantUsersAsStaffSpec._GetExportUrl(tenantId.ToString(), level: " ")
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -304,28 +273,35 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		dispositionHeader.FileName.Should().StartWith("tenant-users-").And.EndWith(".csv");
 
 		var content = await response.Content.ReadAsStringAsync();
-		content.Should().StartWith("Email,FirstName,LastName,Level,Status,CreatedAt");
+		content.Should().StartWith("Email,FirstName,LastName,Roles,Status,CreatedAt");
 		content.Should().Contain(email);
 	}
 
 	[Fact]
-	public async Task ItShouldApplyLevelFilterToExport() {
+	public async Task ItShouldExportTheRolesColumnForAFullAccessTenantUser() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
-		var adminEmail = await this._SeedTenantUserWithEmailAsync(tenantId, AccountLevel.Admin, "export-admin");
-		var userEmail = await this._SeedTenantUserWithEmailAsync(tenantId, AccountLevel.User, "export-user");
+		var ownerEmail = await this._SeedTenantUserWithEmailAsync(
+			tenantId,
+			fullAccess: true,
+			"export-owner"
+		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			ExportTenantUsersAsStaffSpec._GetExportUrl(tenantId.ToString(), level: "admin")
+			ExportTenantUsersAsStaffSpec._GetExportUrl(tenantId.ToString())
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var content = await response.Content.ReadAsStringAsync();
-		content.Should().Contain(adminEmail);
-		content.Should().NotContain(userEmail);
+		var ownerLine = content
+			.Split('\n')
+			.Should()
+			.ContainSingle(line => line.Contains(ownerEmail))
+			.Subject;
+		ownerLine.Should().Contain($",{SystemProfileNames.TenantFullAccess},");
 	}
 
 	[Fact]
@@ -478,7 +454,8 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	private static IEnumerable<TenantUserExportItem> _ThrowingExportItems() {
 		yield return new TenantUserExportItem {
 			Email = "first-row@example.com",
-			Level = AccountLevel.User,
+			Roles = [],
+			IsFullAccess = false,
 			Status = TenantUserStatus.Active,
 			CreatedAt = DateTime.UtcNow,
 		};
@@ -581,7 +558,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 			var content = Encoding.UTF8.GetString(responseBody.ToArray());
 			if (httpContext.Response.StatusCode == StatusCodes.Status400BadRequest) {
-				content.Should().NotContain("Email,FirstName,LastName,Level,Status,CreatedAt");
+				content.Should().NotContain("Email,FirstName,LastName,Roles,Status,CreatedAt");
 				httpContext.Response.Headers.ContentDisposition.Should().BeEmpty();
 				auditLogService.Entries.Should().BeEmpty();
 				return;
@@ -641,14 +618,18 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.User.AddAsync(admin);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.UserAccount.AddAsync(
-			UserAccount.CreateTenantAccount(
-				admin.GetRequiredId(),
-				tenant.GetRequiredId(),
-				AccountLevel.Admin
-			)
+		var adminAccount = UserAccount.CreateTenantAccount(
+			admin.GetRequiredId(),
+			tenant.GetRequiredId()
 		);
+		await dbContext.UserAccount.AddAsync(adminAccount);
 		await dbContext.SaveChangesAsync();
+
+		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			dbContext,
+			tenant.GetRequiredId(),
+			adminAccount.GetRequiredId()
+		);
 
 		return (tenant.GetRequiredId(), admin.GetRequiredId());
 	}
@@ -693,7 +674,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		}
 
 		await dbContext.UserAccount.AddAsync(
-			UserAccount.CreateTenantAccount(userId, tenantId, AccountLevel.User)
+			UserAccount.CreateTenantAccount(userId, tenantId)
 		);
 		await dbContext.SaveChangesAsync();
 
@@ -702,7 +683,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	private async Task<string> _SeedTenantUserWithEmailAsync(
 		Guid tenantId,
-		AccountLevel level,
+		bool fullAccess,
 		string emailPrefix
 	) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
@@ -722,10 +703,17 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.User.AddAsync(user);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.UserAccount.AddAsync(
-			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, level)
-		);
+		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
+		await dbContext.UserAccount.AddAsync(account);
 		await dbContext.SaveChangesAsync();
+
+		if (fullAccess) {
+			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				dbContext,
+				tenantId,
+				account.GetRequiredId()
+			);
+		}
 
 		return email;
 	}
@@ -748,7 +736,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 
 		await dbContext.UserAccount.AddAsync(
-			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User)
+			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId)
 		);
 		await dbContext.SaveChangesAsync();
 	}

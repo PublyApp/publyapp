@@ -75,6 +75,7 @@ public abstract record UnassignStaffProfileUsersServiceResult {
 public static class BulkStaffProfileUserUnassignActionFailureReasons {
 	public const string NotAssigned = "not_assigned";
 	public const string NotFound = "not_found";
+	public const string LastFullAccess = "last_full_access";
 }
 
 public record BulkStaffProfileUserUnassignActionFailedItem(
@@ -301,15 +302,15 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		// Guard early to avoid running a join query when profileId is invalid.
 		// This endpoint is strictly "staff profile -> users", so tenant/project profiles
 		// are treated as not found.
-		var profileExists = await (
+		var profile = await (
 			from p in this._DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
-			select p.Id
-		).AnyAsync(cancellationToken);
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
 
-		if (!profileExists) {
+		if (profile is null) {
 			return new UnassignStaffProfileUsersServiceResult.ProfileNotFound();
 		}
 
@@ -382,8 +383,27 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 			}
 		}
 
-		// Hard-delete junction links to avoid unique constraint conflicts when links are re-added later.
+		// The full-access role is the staff last-admin invariant. Removing it from the
+		// last active holder would lock every staff member out of full access.
 		var linksToRemove = accountLinkRows.Select(row => row.Link).ToList();
+		if (profile.IsFullAccess && linksToRemove.Count > 0) {
+			var activeFullAccessCount =
+				await FullAccessRoleQueries.CountActiveStaffFullAccessAsync(
+					this._DbContext,
+					cancellationToken
+				);
+			if (activeFullAccessCount <= linksToRemove.Count) {
+				foreach (var userId in linkedUserIds) {
+					failedItems.Add(new BulkStaffProfileUserUnassignActionFailedItem(
+						userId,
+						BulkStaffProfileUserUnassignActionFailureReasons.LastFullAccess
+					));
+				}
+				linksToRemove.Clear();
+			}
+		}
+
+		// Hard-delete junction links to avoid unique constraint conflicts when links are re-added later.
 		if (linksToRemove.Count > 0) {
 			this._DbContext.ForceHardDeleteRange(linksToRemove);
 			await this._DbContext.SaveChangesAsync(cancellationToken);

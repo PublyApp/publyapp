@@ -95,19 +95,19 @@ test.describe(
 				timeout: 15_000,
 			});
 
-			const levelFilterTrigger = page.getByRole('button', {
-				name: 'All levels',
+			const roleFilterTrigger = page.getByRole('button', {
+				name: 'All roles',
 			});
-			await levelFilterTrigger.click();
+			await roleFilterTrigger.click();
 
-			// 3 rows: the exclusive "All levels" clear entry + the two level toggles.
+			// 3 rows: the exclusive "All roles" clear entry + the two role toggles.
 			const checkboxItems = page.locator(
 				'[data-slot="dropdown-menu-checkbox-item"]',
 			);
 			await expect(checkboxItems).toHaveCount(3);
 
-			// Only the multi-select level toggles carry a visible checkbox box —
-			// the exclusive "All levels" entry must NOT (the box is a multi-select
+			// Only the multi-select role toggles carry a visible checkbox box —
+			// the exclusive "All roles" entry must NOT (the box is a multi-select
 			// affordance).
 			const boxes = page.locator(
 				'[data-slot="dropdown-menu-checkbox-item-box"]',
@@ -115,7 +115,7 @@ test.describe(
 			await expect(boxes).toHaveCount(2);
 			await expect(
 				page
-					.getByTestId('staff-tenant-users-level-filter-all')
+					.getByTestId('staff-tenant-users-role-filter-all')
 					.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
 			).toHaveCount(0);
 			await expect(boxes.first()).toHaveCSS('border-radius', '5px');

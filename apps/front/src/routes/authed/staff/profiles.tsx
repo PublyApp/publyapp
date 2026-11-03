@@ -194,7 +194,7 @@ const StaffProfilesPage = () => {
 						}
 					>
 						<IconEye />
-						{t('view-profile')}
+						{t('view-role')}
 					</DropdownMenuItem>
 				</DataTableRowActions>
 			)}

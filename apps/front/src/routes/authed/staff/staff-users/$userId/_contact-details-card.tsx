@@ -1,10 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
-import {
-	formatAccountLevelLabel,
-	formatStaffStatusLabel,
-} from '~/routes/authed/staff/staff-users/status-labels';
+import { formatStaffStatusLabel } from '~/routes/authed/staff/staff-users/status-labels';
 import { formatDateTime } from '~/utils/format-time';
 
 import { DetailMetaItem } from './_detail-meta-item';
@@ -18,7 +15,7 @@ export const ContactDetailsCard = ({
 		email: string;
 		firstName: string | null;
 		lastName: string | null;
-		accountLevel: string | null;
+		roles: string[];
 		status: string | null;
 		createdAt: Date | null;
 		updatedAt: Date | null;
@@ -42,12 +39,10 @@ export const ContactDetailsCard = ({
 						label={t('common:email')}
 						value={details.email || t('common:no-email-address')}
 					/>
-					{details.accountLevel ? (
-						<DetailMetaItem
-							label={t('role')}
-							value={formatAccountLevelLabel(details.accountLevel, t)}
-						/>
-					) : null}
+					<DetailMetaItem
+						label={t('common:role')}
+						value={details.roles.join(', ') || t('common:no-value')}
+					/>
 					<DetailMetaItem
 						label={t('common:status')}
 						value={

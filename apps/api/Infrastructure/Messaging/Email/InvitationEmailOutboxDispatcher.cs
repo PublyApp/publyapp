@@ -155,18 +155,16 @@ public sealed class InvitationEmailOutboxDispatcher : BackgroundService {
 
 		try {
 			if (item.Kind == InvitationEmailKind.TenantInvitation) {
-				if (item.TenantName is null || item.AccountLevel is null) {
+				if (item.TenantName is null) {
 					throw new InvalidOperationException(
-						$"Tenant invitation outbox row {item.GetRequiredId()} is missing "
-						+ "TenantName/AccountLevel"
+						$"Tenant invitation outbox row {item.GetRequiredId()} is missing TenantName"
 					);
 				}
 
 				await emailService.SendTenantInvitationEmailAsync(
 					item.Email,
 					item.TenantName,
-					item.Token,
-					item.AccountLevel.Value
+					item.Token
 				);
 			} else {
 				await emailService.SendInvitationToJoinStaffEmailAsync(item.Email, item.Token);

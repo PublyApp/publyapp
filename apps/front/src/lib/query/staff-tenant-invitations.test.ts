@@ -1,10 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
-import {
-	AccountLevelObject,
-	InvitationEffectiveStatusObject,
-} from '@org/client-ts/models/index';
+import { InvitationEffectiveStatusObject } from '@org/client-ts/models/index';
 import type { StaffTenantInvitationListItem } from '@org/client-ts/models/index';
 
 import {
@@ -21,7 +18,6 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 			buildFindStaffTenantInvitationsQueryParameters({
 				q: ' alex ',
 				status: ' pending,accepted ',
-				level: ' admin,user ',
 				sortId: ' expires_at ',
 				sortOrder: 'asc',
 				cursor: ' invitation-123 ',
@@ -30,7 +26,6 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 		).toEqual({
 			q: 'alex',
 			status: 'pending,accepted',
-			level: 'admin,user',
 			sortId: 'expires_at',
 			sortOrder: 'asc',
 			cursor: 'invitation-123',
@@ -43,7 +38,6 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 			buildFindStaffTenantInvitationsQueryParameters({
 				q: '   ',
 				status: undefined,
-				level: ' ',
 				sortId: '',
 				sortOrder: undefined,
 				cursor: ' ',
@@ -70,7 +64,6 @@ describe('toStaffTenantInvitationRows', () => {
 					{ id: 'profile-1', name: ' Owners ' },
 					{ id: 'profile-2', name: ' Reviewers ' },
 				],
-				accountLevel: AccountLevelObject.User,
 				invitedByName: ' Alex Johnson ',
 				acceptedAt,
 				createdAt,
@@ -94,7 +87,7 @@ describe('toStaffTenantInvitationRows', () => {
 					{ id: 'profile-1', name: 'Owners' },
 					{ id: 'profile-2', name: 'Reviewers' },
 				],
-				accountLevel: AccountLevelObject.User,
+				roles: ['Owners', 'Reviewers'],
 				invitedByName: 'Alex Johnson',
 				acceptedAt,
 				createdAt,
@@ -120,7 +113,6 @@ describe('toStaffTenantInvitationRows', () => {
 					status: InvitationEffectiveStatusObject.Pending,
 					scope: 'Tenant',
 					profileName: 'Owners',
-					accountLevel: AccountLevelObject.User,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -133,7 +125,7 @@ describe('toStaffTenantInvitationRows', () => {
 		},
 	);
 
-	test('keeps profile-less tenant User invites with null profileName', () => {
+	test('keeps a profile-less invite with null profileName', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
@@ -141,7 +133,6 @@ describe('toStaffTenantInvitationRows', () => {
 					email: 'user-no-profile@example.com',
 					status: InvitationEffectiveStatusObject.Pending,
 					scope: ' Tenant ',
-					accountLevel: AccountLevelObject.User,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -156,7 +147,7 @@ describe('toStaffTenantInvitationRows', () => {
 				scope: 'Tenant',
 				profileName: null,
 				profiles: [],
-				accountLevel: AccountLevelObject.User,
+				roles: [],
 				invitedByName: 'Alex Johnson',
 				acceptedAt: null,
 				createdAt: null,
@@ -165,7 +156,7 @@ describe('toStaffTenantInvitationRows', () => {
 		]);
 	});
 
-	test('keeps profile-less tenant Admin invites with null profileName', () => {
+	test('keeps a second profile-less invite with null profileName', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
@@ -173,7 +164,6 @@ describe('toStaffTenantInvitationRows', () => {
 					email: 'admin-no-profile@example.com',
 					status: InvitationEffectiveStatusObject.Pending,
 					scope: ' Tenant ',
-					accountLevel: AccountLevelObject.Admin,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -188,7 +178,7 @@ describe('toStaffTenantInvitationRows', () => {
 				scope: 'Tenant',
 				profileName: null,
 				profiles: [],
-				accountLevel: AccountLevelObject.Admin,
+				roles: [],
 				acceptedAt: null,
 				invitedByName: 'Alex Johnson',
 				createdAt: null,
@@ -206,7 +196,6 @@ describe('toStaffTenantInvitationRows', () => {
 					status: InvitationEffectiveStatusObject.Accepted,
 					scope: 'Tenant',
 					profileName: 'Owners',
-					accountLevel: AccountLevelObject.User,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -221,7 +210,7 @@ describe('toStaffTenantInvitationRows', () => {
 				scope: 'Tenant',
 				profileName: 'Owners',
 				profiles: [],
-				accountLevel: AccountLevelObject.User,
+				roles: [],
 				invitedByName: 'Alex Johnson',
 				acceptedAt: null,
 				createdAt: null,

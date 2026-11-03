@@ -2,10 +2,7 @@ import { IconCrown, IconUsers } from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 
-import {
-	deriveStaffUserLevelKey,
-	deriveStaffUserStatusKey,
-} from './staff-users/list-helpers';
+import { deriveStaffUserStatusKey } from './staff-users/list-helpers';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -57,7 +54,7 @@ export const StaffUsersStatCards = ({
 		} else if (deriveStaffUserStatusKey(row.status) === 'suspended') {
 			suspended += 1;
 		}
-		if (deriveStaffUserLevelKey(row.level) === 'admin') {
+		if (row.isFullAccess) {
 			admins += 1;
 		}
 	}

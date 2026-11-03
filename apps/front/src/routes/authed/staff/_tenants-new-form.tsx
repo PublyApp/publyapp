@@ -8,8 +8,6 @@ import { Form, FormPageLayout } from '~/components/field';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useCreateStaffTenantMutation } from '~/lib/query/staff-tenants';
 
-import { AccountLevelObject } from '@org/client-ts/models/index';
-
 import {
 	useTenantLocaleOptions,
 	useTenantTimezoneOptions,
@@ -219,7 +217,7 @@ export const TenantCreateForm = ({
 							onAddManualMember={() => {
 								appendManualMember({
 									email: '',
-									accountLevel: AccountLevelObject.User,
+									role: 'member',
 								});
 							}}
 							onRemoveManualMember={removeManualMember}

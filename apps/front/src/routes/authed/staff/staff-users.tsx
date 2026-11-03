@@ -66,7 +66,7 @@ const StaffUsersPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: [
 			search.status.join(','),
-			search.level.join(','),
+			search.role.join(','),
 			search.sortId ?? DEFAULT_SORT.id,
 			search.sortOrder ?? DEFAULT_SORT.order,
 		].join('|'),
@@ -114,7 +114,7 @@ const StaffUsersPage = () => {
 
 	const filtersValue: ListFiltersValue = {
 		status: search.status,
-		level: search.level,
+		role: search.role,
 	};
 
 	const setFilters = (next: ListFiltersValue): void => {
@@ -123,7 +123,7 @@ const StaffUsersPage = () => {
 			search: serializeStaffUserListSearchParams({
 				...search,
 				status: (next.status ?? []) as StaffUserListSearchParams['status'],
-				level: (next.level ?? []) as StaffUserListSearchParams['level'],
+				role: (next.role ?? []) as StaffUserListSearchParams['role'],
 				cursor: undefined,
 			}),
 			replace: true,
@@ -168,10 +168,9 @@ const StaffUsersPage = () => {
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
 			filters={buildStaffUserFilters(t, {
-				// Level filtering is client-side: offer it while the team overview
-				// holds the whole collection (or one is already active), whatever
-				// the server-side status filter does to the page.
-				includeLevels: team.staff !== null || search.level.length > 0,
+				// Role filtering is client-side: offer it while the team overview
+				// holds the whole collection (or one is already active).
+				includeRoles: team.staff !== null || search.role.length > 0,
 			})}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
@@ -278,8 +277,8 @@ const StaffUsersPage = () => {
 							{ header: t('name'), getValue: (row) => row.displayName },
 							{ header: t('email'), getValue: (row) => row.email },
 							{
-								header: t('level'),
-								getValue: (row) => row.level ?? '',
+								header: t('list-roles'),
+								getValue: (row) => row.roles.join(', '),
 							},
 							{
 								header: t('status'),

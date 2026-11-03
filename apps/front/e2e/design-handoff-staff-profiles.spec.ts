@@ -172,7 +172,7 @@ test.describe(
 			await expect(iconTileSvg).toBeVisible();
 
 			const pageTitle = page.locator('.publy-type-page-title');
-			await expect(pageTitle).toHaveText('Profiles');
+			await expect(pageTitle).toHaveText('Roles');
 
 			const searchInput = page.getByTestId('staff-profiles-table-search');
 			await expect(searchInput).toHaveCSS('height', '40px');
@@ -234,9 +234,10 @@ test.describe(
 			// bans. Their pixel widths are therefore NOT asserted here; restoring the
 			// columns is an owner decision (extend the API contract, or drop them from the
 			// canvas), not something a spec should quietly re-pin.
-			await expect(
-				page.getByRole('columnheader', { name: 'Profile' }),
-			).toHaveCSS('width', '260px');
+			await expect(page.getByRole('columnheader', { name: 'Role' })).toHaveCSS(
+				'width',
+				'260px',
+			);
 			await expect(page.getByRole('columnheader', { name: 'Type' })).toHaveCSS(
 				'width',
 				'140px',

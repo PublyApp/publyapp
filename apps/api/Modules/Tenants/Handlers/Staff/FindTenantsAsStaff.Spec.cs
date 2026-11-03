@@ -587,7 +587,7 @@ public sealed class FindTenantsAsStaffSpec
 		_ = await dbContext.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId, AccountLevel.User);
+		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
@@ -623,19 +623,19 @@ public sealed class FindTenantsAsStaffSpec
 			dbContext,
 			tenantId,
 			isUserDeleted: false,
-			AccountLevel.Admin
+			isOwner: true
 		);
 		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
 			dbContext,
 			tenantId,
 			isUserDeleted: false,
-			AccountLevel.User
+			isOwner: false
 		);
 		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
 			dbContext,
 			tenantId,
 			isUserDeleted: true,
-			AccountLevel.User
+			isOwner: false
 		);
 
 		return tenantId;
@@ -645,7 +645,7 @@ public sealed class FindTenantsAsStaffSpec
 		AppDbContext dbContext,
 		Guid tenantId,
 		bool isUserDeleted,
-		AccountLevel level
+		bool isOwner
 	) {
 		var user = new User {
 			Email = $"tenant-find-user-{Guid.NewGuid():N}@example.com",
@@ -660,16 +660,21 @@ public sealed class FindTenantsAsStaffSpec
 		await dbContext.User.AddAsync(user);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.UserAccount.AddAsync(
-			UserAccount.CreateTenantAccount(
-				user.GetRequiredId(), tenantId, level
-			)
+		var account = UserAccount.CreateTenantAccount(
+			user.GetRequiredId(), tenantId
 		);
+		await dbContext.UserAccount.AddAsync(account);
 		if (isUserDeleted) {
 			user.IsDeleted = true;
 		}
 
 		await dbContext.SaveChangesAsync();
+
+		if (isOwner) {
+			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				dbContext, tenantId, account.GetRequiredId()
+			);
+		}
 	}
 
 	private static string _GetCreateProfileUrl() {

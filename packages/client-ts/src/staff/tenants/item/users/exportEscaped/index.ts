@@ -34,14 +34,13 @@ export interface ExportRequestBuilder extends BaseRequestBuilder<ExportRequestBu
  */
 export interface ExportRequestBuilderGetQueryParameters {
     ids?: string;
-    level?: string;
     q?: string;
     status?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users/export{?ids*,level*,q*,status*}";
+export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users/export{?ids*,q*,status*}";
 /**
  * Metadata for all the requests in the request builder.
  */

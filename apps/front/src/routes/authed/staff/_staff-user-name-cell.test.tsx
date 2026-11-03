@@ -52,7 +52,8 @@ describe('StaffUserNameCell avatar flow', () => {
 				firstName: 'Ada',
 				lastName: 'Lovelace',
 				avatarUrl: '/files/uploads/ada.png',
-				level: 'Admin',
+				isFullAccess: true,
+				roles: ['Staff Owner'],
 				status: 'Active',
 			},
 		]);

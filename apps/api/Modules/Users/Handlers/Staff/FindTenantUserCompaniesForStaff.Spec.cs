@@ -268,75 +268,6 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-
-		// A user with three tenant memberships of distinct account Level,
-		// deliberately NOT in insertion order (anti-correlated). The walk must
-		// visit each once in ascending level order, so a keySelector swap
-		// to another same-type field (e.g. account CreatedAt) turns this assertion RED.
-		// Note: _SeedUserWithCompaniesAsync seeds all memberships with the default
-		// Level=User, so the tiebreaker (Id ascending) determines the order.
-		var baseDate = new DateTime(
-			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
-		);
-		var (userId, seededTenantIds, seededOrder) =
-			await this._SeedUserWithCompaniesAsync(acmeTenantId, baseDate);
-
-		var visitedTenantIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantUserCompaniesForStaffSpec._GetUrl(
-					userId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "level",
-					sortOrder: "asc"
-				)
-			).WithSessionToken(staffToken);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindCompaniesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
-			pages++;
-			visitedTenantIds.AddRange(
-				page.Data.Select(c => c.TenantId)
-			);
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
-
-		visitedTenantIds.Should().OnlyHaveUniqueItems();
-		visitedTenantIds.Should().Contain(seededTenantIds);
-
-		var visitedOrder = visitedTenantIds
-			.Where(seededTenantIds.Contains)
-			.ToList();
-		// Production orders by Level ascending, then by Id ascending (tiebreaker).
-		// All three memberships are seeded with the default Level=User, so the
-		// tiebreaker (Id ascending) determines the order.
-		var expectedOrder = seededTenantIds
-			.OrderBy(id => AccountLevel.User)
-			.ThenBy(id => id)
-			.ToList();
-		visitedOrder.Should().Equal(expectedOrder);
-	}
-
-	[Fact]
-	public async Task
 	ItShouldReturnCursorPaginatedCompaniesWhenTenantUserExists() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
@@ -399,7 +330,6 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.Tenants.TechStartName,
 		]);
 		firstResult.Data[0].TenantId.Should().NotBeEmpty();
-		firstResult.Data[0].Level.Should().NotBeNullOrWhiteSpace();
 		firstResult.Data[0].Status.Should().NotBeNullOrWhiteSpace();
 		firstResult.Data[0].CreatedAt.Should().NotBe(default);
 	}
@@ -627,7 +557,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	[Theory]
 	[InlineData("tenant_name")]
 	[InlineData("status")]
-	[InlineData("level")]
+	[InlineData("is_full_access")]
 	[InlineData("created_at")]
 	public async Task
 	ItShouldReturnCompaniesWhenSortingByAllowedColumn(string sortId) {
@@ -926,7 +856,6 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		public Guid TenantId { get; init; }
 		public string TenantName { get; init; } = string.Empty;
 		public string? TenantLogoUrl { get; init; }
-		public string Level { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 		public DateTime CreatedAt { get; init; }
 		public DateTime UpdatedAt { get; init; }

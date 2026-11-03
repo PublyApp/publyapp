@@ -15,7 +15,6 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
-	AccountLevel,
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
 	BulkCreateTenantInvitationsForTenantAsStaffBody,
@@ -42,7 +41,6 @@ export type StaffTenantUsersQueryVariables = {
 	tenantId: string;
 	q?: string;
 	status?: string;
-	level?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -52,12 +50,11 @@ export type StaffTenantUsersQueryVariables = {
 export type StaffTenantUserInvitationInput = {
 	tenantId: string;
 	email: string;
-	accountLevel: 'Admin' | 'User';
+	profileIds: string[];
 };
 
 export type StaffTenantInvitationInput = {
 	email: string;
-	accountLevel: 'Admin' | 'User';
 	profileIds: string[];
 };
 
@@ -80,10 +77,8 @@ export type StaffTenantInvitationBulkCreateSummary = {
 
 type StaffTenantUserInvitationBodyInput = Omit<
 	StaffTenantUserInvitationInput,
-	'tenantId' | 'accountLevel'
-> & {
-	accountLevel?: string;
-};
+	'tenantId'
+>;
 
 export type StaffTenantUserRow = {
 	/** The global `User.Id` — matches `/staff/tenants/{tenantId}/users/{userId}`. Never use
@@ -97,7 +92,8 @@ export type StaffTenantUserRow = {
 	firstName: string | null;
 	lastName: string | null;
 	email: string;
-	level: AccountLevel | null;
+	isFullAccess: boolean;
+	roles: string[];
 	status: TenantUserStatus | null;
 	avatarUrl: string | null;
 	displayName: string;
@@ -114,7 +110,6 @@ export type StaffTenantUserUpdateInput = {
 	firstName?: string | null;
 	lastName?: string | null;
 	avatarUrl?: string | null;
-	accountLevel?: string | null;
 };
 
 export type StaffTenantUserRemoveInput = {
@@ -142,7 +137,6 @@ export type StaffTenantUserExportInput = {
 	tenantId: string;
 	q?: string;
 	status?: string;
-	level?: string;
 	ids?: string[];
 };
 
@@ -151,7 +145,8 @@ export type StaffTenantUserDetails = {
 	email: string;
 	firstName: string | null;
 	lastName: string | null;
-	accountLevel: string | null;
+	isFullAccess: boolean;
+	roles: string[];
 	status: string | null;
 	avatarUrl: string | null;
 	tenantId: string | null;
@@ -240,7 +235,6 @@ export const buildFindStaffTenantUsersQueryParameters = (
 ) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
-	level: normalizeString(variables.level),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
 	cursor: normalizeString(variables.cursor),
@@ -254,16 +248,16 @@ export const buildCreateStaffTenantUserInvitationBody = (
 ): CreateInvitationForTenantAsStaffBody => {
 	const body: CreateInvitationForTenantAsStaffBody = {};
 	const email = normalizeString(input.email);
-	const accountLevel = normalizeString(input.accountLevel);
 
 	if (email) {
 		body.email = createUntypedString(email) as typeof body.email;
 	}
 
-	if (accountLevel) {
-		body.accountLevel = createUntypedString(
-			accountLevel,
-		) as typeof body.accountLevel;
+	const profileIds = input.profileIds ?? [];
+	if (profileIds.length > 0) {
+		body.profileIds = createUntypedArray(
+			profileIds.map((profileId) => createUntypedString(profileId)),
+		) as typeof body.profileIds;
 	}
 
 	return body;
@@ -276,7 +270,6 @@ export const buildBulkCreateStaffTenantInvitationsBody = (
 		invitations.map((invitation) =>
 			createUntypedObject({
 				email: createUntypedString(invitation.email.trim()),
-				accountLevel: createUntypedString(invitation.accountLevel),
 				profileIds: createUntypedArray(
 					invitation.profileIds.map((profileId) =>
 						createUntypedString(profileId),
@@ -309,7 +302,6 @@ export const buildUpdateStaffTenantUserBody = (
 	const firstName = normalizeUpdateStringField(input.firstName);
 	const lastName = normalizeUpdateStringField(input.lastName);
 	const avatarUrl = normalizeUpdateStringField(input.avatarUrl);
-	const accountLevel = normalizeUpdateStringField(input.accountLevel);
 
 	if (firstName !== undefined) {
 		body.firstName =
@@ -334,13 +326,6 @@ export const buildUpdateStaffTenantUserBody = (
 					) as typeof body.avatarUrl);
 	}
 
-	if (accountLevel !== undefined) {
-		body.level =
-			accountLevel === null
-				? null
-				: (createUntypedString(accountLevel) as typeof body.level);
-	}
-
 	return body;
 };
 
@@ -357,7 +342,6 @@ export const buildExportStaffTenantUsersQueryParameters = (
 ) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
-	level: normalizeString(variables.level),
 	ids:
 		variables.ids && variables.ids.length > 0
 			? variables.ids.join(',')
@@ -403,7 +387,10 @@ export const toStaffTenantUserRows = (
 			firstName,
 			lastName,
 			email,
-			level: item.level ?? null,
+			isFullAccess: item.isFullAccess === true,
+			roles: (item.roles ?? []).filter(
+				(role): role is string => typeof role === 'string',
+			),
 			status: item.status ?? null,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			displayName: getDisplayName({ firstName, lastName, email }),
@@ -431,7 +418,10 @@ export const toStaffTenantUserDetails = (
 		email,
 		firstName: normalizeNullableString(result?.firstName),
 		lastName: normalizeNullableString(result?.lastName),
-		accountLevel: normalizeNullableString(result?.level),
+		isFullAccess: result?.isFullAccess === true,
+		roles: (result?.roles ?? []).filter(
+			(role): role is string => typeof role === 'string',
+		),
 		status: normalizeNullableString(result?.status),
 		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		tenantId: normalizeNullableString(result?.tenantId?.toString()),
@@ -483,7 +473,7 @@ export const createStaffTenantUserInvitationMutationOptions =
 					.users.invitations.post(
 						buildCreateStaffTenantUserInvitationBody({
 							email: variables.email,
-							accountLevel: variables.accountLevel,
+							profileIds: variables.profileIds,
 						}),
 					),
 			meta: {

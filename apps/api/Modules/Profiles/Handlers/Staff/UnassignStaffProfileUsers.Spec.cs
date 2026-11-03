@@ -16,6 +16,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -354,6 +355,43 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 		// Only one audit-log row despite the duplicated id.
 		(await this._CountAuditRowsAsync(adminUserId)).Should().Be(1);
 	}
+
+	[Fact]
+	public async Task ItShouldRefuseToStripTheLastStaffFullAccessHolder() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// Request every active holder in one call, which is exactly the condition the
+		// staff last-admin invariant guards: stripping the full-access role from all of them.
+		Guid fullAccessProfileId;
+		List<Guid> holderUserIds;
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			fullAccessProfileId = await FullAccessProfileTestHelper.EnsureStaffProfileAsync(dbContext);
+			holderUserIds = await FullAccessRoleQueries.ActiveStaffFullAccessAccounts(dbContext)
+				.Select(account => account.UserId)
+				.ToListAsync();
+		}
+		holderUserIds.Should().NotBeEmpty("the seed leaves at least the staff owner");
+
+		using var response = await this._UnassignAsync(
+			token,
+			fullAccessProfileId.ToString(),
+			[.. holderUserIds]
+		);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<BulkStaffProfileUserUnassignResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(0);
+		result.FailedCount.Should().Be(holderUserIds.Count);
+		result.FailedItems.Should().OnlyContain(item => item.Reason == "last_full_access");
+
+		// The staff last-admin invariant: every holder keeps the role.
+		var remainingUserIds = await this._FindUserIdsAsync(token, fullAccessProfileId.ToString());
+		remainingUserIds.Should().Contain(holderUserIds.Select(id => id.ToString()));
+	}
+
 	private async Task<string> _CreateStaffProfileAsync(
 		string token,
 		string name,
@@ -405,7 +443,7 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.User.Add(user);
 		_ = await dbContext.SaveChangesAsync();
 
-		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId(), AccountLevel.User);
+		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		staffAccount.ValidateAccountType();
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();
@@ -481,7 +519,7 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId, AccountLevel.User);
+		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();

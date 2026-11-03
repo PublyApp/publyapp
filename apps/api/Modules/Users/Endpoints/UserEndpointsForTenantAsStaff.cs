@@ -108,7 +108,7 @@ public static class UserEndpointsForTenantAsStaff {
 			UpdateTenantUserAsStaff.Handle
 		)
 			.WithName("UpdateTenantUserAsStaff")
-			.WithSummary("Update a tenant user's profile or account level")
+			.WithSummary("Update a tenant user's name, avatar or profile assignments")
 			.WithPermission([AppPermissions.Staff.Users.UPDATE_FOR_TENANT])
 			.WithReqBodyValidation<UpdateTenantUserAsStaffBody>();
 

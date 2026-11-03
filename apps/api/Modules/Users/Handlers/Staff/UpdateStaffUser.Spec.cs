@@ -243,41 +243,6 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 
 		[Fact]
 		public async Task
-		ItShouldUpdateAccountLevel() {
-			string token =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-
-			// Get a staff user ID
-			string userId = await UpdateStaffUserSpec._GetStaffUserIdByEmailAsync(
-				this._Http,
-				token,
-				TestConstants.StaffUserEmail
-			);
-
-			string url = UpdateStaffUserSpec._GetUrl(userId);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Patch, url
-			).WithSessionToken(token);
-
-			request.Content = JsonContent.Create(
-				new { accountLevel = "admin" }
-			);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			GetStaffUserByIdResult? result = await response.Content
-				.ReadFromJsonAsync<GetStaffUserByIdResult>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
-			_ = result.AccountLevel.Should().Be(AccountLevel.Admin);
-		}
-
-		[Fact]
-		public async Task
 		ItShouldReturnUnprocessableEntityForEmptyAvatarUrl() {
 			string token =
 				await this._AuthClient.LoginAsStaffAdminAsync();
@@ -432,7 +397,6 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			public string? FirstName { get; init; }
 			public string? AvatarUrl { get; init; }
 			public string Status { get; init; } = string.Empty;
-			public string Level { get; init; } = string.Empty;
 		}
 
 		private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
@@ -456,7 +420,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			_ = await dbContext.SaveChangesAsync();
 
 			Guid userId = user.GetRequiredId();
-			UserAccount staffAccount = UserAccount.CreateStaffAccount(userId, AccountLevel.User);
+			UserAccount staffAccount = UserAccount.CreateStaffAccount(userId);
 			staffAccount.ValidateAccountType();
 			_ = dbContext.UserAccount.Add(staffAccount);
 			_ = await dbContext.SaveChangesAsync();
@@ -487,8 +451,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			Guid userId = user.GetRequiredId();
 			UserAccount tenantAccount = UserAccount.CreateTenantAccount(
 				userId,
-				tenantId,
-				AccountLevel.User
+				tenantId
 			);
 			tenantAccount.ValidateAccountType();
 			_ = dbContext.UserAccount.Add(tenantAccount);

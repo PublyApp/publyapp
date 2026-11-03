@@ -1149,7 +1149,7 @@ public sealed class ComprehensiveRateLimitingSpec
 				email =
 					$"weighted-tenant-create-"
 					+ $"{Guid.NewGuid():N}@example.com",
-				accountLevel = "Admin",
+				role = "owner",
 			})
 			.ToArray();
 		using var request = new HttpRequestMessage(
@@ -1259,7 +1259,6 @@ public sealed class ComprehensiveRateLimitingSpec
 				email =
 					$"weighted-tenant-{Guid.NewGuid():N}"
 					+ "@example.com",
-				accountLevel = "User",
 				profileIds = Array.Empty<string>(),
 			})
 			.ToArray();

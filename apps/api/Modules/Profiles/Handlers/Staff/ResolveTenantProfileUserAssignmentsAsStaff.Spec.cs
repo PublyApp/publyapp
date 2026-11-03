@@ -430,13 +430,8 @@ public sealed class ResolveTenantProfileUserAssignmentsAsStaffSpec : IClassFixtu
 		_ = dbContext.User.Add(user);
 		_ = await dbContext.SaveChangesAsync();
 
-		var account = new UserAccount {
-			UserId = user.GetRequiredId(),
-			TenantId = tenantId,
-			Scope = AccountScope.Tenant,
-			Level = AccountLevel.User,
-			Status = AccountStatus.Active,
-		};
+		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
+		account.ValidateAccountType();
 
 		_ = dbContext.UserAccount.Add(account);
 		_ = await dbContext.SaveChangesAsync();

@@ -60,9 +60,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 				rows: [
 					{
 						email: '1',
-						accountLevel: 'Admin',
 						profileNames: ['Alpha'],
-						invalidLevel: null,
 						invalidEmail: '1',
 					},
 				],
@@ -91,9 +89,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 				rows: [
 					{
 						email: '#REF!',
-						accountLevel: 'Admin',
 						profileNames: ['Alpha'],
-						invalidLevel: null,
 						invalidEmail: '#REF!',
 					},
 				],

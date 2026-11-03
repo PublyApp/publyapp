@@ -190,7 +190,6 @@ vi.mock('react-i18next', () => ({
 				'first-name': 'First name',
 				'last-name': 'Last name',
 				'avatar-url': 'Avatar URL',
-				'account-level': 'Account level',
 				'save-changes': 'Save changes',
 				'tenant-user-update-failed': 'Unable to save tenant user.',
 				'avatar-url-invalid':
@@ -313,7 +312,8 @@ describe('staff tenant user edit route', () => {
 			firstName: 'Alex',
 			lastName: 'User',
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: 'Active',
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -350,9 +350,6 @@ describe('staff tenant user edit route', () => {
 		expect(
 			screen.getByDisplayValue('https://example.com/avatar.png'),
 		).toBeTruthy();
-		expect(
-			screen.getByRole('combobox', { name: 'Account level' }),
-		).toBeTruthy();
 	});
 
 	test('submits editable identity fields and navigates back to tenant user details on success', async () => {
@@ -369,9 +366,6 @@ describe('staff tenant user edit route', () => {
 		fireEvent.change(screen.getByLabelText('First name'), {
 			target: { value: '  Alex Updated  ' },
 		});
-		fireEvent.change(screen.getByLabelText('Account level'), {
-			target: { value: 'User' },
-		});
 		fireEvent.submit(
 			screen.getByRole('button', { name: 'Save changes' }).closest('form')!,
 		);
@@ -381,7 +375,6 @@ describe('staff tenant user edit route', () => {
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				userId: '22222222-2222-2222-2222-222222222222',
 				firstName: 'Alex Updated',
-				accountLevel: 'User',
 			}),
 		);
 		await waitFor(() =>
@@ -408,15 +401,14 @@ describe('staff tenant user edit route', () => {
 
 		fireEvent.change(firstNameInput, { target: { value: 'Alex Edited' } });
 
-		// A real background refetch: another admin changed the account level
-		// while this tab was unfocused. This changes userFormValues' identity.
+		// A real background refetch: another admin changed the avatar while
+		// this tab was unfocused. This changes userFormValues' identity.
 		mocks.toStaffTenantUserDetails.mockReturnValue({
 			id: '22222222-2222-2222-2222-222222222222',
 			email: 'alex@example.com',
 			firstName: 'Alex',
 			lastName: 'User',
-			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'User',
+			avatarUrl: 'https://example.com/avatar-refetched.png',
 			status: 'Active',
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -430,8 +422,8 @@ describe('staff tenant user edit route', () => {
 			(screen.getByLabelText('First name') as HTMLInputElement).value,
 		).toBe('Alex Edited');
 		expect(
-			screen.getByRole('combobox', { name: 'Account level' }),
-		).toHaveProperty('value', 'User');
+			(screen.getByLabelText('Avatar URL') as HTMLInputElement).value,
+		).toBe('https://example.com/avatar-refetched.png');
 	});
 
 	test('the nav-guard shouldBlockFn blocks while dirty and stops blocking once the save completes', async () => {

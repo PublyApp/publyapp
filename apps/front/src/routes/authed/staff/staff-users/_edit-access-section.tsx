@@ -4,7 +4,7 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
-import { ACCOUNT_LEVEL_OPTIONS, STATUS_OPTIONS } from './_edit-schema';
+import { STATUS_OPTIONS } from './_edit-schema';
 
 type ProfileOption = {
 	value: string;
@@ -54,15 +54,6 @@ export const EditAccessSection = ({
 			</div>
 			<div className="space-y-4 p-5">
 				<div className="grid gap-4 md:grid-cols-2">
-					<Field.Select
-						name="accountLevel"
-						label={t('role')}
-						options={ACCOUNT_LEVEL_OPTIONS.map((value) => ({
-							value,
-							label: t(value === 'Admin' ? 'common:admin' : 'common:user'),
-						}))}
-						isDisabled={isSubmittingForm}
-					/>
 					{/* TODO(contract): status changes use suspend/reactivate endpoints. */}
 					<Field.Select
 						name="status"

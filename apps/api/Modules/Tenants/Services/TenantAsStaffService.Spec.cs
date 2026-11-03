@@ -261,7 +261,7 @@ public sealed class TenantAsStaffServiceSpec
 			new CreateTenantWithInitialUsersArgs(
 				Name: $"Outbox Notify Tenant {Guid.NewGuid():N}",
 				MaxUsers: 10,
-				InitialUsers: [(Email: $"invitee-{Guid.NewGuid():N}@example.com", AccountLevel: AccountLevel.Admin)],
+				InitialUsers: [(Email: $"invitee-{Guid.NewGuid():N}@example.com", IsOwner: true)],
 				InvitedByUserId: (await this._SeedStaffUserAsync()),
 				Code: null,
 				SeedDefaultProfile: false,

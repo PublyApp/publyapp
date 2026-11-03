@@ -23,7 +23,7 @@ type InvitationsTableProps = {
 };
 
 /** The tenant invitations data table with its empty/no-match copy and its
- * status/account-level filter toolbar. Split out of the route file for
+ * status filter toolbar. Split out of the route file for
  * `react-doctor/no-giant-component`; every prop and test id is unchanged. */
 export const InvitationsTable = ({
 	columns,

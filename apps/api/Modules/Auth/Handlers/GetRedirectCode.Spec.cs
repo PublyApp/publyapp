@@ -562,8 +562,7 @@ public sealed class GetRedirectCodeSpec
 		await dbContext.UserAccount.AddAsync(
 			UserAccount.CreateTenantAccount(
 				user.GetRequiredId(),
-				tenant.GetRequiredId(),
-				AccountLevel.User
+				tenant.GetRequiredId()
 			)
 		);
 		await dbContext.SaveChangesAsync();

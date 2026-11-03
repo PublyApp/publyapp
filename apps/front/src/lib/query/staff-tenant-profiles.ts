@@ -12,7 +12,6 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
-	AccountLevel,
 	ApiResponse,
 	BulkDeleteTenantProfilesBody,
 	BulkProfileActionResult,
@@ -160,7 +159,7 @@ export type StaffTenantProfileMemberRow = {
 	lastName: string | null;
 	avatarUrl: string | null;
 	status: TenantUserStatus | null;
-	level: AccountLevel | null;
+	isFullAccess: boolean;
 	otherProfiles: StaffTenantProfileMemberProfile[];
 	joinedAt: Date | null;
 	displayName: string;
@@ -804,7 +803,7 @@ export const toStaffTenantProfileMemberRows = (
 			lastName,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			status: item.status ?? null,
-			level: item.level ?? null,
+			isFullAccess: item.isFullAccess === true,
 			otherProfiles,
 			joinedAt: normalizeDate(item.joinedAt),
 			displayName: getUserFullName({ firstName, lastName }) || email,

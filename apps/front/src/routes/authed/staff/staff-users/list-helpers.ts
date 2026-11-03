@@ -7,22 +7,22 @@ import {
 } from '~/lib/url-state/table-search-params';
 
 const STAFF_USER_STATUS_FILTERS = ['active', 'suspended'] as const;
-const STAFF_USER_LEVEL_FILTERS = ['admin', 'user'] as const;
+const STAFF_USER_ROLE_FILTERS = ['full_access', 'standard'] as const;
 
 export type StaffUserStatusFilter = (typeof STAFF_USER_STATUS_FILTERS)[number];
-export type StaffUserLevelFilter = (typeof STAFF_USER_LEVEL_FILTERS)[number];
+export type StaffUserRoleFilter = (typeof STAFF_USER_ROLE_FILTERS)[number];
 
 const STAFF_USER_STATUS_SET = new Set<string>(STAFF_USER_STATUS_FILTERS);
-const STAFF_USER_LEVEL_SET = new Set<string>(STAFF_USER_LEVEL_FILTERS);
+const STAFF_USER_ROLE_SET = new Set<string>(STAFF_USER_ROLE_FILTERS);
 
 export type StaffUserListSearchParams = TableSearchParams & {
 	status: StaffUserStatusFilter[];
-	level: StaffUserLevelFilter[];
+	role: StaffUserRoleFilter[];
 };
 
 export type StaffUserListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
-	level?: unknown;
+	role?: unknown;
 };
 
 const parseChoices = <T extends string>(
@@ -55,8 +55,8 @@ const serializeChoices = <T extends string>(
 const parseStaffUserStatusFilter = (value: unknown): StaffUserStatusFilter[] =>
 	parseChoices(value, STAFF_USER_STATUS_FILTERS, STAFF_USER_STATUS_SET);
 
-const parseStaffUserLevelFilter = (value: unknown): StaffUserLevelFilter[] =>
-	parseChoices(value, STAFF_USER_LEVEL_FILTERS, STAFF_USER_LEVEL_SET);
+const parseStaffUserRoleFilter = (value: unknown): StaffUserRoleFilter[] =>
+	parseChoices(value, STAFF_USER_ROLE_FILTERS, STAFF_USER_ROLE_SET);
 
 export const deriveStaffUserStatusKey = (
 	status: string | null | undefined,
@@ -68,27 +68,21 @@ export const deriveStaffUserStatusKey = (
 	return null;
 };
 
-export const deriveStaffUserLevelKey = (
-	level: string | null | undefined,
-): StaffUserLevelFilter | null => {
-	const normalized = level?.trim().toLowerCase();
-	if (normalized === 'admin' || normalized === 'user') {
-		return normalized;
-	}
-	return null;
-};
+export const deriveStaffUserRoleKey = (
+	isFullAccess: boolean,
+): StaffUserRoleFilter => (isFullAccess ? 'full_access' : 'standard');
 
 export const parseStaffUserListSearchParams = (
 	search: StaffUserListSearchParamInput,
 ): StaffUserListSearchParams => ({
 	...parseTableSearchParams(search),
 	status: parseStaffUserStatusFilter(search.status),
-	level: parseStaffUserLevelFilter(search.level),
+	role: parseStaffUserRoleFilter(search.role),
 });
 
 export type StaffUserListWireParams = {
 	status?: string;
-	level?: string;
+	role?: string;
 } & TableSearchWireParams;
 
 export const serializeStaffUserListSearchParams = (
@@ -96,5 +90,5 @@ export const serializeStaffUserListSearchParams = (
 ): StaffUserListWireParams => ({
 	...serializeTableSearchParams(params),
 	status: serializeChoices(params.status, STAFF_USER_STATUS_FILTERS),
-	level: serializeChoices(params.level, STAFF_USER_LEVEL_FILTERS),
+	role: serializeChoices(params.role, STAFF_USER_ROLE_FILTERS),
 });

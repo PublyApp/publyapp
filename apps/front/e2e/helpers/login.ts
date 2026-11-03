@@ -15,8 +15,8 @@ export const SINGLE_TENANT_USER_CREDENTIALS = {
 	password: SEED_PASSWORD,
 };
 
-/** Single-tenant ADMIN user: Acme AccountLevel.Admin, holds the tenant-admin
- * permission set (posts.create/posts.edit among them) needed to create a
+/** Single-tenant full-access user: Acme's Owner role, so it holds every
+ * tenant permission (posts.create/posts.edit among them) needed to create a
  * draft and attach its image. */
 export const SINGLE_TENANT_ADMIN_CREDENTIALS = {
 	email: 'admin-acme@example.com',
@@ -30,9 +30,9 @@ export const MULTI_TENANT_USER_CREDENTIALS = {
 };
 
 /**
- * Seeded tenant Admin (AccountLevel.Admin → effective set ["*"]). The
+ * Seeded tenant Owner (full-access role → effective set ["*"]). The
  * manage-gated tenant surfaces (Integrations C3) are only reachable with
- * this account; user-acme is a plain Member.
+ * this account; user-acme holds no full-access role.
  */
 export const TENANT_ADMIN_CREDENTIALS = {
 	email: 'admin-acme@example.com',

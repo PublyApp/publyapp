@@ -508,7 +508,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		await this._AssignAsync(token, tenantId, profileId, memberId);
 
 		var sortIds = new[] {
-			"created_at", "email", "first_name", "last_name", "status", "level",
+			"created_at", "email", "first_name", "last_name", "status", "is_full_access",
 		};
 		foreach (var sortId in sortIds) {
 			using var request = new HttpRequestMessage(
@@ -523,27 +523,26 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	}
 
 	/// <summary>
-	/// Regression for the front-2 step-4b review (MAJOR 5): the Members-roster Level column
-	/// sorts client-side by emitting sort_id=level, which this endpoint used to reject with 400.
-	/// AccountLevel is a small, explicitly-ordered enum (Admin=50 &gt; User=10), so descending
-	/// order must place Admins before Users.
+	/// Regression for the front-2 step-4b review (MAJOR 5): the Members-roster role column
+	/// sorts client-side by emitting sort_id=is_full_access, which this endpoint used to reject
+	/// with 400. Descending order must place full-access members before restricted ones.
 	/// </summary>
 	[Fact]
-	public async Task ItShouldSortByLevelDescending() {
+	public async Task ItShouldSortByFullAccessDescending() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync(SeedConstants.Tenants.AcmeName);
 		var profileId = await this._CreateTenantProfileAsync(tenantId);
 
-		var adminMemberId = await this._CreateTenantMemberAsync(tenantId, level: AccountLevel.Admin);
-		var userMemberId = await this._CreateTenantMemberAsync(tenantId, level: AccountLevel.User);
+		var fullAccessMemberId = await this._CreateTenantMemberAsync(tenantId, fullAccess: true);
+		var restrictedMemberId = await this._CreateTenantMemberAsync(tenantId);
 
-		await this._AssignAsync(token, tenantId, profileId, adminMemberId);
-		await this._AssignAsync(token, tenantId, profileId, userMemberId);
+		await this._AssignAsync(token, tenantId, profileId, fullAccessMemberId);
+		await this._AssignAsync(token, tenantId, profileId, restrictedMemberId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			FindTenantProfileUsersAsStaffSpec._GetUrl(tenantId.ToString(), profileId.ToString())
-				+ "?limit=50&sort_id=level&sort_order=desc"
+				+ "?limit=50&sort_id=is_full_access&sort_order=desc"
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -554,11 +553,16 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		var adminIndex = result.Users.FindIndex(u => u.Id == adminMemberId);
-		var userIndex = result.Users.FindIndex(u => u.Id == userMemberId);
-		adminIndex.Should().BeGreaterThanOrEqualTo(0);
-		userIndex.Should().BeGreaterThanOrEqualTo(0);
-		adminIndex.Should().BeLessThan(userIndex);
+		var fullAccessIndex = result.Users.FindIndex(u => u.Id == fullAccessMemberId);
+		var restrictedIndex = result.Users.FindIndex(u => u.Id == restrictedMemberId);
+		fullAccessIndex.Should().BeGreaterThanOrEqualTo(0);
+		restrictedIndex.Should().BeGreaterThanOrEqualTo(0);
+		fullAccessIndex.Should().BeLessThan(restrictedIndex);
+
+		result.Users.Single(u => u.Id == fullAccessMemberId)
+			.IsFullAccess.Should().BeTrue();
+		result.Users.Single(u => u.Id == restrictedMemberId)
+			.IsFullAccess.Should().BeFalse();
 	}
 
 	/// <summary>
@@ -641,9 +645,11 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	private async Task<Guid> _CreateTenantMemberAsync(
 		Guid tenantId,
 		string? email = null,
-		AccountLevel level = AccountLevel.User
+		bool fullAccess = false
 	) {
-		var (userAccountId, _) = await this._CreateTenantMemberWithUserIdAsync(tenantId, email, level);
+		var (userAccountId, _) = await this._CreateTenantMemberWithUserIdAsync(
+			tenantId, email, fullAccess
+		);
 		return userAccountId;
 	}
 
@@ -655,7 +661,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 	private async Task<(Guid UserAccountId, Guid UserId)> _CreateTenantMemberWithUserIdAsync(
 		Guid tenantId,
 		string? email = null,
-		AccountLevel level = AccountLevel.User
+		bool fullAccess = false
 	) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -673,16 +679,19 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		_ = dbContext.User.Add(user);
 		_ = await dbContext.SaveChangesAsync();
 
-		var account = new UserAccount {
-			UserId = user.GetRequiredId(),
-			TenantId = tenantId,
-			Scope = AccountScope.Tenant,
-			Level = level,
-			Status = AccountStatus.Active,
-		};
+		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
+		account.ValidateAccountType();
 
 		_ = dbContext.UserAccount.Add(account);
 		_ = await dbContext.SaveChangesAsync();
+
+		if (fullAccess) {
+			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				dbContext,
+				tenantId,
+				account.GetRequiredId()
+			);
+		}
 
 		return (account.GetRequiredId(), user.GetRequiredId());
 	}
@@ -772,7 +781,7 @@ public sealed class FindTenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture
 		public string? FirstName { get; init; }
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; } = string.Empty;
-		public string Level { get; init; } = string.Empty;
+		public bool IsFullAccess { get; init; }
 		public List<TenantProfileUserProfileItemResponse> OtherProfiles { get; init; } = [];
 		public DateTime? JoinedAt { get; init; }
 	}

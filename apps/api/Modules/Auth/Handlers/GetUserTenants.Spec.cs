@@ -236,7 +236,7 @@ public sealed class GetUserTenantsSpec : IClassFixture<ApiFixture> {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var account = UserAccount.CreateTenantAccount(userId, tenantId, AccountLevel.User);
+		var account = UserAccount.CreateTenantAccount(userId, tenantId);
 		account.ValidateAccountType();
 		account.Status = status;
 		await db.UserAccount.AddAsync(account);

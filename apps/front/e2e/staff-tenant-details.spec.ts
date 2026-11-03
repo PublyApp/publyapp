@@ -118,7 +118,6 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/users`)
 		) {
-			const levelParam = new URL(url).searchParams.get('level');
 			const users = [
 				{
 					id: '0197b8f0-4444-7ccc-8ccc-dddddddddddd',
@@ -128,7 +127,8 @@ const mockTenantDetails = async (page: Page) => {
 					lastName: 'Lee',
 					avatarUrl: null,
 					status: 'Active',
-					level: 'Admin',
+					isFullAccess: true,
+					roles: ['Owner'],
 				},
 				{
 					id: '0197b8f0-4444-7ccc-8ccc-eeeeeeeeeeee',
@@ -138,21 +138,16 @@ const mockTenantDetails = async (page: Page) => {
 					lastName: 'Reyes',
 					avatarUrl: null,
 					status: 'Active',
-					level: 'User',
+					isFullAccess: false,
+					roles: ['Approvers'],
 				},
 			];
-			const filtered =
-				levelParam === null
-					? users
-					: users.filter(
-							(user) => user.level.toLowerCase() === levelParam.toLowerCase(),
-						);
 
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					data: filtered,
+					data: users,
 					nextCursor: null,
 				}),
 			});
@@ -204,18 +199,15 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/invitations`)
 		) {
-			const levelParam = new URL(url).searchParams.get('level');
-			const selectedLevels = new Set(
-				levelParam?.split(',').map((level) => level.toLowerCase()) ?? [],
-			);
 			const invitations = [
 				{
 					id: PENDING_INVITATION_ID,
 					email: 'sam@example.com',
 					status: 'Pending',
-					accountLevel: 'Admin',
 					profileName: 'Approvers',
-					profiles: [],
+					profiles: [
+						{ id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee', name: 'Approvers' },
+					],
 					invitedByName: 'Taylor Smith',
 					createdAt: '2026-07-01T09:00:00Z',
 					expiresAt: '2026-07-07T09:00:00Z',
@@ -225,7 +217,6 @@ const mockTenantDetails = async (page: Page) => {
 					id: '0197b8f0-6666-7ccc-8ccc-eeeeeeeeeeee',
 					email: 'user@example.com',
 					status: 'Pending',
-					accountLevel: 'User',
 					profileName: null,
 					profiles: [],
 					invitedByName: 'Taylor Smith',
@@ -234,18 +225,12 @@ const mockTenantDetails = async (page: Page) => {
 					acceptedAt: null,
 				},
 			];
-			const filteredInvitations =
-				selectedLevels.size === 0
-					? invitations
-					: invitations.filter((invitation) =>
-							selectedLevels.has(invitation.accountLevel.toLowerCase()),
-						);
 
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					data: filteredInvitations,
+					data: invitations,
 					nextCursor: null,
 				}),
 			});
@@ -311,7 +296,7 @@ test.describe(
 				name: 'Organization sections',
 			});
 			await expect(nav.getByText('Basics')).toBeVisible();
-			await expect(nav.getByRole('link', { name: 'Profiles' })).toBeVisible();
+			await expect(nav.getByRole('link', { name: 'Roles' })).toBeVisible();
 			await expect(
 				nav.getByRole('link', { name: 'Invitations' }),
 			).toBeVisible();
@@ -352,7 +337,7 @@ test.describe(
 			await page.getByRole('link', { name: 'See all' }).click();
 
 			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
-			await expect(page).toHaveURL(/level=admin/);
+			await expect(page).toHaveURL(/role=full_access/);
 		});
 
 		test('the Organization card shows Legal name, Slug, Tenant ID, Status, Created, Updated, and Last active rows', async ({
@@ -408,9 +393,9 @@ test.describe(
 			).toBeVisible();
 
 			// Honest tab-title count from the tenant-details query (BE-1/BE-2).
-			await expect(
-				page.getByRole('heading', { name: /Profiles/ }),
-			).toContainText('6');
+			await expect(page.getByRole('heading', { name: /Roles/ })).toContainText(
+				'6',
+			);
 			// Honest per-card "N members · N permissions" (BE-2 permissionsCount).
 			await expect(page.getByText('7 members · 3 permissions')).toBeVisible();
 		});
@@ -465,7 +450,7 @@ test.describe(
 			// #8 — "New profile" is primary (--publy-primary, #fdc700), not outline,
 			// per the owner's cross-app consistency ruling (docs/guides/front/conventions.md).
 			const newProfileButton = page.getByRole('button', {
-				name: 'New profile',
+				name: 'New role',
 			});
 			await expect(newProfileButton).toBeVisible();
 			await expect(newProfileButton).toHaveCSS(
@@ -530,7 +515,7 @@ test.describe(
 			await expect(deleteItem).toHaveAttribute('aria-disabled', 'true');
 			await expect(deleteItem).toHaveAttribute(
 				'title',
-				"Default profiles can't be deleted.",
+				"Default roles can't be deleted.",
 			);
 		});
 
@@ -562,53 +547,6 @@ test.describe(
 			await expect(
 				page.getByRole('heading', { name: /Invitations/ }),
 			).toContainText('4 pending');
-		});
-
-		test('Invitations account-level filter supports Admin-only, User-only, both, and reset', async ({
-			page,
-		}) => {
-			await loginAsStaffAdmin(page);
-			await mockTenantDetails(page);
-
-			await page.goto(`/staff/tenants/${TENANT_ID}/invitations?level=admin`);
-			await expect(
-				page.getByTestId('staff-tenant-invitations-page'),
-			).toBeVisible();
-			await expect(page.getByText('sam@example.com')).toBeVisible();
-			await expect(page.getByText('user@example.com')).not.toBeVisible();
-
-			const trigger = page.getByTestId(
-				'staff-tenant-invitations-level-filter-trigger',
-			);
-			await expect(trigger).toContainText('Admin');
-			await trigger.click();
-			await page
-				.getByTestId('staff-tenant-invitations-level-filter-user')
-				.click();
-
-			await expect(page).toHaveURL(/[?&]level=admin%2Cuser(?:&|$)/);
-			await expect(trigger).toContainText('Admin, User');
-			await expect(page.getByText('sam@example.com')).toBeVisible();
-			await expect(page.getByText('user@example.com')).toBeVisible();
-
-			// User-only: deselect Admin so User is the single selected level. Without
-			// this step the title's "User" claim was only ever exercised as part of
-			// the both-levels selection (round-2 finding 5).
-			await page
-				.getByTestId('staff-tenant-invitations-level-filter-admin')
-				.click();
-
-			await expect(page).toHaveURL(/[?&]level=user(?:&|$)/);
-			await expect(trigger).toContainText('User');
-			await expect(trigger).not.toContainText('Admin');
-			await expect(page.getByText('user@example.com')).toBeVisible();
-			await expect(page.getByText('sam@example.com')).not.toBeVisible();
-
-			await page
-				.getByTestId('staff-tenant-invitations-level-filter-all')
-				.click();
-			await expect(page).not.toHaveURL(/[?&]level=/);
-			await expect(trigger).toContainText('All account levels');
 		});
 
 		test('revoking a pending invitation shows one global success toast without inline status feedback', async ({
@@ -667,31 +605,31 @@ test.describe(
 			await expect(page.getByLabel('Select all rows')).toBeVisible();
 		});
 
-		test('Users tab level filter offers an "All levels" entry that clears the filter and closes the menu', async ({
+		test('Users tab role filter offers an "All roles" entry that clears the filter and closes the menu', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/users?level=admin`);
+			await page.goto(`/staff/tenants/${TENANT_ID}/users?role=full_access`);
 			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
-			await expect(page).toHaveURL(/[?&]level=admin(?:&|$)/);
+			await expect(page).toHaveURL(/[?&]role=full_access(?:&|$)/);
 			await expect(page.getByText('Jamie Lee')).toBeVisible();
 			await expect(page.getByText('Morgan Reyes')).not.toBeVisible();
 
 			const trigger = page.getByTestId(
-				'staff-tenant-users-level-filter-trigger',
+				'staff-tenant-users-role-filter-trigger',
 			);
 			await trigger.click();
-			const allLevelsItem = page.getByTestId(
-				'staff-tenant-users-level-filter-all',
+			const allRolesItem = page.getByTestId(
+				'staff-tenant-users-role-filter-all',
 			);
-			await expect(allLevelsItem).toBeVisible();
-			await allLevelsItem.click();
+			await expect(allRolesItem).toBeVisible();
+			await allRolesItem.click();
 
 			// Exclusive choice — the menu closes on selection.
-			await expect(allLevelsItem).not.toBeVisible();
-			await expect(page).not.toHaveURL(/[?&]level=/);
+			await expect(allRolesItem).not.toBeVisible();
+			await expect(page).not.toHaveURL(/[?&]role=/);
 			await expect(page.getByText('Jamie Lee')).toBeVisible();
 			await expect(page.getByText('Morgan Reyes')).toBeVisible();
 		});
@@ -735,7 +673,7 @@ test.describe(
 			await expect(page.getByText('1 selected')).toBeVisible();
 			await expectFloatingSelectionBarAtViewportBottom(page);
 
-			// The toolbar's level/status filters stay visible during selection —
+			// The toolbar's role/status filters stay visible during selection —
 			// no more swapping them out for the bulk-action controls.
 			await expect(
 				page.getByTestId('staff-tenant-users-table-toolbar'),
@@ -774,7 +712,7 @@ test.describe(
 					await route.fulfill({
 						status: 200,
 						contentType: 'text/csv',
-						body: 'Email,FirstName,LastName,Level,Status,CreatedAt\njamie@example.com,Jamie,Lee,Admin,Active,2026-07-01T09:00:00Z\n',
+						body: 'Email,FirstName,LastName,Roles,Status,CreatedAt\njamie@example.com,Jamie,Lee,Owner,Active,2026-07-01T09:00:00Z\n',
 					});
 				},
 			);
@@ -835,7 +773,7 @@ test.describe(
 		// surfaces — checkbox column, floating selection bar with a live
 		// count, and an export action scoped to the selected rows. The mock
 		// fixture seeds two pending invitations (sam@example.com admin,
-		// user@example.com user-level).
+		// user@example.com with no profile).
 		test('selecting one invitation reveals the selection bar with count and export; clearing hides it', async ({
 			page,
 		}) => {
@@ -857,7 +795,7 @@ test.describe(
 			await expect(bar).toContainText('1 selected');
 			await expectFloatingSelectionBarAtViewportBottom(page);
 
-			// The toolbar's level/status filters stay visible during selection.
+			// The toolbar's status filter stays visible during selection.
 			await expect(
 				page.getByTestId('staff-tenant-invitations-table-toolbar'),
 			).toBeVisible();
@@ -882,18 +820,14 @@ test.describe(
 			const bar = page.getByTestId('floating-selection-bar');
 			await expect(bar).toContainText('2 selected');
 
-			const levelTrigger = page.getByTestId(
-				'staff-tenant-invitations-level-filter-trigger',
-			);
 			const statusTrigger = page.getByTestId(
 				'staff-tenant-invitations-status-filter-trigger',
 			);
-			await expect(levelTrigger).toBeDisabled();
 			await expect(statusTrigger).toBeDisabled();
 
 			await bar.getByRole('button', { name: 'Clear selection' }).click();
 			await expect(bar).toBeHidden();
-			await expect(levelTrigger).toBeEnabled();
+			await expect(statusTrigger).toBeEnabled();
 		});
 
 		test('Export selected downloads only the selected invitation row', async ({
@@ -1329,7 +1263,7 @@ test.describe(
 				page.getByTestId('staff-tenant-profiles-page'),
 			).toBeVisible();
 
-			await page.getByRole('button', { name: 'New profile' }).click();
+			await page.getByRole('button', { name: 'New role' }).click();
 			const drawer = page.getByTestId('profile-form-drawer');
 			await expect(drawer).toBeVisible();
 
@@ -1347,7 +1281,7 @@ test.describe(
 			await mockPermissionCatalog(page);
 
 			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
-			await page.getByRole('button', { name: 'New profile' }).click();
+			await page.getByRole('button', { name: 'New role' }).click();
 
 			const drawer = page.getByTestId('profile-form-drawer');
 			const pickerTrigger = drawer.getByRole('button', {

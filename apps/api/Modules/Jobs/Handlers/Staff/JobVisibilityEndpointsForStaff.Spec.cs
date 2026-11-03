@@ -478,7 +478,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		_ = await dbContext.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId, AccountLevel.User);
+		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();

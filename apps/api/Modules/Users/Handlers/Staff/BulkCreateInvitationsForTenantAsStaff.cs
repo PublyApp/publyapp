@@ -11,8 +11,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 
@@ -20,7 +20,6 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public record BulkCreateInvitationsForTenantAsStaffItem {
 	public required string Email { get; init; }
-	public required string AccountLevel { get; init; }
 	public JsonElement ProfileIds { get; init; }
 
 	public List<Guid> GetProfileIds() {
@@ -48,14 +47,12 @@ public record BulkCreateTenantInvitationsForTenantAsStaffBody {
 
 		foreach (var invitationItem in this.Invitations.EnumerateArray()) {
 			var emailElement = invitationItem.GetProperty("email");
-			var accountLevelElement = invitationItem.GetProperty("accountLevel");
 			var profileIdsElement = invitationItem.TryGetProperty("profileIds", out var profileIdsProperty)
 				? profileIdsProperty
 				: new JsonElement();
 
 			invitations.Add(new BulkCreateInvitationsForTenantAsStaffItem {
 				Email = emailElement.GetString() ?? string.Empty,
-				AccountLevel = accountLevelElement.GetString() ?? string.Empty,
 				ProfileIds = profileIdsElement,
 			});
 		}
@@ -141,32 +138,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 						);
 					}
 
-					if (!item.TryGetProperty("accountLevel", out var accountLevelElement)) {
-						context.AddFailure(
-							$"invitations[{index}].accountLevel",
-							"AccountLevel is required"
-						);
-					} else if (accountLevelElement.ValueKind != JsonValueKind.String) {
-						context.AddFailure(
-							$"invitations[{index}].accountLevel",
-							"AccountLevel must be a string"
-						);
-					} else if (!string.IsNullOrWhiteSpace(accountLevelElement.GetString())) {
-						var parsed = PublyApp.Api.Modules.Users.Entities.UserAccount.ParseLevel(
-							accountLevelElement.GetString() ?? string.Empty
-						);
-						if (parsed is null) {
-							context.AddFailure(
-								$"invitations[{index}].accountLevel",
-								"AccountLevel is invalid"
-							);
-						}
-					} else {
-						context.AddFailure(
-							$"invitations[{index}].accountLevel",
-							"AccountLevel is required"
-						);
-					}
+
 
 					if (!item.TryGetProperty("profileIds", out var profileIdsElement)) {
 						continue;
@@ -222,11 +194,13 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 public sealed class BulkCreateInvitationsForTenantAsStaff {
 	public static async Task<Results<
 		Ok<BulkCreateTenantInvitationsForTenantAsStaffCreated>,
-		AppBadRequestHttpResult
+		AppBadRequestHttpResult,
+		AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] BulkCreateTenantInvitationsForTenantAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] ITenantService tenantService,
@@ -281,6 +255,18 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			tenantIdGuid,
 			cancellationToken
 		);
+		var actor = authContext.GetRequiredStaffAccount();
+		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+			actor.UserId,
+			allProfileIds,
+			cancellationToken
+		)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can assign the full-access role",
+				ResponseKeys.Forbidden
+			);
+		}
+
 		var validProfileIds = allProfileIds.Count > 0
 			? await invitationService.ValidateTenantProfilesAsync(
 				tenantIdGuid,
@@ -292,11 +278,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 		var validProfileIdSet = validProfileIds.ToHashSet();
 		var existingInvitationEmailSet = existingInvitationEmails.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-		var succeededInvitations = new List<(
-			Guid InvitationId,
-			string Email,
-			string AccountLevel
-		)>();
+		var succeededInvitations = new List<(Guid InvitationId, string Email)>();
 		for (var i = 0; i < invitations.Count; i++) {
 			var invitation = invitations[i];
 			var email = invitation.Email;
@@ -305,10 +287,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				.Distinct()
 				.Where(profileId => !validProfileIdSet.Contains(profileId))
 				.ToList();
-			var parsedAccountLevel = UserAccount.ParseLevel(
-				invitation.AccountLevel
-			);
-
 			if (!seenEmails.Add(email)) {
 				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
 					i,
@@ -325,16 +303,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					email,
 					$"One or more profileIds are invalid for tenant {tenantIdGuid}",
 					ResponseKeys.NotFound.Value
-				));
-				continue;
-			}
-
-			if (parsedAccountLevel is null) {
-				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
-					i,
-					email,
-					"Invalid account level",
-					ResponseKeys.BadRequest.Value
 				));
 				continue;
 			}
@@ -386,7 +354,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					TenantId: tenantIdGuid,
 					TenantName: tenant.Name,
 					ProfileIds: profileIds,
-					AccountLevel: parsedAccountLevel.Value,
 					InvitedByUserId: account.UserId
 				);
 
@@ -415,8 +382,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				succeededInvitationIds.Add(createdInvitation.GetRequiredId());
 				succeededInvitations.Add((
 					createdInvitation.GetRequiredId(),
-					email,
-					invitation.AccountLevel
+					email
 				));
 			} catch (Exception ex) {
 				logger.LogWarning(
@@ -445,7 +411,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 							Details: new {
 								invitation.Email,
 								TenantId = tenantIdGuid,
-								invitation.AccountLevel,
+								ProfileIds = invitations.First(x => x.Email == invitation.Email).GetProfileIds(),
 								Scope = "Tenant"
 							}
 						))

@@ -21,7 +21,6 @@ type IdentityUpdateInput = {
 	firstName?: string | null;
 	lastName?: string | null;
 	avatarUrl?: string | null;
-	accountLevel?: StaffUserEditValues['accountLevel'];
 };
 
 // RHF 7.85 marks array-valued dirty flags as (boolean | undefined)[] (7.54 used
@@ -47,9 +46,6 @@ const buildIdentityUpdateInput = (
 	if (dirtyFields.avatarUrl) {
 		input.avatarUrl = values.avatarUrl.trim() || null;
 	}
-	if (dirtyFields.accountLevel) {
-		input.accountLevel = values.accountLevel;
-	}
 	return input;
 };
 
@@ -58,12 +54,7 @@ const commitIdentityFields = (
 	values: StaffUserEditValues,
 	dirtyFields: DirtyFields,
 ): void => {
-	for (const field of [
-		'firstName',
-		'lastName',
-		'avatarUrl',
-		'accountLevel',
-	] as const) {
+	for (const field of ['firstName', 'lastName', 'avatarUrl'] as const) {
 		if (dirtyFields[field]) {
 			methods.resetField(field, { defaultValue: values[field] });
 		}

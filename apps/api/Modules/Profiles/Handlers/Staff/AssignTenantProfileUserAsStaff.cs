@@ -13,13 +13,15 @@ public sealed class AssignTenantProfileUserAsStaff {
 		NoContent,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult,
-		AppValidationProblemHttpResult
+		AppValidationProblemHttpResult,
+		AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
 		[FromRoute(Name = "user_account_id")] string userAccountId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] ITenantProfileAsStaffService tenantProfileService,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
@@ -44,6 +46,17 @@ public sealed class AssignTenantProfileUserAsStaff {
 		}
 
 		var account = authContext.GetRequiredStaffAccount();
+
+		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+			account.UserId,
+			[profileIdGuid],
+			cancellationToken
+		)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can assign the full-access role",
+				ResponseKeys.Forbidden
+			);
+		}
 
 		var result = await tenantProfileService.SetTenantProfileUserAsync(
 			new SetTenantProfileUserArgs(

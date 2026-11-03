@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	parseTenantUserLevelFilter,
+	parseTenantUserRoleFilter,
 	parseTenantUsersListSearchParams,
 	parseTenantUserStatusFilter,
-	serializeTenantUserLevelFilter,
+	serializeTenantUserRoleFilter,
 	serializeTenantUsersListSearchParams,
 	serializeTenantUserStatusFilter,
 } from './_users-search-params';
@@ -23,16 +23,16 @@ describe('parseTenantUserStatusFilter', () => {
 	});
 });
 
-describe('parseTenantUserLevelFilter', () => {
-	it('keeps only known levels in input order', () => {
-		expect(parseTenantUserLevelFilter('user,ADMIN,owner')).toEqual([
-			'user',
-			'admin',
+describe('parseTenantUserRoleFilter', () => {
+	it('keeps only known roles in input order', () => {
+		expect(parseTenantUserRoleFilter('standard,FULL_ACCESS,owner')).toEqual([
+			'standard',
+			'full_access',
 		]);
 	});
 
 	it('returns an empty list when nothing is recognised', () => {
-		expect(parseTenantUserLevelFilter('owner,guest')).toEqual([]);
+		expect(parseTenantUserRoleFilter('owner,guest')).toEqual([]);
 	});
 });
 
@@ -42,30 +42,30 @@ describe('filter serializers', () => {
 			'active,suspended',
 		);
 		expect(serializeTenantUserStatusFilter([])).toBeUndefined();
-		expect(serializeTenantUserLevelFilter(['admin'])).toBe('admin');
-		expect(serializeTenantUserLevelFilter([])).toBeUndefined();
+		expect(serializeTenantUserRoleFilter(['full_access'])).toBe('full_access');
+		expect(serializeTenantUserRoleFilter([])).toBeUndefined();
 	});
 });
 
 describe('parseTenantUsersListSearchParams', () => {
-	it('normalizes status and level filters', () => {
+	it('normalizes status and role filters', () => {
 		const parsed = parseTenantUsersListSearchParams({
 			status: 'SUSPENDED,bogus',
-			level: 'admin,admin',
+			role: 'full_access,full_access',
 		});
 
 		expect(parsed.status).toBe('suspended');
-		expect(parsed.level).toBe('admin');
+		expect(parsed.role).toBe('full_access');
 	});
 
 	it('drops unknown filter values entirely', () => {
 		const parsed = parseTenantUsersListSearchParams({
 			status: 'bogus',
-			level: 'owner',
+			role: 'owner',
 		});
 
 		expect(parsed.status).toBeUndefined();
-		expect(parsed.level).toBeUndefined();
+		expect(parsed.role).toBeUndefined();
 	});
 });
 
@@ -74,21 +74,21 @@ describe('serializeTenantUsersListSearchParams', () => {
 		const serialized = serializeTenantUsersListSearchParams(
 			parseTenantUsersListSearchParams({
 				status: 'active,SUSPENDED',
-				level: 'user',
+				role: 'standard',
 			}),
 		);
 
 		expect(serialized.status).toBe('active,suspended');
-		expect(serialized.level).toBe('user');
+		expect(serialized.role).toBe('standard');
 	});
 
 	it('omits empty filters', () => {
 		const serialized = serializeTenantUsersListSearchParams({
 			status: '',
-			level: undefined,
+			role: undefined,
 		});
 
 		expect(serialized.status).toBeUndefined();
-		expect(serialized.level).toBeUndefined();
+		expect(serialized.role).toBeUndefined();
 	});
 });

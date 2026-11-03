@@ -430,7 +430,7 @@ export const createTenantAccountFixture = async (
 					name: `#1611 deleted picker ${randomUUID()}`,
 					maxUsers: 2,
 					seedDefaultProfile: false,
-					initialUsers: [{ email, accountLevel: 'Admin' }],
+					initialUsers: [{ email, role: 'owner' }],
 				},
 			},
 		);

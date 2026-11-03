@@ -3,6 +3,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -46,8 +47,12 @@ internal static class TenantUserMembershipOperations {
 				cancellationToken
 			);
 
-			// Check if this user is the last admin
-			if (userAccount.Level == AccountLevel.Admin) {
+			// Check if this user is the last full-access role holder
+			if (await FullAccessRoleQueries.IsFullAccessAccountAsync(
+				dbContext,
+				userAccount.GetRequiredId(),
+				cancellationToken
+			)) {
 				var isRemovingActiveAdmin = await TenantUserMembershipOperations.IsActiveTenantAdminAsync(
 					dbContext,
 					tenantId,
@@ -159,7 +164,11 @@ internal static class TenantUserMembershipOperations {
 
 				var account = row.Account;
 				var user = row.User;
-				var isActiveAdmin = account.Level == AccountLevel.Admin
+				var isActiveAdmin = await FullAccessRoleQueries.IsFullAccessAccountAsync(
+						dbContext,
+						account.GetRequiredId(),
+						cancellationToken
+					)
 					&& account.Status != AccountStatus.Suspended
 					&& !user.IsDeleted
 					&& user.Status != UserStatus.Suspended;
@@ -323,11 +332,12 @@ internal static class TenantUserMembershipOperations {
 				);
 			}
 
-			updatedUserData = new TenantUserData {
-				User = updatedAccount.User,
-				Account = updatedAccount.Account,
-				AccountLevel = updatedAccount.Account.Level
-			};
+			updatedUserData = await TenantUserMembershipOperations._BuildTenantUserDataAsync(
+				dbContext,
+				updatedAccount.User,
+				updatedAccount.Account,
+				cancellationToken
+			);
 
 			await transaction.CommitAsync(cancellationToken);
 		} catch {
@@ -404,11 +414,12 @@ internal static class TenantUserMembershipOperations {
 		}
 
 		return new ReactivateTenantUserResult.Success(
-			new TenantUserData {
-				User = updatedAccount.User,
-				Account = updatedAccount.Account,
-				AccountLevel = updatedAccount.Account.Level
-			}
+			await TenantUserMembershipOperations._BuildTenantUserDataAsync(
+				dbContext,
+				updatedAccount.User,
+				updatedAccount.Account,
+				cancellationToken
+			)
 		);
 	}
 
@@ -469,19 +480,31 @@ internal static class TenantUserMembershipOperations {
 		AppDbContext dbContext,
 		Guid tenantId
 	) {
+		// "Admin" is now exactly "holds the tenant's full-access system profile".
 		// A globally suspended User cannot satisfy tenant last-admin protection,
 		// even when the tenant membership row itself is still active.
-		return
-			from ua in dbContext.UserAccount
-			join u in dbContext.User on ua.UserId equals u.Id
-			where ua.TenantId == tenantId
-				&& ua.Scope == AccountScope.Tenant
-				&& ua.Level == AccountLevel.Admin
-				&& ua.Status != AccountStatus.Suspended
-				&& !ua.IsDeleted
-				&& !u.IsDeleted
-				&& u.Status != UserStatus.Suspended
-			select ua;
+		return FullAccessRoleQueries.ActiveTenantFullAccessAccounts(dbContext, tenantId);
+	}
+
+	private static async Task<TenantUserData> _BuildTenantUserDataAsync(
+		AppDbContext dbContext,
+		User user,
+		UserAccount account,
+		CancellationToken cancellationToken
+	) {
+		return new TenantUserData {
+			User = user,
+			Account = account,
+			IsFullAccess = await FullAccessRoleQueries.IsFullAccessAccountAsync(
+				dbContext, account.GetRequiredId(), cancellationToken),
+			Roles = await (
+				from uap in dbContext.UserAccountProfile
+				join p in dbContext.Profile on uap.ProfileId equals p.Id
+				where uap.UserAccountId == account.GetRequiredId() && !p.IsDeleted
+				orderby p.Name
+				select p.Name
+			).ToListAsync(cancellationToken)
+		};
 	}
 
 	private static async Task<int> _CountActiveTenantAdminsAsync(

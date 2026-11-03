@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data;
-using PublyApp.Api.Modules.Users.Entities;
 
 using ProjectEntity = PublyApp.Api.Modules.Projects.Entities.Project;
 using TenantEntity = PublyApp.Api.Modules.Tenants.Entities.Tenant;
@@ -60,9 +59,6 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 		get { return RequiredNavigation.Get(this._InvitedByUser, nameof(Invitation), nameof(this.InvitedByUser)); }
 		set { this._InvitedByUser = value; }
 	}
-
-	[Column("account_level")]
-	public AccountLevel? AccountLevel { get; set; }
 
 	// Multiple profiles via junction table
 	[JsonIgnore]

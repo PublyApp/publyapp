@@ -101,7 +101,10 @@ public class PublishingProfileSeeder : IEntitySeeder {
 				.Where(ua => ua.TenantId == tenantId
 					&& !ua.IsDeleted
 					&& ua.Scope == AccountScope.Tenant
-					&& ua.Level == AccountLevel.User)
+					&& !dbContext.UserAccountProfile.Any(uap =>
+						uap.UserAccountId == ua.Id
+						&& !uap.Profile.IsDeleted
+						&& uap.Profile.IsFullAccess))
 				.ToDictionaryAsync(ua => ua.GetRequiredId(), ua => ua.UserId, cancellationToken);
 			if (nonAdminAccounts.Count == 0) {
 				continue;

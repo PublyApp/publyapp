@@ -208,7 +208,8 @@ const StaffTenantUserDetailsPage = () => {
 
 									<TenantUserInfoCard
 										userEmail={user.email}
-										userAccountLevel={user.accountLevel}
+										userIsFullAccess={user.isFullAccess}
+										userRoles={user.roles}
 										userStatus={user.status}
 										userId={user.id}
 										tenantId={tenantId}

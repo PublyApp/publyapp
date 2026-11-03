@@ -82,7 +82,7 @@ public sealed record TenantProfileUserListItem(
 	string? AvatarUrl,
 	UserStatus UserStatus,
 	AccountStatus AccountStatus,
-	AccountLevel Level,
+	bool IsFullAccess,
 	DateTime JoinedAt,
 	List<TenantProfileUserProfileListItem> OtherProfiles
 );
@@ -492,7 +492,10 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				u.AvatarUrl,
 				UserStatus = u.Status,
 				AccountStatus = ua.Status,
-				ua.Level,
+				IsFullAccess = this._DbContext.UserAccountProfile
+					.Any(other => other.UserAccountId == ua.Id
+						&& !other.Profile.IsDeleted
+						&& other.Profile.IsFullAccess),
 				// Use the junction CreatedAt as "assigned at" for default sorting.
 				AssignedAt = uap.CreatedAt,
 			};
@@ -539,13 +542,10 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 			query = isAsc
 				? query.OrderBy(x => x.UserStatus).ThenBy(x => x.UserAccountId)
 				: query.OrderByDescending(x => x.UserStatus).ThenByDescending(x => x.UserAccountId);
-		} else if (string.Equals(effectiveSortId, "level", StringComparison.OrdinalIgnoreCase)) {
-			// AccountLevel is a small, explicitly-ordered enum (Admin=50 > User=10), so ordering by
-			// its underlying numeric value is well-defined — unlike a free-text field, there is no
-			// ambiguity about what "sorted by level" means.
+		} else if (string.Equals(effectiveSortId, "is_full_access", StringComparison.OrdinalIgnoreCase)) {
 			query = isAsc
-				? query.OrderBy(x => x.Level).ThenBy(x => x.UserAccountId)
-				: query.OrderByDescending(x => x.Level).ThenByDescending(x => x.UserAccountId);
+				? query.OrderBy(x => x.IsFullAccess).ThenBy(x => x.UserAccountId)
+				: query.OrderByDescending(x => x.IsFullAccess).ThenByDescending(x => x.UserAccountId);
 		} else {
 			return new FindTenantProfileUsersResult.InvalidSortId(effectiveSortId);
 		}
@@ -565,7 +565,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				x.AvatarUrl,
 				x.UserStatus,
 				x.AccountStatus,
-				x.Level,
+				x.IsFullAccess,
 				JoinedAt = x.AssignedAt,
 			})
 			.ToListAsync(cancellationToken);
@@ -617,7 +617,7 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 				member.AvatarUrl,
 				member.UserStatus,
 				member.AccountStatus,
-				member.Level,
+				member.IsFullAccess,
 				member.JoinedAt,
 				otherProfilesByUserAccountId.GetValueOrDefault(
 					member.UserAccountId,

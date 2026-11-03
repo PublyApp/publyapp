@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
@@ -69,6 +70,7 @@ public sealed class CreateStaffInvitation {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.GetRequiredStaffAccount();
@@ -76,6 +78,17 @@ public sealed class CreateStaffInvitation {
 		// Extract values after validation
 		var email = body.Email.GetValueAsString();
 		var profileId = Guid.Parse(body.ProfileId.GetValueAsString());
+
+		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+			account.UserId,
+			[profileId],
+			cancellationToken
+		)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can assign the full-access role",
+				ResponseKeys.Forbidden
+			);
+		}
 
 		// Validate profile via service
 		var profile = await invitationService.GetStaffProfileAsync(

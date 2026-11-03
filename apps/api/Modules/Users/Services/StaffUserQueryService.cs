@@ -10,7 +10,8 @@ namespace PublyApp.Api.Modules.Users.Services;
 
 public class StaffUserData {
 	public required User User { get; set; }
-	public required AccountLevel AccountLevel { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 }
 
 public abstract record FindStaffUsersResult {
@@ -72,7 +73,17 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				&& !ua.User.IsDeleted
 			select new StaffUserData {
 				User = ua.User,
-				AccountLevel = ua.Level
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList()
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 	}
@@ -163,13 +174,16 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		idSelector: ua => ua.UserId,
 		cancellationToken
 	),
-			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
+			["is_full_access"] = CursorSortFieldHandlerFactory.Create<UserAccount, bool, Guid>(
 		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted),
-		keySelector: ua => ua.Level,
+		keySelector: ua => this._DbContext.UserAccountProfile.Any(uap =>
+			uap.UserAccountId == ua.Id
+			&& !uap.Profile.IsDeleted
+			&& uap.Profile.IsFullAccess),
 		idSelector: ua => ua.UserId,
 		cancellationToken
 	),
@@ -233,7 +247,17 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			from ua in orderedQuery
 			select new StaffUserData {
 				User = ua.User,
-				AccountLevel = ua.Level
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList()
 			}
 		)
 			.Take(effectiveLimit + 1)

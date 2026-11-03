@@ -40,7 +40,7 @@ public record FindTenantUserCompaniesForStaffFilters(
 public class TenantUserCompanyData {
 	public required UserAccount Account { get; set; }
 	public required Tenant Tenant { get; set; }
-	public required AccountLevel AccountLevel { get; set; }
+	public bool IsFullAccess { get; set; }
 	public required UserStatus UserStatus { get; set; }
 }
 
@@ -145,7 +145,7 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 		idSelector: ua => ua.Id,
 		cancellationToken
 	),
-		["level"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, AccountLevel, Guid>(
+		["is_full_access"] = CursorSortFieldHandlerFactory.Create<TenantUserCompanyQueryRow, bool, Guid>(
 		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Join(this._DbContext.Tenant.AsNoTracking(), ua => ua.TenantId, t => t.Id, (ua, t) => new TenantUserCompanyQueryRow {
@@ -160,7 +160,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 				&& !ua.Account.IsDeleted
 				&& !ua.User.IsDeleted
 				&& !ua.Tenant.IsDeleted),
-		keySelector: ua => ua.Account.Level,
+		keySelector: ua => this._DbContext.UserAccountProfile.Any(uap =>
+			uap.UserAccountId == ua.Account.Id
+			&& !uap.Profile.IsDeleted
+			&& uap.Profile.IsFullAccess),
 		idSelector: ua => ua.Id,
 		cancellationToken
 	),
@@ -297,7 +300,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 				Data = results.Select(row => new TenantUserCompanyData {
 					Account = row.Account,
 					Tenant = row.Tenant,
-					AccountLevel = row.Account.Level,
+					IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+						uap.UserAccountId == row.Account.Id
+						&& !uap.Profile.IsDeleted
+						&& uap.Profile.IsFullAccess),
 					UserStatus = row.User.Status,
 				}).ToList(),
 				NextCursor = nextCursor,

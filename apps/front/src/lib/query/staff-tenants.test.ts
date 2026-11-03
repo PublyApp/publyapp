@@ -103,11 +103,11 @@ describe('buildCreateStaffTenantBody', () => {
 			initialUsers: [
 				{
 					email: ' user1@example.com ',
-					accountLevel: ' User ',
+					role: 'member',
 				},
 				{
 					email: 'user2@example.com',
-					accountLevel: 'Admin',
+					role: 'owner',
 				},
 			],
 		});
@@ -117,11 +117,11 @@ describe('buildCreateStaffTenantBody', () => {
 		expect(unwrapUntyped(body.initialUsers)).toMatchObject([
 			{
 				email: 'user1@example.com',
-				accountLevel: 'User',
+				role: 'member',
 			},
 			{
 				email: 'user2@example.com',
-				accountLevel: 'Admin',
+				role: 'owner',
 			},
 		]);
 	});
@@ -133,15 +133,15 @@ describe('buildCreateStaffTenantBody', () => {
 			initialUsers: [
 				{
 					email: ' ',
-					accountLevel: 'Admin',
+					role: 'owner',
 				},
 				{
 					email: 'user@example.com',
-					accountLevel: 'User',
+					role: 'member',
 				},
 				{
 					email: '   ',
-					accountLevel: '   ',
+					role: 'member',
 				},
 			],
 		});
@@ -150,7 +150,7 @@ describe('buildCreateStaffTenantBody', () => {
 		expect(unwrapUntyped(body.initialUsers)).toMatchObject([
 			{
 				email: 'user@example.com',
-				accountLevel: 'User',
+				role: 'member',
 			},
 		]);
 	});
@@ -161,7 +161,7 @@ describe('buildCreateStaffTenantBody', () => {
 			maxUsers: 5,
 			code: '  acme-corp  ',
 			seedDefaultProfile: false,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 		});
 
 		expect(unwrapUntyped(body.code)).toBe('acme-corp');
@@ -172,7 +172,7 @@ describe('buildCreateStaffTenantBody', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 		});
 
 		expect(body.code).toBeUndefined();
@@ -184,7 +184,7 @@ describe('buildCreateStaffTenantBody', () => {
 			name: 'Acme Tenant',
 			maxUsers: 5,
 			code: '   ',
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 		});
 
 		expect(body.code).toBeUndefined();
@@ -194,7 +194,7 @@ describe('buildCreateStaffTenantBody', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 			legalName: ' Acme Tenant Ltd ',
 			description: ' A social platform ',
 			websiteUrl: ' https://acme.com ',
@@ -219,7 +219,7 @@ describe('buildCreateStaffTenantBody', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 			legalName: '   ',
 		});
 
@@ -237,7 +237,7 @@ describe('buildCreateStaffTenantBody', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 			logoUrl: `${API_BASE_URL}/files/uploads/2026/07/logo.png`,
 		});
 
@@ -248,7 +248,7 @@ describe('buildCreateStaffTenantBody', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 			logoUrl: 'https://cdn.example.com/acme-logo.png',
 		});
 
@@ -365,7 +365,7 @@ describe('createStaffTenantMutationOptions', () => {
 		const result = await createStaffTenantMutationOptions.mutationFn({
 			name: 'Acme Tenant',
 			maxUsers: 5,
-			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
+			initialUsers: [{ email: 'user@example.com', role: 'owner' }],
 		});
 
 		expect(createStaffTenantMutationOptions.mutationKey).toEqual([
@@ -380,7 +380,7 @@ describe('createStaffTenantMutationOptions', () => {
 			initialUsers: [
 				{
 					email: 'user@example.com',
-					accountLevel: 'Admin',
+					role: 'owner',
 				},
 			],
 		});

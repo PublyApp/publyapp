@@ -12,15 +12,19 @@ const mocks = vi.hoisted(() => ({
 		(status: string | null, t: (key: string) => string) =>
 			status ? t(`status-${status.toLowerCase()}`) : t('status-unknown'),
 	),
+	formatTenantUserAccessLabel: vi.fn(
+		(isFullAccess: boolean, t: (key: string) => string) =>
+			isFullAccess ? t('full-access') : t('standard-access'),
+	),
 }));
 
 const labelMap: TestLocaleLabelMap = {
 	en: {
 		name: 'Name',
-		level: 'Level',
+		role: 'Role',
 		status: 'Status',
-		admin: 'Admin',
-		user: 'User',
+		'full-access': 'Full access',
+		'standard-access': 'No full access',
 		unknown: 'Unknown',
 		'status-active': 'Active',
 		'status-suspended': 'Suspended',
@@ -52,6 +56,7 @@ vi.mock('~/components/table/data-table', () => ({
 
 vi.mock('../tenants/$tenantId/_tenant-display', () => ({
 	formatTenantStatusLabel: mocks.formatTenantStatusLabel,
+	formatTenantUserAccessLabel: mocks.formatTenantUserAccessLabel,
 }));
 
 import { buildOrganizationColumns as buildOrganizationColumnsForTests } from './_organizations-columns';
@@ -82,7 +87,7 @@ describe('tenant-user companies columns', () => {
 
 		expect(Object.keys(widthById)).toEqual([
 			'name',
-			'level',
+			'is_full_access',
 			'status',
 			'member-since',
 			'actions',
@@ -103,7 +108,7 @@ describe('tenant-user companies columns', () => {
 				id: 'tenant-1',
 				name: 'Acme Corp',
 				logoUrl: null,
-				level: null,
+				isFullAccess: false,
 				status: null,
 				createdAt: null,
 				updatedAt: null,

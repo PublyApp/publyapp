@@ -47,10 +47,6 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// the PermissionFilter. Ratchet target.
 		"IPermissionService.GetEffectivePermissionsAsync(Guid, Guid?, Guid?)",
 
-		// Three required identifiers/level for account creation; an args record is
-		// the eventual shape but this is a stable, internal seam. Ratchet target.
-		"IAccountService.CreateTenantAccountAsync(Guid, Guid, AccountLevel)",
-
 		// (tenantId, userId, document) tenant-user update; should adopt an
 		// UpdateTenantUserArgs record like its siblings. Ratchet target.
 		"ITenantUserMembershipService.UpdateTenantUserAsync"
@@ -270,7 +266,7 @@ public sealed class ServiceArgsRecordConventionSpec {
 	/// <summary>
 	/// Renders a readable, stable parameter type name for signature keys:
 	/// <c>Nullable&lt;Guid&gt;</c> becomes <c>Guid?</c>; everything else uses
-	/// <see cref="MemberInfo.Name"/> (so <c>Guid</c>, <c>AccountLevel</c>,
+	/// <see cref="MemberInfo.Name"/> (so <c>Guid</c>,
 	/// <c>UpdateTenantUserDocument</c>, …).
 	/// </summary>
 	private static string _RenderTypeName(Type type) {

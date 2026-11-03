@@ -23,13 +23,13 @@ export const slugifyTenantNamePlaceholder = (name: string): string =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 
-export type ImportedMemberRole = 'Admin' | 'User';
+export type ImportedMemberRole = 'owner' | 'member';
 
 export type CsvParsedRow = Record<string, string>;
 
 export type ImportedMember = {
 	email: string;
-	accountLevel: ImportedMemberRole;
+	role: ImportedMemberRole;
 };
 
 export type MemberImportOutcome = {
@@ -139,14 +139,14 @@ export const parseCsv = (text: string): CsvParsedRow[] => {
 	return records;
 };
 
-export const mapImportedRoleToAccountLevel = (
+export const mapImportedRoleToTenantRole = (
 	rawRole: string | undefined | null,
 ): ImportedMemberRole => {
 	const normalized = (rawRole ?? '').trim().toLowerCase();
 	if (normalized === 'admin' || normalized === 'owner') {
-		return 'Admin';
+		return 'owner';
 	}
-	return 'User';
+	return 'member';
 };
 
 /** Dedupes parsed rows against each other and against `existingEmails`
@@ -188,7 +188,7 @@ export const buildMemberImportOutcome = ({
 		seen.add(normalizedEmail);
 		valid.push({
 			email,
-			accountLevel: mapImportedRoleToAccountLevel(row.role),
+			role: mapImportedRoleToTenantRole(row.role),
 		});
 	}
 
@@ -218,7 +218,7 @@ export const mergeInitialUsers = ({
 	const seen = new Set<string>();
 	const merged: ImportedMember[] = [];
 
-	const pushUnique = (email: string, accountLevel: ImportedMemberRole) => {
+	const pushUnique = (email: string, role: ImportedMemberRole) => {
 		const trimmed = email.trim();
 		if (!trimmed) {
 			return;
@@ -230,17 +230,17 @@ export const mergeInitialUsers = ({
 		}
 
 		seen.add(key);
-		merged.push({ email: trimmed, accountLevel });
+		merged.push({ email: trimmed, role });
 	};
 
 	for (const owner of owners) {
-		pushUnique(owner.email, 'Admin');
+		pushUnique(owner.email, 'owner');
 	}
 	for (const member of parsedMembers) {
-		pushUnique(member.email, member.accountLevel);
+		pushUnique(member.email, member.role);
 	}
 	for (const member of manualMembers) {
-		pushUnique(member.email, member.accountLevel);
+		pushUnique(member.email, member.role);
 	}
 
 	return merged;

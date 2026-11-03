@@ -52,9 +52,7 @@ vi.mock('react-i18next', () => ({
 				'invite-tenant-user': 'Invite tenant user',
 				'invite-tenant-users-description': 'Send tenant invitations.',
 				email: 'Email',
-				'account-level': 'Account level',
 				'paste-emails': 'Paste emails',
-				'shared-account-level': 'Shared account level',
 				'shared-profiles': 'Shared profiles',
 				'add-pasted-emails': 'Add pasted emails',
 				'paste-email-addresses': 'Paste email addresses',
@@ -65,7 +63,7 @@ vi.mock('react-i18next', () => ({
 				// hardcoded English string, by matching the real FR bundle value.
 				'email-placeholder': 'nom@entreprise.com',
 				'invite-drop-file': 'Drag a CSV or Excel file here',
-				'invite-file-columns-hint': 'Columns: email, level, profiles',
+				'invite-file-columns-hint': 'Columns: email, roles',
 				'invite-download-template': 'Download template',
 				'invite-file-bar-rows': 'Rows imported: {{count}}',
 				'invite-clear-file': 'Clear file',
@@ -508,7 +506,6 @@ describe('InviteTenantUserDrawer', () => {
 				invitations: [
 					{
 						email: 'new-user@example.com',
-						accountLevel: 'User',
 						profileIds: [],
 					},
 				],
@@ -538,9 +535,6 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Paste emails'), {
 			target: { value: 'alice@example.com, bob@example.com' },
 		});
-		fireEvent.change(screen.getByLabelText('Shared account level'), {
-			target: { value: 'Admin' },
-		});
 		fireEvent.click(
 			screen.getByRole('button', {
 				name: 'Shared profiles sharedProfileIds',
@@ -549,14 +543,11 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Add pasted emails' }));
 
 		expect(screen.getAllByLabelText('Email')).toHaveLength(2);
-		fireEvent.change(screen.getAllByLabelText('Account level')[1]!, {
-			target: { value: 'User' },
-		});
 		fireEvent.change(screen.getAllByLabelText('Email')[1]!, {
 			target: { value: '' },
 		});
 		fireEvent.change(screen.getAllByLabelText('Email')[1]!, {
-			target: { value: 'alice@example.com' },
+			target: { value: 'carol@example.com' },
 		});
 
 		await waitFor(() =>
@@ -573,12 +564,12 @@ describe('InviteTenantUserDrawer', () => {
 				tenantId: 'tenant-1',
 				invitations: expect.arrayContaining([
 					expect.objectContaining({
-						accountLevel: 'User',
+						email: 'alice@example.com',
 						profileIds: ['profile-1'],
 					}),
 					expect.objectContaining({
-						accountLevel: 'Admin',
-						profileIds: [],
+						email: 'carol@example.com',
+						profileIds: ['profile-1'],
 					}),
 				]),
 			}),
@@ -878,9 +869,7 @@ describe('InviteTenantUserDrawer', () => {
 		);
 
 		expect(screen.getByTestId('invite-dropzone')).toBeTruthy();
-		dropFile(
-			'email,level,profiles\nfiona@example.com,admin,\ngeorge@example.com,user,\n',
-		);
+		dropFile('email,profiles\nfiona@example.com,\ngeorge@example.com,\n');
 
 		await waitFor(() =>
 			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
@@ -915,9 +904,7 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		dropFile(
-			'email,level,profiles\nvalid@example.com,admin,\nnot-an-email,user,\n',
-		);
+		dropFile('email,profiles\nvalid@example.com,\nnot-an-email,\n');
 
 		await waitFor(() =>
 			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
@@ -967,7 +954,7 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		dropFile('email,level,profiles\nhelen@example.com,user,Ghost Profile\n');
+		dropFile('email,profiles\nhelen@example.com,Ghost Profile\n');
 
 		await waitFor(() =>
 			expect(mocks.resolveNamesMutation).toHaveBeenCalledWith({
@@ -1000,7 +987,7 @@ describe('InviteTenantUserDrawer', () => {
 				},
 			],
 		});
-		dropFile('email,level,profiles\nhelen@example.com,user,Real Profile\n');
+		dropFile('email,profiles\nhelen@example.com,Real Profile\n');
 
 		await waitFor(() =>
 			expect(mocks.resolveNamesMutation).toHaveBeenCalledTimes(2),
@@ -1041,7 +1028,7 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		dropFile('email,level,profiles\njames@example.com,user,Reviewers\n');
+		dropFile('email,profiles\njames@example.com,Reviewers\n');
 
 		await waitFor(() =>
 			expect(
@@ -1058,45 +1045,11 @@ describe('InviteTenantUserDrawer', () => {
 				invitations: [
 					{
 						email: 'james@example.com',
-						accountLevel: 'User',
 						profileIds: ['22222222-2222-2222-2222-222222222222'],
 					},
 				],
 			}),
 		);
-	});
-
-	test('admin rows show the full-access note instead of a profile picker', async () => {
-		mocks.resolveNamesMutation.mockResolvedValue({
-			names: [{ name: 'Ghost Profile', profileId: null, reason: 'not-found' }],
-		});
-
-		render(
-			<InviteTenantUserDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onInvited={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
-
-		dropFile('email,level,profiles\nkaren@example.com,admin,Ghost Profile\n');
-
-		await waitFor(() =>
-			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
-		);
-		expect(
-			screen.getByText('Admins get full access; profiles do not apply.'),
-		).toBeTruthy();
-		// No unresolved-profile alert for admins even though the name is unknown.
-		expect(screen.queryByText(/No profile named/)).toBeNull();
-		// Send stays available for the valid admin-only batch.
-		expect(
-			screen
-				.getByRole('button', { name: 'Invite people' })
-				.hasAttribute('disabled'),
-		).toBe(false);
 	});
 
 	test('footer counts track the current batch size', async () => {

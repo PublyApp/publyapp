@@ -116,7 +116,7 @@ vi.mock('react-i18next', () => ({
 				'search-staff-users': 'Search staff users',
 				name: 'Name',
 				email: 'Email',
-				level: 'Level',
+				'list-roles': 'Roles',
 				status: 'Status',
 				admin: 'Admin',
 				user: 'User',
@@ -177,7 +177,8 @@ const staffUserPayload = () => ({
 			firstName: 'Alex',
 			lastName: 'User',
 			avatarUrl: null,
-			level: 'Admin',
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: 'Active',
 		},
 		{
@@ -186,7 +187,8 @@ const staffUserPayload = () => ({
 			firstName: 'Blake',
 			lastName: 'Row',
 			avatarUrl: null,
-			level: 'User',
+			isFullAccess: false,
+			roles: [],
 			status: 'Active',
 		},
 	],
@@ -293,7 +295,8 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 							email: string;
 							firstName: string | null;
 							lastName: string | null;
-							level: string | null;
+							isFullAccess: boolean;
+							roles: string[];
 							status: string | null;
 					  }>
 					| null
@@ -305,7 +308,8 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 					firstName: item.firstName,
 					lastName: item.lastName,
 					avatarUrl: null,
-					level: item.level,
+					isFullAccess: item.isFullAccess,
+					roles: item.roles,
 					status: item.status,
 					displayName: `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim(),
 				})),

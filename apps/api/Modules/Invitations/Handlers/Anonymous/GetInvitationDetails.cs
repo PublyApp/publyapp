@@ -3,9 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
@@ -43,15 +41,6 @@ public sealed class GetInvitationDetails {
 
 		if (names.Count > 0) {
 			roleDisplayName = string.Join(", ", names);
-		}
-
-		if (
-			roleDisplayName is null
-			&& invitation.Scope == InvitationScope.Tenant
-		) {
-			roleDisplayName = UserAccount.GetLevelDescription(
-				invitation.AccountLevel ?? AccountLevel.User
-			);
 		}
 
 		if (roleDisplayName is null) {

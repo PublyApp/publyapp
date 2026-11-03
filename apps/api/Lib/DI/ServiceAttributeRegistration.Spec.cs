@@ -58,6 +58,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IVerifyEmailRequestService), typeof(VerifyEmailRequestService)),
 		(typeof(IInvitationService), typeof(InvitationService)),
 		(typeof(IPermissionAsStaffService), typeof(PermissionAsStaffService)),
+		(typeof(IProfileAssignmentGuard), typeof(ProfileAssignmentGuard)),
 		(typeof(IPermissionService), typeof(PermissionService)),
 		(typeof(IPasswordResetService), typeof(PasswordResetService)),
 		(typeof(IStaffProfileAsStaffService), typeof(StaffProfileAsStaffService)),

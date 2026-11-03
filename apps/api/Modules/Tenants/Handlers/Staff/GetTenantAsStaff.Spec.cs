@@ -283,15 +283,16 @@ public sealed class GetTenantAsStaffSpec
 			);
 		}
 
-		// 1 active admin (1 other admin soft-deleted) + 3 active users.
+		// 1 active owner (1 other owner soft-deleted) + 3 active users.
 		result.UsersCount.Should().Be(4);
 		result.OwnersCount.Should().Be(1);
 		// Pending, not-expired invitations: one expiring far out, one expiring within 48h.
 		// Excludes: deleted-pending, accepted, revoked, and expired-but-still-"Pending".
 		result.PendingInvitationsCount.Should().Be(2);
 		result.ExpiringSoonInvitationsCount.Should().Be(1);
-		// 2 active profiles (1 soft-deleted excluded).
-		result.ProfilesCount.Should().Be(2);
+		// 3 active profiles (the tenant's full-access Owner role + 2 fixtures);
+		// 1 soft-deleted excluded.
+		result.ProfilesCount.Should().Be(3);
 	}
 
 	[Fact]
@@ -324,7 +325,7 @@ public sealed class GetTenantAsStaffSpec
 			);
 		}
 
-		// 1 active admin + 1 active user. A second admin and a second user each
+		// 1 active owner + 1 active user. A second owner and a second user each
 		// have their UserAccount row intact (IsDeleted = false) but their owning
 		// User row soft-deleted — neither may count toward users or owners.
 		result.UsersCount.Should().Be(2);
@@ -416,7 +417,7 @@ public sealed class GetTenantAsStaffSpec
 		// audit interceptor treats insert and soft-delete as distinct lifecycle steps), so
 		// "seed already-deleted" fixtures must insert first, then soft-delete as a separate
 		// update — setting IsDeleted=true in the same SaveChanges call as the insert is a no-op.
-		async Task<Guid> AddUserAsync(AccountLevel level, bool isDeleted) {
+		async Task<Guid> AddUserAsync(bool isOwner, bool isDeleted) {
 			var user = new User {
 				Email = $"tenant-get-counts-{Guid.NewGuid():N}@example.com",
 				Password = PasswordUtils.HashPassword(
@@ -431,10 +432,16 @@ public sealed class GetTenantAsStaffSpec
 			await dbContext.SaveChangesAsync();
 
 			var account = UserAccount.CreateTenantAccount(
-				user.GetRequiredId(), tenantId, level
+				user.GetRequiredId(), tenantId
 			);
 			await dbContext.UserAccount.AddAsync(account);
 			await dbContext.SaveChangesAsync();
+
+			if (isOwner) {
+				await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+					dbContext, tenantId, account.GetRequiredId()
+				);
+			}
 
 			if (isDeleted) {
 				account.IsDeleted = true;
@@ -444,11 +451,11 @@ public sealed class GetTenantAsStaffSpec
 			return user.GetRequiredId();
 		}
 
-		var adminUserId = await AddUserAsync(AccountLevel.Admin, isDeleted: false);
-		await AddUserAsync(AccountLevel.Admin, isDeleted: true);
-		await AddUserAsync(AccountLevel.User, isDeleted: false);
-		await AddUserAsync(AccountLevel.User, isDeleted: false);
-		await AddUserAsync(AccountLevel.User, isDeleted: false);
+		var adminUserId = await AddUserAsync(isOwner: true, isDeleted: false);
+		await AddUserAsync(isOwner: true, isDeleted: true);
+		await AddUserAsync(isOwner: false, isDeleted: false);
+		await AddUserAsync(isOwner: false, isDeleted: false);
+		await AddUserAsync(isOwner: false, isDeleted: false);
 
 		var now = DateTime.UtcNow;
 
@@ -517,7 +524,7 @@ public sealed class GetTenantAsStaffSpec
 		await dbContext.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
-		async Task AddUserAsync(AccountLevel level, bool isUserDeleted) {
+		async Task AddUserAsync(bool isOwner, bool isUserDeleted) {
 			var user = new User {
 				Email = $"tenant-get-counts-soft-deleted-user-{Guid.NewGuid():N}@example.com",
 				Password = PasswordUtils.HashPassword(
@@ -531,12 +538,17 @@ public sealed class GetTenantAsStaffSpec
 			await dbContext.User.AddAsync(user);
 			await dbContext.SaveChangesAsync();
 
-			await dbContext.UserAccount.AddAsync(
-				UserAccount.CreateTenantAccount(
-					user.GetRequiredId(), tenantId, level
-				)
+			var account = UserAccount.CreateTenantAccount(
+				user.GetRequiredId(), tenantId
 			);
+			await dbContext.UserAccount.AddAsync(account);
 			await dbContext.SaveChangesAsync();
+
+			if (isOwner) {
+				await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+					dbContext, tenantId, account.GetRequiredId()
+				);
+			}
 
 			// Soft-deletes the USER row (not the UserAccount row) — the scenario
 			// F9 covers: UserAccount.IsDeleted stays false, only User.IsDeleted flips.
@@ -546,10 +558,10 @@ public sealed class GetTenantAsStaffSpec
 			}
 		}
 
-		await AddUserAsync(AccountLevel.Admin, isUserDeleted: false);
-		await AddUserAsync(AccountLevel.Admin, isUserDeleted: true);
-		await AddUserAsync(AccountLevel.User, isUserDeleted: false);
-		await AddUserAsync(AccountLevel.User, isUserDeleted: true);
+		await AddUserAsync(isOwner: true, isUserDeleted: false);
+		await AddUserAsync(isOwner: true, isUserDeleted: true);
+		await AddUserAsync(isOwner: false, isUserDeleted: false);
+		await AddUserAsync(isOwner: false, isUserDeleted: true);
 
 		return tenantId;
 	}

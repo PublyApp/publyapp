@@ -99,7 +99,7 @@ const TRANSLATIONS: TestLabelMap = {
 	invitations: 'Invitations',
 	users: 'Users',
 	members: 'Members',
-	level: 'Level',
+	'list-roles': 'Roles',
 	status: 'Status',
 	actions: 'Actions',
 	'view-details': 'View details',
@@ -108,7 +108,9 @@ const TRANSLATIONS: TestLabelMap = {
 	suspend: 'Suspend',
 	'remove-user-from-tenant': 'Remove from tenant',
 	'all-statuses': 'All statuses',
-	'all-levels': 'All levels',
+	'all-roles': 'All roles',
+	'full-access': 'Full access',
+	'standard-access': 'No full access',
 	'status-active': 'Active',
 	'status-suspended': 'Suspended',
 	'status-globally-suspended': 'Globally suspended',
@@ -262,13 +264,13 @@ import type { ColumnDef } from '~/components/table/column-type';
 import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';
 
 import {
-	formatTenantUserLevelLabel,
+	formatTenantUserAccessLabel,
 	formatTenantUserStatusLabel,
-	tenantUserLevelChipClassName,
+	tenantUserAccessChipClassName,
 } from './_tenant-details-shell';
 import { makeTenantUserColumns } from './_users-columns';
 import {
-	parseTenantUserLevelFilter,
+	parseTenantUserRoleFilter,
 	parseTenantUserStatusFilter,
 	Route,
 } from './users';
@@ -343,7 +345,8 @@ describe('staff tenant users route', () => {
 				id: 'user-1',
 				displayName: 'Alex Johnson',
 				email: 'alex@example.com',
-				level: 'Admin',
+				isFullAccess: true,
+				roles: ['Owner'],
 				status: 'Active',
 				firstName: 'Alex',
 				lastName: 'Johnson',
@@ -359,7 +362,8 @@ describe('staff tenant users route', () => {
 							firstName: 'Alex',
 							lastName: 'Johnson',
 							email: 'alex@example.com',
-							level: 'Admin',
+							isFullAccess: true,
+							roles: ['Owner'],
 							status: 'Active',
 						},
 					],
@@ -390,7 +394,7 @@ describe('staff tenant users route', () => {
 		expect(title.textContent).toContain('12');
 		expect(screen.getByText('Alex Johnson')).toBeTruthy();
 		expect(screen.getByText('alex@example.com')).toBeTruthy();
-		expect(screen.getByText('Admin')).toBeTruthy();
+		expect(screen.getByText('Owner')).toBeTruthy();
 		expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
 		expect(
 			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
@@ -431,7 +435,12 @@ describe('staff tenant users route', () => {
 	});
 
 	test('closes the invite drawer from Users while preserving non-invite search state', () => {
-		mocks.search = { invite: 1, q: 'alex', status: 'active', level: 'admin' };
+		mocks.search = {
+			invite: 1,
+			q: 'alex',
+			status: 'active',
+			role: 'full_access',
+		};
 		renderPage();
 
 		mocks.navigate.mockClear();
@@ -446,7 +455,7 @@ describe('staff tenant users route', () => {
 				invite: undefined,
 				q: 'alex',
 				status: 'active',
-				level: 'admin',
+				role: 'full_access',
 			}),
 		);
 	});
@@ -515,7 +524,7 @@ describe('staff tenant users route', () => {
 
 	// tenants-r6-F2: entering selection mode must freeze the query that
 	// defines the destructive bulk-action target set — a still-pending
-	// search debounce or a still-clickable level/status filter can silently
+	// search debounce or a still-clickable role/status filter can silently
 	// change which rows a bulk action would hit right after selection.
 	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2, deterministic timers)', async () => {
 		vi.useFakeTimers();
@@ -541,7 +550,7 @@ describe('staff tenant users route', () => {
 		}
 	});
 
-	test('disables the level and status filter triggers while a row is selected (tenants-r6-F2)', () => {
+	test('disables the role and status filter triggers while a row is selected (tenants-r6-F2)', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
@@ -549,7 +558,7 @@ describe('staff tenant users route', () => {
 		expect(
 			(
 				screen.getByTestId(
-					'staff-tenant-users-level-filter-trigger',
+					'staff-tenant-users-role-filter-trigger',
 				) as HTMLButtonElement
 			).disabled,
 		).toBe(true);
@@ -572,14 +581,14 @@ describe('staff tenant users route', () => {
 		).validateSearch;
 		const canonicalSearch = validateSearch({
 			status: 'bogus',
-			level: 'bogus',
+			role: 'bogus',
 			invite: 'bogus',
 		});
 
 		expect(
 			Object.prototype.hasOwnProperty.call(canonicalSearch, 'status'),
 		).toBe(true);
-		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'level')).toBe(
+		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'role')).toBe(
 			true,
 		);
 		expect(
@@ -587,7 +596,7 @@ describe('staff tenant users route', () => {
 		).toBe(true);
 		expect(canonicalSearch).toMatchObject({
 			status: undefined,
-			level: undefined,
+			role: undefined,
 			invite: undefined,
 		});
 
@@ -595,8 +604,8 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-tenant-users-level-filter-trigger').textContent,
-		).toContain('All levels');
+			screen.getByTestId('staff-tenant-users-role-filter-trigger').textContent,
+		).toContain('All roles');
 		expect(
 			screen.getByTestId('staff-tenant-users-status-filter-trigger')
 				.textContent,
@@ -606,7 +615,6 @@ describe('staff tenant users route', () => {
 			expect.objectContaining({
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				status: undefined,
-				level: undefined,
 			}),
 			{ enabled: true },
 		);
@@ -649,7 +657,8 @@ describe('staff tenant users route', () => {
 			id: `user-${index}`,
 			displayName: `User ${index}`,
 			email: `user-${index}@example.com`,
-			level: 'Member' as const,
+			isFullAccess: false,
+			roles: [],
 			status: 'Active' as const,
 			firstName: `User`,
 			lastName: `${index}`,
@@ -700,7 +709,8 @@ describe('staff tenant users route', () => {
 				id: 'user-1',
 				displayName: 'Alex Johnson',
 				email: 'alex@example.com',
-				level: 'Admin',
+				isFullAccess: true,
+				roles: ['Owner'],
 				status: 'Active',
 				firstName: 'Alex',
 				lastName: 'Johnson',
@@ -710,7 +720,8 @@ describe('staff tenant users route', () => {
 				id: 'user-2',
 				displayName: 'Jamie Lee',
 				email: 'jamie@example.com',
-				level: 'User',
+				isFullAccess: false,
+				roles: [],
 				status: 'Suspended',
 				firstName: 'Jamie',
 				lastName: 'Lee',
@@ -898,11 +909,11 @@ describe('staff tenant users route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	test('selecting a row reveals the floating selection bar; the level/status filters stay visible', async () => {
+	test('selecting a row reveals the floating selection bar; the role/status filters stay visible', async () => {
 		renderPage();
 
 		expect(screen.queryByText('Bulk actions')).toBeNull();
-		expect(screen.getByText('All levels')).toBeTruthy();
+		expect(screen.getByText('All roles')).toBeTruthy();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
 
@@ -910,21 +921,21 @@ describe('staff tenant users route', () => {
 		expect(screen.getByText('Bulk actions')).toBeTruthy();
 		expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
 		// Toolbar no longer swaps — filters remain visible during selection.
-		expect(screen.getByText('All levels')).toBeTruthy();
+		expect(screen.getByText('All roles')).toBeTruthy();
 	});
 
-	test('the level filter offers an "All levels" entry that clears the filter and closes the menu', async () => {
-		mocks.search = { level: 'admin' };
+	test('the role filter offers an "All roles" entry that clears the filter and closes the menu', async () => {
+		mocks.search = { role: 'full_access' };
 		renderPage();
 
 		fireEvent.click(
-			screen.getByTestId('staff-tenant-users-level-filter-trigger'),
+			screen.getByTestId('staff-tenant-users-role-filter-trigger'),
 		);
 
 		expect(
-			await screen.findByTestId('staff-tenant-users-level-filter-all'),
+			await screen.findByTestId('staff-tenant-users-role-filter-all'),
 		).toBeTruthy();
-		fireEvent.click(screen.getByTestId('staff-tenant-users-level-filter-all'));
+		fireEvent.click(screen.getByTestId('staff-tenant-users-role-filter-all'));
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
 			expect.objectContaining({ replace: true }),
@@ -933,12 +944,12 @@ describe('staff tenant users route', () => {
 		const navigatedSearch = (
 			navigatedArgs as { search: Record<string, unknown> }
 		).search;
-		expect(navigatedSearch.level).toBeUndefined();
+		expect(navigatedSearch.role).toBeUndefined();
 
-		// The menu closes on selecting the exclusive "All levels" entry.
+		// The menu closes on selecting the exclusive "All roles" entry.
 		await waitFor(() =>
 			expect(
-				screen.queryByTestId('staff-tenant-users-level-filter-all'),
+				screen.queryByTestId('staff-tenant-users-role-filter-all'),
 			).toBeNull(),
 		);
 	});
@@ -973,25 +984,25 @@ describe('staff tenant users route', () => {
 		);
 	});
 
-	test('toggling an individual level keeps the menu open (multi-select)', async () => {
+	test('toggling an individual role keeps the menu open (multi-select)', async () => {
 		renderPage();
 
 		fireEvent.click(
-			screen.getByTestId('staff-tenant-users-level-filter-trigger'),
+			screen.getByTestId('staff-tenant-users-role-filter-trigger'),
 		);
 		fireEvent.click(
-			await screen.findByTestId('staff-tenant-users-level-filter-admin'),
+			await screen.findByTestId('staff-tenant-users-role-filter-full_access'),
 		);
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				search: expect.objectContaining({ level: 'admin' }),
+				search: expect.objectContaining({ role: 'full_access' }),
 				replace: true,
 			}),
 		);
-		// closeOnClick={false} on individual levels — the menu stays open.
+		// closeOnClick={false} on individual roles — the menu stays open.
 		expect(
-			screen.getByTestId('staff-tenant-users-level-filter-admin'),
+			screen.getByTestId('staff-tenant-users-role-filter-full_access'),
 		).toBeTruthy();
 	});
 
@@ -1273,13 +1284,13 @@ describe('makeTenantUserColumns column widths', () => {
 
 		expect(widthById).toEqual({
 			name: undefined,
-			level: '150px',
+			is_full_access: '180px',
 			status: '130px',
 			actions: '40px',
 		});
 	});
 
-	test('hides the level column below the 768px mobile breakpoint, keeping name/status/actions', () => {
+	test('hides the access column below the 768px mobile breakpoint, keeping name/status/actions', () => {
 		const columns = makeTenantUserColumns(
 			'11111111-1111-1111-1111-111111111111',
 			identityT,
@@ -1294,23 +1305,24 @@ describe('makeTenantUserColumns column widths', () => {
 
 		expect(hideBelowById).toEqual({
 			name: undefined,
-			level: 768,
+			is_full_access: 768,
 			status: undefined,
 			actions: undefined,
 		});
 	});
 });
 
-describe('tenant user level chip mapping', () => {
-	test('maps Admin to the amber chip and User to the neutral chip', () => {
-		expect(tenantUserLevelChipClassName('Admin')).toContain('--amber');
-		expect(tenantUserLevelChipClassName('User')).toContain('--outline');
-		expect(tenantUserLevelChipClassName(null)).toContain('--outline');
+describe('tenant user access chip mapping', () => {
+	test('maps full access to the amber chip and standard access to the neutral chip', () => {
+		expect(tenantUserAccessChipClassName(true)).toContain('--amber');
+		expect(tenantUserAccessChipClassName(false)).toContain('--outline');
 	});
 
-	test('formats level labels through i18n', () => {
-		expect(formatTenantUserLevelLabel('Admin', identityT)).toBe('Admin');
-		expect(formatTenantUserLevelLabel('User', identityT)).toBe('User');
+	test('formats access labels through i18n', () => {
+		expect(formatTenantUserAccessLabel(true, identityT)).toBe('Full access');
+		expect(formatTenantUserAccessLabel(false, identityT)).toBe(
+			'No full access',
+		);
 	});
 });
 
@@ -1336,25 +1348,46 @@ describe('parseTenantUserStatusFilter', () => {
 	});
 });
 
-describe('parseTenantUserLevelFilter', () => {
-	test('parses known comma-separated levels, drops unknown tokens, and dedupes', () => {
-		expect(parseTenantUserLevelFilter('admin,bogus,user,admin')).toEqual([
-			'admin',
-			'user',
-		]);
-		expect(parseTenantUserLevelFilter(undefined)).toEqual([]);
+describe('parseTenantUserRoleFilter', () => {
+	test('parses known comma-separated roles, drops unknown tokens, and dedupes', () => {
+		expect(
+			parseTenantUserRoleFilter('full_access,bogus,standard,full_access'),
+		).toEqual(['full_access', 'standard']);
+		expect(parseTenantUserRoleFilter(undefined)).toEqual([]);
 	});
 });
 
-describe('level filter wiring on the users list query', () => {
-	test('passes the level search param through to the tenant users query', () => {
-		mocks.search = { level: 'admin' };
+describe('role filter wiring on the users list', () => {
+	test('narrows the visible rows to the selected role', () => {
+		mocks.search = { role: 'full_access' };
+		mocks.toStaffTenantUserRows.mockReturnValue([
+			{
+				id: 'owner-1',
+				displayName: 'Maya Chen',
+				email: 'maya@example.com',
+				isFullAccess: true,
+				roles: ['Owner'],
+				status: 'Active',
+				firstName: 'Maya',
+				lastName: 'Chen',
+				avatarUrl: null,
+			},
+			{
+				id: 'member-1',
+				displayName: 'Sam Lee',
+				email: 'sam@example.com',
+				isFullAccess: false,
+				roles: [],
+				status: 'Active',
+				firstName: 'Sam',
+				lastName: 'Lee',
+				avatarUrl: null,
+			},
+		]);
 
 		renderPage();
 
-		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
-			expect.objectContaining({ level: 'admin' }),
-			{ enabled: true },
-		);
+		expect(screen.getByText('Maya Chen')).toBeTruthy();
+		expect(screen.queryByText('Sam Lee')).toBeNull();
 	});
 });

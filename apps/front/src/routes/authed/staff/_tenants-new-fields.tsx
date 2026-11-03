@@ -9,13 +9,8 @@ import {
 } from '~/components/ui/select';
 import { cn } from '~/lib/utils';
 
-import { AccountLevelObject } from '@org/client-ts/models/index';
-
-import { getUserLevel } from './_tenants-new-schema';
-import {
-	USER_ROLE_OPTIONS,
-	type NewTenantAccountLevel,
-} from './_tenants-new-types';
+import { getUserRole } from './_tenants-new-schema';
+import { USER_ROLE_OPTIONS, type NewTenantRole } from './_tenants-new-types';
 
 /** Compact select styled as the honesty-override "Admin → amber, User →
  * neutral" chip (reuses the same tone classes as the Users-tab role chip). */
@@ -29,8 +24,8 @@ export const MemberLevelSelect = ({
 	t,
 }: {
 	name: string;
-	value: NewTenantAccountLevel;
-	onChange: (value: NewTenantAccountLevel) => void;
+	value: NewTenantRole;
+	onChange: (value: NewTenantRole) => void;
 	onBlur: () => void;
 	disabled?: boolean;
 	ariaLabel: string;
@@ -42,7 +37,7 @@ export const MemberLevelSelect = ({
 		value={value}
 		onValueChange={(nextValue) => {
 			if (typeof nextValue === 'string') {
-				onChange(getUserLevel(nextValue));
+				onChange(getUserRole(nextValue));
 			}
 		}}
 		disabled={disabled}
@@ -52,19 +47,19 @@ export const MemberLevelSelect = ({
 			size="sm"
 			className={cn(
 				'w-full justify-center gap-1 border px-2 text-[11px] font-medium shadow-none',
-				value === AccountLevelObject.Admin
+				value === 'owner'
 					? 'border-(--publy-chip-pending-border) bg-(--publy-chip-pending-bg) text-(--publy-chip-pending-text)'
 					: 'border-border bg-background text-foreground',
 			)}
 		>
 			<span data-slot="select-value">
-				{value === AccountLevelObject.Admin ? t('admin') : t('user')}
+				{value === 'owner' ? t('owner-chip-label') : t('list-column-member')}
 			</span>
 		</SelectTrigger>
 		<SelectContent>
 			{USER_ROLE_OPTIONS.map((option) => (
 				<SelectItem key={option} value={option}>
-					{option === AccountLevelObject.Admin ? t('admin') : t('user')}
+					{option === 'owner' ? t('owner-chip-label') : t('list-column-member')}
 				</SelectItem>
 			))}
 		</SelectContent>

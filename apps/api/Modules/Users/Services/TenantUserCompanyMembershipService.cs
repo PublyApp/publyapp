@@ -14,8 +14,7 @@ public sealed record TenantUserCompanyIdsArgs(
 
 public sealed record AssignTenantUserCompaniesArgs(
 	Guid UserId,
-	IReadOnlyCollection<Guid> TenantIds,
-	AccountLevel Level
+	IReadOnlyCollection<Guid> TenantIds
 );
 
 public sealed record TenantUserCompanyBulkActionFailedItem(
@@ -145,8 +144,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 				if (tenantAccount is null) {
 					tenantAccount = UserAccount.CreateTenantAccount(
 						args.UserId,
-						tenantId,
-						args.Level
+						tenantId
 					);
 					tenantAccount.ValidateAccountType();
 					await this._DbContext.UserAccount.AddAsync(
@@ -157,7 +155,6 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 					tenantAccount.IsDeleted = false;
 					tenantAccount.DeletedAt = null;
 					tenantAccount.Status = AccountStatus.Active;
-					tenantAccount.Level = args.Level;
 					tenantAccount.UpdatedAt = now;
 					tenantAccount.ValidateAccountType();
 				}
@@ -370,10 +367,6 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
-		if (account.Level == AccountLevel.Admin) {
-			return;
-		}
-
 		var accountId = account.GetRequiredId();
 		var defaultProfile = await this._GetOrCreateDefaultTenantProfileAsync(
 			tenantId,

@@ -13,7 +13,8 @@ public sealed class DeleteStaffProfile {
 		Results<
 			Ok<ApiResponse>,
 			AppBadRequestHttpResult,
-			AppNotFoundHttpResult
+			AppNotFoundHttpResult,
+			AppForbiddenHttpResult
 		>
 	> Handle(
 		[FromRoute] string profileId,
@@ -40,6 +41,13 @@ public sealed class DeleteStaffProfile {
 				ResponseKeys.NotFound
 			);
 		}
+		if (result is DeleteStaffProfileServiceResult.SystemProfileProtected) {
+			return TypedProblems.Forbidden(
+				"The full-access system profile cannot be deleted",
+				ResponseKeys.Forbidden
+			);
+		}
+
 
 		if (result is not DeleteStaffProfileServiceResult.Success success) {
 			throw new InvalidOperationException(

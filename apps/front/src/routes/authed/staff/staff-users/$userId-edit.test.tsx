@@ -71,7 +71,8 @@ const getUserDetails = (userId: string) => ({
 		userId === USER_A
 			? 'https://example.com/avatar-a.png'
 			: 'https://example.com/avatar-b.png',
-	accountLevel: userId === USER_A ? 'Admin' : 'User',
+	isFullAccess: userId === USER_A,
+	roles: userId === USER_A ? ['Staff Owner'] : [],
 	status: 'Active',
 	displayName: userId === USER_A ? 'Alex User' : 'Bea User',
 	createdAt: null,
@@ -171,7 +172,6 @@ vi.mock('react-i18next', () => ({
 				'back-to-user': 'Back to staff user',
 				'email-address': 'Email address',
 				'email-managed-separately': 'Email changes are managed separately.',
-				'account-level': 'Role',
 				'first-name': 'First name',
 				'last-name': 'Last name',
 				'avatar-url': 'Avatar URL',
@@ -519,7 +519,6 @@ describe('staff user edit route', () => {
 			screen.getByDisplayValue('https://example.com/avatar-a.png'),
 		).toBeTruthy();
 		expect(screen.getByDisplayValue('alex@example.com')).toBeTruthy();
-		expect(screen.getByDisplayValue('Admin')).toBeTruthy();
 		expect(screen.getByDisplayValue('Active')).toBeTruthy();
 		expect(
 			(screen.getByRole('checkbox', { name: 'Publishing' }) as HTMLInputElement)
@@ -649,7 +648,6 @@ describe('staff user edit route', () => {
 		expect(
 			screen.getByDisplayValue('https://example.com/avatar-a.png'),
 		).toBeTruthy();
-		expect(screen.getByDisplayValue('Admin')).toBeTruthy();
 		expect(screen.getByDisplayValue('Active')).toBeTruthy();
 		expect(screen.getByLabelText('Status')).toHaveProperty('disabled', true);
 		// r5-F5: no Security card — it only ever rendered an internal

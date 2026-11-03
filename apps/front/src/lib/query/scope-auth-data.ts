@@ -5,7 +5,7 @@ import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import type { GetScopeAuthDataTenant } from '@org/client-ts/models/index';
 
 /**
- * Effective permission keys + account level for ONE scope of the signed-in
+ * Effective permission keys + full-access flag for ONE scope of the signed-in
  * user (`/auth/scope-auth-data`). This is the payload the rail permission
  * filter (#142) reads: a nav entry whose `requiredPermissions` are not all
  * contained here gets hidden. Hiding is UI-convenience ONLY — every gate

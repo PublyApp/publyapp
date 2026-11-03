@@ -19,11 +19,11 @@ public class GetUserAuthDataResult {
 
 	/// <summary>
 	/// The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:
-	/// ["*"] when the resolved account is a tenant Admin (the #861
-	/// AccountLevel.Admin short-circuit TenantPermissionFilter applies), otherwise
-	/// the profile-derived keys. Empty array — never null — whenever there is
-	/// no usable scope (missing/malformed tenant_id, unknown or suspended
-	/// account), gating everything closed.
+	/// ["*"] when the account holds the tenant's full-access system profile (the
+	/// #861 bypass TenantPermissionFilter applies), otherwise the profile-derived
+	/// keys. Empty array — never null — whenever there is no usable scope
+	/// (missing/malformed tenant_id, unknown or suspended account), gating
+	/// everything closed.
 	/// </summary>
 	public IReadOnlyList<string> TenantPermissionKeys { get; set; } =
 		(string[])[];
@@ -100,13 +100,11 @@ public sealed class GetUserAuthData {
 
 			if (account is null || account.Status == AccountStatus.Suspended) {
 				result.TenantPermissionKeys = [];
-			} else if (account.Level == AccountLevel.Admin) {
-				// Effective set: mirror TenantPermissionFilter's #861 Admin
-				// short-circuit.
-				result.TenantPermissionKeys = ["*"];
 			} else {
-				// Two-parameter signature — GetTenantPermissionsAsync takes NO
-				// cancellation token (matches TenantPermissionFilter's call).
+				// Effective set: PermissionService materialises the tenant's full-access
+				// system profile as "*", mirroring TenantPermissionFilter's #861 bypass.
+				// Two-parameter signature — GetTenantPermissionsAsync takes NO cancellation
+				// token (matches TenantPermissionFilter's call).
 				var permissionKeys = await permissionService.GetTenantPermissionsAsync(
 					userId,
 					parsedTenantId

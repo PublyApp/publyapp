@@ -396,9 +396,9 @@ export const filterRailItemsByPermissions = (
 	items: AppRouteMetadata[],
 	allowedPermissions: Set<string>,
 ): AppRouteMetadata[] => {
-	// "*" is the backend's Admin sentinel (materialised by user-auth-data for
-	// AccountLevel.Admin and honoured by TenantPermissionFilter): an admin
-	// passes every gate, so every rail entry stays visible.
+	// "*" is the backend's full-access sentinel (materialised by
+	// user-auth-data for the tenant's full-access role and honoured by
+	// TenantPermissionFilter): every rail entry stays visible.
 	if (allowedPermissions.has('*')) {
 		return items;
 	}

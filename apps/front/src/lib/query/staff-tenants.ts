@@ -119,7 +119,7 @@ export type StaffTenantDetails = {
 
 type StaffTenantInitialUserInput = {
 	email: string;
-	accountLevel: string;
+	role: 'owner' | 'member';
 };
 
 export type CreateStaffTenantInput = {
@@ -309,15 +309,15 @@ export const buildCreateStaffTenantBody = (
 	const initialUsers = rawInitialUsers
 		.map((user) => ({
 			email: normalizeString(user.email),
-			accountLevel: normalizeString(user.accountLevel),
+			role: user.role,
 		}))
-		.filter((user): user is { email: string; accountLevel: string } =>
-			Boolean(user.email && user.accountLevel),
+		.filter((user): user is { email: string; role: 'owner' | 'member' } =>
+			Boolean(user.email),
 		)
 		.map((user) =>
 			createUntypedObject({
 				email: createUntypedString(user.email),
-				accountLevel: createUntypedString(user.accountLevel),
+				role: createUntypedString(user.role),
 			}),
 		);
 

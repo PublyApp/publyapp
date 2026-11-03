@@ -1,10 +1,9 @@
 import { IconSearch } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Field, type FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import {
@@ -42,8 +41,6 @@ import { formatTenantStatusLabel } from '../tenants/$tenantId/_tenant-details-sh
 
 const PICKER_PAGE_SIZE = 20;
 
-type LinkDrawerValues = { level: 'Admin' | 'User' };
-
 /** Test seam + drawer-registry surface: rendered directly by drawer-form guards. */
 export const LinkCompaniesDrawerHost = ({
 	userId,
@@ -63,12 +60,9 @@ export const LinkCompaniesDrawerHost = ({
 	const link = useLinkGlobalTenantUserCompaniesMutation();
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const methods = useForm<LinkDrawerValues>({
-		defaultValues: { level: 'User' },
-	});
-	// useWatch (not watch) — a subscription instead of an unconditional
-	// re-read; keeps the compiler's memoization valid for this component.
-	const level = useWatch({ control: methods.control, name: 'level' });
+	// ponytail: the drawer has no editable field left — RHF only backs the
+	// shared `DrawerForm` submit wrapper, so an empty field map is enough.
+	const methods = useForm<Record<string, never>>();
 
 	// The picker only fetches while open — an idle drawer never hits /staff/tenants.
 	const pickerQuery = useGlobalTenantUsersPickerQuery(
@@ -98,7 +92,6 @@ export const LinkCompaniesDrawerHost = ({
 		onOpenChange(false);
 		setSearch('');
 		setSelectedTenantIds(new Set());
-		methods.reset({ level: 'User' });
 	};
 
 	const performLink = async () => {
@@ -110,7 +103,6 @@ export const LinkCompaniesDrawerHost = ({
 			const result = await link.mutateAsync({
 				userId,
 				tenantIds: [...selectedTenantIds],
-				level,
 			});
 			close();
 
@@ -175,16 +167,6 @@ export const LinkCompaniesDrawerHost = ({
 					}}
 				>
 					<DrawerBody className="space-y-4">
-						<Field.Select
-							name="level"
-							label={t('account-level')}
-							options={
-								[
-									{ value: 'User', label: t('user') },
-									{ value: 'Admin', label: t('admin') },
-								] satisfies FieldSelectOption[]
-							}
-						/>
 						<div className="relative">
 							<IconSearch
 								aria-hidden="true"

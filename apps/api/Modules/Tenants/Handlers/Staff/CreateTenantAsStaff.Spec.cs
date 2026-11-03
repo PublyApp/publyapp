@@ -21,6 +21,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
@@ -64,7 +65,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-custom-code-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -105,7 +106,7 @@ public sealed class CreateTenantAsStaffSpec
 					initialUsers = new[] {
 						new {
 							email = $"tenant-invalid-code-{Guid.NewGuid():N}@example.com",
-							accountLevel = "Admin",
+							role = "owner",
 						},
 					},
 				}
@@ -131,7 +132,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-dup-code-first-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -147,7 +148,7 @@ public sealed class CreateTenantAsStaffSpec
 					initialUsers = new[] {
 						new {
 							email = $"tenant-dup-code-second-{Guid.NewGuid():N}@example.com",
-							accountLevel = "Admin",
+							role = "owner",
 						},
 					},
 				}
@@ -185,11 +186,11 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-no-profile-admin-{Guid.NewGuid():N}@example.com",
-						accountLevel = "admin",
+						role = "owner",
 					},
 					new {
 						email = userEmail,
-						accountLevel = "user",
+						role = "member",
 					},
 				},
 			}
@@ -200,13 +201,19 @@ public sealed class CreateTenantAsStaffSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profileCount = await dbContext.Profile
+		var nonFullAccessProfileCount = await dbContext.Profile
 			.Where(p =>
 				p.TenantId == created.Id
 				&& p.Scope == ProfileScope.Tenant
+				&& !p.IsFullAccess
 			)
 			.CountAsync();
-		profileCount.Should().Be(0);
+		nonFullAccessProfileCount.Should().Be(0);
+
+		var ownerProfileCount = await FullAccessRoleQueries
+			.FullAccessProfiles(dbContext)
+			.CountAsync(p => p.TenantId == created.Id);
+		ownerProfileCount.Should().Be(1);
 
 		var userInvitation = await dbContext.Invitation
 			.Where(invitation =>
@@ -243,7 +250,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-create-org-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -285,7 +292,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-create-org-absent-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -329,7 +336,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-create-org-whitespace-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -361,7 +368,7 @@ public sealed class CreateTenantAsStaffSpec
 				"maxUsers": 3,
 				"logoUrl": 123,
 				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
+					{ "email": "admin@example.com", "role": "owner" }
 				]
 			}
 			""";
@@ -389,7 +396,7 @@ public sealed class CreateTenantAsStaffSpec
 			maxUsers = 3,
 			logoUrl,
 			initialUsers = new[] {
-				new { email = "admin@example.com", accountLevel = "Admin" }
+				new { email = "admin@example.com", role = "owner" }
 			}
 		};
 
@@ -414,7 +421,7 @@ public sealed class CreateTenantAsStaffSpec
 			maxUsers = 3,
 			logoUrl = oversizedLogoUrl,
 			initialUsers = new[] {
-				new { email = "admin@example.com", accountLevel = "Admin" }
+				new { email = "admin@example.com", role = "owner" }
 			}
 		};
 
@@ -435,7 +442,7 @@ public sealed class CreateTenantAsStaffSpec
 			name = new string('a', TenantValidationRules.NameMaxLength + 1),
 			maxUsers = 3,
 			initialUsers = new[] {
-				new { email = "admin@example.com", accountLevel = "Admin" }
+				new { email = "admin@example.com", role = "owner" }
 			}
 		};
 
@@ -469,7 +476,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-name-exact-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin"
+						role = "owner"
 					}
 				}
 			}
@@ -492,7 +499,7 @@ public sealed class CreateTenantAsStaffSpec
 			maxUsers = 3,
 			websiteUrl = oversizedWebsiteUrl,
 			initialUsers = new[] {
-				new { email = "admin@example.com", accountLevel = "Admin" }
+				new { email = "admin@example.com", role = "owner" }
 			}
 		};
 
@@ -525,7 +532,7 @@ public sealed class CreateTenantAsStaffSpec
 				"maxUsers": 3,
 				"{{field}}": "{{invalidValue}}",
 				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
+					{ "email": "admin@example.com", "role": "owner" }
 				]
 			}
 			""";
@@ -558,7 +565,7 @@ public sealed class CreateTenantAsStaffSpec
 				"maxUsers": 3,
 				"{{field}}": "{{value}}",
 				"initialUsers": [
-					{ "email": "admin@example.com", "accountLevel": "Admin" }
+					{ "email": "admin@example.com", "role": "owner" }
 				]
 			}
 			""";
@@ -586,7 +593,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-default-missing-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -614,7 +621,7 @@ public sealed class CreateTenantAsStaffSpec
 				initialUsers = new[] {
 					new {
 						email = $"tenant-default-null-{Guid.NewGuid():N}@example.com",
-						accountLevel = "Admin",
+						role = "owner",
 					},
 				},
 			}
@@ -628,7 +635,7 @@ public sealed class CreateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldAllowPermissionedNonAdminStaffUserToCreateTenant() {
+	ItShouldReturnForbiddenWhenNonFullAccessStaffUserCreatesTenantOwner() {
 		var token = await this._CreateStaffUserTokenWithPermissionAsync(
 			AppPermissions.Staff.Tenants.CREATE.Key
 		);
@@ -641,7 +648,14 @@ public sealed class CreateTenantAsStaffSpec
 		);
 
 		response.StatusCode.Should()
-			.Be(HttpStatusCode.Created);
+			.Be(HttpStatusCode.Forbidden);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+			.Be(ResponseKeys.Forbidden.Value);
 	}
 
 	[Fact]
@@ -718,7 +732,7 @@ public sealed class CreateTenantAsStaffSpec
 				{
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -730,7 +744,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": 123,
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -742,7 +756,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "    ",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -754,7 +768,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Tiny",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -766,7 +780,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Max Zero",
 					"maxUsers": 0,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -778,7 +792,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Max Negative",
 					"maxUsers": -1,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -790,7 +804,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Max String",
 					"maxUsers": "10",
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -802,7 +816,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Max Decimal",
 					"maxUsers": 1.5,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -814,7 +828,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Max Huge",
 					"maxUsers": 999999999999999999999999999999,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" }
+						{ "email": "admin@example.com", "role": "owner" }
 					]
 				}
 				""",
@@ -865,7 +879,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Missing Initial Email",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "accountLevel": "Admin" }
+						{ "role": "owner" }
 					]
 				}
 				""",
@@ -877,7 +891,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Initial Email Type",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": 123, "accountLevel": "Admin" }
+						{ "email": 123, "role": "owner" }
 					]
 				}
 				""",
@@ -889,7 +903,7 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Invalid Initial Email",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "not-an-email", "accountLevel": "Admin" }
+						{ "email": "not-an-email", "role": "owner" }
 					]
 				}
 				""",
@@ -898,38 +912,38 @@ public sealed class CreateTenantAsStaffSpec
 			{
 				"""
 				{
-					"name": "Missing Initial Level",
+					"name": "Missing Initial Role",
 					"maxUsers": 10,
 					"initialUsers": [
 						{ "email": "admin@example.com" }
 					]
 				}
 				""",
-				"initialUsers[0].accountLevel"
+				"initialUsers[0].role"
 			},
 			{
 				"""
 				{
-					"name": "Invalid Initial Level Type",
+					"name": "Invalid Initial Role Type",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": 123 }
+						{ "email": "admin@example.com", "role": 123 }
 					]
 				}
 				""",
-				"initialUsers[0].accountLevel"
+				"initialUsers[0].role"
 			},
 			{
 				"""
 				{
-					"name": "Invalid Initial Level",
+					"name": "Invalid Initial Role",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Owner" }
+						{ "email": "admin@example.com", "role": "admin" }
 					]
 				}
 				""",
-				"initialUsers[0].accountLevel"
+				"initialUsers[0].role"
 			},
 			{
 				"""
@@ -937,8 +951,8 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Duplicate Initial Emails",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "duplicate@example.com", "accountLevel": "Admin" },
-						{ "email": "DUPLICATE@example.com", "accountLevel": "User" }
+						{ "email": "duplicate@example.com", "role": "owner" },
+						{ "email": "DUPLICATE@example.com", "role": "member" }
 					]
 				}
 				""",
@@ -947,10 +961,10 @@ public sealed class CreateTenantAsStaffSpec
 			{
 				"""
 				{
-					"name": "Missing Initial Admin",
+					"name": "Missing Initial Owner",
 					"maxUsers": 10,
 					"initialUsers": [
-						{ "email": "user@example.com", "accountLevel": "User" }
+						{ "email": "user@example.com", "role": "member" }
 					]
 				}
 				""",
@@ -962,8 +976,8 @@ public sealed class CreateTenantAsStaffSpec
 					"name": "Too Many Initial Users",
 					"maxUsers": 1,
 					"initialUsers": [
-						{ "email": "admin@example.com", "accountLevel": "Admin" },
-						{ "email": "user@example.com", "accountLevel": "User" }
+						{ "email": "admin@example.com", "role": "owner" },
+						{ "email": "user@example.com", "role": "member" }
 					]
 				}
 				""",
@@ -979,7 +993,7 @@ public sealed class CreateTenantAsStaffSpec
 			initialUsers = new[] {
 				new {
 					email = $"tenant-create-valid-{Guid.NewGuid():N}@example.com",
-					accountLevel = "Admin",
+					role = "owner",
 				},
 			},
 		};
@@ -1062,7 +1076,7 @@ public sealed class CreateTenantAsStaffSpec
 				"initialUsers": [
 					{
 						"email": "sanitized-tenant@example.com",
-						"accountLevel": "Admin"
+						"role": "owner"
 					}
 				]
 			}
@@ -1084,6 +1098,7 @@ public sealed class CreateTenantAsStaffSpec
 			body,
 			tenantService,
 			authContext,
+			new AlwaysFullAccessProfileAssignmentGuard(),
 			NullLogger<CreateTenantAsStaff>.Instance,
 			CancellationToken.None
 		);
@@ -1206,6 +1221,24 @@ public sealed class CreateTenantAsStaffSpec
 					.Be(ResponseKeys.RequestBodyValidationFailed.Value);
 		problem.Errors.Keys.Should()
 			.Contain(fieldName);
+	}
+
+	private sealed class AlwaysFullAccessProfileAssignmentGuard
+		: IProfileAssignmentGuard {
+		public Task<bool> ActorHasFullAccessAsync(
+			Guid actorUserId,
+			CancellationToken cancellationToken = default
+		) {
+			return Task.FromResult(true);
+		}
+
+		public Task<bool> CanAssignProfilesAsync(
+			Guid actorUserId,
+			IReadOnlyCollection<Guid> profileIds,
+			CancellationToken cancellationToken = default
+		) {
+			return Task.FromResult(true);
+		}
 	}
 
 	public class ThrowingTenantServiceProxy : DispatchProxy {

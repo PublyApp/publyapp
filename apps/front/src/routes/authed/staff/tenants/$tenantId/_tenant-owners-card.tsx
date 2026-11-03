@@ -8,14 +8,17 @@ export const OwnersCard = ({
 	tenant,
 	ownersQuery,
 	t,
-	levelFilter,
 }: {
 	tenant: StaffTenantDetails;
 	ownersQuery: ReturnType<typeof useStaffTenantUsersQuery>;
 	t: (key: string) => string;
-	levelFilter: string;
 }) => {
-	const rows = toStaffTenantUserRows(ownersQuery.data?.data).slice(0, 5);
+	// ponytail: no server-side access filter exists — owners are the full-access
+	// holders inside one scanned page. Move to a server filter if a tenant ever
+	// has more owners than the page size.
+	const rows = toStaffTenantUserRows(ownersQuery.data?.data)
+		.filter((row) => row.isFullAccess)
+		.slice(0, 5);
 
 	let rowsContent: React.ReactNode;
 	if (ownersQuery.isPending) {
@@ -67,7 +70,7 @@ export const OwnersCard = ({
 				<Link
 					to="/staff/tenants/$tenantId/users"
 					params={{ tenantId: tenant.id }}
-					search={{ level: levelFilter }}
+					search={{ role: 'full_access' }}
 					className="text-xs font-medium text-muted-foreground hover:text-foreground"
 				>
 					{t('see-all')}

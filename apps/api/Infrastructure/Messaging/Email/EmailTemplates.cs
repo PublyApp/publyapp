@@ -1,6 +1,5 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 /// <summary>
@@ -24,19 +23,17 @@ public static class EmailTemplates {
 	public static EmailRequest TenantInvitation(
 		string email,
 		string tenantName,
-		string token,
-		AccountLevel level
+		string token
 	) {
 		var env = AppEnvironment.Instance;
 		var invitationUrl = AuthUtils.CreateAcceptInvitationUrl(token, email);
-		var accountLevelText = level == AccountLevel.Admin ? "admin" : "user";
 
 		return new EmailRequest {
 			To = email,
 			From = EmailTemplates._SenderFrom(env),
 			Subject = $"You have been invited to join {tenantName} on {env.APP_NAME}",
 			HtmlBody = $"""
-				You have been invited to join {tenantName} on {env.APP_NAME} as a {accountLevelText}.
+				You have been invited to join {tenantName} on {env.APP_NAME}.
 				<br />
 				Please accept the invitation by clicking the link below:
 				<br />

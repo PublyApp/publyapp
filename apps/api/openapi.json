@@ -2432,13 +2432,6 @@
             }
           },
           {
-            "name": "level",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -2747,7 +2740,7 @@
         "tags": [
           "Tenant Users (Staff View)"
         ],
-        "summary": "Update a tenant user's profile or account level",
+        "summary": "Update a tenant user's name, avatar or profile assignments",
         "operationId": "UpdateTenantUserAsStaff",
         "parameters": [
           {
@@ -3182,13 +3175,6 @@
           },
           {
             "name": "ids",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "level",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5352,13 +5338,6 @@
           },
           {
             "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "level",
             "in": "query",
             "schema": {
               "type": "string"
@@ -15585,12 +15564,6 @@
           }
         }
       },
-      "AccountLevel": {
-        "enum": [
-          "User",
-          "Admin"
-        ]
-      },
       "AccountProfileResult": {
         "type": "object",
         "properties": {
@@ -15705,14 +15678,10 @@
       },
       "AssignTenantUserCompaniesForStaffBody": {
         "required": [
-          "level",
           "tenantIds"
         ],
         "type": "object",
         "properties": {
-          "level": {
-            "$ref": "#/components/schemas/JsonElement"
-          },
           "tenantIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
@@ -16440,9 +16409,6 @@
         "type": "object",
         "properties": {
           "email": {
-            "$ref": "#/components/schemas/JsonElement"
-          },
-          "accountLevel": {
             "$ref": "#/components/schemas/JsonElement"
           },
           "profileIds": {
@@ -17521,9 +17487,6 @@
               "$ref": "#/components/schemas/ProfileItem"
             }
           },
-          "accountLevel": {
-            "$ref": "#/components/schemas/AccountLevel"
-          },
           "isAdmin": {
             "type": "boolean"
           },
@@ -17585,8 +17548,14 @@
               "string"
             ]
           },
-          "accountLevel": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
@@ -17824,7 +17793,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:\n[\"*\"] when the resolved account is a tenant Admin (the #861\nAccountLevel.Admin short-circuit TenantPermissionFilter applies), otherwise\nthe profile-derived keys. Empty array — never null — whenever there is\nno usable scope (missing/malformed tenant_id, unknown or suspended\naccount), gating everything closed."
+            "description": "The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:\n[\"*\"] when the account holds the tenant's full-access system profile (the\n#861 bypass TenantPermissionFilter applies), otherwise the profile-derived\nkeys. Empty array — never null — whenever there is no usable scope\n(missing/malformed tenant_id, unknown or suspended account), gating\neverything closed."
           }
         }
       },
@@ -18705,6 +18674,9 @@
           "name": {
             "type": "string"
           },
+          "isFullAccess": {
+            "type": "boolean"
+          },
           "permissions": {
             "type": "array",
             "items": {
@@ -18979,8 +18951,14 @@
               "string"
             ]
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "status": {
             "$ref": "#/components/schemas/TenantUserStatus"
@@ -19841,8 +19819,7 @@
           "profiles",
           "status",
           "expiresAt",
-          "createdAt",
-          "accountLevel"
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -19891,9 +19868,6 @@
               "null",
               "string"
             ]
-          },
-          "accountLevel": {
-            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
@@ -19953,8 +19927,14 @@
           "status": {
             "$ref": "#/components/schemas/UserStatus"
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -20071,8 +20051,14 @@
               "string"
             ]
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "status": {
             "$ref": "#/components/schemas/TenantUserStatus"
@@ -20610,8 +20596,8 @@
           "status": {
             "$ref": "#/components/schemas/TenantUserStatus"
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
           },
           "otherProfiles": {
             "type": "array",
@@ -20808,8 +20794,8 @@
               "string"
             ]
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
           },
           "status": {
             "$ref": "#/components/schemas/TenantUserStatus"
@@ -20909,8 +20895,14 @@
               "string"
             ]
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "status": {
             "$ref": "#/components/schemas/TenantUserStatus"
@@ -20968,8 +20960,14 @@
           "status": {
             "$ref": "#/components/schemas/TenantUserStatus"
           },
-          "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -21066,13 +21064,6 @@
           },
           "avatarUrl": {
             "$ref": "#/components/schemas/JsonElement"
-          },
-          "accountLevel": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/JsonElement"
-              }
-            ]
           }
         }
       },
@@ -21264,16 +21255,9 @@
           },
           "avatarUrl": {
             "$ref": "#/components/schemas/JsonElement"
-          },
-          "level": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/JsonElement"
-              }
-            ]
           }
         },
-        "description": "Updates a tenant user's profile and/or account level."
+        "description": "Updates a tenant user's name, avatar and/or profile assignments."
       },
       "UpdateTenantUserEmailForStaffBody": {
         "type": "object",

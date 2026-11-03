@@ -282,6 +282,26 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	/// </summary>
 	private static async Task _SeedAllAsync(AppDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
 		var logger = serviceProvider.GetService<ILogger<AppDbContext>>();
+
+		// Seeders always speak the CURRENT model. A migration spec (or `database update
+		// <older-target>`) can stop at a schema that still has a column the model no
+		// longer writes — e.g. #2289 removed `user_accounts.level`, so seeding a
+		// pre-#2289 schema would insert NULL into a NOT NULL column. Seeding is a
+		// post-migration step: only run it when the schema is fully up to date.
+		var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync(cancellationToken);
+		if (appliedMigrations.Any()) {
+			var pendingMigrations = (await dbContext.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
+			if (pendingMigrations.Count > 0) {
+				if (logger?.IsEnabled(LogLevel.Information) is true) {
+					logger.LogInformation(
+						"Skipping seeding: {PendingCount} migration(s) are still pending, so the schema is older than the model.",
+						pendingMigrations.Count
+					);
+				}
+				return;
+			}
+		}
+
 		var seeders = AppDbContext._CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {

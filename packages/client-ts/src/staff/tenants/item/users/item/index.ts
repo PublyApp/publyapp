@@ -47,8 +47,8 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<TenantUserDetailsResult | undefined>;
     /**
-     * Update a tenant user's profile or account level
-     * @param body Updates a tenant user's profile and/or account level.
+     * Update a tenant user's name, avatar or profile assignments
+     * @param body Updates a tenant user's name, avatar and/or profile assignments.
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<TenantUserDetailsResult>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -73,8 +73,8 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      */
      toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
     /**
-     * Update a tenant user's profile or account level
-     * @param body Updates a tenant user's profile and/or account level.
+     * Update a tenant user's name, avatar or profile assignments
+     * @param body Updates a tenant user's name, avatar and/or profile assignments.
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */

@@ -14,6 +14,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -112,14 +113,18 @@ public sealed class GetScopeAuthDataSpec
 				);
 			}
 
+			// The seeded Acme admin holds the full-access Owner profile (wildcard), so the
+			// exact profile-derived set is proven on a member with no seeded profiles.
+			var memberEmail = await this._CreateBareTenantMemberAsync(acmeId);
+
 			await this._AssignProfileToTenantUserAsync(
-				TestConstants.AcmeAdminEmail,
+				memberEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeAdminToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
+			var acmeMemberToken = await this._AuthClient.LoginAsync(
+				memberEmail,
 				TestConstants.SeedPassword
 			);
 
@@ -128,7 +133,7 @@ public sealed class GetScopeAuthDataSpec
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
 				url
-			).WithSessionToken(acmeAdminToken);
+			).WithSessionToken(acmeMemberToken);
 
 			using var response =
 				await this._Http.SendAsync(request);
@@ -208,15 +213,19 @@ public sealed class GetScopeAuthDataSpec
 				]
 			);
 
+			// The seeded Acme admin holds the full-access Owner profile (wildcard), so the
+			// leak-proof set is proven on a member with no seeded profiles.
+			var memberEmail = await this._CreateBareTenantMemberAsync(acmeId);
+
 			await this._AssignProfileToTenantUserAsync(
-				TestConstants.AcmeAdminEmail,
+				memberEmail,
 				acmeId,
 				createdProfileIds
 			);
 
 			await this._ConfigureTenantAuthPermissionLeakScenarioAsync(
 				tenantId: acmeId,
-				email: TestConstants.AcmeAdminEmail,
+				email: memberEmail,
 				revokedPermissionProfileId: revokedPermissionProfileId,
 				revokedPermissionKey: AppPermissions.Tenant.Modules.ACCESS_USERS.Key,
 				softDeletedLinkProfileId: softDeletedLinkProfileId,
@@ -224,8 +233,8 @@ public sealed class GetScopeAuthDataSpec
 				wrongScopePermissionKey: AppPermissions.Staff.Users.LIST_FOR_STAFF.Key
 			);
 
-			var acmeAdminToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
+			var acmeMemberToken = await this._AuthClient.LoginAsync(
+				memberEmail,
 				TestConstants.SeedPassword
 			);
 
@@ -234,7 +243,7 @@ public sealed class GetScopeAuthDataSpec
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
 				url
-			).WithSessionToken(acmeAdminToken);
+			).WithSessionToken(acmeMemberToken);
 
 			using var response =
 				await this._Http.SendAsync(request);
@@ -279,15 +288,18 @@ public sealed class GetScopeAuthDataSpec
 			}
 
 			// Auth data must expose the full effective profile set even if historical data grows
-			// past the configurable write-time cap.
+			// past the configurable write-time cap. A member with no seeded profiles keeps the
+			// expected set exactly the created profiles.
+			var memberEmail = await this._CreateBareTenantMemberAsync(acmeId);
+
 			await this._AssignProfileToTenantUserAsync(
-				TestConstants.AcmeAdminEmail,
+				memberEmail,
 				acmeId,
 				createdProfileIds
 			);
 
-			var acmeAdminToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
+			var acmeMemberToken = await this._AuthClient.LoginAsync(
+				memberEmail,
 				TestConstants.SeedPassword
 			);
 
@@ -296,7 +308,7 @@ public sealed class GetScopeAuthDataSpec
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
 				url
-			).WithSessionToken(acmeAdminToken);
+			).WithSessionToken(acmeMemberToken);
 
 			using var response =
 				await this._Http.SendAsync(request);
@@ -668,6 +680,34 @@ public sealed class GetScopeAuthDataSpec
 		return profileId;
 	}
 
+	// Seeds a tenant member with no profile assignments, so a profile-derived permission
+	// assertion is not polluted by the seeded admin's full-access Owner profile.
+	private async Task<string> _CreateBareTenantMemberAsync(Guid tenantId) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var email = $"auth-data-{Guid.NewGuid():N}@example.com";
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "AuthData",
+			LastName = "Member",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		_ = await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+
+		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
+		account.ValidateAccountType();
+		_ = await dbContext.UserAccount.AddAsync(account);
+		await dbContext.SaveChangesAsync();
+
+		return email;
+	}
+
 	private async Task _AssignProfileToTenantUserAsync(
 		string email,
 		Guid tenantId,
@@ -870,8 +910,6 @@ public sealed class GetScopeAuthDataSpec
 		public string Name { get; init; } = string.Empty;
 		public string Code { get; init; } = string.Empty;
 		public List<AuthProfileResponse> Profiles { get; init; } = [];
-		public string AccountLevel { get; init; }
-			= string.Empty;
 		public bool IsAdmin { get; init; }
 		public List<string> Permissions { get; init; } = [];
 	}
@@ -879,8 +917,6 @@ public sealed class GetScopeAuthDataSpec
 	private record StaffScopeAuthDataResponse {
 		public string Code { get; init; } = string.Empty;
 		public List<AuthProfileResponse> Profiles { get; init; } = [];
-		public string AccountLevel { get; init; }
-			= string.Empty;
 		public bool IsAdmin { get; init; }
 		public List<string> Permissions { get; init; } = [];
 	}

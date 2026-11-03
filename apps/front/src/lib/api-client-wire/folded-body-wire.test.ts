@@ -352,30 +352,30 @@ describe('folded request bodies', () => {
 		expect(Object.keys(foldedAbsent)).toEqual([]);
 	});
 
-	test('UpdateStaffUserBody serializes its folded key in both nullability states', () => {
+	test('UpdateStaffUserBody serializes its folded avatarUrl key in both nullability states', () => {
 		const client = buildWireClient();
 
 		const withValue = readWireBody(
 			client.staff.users.byUserId(STAFF_USER_ID).toPatchRequestInformation({
 				firstName: createUntypedString('Grace'),
 				lastName: createUntypedString('Hopper'),
-				accountLevel: createUntypedString('admin'),
+				avatarUrl: createUntypedString('/files/uploads/grace.png'),
 			}),
 		);
 		expect(Object.keys(withValue).sort()).toEqual([
-			'accountLevel',
+			'avatarUrl',
 			'firstName',
 			'lastName',
 		]);
-		expect(withValue.accountLevel).toBe('admin');
+		expect(withValue.avatarUrl).toBe('/files/uploads/grace.png');
 
 		const foldedNull = readWireBody(
 			client.staff.users.byUserId(STAFF_USER_ID).toPatchRequestInformation({
-				accountLevel: createUntypedNull(),
+				avatarUrl: createUntypedNull(),
 			}),
 		);
-		expect(Object.keys(foldedNull)).toEqual(['accountLevel']);
-		expect(foldedNull.accountLevel).toBeNull();
+		expect(Object.keys(foldedNull)).toEqual(['avatarUrl']);
+		expect(foldedNull.avatarUrl).toBeNull();
 	});
 
 	test('UpdateSystemNoticeBody serializes its four folded keys and the absent state', () => {
@@ -438,11 +438,11 @@ describe('folded request bodies', () => {
 				.users.byUserId(STAFF_USER_ID)
 				.toPatchRequestInformation({
 					firstName: createUntypedString('Radia'),
-					level: createUntypedString('member'),
+					avatarUrl: createUntypedString('/files/uploads/radia.png'),
 				}),
 		);
-		expect(Object.keys(withValue).sort()).toEqual(['firstName', 'level']);
-		expect(withValue.level).toBe('member');
+		expect(Object.keys(withValue).sort()).toEqual(['avatarUrl', 'firstName']);
+		expect(withValue.avatarUrl).toBe('/files/uploads/radia.png');
 
 		const foldedNull = readWireBody(
 			client.staff.tenants
@@ -450,10 +450,10 @@ describe('folded request bodies', () => {
 				.users.byUserId(STAFF_USER_ID)
 				.toPatchRequestInformation({
 					firstName: createUntypedString('Radia'),
-					level: createUntypedNull(),
+					avatarUrl: createUntypedNull(),
 				}),
 		);
-		expect(Object.keys(foldedNull)).toContain('level');
-		expect(foldedNull.level).toBeNull();
+		expect(Object.keys(foldedNull)).toContain('avatarUrl');
+		expect(foldedNull.avatarUrl).toBeNull();
 	});
 });

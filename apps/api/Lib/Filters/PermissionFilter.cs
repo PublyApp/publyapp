@@ -3,7 +3,6 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Services;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Lib.Filters;
 
@@ -42,61 +41,58 @@ public class PermissionFilter : IEndpointFilter {
 			throw new InvalidOperationException("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
-		// if user is not admin, check user permissions
-		if (accountStaff.Level != AccountLevel.Admin) {
-			// Check if any permissions need to be validated
-			if (
-				(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
-				|| this._CustomPermissionChecker is not null
-			) {
-				// Get user's effective permissions using the new unified system
-				var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
+		if (
+			(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
+			|| this._CustomPermissionChecker is not null
+		) {
+			// Full access is the seeded system profile, materialised by PermissionService as
+			// the wildcard sentinel. It is the ONLY bypass: every other caller is checked
+			// against the permissions their profiles grant.
+			var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
 
-				// early clause guard to avoid unnecessary permission checks
-				if (userPermissions.Count == 0) {
-					if (logger.IsEnabled(LogLevel.Debug)) {
-						logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
-							accountId = accountStaff.Id,
-							userId = accountStaff.UserId,
-						});
-					}
+			if (userPermissions.Contains(PermissionService.WildcardPermission)) {
+				return await next(context);
+			}
 
-					return TypedProblems.Forbidden(
-						"User has no permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-					);
+			if (userPermissions.Count == 0) {
+				if (logger.IsEnabled(LogLevel.Debug)) {
+					logger.LogDebug("User has no permissions: {@AccountStaff}", new {
+						accountId = accountStaff.Id,
+						userId = accountStaff.UserId,
+					});
 				}
 
-				bool hasRequiredPermissions;
+				return TypedProblems.Forbidden(
+					"User has no permissions",
+					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+				);
+			}
 
-				if (this._CustomPermissionChecker is not null) {
-					// Use custom permission checker
-					hasRequiredPermissions = this._CustomPermissionChecker(userPermissions);
-				} else if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
-					// Use default logic: user must have ALL required permissions
-					var requiredPermissionKeys = this._RequiredPermissions.Select(p => p.Key);
-					hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
-				} else {
-					// No permissions required
-					hasRequiredPermissions = true;
+			bool hasRequiredPermissions;
+
+			if (this._CustomPermissionChecker is not null) {
+				hasRequiredPermissions = this._CustomPermissionChecker(userPermissions);
+			} else if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
+				var requiredPermissionKeys = this._RequiredPermissions.Select(p => p.Key);
+				hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
+			} else {
+				hasRequiredPermissions = true;
+			}
+
+			if (!hasRequiredPermissions) {
+				if (logger.IsEnabled(LogLevel.Debug)) {
+					logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
+						accountId = accountStaff.Id,
+						userId = accountStaff.UserId,
+						userPermissionsCount = userPermissions.Count,
+						hasCustomChecker = this._CustomPermissionChecker is not null
+					});
 				}
 
-				if (!hasRequiredPermissions) {
-					if (logger.IsEnabled(LogLevel.Debug)) {
-						logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
-							accountId = accountStaff.Id,
-							userId = accountStaff.UserId,
-							userPermissionsCount = userPermissions.Count,
-							hasCustomChecker = this._CustomPermissionChecker is not null
-							// userPermissions = userPermissions.ToArray(),
-						});
-					}
-
-					return TypedProblems.Forbidden(
-						"User does not have the necessary permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-					);
-				}
+				return TypedProblems.Forbidden(
+					"User does not have the necessary permissions",
+					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+				);
 			}
 		}
 

@@ -8,7 +8,7 @@ import {
 } from '~/lib/query/staff-tenant-users';
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
 import {
-	formatTenantUserLevelLabel,
+	formatTenantUserAccessLabel,
 	formatTenantUserStatusLabel,
 } from '~/routes/authed/staff/tenants/$tenantId/_tenant-details-shell';
 
@@ -66,7 +66,7 @@ export const UsersPreviewCard = ({
 							</p>
 						</div>
 						<StatusPill tone="neutral">
-							{formatTenantUserLevelLabel(row.level, t)}
+							{formatTenantUserAccessLabel(row.isFullAccess, t)}
 						</StatusPill>
 						<StatusPill tone={statusPillTone(row.status)}>
 							{formatTenantUserStatusLabel(row.status, t)}

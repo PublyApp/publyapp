@@ -23,7 +23,8 @@ public class TenantUserItem {
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
 	public TenantUserStatus Status { get; set; }
-	public AccountLevel Level { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 }
 
 public class FindTenantUsersAsStaffResult
@@ -37,19 +38,12 @@ public class FindTenantUsersAsStaffQuery
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
-	[FromQuery(Name = "level")]
-	public string? Level { get; set; }
-
 	public string? GetSearchNormalized() {
 		return TenantUserFilterQuery.NormalizeSearch(this.Search);
 	}
 
 	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
 		return TenantUserFilterQuery.ParseStatuses(this.Status);
-	}
-
-	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
-		return TenantUserFilterQuery.ParseLevels(this.Level);
 	}
 }
 
@@ -76,19 +70,6 @@ public class FindTenantUsersAsStaffQueryValidator
 				return parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedStatusSet.Contains(p));
 			})
 			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
-		this.RuleFor(x => x.Level)
-			.Must(raw => {
-				if (string.IsNullOrWhiteSpace(raw)) {
-					return true;
-				}
-
-				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
-				if (parts.Length == 0) {
-					return false;
-				}
-				return parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedLevelSet.Contains(p));
-			})
-			.WithMessage($"level must be one of: {TenantUserFilterQuery.AllowedLevelsDisplay}");
 	}
 }
 
@@ -144,8 +125,7 @@ public sealed class FindTenantUsersAsStaff {
 			SortOrder: sortOrder,
 			Filters: new FindTenantUsersAsStaffFilters(
 				Search: query.GetSearchNormalized(),
-				Status: query.GetStatusesOrNull(),
-				Level: query.GetLevelsOrNull()
+				Status: query.GetStatusesOrNull()
 			)
 		);
 
@@ -206,7 +186,8 @@ public sealed class FindTenantUsersAsStaff {
 									tu.User.Status,
 									tu.Account.Status
 								),
-								Level = tu.AccountLevel,
+								IsFullAccess = tu.IsFullAccess,
+								Roles = tu.Roles,
 							}
 						)
 						.ToList(),

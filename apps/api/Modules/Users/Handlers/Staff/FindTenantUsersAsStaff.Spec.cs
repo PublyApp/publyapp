@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -378,35 +379,6 @@ public sealed class FindTenantUsersAsStaffSpec
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
 			tenantId,
 			status: "%20"
-		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-	}
-
-	[Fact]
-	public async Task
-	ItShouldReturnOkWhenLevelIsWhitespace() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
-
-		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-			tenantId,
-			level: "%20"
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -890,7 +862,7 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldFilterTenantUsersByAdminLevel() {
+	ItShouldMarkTheTenantFullAccessOwnerInTheList() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -901,10 +873,7 @@ public sealed class FindTenantUsersAsStaffSpec
 					SeedConstants.Tenants.AcmeName
 				);
 
-		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-			tenantId,
-			level: "admin"
-		);
+		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, limit: 100);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			url
@@ -920,119 +889,29 @@ public sealed class FindTenantUsersAsStaffSpec
 			.ReadFromJsonAsync<FindResponse>();
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
-		result.Data.Should().NotBeEmpty();
-		result.Data.Should().OnlyContain(user => user.Level == "Admin");
-		result.Data.Select(user => user.Email)
-			.Should()
-			.Contain(SeedConstants.Tenants.AcmeAdminEmail);
-	}
 
-	[Fact]
-	public async Task
-	ItShouldFilterTenantUsersByUserLevel() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var owner = result.Data.Should()
+			.ContainSingle(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeAdminEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+			)
+			.Subject;
+		owner.IsFullAccess.Should().BeTrue();
+		owner.Roles.Should().Contain(SystemProfileNames.TenantFullAccess);
 
-		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-			tenantId,
-			level: "user"
-		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
-		result.Data.Should().NotBeEmpty();
-		result.Data.Should().OnlyContain(user => user.Level == "User");
-		result.Data.Select(user => user.Email)
-			.Should()
-			.Contain(SeedConstants.Tenants.AcmeUserEmail);
-	}
-
-	[Fact]
-	public async Task
-	ItShouldFilterTenantUsersByMultipleLevelsWhenCommaSeparated() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
-
-		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-			tenantId,
-			level: "admin,user"
-		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
-		result.Data.Select(user => user.Level)
-			.Should()
-			.Contain("Admin");
-		result.Data.Select(user => user.Level)
-			.Should()
-			.Contain("User");
-	}
-
-	[Fact]
-	public async Task
-	ItShouldReturnUnprocessableEntityWhenLevelIsInvalid() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
-
-		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-			tenantId,
-			level: "owner"
-		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.UnprocessableEntity);
+		var member = result.Data.Should()
+			.ContainSingle(user =>
+				string.Equals(
+					user.Email,
+					SeedConstants.Tenants.AcmeUserEmail,
+					StringComparison.OrdinalIgnoreCase
+				)
+			)
+			.Subject;
+		member.IsFullAccess.Should().BeFalse();
 	}
 
 	[Fact]
@@ -1079,7 +958,6 @@ public sealed class FindTenantUsersAsStaffSpec
 		string? sortId = null,
 		string? sortOrder = null,
 		string? status = null,
-		string? level = null,
 		string? search = null
 	) {
 		return FindTenantUsersAsStaffSpec._GetFindUrl(
@@ -1089,7 +967,6 @@ public sealed class FindTenantUsersAsStaffSpec
 			sortId,
 			sortOrder,
 			status,
-			level,
 			search
 		);
 	}
@@ -1101,7 +978,6 @@ public sealed class FindTenantUsersAsStaffSpec
 		string? sortId = null,
 		string? sortOrder = null,
 		string? status = null,
-		string? level = null,
 		string? search = null
 	) {
 		var basePath = PathUtils.Join(
@@ -1127,9 +1003,6 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 		if (status is not null) {
 			queryParams.Add($"status={status}");
-		}
-		if (level is not null) {
-			queryParams.Add($"level={level}");
 		}
 		if (search is not null) {
 			queryParams.Add($"q={Uri.EscapeDataString(search)}");
@@ -1447,7 +1320,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		// 3 users with distinct, deliberately NOT insertion-ordered Status
 		// (anti-correlated with insertion). The walk must visit each once in
 		// ascending Status order. A keySelector swap to another same-type field
-		// (e.g. Level) turns this assertion RED.
+		// (e.g. IsFullAccess) turns this assertion RED.
 		// UserStatus: Suspended = 30, Active = 40.
 		// The production key selector maps: User.Status==Suspended -> 2,
 		// Account.Status==Suspended -> 1, else -> 0. So the seeded statuses
@@ -1517,7 +1390,7 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
+	ItShouldOrderTenantUsersByFullAccess() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -1528,65 +1401,52 @@ public sealed class FindTenantUsersAsStaffSpec
 					SeedConstants.Tenants.AcmeName
 				);
 
-		// 3 users with distinct, deliberately NOT insertion-ordered Level
-		// (anti-correlated with insertion). The walk must visit each once in
-		// ascending Level order. A keySelector swap to another same-type field
-		// (e.g. Status) turns this assertion RED.
-		// AccountLevel: User = 10, Admin = 50.
-		var levels = new[] { AccountLevel.Admin, AccountLevel.User, AccountLevel.Admin };
+		// 3 users with deliberately NOT insertion-ordered full-access state.
+		// Ascending is_full_access must put the role-less user first, then the two
+		// role holders ordered by Id, so a keySelector swap to another same-type
+		// field (e.g. Status) turns this assertion RED.
+		var fullAccessFlags = new[] { true, false, true };
 		var seededIds = new List<string>();
 		for (var i = 0; i < 3; i++) {
 			var userId = await this._SeedTenantUserAtAsync(
 				tenantId,
 				new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(i)
 			);
-			await this._SetTenantUserLevelAsync(Guid.Parse(userId), levels[i]);
+			await this._SetTenantUserFullAccessAsync(
+				tenantId,
+				Guid.Parse(userId),
+				fullAccessFlags[i]
+			);
 			seededIds.Add(userId);
 		}
 
-		var visitedIds = new List<string>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: cursor,
-				limit: 1,
-				sortId: "level",
-				sortOrder: "asc"
-			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
+		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
+			tenantId,
+			limit: 100,
+			sortId: "is_full_access",
+			sortOrder: "asc"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(staffToken);
 
-			using var response =
-				await this._Http.SendAsync(request);
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
+		using var response =
+			await this._Http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
 
-			var page =
-				await response.Content
-					.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(u => u.Id)
-			);
-			cursor = page.NextCursor;
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
 
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
-
-		visitedIds.Should().OnlyHaveUniqueItems();
-		visitedIds.Should().Contain(seededIds);
-
-		var visitedOrder = visitedIds
+		var visitedOrder = result.Data
+			.Select(user => user.Id)
 			.Where(seededIds.Contains)
 			.ToList();
 		var expectedOrder = seededIds
-			.Zip(levels, (id, l) => (id, l))
-			.OrderBy(x => x.l)
+			.Zip(fullAccessFlags, (id, fullAccess) => (id, fullAccess))
+			.OrderBy(x => x.fullAccess)
 			.ThenBy(x => Guid.Parse(x.id))
 			.Select(x => x.id)
 			.ToList();
@@ -1635,7 +1495,11 @@ public sealed class FindTenantUsersAsStaffSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _SetTenantUserLevelAsync(Guid userId, AccountLevel level) {
+	private async Task _SetTenantUserFullAccessAsync(
+		Guid tenantId,
+		Guid userId,
+		bool fullAccess
+	) {
 		await using var scope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
@@ -1643,11 +1507,20 @@ public sealed class FindTenantUsersAsStaffSpec
 
 		var account = await dbContext.UserAccount
 			.FirstAsync(ua =>
-				ua.UserId == userId && ua.Scope == AccountScope.Tenant
+				ua.UserId == userId
+				&& ua.TenantId == tenantId
+				&& ua.Scope == AccountScope.Tenant
 			);
-		account.Level = level;
 
-		await dbContext.SaveChangesAsync();
+		if (!fullAccess) {
+			return;
+		}
+
+		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			dbContext,
+			tenantId,
+			account.GetRequiredId()
+		);
 	}
 
 	private async Task<string> _SeedTenantUserAtAsync(
@@ -1705,8 +1578,8 @@ public sealed class FindTenantUsersAsStaffSpec
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; }
 			= string.Empty;
-		public string Level { get; init; }
-			= string.Empty;
+		public bool IsFullAccess { get; init; }
+		public List<string> Roles { get; init; } = [];
 	}
 
 	private async Task _SwapTenantUserIdsAsync(string idA, string idB) {

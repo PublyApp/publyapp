@@ -23,7 +23,8 @@ public record ReactivateTenantUserResult {
 	public string? FirstName { get; set; }
 	public string? LastName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public AccountLevel Level { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 	public TenantUserStatus Status { get; set; }
 	public Guid? TenantId { get; set; }
 }
@@ -113,7 +114,8 @@ public sealed class ReactivateTenantUserAsStaff {
 			FirstName = userData.User.FirstName,
 			LastName = userData.User.LastName,
 			AvatarUrl = userData.User.AvatarUrl,
-			Level = userData.AccountLevel,
+			IsFullAccess = userData.IsFullAccess,
+			Roles = userData.Roles,
 			Status = UserAccount.GetTenantStatus(
 				userData.User.Status,
 				userData.Account.Status

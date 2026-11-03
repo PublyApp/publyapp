@@ -24,10 +24,11 @@ using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
-/// Security proof for #861: a tenant Admin must genuinely bypass the per-permission
-/// check (AccountLevel.Admin short-circuit in TenantPermissionFilter), the bypass must
-/// not leak into a different tenant, and non-Admin tenant users must still be governed
-/// strictly by their profile-derived permissions.
+/// Security proof for #861: a holder of the tenant's full-access `Owner` profile must
+/// genuinely bypass the per-permission check (the full-access short-circuit in
+/// TenantPermissionFilter), the bypass must not leak into a different tenant, and tenant
+/// members without that profile must still be governed strictly by their
+/// profile-derived permissions.
 ///
 /// Exercises the real HTTP pipeline via the real tenant posts endpoint GET /posts
 /// (Program.cs: MapPostEndpointsForTenant), gated with
@@ -52,10 +53,10 @@ public sealed class TenantPermissionFilterSpec
 		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
-	// Creates a bare Acme tenant member with NO profiles at all (round 2: the
-	// seeded AcmeUserEmail member gained publishing permissions via
-	// demo-publishing-acme, so empty-derived-permission proofs need a fresh one).
-	private async Task<(Guid TenantId, string Email)> _CreateBareAcmeMemberAsync() {
+	// Creates a fresh Acme tenant member with no profile assignments at all. Seeded
+	// members carry their own profiles, so permission proofs seed a dedicated member.
+	private async Task<(Guid TenantId, string Email, Guid UserAccountId)>
+	_CreateBareAcmeMemberAsync() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
 			this._Http,
@@ -77,33 +78,41 @@ public sealed class TenantPermissionFilterSpec
 		await db.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(
-			user.GetRequiredId(), acmeId, AccountLevel.User
+			user.GetRequiredId(), acmeId
 		);
 		account.ValidateAccountType();
 		db.UserAccount.Add(account);
 		await db.SaveChangesAsync();
 
-		return (acmeId, email);
+		return (acmeId, email, account.GetRequiredId());
 	}
 
 	[Fact]
 	public async Task
-	ItShouldAllowTenantAdminWithNoProfilesToAccessPermissionGatedEndpoint() {
-		// Acme's seeded Admin account has no profiles assigned by default — this is
-		// exactly the #861 scenario: AccountLevel.Admin, Permissions derive to [].
-		// Pre-fix (no Admin short-circuit in TenantPermissionFilter), this call fails
-		// with 403 "user-does-not-have-the-necessary-permissions" (red-before).
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+	ItShouldAllowTenantFullAccessMemberWithNoProfilePermissionsToAccessPermissionGatedEndpoint() {
+		// The #861 scenario under the profile-based model: a tenant member holding ONLY
+		// the tenant Owner full-access profile — no profile_permissions rows — derives
+		// the wildcard permission and passes every gate.
+		var (acmeId, email, userAccountId) = await this._CreateBareAcmeMemberAsync();
 
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var ownerProfileId = await FullAccessProfileTestHelper.EnsureTenantProfileAsync(
+				db,
+				acmeId
+			);
+			await FullAccessProfileTestHelper.AssignAsync(db, userAccountId, ownerProfileId);
+
+			var permissionRowCount = await (
+				from pp in db.ProfilePermission
+				where pp.ProfileId == ownerProfileId
+				select pp
+			).CountAsync();
+			permissionRowCount.Should().Be(0);
+		}
+
+		var fullAccessToken = await this._AuthClient.LoginAsync(
+			email,
 			TestConstants.SeedPassword
 		);
 
@@ -111,7 +120,7 @@ public sealed class TenantPermissionFilterSpec
 			HttpMethod.Get,
 			TenantPermissionFilterSpec._PostsEndpoint
 		)
-			.WithSessionToken(acmeAdminToken)
+			.WithSessionToken(fullAccessToken)
 			.WithTenantId(acmeId);
 
 		using var response =
@@ -122,43 +131,59 @@ public sealed class TenantPermissionFilterSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturn403ForNonAdminTenantUserWithoutRequiredPermission() {
-		// Round 2: the seeded Acme member now carries publishing permissions through
-		// the demo profile, so this denial pin uses a dedicated profile-less member
-		// whose derived permission set is provably empty.
-		var (bareTenantId, bareEmail) = await this._CreateBareAcmeMemberAsync();
+	ItShouldReturn403ForTenantMemberWithRestrictedProfile() {
+		// A member whose only profile carries a permission other than posts.view is
+		// still governed strictly by the profile-derived permission set.
+		var (acmeId, email, _) = await this._CreateBareAcmeMemberAsync();
+		var createdProfileIds = new List<Guid>();
 
-		var acmeUserToken = await this._AuthClient.LoginAsync(
-			bareEmail,
-			TestConstants.SeedPassword
-		);
+		try {
+			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
+				acmeId,
+				[AppPermissions.Tenant.Posts.CREATE.Key]
+			);
+			createdProfileIds.Add(profileId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			TenantPermissionFilterSpec._PostsEndpoint
-		)
-			.WithSessionToken(acmeUserToken)
-			.WithTenantId(bareTenantId);
+			await this._AssignProfileToTenantUserAsync(
+				email,
+				acmeId,
+				createdProfileIds
+			);
 
-		using var response =
-			await this._Http.SendAsync(request);
+			var memberToken = await this._AuthClient.LoginAsync(
+				email,
+				TestConstants.SeedPassword
+			);
 
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.Forbidden);
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				TenantPermissionFilterSpec._PostsEndpoint
+			)
+				.WithSessionToken(memberToken)
+				.WithTenantId(acmeId);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-			.Be("user-does-not-have-the-necessary-permissions");
+			using var response =
+				await this._Http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.Forbidden);
+
+			var problem = await response.Content
+				.ReadFromJsonAsync<AppProblemDetails>();
+			problem.Should().NotBeNull();
+			Assert.NotNull(problem);
+			problem.TranslationKey.Should()
+				.Be("user-does-not-have-the-necessary-permissions");
+		} finally {
+			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
+		}
 	}
 
 	[Fact]
 	public async Task
-	ItShouldReturn200ForNonAdminTenantUserWithRequiredPermission() {
+	ItShouldReturn200ForTenantMemberWithRequiredProfilePermission() {
 		// Regression guard: profile-derived permissions must still grant access for
-		// non-admin users exactly as before the Admin bypass was introduced.
+		// members without the full-access profile exactly as before the bypass existed.
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -206,10 +231,10 @@ public sealed class TenantPermissionFilterSpec
 
 	[Fact]
 	public async Task
-	ItShouldNotLeakTheAdminBypassIntoADifferentTenantForTheSameUser() {
-		// Charlie is seeded as Admin in Acme but only a non-admin User in Global
-		// Solutions (see UserAccountSeeder cross-tenant fixtures). The bypass earned in
-		// Acme must not follow the user into a different tenant scope.
+	ItShouldNotLeakTheFullAccessBypassIntoADifferentTenantForTheSameUser() {
+		// Charlie holds the Acme Owner full-access profile but is only a non-full-access
+		// member in Global Solutions (see UserAccountSeeder cross-tenant fixtures). The
+		// bypass earned in Acme must not follow the user into a different tenant scope.
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -239,7 +264,7 @@ public sealed class TenantPermissionFilterSpec
 			using var acmeResponse =
 				await this._Http.SendAsync(acmeRequest);
 
-			// Admin in Acme: bypass applies.
+			// Full access in Acme: bypass applies.
 			acmeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
@@ -252,7 +277,7 @@ public sealed class TenantPermissionFilterSpec
 			using var globalResponse =
 				await this._Http.SendAsync(globalRequest);
 
-			// Non-admin in Global Solutions, no profiles assigned: must be denied.
+			// Not full access in Global Solutions, no profiles assigned: must be denied.
 			globalResponse.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
 
@@ -267,11 +292,11 @@ public sealed class TenantPermissionFilterSpec
 
 	[Fact]
 	public async Task
-	ItShouldNotLeakTheTenantAdminBypassIntoAStaffScopePermissionCheck() {
-		// A tenant Admin has no staff account at all (staff/tenant scope exclusivity).
-		// Hitting a staff-scope permission-gated endpoint must be rejected by
-		// StaffAuthFilter before any permission check runs — proving the tenant Admin
-		// bypass cannot cross into staff-scope enforcement.
+	ItShouldNotLeakTheTenantFullAccessBypassIntoAStaffScopePermissionCheck() {
+		// A tenant full-access member has no staff account at all (staff/tenant scope
+		// exclusivity). Hitting a staff-scope permission-gated endpoint must be rejected
+		// by StaffAuthFilter before any permission check runs — proving the tenant
+		// full-access bypass cannot cross into staff-scope enforcement.
 		var acmeAdminToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeAdminEmail,
 			TestConstants.SeedPassword

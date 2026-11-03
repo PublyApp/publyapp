@@ -6,10 +6,7 @@ import type { CsvExportColumn } from '~/routes/authed/staff/staff-list-export-se
 
 import { normalizeInvitationStatus } from '../../invitations/list-helpers';
 import { formatTenantInvitationStatusLabel } from './_invitation-columns';
-import {
-	formatDateTime,
-	formatTenantUserLevelLabel,
-} from './_tenant-details-shell';
+import { formatDateTime } from './_tenant-details-shell';
 
 type TenantInvitationsSelectionExportProps = {
 	rows: StaffTenantInvitationRow[];
@@ -33,7 +30,7 @@ export const TenantInvitationsSelectionExport = ({
 			getValue: (row) =>
 				(row.profiles ?? [])[0]?.name ??
 				row.profileName ??
-				formatTenantUserLevelLabel(row.accountLevel, t),
+				(row.roles ?? []).join(', '),
 		},
 		{ header: t('invited-by'), getValue: (row) => row.invitedByName },
 		{

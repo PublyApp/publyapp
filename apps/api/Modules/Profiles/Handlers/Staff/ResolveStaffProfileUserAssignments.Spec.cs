@@ -4,6 +4,10 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -16,10 +20,12 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class ResolveStaffProfileUserAssignmentsSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _Fixture;
 	private readonly HttpClient _Http;
 	private readonly TestAuthClient _AuthClient;
 
 	public ResolveStaffProfileUserAssignmentsSpec(ApiFixture fixture) {
+		this._Fixture = fixture;
 		this._Http = fixture.HttpClient;
 		this._AuthClient = new TestAuthClient(this._Http);
 	}
@@ -98,6 +104,9 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 			TestConstants.StaffAdminEmail,
 			token
 		);
+		// Keep the seeded admin's full-access role: the update replaces the whole set, and
+		// removing the last full-access holder is refused by the staff last-admin guard.
+		var fullAccessProfileId = await this._GetStaffFullAccessProfileIdAsync();
 
 		// Assign the profile to the staff user so the resolver has something to find.
 		using (var updateRequest = new HttpRequestMessage(
@@ -105,7 +114,7 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 			ResolveStaffProfileUserAssignmentsSpec._GetUpdateUserProfilesUrl(staffUserId)
 		).WithSessionToken(token)) {
 			updateRequest.Content = JsonContent.Create(
-				new { profileIds = new[] { profileId } }
+				new { profileIds = new[] { profileId, fullAccessProfileId.ToString() } }
 			);
 
 			using var updateResponse = await this._Http.SendAsync(updateRequest);
@@ -133,6 +142,12 @@ public sealed class ResolveStaffProfileUserAssignmentsSpec
 					x.UserId.ToString() == staffUserId
 					&& x.IsAssigned
 				);
+	}
+
+	private async Task<Guid> _GetStaffFullAccessProfileIdAsync() {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await FullAccessProfileTestHelper.EnsureStaffProfileAsync(dbContext);
 	}
 
 	private async Task<string> _CreateStaffProfileAsync(string staffToken) {

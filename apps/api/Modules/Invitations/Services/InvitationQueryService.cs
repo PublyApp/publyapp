@@ -1,5 +1,3 @@
-using System.Linq.Expressions;
-
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
@@ -7,7 +5,6 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
 
@@ -63,12 +60,6 @@ public interface IInvitationQueryService {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class InvitationQueryService : IInvitationQueryService {
-	private static readonly Expression<Func<Invitation, AccountLevel>>
-		_EffectiveAccountLevelExpression =
-			invitation => invitation.AccountLevel ?? AccountLevel.User;
-	private static readonly Func<Invitation, AccountLevel> _GetEffectiveAccountLevel =
-		InvitationQueryService._EffectiveAccountLevelExpression.Compile();
-
 	private readonly AppDbContext _DbContext;
 	private readonly ILogger<InvitationQueryService> _Logger;
 
@@ -450,10 +441,6 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			);
 		}
 
-		if (filters.Level is { Count: > 0 } levels) {
-			query = query.Where(InvitationQueryService._BuildEffectiveAccountLevelPredicate(levels));
-		}
-
 		if (cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(cursor);
 			if (cursorValue is null) {
@@ -520,7 +507,6 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
 				? name
 				: null;
-			var accountLevel = InvitationQueryService._GetEffectiveAccountLevel(r.Invitation);
 			return new StaffTenantInvitationListItem {
 				Id = invitationId,
 				Email = r.Invitation.Email,
@@ -532,7 +518,6 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 					r.Invitation.ExpiresAt,
 					DateTime.UtcNow
 				),
-				AccountLevel = accountLevel,
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
 				CreatedAt = r.Invitation.CreatedAt,
@@ -545,24 +530,6 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				Data = invitationItems,
 				NextCursor = nextCursor,
 			}
-		);
-	}
-
-	private static Expression<Func<Invitation, bool>>
-	_BuildEffectiveAccountLevelPredicate(
-		IReadOnlySet<AccountLevel> levels
-	) {
-		var containsLevel = Expression.Call(
-			typeof(Enumerable),
-			nameof(Enumerable.Contains),
-			[typeof(AccountLevel)],
-			Expression.Constant(levels, typeof(IEnumerable<AccountLevel>)),
-			InvitationQueryService._EffectiveAccountLevelExpression.Body
-		);
-
-		return Expression.Lambda<Func<Invitation, bool>>(
-			containsLevel,
-			InvitationQueryService._EffectiveAccountLevelExpression.Parameters
 		);
 	}
 

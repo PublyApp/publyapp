@@ -18,10 +18,7 @@ import {
 } from '~/lib/query/staff-users';
 
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
-import {
-	AccountLevelObject,
-	UserStatusObject,
-} from '@org/client-ts/models/index';
+import { UserStatusObject } from '@org/client-ts/models/index';
 import type {
 	GetStaffUserByIdResult,
 	GetStaffUserProfilesResult,
@@ -69,7 +66,8 @@ describe('toStaffUserRows', () => {
 				firstName: ' Alpha ',
 				lastName: ' Admin ',
 				avatarUrl: ' https://example.com/alpha.png ',
-				level: AccountLevelObject.Admin,
+				isFullAccess: true,
+				roles: ['Staff Owner'],
 				status: UserStatusObject.Active,
 			},
 			{
@@ -84,7 +82,8 @@ describe('toStaffUserRows', () => {
 				firstName: ' ',
 				lastName: null,
 				avatarUrl: null,
-				level: null,
+				isFullAccess: false,
+				roles: [],
 				status: null,
 			},
 		];
@@ -96,7 +95,8 @@ describe('toStaffUserRows', () => {
 				firstName: 'Alpha',
 				lastName: 'Admin',
 				avatarUrl: 'https://example.com/alpha.png',
-				level: AccountLevelObject.Admin,
+				isFullAccess: true,
+				roles: ['Staff Owner'],
 				status: UserStatusObject.Active,
 				displayName: 'Alpha Admin',
 			},
@@ -106,7 +106,8 @@ describe('toStaffUserRows', () => {
 				firstName: null,
 				lastName: null,
 				avatarUrl: null,
-				level: null,
+				isFullAccess: false,
+				roles: [],
 				status: null,
 				displayName: 'beta@example.com',
 			},
@@ -145,7 +146,8 @@ describe('toStaffUserDetails', () => {
 			firstName: ' ',
 			lastName: null,
 			avatarUrl: ' https://example.com/avatar.png ',
-			accountLevel: AccountLevelObject.Admin,
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: UserStatusObject.Active,
 			createdAt: new Date('invalid'),
 			updatedAt,
@@ -157,7 +159,8 @@ describe('toStaffUserDetails', () => {
 			firstName: null,
 			lastName: null,
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: AccountLevelObject.Admin,
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: UserStatusObject.Active,
 			createdAt: null,
 			updatedAt,

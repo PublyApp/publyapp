@@ -1,6 +1,5 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 public interface IEmailService {
@@ -15,8 +14,7 @@ public interface IEmailService {
 	Task<EmailSendReceipt> SendTenantInvitationEmailAsync(
 		string email,
 		string tenantName,
-		string token,
-		AccountLevel level
+		string token
 	);
 }
 
@@ -127,11 +125,10 @@ public class EmailService : IEmailService {
 	public async Task<EmailSendReceipt> SendTenantInvitationEmailAsync(
 		string email,
 		string tenantName,
-		string token,
-		AccountLevel level
+		string token
 	) {
 		return await this._EmailSender.SendAsync(
-			EmailTemplates.TenantInvitation(email, tenantName, token, level)
+			EmailTemplates.TenantInvitation(email, tenantName, token)
 		);
 	}
 }

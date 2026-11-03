@@ -4,7 +4,7 @@ import {
 	buildMemberImportOutcome,
 	buildTenantMemberCsvTemplate,
 	isValidTenantCode,
-	mapImportedRoleToAccountLevel,
+	mapImportedRoleToTenantRole,
 	mergeInitialUsers,
 	parseCsv,
 	slugifyTenantNamePlaceholder,
@@ -57,21 +57,21 @@ describe('slugifyTenantNamePlaceholder', () => {
 	});
 });
 
-describe('mapImportedRoleToAccountLevel', () => {
+describe('mapImportedRoleToTenantRole', () => {
 	test('maps admin and owner (any case) to Admin', () => {
-		expect(mapImportedRoleToAccountLevel('admin')).toBe('Admin');
-		expect(mapImportedRoleToAccountLevel('Admin')).toBe('Admin');
-		expect(mapImportedRoleToAccountLevel('OWNER')).toBe('Admin');
-		expect(mapImportedRoleToAccountLevel('owner')).toBe('Admin');
+		expect(mapImportedRoleToTenantRole('admin')).toBe('owner');
+		expect(mapImportedRoleToTenantRole('Admin')).toBe('owner');
+		expect(mapImportedRoleToTenantRole('OWNER')).toBe('owner');
+		expect(mapImportedRoleToTenantRole('owner')).toBe('owner');
 	});
 
 	test('maps user, member, empty, and unknown values to User', () => {
-		expect(mapImportedRoleToAccountLevel('user')).toBe('User');
-		expect(mapImportedRoleToAccountLevel('Member')).toBe('User');
-		expect(mapImportedRoleToAccountLevel('')).toBe('User');
-		expect(mapImportedRoleToAccountLevel(undefined)).toBe('User');
-		expect(mapImportedRoleToAccountLevel(null)).toBe('User');
-		expect(mapImportedRoleToAccountLevel('editor')).toBe('User');
+		expect(mapImportedRoleToTenantRole('user')).toBe('member');
+		expect(mapImportedRoleToTenantRole('Member')).toBe('member');
+		expect(mapImportedRoleToTenantRole('')).toBe('member');
+		expect(mapImportedRoleToTenantRole(undefined)).toBe('member');
+		expect(mapImportedRoleToTenantRole(null)).toBe('member');
+		expect(mapImportedRoleToTenantRole('editor')).toBe('member');
 	});
 });
 
@@ -132,9 +132,7 @@ describe('buildMemberImportOutcome', () => {
 
 		expect(outcome.detectedCount).toBe(2);
 		expect(outcome.invalidCount).toBe(1);
-		expect(outcome.valid).toEqual([
-			{ email: 'ok@example.com', accountLevel: 'Admin' },
-		]);
+		expect(outcome.valid).toEqual([{ email: 'ok@example.com', role: 'owner' }]);
 	});
 
 	test('dedupes rows against existing owner/manual emails case-insensitively', () => {
@@ -149,7 +147,7 @@ describe('buildMemberImportOutcome', () => {
 		expect(outcome.detectedCount).toBe(2);
 		expect(outcome.duplicateCount).toBe(1);
 		expect(outcome.valid).toEqual([
-			{ email: 'new@example.com', accountLevel: 'User' },
+			{ email: 'new@example.com', role: 'member' },
 		]);
 	});
 
@@ -165,7 +163,7 @@ describe('buildMemberImportOutcome', () => {
 		expect(outcome.detectedCount).toBe(2);
 		expect(outcome.duplicateCount).toBe(1);
 		expect(outcome.valid).toEqual([
-			{ email: 'dup@example.com', accountLevel: 'User' },
+			{ email: 'dup@example.com', role: 'member' },
 		]);
 	});
 
@@ -191,38 +189,34 @@ describe('mergeInitialUsers', () => {
 	test('orders owners first, then parsed members, then manual members', () => {
 		const merged = mergeInitialUsers({
 			owners: [{ email: 'owner@example.com' }],
-			parsedMembers: [{ email: 'csv@example.com', accountLevel: 'User' }],
-			manualMembers: [{ email: 'manual@example.com', accountLevel: 'Admin' }],
+			parsedMembers: [{ email: 'csv@example.com', role: 'member' }],
+			manualMembers: [{ email: 'manual@example.com', role: 'owner' }],
 		});
 
 		expect(merged).toEqual([
-			{ email: 'owner@example.com', accountLevel: 'Admin' },
-			{ email: 'csv@example.com', accountLevel: 'User' },
-			{ email: 'manual@example.com', accountLevel: 'Admin' },
+			{ email: 'owner@example.com', role: 'owner' },
+			{ email: 'csv@example.com', role: 'member' },
+			{ email: 'manual@example.com', role: 'owner' },
 		]);
 	});
 
 	test('dedupes across all three sources case-insensitively, keeping the first occurrence', () => {
 		const merged = mergeInitialUsers({
 			owners: [{ email: 'shared@example.com' }],
-			parsedMembers: [{ email: 'Shared@Example.com', accountLevel: 'User' }],
-			manualMembers: [{ email: 'SHARED@EXAMPLE.COM', accountLevel: 'User' }],
+			parsedMembers: [{ email: 'Shared@Example.com', role: 'member' }],
+			manualMembers: [{ email: 'SHARED@EXAMPLE.COM', role: 'member' }],
 		});
 
-		expect(merged).toEqual([
-			{ email: 'shared@example.com', accountLevel: 'Admin' },
-		]);
+		expect(merged).toEqual([{ email: 'shared@example.com', role: 'owner' }]);
 	});
 
 	test('drops blank emails', () => {
 		const merged = mergeInitialUsers({
 			owners: [{ email: '   ' }],
 			parsedMembers: [],
-			manualMembers: [{ email: 'member@example.com', accountLevel: 'User' }],
+			manualMembers: [{ email: 'member@example.com', role: 'member' }],
 		});
 
-		expect(merged).toEqual([
-			{ email: 'member@example.com', accountLevel: 'User' },
-		]);
+		expect(merged).toEqual([{ email: 'member@example.com', role: 'member' }]);
 	});
 });

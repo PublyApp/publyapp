@@ -25,7 +25,7 @@ public class TenantProfileUserItem {
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
 	public TenantUserStatus Status { get; set; }
-	public AccountLevel Level { get; set; }
+	public bool IsFullAccess { get; set; }
 	public required List<TenantProfileUserProfileItem> OtherProfiles { get; set; }
 	public DateTime? JoinedAt { get; set; }
 }
@@ -149,7 +149,7 @@ public sealed class FindTenantProfileUsersAsStaff {
 							FirstName = u.FirstName,
 							AvatarUrl = u.AvatarUrl,
 							Status = UserAccount.GetTenantStatus(u.UserStatus, u.AccountStatus),
-							Level = u.Level,
+							IsFullAccess = u.IsFullAccess,
 							OtherProfiles = u.OtherProfiles
 								.Select(profile => new TenantProfileUserProfileItem {
 									Id = profile.Id,

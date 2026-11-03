@@ -152,7 +152,7 @@ test.describe(
 				page.getByRole('columnheader', { name: 'Status' }),
 			).toBeVisible();
 			await expect(
-				page.getByRole('columnheader', { name: 'Profile' }),
+				page.getByRole('columnheader', { name: 'Role' }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('columnheader', { name: 'Invited by' }),

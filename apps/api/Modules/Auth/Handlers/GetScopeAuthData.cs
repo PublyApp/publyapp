@@ -8,7 +8,6 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
@@ -46,7 +45,6 @@ public class GetScopeAuthDataTenant {
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
 	public List<ProfileItem> Profiles { get; set; } = [];
-	public AccountLevel AccountLevel { get; set; }
 	public bool IsAdmin { get; set; } = false;
 	public List<string> Permissions { get; set; } = [];
 }
@@ -54,7 +52,6 @@ public class GetScopeAuthDataTenant {
 public class GetScopeAuthDataStaff {
 	public string Code { get; set; } = "staff";
 	public List<ProfileItem> Profiles { get; set; } = [];
-	public AccountLevel AccountLevel { get; set; }
 	public bool IsAdmin { get; set; } = false;
 	public List<string> Permissions { get; set; } = [];
 }
@@ -107,9 +104,6 @@ public sealed class GetScopeAuthData {
 				return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffUser);
 			}
 
-			// Get the user's staff account for level info
-			var staffAccount = await accountService.GetUserStaffAccountAsync(userId, cancellationToken);
-
 			// Get the user's profiles and permissions for the staff scope
 			var staffProfileItems = await profileService.GetStaffProfilesWithPermissionsAsync(
 				userId,
@@ -126,8 +120,7 @@ public sealed class GetScopeAuthData {
 				new GetScopeAuthDataStaff {
 					Code = "staff",
 					Profiles = staffProfileItems,
-					AccountLevel = staffAccount?.Level ?? AccountLevel.User,
-					IsAdmin = staffAccount?.Level == AccountLevel.Admin,
+					IsAdmin = staffProfileItems.Any(profile => profile.IsFullAccess),
 					Permissions = staffPermissions
 				}
 			);
@@ -219,8 +212,7 @@ public sealed class GetScopeAuthData {
 				Name = tenant.Name,
 				Code = tenant.Code,
 				Profiles = tenantProfileItems,
-				AccountLevel = tenantAccount?.Level ?? AccountLevel.User,
-				IsAdmin = tenantAccount?.Level == AccountLevel.Admin,
+				IsAdmin = tenantProfileItems.Any(profile => profile.IsFullAccess),
 				Permissions = tenantPermissions
 			}
 		);

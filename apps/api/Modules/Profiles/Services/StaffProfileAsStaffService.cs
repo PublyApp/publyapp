@@ -27,6 +27,7 @@ public abstract record UpdateStaffProfileResult {
 		: UpdateStaffProfileResult;
 	public sealed record ProfileNotFound : UpdateStaffProfileResult;
 	public sealed record ProfileNameExists(string Name) : UpdateStaffProfileResult;
+	public sealed record SystemProfileProtected : UpdateStaffProfileResult;
 }
 
 public sealed record SetStaffProfilePermissionArgs(
@@ -39,6 +40,7 @@ public abstract record SetStaffProfilePermissionResult {
 	public sealed record Success : SetStaffProfilePermissionResult;
 	public sealed record ProfileNotFound : SetStaffProfilePermissionResult;
 	public sealed record PermissionNotFound : SetStaffProfilePermissionResult;
+	public sealed record SystemProfileProtected : SetStaffProfilePermissionResult;
 }
 
 public sealed record CreateStaffProfileArgs(
@@ -59,6 +61,7 @@ public abstract record DeleteStaffProfileServiceResult {
 	public sealed record Success(int DeletedProfileCount)
 		: DeleteStaffProfileServiceResult;
 	public sealed record ProfileNotFound : DeleteStaffProfileServiceResult;
+	public sealed record SystemProfileProtected : DeleteStaffProfileServiceResult;
 }
 
 /// <summary>
@@ -165,6 +168,10 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			return new UpdateStaffProfileResult.ProfileNotFound();
 		}
 
+		if (profile.IsFullAccess) {
+			return new UpdateStaffProfileResult.SystemProfileProtected();
+		}
+
 		if (args.Name.IsPresent) {
 			var candidateName = args.Name.Value?.Trim();
 
@@ -229,16 +236,20 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		SetStaffProfilePermissionArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var profileExists = await (
+		var profile = await (
 			from p in this._DbContext.Profile
 			where p.Id == args.ProfileId
 				&& p.Scope == ProfileScope.Staff
 				&& !p.IsDeleted
-			select p.Id
-		).AnyAsync(cancellationToken);
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
 
-		if (!profileExists) {
+		if (profile is null) {
 			return new SetStaffProfilePermissionResult.ProfileNotFound();
+		}
+
+		if (profile.IsFullAccess) {
+			return new SetStaffProfilePermissionResult.SystemProfileProtected();
 		}
 
 		var permissionExists = await (
@@ -474,10 +485,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			if (usersNeedingStaffAccounts.Count > 0) {
 				var newUserAccountsToCreate = usersNeedingStaffAccounts
 					.Select(user => {
-						var userAccount = UserAccount.CreateStaffAccount(
-							user.GetRequiredId(),
-							AccountLevel.User
-						);
+						var userAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 						newUserAccountsMap[user.GetRequiredId()] = userAccount;
 						return userAccount;
 					})
@@ -656,6 +664,10 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			return new DeleteStaffProfileServiceResult.ProfileNotFound();
 		}
 
+		if (profile.IsFullAccess) {
+			return new DeleteStaffProfileServiceResult.SystemProfileProtected();
+		}
+
 		// Soft-delete the profile (repo convention).
 		// We also hard-delete the junction rows so that:
 		// - the profile stops contributing to UserAccountCount immediately, and
@@ -734,19 +746,21 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			// A default staff profile is never deleted here, so it must appear
 			// in FailedItems with its reason — dropping it silently would make
 			// "requested - failed" account it as succeeded.
-			if (profile.IsDefault) {
+			if (profile.IsDefault || profile.IsFullAccess) {
 				failedItems.Add(
 					new BulkProfileActionFailedItem(
 						requestedProfileId,
-						"Default profiles cannot be deleted"
+						profile.IsFullAccess
+							? "Full-access system profiles cannot be deleted"
+							: "Default profiles cannot be deleted"
 					)
 				);
 			}
 		}
 
-		// Drop default profiles from the delete list before touching joins or row state.
+		// Drop protected profiles from the delete list before touching joins or row state.
 		var deletableProfileIds = profileById
-			.Where(profile => !profile.Value.IsDefault)
+			.Where(profile => !profile.Value.IsDefault && !profile.Value.IsFullAccess)
 			.Select(profile => profile.Key)
 			.ToList();
 		if (deletableProfileIds.Count == 0) {
@@ -780,7 +794,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		// Soft-delete only non-default profiles in-memory and persist once.
 		var profilesToDelete = profileById
 			.Values
-			.Where(profile => !profile.IsDefault)
+			.Where(profile => !profile.IsDefault && !profile.IsFullAccess)
 			.ToList();
 
 		foreach (var profile in profilesToDelete) {

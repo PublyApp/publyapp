@@ -28,7 +28,7 @@ describe('renderInvalidCellMessage renders clear words, never raw interpolation 
 		test(`(${language}): boolean cell WITH a reference shows the reference, no "{{"`, () => {
 			const t = makeT(language);
 			const invalidCell: InvalidCell = {
-				column: 'level',
+				column: 'profiles',
 				cell: 'B2',
 				value: '1',
 				kind: 'boolean',
@@ -46,7 +46,7 @@ describe('renderInvalidCellMessage renders clear words, never raw interpolation 
 		test(`(${language}): boolean cell WITHOUT a reference omits the cell, no "{{"`, () => {
 			const t = makeT(language);
 			const invalidCell: InvalidCell = {
-				column: 'level',
+				column: 'profiles',
 				value: '1',
 				kind: 'boolean',
 			};

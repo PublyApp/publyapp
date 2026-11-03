@@ -44,9 +44,6 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("scope")]
 	public AccountScope Scope { get; set; } = AccountScope.Tenant;
 
-	[Column("level")]
-	public AccountLevel Level { get; set; } = AccountLevel.User;
-
 	// Membership-local lifecycle only. Global user suspension is derived from User.Status.
 	[Column("status")]
 	public AccountStatus Status { get; set; } = AccountStatus.Active;
@@ -71,30 +68,21 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	}
 
 	// Factory methods for type-safe creation
-	public static UserAccount CreateStaffAccount(
-		Guid userId,
-		AccountLevel? accountLevel = null
-	) {
+	public static UserAccount CreateStaffAccount(Guid userId) {
 		return new UserAccount {
 			UserId = userId,
 			Scope = AccountScope.Staff,
 			TenantId = null,
 			ProjectId = null,
-			Level = accountLevel ?? AccountLevel.User,
 		};
 	}
 
-	public static UserAccount CreateTenantAccount(
-		Guid userId,
-		Guid tenantId,
-		AccountLevel? accountLevel = null
-	) {
+	public static UserAccount CreateTenantAccount(Guid userId, Guid tenantId) {
 		return new UserAccount {
 			UserId = userId,
 			Scope = AccountScope.Tenant,
 			TenantId = tenantId,
 			ProjectId = null,
-			Level = accountLevel ?? AccountLevel.User
 		};
 	}
 
@@ -137,34 +125,6 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	// navigation properties
 	[JsonIgnore]
 	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
-
-	public static AccountLevel? ParseLevel(string accountLevel) {
-		var isAdmin = string.Equals(
-			accountLevel,
-			nameof(AccountLevel.Admin),
-			StringComparison.OrdinalIgnoreCase
-		);
-		if (isAdmin) {
-			return AccountLevel.Admin;
-		}
-		var isUser = string.Equals(
-			accountLevel,
-			nameof(AccountLevel.User),
-			StringComparison.OrdinalIgnoreCase
-		);
-		if (isUser) {
-			return AccountLevel.User;
-		}
-		return null;
-	}
-
-	public static string GetLevelDescription(AccountLevel accountLevel) {
-		return accountLevel switch {
-			AccountLevel.Admin => nameof(AccountLevel.Admin),
-			AccountLevel.User => nameof(AccountLevel.User),
-			_ => "Unknown"
-		};
-	}
 
 	public static AccountStatus? ParseStatus(string statusString) {
 		var isSuspended = string.Equals(
@@ -281,13 +241,6 @@ public enum AccountScope {
 	Staff = 0,
 	Tenant = 1,
 	Project = 2
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter<AccountLevel>))]
-public enum AccountLevel {
-	// maybe owner too?
-	Admin = 50,
-	User = 10,
 }
 
 public enum AccountStatus {
