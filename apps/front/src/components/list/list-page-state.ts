@@ -32,6 +32,8 @@ export const useListPage = <T extends { id: string }>({
 	filtersValue,
 	onFiltersChange,
 	countsKnown = true,
+	countRows,
+	totalsKnown = countsKnown,
 	emptyText,
 	tabs = [],
 	currentTab,
@@ -60,6 +62,10 @@ export const useListPage = <T extends { id: string }>({
 		);
 
 	const filtered = rows.filter((row) => inTab(row) && passes(row));
+	// The counter source is the whole collection when the API already narrowed
+	// `rows` (a server-side filter or search); the table still shows only the
+	// filtered rows.
+	const counted = countRows ?? rows;
 	const sort = sorting[0];
 	const sorted = [...filtered];
 	if (sort) {
@@ -113,36 +119,43 @@ export const useListPage = <T extends { id: string }>({
 		specs,
 	});
 
-	// The footer labels these cells as totals, so it obeys the same rule as the
-	// counters: when the collection is not fully known, « — » instead of the
-	// loaded page's sums (issue #2274 review round 2).
+	// The footer labels these cells as totals, so it sums the displayed
+	// (filtered) rows — the prototype's rule: a filter changes the totals. It
+	// shows « — » only when the displayed page is not the whole filtered
+	// collection (issue #2274 review round 2).
 	const totalCells = totals(displayed);
-	if (!countsKnown) {
+	if (!totalsKnown) {
 		for (const id of totalCells.keys()) {
 			totalCells.set(id, DASH);
 		}
 	}
 
-	// The same per-choice counts feed the filter menu and the side panel (the
-	// Shopkart faceted rule: count within the other filters). `null` means the
-	// collection is not fully loaded and the API exposes no count source.
-	const countsFor = (filter: ListFilter<T>): Record<string, number | null> =>
+	// The filter menu facets each choice within the other filters; the side
+	// panel keeps whole-collection counts, as the prototype's panel does (the
+	// other filters do not change them). `null` means the collection is not
+	// fully loaded and the API exposes no count source.
+	const countChoices = (
+		filter: ListFilter<T>,
+		withinOtherFilters: boolean,
+	): Record<string, number | null> =>
 		Object.fromEntries(
 			filter.choices.map((choice) => [
 				choice.value,
 				countsKnown
-					? rows.filter(
+					? counted.filter(
 							(row) =>
 								inTab(row) &&
-								passes(row, filter.key) &&
+								(!withinOtherFilters || passes(row, filter.key)) &&
 								listValueHas(filter.valueOf(row), choice.value),
 						).length
 					: null,
 			]),
 		);
 	const counts: FilterCounts = {};
+	const panelCounts: FilterCounts = {};
 	for (const filter of filters) {
-		counts[filter.key] = countsFor(filter);
+		counts[filter.key] = countChoices(filter, true);
+		panelCounts[filter.key] = countChoices(filter, false);
 	}
 
 	const toggleFilter = (key: string, value: string) => {
@@ -196,7 +209,7 @@ export const useListPage = <T extends { id: string }>({
 	const tabDefs = tabs.map((entry) => ({
 		key: entry.key,
 		label: entry.label,
-		count: countsKnown ? rows.filter(entry.match).length : null,
+		count: countsKnown ? counted.filter(entry.match).length : null,
 	}));
 
 	return {
@@ -225,6 +238,7 @@ export const useListPage = <T extends { id: string }>({
 		displayed,
 		totalCells,
 		counts,
+		panelCounts,
 		toggleFilter,
 		clearFilter,
 		clearAllFilters,

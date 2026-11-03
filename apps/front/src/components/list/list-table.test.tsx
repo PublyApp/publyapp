@@ -9,6 +9,7 @@ import {
 	fireEvent,
 	render,
 	screen,
+	within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
@@ -239,6 +240,30 @@ describe('ListTable', () => {
 		expect(head.style.borderRight).toBe('11px solid transparent');
 		expect(foot.style.borderRight).toBe('11px solid transparent');
 		expect(scroller.className).not.toContain('scrollbar-gutter');
+	});
+
+	// The staff statuses total (« 12 actifs · 3 suspendus ») is longer than its
+	// 130 px column: it used to ellipsise at 1440 px. A total wraps; it never
+	// truncates.
+	test('a long totals cell wraps instead of truncating', () => {
+		render(
+			<Harness
+				sorting={[]}
+				onSortingChange={vi.fn()}
+				totals={
+					new Map([
+						['name', '15 membres'],
+						['members', '12 actifs · 3 suspendus'],
+					])
+				}
+			/>,
+		);
+
+		const summary = screen.getByRole('table', { name: 'list-summary' });
+		const cell = within(summary).getByTitle('12 actifs · 3 suspendus');
+		expect(cell.className).not.toContain('truncate');
+		expect(cell.className).toContain('break-words');
+		expect(cell.closest('tr')?.className).toContain('whitespace-normal');
 	});
 
 	// Lot 4a: the profile users inset passes an empty totals map. Rendering the

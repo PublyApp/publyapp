@@ -86,15 +86,17 @@ const StaffUsersPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	// The cursor API exposes no total: totals and filter counts are exact only
-	// when the loaded page is the whole collection and no server-side status
-	// filter narrowed it. The StatCards use the independent team overview, so
-	// they stay whole-collection figures even under a search.
+	// The cursor API exposes no total: the counters come from the independent
+	// team overview query (whole collection), while the table page is narrowed
+	// by a server-side status filter. Totals sum the displayed filtered rows, so
+	// they are exact as soon as the loaded page is the whole filtered collection.
+	// The StatCards use the same team overview, so they stay whole-collection
+	// figures even under a search.
 	const collectionComplete =
 		query.data !== undefined &&
 		query.data.nextCursor == null &&
 		!controller.cursor.hasPreviousPage;
-	const countsKnown = collectionComplete && search.status.length === 0;
+	const countsKnown = team.counts.staff !== null;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -166,11 +168,16 @@ const StaffUsersPage = () => {
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
 			filters={buildStaffUserFilters(t, {
-				includeLevels: countsKnown || search.level.length > 0,
+				// Level filtering is client-side: offer it while the team overview
+				// holds the whole collection (or one is already active), whatever
+				// the server-side status filter does to the page.
+				includeLevels: team.staff !== null || search.level.length > 0,
 			})}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			countsKnown={countsKnown}
+			countRows={team.staff ?? []}
+			totalsKnown={collectionComplete}
 			emptyText={t('list-empty-staff-users')}
 			locale={i18n.language}
 			cards={

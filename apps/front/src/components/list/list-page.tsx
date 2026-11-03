@@ -61,12 +61,26 @@ export type ListPageProps<T extends { id: string }> = {
 	filtersValue: ListFiltersValue;
 	onFiltersChange: (next: ListFiltersValue) => void;
 	/**
-	 * Whether the counters (panel groups, filter-menu badges, tabs) and the
-	 * pinned totals footer describe the whole collection. Pass `false` when the
-	 * consumer keeps cursor pagination and the API exposes no count source: the
-	 * counters and totals then show « — » instead of summing the loaded page.
+	 * Whether the counters (panel groups, filter-menu badges, tabs) describe the
+	 * whole collection. Pass `false` when the counter source is not fully loaded
+	 * (cursor pagination with no count endpoint): the counters then show « — »
+	 * instead of summing a partial page. The totals have their own flag
+	 * (`totalsKnown`).
 	 */
 	countsKnown?: boolean;
+	/**
+	 * The whole collection the counters count, when `rows` is a page the API has
+	 * already narrowed (a server-side filter or search). Defaults to `rows`.
+	 * The side panel keeps these whole-collection counters under a filter, as
+	 * the prototype does; the filter menu still facets them per choice.
+	 */
+	countRows?: T[];
+	/**
+	 * Whether `rows` is the complete filtered collection, so the pinned totals
+	 * may sum it. Defaults to `countsKnown`. A filter does not make the totals
+	 * unknown: a complete filtered page has exact filtered totals.
+	 */
+	totalsKnown?: boolean;
 	/** The empty state's text (the generic page has no resource noun). */
 	emptyText?: string;
 	tabs?: ListTab<T>[];
@@ -119,7 +133,7 @@ const FilterGlyph = ({ icon }: { icon: TablerIcon }) =>
 export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	const { t } = useTranslation('common');
 	const page = useListPage(props);
-	const { filters, filtersValue, rows } = props;
+	const { filters, filtersValue } = props;
 	const countsKnown = props.countsKnown ?? true;
 
 	const filterPanelGroups: ListPanelGroup[] = [];
@@ -134,7 +148,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 				key: `${filter.key}:${choice.value}`,
 				label: choice.label,
 				icon: choice.icon ?? <FilterGlyph icon={filter.icon} />,
-				count: page.counts[filter.key]?.[choice.value] ?? null,
+				count: page.panelCounts[filter.key]?.[choice.value] ?? null,
 				active: filtersValue[filter.key]?.includes(choice.value) ?? false,
 				onClick: () => page.shortcut(filter.key, choice.value),
 			})),
@@ -185,7 +199,10 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 				title={props.title}
 				description={props.description}
 				inset={props.inset}
-				count={props.count ?? (countsKnown ? rows.length : null)}
+				count={
+					props.count ??
+					(countsKnown ? (props.countRows ?? props.rows).length : null)
+				}
 				onExport={props.onExport}
 				newAction={props.newAction}
 				cards={props.cards}

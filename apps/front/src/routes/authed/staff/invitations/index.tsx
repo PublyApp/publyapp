@@ -94,14 +94,15 @@ const StaffInvitationsPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	// No total count on the cursor endpoint: the three cards use the team
-	// overview query, and the table's totals/panel counts stay « — » unless
-	// the loaded page is the whole collection and no status filter narrowed it.
+	// No total count on the cursor endpoint: the three cards and the panel
+	// counters use the team overview query (whole collection), while the table
+	// page is narrowed by the server-side status filter. Totals sum the
+	// displayed filtered rows, exact once the page is the whole filtered set.
 	const collectionComplete =
 		query.data !== undefined &&
 		query.data.nextCursor == null &&
 		!controller.cursor.hasPreviousPage;
-	const countsKnown = collectionComplete && selectedStatuses.length === 0;
+	const countsKnown = team.counts.invitations !== null;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -168,10 +169,16 @@ const StaffInvitationsPage = () => {
 			}
 			q={search.q ?? ''}
 			onSearch={() => undefined}
-			filters={buildInvitationFilters(t, rows, selectedProfiles)}
+			filters={buildInvitationFilters(
+				t,
+				team.invitations ?? rows,
+				selectedProfiles,
+			)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			countsKnown={countsKnown}
+			countRows={team.invitations ?? []}
+			totalsKnown={collectionComplete}
 			emptyText={tInvitations('no-invitations-found')}
 			locale={i18n.language}
 			cards={

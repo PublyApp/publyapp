@@ -512,13 +512,17 @@ export const ListTable = <T extends { id: string }>({
 						>
 							{cols}
 							<tbody>
-								<tr className="h-10 text-xs whitespace-nowrap text-muted-foreground">
+								{/* The totals wrap instead of truncating: a filtered list's
+								    summary is longer than its column (the staff statuses at
+								    1440 px), and an ellipsised total is not a total. The
+								    row keeps 40 px as its minimum and grows. */}
+								<tr className="h-10 text-xs whitespace-normal text-muted-foreground">
 									{ids.map((id, index) => (
 										<td
 											key={id}
 											title={totals.get(id)}
 											className={cn(
-												'truncate border-t border-r bg-background px-2 last:border-r-0',
+												'border-t border-r bg-background px-2 py-1.5 align-top break-words last:border-r-0',
 												index === 0 &&
 													'sticky left-0 z-(--publy-z-sticky-cell)',
 											)}

@@ -158,7 +158,9 @@ const StaffProfilesPage = () => {
 			filters={buildStaffProfileFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			countsKnown={collectionComplete}
+			countsKnown={team.counts.profiles !== null}
+			countRows={team.profiles ?? []}
+			totalsKnown={collectionComplete}
 			emptyText={t('list-empty-staff-profiles')}
 			locale={i18n.language}
 			totals={(visible) => buildStaffProfileTotals(t, visible)}
