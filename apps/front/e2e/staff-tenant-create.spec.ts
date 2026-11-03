@@ -132,7 +132,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await expect(
-				page.getByRole('textbox', { name: 'Workspace slug' }),
+				page.getByRole('textbox', { name: 'Identifier' }),
 			).toBeVisible();
 			await expect(page.getByText('publyapp.com/').first()).toBeVisible();
 
@@ -186,7 +186,7 @@ test.describe(
 			await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 
 			const formNameField = page.getByRole('textbox', {
-				name: /organization/i,
+				name: 'Name',
 			});
 			const previewCard = page.getByTestId('staff-tenant-create-preview');
 			await expect(formNameField).toBeVisible();
@@ -220,7 +220,7 @@ test.describe(
 			await expect(page.getByTestId('preview-members')).toHaveText('0');
 
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name' })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
@@ -247,7 +247,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name' })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
@@ -272,7 +272,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name' })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('admin@acme.com');
 
@@ -283,13 +283,13 @@ test.describe(
 			);
 
 			await page
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
 			await dialog
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 			await createRequest;
 
@@ -324,18 +324,18 @@ test.describe(
 				page.getByRole('textbox', { name: 'Legal name' }),
 			).toBeVisible();
 			await expect(
-				page.getByText('Optional — add these details now or edit them later.'),
+				page.getByText('Fill this in now, or later from the record.'),
 			).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name' })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 			await page
 				.getByRole('textbox', { name: 'Legal name' })
 				.fill('Acme Corporation Ltd');
 			await page
-				.getByRole('textbox', { name: 'Website URL' })
+				.getByRole('textbox', { name: 'Website' })
 				.fill('https://acme.com');
 
 			const createRequest = page.waitForRequest(
@@ -345,12 +345,12 @@ test.describe(
 			);
 
 			await page
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
 			await dialog
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 			const request = await createRequest;
 
@@ -379,7 +379,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name' })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('admin@acme.com');
 
@@ -394,7 +394,7 @@ test.describe(
 			});
 
 			await page
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 
 			const dialog = page.getByRole('alertdialog');
@@ -410,9 +410,9 @@ test.describe(
 			await dialog.getByRole('button', { name: 'Cancel' }).click();
 			await expect(dialog).toBeHidden();
 			expect(createRequestFired).toBe(false);
-			await expect(
-				page.getByRole('textbox', { name: /organization/i }),
-			).toHaveValue('Acme Corporation');
+			await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue(
+				'Acme Corporation',
+			);
 		});
 	},
 );
@@ -432,7 +432,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name' })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
@@ -441,7 +441,7 @@ test.describe(
 					request.method() === 'POST' &&
 					isApiPath(request.url(), '/staff/uploads'),
 			);
-			await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+			await page.getByLabel('Choose an image').setInputFiles(LOGO_FIXTURE_PATH);
 			await uploadRequest;
 
 			// The uploaded url is root-relative (BE-4); the form resolves it against
@@ -460,12 +460,12 @@ test.describe(
 					isApiPath(request.url(), STAFF_TENANTS_PATH),
 			);
 			await page
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 			const dialog = page.getByRole('alertdialog');
 			await expect(dialog).toBeVisible();
 			await dialog
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 			const request = await createRequest;
 			expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
@@ -487,7 +487,7 @@ test.describe(
 			await page.goto('/staff/tenants/new');
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
-			await page.getByLabel('Logo').setInputFiles({
+			await page.getByLabel('Choose an image').setInputFiles({
 				name: 'too-big.png',
 				mimeType: 'image/png',
 				buffer: Buffer.alloc(2_000_001),

@@ -66,6 +66,7 @@ export const buildCreateTenantSchema = (
 					accountLevel: z.enum(USER_ROLE_OPTIONS),
 				}),
 			),
+			seedDefaultProfile: z.boolean(),
 			logoUrl: z
 				.string()
 				.trim()

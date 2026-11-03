@@ -209,6 +209,9 @@
 	--publy-border: #e3e3e3;
 	--publy-border-strong: #d4d4d8;
 	--publy-input-border: #e4e4e7;
+	/* Dashed drop-zone hairline: Shopkart's `--input` — darker than the field
+	   hairline so a dashed surface reads as a target in both themes. */
+	--publy-dropzone-border: #414141;
 	--publy-row-border: #f1f1f3;
 	/* W4-GUARDS: #ca8a04 measured 2.94:1 against #ffffff, under the 3:1
 	   focus-indicator floor; darkened to the amber-700 step to clear it
@@ -423,6 +426,7 @@ html.dark {
 	--publy-border: #323234;
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
 	--publy-input-border: #27272a;
+	--publy-dropzone-border: #646a7a;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
@@ -2004,6 +2008,20 @@ html.dark {
 		height: 7px;
 		border-radius: var(--publy-radius-circular);
 		background: var(--publy-primary);
+	}
+
+	/* ---- Grouped form rows (Shopkart OS `container.css` `field-row`) ----
+	   A `FieldGroup`'s rows: label left (170px), control right; stacked once
+	   the group is 480px wide or less. */
+	.field-row {
+		display: grid;
+		grid-template-columns: 170px minmax(0, 1fr);
+	}
+
+	@container (max-width: 480px) {
+		.field-row {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 
 	/* ---- Field helper / error lines (handoff 2d) ---- */

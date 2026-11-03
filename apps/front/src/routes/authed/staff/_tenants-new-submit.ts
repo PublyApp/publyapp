@@ -49,6 +49,7 @@ export const buildCreateTenantInput = ({
 		defaultLocale: optionalField(values.defaultLocale),
 		timezone: optionalField(values.timezone),
 		notes: optionalField(values.notes),
+		seedDefaultProfile: values.seedDefaultProfile,
 	};
 
 	if (trimmedCode.length > 0) {
