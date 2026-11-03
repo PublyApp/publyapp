@@ -1,4 +1,4 @@
-import { Card } from '~/components/ui/card';
+import { IconSparkles } from '@tabler/icons-react';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -15,6 +15,11 @@ export type TenantCreatePreviewCounts = {
 	manualMembersCount: number;
 };
 
+/**
+ * The live preview (`Preview` in the prototype): the card on the right, a
+ * raised surface holding the identity, the four status rows and the two
+ * creation checks.
+ */
 export const TenantCreatePreviewCard = ({
 	t,
 	name,
@@ -22,7 +27,6 @@ export const TenantCreatePreviewCard = ({
 	slugPreview,
 	websiteHostname,
 	maxUsers,
-	seedDefaultProfile,
 	counts,
 }: {
 	t: TranslateFn;
@@ -31,111 +35,93 @@ export const TenantCreatePreviewCard = ({
 	slugPreview: string;
 	websiteHostname: string | null;
 	maxUsers: number;
-	seedDefaultProfile: boolean;
 	counts: TenantCreatePreviewCounts;
-}) => (
-	<aside className="order-1 lg:order-2">
-		<div className="lg:sticky lg:top-5">
-			<Card className="gap-0 py-0" data-testid="staff-tenant-create-preview">
-				<div className="publy-card-header">
-					<span className="publy-type-eyebrow">{t('preview')}</span>
-				</div>
+}) => {
+	const displayName =
+		name.trim().length > 0 ? name : t('untitled-organization');
 
-				<div className="flex items-center gap-3 px-[18px] py-4">
-					<BrandTile
-						name={name || t('untitled-organization')}
-						logoUrl={logoUrl.trim().length > 0 ? logoUrl.trim() : null}
-						className="size-11 rounded-[12px] text-base"
-					/>
-					<div className="min-w-0">
-						<p className="truncate text-[15px] font-semibold text-foreground">
-							{name.trim().length > 0 ? name : t('untitled-organization')}
-						</p>
-						<p className="publy-tenant-identity-meta">
-							<span className="publy-tenant-identity-meta-prefix">
+	return (
+		<aside className="flex flex-col gap-3 lg:sticky lg:top-0">
+			<div
+				className="flex flex-col rounded-[16px] bg-card p-1 shadow-[var(--publy-shadow-ring)]"
+				data-testid="staff-tenant-create-preview"
+			>
+				<div className="flex items-center gap-1.5 px-3 pt-1 pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+					<IconSparkles aria-hidden="true" className="size-3.5" />
+					{t('preview')}
+				</div>
+				<div className="flex flex-col gap-3 rounded-[var(--publy-radius-medium-control)] border bg-background p-3">
+					<div className="flex items-center gap-3">
+						<BrandTile
+							name={name || t('untitled-organization')}
+							logoUrl={logoUrl.trim().length > 0 ? logoUrl.trim() : null}
+							className="size-10 shrink-0 rounded-lg text-[13px]"
+						/>
+						<div className="min-w-0">
+							<p className="truncate font-medium">{displayName}</p>
+							<p className="truncate font-mono text-xs text-muted-foreground">
 								publyapp.com/
-							</span>
-							<span
-								className={cn('italic', slugPreview.length > 0 && 'not-italic')}
-							>
-								{slugPreview.length > 0
-									? slugPreview
-									: t('assigned-after-creation')}
-							</span>
-						</p>
-						{websiteHostname ? (
-							<p className="truncate text-xs text-muted-foreground">
-								{websiteHostname}
+								{slugPreview.length > 0 ? slugPreview : '…'}
 							</p>
-						) : null}
+							{websiteHostname ? (
+								<p className="truncate text-xs text-muted-foreground">
+									{websiteHostname}
+								</p>
+							) : null}
+						</div>
 					</div>
+
+					<dl className="flex flex-col text-sm">
+						<div className="flex h-9 items-center justify-between border-t">
+							<dt className="text-muted-foreground">{t('status')}</dt>
+							<dd>
+								<StatusPill tone={statusPillTone('Pending')}>
+									{t('pending')}
+								</StatusPill>
+							</dd>
+						</div>
+						<div className="flex h-9 items-center justify-between border-t">
+							<dt className="text-muted-foreground">{t('seats')}</dt>
+							<dd className="tabular-nums" data-testid="preview-seats">
+								{counts.totalFilled} / {maxUsers}
+							</dd>
+						</div>
+						<div className="flex h-9 items-center justify-between border-t">
+							<dt className="text-muted-foreground">{t('owners')}</dt>
+							<dd className="tabular-nums" data-testid="preview-owners">
+								{counts.ownersCount}
+							</dd>
+						</div>
+						<div className="flex h-9 items-center justify-between border-t">
+							<dt className="text-muted-foreground">{t('members')}</dt>
+							<dd className="tabular-nums" data-testid="preview-members">
+								{counts.membersCount}
+							</dd>
+						</div>
+					</dl>
+
+					<ul
+						className={cn(
+							'flex flex-col gap-1.5 border-t pt-3 text-xs',
+							counts.ownersCount + counts.membersCount === 0 &&
+								'text-muted-foreground',
+						)}
+					>
+						<ChecklistRow
+							checked={counts.ownersCount > 0}
+							testId="preview-checklist-owners"
+						>
+							{t('preview-owners-checklist', { count: counts.ownersCount })}
+						</ChecklistRow>
+						<ChecklistRow
+							checked={counts.membersCount > 0}
+							testId="preview-checklist-members"
+						>
+							{t('preview-members-checklist', { count: counts.membersCount })}
+						</ChecklistRow>
+					</ul>
 				</div>
-
-				<div className="mx-[18px] h-px bg-(--publy-row-border)" />
-
-				<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
-					<div className="flex items-center justify-between py-2.5 text-[13px]">
-						<span className="text-muted-foreground">{t('status')}</span>
-						<StatusPill tone={statusPillTone('Pending')}>
-							{t('pending')}
-						</StatusPill>
-					</div>
-					<div className="flex items-center justify-between py-2.5 text-[13px]">
-						<span className="text-muted-foreground">{t('seats')}</span>
-						<span
-							className="font-medium text-foreground"
-							data-testid="preview-seats"
-						>
-							{counts.totalFilled} / {maxUsers}
-						</span>
-					</div>
-					<div className="flex items-center justify-between py-2.5 text-[13px]">
-						<span className="text-muted-foreground">{t('owners')}</span>
-						<span
-							className="font-medium text-foreground"
-							data-testid="preview-owners"
-						>
-							{counts.ownersCount}
-						</span>
-					</div>
-					<div className="flex items-center justify-between py-2.5 text-[13px]">
-						<span className="text-muted-foreground">{t('members')}</span>
-						<span
-							className="font-medium text-foreground"
-							data-testid="preview-members"
-						>
-							{counts.membersCount}
-						</span>
-					</div>
-				</div>
-
-				<div className="mx-[18px] h-px bg-(--publy-row-border)" />
-
-				<ul className="flex flex-col gap-2 px-[18px] py-4">
-					<ChecklistRow
-						checked={counts.ownersCount > 0}
-						testId="preview-checklist-owners"
-					>
-						{t('preview-owners-checklist', { count: counts.ownersCount })}
-					</ChecklistRow>
-					<ChecklistRow
-						checked={counts.membersCount > 0}
-						testId="preview-checklist-members"
-					>
-						{t('preview-members-checklist-detailed', {
-							count: counts.membersCount,
-							csv: counts.csvMembersCount,
-							manual: counts.manualMembersCount,
-						})}
-					</ChecklistRow>
-					<ChecklistRow
-						checked={seedDefaultProfile}
-						testId="preview-checklist-profile"
-					>
-						{t('preview-default-profile-checklist')}
-					</ChecklistRow>
-				</ul>
-			</Card>
-		</div>
-	</aside>
-);
+			</div>
+		</aside>
+	);
+};

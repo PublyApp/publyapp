@@ -126,8 +126,9 @@ export type CreateStaffTenantInput = {
 	name: string;
 	maxUsers: number;
 	code?: string;
-	seedDefaultProfile?: boolean;
 	initialUsers: StaffTenantInitialUserInput[];
+	/** Seed the empty "default" profile for non-admin invitees. */
+	seedDefaultProfile?: boolean;
 	logoUrl?: string;
 	legalName?: string;
 	description?: string;
@@ -340,12 +341,6 @@ export const buildCreateStaffTenantBody = (
 		body.code = createUntypedString(code) as typeof body.code;
 	}
 
-	if (typeof input.seedDefaultProfile === 'boolean') {
-		body.seedDefaultProfile = createUntypedBoolean(
-			input.seedDefaultProfile,
-		) as typeof body.seedDefaultProfile;
-	}
-
 	const legalName = normalizeString(input.legalName);
 	if (legalName) {
 		body.legalName = createUntypedString(legalName) as typeof body.legalName;
@@ -399,6 +394,12 @@ export const buildCreateStaffTenantBody = (
 	const notes = normalizeString(input.notes);
 	if (notes) {
 		body.notes = createUntypedString(notes) as typeof body.notes;
+	}
+
+	if (typeof input.seedDefaultProfile === 'boolean') {
+		body.seedDefaultProfile = createUntypedBoolean(
+			input.seedDefaultProfile,
+		) as typeof body.seedDefaultProfile;
 	}
 
 	return body;

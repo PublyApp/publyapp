@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 import {
+	SEAT_OPTIONS,
+	SEATS_FROM_VALUE,
 	USER_ROLE_OPTIONS,
 	type NewTenantAccountLevel,
 } from './_tenants-new-types';
@@ -38,6 +40,9 @@ export const buildCreateTenantSchema = (
 				.refine((value) => value.length === 0 || isValidTenantCode(value), {
 					message: t('workspace-slug-invalid'),
 				}),
+			codeEdited: z.boolean(),
+			seats: z.enum(SEAT_OPTIONS),
+			customSeats: z.string(),
 			maxUsers: z.coerce
 				.number({ error: t('seats-required') })
 				.int()
@@ -103,11 +108,20 @@ export const buildCreateTenantSchema = (
 				.max(4000, { message: t('notes-too-long') }),
 		})
 		.superRefine((values, context) => {
+			const effectiveSeats = SEATS_FROM_VALUE(values.seats, values.customSeats);
+			if (values.seats === 'custom' && effectiveSeats < 1) {
+				context.addIssue({
+					code: 'custom',
+					path: ['customSeats'],
+					message: t('seats-required'),
+				});
+			}
 			const totalCount =
 				values.owners.length +
 				values.manualMembers.length +
 				getParsedMembersCount();
-			if (totalCount > values.maxUsers) {
+			const cap = effectiveSeats > 0 ? effectiveSeats : values.maxUsers;
+			if (totalCount > cap) {
 				context.addIssue({
 					code: 'custom',
 					path: ['owners'],

@@ -210,6 +210,9 @@
 	--publy-border: #e3e3e3;
 	--publy-border-strong: #d4d4d8;
 	--publy-input-border: #e4e4e7;
+	/* Dashed drop-zone hairline: Shopkart's `--input` — darker than the field
+	   hairline so a dashed surface reads as a target in both themes. */
+	--publy-dropzone-border: #414141;
 	--publy-row-border: #f1f1f3;
 	/* #2292: the focus indicator is the near-black foreground in light mode
 	   and the light grey border in dark — both far above the 3:1 floor
@@ -431,6 +434,7 @@ html.dark {
 	--publy-border: #323234;
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
 	--publy-input-border: #27272a;
+	--publy-dropzone-border: #646a7a;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
@@ -1987,6 +1991,10 @@ html.dark {
 		max-width: 960px;
 	}
 
+	.publy-form-page[data-width='1080'] {
+		max-width: 1080px;
+	}
+
 	/* Placed as the last child of .app-shell-main: the horizontal negative
 	   margin bleeds the bar to the column edges. Vertically, a sticky
 	   element can only be pulled *earlier* than its natural (static) flow
@@ -2041,6 +2049,20 @@ html.dark {
 		height: 7px;
 		border-radius: var(--publy-radius-circular);
 		background: var(--publy-primary);
+	}
+
+	/* ---- Grouped form rows (Shopkart OS `container.css` `field-row`) ----
+	   A `FieldGroup`'s rows: label left (170px), control right; stacked once
+	   the group is 480px wide or less. */
+	.field-row {
+		display: grid;
+		grid-template-columns: 170px minmax(0, 1fr);
+	}
+
+	@container (max-width: 480px) {
+		.field-row {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 
 	/* ---- Field helper / error lines (handoff 2d) ---- */
