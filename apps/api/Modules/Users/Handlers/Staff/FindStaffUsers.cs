@@ -66,8 +66,7 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 			return null;
 		}
 
-		var parts = trimmed
-			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		var parts = trimmed.Split(',', StringSplitOptions.TrimEntries);
 		if (parts.Length == 0) {
 			return null;
 		}
@@ -97,9 +96,14 @@ public class FindStaffUsersQueryValidator
 					return true;
 				}
 
-				var parts = raw
-					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(FindStaffUsersQueryValidator._AllowedStatuses.Contains);
+				// Split WITHOUT RemoveEmptyEntries so empty tokens are rejected
+				// (",", ",,", "active,,suspended") instead of silently dropped,
+				// matching FindTenantsAsStaffQueryValidator.
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				return parts.All(part =>
+					part.Length > 0
+					&& FindStaffUsersQueryValidator._AllowedStatuses.Contains(part)
+				);
 			})
 			.WithMessage(
 				"Invalid status value. Must be comma-separated: "

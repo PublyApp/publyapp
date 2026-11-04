@@ -318,18 +318,65 @@ export const RootErrorBoundary = ({
 	reset: () => void;
 }) => <RootErrorBoundaryContent error={error} reset={reset} />;
 
-const RootNotFound = () => {
+const isAuthedAreaPath = (pathname: string): boolean =>
+	pathname === '/staff' ||
+	pathname.startsWith('/staff/') ||
+	pathname === '/tenant' ||
+	pathname.startsWith('/tenant/');
+
+/**
+ * Whether an authed-prefix URL should keep the app shell. An exact authed
+ * match always does (its layout's `beforeLoad` owns the login redirect). An
+ * UNKNOWN `/staff/*` or `/tenant/*` URL only matches the pathless authed
+ * layout, so it must also prove a session exists for that surface — without
+ * a token it is the public 404, not an inert skeleton shell (M-1). The
+ * `isHydrated` guard keeps the server render (no `document`, hence no
+ * session cookie) identical to the first client render.
+ */
+const resolveWantsAuthedChrome = ({
+	hasAuthedLayoutMatch,
+	hasAuthedRouteMatch,
+	isHydrated,
+	pathname,
+}: {
+	hasAuthedLayoutMatch: boolean;
+	hasAuthedRouteMatch: boolean;
+	isHydrated: boolean;
+	pathname: string;
+}): boolean => {
+	if (hasAuthedRouteMatch) {
+		return true;
+	}
+
+	if (!isAuthedAreaPath(pathname) || !hasAuthedLayoutMatch) {
+		return false;
+	}
+
+	return (
+		isHydrated &&
+		Boolean(
+			determineSessionToken(getSessionTokensFromBrowser(), pathname).token,
+		)
+	);
+};
+
+export const RootNotFound = () => {
+	const isHydrated = useHydrated();
+	const matches = useMatches();
 	const pathname = useLocation({
 		select: (location) => location.pathname,
 	});
 	// Inside an authed prefix the shell already supplies the page frame, so
 	// the 404 is embedded exactly like View403 is. Marketing/auth keep the
 	// full-viewport `<main>`.
-	const embedded =
-		pathname === '/staff' ||
-		pathname.startsWith('/staff/') ||
-		pathname === '/tenant' ||
-		pathname.startsWith('/tenant/');
+	const embedded = resolveWantsAuthedChrome({
+		hasAuthedLayoutMatch: matches.some(
+			(match) => match.routeId === '/_authed-layout',
+		),
+		hasAuthedRouteMatch: hasExactAuthedRouteMatch(matches, pathname),
+		isHydrated,
+		pathname,
+	});
 
 	return <View404 embedded={embedded} />;
 };
@@ -509,18 +556,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
 	const sessionSurface = getSessionSurface(pathname);
-	// `isAuthedArea` is an exact prefix check (not the looser `isAuthedSurface`,
-	// which would also catch `/tenantfoo`): an unknown `/staff/*` or
-	// `/tenant/*` URL has no exact route match but must still keep the app
-	// shell so its 404 never falls back to the public marketing chrome.
-	const isAuthedArea =
-		pathname === '/staff' ||
-		pathname.startsWith('/staff/') ||
-		pathname === '/tenant' ||
-		pathname.startsWith('/tenant/');
-	const wantsAuthedChrome =
-		location.hasAuthedRouteMatch ||
-		(isAuthedArea && location.hasAuthedLayoutMatch);
+	const wantsAuthedChrome = resolveWantsAuthedChrome({
+		hasAuthedLayoutMatch: location.hasAuthedLayoutMatch,
+		hasAuthedRouteMatch: location.hasAuthedRouteMatch,
+		isHydrated,
+		pathname,
+	});
 	// Appending `hasAuthedRouteMatch` gives the query a different identity
 	// the moment the route stops being an exact authenticated match (e.g.
 	// navigating from a known /staff/* route to an unknown one under the

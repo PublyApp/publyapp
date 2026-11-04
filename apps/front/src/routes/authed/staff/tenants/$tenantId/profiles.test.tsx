@@ -67,6 +67,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
+	useQueryErrorResetBoundary: () => ({ reset: vi.fn() }),
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,
 	}),
@@ -110,7 +111,10 @@ vi.mock('@tanstack/react-router', () => ({
 		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
 		return mocks.blockerResolver;
 	},
-	useRouter: () => ({ history: { back: mocks.historyBack } }),
+	useRouter: () => ({
+		history: { back: mocks.historyBack },
+		invalidate: vi.fn(),
+	}),
 }));
 
 const TRANSLATIONS: TestLabelMap = {

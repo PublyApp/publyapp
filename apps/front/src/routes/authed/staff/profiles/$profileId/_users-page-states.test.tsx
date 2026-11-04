@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
 		<a href={to} {...props}>
 			{children}

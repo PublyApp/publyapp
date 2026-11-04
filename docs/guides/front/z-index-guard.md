@@ -18,6 +18,7 @@ Every z-index utility (a Tailwind `z-*` class) in `apps/front/src` must route th
   --publy-z-raised: 10;          /* small affordances inside a surface */
   --publy-z-shell-topbar: 20;    /* the app-shell topbar */
   --publy-z-selection-bar: 40;   /* bulk-selection floating bar */
+  --publy-z-fab: 45;             /* mobile speed-dial (floating page action) */
   --publy-z-overlay: 70;         /* modal/drawer backdrops */
   --publy-z-drawer-surface: 80;  /* drawer + dialog surfaces */
   --publy-z-menu: 100;           /* dropdowns, tooltips, pickers */

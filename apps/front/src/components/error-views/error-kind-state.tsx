@@ -6,6 +6,8 @@ import {
 	IconZoomQuestion,
 	type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import { useQueryErrorResetBoundary } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
 import { useEffect, useEffectEvent, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { errorToneFromKind } from '~/components/ui/error-tone';
@@ -122,14 +124,23 @@ export const ErrorKindState = ({
 	titleRef,
 }: ErrorKindStateProps) => {
 	const { t } = useTranslation('common');
+	const router = useRouter({ warn: false });
+	const queryReset = useQueryErrorResetBoundary();
 	const online = useOnline();
 	const kind = explicitKind ?? classifyError(error, online);
 	const presentation = presentationOf(kind, t);
-	// Same user-visible outcome as ShopKart's `router.invalidate()` without
-	// pulling the router into a surface that also renders in plain tests.
+	// ShopKart's soft retry: reset the errored queries and re-run the current
+	// route instead of reloading the whole document. `useRouter` returns
+	// `undefined` outside a `RouterProvider` (plain component renders, tests),
+	// and that is the ONLY place a hard reload is still the fallback.
 	const retry = () => {
 		if (onRetry) {
 			onRetry();
+			return;
+		}
+		queryReset.reset();
+		if (router) {
+			void router.invalidate();
 			return;
 		}
 		window.location.reload();

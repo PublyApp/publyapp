@@ -195,6 +195,31 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		problem.Errors.Should().ContainKey("status");
 	}
 
+	[Theory]
+	[InlineData("active,,suspended")]
+	[InlineData(",active")]
+	[InlineData("active, ,suspended")]
+	public async Task ItShouldReturnValidationProblemWhenStatusCsvHasAnEmptyToken(
+		string status
+	) {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(status: status)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("status");
+	}
+
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForUnknownStatusFilter() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();

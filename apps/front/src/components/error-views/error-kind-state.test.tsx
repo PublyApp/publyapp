@@ -1,8 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
+const routerMock = vi.hoisted(() => ({ invalidate: vi.fn() }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
 	const actual =
@@ -12,7 +15,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 		Link: ({ children, ...props }: React.ComponentProps<'a'>) => (
 			<a {...props}>{children}</a>
 		),
-		useRouter: () => ({ invalidate: vi.fn() }),
+		useRouter: () => routerMock,
 	};
 });
 
@@ -24,7 +27,10 @@ vi.mock('react-i18next', () => ({
 
 import { ErrorKindState } from './error-kind-state';
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	routerMock.invalidate.mockReset();
+});
 
 type Expected = {
 	kind: 'offline' | 'not_found' | 'forbidden' | 'server' | 'unknown';
@@ -121,5 +127,29 @@ describe('ErrorKindState — inline panel', () => {
 		expect(root.querySelector('.publy-empty-ring')).toBeNull();
 		expect(within(root).getAllByRole('button')).toHaveLength(1);
 		expect(within(root).queryAllByRole('link')).toHaveLength(0);
+	});
+});
+
+describe('ErrorKindState — soft retry', () => {
+	test('page retry invalidates the route instead of reloading the document', async () => {
+		render(<ErrorKindState scale="page" kind="server" testId="state" />);
+
+		await userEvent.click(
+			within(screen.getByTestId('state')).getByRole('button', {
+				name: 'retry',
+			}),
+		);
+
+		expect(routerMock.invalidate).toHaveBeenCalledTimes(1);
+	});
+
+	test('offline auto-retry uses the same soft retry when the network returns', () => {
+		render(<ErrorKindState scale="page" kind="offline" testId="state" />);
+
+		act(() => {
+			window.dispatchEvent(new Event('online'));
+		});
+
+		expect(routerMock.invalidate).toHaveBeenCalledTimes(1);
 	});
 });

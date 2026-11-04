@@ -5,6 +5,15 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+type ShellTestMatch = {
+	_notFound?: boolean;
+	params: Record<string, unknown>;
+	pathname: string;
+	routeId: string;
+	search?: Record<string, unknown>;
+	staticData: { crumbs: 'shell' };
+};
+
 const mocks = vi.hoisted(() => ({
 	location: {
 		pathname: '/staff',
@@ -17,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 		searchStr: '',
 	},
 	matchedPathname: '/staff',
+	notFound: false,
 	isHydrated: true,
 	navigate: vi.fn(),
 	outletPhase: 'loading' as 'loading' | 'settled',
@@ -28,6 +38,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
+	useQueryErrorResetBoundary: () => ({ reset: vi.fn() }),
 	useQuery: () => mocks.sessionQueryState,
 }));
 
@@ -37,6 +48,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 
 	return {
 		...actual,
+		useRouter: () => ({ invalidate: vi.fn() }),
 		Link: ({ children, ...props }: React.ComponentProps<'a'>) => (
 			<a {...props}>{children}</a>
 		),
@@ -46,14 +58,18 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 			) : (
 				<div data-testid="route-settled-content" />
 			),
-		useLocation: () => mocks.location,
+		useLocation: (opts?: {
+			select?: (location: typeof mocks.location) => string;
+		}) => (opts?.select ? opts.select(mocks.location) : mocks.location),
 		useNavigate: () => mocks.navigate,
-		useMatches: ({ select }: { select: (matches: unknown[]) => void }) => {
+		useMatches: <T = ShellTestMatch[],>(opts?: {
+			select?: (matches: ShellTestMatch[]) => T;
+		}): T => {
 			// `staticData`/`params` are only consumed by the app-shell's
 			// breadcrumb trail derivation (`deriveBreadcrumbTrail`) — this
 			// suite is about shell/outlet continuity, not breadcrumb content,
 			// so `'shell'` (no tail) is the correct, harmless default here.
-			let matches: unknown[];
+			let matches: ShellTestMatch[];
 			if (mocks.matchedPathname.startsWith('/staff')) {
 				matches = [
 					{
@@ -63,6 +79,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 						staticData: { crumbs: 'shell' },
 					},
 					{
+						_notFound: mocks.notFound,
 						routeId: '/_authed-layout/staff',
 						pathname: mocks.matchedPathname,
 						search: mocks.location.search,
@@ -105,7 +122,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 				];
 			}
 
-			return select(matches);
+			return opts?.select ? opts.select(matches) : (matches as T);
 		},
 		useRouterState: ({ select }: { select: (state: unknown) => void }) =>
 			select({
@@ -144,9 +161,9 @@ vi.mock('~/layouts/marketing-layout', () => ({
 	),
 }));
 
-import { View404 } from '~/components/error-views/View404';
+import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 
-import { RoutedShell } from '../__root';
+import { RootNotFound, RoutedShell } from '../__root';
 import { Route as StaffIndexRoute } from './staff';
 
 const RouteContent = () =>
@@ -156,8 +173,19 @@ const RouteContent = () =>
 		<div data-testid="route-settled-content" />
 	);
 
+const setStaffSessionCookie = () => {
+	// oxlint-disable-next-line unicorn/no-document-cookie -- the component reads the real browser cookie jar via document.cookie; the test must seed that exact source.
+	document.cookie = `${SESSION_TOKEN_COOKIE_KEY}=s:staff-token; path=/`;
+};
+
+const clearSessionCookie = () => {
+	// oxlint-disable-next-line unicorn/no-document-cookie -- same source as above; clear it between tests.
+	document.cookie = `${SESSION_TOKEN_COOKIE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+};
+
 afterEach(() => {
 	cleanup();
+	clearSessionCookie();
 	mocks.location = {
 		pathname: '/staff',
 		search: {},
@@ -169,6 +197,7 @@ afterEach(() => {
 		searchStr: '',
 	};
 	mocks.matchedPathname = '/staff';
+	mocks.notFound = false;
 	mocks.isHydrated = true;
 	mocks.navigate.mockReset();
 	mocks.outletPhase = 'loading';
@@ -191,10 +220,12 @@ describe('authenticated shell continuity', () => {
 		// deepest match does not consume the URL, which is exactly the bubble
 		// the root not-found takes over.
 		mocks.matchedPathname = '/staff';
+		mocks.notFound = true;
+		setStaffSessionCookie();
 
 		render(
 			<RoutedShell>
-				<View404 />
+				<RootNotFound />
 			</RoutedShell>,
 		);
 
@@ -202,7 +233,31 @@ describe('authenticated shell continuity', () => {
 		expect(screen.getByTestId('app-shell-topbar')).toBeTruthy();
 		expect(screen.getByTestId('app-shell-rail')).toBeTruthy();
 		expect(screen.getByTestId('view-404')).toBeTruthy();
+		// Embedded inside the shell's page frame, not the full-viewport main.
+		expect(screen.getByTestId('view-404').tagName).toBe('DIV');
 		expect(screen.queryByTestId('marketing-layout-stub')).toBeNull();
+	});
+
+	test('an unknown /staff/x path renders the public marketing 404 for a signed-out visitor', () => {
+		mocks.location = {
+			pathname: '/staff/this-route-does-not-exist',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/staff';
+		mocks.notFound = true;
+
+		render(
+			<RoutedShell>
+				<RootNotFound />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('marketing-layout-stub')).toBeTruthy();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.getByTestId('view-404').tagName).toBe('MAIN');
 	});
 
 	test('holds neutral shell geometry before hydration without identity or navigation', () => {
