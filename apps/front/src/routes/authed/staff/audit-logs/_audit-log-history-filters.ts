@@ -123,7 +123,9 @@ export const buildAuditLogFilters = ({
 		categories.push({
 			value: category,
 			label: t(historyCategoryLabelKey(category)),
-			count: categoryCounts?.[category] ?? null,
+			// Known source, absent category = a real 0. `null` is reserved for
+			// "the API has not answered", which is the only unknown.
+			count: categoryCounts === null ? null : (categoryCounts[category] ?? 0),
 			icon: createElement(historyCategoryIcon(category), {
 				'aria-hidden': true,
 				className: 'size-4 shrink-0 text-muted-foreground',

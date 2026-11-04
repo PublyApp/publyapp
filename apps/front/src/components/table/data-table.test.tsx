@@ -1174,7 +1174,8 @@ describe('DataTable one error state (#2291)', () => {
 		);
 
 		expect(screen.getByText('Access denied')).toBeTruthy();
-		expect(screen.getByText('Permission revoked.')).toBeTruthy();
+		// #2291: a 403 renders the shared forbidden copy, never the server detail.
+		expect(screen.getByText('forbidden-description')).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
 	});
 

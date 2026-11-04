@@ -1700,7 +1700,7 @@
 	"list-staff-stat-users_one": "{{count}} utilisateur · accès complet à la console",
 	"list-staff-stat-users_other": "{{count}} utilisateurs · accès complet à la console",
 	"list-staff-stat-two-factor": "Double authentification",
-	"list-staff-stat-two-factor-unavailable": "aucun champ 2FA en base",
+	"list-staff-stat-two-factor-coming-soon": "Bientôt disponible",
 	"list-staff-stat-connected-today": "Connectés aujourd'hui",
 	"list-staff-stat-open-sessions_one": "{{count}} session ouverte",
 	"list-staff-stat-open-sessions_other": "{{count}} sessions ouvertes",

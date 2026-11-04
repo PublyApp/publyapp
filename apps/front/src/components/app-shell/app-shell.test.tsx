@@ -932,7 +932,8 @@ describe('AppShell page-owned secondary panel', () => {
 
 		// The panel keeps an accessible name, just not a visible second title.
 		const heading = screen.getByRole('heading', { level: 2 });
-		expect(heading.textContent).toBe('nav-staff');
+		// #2291 M4: the panel heading names the page, not the broader module.
+		expect(heading.textContent).toBe('nav-staff-all-users');
 		expect(heading.className).toContain('sr-only');
 
 		// The page's portal slot is the panel's scroller.

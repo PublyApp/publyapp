@@ -13,7 +13,7 @@
 	"actor-avatar-label": "Actor",
 	"analytics-reports": "Analytics & reports",
 	"reports-coming-later-title": "Analytics & reports are coming later",
-	"reports-coming-later-description": "Usage dashboards and scheduled report summaries will appear here once the analytics API ships.",
+	"reports-coming-later-description": "Usage dashboards and scheduled report summaries will appear here soon.",
 	"reports-download": "Download export",
 	"reports-export-description": "Download every recorded audit event as CSV or JSON. Filtered exports are available from the audit logs page.",
 	"audit-logs-page-description": "Review the activity trail across the workspace, filter by action or date, and export what you need.",
@@ -38,7 +38,6 @@
 	"stat-sensitive": "Sensitive actions",
 	"stat-sensitive-footer": "suspensions, impersonations, refused sign-ins",
 	"stat-impersonations": "Impersonations",
-	"stat-impersonations-footer": "actor, ticket and duration unavailable",
-	"stat-denied": "Refused sign-ins",
-	"stat-denied-footer": "suspended accounts unavailable"
+	"stat-window-30-days": "over 30 days",
+	"stat-denied": "Refused sign-ins"
 }

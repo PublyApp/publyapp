@@ -20,6 +20,7 @@ import type {
 	ListFilter,
 	ListMobileCard,
 } from '~/components/list/list-types';
+import { IconTile } from '~/components/ui/icon-tile';
 import { StatusPill } from '~/components/ui/product-page';
 import { Switch } from '~/components/ui/switch';
 import type {
@@ -84,12 +85,7 @@ const JobCell = ({
 			className="flex min-w-0 items-center gap-2"
 			title={description || undefined}
 		>
-			<span
-				className="flex size-7 shrink-0 items-center justify-center rounded-[7px] shadow-[inset_0_0_0_1px_var(--border)]"
-				style={{ background: JOB_FAMILY_META[job.family].tint }}
-			>
-				<Icon aria-hidden="true" className="size-3.5" />
-			</span>
+			<IconTile icon={Icon} tint={JOB_FAMILY_META[job.family].tint} />
 			<span className="flex min-w-0 flex-col leading-tight">
 				<span className="truncate font-medium">{label}</span>
 				<span className="truncate font-mono text-[11px] text-muted-foreground">

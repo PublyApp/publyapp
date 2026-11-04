@@ -184,6 +184,30 @@ describe('state-surface', () => {
 		expect(root.querySelector('.publy-error-ghost-numeral')).toBeNull();
 	});
 
+	test('empty lists render the ShopKart OS shape: two rings around a tilted tile', () => {
+		render(<StateSurface title="Nothing yet" testId="surface" />);
+		const root = screen.getByTestId('surface');
+
+		expect(root.getAttribute('data-presentation')).toBe('empty');
+		expect(root.querySelectorAll('.publy-empty-ring')).toHaveLength(2);
+		const cluster = root.querySelector('.publy-state-icon-cluster');
+		expect(cluster?.getAttribute('data-presentation')).toBe('empty');
+		expect(cluster?.getAttribute('aria-hidden')).toBe('true');
+		expect(
+			root
+				.querySelector('.publy-state-icon')
+				?.getAttribute('data-presentation'),
+		).toBe('empty');
+	});
+
+	test('the error surface keeps the flat, ring-less family', () => {
+		render(<ErrorStateSurface title="List unavailable" testId="error" />);
+		const root = screen.getByTestId('error');
+
+		expect(root.getAttribute('data-presentation')).toBeNull();
+		expect(root.querySelector('.publy-empty-ring')).toBeNull();
+	});
+
 	test('AppErrorView renders actions without a separator rule above them (owner-approved 2026-07-10 round 3)', () => {
 		render(
 			<AppErrorView

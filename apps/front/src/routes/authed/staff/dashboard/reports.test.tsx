@@ -69,7 +69,7 @@ const EN_LABELS: TestLabelMap = {
 	'analytics-reports': 'Analytics & reports',
 	'reports-coming-later-title': 'Analytics & reports are coming later',
 	'reports-coming-later-description':
-		'Usage dashboards and scheduled report summaries will appear here once the analytics API ships.',
+		'Usage dashboards and scheduled report summaries will appear here soon.',
 	'reports-download': 'Download export',
 	'reports-export-description':
 		'Download every recorded audit event as CSV or JSON. Filtered exports are available from the audit logs page.',

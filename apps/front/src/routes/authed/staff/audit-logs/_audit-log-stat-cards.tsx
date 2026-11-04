@@ -90,7 +90,7 @@ export const AuditLogStatCards = ({
 				label={t('stat-impersonations')}
 				icon={<IconMask />}
 				value={impersonations ?? DASH}
-				footer={t('stat-impersonations-footer')}
+				footer={t('stat-window-30-days')}
 			/>
 			<StatCard
 				testId="audit-stat-denied"
@@ -98,7 +98,7 @@ export const AuditLogStatCards = ({
 				label={t('stat-denied')}
 				icon={<IconKey />}
 				value={refused ?? DASH}
-				footer={t('stat-denied-footer')}
+				footer={t('stat-window-30-days')}
 			/>
 		</>
 	);

@@ -64,7 +64,7 @@ export const invitationColumns = (
 					className="flex min-w-0 items-center gap-2 no-underline"
 					title={row.email}
 				>
-					<PersonAvatar name={row.email} size="xs" />
+					<PersonAvatar name={row.email} />
 					<span className="publy-record-link min-w-0 truncate font-medium text-left">
 						{row.email}
 					</span>

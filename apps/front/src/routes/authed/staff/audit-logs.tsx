@@ -195,7 +195,9 @@ const StaffAuditLogsPage = () => {
 		t: tCommon,
 		catalog,
 		search,
-		categoryCounts: countAuditCategories(counts),
+		// `null` while the API has not answered: only then is a category count
+		// unknown. Once the facets are in, an absent category is a real 0.
+		categoryCounts: counts ? countAuditCategories(counts) : null,
 	});
 	const actorGroup = buildActorPanelGroup(counts, tCommon, (actor) =>
 		onSearchChange({ ...search, q: actor, cursor: undefined }),

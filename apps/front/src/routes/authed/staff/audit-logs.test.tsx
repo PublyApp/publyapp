@@ -56,6 +56,26 @@ describe('staff audit log history filters', () => {
 		expect(custom?.label).toBe('01/10/2026 – 15/10/2026');
 	});
 
+	test('a category the facets omit is a real 0, not an unknown count', () => {
+		const withFacets = buildAuditLogFilters({
+			t,
+			catalog,
+			search: {},
+			categoryCounts: { tenant: 4 },
+		});
+		const counts = withFacets
+			.find((filter) => filter.key === 'category')
+			?.choices.map((choice) => choice.count);
+		expect(counts).toEqual([0, 4, 0, 0, 0]);
+
+		const withoutFacets = buildAuditLogFilters({ t, catalog, search: {} });
+		expect(
+			withoutFacets
+				.find((filter) => filter.key === 'category')
+				?.choices.every((choice) => choice.count === null),
+		).toBe(true);
+	});
+
 	test('offers the sensitive shortcut only when the registry has one', () => {
 		expect(
 			buildAuditLogFilters({ t, catalog, search: {} }).some(

@@ -1876,6 +1876,53 @@ html.dark {
 		color: var(--publy-primary);
 	}
 
+	/* ShopKart OS's empty state (owner decision 04/11): two faint rings around
+	   a −6° tilted tile carrying the icon. Same shape on every empty list,
+	   since it lives in the shared StateSurface — no page assembles its own. */
+	.publy-state-surface[data-presentation='empty'] {
+		gap: 0;
+	}
+
+	.publy-state-icon-cluster[data-presentation='empty'] {
+		position: relative;
+		width: 120px;
+		height: 120px;
+	}
+
+	.publy-empty-ring {
+		fill: var(--publy-card);
+		stroke: var(--publy-border);
+		stroke-width: 1;
+		opacity: 0.45;
+	}
+
+	.publy-empty-ring--inner {
+		opacity: 0.9;
+	}
+
+	/* The tile sits at inset (120 − 56) / 2 so the shared overlay guard does
+	   not read a translate pair into it. */
+	.publy-state-icon[data-presentation='empty'] {
+		position: absolute;
+		top: 32px;
+		left: 32px;
+		width: 56px;
+		height: 56px;
+		border: 1px solid var(--publy-border);
+		border-radius: 18px;
+		background: var(--publy-background);
+		box-shadow: var(--effect-raised-control);
+		color: var(--publy-foreground-muted);
+		transform: rotate(-6deg);
+	}
+
+	.publy-state-icon[data-presentation='empty'] svg {
+		width: 28px;
+		height: 28px;
+		stroke-width: 1.5;
+		transform: rotate(6deg);
+	}
+
 	.publy-state-technical-id {
 		@apply mt-0.5;
 		font-size: 11px;
@@ -3111,15 +3158,6 @@ html.dark {
 		height: 19px;
 	}
 
-	/* 24px r7 tile for the staff-profiles list cell: the prototype's compact
-	shield chip, sharing the same data-tone palette and --publy-icon-tile-bg
-	token as the 32px default. */
-	.publy-profile-icon-tile--sm {
-		width: 24px;
-		height: 24px;
-		border-radius: 7px;
-	}
-
 	.publy-profile-card-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
@@ -3207,7 +3245,9 @@ html[data-theme-changing] * {
    element. Tailwind's `size-*` lives in the utilities layer and beats a
    layered `.publy-state-icon svg` rule, so this override is deliberately
    un-layered — un-layered CSS wins over every Tailwind v4 layer. */
-.publy-state-icon svg {
+/* The empty presentation sizes its own glyph (28px, the ShopKart reference),
+   so this fill-the-cluster rule excludes it. */
+.publy-state-icon:not([data-presentation='empty']) svg {
 	width: 100%;
 	height: 100%;
 }
@@ -3422,6 +3462,18 @@ html[data-theme-changing] * {
 		min-width: 0;
 		min-height: 0;
 		overflow: hidden;
+	}
+
+	/* A raised control's 1px outer ring is a box-shadow drawn OUTSIDE the card,
+	   so the clip box above used to cut it on the collapse's four edges. While
+	   open, the clip box gains 1px of padding — the ring now paints into it —
+	   and the same 1px as a negative margin, so its border box grows outward
+	   while the content (and the track's own layout size) stays put. Only
+	   while open: a closed collapse must still measure exactly 0. Fixed once
+	   here, so no page needs a local fix. */
+	[data-collapse][data-open] > div {
+		margin: -1px;
+		padding: 1px;
 	}
 
 	[data-collapse] > div > div {

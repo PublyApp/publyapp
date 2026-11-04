@@ -51,7 +51,7 @@ describe('StaffUsersStatCards', () => {
 		}
 	});
 
-	test('keeps Double authentification at « — »: no 2FA source exists', () => {
+	test('keeps Double authentification at « — » with a « Bientôt disponible » footer', () => {
 		render(
 			<StaffUsersStatCards
 				t={t}
@@ -70,7 +70,7 @@ describe('StaffUsersStatCards', () => {
 		const twoFactor = screen.getByTestId('staff-user-stat-two-factor');
 		expect(twoFactor.textContent).toContain('—');
 		expect(twoFactor.textContent).toContain(
-			'list-staff-stat-two-factor-unavailable',
+			'list-staff-stat-two-factor-coming-soon',
 		);
 		expect(twoFactor.textContent).not.toContain('%');
 

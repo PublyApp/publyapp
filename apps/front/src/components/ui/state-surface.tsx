@@ -20,6 +20,9 @@ type StateSurfaceProps = {
 	description?: string;
 	actions?: ReactNode;
 	technicalIdentifier?: string;
+	/** `empty` (the default) is the ShopKart OS empty-collection shape; the
+	 * error surface keeps the flat `plain` family. */
+	presentation?: 'plain' | 'empty';
 	testId?: string;
 };
 
@@ -33,6 +36,7 @@ export const StateSurface = ({
 	description,
 	actions,
 	technicalIdentifier,
+	presentation = 'empty',
 	testId,
 }: StateSurfaceProps) => (
 	<StateView
@@ -50,6 +54,7 @@ export const StateSurface = ({
 		}
 		description={description}
 		actions={actions}
+		presentation={presentation}
 		testId={testId}
 	/>
 );
@@ -65,6 +70,7 @@ export const ErrorStateSurface = ({
 		ariaLive={ariaLive}
 		role={role}
 		icon={Icon}
+		presentation="plain"
 		tone="danger"
 	/>
 );

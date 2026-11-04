@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ListColumn, ListFilter } from '~/components/list/list-types';
+import { IconTile } from '~/components/ui/icon-tile';
 import { StatusPill } from '~/components/ui/product-page';
 import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import type { StaffProfileRow } from '~/lib/query/staff-profiles';
@@ -47,12 +48,7 @@ export const staffProfileColumns = (
 					params={{ profileId: row.id }}
 					className="flex min-w-0 items-center gap-2 no-underline"
 				>
-					<span
-						className="publy-profile-icon-tile publy-profile-icon-tile--sm"
-						data-tone={tone}
-					>
-						<IconShieldLock className="size-3.5" />
-					</span>
+					<IconTile icon={IconShieldLock} size="sm" tone={tone} />
 					<span
 						className="publy-record-link min-w-0 truncate font-medium"
 						title={row.name}

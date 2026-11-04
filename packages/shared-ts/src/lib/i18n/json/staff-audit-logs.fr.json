@@ -13,7 +13,7 @@
 	"actor-avatar-label": "Acteur",
 	"analytics-reports": "Analytiques et rapports",
 	"reports-coming-later-title": "Les analytiques et rapports arrivent bientôt",
-	"reports-coming-later-description": "Les tableaux de bord d'utilisation et les résumés planifiés apparaîtront ici lorsque l'API d'analytique sera disponible.",
+	"reports-coming-later-description": "Les tableaux de bord d'utilisation et les résumés planifiés apparaîtront ici prochainement.",
 	"reports-download": "Télécharger l'export",
 	"reports-export-description": "Téléchargez tous les événements d'audit enregistrés en CSV ou JSON. Les exports filtrés sont disponibles depuis la page des journaux d'audit.",
 	"audit-logs-page-description": "Consultez la trace d'activité de l'espace de travail, filtrez par action ou par date et exportez ce dont vous avez besoin.",
@@ -38,7 +38,6 @@
 	"stat-sensitive": "Actions sensibles",
 	"stat-sensitive-footer": "suspensions, impersonations, connexions refusées",
 	"stat-impersonations": "Impersonations",
-	"stat-impersonations-footer": "acteur, ticket et durée indisponibles",
-	"stat-denied": "Connexions refusées",
-	"stat-denied-footer": "comptes suspendus indisponibles"
+	"stat-window-30-days": "sur 30 jours",
+	"stat-denied": "Connexions refusées"
 }

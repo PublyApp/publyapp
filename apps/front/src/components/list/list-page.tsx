@@ -96,10 +96,6 @@ export type ListPageProps<T extends { id: string }> = {
 	/** The figures above the list; a toggle folds them. */
 	cards?: ReactNode;
 	totals: (rows: T[]) => Map<string, string>;
-	/** Keep the pinned totals on one ellipsised line instead of wrapping.
-	 * Off by default: a total that wraps is still readable, and an ellipsis
-	 * (the invitations summary) is only right where the prototype asks for it. */
-	totalsNowrap?: boolean;
 	onOpen: (row: T) => void;
 	openLabel: (row: T) => string;
 	mobileCard: (row: T) => ListMobileCard;
@@ -350,7 +346,6 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					rows={page.tableRows}
 					head={page.head}
 					totals={page.totalCells}
-					totalsNowrap={props.totalsNowrap}
 					onOpen={props.onOpen}
 					openLabel={props.openLabel}
 					rowLabel={

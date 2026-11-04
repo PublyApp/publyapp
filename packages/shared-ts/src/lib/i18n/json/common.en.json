@@ -1700,7 +1700,7 @@
 	"list-staff-stat-users_one": "{{count}} user · full console access",
 	"list-staff-stat-users_other": "{{count}} users · full console access",
 	"list-staff-stat-two-factor": "Two-factor authentication",
-	"list-staff-stat-two-factor-unavailable": "no 2FA field in the database",
+	"list-staff-stat-two-factor-coming-soon": "Coming soon",
 	"list-staff-stat-connected-today": "Connected today",
 	"list-staff-stat-open-sessions_one": "{{count}} open session",
 	"list-staff-stat-open-sessions_other": "{{count}} open sessions",

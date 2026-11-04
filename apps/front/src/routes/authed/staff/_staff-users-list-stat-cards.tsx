@@ -17,9 +17,9 @@ const Dash = () => <span className="text-muted-foreground">—</span>;
  * `counts` (issue #2301). « Connectés aujourd'hui » counts the users with a
  * session opened since midnight UTC and the still-open sessions behind it.
  *
- * « Double authentification » stays « — »: no MFA/2FA column exists on the
- * user, session or account tables (BLOCKED — see the lot report), and the
- * honest-numbers rule forbids inventing a percentage.
+ * « Double authentification » stays « — » with « Bientôt disponible »: no
+ * 2FA source exists yet, and the honest-numbers rule forbids inventing a
+ * percentage. The card is never hidden: the product announces it instead.
  */
 export const StaffUsersStatCards = ({
 	counts,
@@ -50,7 +50,7 @@ export const StaffUsersStatCards = ({
 					label={t('list-staff-stat-two-factor')}
 					icon={<IconLock />}
 					value={<Dash />}
-					footer={t('list-staff-stat-two-factor-unavailable')}
+					footer={t('list-staff-stat-two-factor-coming-soon')}
 				/>
 				<StatCard
 					testId="staff-user-stat-connected-today"
@@ -91,7 +91,7 @@ export const StaffUsersStatCards = ({
 				label={t('list-staff-stat-two-factor')}
 				icon={<IconLock />}
 				value={<Dash />}
-				footer={t('list-staff-stat-two-factor-unavailable')}
+				footer={t('list-staff-stat-two-factor-coming-soon')}
 			/>
 			<StatCard
 				testId="staff-user-stat-connected-today"

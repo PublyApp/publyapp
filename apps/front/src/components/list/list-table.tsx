@@ -346,7 +346,6 @@ export const ListTable = <T extends { id: string }>({
 	rows,
 	head,
 	totals,
-	totalsNowrap = false,
 	onOpen,
 	openLabel,
 	rowLabel,
@@ -366,7 +365,6 @@ export const ListTable = <T extends { id: string }>({
 	}[];
 	head: HeadCell[];
 	totals: ReadonlyMap<string, string>;
-	totalsNowrap?: boolean;
 	onOpen: (row: T) => void;
 	openLabel: (row: T) => string;
 	rowLabel?: (row: T) => string;
@@ -514,25 +512,16 @@ export const ListTable = <T extends { id: string }>({
 						>
 							{cols}
 							<tbody>
-								{/* The totals wrap instead of truncating: a filtered list's
-								    summary is longer than its column (the staff statuses at
-								    1440 px), and an ellipsised total is not a total. The
-								    row keeps 40 px as its minimum and grows. */}
-								<tr
-									className={cn(
-										'h-10 text-xs text-muted-foreground',
-										totalsNowrap ? 'whitespace-nowrap' : 'whitespace-normal',
-									)}
-								>
+								<tr className="h-10 text-xs text-muted-foreground">
 									{ids.map((id, index) => (
 										<td
 											key={id}
 											title={totals.get(id)}
 											className={cn(
-												'border-t border-r bg-background px-2 py-1.5 align-top last:border-r-0',
-												totalsNowrap
-													? 'overflow-hidden text-ellipsis'
-													: 'break-words',
+												// One line, always: a total that wraps pushes the
+												// pinned summary up and costs the rows a second
+												// line. The full text stays in `title`.
+												'overflow-hidden text-ellipsis whitespace-nowrap border-t border-r bg-background px-2 py-1.5 align-top last:border-r-0',
 												index === 0 &&
 													'sticky left-0 z-(--publy-z-sticky-cell)',
 											)}

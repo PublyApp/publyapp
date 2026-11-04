@@ -200,8 +200,6 @@ const StaffInvitationsPage = () => {
 			locale={i18n.language}
 			cards={<InvitationsStatCards counts={team.invitationCounts} t={t} />}
 			totals={buildInvitationTotals(t, query.data?.counts)}
-			// The prototype's summary is one ellipsised line, not four wrapped ones.
-			totalsNowrap
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'invitations',
