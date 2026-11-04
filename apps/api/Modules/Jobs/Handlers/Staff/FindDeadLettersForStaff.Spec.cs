@@ -158,6 +158,11 @@ public sealed class FindDeadLettersForStaffSpec : IClassFixture<ApiFixture> {
 			root.GetProperty("data").GetArrayLength().Should().Be(1);
 			root.GetProperty("totalCount").GetInt32().Should().Be(1);
 			root.GetProperty("counts").GetProperty("open").GetInt32().Should().Be(1);
+			root.GetProperty("counts").GetProperty("byJobType").EnumerateArray()
+				.Should().Contain(entry =>
+					entry.GetProperty("jobType").GetString() == jobType
+					&& entry.GetProperty("count").GetInt32() == 1
+				);
 
 			var row = root.GetProperty("data")[0];
 			row.GetProperty("tenantName").GetString().Should().Be(tenantName);

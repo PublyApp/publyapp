@@ -57,6 +57,8 @@ export type StaffUserRow = {
 	level: AccountLevel | null;
 	status: UserStatus | null;
 	displayName: string;
+	/** Staff profile names assigned to the account, from the list row. */
+	profileNames: string[];
 };
 
 export type AssignedStaffProfile = {
@@ -216,6 +218,10 @@ export const toStaffUserRows = (
 			level: item.level ?? null,
 			status: item.status ?? null,
 			displayName: getDisplayName({ firstName, lastName, email }),
+			profileNames: (item.profileNames ?? []).flatMap((name) => {
+				const normalized = normalizeString(name ?? undefined);
+				return normalized ? [normalized] : [];
+			}),
 		});
 	}
 

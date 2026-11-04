@@ -34,7 +34,7 @@ import {
 	queueMobileCard,
 	queueTotals,
 } from './_jobs-list-config';
-import { useJobsOverview } from './_jobs-overview';
+import { buildJobFamilyCounts, useJobsOverview } from './_jobs-overview';
 import {
 	buildJobsPanelGroups,
 	jobsSectionPath,
@@ -105,7 +105,12 @@ const StaffJobsQueuePage = () => {
 					? null
 					: (globalCounts.total ?? 0) - (globalCounts.retrying ?? 0),
 		},
-		family: {},
+		family: buildJobFamilyCounts(
+			globalCounts?.byJobType?.map((row) => ({
+				key: row.jobType,
+				count: row.count ?? 0,
+			})),
+		),
 	};
 
 	const filtersValue: ListFiltersValue = {

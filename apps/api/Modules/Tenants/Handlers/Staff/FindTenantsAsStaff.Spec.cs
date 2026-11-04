@@ -16,6 +16,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -1169,7 +1170,9 @@ public sealed class FindTenantsAsStaffSpec
 
 	private async Task<Guid> _SeedTenantWithNameAndStatusAsync(
 		string name,
-		TenantStatus status
+		TenantStatus status,
+		string? code = null,
+		string? defaultLocale = null
 	) {
 		await using var scope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
@@ -1178,7 +1181,8 @@ public sealed class FindTenantsAsStaffSpec
 
 		var tenant = new Tenant {
 			Name = name,
-			Code = Guid.NewGuid().ToString("N")[..10],
+			Code = code ?? Guid.NewGuid().ToString("N")[..10],
+			DefaultLocale = defaultLocale,
 			Status = status,
 			MaxUsers = 10,
 		};
@@ -1238,6 +1242,90 @@ public sealed class FindTenantsAsStaffSpec
 		result.Counts.Suspended.Should().Be(0);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnTheIdentifierLanguageAndPendingInvitations() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"ident-tenant-{Guid.NewGuid():N}";
+		var frenchCode = $"fr-{Guid.NewGuid():N}"[..12];
+		var frenchId = await this._SeedTenantWithNameAndStatusAsync(
+			$"{marker}-fr",
+			TenantStatus.Active,
+			code: frenchCode,
+			defaultLocale: "fr"
+		);
+		var englishId = await this._SeedTenantWithNameAndStatusAsync(
+			$"{marker}-en",
+			TenantStatus.Active,
+			defaultLocale: "en"
+		);
+		await this._SeedPendingTenantInvitationAsync(
+			frenchId,
+			DateTime.UtcNow.AddDays(3)
+		);
+		await this._SeedPendingTenantInvitationAsync(
+			frenchId,
+			DateTime.UtcNow.AddDays(30)
+		);
+
+		var url = TenantTestHelper.GetFindUrl(q: marker, limit: 100);
+		using var request = new HttpRequestMessage(HttpMethod.Get, url)
+			.WithSessionToken(token);
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// The slug reaches the « Identifiant » column, and the language the
+		// « Langues » panel filter needs reaches the row.
+		var frenchRow = result.Data.Should()
+			.ContainSingle(row => row.Id == frenchId)
+			.Subject;
+		frenchRow.Code.Should().Be(frenchCode);
+		frenchRow.DefaultLocale.Should().Be("fr");
+		result.Data.Should()
+			.ContainSingle(row => row.Id == englishId && row.DefaultLocale == "en");
+
+		// Language facets are whole-collection counts, not the page's sums.
+		result.Counts.ByLocale.Should().Contain(facet =>
+			facet.Locale == "fr" && facet.Count >= 1
+		);
+		result.Counts.ByLocale.Should().Contain(facet =>
+			facet.Locale == "en" && facet.Count >= 1
+		);
+
+		// Two pending invitations for one organisation, one expiring within seven days.
+		result.Counts.PendingInvitations.Should().Be(2);
+		result.Counts.PendingInvitationTenants.Should().Be(1);
+		result.Counts.ExpiringInvitations.Should().Be(1);
+	}
+
+	private async Task _SeedPendingTenantInvitationAsync(
+		Guid tenantId,
+		DateTime expiresAt
+	) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		var inviter = await dbContext.User
+			.Where(user => user.Email == TestConstants.StaffAdminEmail)
+			.FirstAsync();
+
+		var invitation = Invitation.CreateTenantInvitationWithProfiles(
+			$"pending-tenant-{Guid.NewGuid():N}@example.com",
+			tenantId,
+			[],
+			inviter.GetRequiredId(),
+			expiresAt,
+			Guid.NewGuid().ToString("N")[..32]
+		);
+
+		await dbContext.Invitation.AddAsync(invitation);
+		await dbContext.SaveChangesAsync();
+	}
+
 	private record StaffProfileCreatedResponse {
 		public Guid ProfileId { get; init; }
 	}
@@ -1251,6 +1339,10 @@ public sealed class FindTenantsAsStaffSpec
 
 	private record TenantCountsDto {
 		public int Total { get; init; }
+		public int PendingInvitations { get; init; }
+		public int PendingInvitationTenants { get; init; }
+		public int ExpiringInvitations { get; init; }
+		public List<TenantLocaleCountDto> ByLocale { get; init; } = [];
 		public int Active { get; init; }
 		public int Pending { get; init; }
 		public int Suspended { get; init; }
@@ -1262,9 +1354,16 @@ public sealed class FindTenantsAsStaffSpec
 		public int ActiveThisWeek { get; init; }
 	}
 
+	private record TenantLocaleCountDto {
+		public string Locale { get; init; } = string.Empty;
+		public int Count { get; init; }
+	}
+
 	private record TenantListItem {
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
+		public string Code { get; init; } = string.Empty;
+		public string? DefaultLocale { get; init; }
 		public int UsersCount { get; init; }
 		public string Status { get; init; } = string.Empty;
 	}

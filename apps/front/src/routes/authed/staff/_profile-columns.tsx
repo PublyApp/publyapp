@@ -47,7 +47,10 @@ export const staffProfileColumns = (
 					params={{ profileId: row.id }}
 					className="flex min-w-0 items-center gap-2 no-underline"
 				>
-					<span className="publy-profile-icon-tile" data-tone={tone}>
+					<span
+						className="publy-profile-icon-tile publy-profile-icon-tile--sm"
+						data-tone={tone}
+					>
 						<IconShieldLock className="size-3.5" />
 					</span>
 					<span

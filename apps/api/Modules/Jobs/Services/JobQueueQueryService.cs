@@ -17,11 +17,22 @@ public record FindJobQueueItemsArgs(
 	string? Search
 );
 
+/// <summary>
+/// One job type and its row count. The front groups these into the four
+/// « Familles » of the side panel from its own job catalogue — the family
+/// classification lives there, so the API never duplicates it.
+/// </summary>
+public sealed record JobTypeCount(
+	string JobType,
+	int Count
+);
+
 public sealed record JobQueueCounts(
 	int Total,
 	int Pending,
 	int Processing,
-	int Retrying
+	int Retrying,
+	IReadOnlyList<JobTypeCount> ByJobType
 );
 
 public abstract record FindJobQueueItemsResult {
@@ -158,11 +169,18 @@ public class JobQueueQueryService(AppDbContext dbContext) : IJobQueueQueryServic
 			cancellationToken
 		);
 
+		var byJobType = await (
+			from item in query
+			group item by item.JobType into g
+			select new JobTypeCount(g.Key, g.Count())
+		).ToListAsync(cancellationToken);
+
 		var counts = new JobQueueCounts(
 			Total: total,
 			Pending: pending,
 			Processing: processing,
-			Retrying: retrying
+			Retrying: retrying,
+			ByJobType: byJobType
 		);
 
 		IQueryable<JobQueueItem> page = query;

@@ -15,7 +15,7 @@ const t = (key: string): string => key;
 describe('queue status presentation', () => {
 	test('maps wire statuses to label keys and tones', () => {
 		expect(queueStatusLabel(t, 'pending')).toBe('queue-status-pending');
-		expect(queueStatusTone('processing')).toBe('warning');
+		expect(queueStatusTone('processing')).toBe('info');
 		expect(queueStatusTone('failed')).toBe('danger');
 	});
 
@@ -73,7 +73,8 @@ describe('queueColumns', () => {
 			'worker',
 		]);
 		expect(widths.type).toBe(360);
-		expect(widths.attempts).toBe(120);
+		expect(widths.attempts).toBe(150);
+		expect(widths.priority).toBe(130);
 		expect(widths.org).toBe(190);
 		expect(widths.error).toBe(380);
 	});

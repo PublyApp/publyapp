@@ -19,6 +19,8 @@ namespace PublyApp.Api.Modules.Tenants.Services;
 public class TenantAsStaffListItem {
 	public required Guid Id { get; init; }
 	public required string Name { get; init; }
+	public required string Code { get; init; }
+	public string? DefaultLocale { get; init; }
 	public string? LogoUrl { get; init; }
 	public required int UsersCount { get; init; }
 	public required int ProjectsCount { get; init; }
@@ -139,6 +141,11 @@ public record CreateTenantWithInitialUsersArgs(
 	string? Notes
 );
 
+public sealed record TenantLocaleCount(
+	string Locale,
+	int Count
+);
+
 public sealed record TenantListCounts(
 	int Total,
 	int Active,
@@ -149,7 +156,11 @@ public sealed record TenantListCounts(
 	int Projects,
 	int AlmostFull,
 	int Full,
-	int ActiveThisWeek
+	int ActiveThisWeek,
+	int PendingInvitations,
+	int PendingInvitationTenants,
+	int ExpiringInvitations,
+	IReadOnlyList<TenantLocaleCount> ByLocale
 );
 
 public abstract record FindTenantsAsStaffServiceResult {
@@ -437,6 +448,48 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			}
 		}
 
+		// The « Langues » panel counts the tenants' own default language.
+		var localeFacets = await (
+			from tenant in baseQuery
+			group tenant by tenant.DefaultLocale into g
+			select new { Locale = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var byLocale = localeFacets
+			.Select(facet => new TenantLocaleCount(
+				Locale: facet.Locale ?? string.Empty,
+				Count: facet.Count
+			))
+			.ToList();
+
+		// « Invitations en attente »: pending organisation invitations for the
+		// filtered tenants, the organisations concerned, and the ones expiring
+		// within seven days (already-expired rows are not expiring).
+		var now = DateTime.UtcNow;
+		var expiringBoundary = now.AddDays(7);
+		var pendingInvitationRows = await (
+			from invitation in this._DbContext.Invitation.AsNoTracking()
+			where invitation.Scope == InvitationScope.Tenant
+				&& invitation.Status == InvitationStatus.Pending
+				&& !invitation.IsDeleted
+				&& invitation.TenantId != null
+				&& baseQuery.Any(tenant => tenant.Id == invitation.TenantId)
+			select new {
+				invitation.TenantId,
+				invitation.ExpiresAt,
+			}
+		).ToListAsync(cancellationToken);
+
+		var pendingInvitationTenantIds = new HashSet<Guid>();
+		var expiringInvitations = 0;
+		foreach (var row in pendingInvitationRows) {
+			if (row.TenantId is { } invitationTenantId) {
+				pendingInvitationTenantIds.Add(invitationTenantId);
+			}
+			if (row.ExpiresAt > now && row.ExpiresAt <= expiringBoundary) {
+				expiringInvitations += 1;
+			}
+		}
+
 		var counts = new TenantListCounts(
 			Total: total,
 			Active: active,
@@ -447,7 +500,11 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			Projects: projects,
 			AlmostFull: almostFull,
 			Full: full,
-			ActiveThisWeek: activeThisWeek
+			ActiveThisWeek: activeThisWeek,
+			PendingInvitations: pendingInvitationRows.Count,
+			PendingInvitationTenants: pendingInvitationTenantIds.Count,
+			ExpiringInvitations: expiringInvitations,
+			ByLocale: byLocale
 		);
 
 		// Apply cursor filter
@@ -517,6 +574,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new TenantAsStaffListItem {
 				Id = tenantId,
 				Name = t.Name,
+				Code = t.Code,
+				DefaultLocale = t.DefaultLocale,
 				LogoUrl = t.LogoUrl,
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
 				ProjectsCount = projectsCountDict.GetValueOrDefault(tenantId, 0),

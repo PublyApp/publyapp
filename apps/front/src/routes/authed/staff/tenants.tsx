@@ -189,6 +189,12 @@ const StaffTenantsPage = () => {
 							? null
 							: (counts.total ?? 0) - (counts.almostFull ?? 0),
 				},
+				locale: {
+					fr:
+						counts?.byLocale?.find((row) => row.locale === 'fr')?.count ?? null,
+					en:
+						counts?.byLocale?.find((row) => row.locale === 'en')?.count ?? null,
+				},
 			}}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty')}

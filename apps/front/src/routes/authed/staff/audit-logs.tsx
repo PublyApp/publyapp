@@ -21,6 +21,7 @@ import {
 } from '~/lib/query/staff-audit-logs';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
+import type { AuditLogListCounts } from '@org/client-ts/models/index';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
@@ -74,46 +75,47 @@ const activePeriod = (search: AuditLogsListSearchParams): string[] => {
 	return [];
 };
 
-const countAuditCategories = (rows: ReturnType<typeof toStaffAuditLogRows>) => {
-	const counts: Record<string, number> = {};
-	for (const row of rows) {
-		if (!row.action) {
-			continue;
-		}
-		const category = historyCategory(row.action);
-		counts[category] = (counts[category] ?? 0) + 1;
+/** The panel's per-category counters, summed from the API's per-action
+ * whole-history counts. */
+const countAuditCategories = (
+	counts: AuditLogListCounts | null | undefined,
+) => {
+	const categories: Record<string, number> = {};
+	for (const row of counts?.byAction ?? []) {
+		const category = historyCategory(row.action ?? null);
+		categories[category] = (categories[category] ?? 0) + (row.count ?? 0);
 	}
-	return counts;
+	return categories;
 };
 
+/** The panel's per-actor counters, from the API's actor facets (already
+ * ranked by volume, so the panel needs no client-side sort). */
 const buildActorPanelGroup = (
-	rows: ReturnType<typeof toStaffAuditLogRows>,
+	counts: AuditLogListCounts | null | undefined,
 	t: (key: string) => string,
 	onSelect: (actor: string) => void,
-): ListPanelGroup[] => {
-	const counts = new Map<string, number>();
-	for (const row of rows) {
-		const actor = row.userName ?? t('common:history-system');
-		counts.set(actor, (counts.get(actor) ?? 0) + 1);
-	}
-	const entries = [...counts.entries()].sort((a, b) =>
-		a[0].localeCompare(b[0], 'fr'),
-	);
-	return [
-		{
-			key: 'audit-actors',
-			title: t('common:history-filter-actors'),
-			entries: entries.map(([actor, count]) => ({
-				key: `actor:${actor}`,
-				label: actor,
-				icon: <IconUser />,
-				count,
-				active: false,
-				onClick: () => onSelect(actor),
-			})),
-		},
-	];
-};
+): ListPanelGroup[] => [
+	{
+		key: 'audit-actors',
+		title: t('common:history-filter-actors'),
+		entries: (counts?.byActor ?? []).flatMap((actor) => {
+			const name = actor.name?.trim() ?? '';
+			if (name.length === 0) {
+				return [];
+			}
+			return [
+				{
+					key: `actor:${actor.userId ?? name}`,
+					label: name,
+					icon: <IconUser />,
+					count: actor.count ?? 0,
+					active: false,
+					onClick: () => onSelect(name),
+				},
+			];
+		}),
+	},
+];
 
 const StaffAuditLogsPage = () => {
 	const navigate = Route.useNavigate();
@@ -187,18 +189,17 @@ const StaffAuditLogsPage = () => {
 		query.data !== undefined &&
 		query.data.nextCursor == null &&
 		!controller.cursor.hasPreviousPage;
-	const categoryCounts = collectionComplete ? countAuditCategories(rows) : null;
+	const counts = query.data?.counts;
+	// The counters are the API's whole-history facets, never the loaded page.
 	const filters = buildAuditLogFilters({
 		t: tCommon,
 		catalog,
 		search,
-		categoryCounts,
+		categoryCounts: countAuditCategories(counts),
 	});
-	const actorGroup = collectionComplete
-		? buildActorPanelGroup(rows, tCommon, (actor) =>
-				onSearchChange({ ...search, q: actor, cursor: undefined }),
-			)
-		: [];
+	const actorGroup = buildActorPanelGroup(counts, tCommon, (actor) =>
+		onSearchChange({ ...search, q: actor, cursor: undefined }),
+	);
 
 	const filtersValue: ListFiltersValue = {
 		category: categories,
@@ -274,7 +275,7 @@ const StaffAuditLogsPage = () => {
 					onSearchChange({ ...search, q: next, cursor: undefined })
 				}
 				searchTestId="staff-audit-logs-search"
-				cards={<AuditLogStatCards />}
+				cards={<AuditLogStatCards counts={counts} />}
 				onExport={() => setIsExportOpen(true)}
 				exportTestId="staff-audit-logs-export-trigger"
 				banner={

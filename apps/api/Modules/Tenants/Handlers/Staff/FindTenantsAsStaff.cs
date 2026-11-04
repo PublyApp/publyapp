@@ -15,6 +15,8 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 public class TenantAsStaffItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
+	public string Code { get; set; } = string.Empty;
+	public string? DefaultLocale { get; set; }
 	public string? LogoUrl { get; set; }
 	public int UsersCount { get; set; }
 	public int MaxUsers { get; set; }
@@ -111,6 +113,11 @@ public class FindTenantsAsStaffQueryValidator
 	}
 }
 
+public class TenantLocaleCountItem {
+	public string Locale { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
 public class TenantListCountsResponse {
 	public int Total { get; set; }
 	public int Active { get; set; }
@@ -122,6 +129,10 @@ public class TenantListCountsResponse {
 	public int AlmostFull { get; set; }
 	public int Full { get; set; }
 	public int ActiveThisWeek { get; set; }
+	public int PendingInvitations { get; set; }
+	public int PendingInvitationTenants { get; set; }
+	public int ExpiringInvitations { get; set; }
+	public List<TenantLocaleCountItem> ByLocale { get; set; } = [];
 }
 
 public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffListItem> {
@@ -197,6 +208,15 @@ public sealed class FindTenantsAsStaff {
 					AlmostFull = success.Counts.AlmostFull,
 					Full = success.Counts.Full,
 					ActiveThisWeek = success.Counts.ActiveThisWeek,
+					PendingInvitations = success.Counts.PendingInvitations,
+					PendingInvitationTenants = success.Counts.PendingInvitationTenants,
+					ExpiringInvitations = success.Counts.ExpiringInvitations,
+					ByLocale = success.Counts.ByLocale
+						.Select(count => new TenantLocaleCountItem {
+							Locale = count.Locale,
+							Count = count.Count,
+						})
+						.ToList(),
 				},
 			});
 		}

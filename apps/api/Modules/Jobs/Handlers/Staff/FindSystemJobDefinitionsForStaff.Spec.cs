@@ -148,6 +148,11 @@ public sealed class FindSystemJobDefinitionsForStaffSpec : IClassFixture<ApiFixt
 			root.GetProperty("totalCount").GetInt32().Should().Be(1);
 			root.GetProperty("counts").GetProperty("enabled").GetInt32().Should().Be(1);
 			root.GetProperty("counts").GetProperty("disabled").GetInt32().Should().Be(0);
+			root.GetProperty("counts").GetProperty("byJobKey").EnumerateArray()
+				.Should().Contain(entry =>
+					entry.GetProperty("jobKey").GetString() == jobKey
+					&& entry.GetProperty("count").GetInt32() == 1
+				);
 			root.GetProperty("data")[0].GetProperty("jobKey").GetString().Should().Be(jobKey);
 		} finally {
 			await this._CleanupAsync(jobKey);

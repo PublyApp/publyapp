@@ -18,6 +18,7 @@ public class DeadLetterListCounts {
 	public int Triaged { get; set; }
 	public int Requeued { get; set; }
 	public int Recent { get; set; }
+	public List<JobTypeCountItem> ByJobType { get; set; } = [];
 }
 
 public class FindDeadLettersResponse
@@ -155,6 +156,12 @@ public sealed class FindDeadLettersForStaff {
 				Triaged = success.Counts.Triaged,
 				Requeued = success.Counts.Requeued,
 				Recent = success.Counts.Recent,
+				ByJobType = success.Counts.ByJobType
+					.Select(count => new JobTypeCountItem {
+						JobType = count.JobType,
+						Count = count.Count,
+					})
+					.ToList(),
 			},
 		});
 	}

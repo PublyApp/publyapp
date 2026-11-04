@@ -346,6 +346,7 @@ export const ListTable = <T extends { id: string }>({
 	rows,
 	head,
 	totals,
+	totalsNowrap = false,
 	onOpen,
 	openLabel,
 	rowLabel,
@@ -365,6 +366,7 @@ export const ListTable = <T extends { id: string }>({
 	}[];
 	head: HeadCell[];
 	totals: ReadonlyMap<string, string>;
+	totalsNowrap?: boolean;
 	onOpen: (row: T) => void;
 	openLabel: (row: T) => string;
 	rowLabel?: (row: T) => string;
@@ -516,13 +518,21 @@ export const ListTable = <T extends { id: string }>({
 								    summary is longer than its column (the staff statuses at
 								    1440 px), and an ellipsised total is not a total. The
 								    row keeps 40 px as its minimum and grows. */}
-								<tr className="h-10 text-xs whitespace-normal text-muted-foreground">
+								<tr
+									className={cn(
+										'h-10 text-xs text-muted-foreground',
+										totalsNowrap ? 'whitespace-nowrap' : 'whitespace-normal',
+									)}
+								>
 									{ids.map((id, index) => (
 										<td
 											key={id}
 											title={totals.get(id)}
 											className={cn(
-												'border-t border-r bg-background px-2 py-1.5 align-top break-words last:border-r-0',
+												'border-t border-r bg-background px-2 py-1.5 align-top last:border-r-0',
+												totalsNowrap
+													? 'overflow-hidden text-ellipsis'
+													: 'break-words',
 												index === 0 &&
 													'sticky left-0 z-(--publy-z-sticky-cell)',
 											)}

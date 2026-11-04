@@ -21,7 +21,7 @@ import {
 	systemJobMobileCard,
 	systemJobTotals,
 } from './_jobs-list-config';
-import { useJobsOverview } from './_jobs-overview';
+import { buildJobFamilyCounts, useJobsOverview } from './_jobs-overview';
 import {
 	buildJobsPanelGroups,
 	jobsSectionPath,
@@ -98,7 +98,12 @@ const StaffJobsSystemJobsPage = () => {
 			true: globalCounts?.enabled ?? null,
 			false: globalCounts?.disabled ?? null,
 		},
-		family: {},
+		family: buildJobFamilyCounts(
+			globalCounts?.byJobKey?.map((row) => ({
+				key: row.jobKey,
+				count: row.count ?? 0,
+			})),
+		),
 	};
 
 	const filtersValue: ListFiltersValue = {

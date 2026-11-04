@@ -64,7 +64,15 @@ export const JobsStatCards = ({
 				value={deadLetters ? (deadLetters.open ?? 0) : <Dash />}
 				footer={
 					deadLetters ? (
-						<span className="text-[var(--publy-chip-suspended-text)]">
+						// Red only when there is something to triage; a neutral
+						// grey « 0 » is not an alarm.
+						<span
+							className={
+								(deadLetters.recent ?? 0) > 0
+									? 'text-[var(--publy-chip-suspended-text)]'
+									: 'text-muted-foreground'
+							}
+						>
 							{t('staff-jobs:jobs-stat-dead-window', {
 								count: deadLetters.recent ?? 0,
 							})}

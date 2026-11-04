@@ -12,9 +12,28 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 
 namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
+public class AuditLogActionCountItem {
+	public string Action { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
+public class AuditLogActorCountItem {
+	public Guid UserId { get; set; }
+	public string Name { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
+public class AuditLogListCounts {
+	public int Today { get; set; }
+	public int Last30Days { get; set; }
+	public List<AuditLogActionCountItem> ByAction { get; set; } = [];
+	public List<AuditLogActorCountItem> ByActor { get; set; } = [];
+}
+
 public class FindAuditLogsResponse
 	: CursorPaginatedResult<AuditLogListItem> {
 	public int TotalCount { get; set; }
+	public AuditLogListCounts Counts { get; set; } = new();
 }
 
 public class FindAuditLogsQuery : CursorPaginatedQuery {
@@ -271,6 +290,23 @@ public sealed class FindAuditLogs {
 					NextCursor =
 						success.Data.NextCursor,
 					TotalCount = success.TotalCount,
+					Counts = new AuditLogListCounts {
+						Today = success.Counts.Today,
+						Last30Days = success.Counts.Last30Days,
+						ByAction = success.Counts.ByAction
+							.Select(count => new AuditLogActionCountItem {
+								Action = count.Action,
+								Count = count.Count,
+							})
+							.ToList(),
+						ByActor = success.Counts.ByActor
+							.Select(count => new AuditLogActorCountItem {
+								UserId = count.UserId,
+								Name = count.Name,
+								Count = count.Count,
+							})
+							.ToList(),
+					},
 				}
 			);
 		}

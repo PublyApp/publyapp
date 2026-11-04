@@ -50,6 +50,10 @@ export type StaffTenantsQueryVariables = {
 export type StaffTenantRow = {
 	id: string;
 	name: string;
+	/** The organisation's slug, shown in « Identifiant ». */
+	code: string | null;
+	/** The organisation's default language ('fr' | 'en'), the « Langues » key. */
+	defaultLocale: string | null;
 	logoUrl: string | null;
 	status: TenantStatus | null;
 	usersCount: number;
@@ -249,6 +253,8 @@ export const toStaffTenantRows = (
 		rows.push({
 			id,
 			name,
+			code: normalizeString(item.code ?? undefined) ?? null,
+			defaultLocale: normalizeString(item.defaultLocale ?? undefined) ?? null,
 			logoUrl: normalizeNullableFileUrl(item.logoUrl),
 			status: item.status ?? null,
 			usersCount: item.usersCount ?? 0,

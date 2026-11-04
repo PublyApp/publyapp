@@ -1,4 +1,9 @@
-import { IconCrown, IconUsers } from '@tabler/icons-react';
+import {
+	IconCrown,
+	IconDeviceDesktop,
+	IconLock,
+	IconUsers,
+} from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
 
 import type { StaffUserListCounts } from '@org/client-ts/models/index';
@@ -8,10 +13,13 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 const Dash = () => <span className="text-muted-foreground">—</span>;
 
 /**
- * The two staff-member StatCards, from the list API's whole-collection
- * `counts` (issue #2301). The design's « Double authentification » and
- * « Connectés aujourd'hui » cards are omitted: no MFA, session or last-login
- * field exists, and the honest-numbers rule forbids inventing them.
+ * The four staff-member StatCards, from the list API's whole-collection
+ * `counts` (issue #2301). « Connectés aujourd'hui » counts the users with a
+ * session opened since midnight UTC and the still-open sessions behind it.
+ *
+ * « Double authentification » stays « — »: no MFA/2FA column exists on the
+ * user, session or account tables (BLOCKED — see the lot report), and the
+ * honest-numbers rule forbids inventing a percentage.
  */
 export const StaffUsersStatCards = ({
 	counts,
@@ -34,6 +42,20 @@ export const StaffUsersStatCards = ({
 					testId="staff-user-stat-admins"
 					label={t('administrators')}
 					icon={<IconCrown />}
+					value={<Dash />}
+					footer={<Dash />}
+				/>
+				<StatCard
+					testId="staff-user-stat-two-factor"
+					label={t('list-staff-stat-two-factor')}
+					icon={<IconLock />}
+					value={<Dash />}
+					footer={t('list-staff-stat-two-factor-unavailable')}
+				/>
+				<StatCard
+					testId="staff-user-stat-connected-today"
+					label={t('list-staff-stat-connected-today')}
+					icon={<IconDeviceDesktop />}
 					value={<Dash />}
 					footer={<Dash />}
 				/>
@@ -63,6 +85,22 @@ export const StaffUsersStatCards = ({
 				icon={<IconCrown />}
 				value={counts.admins ?? 0}
 				footer={t('list-staff-stat-users', { count: counts.users ?? 0 })}
+			/>
+			<StatCard
+				testId="staff-user-stat-two-factor"
+				label={t('list-staff-stat-two-factor')}
+				icon={<IconLock />}
+				value={<Dash />}
+				footer={t('list-staff-stat-two-factor-unavailable')}
+			/>
+			<StatCard
+				testId="staff-user-stat-connected-today"
+				label={t('list-staff-stat-connected-today')}
+				icon={<IconDeviceDesktop />}
+				value={counts.connectedToday ?? 0}
+				footer={t('list-staff-stat-open-sessions', {
+					count: counts.openSessions ?? 0,
+				})}
 			/>
 		</>
 	);

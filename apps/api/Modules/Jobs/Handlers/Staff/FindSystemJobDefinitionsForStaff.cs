@@ -11,10 +11,16 @@ using PublyApp.Api.Modules.Jobs.Services;
 
 namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 
+public class SystemJobKeyCountItem {
+	public string JobKey { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
 public class SystemJobListCounts {
 	public int Total { get; set; }
 	public int Enabled { get; set; }
 	public int Disabled { get; set; }
+	public List<SystemJobKeyCountItem> ByJobKey { get; set; } = [];
 }
 
 public class FindSystemJobDefinitionsResponse
@@ -93,6 +99,12 @@ public sealed class FindSystemJobDefinitionsForStaff {
 				Total = success.Counts.Total,
 				Enabled = success.Counts.Enabled,
 				Disabled = success.Counts.Disabled,
+				ByJobKey = success.Counts.ByJobKey
+					.Select(count => new SystemJobKeyCountItem {
+						JobKey = count.JobKey,
+						Count = count.Count,
+					})
+					.ToList(),
 			},
 		});
 	}

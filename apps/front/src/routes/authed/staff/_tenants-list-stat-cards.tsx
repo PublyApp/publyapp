@@ -1,6 +1,7 @@
 import {
 	IconBuilding,
 	IconChartPie,
+	IconMail,
 	IconUsersGroup,
 } from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
@@ -10,9 +11,11 @@ import type { TenantListCountsResponse } from '@org/client-ts/models/index';
 const Dash = () => <span className="text-muted-foreground">—</span>;
 
 /**
- * The StatCards above the organisations list (§4.2), from the list API's
- * whole-collection `counts` (issue #2301) — never the loaded page's sums. The
- * invitations card is omitted until the list API provides an invitation count.
+ * The four StatCards above the organisations list (§4.2), from the list API's
+ * whole-collection `counts` (issue #2301) — never the loaded page's sums.
+ * « Invitations en attente » counts pending organisation invitations for the
+ * filtered tenants, the organisations concerned, and the ones expiring within
+ * seven days.
  */
 export const TenantStatCards = ({
 	counts,
@@ -45,6 +48,13 @@ export const TenantStatCards = ({
 					value={<Dash />}
 					footer={<Dash />}
 				/>
+				<StatCard
+					testId="tenant-stat-pending-invitations"
+					label={t('list-stat-pending-invitations')}
+					icon={<IconMail />}
+					value={<Dash />}
+					footer={<Dash />}
+				/>
 			</>
 		);
 	}
@@ -57,6 +67,9 @@ export const TenantStatCards = ({
 	const suspended = counts.suspended ?? 0;
 	const almostFull = counts.almostFull ?? 0;
 	const full = counts.full ?? 0;
+	const pendingInvitations = counts.pendingInvitations ?? 0;
+	const pendingInvitationTenants = counts.pendingInvitationTenants ?? 0;
+	const expiringInvitations = counts.expiringInvitations ?? 0;
 
 	return (
 		<>
@@ -102,6 +115,25 @@ export const TenantStatCards = ({
 							{t('list-stat-over-80', { count: almostFull })}
 						</span>{' '}
 						· {t('list-stat-full', { count: full })}
+					</>
+				}
+			/>
+			<StatCard
+				testId="tenant-stat-pending-invitations"
+				label={t('list-stat-pending-invitations')}
+				icon={<IconMail />}
+				value={pendingInvitations}
+				footer={
+					<>
+						<span className="font-medium text-foreground">
+							{t('list-stat-pending-invitations-tenants', {
+								count: pendingInvitationTenants,
+							})}
+						</span>{' '}
+						·{' '}
+						{t('list-stat-pending-invitations-expiring', {
+							count: expiringInvitations,
+						})}
 					</>
 				}
 			/>

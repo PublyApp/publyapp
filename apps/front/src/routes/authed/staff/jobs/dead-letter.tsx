@@ -33,7 +33,7 @@ import {
 	deadLetterTotals,
 	exportJobRows,
 } from './_jobs-list-config';
-import { useJobsOverview } from './_jobs-overview';
+import { buildJobFamilyCounts, useJobsOverview } from './_jobs-overview';
 import {
 	buildJobsPanelGroups,
 	jobsSectionPath,
@@ -105,7 +105,12 @@ const StaffJobsDeadLetterPage = () => {
 			triaged: globalCounts?.triaged ?? null,
 			requeued: globalCounts?.requeued ?? null,
 		},
-		family: {},
+		family: buildJobFamilyCounts(
+			globalCounts?.byJobType?.map((row) => ({
+				key: row.jobType,
+				count: row.count ?? 0,
+			})),
+		),
 	};
 
 	const detailQuery = useStaffDeadLetterDetailQuery(inspected?.id);

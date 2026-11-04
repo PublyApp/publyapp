@@ -15753,6 +15753,36 @@
           }
         }
       },
+      "AuditLogActionCountItem": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "AuditLogActorCountItem": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "AuditLogDetail": {
         "required": [
           "id",
@@ -15809,6 +15839,33 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "AuditLogListCounts": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "last30Days": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byAction": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogActionCountItem"
+            }
+          },
+          "byActor": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogActorCountItem"
+            }
           }
         }
       },
@@ -16942,6 +16999,12 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "byJobType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeCountItem"
+            }
           }
         }
       },
@@ -17119,6 +17182,9 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AuditLogListCounts"
           },
           "data": {
             "type": "array",
@@ -18308,6 +18374,12 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "byJobType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeCountItem"
+            }
           }
         }
       },
@@ -18393,6 +18465,19 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "JobTypeCountItem": {
+        "type": "object",
+        "properties": {
+          "jobType": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -20155,6 +20240,12 @@
           },
           "level": {
             "$ref": "#/components/schemas/AccountLevel"
+          },
+          "profileNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -20182,6 +20273,16 @@
             "format": "int32"
           },
           "users": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "connectedToday": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "openSessions": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
@@ -20446,6 +20547,19 @@
           }
         }
       },
+      "SystemJobKeyCountItem": {
+        "type": "object",
+        "properties": {
+          "jobKey": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "SystemJobListCounts": {
         "type": "object",
         "properties": {
@@ -20463,6 +20577,12 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "byJobKey": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemJobKeyCountItem"
+            }
           }
         }
       },
@@ -20685,6 +20805,7 @@
         "required": [
           "id",
           "name",
+          "code",
           "usersCount",
           "projectsCount",
           "maxUsers",
@@ -20698,6 +20819,15 @@
           },
           "name": {
             "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "defaultLocale": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "logoUrl": {
             "type": [
@@ -20802,6 +20932,27 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "pendingInvitations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pendingInvitationTenants": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "expiringInvitations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byLocale": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantLocaleCountItem"
+            }
           }
         }
       },
@@ -20823,6 +20974,19 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "TenantLocaleCountItem": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

@@ -21,7 +21,17 @@ public record FindSystemJobDefinitionsArgs(
 public sealed record SystemJobCounts(
 	int Total,
 	int Enabled,
-	int Disabled
+	int Disabled,
+	IReadOnlyList<JobKeyCount> ByJobKey
+);
+
+/// <summary>
+/// One system job key and its row count; the front groups them into the
+/// « Familles » panel from its own job catalogue.
+/// </summary>
+public sealed record JobKeyCount(
+	string JobKey,
+	int Count
 );
 
 public abstract record FindSystemJobDefinitionsResult {
@@ -203,10 +213,17 @@ public class SystemJobDefinitionQueryService(
 			}
 		}
 
+		var byJobKey = await (
+			from definition in query
+			group definition by definition.JobKey into g
+			select new JobKeyCount(g.Key, g.Count())
+		).ToListAsync(cancellationToken);
+
 		var counts = new SystemJobCounts(
 			Total: total,
 			Enabled: enabled,
-			Disabled: total - enabled
+			Disabled: total - enabled,
+			ByJobKey: byJobKey
 		);
 
 		IQueryable<SystemJobDefinition> page = query;

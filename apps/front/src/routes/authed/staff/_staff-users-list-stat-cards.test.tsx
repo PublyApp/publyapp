@@ -42,6 +42,40 @@ describe('StaffUsersStatCards', () => {
 
 	test('shows « — » only when the API has no counts', () => {
 		render(<StaffUsersStatCards t={t} counts={null} />);
-		expect(screen.getAllByText('—')).toHaveLength(4);
+		for (const testId of [
+			'staff-user-stat-total',
+			'staff-user-stat-admins',
+			'staff-user-stat-connected-today',
+		]) {
+			expect(screen.getByTestId(testId).textContent).toContain('—');
+		}
+	});
+
+	test('keeps Double authentification at « — »: no 2FA source exists', () => {
+		render(
+			<StaffUsersStatCards
+				t={t}
+				counts={{
+					total: 12,
+					active: 9,
+					suspended: 3,
+					admins: 4,
+					users: 8,
+					connectedToday: 5,
+					openSessions: 7,
+				}}
+			/>,
+		);
+
+		const twoFactor = screen.getByTestId('staff-user-stat-two-factor');
+		expect(twoFactor.textContent).toContain('—');
+		expect(twoFactor.textContent).toContain(
+			'list-staff-stat-two-factor-unavailable',
+		);
+		expect(twoFactor.textContent).not.toContain('%');
+
+		const connected = screen.getByTestId('staff-user-stat-connected-today');
+		expect(connected.textContent).toContain('5');
+		expect(connected.textContent).toContain('list-staff-stat-open-sessions:7');
 	});
 });

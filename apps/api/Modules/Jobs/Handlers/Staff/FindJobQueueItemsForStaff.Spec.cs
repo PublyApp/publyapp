@@ -152,6 +152,13 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 			root.GetProperty("counts").GetProperty("total").GetInt32().Should().Be(1);
 			root.GetProperty("counts").GetProperty("pending").GetInt32().Should().Be(1);
 
+			// The « Familles » panel counts these per job type, batched with the page.
+			root.GetProperty("counts").GetProperty("byJobType").EnumerateArray()
+				.Should().Contain(entry =>
+					entry.GetProperty("jobType").GetString() == jobType
+					&& entry.GetProperty("count").GetInt32() == 1
+				);
+
 			var row = root.GetProperty("data")[0];
 			row.GetProperty("jobType").GetString().Should().Be(jobType);
 			row.GetProperty("tenantName").GetString().Should().Be(tenantName);

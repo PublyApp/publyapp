@@ -11,6 +11,10 @@ namespace PublyApp.Api.Modules.Users.Services;
 public class StaffUserData {
 	public required User User { get; set; }
 	public required AccountLevel AccountLevel { get; set; }
+
+	// Assigned staff profile names, loaded in one batched query per page (no
+	// N+1): the « Profils » column reads them as pills.
+	public List<string> ProfileNames { get; set; } = [];
 }
 
 public sealed record StaffUserCounts(
@@ -18,7 +22,9 @@ public sealed record StaffUserCounts(
 	int Active,
 	int Suspended,
 	int Admins,
-	int Users
+	int Users,
+	int ConnectedToday,
+	int OpenSessions
 );
 
 public abstract record FindStaffUsersResult {
@@ -258,12 +264,34 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			}
 		}
 
+		// Sessions are the only activity the database records (created_at /
+		// expires_at); there is no last-activity or MFA column. « Connectés
+		// aujourd'hui » is therefore the users with a session opened since
+		// midnight UTC, and the open-session figure the still-valid ones.
+		var now = DateTime.UtcNow;
+		var todayStart = now.Date;
+		var filteredUserIds = query.Select(ua => ua.UserId);
+		var openSessions = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where session.ExpiresAt > now
+				&& filteredUserIds.Contains(session.UserId)
+			select session
+		).CountAsync(cancellationToken);
+		var connectedToday = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where session.CreatedAt >= todayStart
+				&& filteredUserIds.Contains(session.UserId)
+			select session.UserId
+		).Distinct().CountAsync(cancellationToken);
+
 		var counts = new StaffUserCounts(
 			Total: total,
 			Active: active,
 			Suspended: suspended,
 			Admins: admins,
-			Users: total - admins
+			Users: total - admins,
+			ConnectedToday: connectedToday,
+			OpenSessions: openSessions
 		);
 
 		if (args.Cursor != Guid.Empty) {
@@ -293,6 +321,44 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			// Fetch one extra row so we can emit the next cursor without a separate count query.
 			results.RemoveAt(results.Count - 1);
 			nextCursor = results.Last().User.GetRequiredId().ToString();
+		}
+
+		// One batched profile query for the whole page, never one per row.
+		var pageUserIds = results
+			.Select(staffUser => staffUser.User.GetRequiredId())
+			.ToList();
+		var profileRows = await (
+			from accountProfile in this._DbContext.UserAccountProfile.AsNoTracking()
+			join account in this._DbContext.UserAccount.AsNoTracking()
+				on (Guid?)accountProfile.UserAccountId equals account.Id
+			join profile in this._DbContext.Profile.AsNoTracking()
+				on (Guid?)accountProfile.ProfileId equals profile.Id
+			where account.Scope == AccountScope.Staff
+				&& pageUserIds.Contains(account.UserId)
+				&& !profile.IsDeleted
+			select new {
+				account.UserId,
+				profile.Name,
+			}
+		).ToListAsync(cancellationToken);
+
+		var profileNamesByUser = new Dictionary<Guid, List<string>>();
+		foreach (var row in profileRows) {
+			if (!profileNamesByUser.TryGetValue(row.UserId, out var names)) {
+				names = [];
+				profileNamesByUser[row.UserId] = names;
+			}
+			names.Add(row.Name);
+		}
+
+		foreach (var staffUser in results) {
+			if (profileNamesByUser.TryGetValue(
+				staffUser.User.GetRequiredId(),
+				out var names
+			)) {
+				names.Sort(StringComparer.OrdinalIgnoreCase);
+				staffUser.ProfileNames = names;
+			}
 		}
 
 		return new FindStaffUsersResult.Success(

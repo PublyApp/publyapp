@@ -25,7 +25,8 @@ public sealed record DeadLetterCounts(
 	int Open,
 	int Triaged,
 	int Requeued,
-	int Recent
+	int Recent,
+	IReadOnlyList<JobTypeCount> ByJobType
 );
 
 public abstract record FindDeadLetterItemsResult {
@@ -224,12 +225,19 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 			}
 		}
 
+		var byJobType = await (
+			from item in query
+			group item by item.JobType into g
+			select new JobTypeCount(g.Key, g.Count())
+		).ToListAsync(cancellationToken);
+
 		var counts = new DeadLetterCounts(
 			Total: total,
 			Open: open,
 			Triaged: triaged,
 			Requeued: requeued,
-			Recent: recent
+			Recent: recent,
+			ByJobType: byJobType
 		);
 
 		IQueryable<JobDeadLetter> page = query;

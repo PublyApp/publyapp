@@ -52,14 +52,17 @@ export const DEFAULT_STAFF_USER_COLUMNS = [
 	'createdAt',
 ] as const;
 
-/** The eleven columns of §4.6. Seven have no list-API field: they render the
- * missing-value dash and are not sortable, never a fabricated value. */
+/** The eleven columns of §4.6. The ones with no list-API field (2FA, sessions,
+ * locale, last login, invited by, member since) render the missing-value dash
+ * and are not sortable, never a fabricated value. */
 export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 	{
 		id: 'name',
 		header: t('list-column-member'),
 		icon: IconUserCircle,
-		width: 260,
+		// Wide enough for a full « Prénom Nom » at the staff shell's width: the
+		// prototype shows whole names, never an ellipsised one.
+		width: 330,
 		value: (row) => row.displayName,
 		cell: (row) => <StaffUserNameCell row={row} />,
 		// `name` is not a backend sort id (first_name/last_name are).
@@ -112,7 +115,22 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('profiles'),
 		icon: IconShieldLock,
 		width: 280,
-		cell: Dash,
+		value: (row) => row.profileNames.join(', '),
+		cell: (row) =>
+			row.profileNames.length === 0 ? (
+				<Dash />
+			) : (
+				<span className="flex min-w-0 flex-wrap items-center gap-1">
+					{row.profileNames.map((name) => (
+						<span
+							key={name}
+							className="inline-flex h-5 items-center rounded-[var(--publy-radius-chip)] border bg-background px-2 text-xs"
+						>
+							{name}
+						</span>
+					))}
+				</span>
+			),
 		sortable: false,
 	},
 	{
@@ -167,8 +185,9 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 
 /** Statuses reach the API; levels are filtered on the loaded collection only
  * and are offered only when the list page knows it holds the whole collection.
- * Profils (not on the list DTO) and Double authentification (no field at all)
- * are omitted rather than rendering an always-empty filter — #2281 API gaps. */
+ * Double authentification is omitted (no field at all) rather than rendering an
+ * always-empty filter — #2281 API gap. Profiles are now on each row but have no
+ * whole-collection facet, so they are not offered as a filter yet. */
 export const buildStaffUserFilters = (
 	t: Translate,
 	options: { includeLevels: boolean },

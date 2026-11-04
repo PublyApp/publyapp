@@ -12,11 +12,17 @@ using PublyApp.Api.Modules.Jobs.Services;
 
 namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 
+public class JobTypeCountItem {
+	public string JobType { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
 public class JobQueueListCounts {
 	public int Total { get; set; }
 	public int Pending { get; set; }
 	public int Processing { get; set; }
 	public int Retrying { get; set; }
+	public List<JobTypeCountItem> ByJobType { get; set; } = [];
 }
 
 public class FindJobQueueItemsResponse
@@ -164,6 +170,12 @@ public sealed class FindJobQueueItemsForStaff {
 				Pending = success.Counts.Pending,
 				Processing = success.Counts.Processing,
 				Retrying = success.Counts.Retrying,
+				ByJobType = success.Counts.ByJobType
+					.Select(count => new JobTypeCountItem {
+						JobType = count.JobType,
+						Count = count.Count,
+					})
+					.ToList(),
 			},
 		});
 	}

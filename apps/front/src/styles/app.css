@@ -3111,6 +3111,15 @@ html.dark {
 		height: 19px;
 	}
 
+	/* 24px r7 tile for the staff-profiles list cell: the prototype's compact
+	shield chip, sharing the same data-tone palette and --publy-icon-tile-bg
+	token as the 32px default. */
+	.publy-profile-icon-tile--sm {
+		width: 24px;
+		height: 24px;
+		border-radius: 7px;
+	}
+
 	.publy-profile-card-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);

@@ -404,7 +404,8 @@ export const queueColumns = (
 			id: 'attempts',
 			header: t('staff-jobs:jobs-column-attempts'),
 			icon: IconRepeat,
-			width: 120,
+			// The full « Tentatives » label, never an ellipsised header.
+			width: 150,
 			value: (row) => row.attempts ?? null,
 			cell: (row) =>
 				row.attempts === null ? (
@@ -424,7 +425,8 @@ export const queueColumns = (
 			id: 'priority',
 			header: t('staff-jobs:jobs-column-priority'),
 			icon: IconHash,
-			width: 100,
+			// The full « Priorité » label, never an ellipsised header.
+			width: 130,
 			value: (row) => row.priority ?? null,
 			cell: (row) =>
 				row.priority === null ? (
