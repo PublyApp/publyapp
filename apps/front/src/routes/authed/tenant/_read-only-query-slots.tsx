@@ -19,8 +19,8 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ErrorActions } from '~/components/error-views/error-actions';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { errorToneFromCode } from '~/components/ui/error-tone';
 import { Skeleton } from '~/components/ui/skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
@@ -80,20 +80,14 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 		}
 
 		return (
-			<ErrorStateSurface
-				icon={IconAlertCircle}
-				tone={errorToneFromCode(resolved.code)}
-				title={resolved.title}
-				description={resolved.description}
+			<ErrorKindState
+				scale="inline"
+				panel
+				kind={resolved.kind}
+				error={error}
+				onRetry={() => void retry()}
 				details={resolved.details}
-				detailsLabel={t('common:error-details')}
 				testId={testId}
-				actions={
-					<ErrorActions
-						retry={() => void retry()}
-						backOnly={resolved.backOnly}
-					/>
-				}
 			/>
 		);
 	}

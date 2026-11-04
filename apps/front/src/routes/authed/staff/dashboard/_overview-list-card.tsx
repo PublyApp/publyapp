@@ -1,12 +1,13 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { ErrorActions } from '~/components/error-views/error-actions';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
 import { StateSurface } from '~/components/ui/state-surface';
 import { statusPillTone } from '~/components/ui/status-tone';
+import { errorDetailsText } from '~/lib/error-details';
 
 /** Lifecycle status → the existing `status-*` label key in `common`; anything
  * else falls back to the backend's own string (the data, not a guess). */
@@ -77,11 +78,16 @@ export const OverviewListCard = ({
 			</div>
 		);
 	} else if (error) {
+		// A failed summary must never look like the empty inbox: the classified
+		// surface carries its own sentence, and inside this panel the only useful
+		// action is « Réessayer » (no « Retour à l'accueil »).
 		body = (
-			<StateSurface
-				tone="danger"
-				title={t('overview-error-title')}
-				actions={<ErrorActions retry={onRetry} />}
+			<ErrorKindState
+				scale="inline"
+				panel
+				error={error}
+				onRetry={onRetry}
+				details={errorDetailsText(error)}
 				testId={`${testId}-error`}
 			/>
 		);

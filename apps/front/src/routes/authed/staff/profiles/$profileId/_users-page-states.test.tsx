@@ -61,14 +61,13 @@ describe('profile users page state views (moved out of the users route file)', (
 		expect(screen.getByText('Loading staff profile…')).toBeTruthy();
 	});
 
-	test('a 404 problem renders the not-found view with the translated description', () => {
+	test('a 404 problem renders the not-found view with the classified sentence', () => {
 		render(<MissingProfileView />);
 
 		expect(screen.getByTestId('staff-profile-users-not-found')).toBeTruthy();
 		expect(screen.getByText('Staff profile not found')).toBeTruthy();
-		expect(
-			screen.getByText('This staff profile does not exist anymore.'),
-		).toBeTruthy();
+		// ShopKart's not-found family owns one sentence per kind.
+		expect(screen.getByText('not-found-sentence')).toBeTruthy();
 		// #2291 M1: the API's English detail is never painted under the title.
 		expect(screen.queryByText('No profile with this id.')).toBeNull();
 	});

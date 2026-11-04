@@ -10,12 +10,12 @@ export const View404 = ({ embedded }: { embedded?: boolean } = {}) => {
 
 	return (
 		<AppErrorView
+			kind="not_found"
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code={t('error-404-code')}
 			title={t('page-not-found')}
 			description={t('not-found-sentence')}
 			testId="view-404"
-			tone="neutral"
 			embedded={embedded}
 		/>
 	);

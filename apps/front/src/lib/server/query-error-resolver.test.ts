@@ -24,16 +24,18 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
+		expect(resolution.kind).toBe('forbidden');
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
 		expect(resolution.description).toBe('t(forbidden-description)');
+		expect(resolution.details).toBeUndefined();
 		expect(resolution.supportsRetry).toBe(false);
 		// A real cause existed, so the generic fallback flag stays false even
 		// though the owner decision paints our translated copy instead of it.
 		expect(resolution.fallback).toBe(false);
 	});
 
-	test('maps a 404 ServerFailure to the not-found copy and disables retry', () => {
+	test('maps a 404 ServerFailure to the not-found copy and keeps the retry pair', () => {
 		const resolution = resolveQueryError(
 			new ServerFailure({
 				responseStatusCode: 404,
@@ -45,11 +47,14 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
+		expect(resolution.kind).toBe('not_found');
 		expect(resolution.code).toBe('t(error-404-code)');
 		expect(resolution.title).toBe('t(page-not-found)');
 		// The API's English `detail` must not leak under a French title.
 		expect(resolution.description).toBe('t(not-found-sentence)');
-		expect(resolution.supportsRetry).toBe(false);
+		// ShopKart's not-found screen has no technical details.
+		expect(resolution.details).toBeUndefined();
+		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -65,6 +70,7 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
+		expect(resolution.kind).toBe('server');
 		expect(resolution.code).toBe('t(error-500-code)');
 		expect(resolution.title).toBe('t(error-500-title)');
 		expect(resolution.description).toBe('t(error-500-description)');
@@ -174,9 +180,9 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
-		expect(resolution.description).toBe(
-			't(query-display-error-network-description)',
-		);
+		expect(resolution.kind).toBe('offline');
+		expect(resolution.title).toBe('t(offline-title)');
+		expect(resolution.description).toBe('t(offline-description)');
 		expect(resolution.details).toBe('network: Failed to fetch the calendar.');
 		expect(resolution.fallback).toBe(false);
 	});
@@ -184,6 +190,7 @@ describe('resolveQueryError (#2043)', () => {
 	test('surfaces an unknown failure message through the shared failure seam', () => {
 		const resolution = resolveQueryError(new Error('The cache is corrupt.'), t);
 
+		expect(resolution.kind).toBe('unknown');
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.details).toBe('The cache is corrupt.');
 		expect(resolution.fallback).toBe(false);

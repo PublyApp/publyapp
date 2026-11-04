@@ -13,14 +13,13 @@ export const View403 = ({ embedded }: { embedded?: boolean } = {}) => {
 
 	return (
 		<AppErrorView
+			kind="forbidden"
 			icon={<IconLock aria-hidden="true" className="size-7" />}
 			code={t('error-403-code')}
 			title={t('no-access-title')}
 			description={t('forbidden-description')}
 			testId="view-403"
-			tone="warning"
 			embedded={embedded}
-			backOnly
 		/>
 	);
 };

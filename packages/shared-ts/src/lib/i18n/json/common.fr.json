@@ -125,7 +125,7 @@
 	"error-403-code": "403 — Interdit",
 	"error-details": "Détails techniques",
 	"offline-title": "Pas de connexion",
-	"offline-description": "Vérifiez votre connexion — la page se recharge dès que le réseau revient.",
+	"offline-description": "Vérifiez votre Wi-Fi ou vos données mobiles. La page se recharge dès que le réseau revient.",
 	"no-access-title": "Accès refusé",
 	"list-empty-title": "Rien ici — pour l'instant",
 	"list-empty-default-description": "Aucun enregistrement pour l'instant — créez-en un pour commencer.",

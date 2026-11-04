@@ -73,7 +73,7 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		expect(onRetry).toHaveBeenCalledOnce();
 	});
 
-	test('renders the 404 cause inside the ShopKart pair (retry + back home)', () => {
+	test('renders the 404 cause with the classified copy and only a retry in a panel', () => {
 		const error = new ServerFailure({
 			responseStatusCode: 404,
 			status: 404,
@@ -97,7 +97,8 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		expect(screen.getByText('Page not found')).toBeTruthy();
 		expect(screen.getByText('The page could not be found.')).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-		expect(screen.getByRole('link', { name: /Back to home/ })).toBeTruthy();
+		// « Retour à l'accueil » is pointless inside a card.
+		expect(screen.queryByRole('link', { name: /Back to home/ })).toBeNull();
 	});
 
 	test('renders the 500 cause and keeps the retry button when the query failed with a server error', () => {

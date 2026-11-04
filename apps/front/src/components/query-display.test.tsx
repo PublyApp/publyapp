@@ -215,7 +215,8 @@ describe('QueryDisplay', () => {
 		expect(screen.queryByText('404 — Not Found')).toBeNull();
 		expect(screen.getByText('Page not found')).toBeTruthy();
 		expect(screen.getByText('The page could not be found.')).toBeTruthy();
-		expect(screen.getByText(/HTTP 404/)).toBeTruthy();
+		// ShopKart's not-found screen folds no raw cause.
+		expect(screen.queryByText(/HTTP 404/)).toBeNull();
 	});
 
 	test('default error surfaces a 500 ServerFailure cause with the server-error copy', () => {

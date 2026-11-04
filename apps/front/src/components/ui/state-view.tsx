@@ -96,8 +96,8 @@ export const StateView = ({
 			aria-live={ariaLive}
 			className={cn(
 				isPage
-					? 'flex w-full flex-col items-center text-center'
-					: 'publy-state-surface',
+					? 'flex w-full max-w-sm flex-col items-center text-center'
+					: 'publy-state-surface mx-auto w-full max-w-sm',
 				className,
 			)}
 			data-tone={isPage ? undefined : tone}

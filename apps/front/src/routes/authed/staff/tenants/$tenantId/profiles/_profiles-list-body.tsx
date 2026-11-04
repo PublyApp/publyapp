@@ -1,6 +1,7 @@
 import { IconShield } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import type { ColumnDef } from '~/components/table/column-type';
 import {
 	DataTable,
@@ -11,9 +12,7 @@ import {
 import type { TableBodyState } from '~/components/table/table-body-state';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { UseTableControllerResult } from '~/components/table/use-table-controller';
-import { Button } from '~/components/ui/button';
 import {
-	ErrorStateSurface,
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
@@ -134,18 +133,13 @@ export const ProfilesListBody = ({
 			) : null}
 
 			{bodyState === 'error' ? (
-				<ErrorStateSurface
-					title={resolvedError?.title ?? t('list-unavailable-title')}
-					description={
-						resolvedError?.description ?? t('list-error-default-description')
-					}
-					actions={
-						resolvedError?.supportsRetry === false ? undefined : (
-							<Button type="button" variant="outline" onClick={onRetry}>
-								{t('retry')}
-							</Button>
-						)
-					}
+				<ErrorKindState
+					scale="inline"
+					panel
+					kind={resolvedError?.kind}
+					error={queryState.error}
+					onRetry={onRetry}
+					details={resolvedError?.details}
 					testId={`${testId}-error`}
 				/>
 			) : null}

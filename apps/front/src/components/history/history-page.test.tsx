@@ -114,7 +114,7 @@ describe('HistoryPage', () => {
 		});
 
 		expect(screen.getByTestId('history-test-error')).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+		fireEvent.click(screen.getByRole('button', { name: /retry/i }));
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});
 

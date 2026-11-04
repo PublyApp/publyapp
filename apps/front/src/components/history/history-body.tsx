@@ -1,12 +1,11 @@
-import { IconAlertCircle } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '~/components/ui/button';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import {
-	ErrorStateSurface,
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
+import { errorDetailsText } from '~/lib/error-details';
 
 import { HistoryFeed } from './history-feed';
 import { HistorySkeleton } from './history-skeleton';
@@ -32,7 +31,6 @@ export const HistoryBody = ({
 	noMatchText,
 	hasActiveFilters,
 	footnote,
-	errorText,
 	pager,
 	queryState,
 }: {
@@ -51,7 +49,12 @@ export const HistoryBody = ({
 	footnote: string;
 	errorText?: string;
 	pager?: ReactNode;
-	queryState: { isPending: boolean; isError: boolean; onRetry: () => void };
+	queryState: {
+		isPending: boolean;
+		isError: boolean;
+		error?: unknown;
+		onRetry: () => void;
+	};
 }) => {
 	const { t } = useTranslation('common');
 
@@ -61,14 +64,15 @@ export const HistoryBody = ({
 
 	if (queryState.isError) {
 		return (
-			<ErrorStateSurface
-				icon={IconAlertCircle}
-				title={t('list-unavailable-title')}
-				description={errorText ?? t('list-error-default-description')}
-				actions={
-					<Button variant="outline" onClick={queryState.onRetry} type="button">
-						{t('retry')}
-					</Button>
+			<ErrorKindState
+				scale="inline"
+				panel
+				error={queryState.error}
+				onRetry={queryState.onRetry}
+				details={
+					queryState.error === undefined
+						? undefined
+						: errorDetailsText(queryState.error)
 				}
 				testId={`${testId}-error`}
 			/>

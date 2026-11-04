@@ -3,9 +3,16 @@ import type { ReactNode } from 'react';
 import { errorToneFromCode } from '~/components/ui/error-tone';
 import type { ErrorTone } from '~/components/ui/error-tone';
 import { StateView } from '~/components/ui/state-view';
+import {
+	classifyError,
+	errorKindFromCode,
+	type ErrorKind,
+} from '~/lib/error-kind';
+import { useOnline } from '~/lib/hooks/use-online';
 import { cn } from '~/lib/utils';
 
 import { ErrorActions } from './error-actions';
+import { ErrorKindState } from './error-kind-state';
 
 export type AppErrorTone = ErrorTone;
 
@@ -33,6 +40,13 @@ type AppErrorViewProps = {
 	/** Announcement role: `alert` for a failure, `status` for a self-healing
 	 * state such as offline. */
 	role?: 'alert' | 'status';
+	/** The real cause: takes the ShopKart per-kind mapping (icon, tone,
+	 * actions and whether the raw cause is disclosed at all). */
+	error?: unknown;
+	/** An already-classified kind (the 403/404/offline wrappers). */
+	kind?: ErrorKind;
+	/** Inside a panel: only « Réessayer ». */
+	panel?: boolean;
 	/**
 	 * Renders inside an existing page shell (a `<div>`, no `min-h-screen`)
 	 * instead of a full-viewport `<main>`. Defaults to `true` — almost every
@@ -57,11 +71,23 @@ export const AppErrorView = ({
 	testId,
 	tone,
 	role = 'alert',
+	error,
+	kind,
+	panel = false,
 	embedded = true,
 }: AppErrorViewProps) => {
 	const Wrapper = embedded ? 'div' : 'main';
 	const resolvedTone = tone ?? errorToneFromCode(code);
+	const online = useOnline();
 	const titleRef = useRef<HTMLHeadingElement>(null);
+	// The translated eyebrow still tells the old page views which family they
+	// belong to; the real error wins when a caller has it. `signed_out` stays
+	// on the legacy path on purpose — only the auth surfaces own logout.
+	const resolvedKind =
+		kind ??
+		(error !== undefined
+			? classifyError(error, online)
+			: errorKindFromCode(code));
 
 	// After an error navigation, keyboard and screen-reader users land on the
 	// title rather than the top of a page they have already read.
@@ -79,21 +105,34 @@ export const AppErrorView = ({
 			)}
 			data-testid={testId}
 		>
-			<StateView
-				icon={icon}
-				tone={resolvedTone}
-				scale="page"
-				role={role}
-				ariaLive={role === 'alert' ? 'assertive' : 'polite'}
-				title={title}
-				titleRef={titleRef}
-				description={description}
-				details={details}
-				detailsLabel={detailsLabel}
-				actions={
-					actions ?? <ErrorActions retry={onRetry} backOnly={backOnly} />
-				}
-			/>
+			{resolvedKind && resolvedKind !== 'signed_out' ? (
+				<ErrorKindState
+					scale="page"
+					kind={resolvedKind}
+					panel={panel}
+					onRetry={onRetry}
+					details={details}
+					title={title}
+					titleRef={titleRef}
+					testId={testId ? `${testId}-state` : undefined}
+				/>
+			) : (
+				<StateView
+					icon={icon}
+					tone={resolvedTone}
+					scale="page"
+					role={role}
+					ariaLive={role === 'alert' ? 'assertive' : 'polite'}
+					title={title}
+					titleRef={titleRef}
+					description={description}
+					details={details}
+					detailsLabel={detailsLabel}
+					actions={
+						actions ?? <ErrorActions retry={onRetry} backOnly={backOnly} />
+					}
+				/>
+			)}
 		</Wrapper>
 	);
 };

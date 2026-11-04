@@ -84,6 +84,7 @@ import { AuthLayout } from '../layouts/auth-layout';
 import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
 import { errorDetailsText } from '../lib/error-details';
+import { resolveQueryError } from '../lib/server/query-error-resolver';
 import appCss from '../styles/app.css?url';
 
 type RootRouteContext = {
@@ -238,6 +239,7 @@ const RootErrorBoundaryContent = ({
 		void router.invalidate();
 	};
 	const details = errorDetailsText(error);
+	const resolved = resolveQueryError(error, t, online);
 
 	if (!online) {
 		return <OfflineView reset={reset} embedded={false} details={details} />;
@@ -295,11 +297,12 @@ const RootErrorBoundaryContent = ({
 	return (
 		<AppErrorView
 			embedded={false}
+			error={error}
+			kind={resolved.kind}
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
 			title={t('something-went-wrong')}
 			description={t('unexpected-app-error-description')}
-			details={details}
+			details={resolved.details}
 			detailsLabel={t('error-details')}
 			onRetry={retry}
 		/>

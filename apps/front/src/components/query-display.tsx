@@ -1,9 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ErrorActions } from '~/components/error-views/error-actions';
-import { errorToneFromCode } from '~/components/ui/error-tone';
-import { ErrorStateSurface } from '~/components/ui/state-surface';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import {
 	resolveQueryError,
 	type ResolvedQueryError,
@@ -77,20 +75,19 @@ const LoadingSpinner = ({
 const renderDefaultError = (
 	resolved: ResolvedQueryError,
 	onRetry: () => void,
-	detailsLabel: string,
+	error: unknown,
 ) => {
 	if (resolved.silent) {
 		return null;
 	}
 
 	return (
-		<ErrorStateSurface
-			tone={errorToneFromCode(resolved.code)}
-			title={resolved.title}
-			description={resolved.description}
+		<ErrorKindState
+			scale="inline"
+			kind={resolved.kind}
+			error={error}
+			onRetry={onRetry}
 			details={resolved.details}
-			detailsLabel={detailsLabel}
-			actions={<ErrorActions retry={onRetry} />}
 		/>
 	);
 };
@@ -116,7 +113,7 @@ const renderError = <TData, TError>(
 	return renderDefaultError(
 		resolveQueryError(error, t),
 		() => void query.refetch(),
-		t('error-details'),
+		error,
 	);
 };
 

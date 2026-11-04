@@ -2,12 +2,14 @@ import type { TablerIcon } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorActions } from '~/components/error-views/error-actions';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	ErrorStateSurface,
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
+import type { ErrorKind } from '~/lib/error-kind';
 
 import type { TableBodyState } from './table-body-state';
 import type { TableRowHeight } from './table-row-height';
@@ -36,6 +38,11 @@ export type DataTableStatesProps = {
 	 * which the shared resolver marks non-retryable (#2291); omitted keeps the
 	 * historical always-retry behaviour. */
 	errorRetryable?: boolean;
+	/** The classified error family: takes the exact ShopKart OS mapping and
+	 * ignores the legacy icon/title/content overrides. */
+	errorKind?: ErrorKind;
+	/** The real cause, when the caller has it; classified with `navigator.onLine`. */
+	error?: unknown;
 	/** Raw cause (HTTP status, problem title/detail, request id) folded under
 	 * « Détails techniques » — never painted as the sentence. */
 	errorDetails?: string;
@@ -60,6 +67,8 @@ export const DataTableStates = ({
 	errorIcon,
 	errorTitle,
 	errorRetryable = true,
+	errorKind,
+	error,
 	errorDetails,
 	emptyIcon,
 	emptyTitle,
@@ -97,6 +106,41 @@ export const DataTableStates = ({
 			? noMatchContent
 			: undefined;
 
+	let errorBody: ReactNode = null;
+	if (bodyState === 'error') {
+		if (errorKind || error !== undefined) {
+			errorBody = (
+				<ErrorKindState
+					scale="inline"
+					kind={errorKind}
+					error={error}
+					onRetry={onRetry}
+					details={errorDetails}
+					testId={`${testId}-error`}
+				/>
+			);
+		} else {
+			errorBody = (
+				<ErrorStateSurface
+					icon={errorIcon}
+					title={errorTitle ?? t('list-unavailable-title')}
+					description={errorDescription}
+					details={errorDetails}
+					detailsLabel={errorDetails ? t('error-details') : undefined}
+					actions={
+						errorActions || errorRetryable ? (
+							<>
+								{errorActions}
+								{errorRetryable ? <ErrorActions retry={onRetry} /> : null}
+							</>
+						) : undefined
+					}
+					testId={`${testId}-error`}
+				/>
+			);
+		}
+	}
+
 	return (
 		<>
 			{bodyState === 'loading' ? (
@@ -119,24 +163,7 @@ export const DataTableStates = ({
 				</div>
 			) : null}
 
-			{bodyState === 'error' ? (
-				<ErrorStateSurface
-					icon={errorIcon}
-					title={errorTitle ?? t('list-unavailable-title')}
-					description={errorDescription}
-					details={errorDetails}
-					detailsLabel={errorDetails ? t('error-details') : undefined}
-					actions={
-						errorActions || errorRetryable ? (
-							<>
-								{errorActions}
-								{errorRetryable ? <ErrorActions retry={onRetry} /> : null}
-							</>
-						) : undefined
-					}
-					testId={`${testId}-error`}
-				/>
-			) : null}
+			{errorBody}
 
 			{bodyState === 'empty' ? (
 				<StateSurface

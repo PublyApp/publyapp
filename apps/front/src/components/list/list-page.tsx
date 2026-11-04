@@ -152,6 +152,10 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 		props.queryState.error === undefined
 			? undefined
 			: resolveQueryError(props.queryState.error, t);
+	// A forbidden body has no create/export chrome: acting on a page the user
+	// cannot read is a lie (the 403 screenshot showed both on /staff/profiles).
+	// The shared list header owns that rule for every ListPage.
+	const forbidden = resolvedError?.kind === 'forbidden';
 
 	const filterPanelGroups: ListPanelGroup[] = [];
 	for (const filter of filters) {
@@ -229,8 +233,8 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					props.count ??
 					(countsKnown ? (props.countRows ?? props.rows).length : null)
 				}
-				onExport={props.onExport}
-				newAction={props.newAction}
+				onExport={forbidden ? undefined : props.onExport}
+				newAction={forbidden ? undefined : props.newAction}
 				cards={props.cards}
 				statsOpen={page.statsOpen}
 				onToggleStats={page.toggleStats}
@@ -327,6 +331,8 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					bodyState={page.bodyState}
 					resolvedRowHeight={48}
 					onRetry={props.queryState.onRetry}
+					errorKind={resolvedError?.kind}
+					error={props.queryState.error}
 					errorTitle={resolvedError?.title}
 					errorRetryable={resolvedError?.supportsRetry}
 					errorDetails={resolvedError?.details}

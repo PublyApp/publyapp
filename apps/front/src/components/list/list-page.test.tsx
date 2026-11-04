@@ -85,6 +85,7 @@ const renderPage = (
 		isError?: boolean;
 		error?: unknown;
 		errorContent?: ReactNode;
+		headerActions?: boolean;
 	} = {},
 ) =>
 	render(
@@ -119,6 +120,12 @@ const renderPage = (
 				openLabel={(row) => `Ouvrir ${row.name}`}
 				mobileCard={(row) => ({ code: row.status, title: row.name })}
 				cards={<div data-testid="stats" />}
+				onExport={options.headerActions ? vi.fn() : undefined}
+				newAction={
+					options.headerActions ? (
+						<button type="button">Create profile</button>
+					) : undefined
+				}
 				queryState={{
 					isPending: false,
 					isError: options.isError ?? false,
@@ -296,6 +303,25 @@ describe('ListPage', () => {
 		expect(screen.getByText('forbidden-description')).toBeTruthy();
 		expect(screen.queryByText('Permission revoked.')).toBeNull();
 		expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
+	});
+
+	test('a 403 hides the page create/export chrome', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				headerActions: true,
+				error: { status: 403, detail: 'Permission revoked.' },
+			},
+		);
+
+		expect(screen.queryByRole('button', { name: 'Create profile' })).toBeNull();
+		expect(screen.queryByRole('button', { name: /list-export/ })).toBeNull();
+		// Exactly one action remains in the error body: the primary « Retour à
+		// l'accueil »; a 403 offers no retry.
+		const errorSurface = screen.getByTestId('list-error');
+		expect(within(errorSurface).getAllByRole('link')).toHaveLength(1);
+		expect(within(errorSurface).queryByRole('button')).toBeNull();
 	});
 
 	test('a 500 renders the unable-to-load copy with a retry action', () => {

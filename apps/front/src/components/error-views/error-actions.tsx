@@ -29,11 +29,19 @@ export const BackHomeButton = ({
 	variant?: 'outline' | 'default';
 }) => {
 	const { t } = useTranslation('common');
+	const label = t('common:go-to-home');
 
 	return (
-		<Button variant={variant} className="h-11 px-4" render={<a href="/" />}>
+		<Button
+			variant={variant}
+			className="h-11 px-4"
+			// The accessible name is on the anchor itself so the static
+			// anchor-has-content check sees a named link; the visible icon and
+			// text are Base UI's merged children.
+			render={<a href="/" aria-label={label} />}
+		>
 			<IconArrowLeft data-icon="inline-start" />
-			{t('common:go-to-home')}
+			{label}
 		</Button>
 	);
 };

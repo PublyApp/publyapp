@@ -1,35 +1,22 @@
+import { classifyError, type ErrorKind } from '~/lib/error-kind';
+
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { errorDetailsText } from '../error-details';
 
 /**
- * Shared resolver for QueryDisplay / read-only card error branches (issue
- * #2043). The per-screen error views already had a hand-rolled status→copy
- * matcher duplicated ~10 times; the shared slot consumed by ~30 call sites
- * had none of it and was discarding the cause. This module is the smallest
- * extraction that lets both call sites use the same logic:
- *
- * - takes any `unknown` (so it survives `ServerFailure extends Error`, plain
- *   `Error`, and the duck-typed problem-details objects `toApiFailure` already
- *   reads),
- * - delegates status/detail extraction to `toApiFailure`, so nested Kiota/API
- *   problem payloads and direct `ServerFailure` instances follow one parser,
- * - returns a typed shape with `code`/`title`/`description`/`supportsRetry`/
- *   `fallback` so the consumer can paint either an inline span (QueryDisplay)
- *   or a full state surface (the read-only card).
- *
- * It deliberately returns the raw `ServerFailure.detail` string for
- * `description` when the server provided one — that is the cause the user
- * is asking us to show. The whole `ServerFailure` is already i18n-routed:
- * `t()` keys live under `common:error-403-code`, `common:no-access-title`,
- * etc., and `error.title` is **not** rendered raw (the API can send English
- * in any locale).
+ * Shared resolver for QueryDisplay / list and card error branches (issue
+ * #2043). It takes any `unknown` (ServerFailure, plain Error, duck-typed
+ * problem payloads), classifies it through the one classifier
+ * (`lib/error-kind.ts`) and returns the copy/actions/details that kind owns.
  */
 export type ResolvedQueryError = {
+	/** The ShopKart OS error family (offline, not found, forbidden, …). */
+	kind: ErrorKind;
 	code: string | undefined;
 	title: string;
 	description: string;
-	/** True for retryable server failures; false for forbidden or missing data. */
+	/** True when a retry makes sense (offline, server, unknown, not found). */
 	supportsRetry: boolean;
 	/** True when we had nothing usable to resolve; the title/description are
 	 * the generic fallback and the UI is expected to make that clear. */
@@ -45,30 +32,6 @@ export type ResolvedQueryError = {
 
 type Translator = (key: string) => string;
 
-const getHumanDescription = (
-	status: number | undefined,
-	failure: ReturnType<typeof toApiFailure>,
-	t: Translator,
-): string => {
-	if (status === 403) {
-		return t('forbidden-description');
-	}
-
-	if (status === 404) {
-		return t('not-found-sentence');
-	}
-
-	if (status !== undefined && status >= 500 && status < 600) {
-		return t('error-500-description');
-	}
-
-	if (failure.kind === 'network') {
-		return t('query-display-error-network-description');
-	}
-
-	return t('query-display-error-cause-unknown');
-};
-
 const hasFailureCause = (failure: ReturnType<typeof toApiFailure>): boolean => {
 	if (failure.kind === 'problem' || failure.kind === 'validation') {
 		return Boolean(
@@ -83,25 +46,21 @@ const hasFailureCause = (failure: ReturnType<typeof toApiFailure>): boolean => {
 	return false;
 };
 
+const browserOnline = (): boolean =>
+	typeof navigator === 'undefined' || navigator.onLine !== false;
+
 export const resolveQueryError = (
 	error: unknown,
 	t: Translator,
+	online: boolean = browserOnline(),
 ): ResolvedQueryError => {
 	const failure = toApiFailure(error);
-	const status =
-		failure.kind === 'problem' || failure.kind === 'validation'
-			? failure.status
-			: undefined;
-	const normalizedFailure =
-		failure.kind === 'problem' || failure.kind === 'validation'
-			? { ...failure, detail: failure.detail?.trim() || undefined }
-			: failure;
-	const description = getHumanDescription(status, normalizedFailure, t);
 	const hasCause = hasFailureCause(failure);
 	const details = hasCause ? errorDetailsText(error) : undefined;
 
 	if (failure.kind === 'abort') {
 		return {
+			kind: 'unknown',
 			code: undefined,
 			title: '',
 			description: '',
@@ -111,38 +70,14 @@ export const resolveQueryError = (
 		};
 	}
 
-	if (status === 403) {
-		return {
-			code: t('error-403-code'),
-			title: t('no-access-title'),
-			// Owner decision #2291: 403 and 404 paint their own translated
-			// message, never the API's English `detail`.
-			description,
-			details,
-			supportsRetry: false,
-			backOnly: true,
-			fallback: !hasCause,
-			silent: false,
-		};
-	}
+	const kind = classifyError(error, online);
 
-	if (status === 404) {
+	if (kind === 'offline') {
 		return {
-			code: t('error-404-code'),
-			title: t('page-not-found'),
-			description,
-			details,
-			supportsRetry: false,
-			fallback: !hasCause,
-			silent: false,
-		};
-	}
-
-	if (status !== undefined && status >= 500 && status < 600) {
-		return {
-			code: t('error-500-code'),
-			title: t('error-500-title'),
-			description,
+			kind,
+			code: undefined,
+			title: t('offline-title'),
+			description: t('offline-description'),
 			details,
 			supportsRetry: true,
 			fallback: !hasCause,
@@ -150,13 +85,67 @@ export const resolveQueryError = (
 		};
 	}
 
-	// Every remaining failure kind gets a human sentence here; the server's
-	// own `title`/`detail`/`translationKey`/`traceId` are carried in `details`
-	// for the folded disclosure instead of being painted as the sentence.
+	if (kind === 'signed_out') {
+		return {
+			kind,
+			code: t('error-401-code'),
+			title: t('session-expired'),
+			description: t('session-no-longer-valid-description'),
+			details,
+			supportsRetry: false,
+			fallback: !hasCause,
+			silent: false,
+		};
+	}
+
+	if (kind === 'forbidden') {
+		return {
+			kind,
+			code: t('error-403-code'),
+			title: t('no-access-title'),
+			description: t('forbidden-description'),
+			// ShopKart's forbidden screen has no technical details.
+			details: undefined,
+			supportsRetry: false,
+			backOnly: true,
+			fallback: !hasCause,
+			silent: false,
+		};
+	}
+
+	if (kind === 'not_found') {
+		return {
+			kind,
+			code: t('error-404-code'),
+			title: t('page-not-found'),
+			description: t('not-found-sentence'),
+			// ShopKart's not-found screen has no technical details.
+			details: undefined,
+			// The thing may exist by now; « Réessayer » is part of the pair.
+			supportsRetry: true,
+			fallback: !hasCause,
+			silent: false,
+		};
+	}
+
+	if (kind === 'server') {
+		return {
+			kind,
+			code: t('error-500-code'),
+			title: t('error-500-title'),
+			description: t('error-500-description'),
+			details,
+			supportsRetry: true,
+			fallback: !hasCause,
+			silent: false,
+		};
+	}
+
 	return {
+		kind,
 		code: undefined,
 		title: t('query-display-error-default'),
-		description,
+		description: t('query-display-error-cause-unknown'),
 		details,
 		supportsRetry: true,
 		fallback: !hasCause,
