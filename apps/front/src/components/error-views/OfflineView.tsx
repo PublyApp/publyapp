@@ -1,9 +1,7 @@
-import { IconRefresh, IconWifiOff } from '@tabler/icons-react';
-import { Link, useRouter } from '@tanstack/react-router';
+import { IconWifiOff } from '@tabler/icons-react';
+import { useRouter } from '@tanstack/react-router';
 import { useEffect, useEffectEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 
 import { AppErrorView } from './AppErrorView';
 
@@ -15,9 +13,11 @@ import { AppErrorView } from './AppErrorView';
 export const OfflineView = ({
 	reset,
 	embedded = true,
+	details,
 }: {
 	reset?: () => void;
 	embedded?: boolean;
+	details?: string;
 }) => {
 	const { t } = useTranslation('common');
 	const router = useRouter();
@@ -41,17 +41,9 @@ export const OfflineView = ({
 			icon={<IconWifiOff aria-hidden="true" className="size-7" />}
 			title={t('offline-title')}
 			description={t('offline-description')}
-			actions={
-				<>
-					<Button variant="default" type="button" onClick={retry}>
-						<IconRefresh data-icon="inline-start" />
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
-			}
+			details={details}
+			detailsLabel={details ? t('error-details') : undefined}
+			onRetry={retry}
 		/>
 	);
 };

@@ -172,7 +172,6 @@ const MissingTenantView = () => {
 			description={t('tenant-not-found-description')}
 			testId="staff-tenant-details-not-found"
 			embedded
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -208,13 +207,8 @@ export const TenantDetailsError = ({
 			testId="staff-tenant-details-error"
 			tone="danger"
 			embedded
-			actions={
-				onRetry ? (
-					<TenantRetryActions onRetry={onRetry} />
-				) : (
-					<BackToTenantsLink />
-				)
-			}
+
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -240,7 +234,7 @@ export const TenantDetailsIncomplete = ({
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId={testId}
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };

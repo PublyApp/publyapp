@@ -1,24 +1,34 @@
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { errorToneFromCode } from '~/components/ui/error-tone';
 import type { ErrorTone } from '~/components/ui/error-tone';
 import { StateView } from '~/components/ui/state-view';
 import { cn } from '~/lib/utils';
 
+import { ErrorActions } from './error-actions';
+
 export type AppErrorTone = ErrorTone;
 
 type AppErrorViewProps = {
 	icon: ReactNode;
 	title: string;
+	/** Drives the pictogram tone only (404 neutral, 401/403 warning, else
+	 * danger). It is never rendered: ShopKart OS has no eyebrow line. */
 	code?: string;
 	description?: string;
+	/** Retry handler. Omitted: the pair's « Réessayer » invalidates the
+	 * current route (ShopKart's `NotFoundState` behaviour). */
+	onRetry?: () => void;
+	/** 403: the home button is the primary and there is no retry. */
+	backOnly?: boolean;
+	/** Auth surfaces only (e.g. « Se reconnecter »): overrides the pair. */
 	actions?: ReactNode;
 	/** Raw error text, folded under a collapsed "technical details" disclosure. */
 	details?: string;
 	detailsLabel?: string;
-	diagnosticId?: string;
 	testId?: string;
-	/** Icon tint. Defaults to the tone of the visible `code` (404 neutral,
-	 * 401/403 warning, otherwise danger). */
+	/** Icon tint. Defaults to the tone of `code` (404 neutral, 401/403
+	 * warning, otherwise danger). */
 	tone?: AppErrorTone;
 	/** Announcement role: `alert` for a failure, `status` for a self-healing
 	 * state such as offline. */
@@ -39,10 +49,11 @@ export const AppErrorView = ({
 	title,
 	code,
 	description,
+	onRetry,
+	backOnly,
 	actions,
 	details,
 	detailsLabel,
-	diagnosticId,
 	testId,
 	tone,
 	role = 'alert',
@@ -50,13 +61,20 @@ export const AppErrorView = ({
 }: AppErrorViewProps) => {
 	const Wrapper = embedded ? 'div' : 'main';
 	const resolvedTone = tone ?? errorToneFromCode(code);
+	const titleRef = useRef<HTMLHeadingElement>(null);
+
+	// After an error navigation, keyboard and screen-reader users land on the
+	// title rather than the top of a page they have already read.
+	useEffect(() => {
+		titleRef.current?.focus();
+	}, []);
 
 	return (
 		<Wrapper
 			className={cn(
 				'mx-auto flex w-full max-w-lg flex-col items-center px-4 text-center',
 				embedded
-					? 'min-h-[50vh] justify-center py-8'
+					? 'min-h-[60dvh] justify-center py-10'
 					: 'min-h-screen justify-center py-16',
 			)}
 			data-testid={testId}
@@ -67,18 +85,13 @@ export const AppErrorView = ({
 				scale="page"
 				role={role}
 				ariaLive={role === 'alert' ? 'assertive' : 'polite'}
-				eyebrow={code}
 				title={title}
+				titleRef={titleRef}
 				description={description}
 				details={details}
 				detailsLabel={detailsLabel}
-				actions={actions}
-				afterActions={
-					diagnosticId ? (
-						<div className="mt-3 w-full text-left text-xs text-muted-foreground">
-							{diagnosticId}
-						</div>
-					) : null
+				actions={
+					actions ?? <ErrorActions retry={onRetry} backOnly={backOnly} />
 				}
 			/>
 		</Wrapper>

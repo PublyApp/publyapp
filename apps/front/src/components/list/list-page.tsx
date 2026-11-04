@@ -329,6 +329,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					onRetry={props.queryState.onRetry}
 					errorTitle={resolvedError?.title}
 					errorRetryable={resolvedError?.supportsRetry}
+					errorDetails={resolvedError?.details}
 					errorContent={
 						props.errorContent ??
 						resolvedError?.description ??

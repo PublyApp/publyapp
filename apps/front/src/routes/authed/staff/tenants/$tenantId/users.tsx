@@ -28,7 +28,6 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
-	TenantRetryActions,
 } from './_tenant-details-shell';
 import { TenantUserBulkActions } from './_users-bulk-actions';
 import { makeTenantUserColumns } from './_users-columns';
@@ -160,9 +159,6 @@ const StaffTenantUsersPage = () => {
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
-			actions={
-				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-			}
 		/>
 	);
 

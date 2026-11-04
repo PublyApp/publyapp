@@ -45,18 +45,26 @@ describe('AppErrorView', () => {
 		['401 — Unauthorized', 'warning'],
 		['403 — Forbidden', 'warning'],
 		['500 — Server Error', 'danger'],
-	])('derives the %s tone from the visible code', (code, tone) => {
-		render(
-			<AppErrorView icon={<span />} title="Title" code={code} testId="error" />,
-		);
+	])(
+		'derives the %s tone from its status code (the code itself is not rendered)',
+		(code, tone) => {
+			render(
+				<AppErrorView
+					icon={<span />}
+					title="Title"
+					code={code}
+					testId="error"
+				/>,
+			);
 
-		expect(
-			screen
-				.getByTestId('error')
-				.querySelector('.publy-state-icon')
-				?.getAttribute('data-tone'),
-		).toBe(tone);
-	});
+			expect(
+				screen
+					.getByTestId('error')
+					.querySelector('.publy-state-icon')
+					?.getAttribute('data-tone'),
+			).toBe(tone);
+		},
+	);
 
 	test('defaults an unknown error to the danger tone', () => {
 		render(<AppErrorView icon={<span />} title="Title" testId="error" />);

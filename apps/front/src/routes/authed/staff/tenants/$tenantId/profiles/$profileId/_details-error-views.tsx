@@ -4,10 +4,6 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
-import {
-	BackToTenantsLink,
-	TenantRetryActions,
-} from '../../_tenant-details-shell';
 import { classifyProfileDetailsFailure } from './_profile-details-error-classifier';
 
 export const ProfileDetailsLoading = () => {
@@ -36,7 +32,6 @@ export const MissingTenantProfileView = () => {
 			title={t('common:tenant-profile-not-found-title')}
 			description={t('common:tenant-profile-not-found-description')}
 			testId="staff-tenant-profile-details-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -70,7 +65,7 @@ export const TenantProfileDetailsError = ({
 			title={t('common:unable-to-load-tenant-profile')}
 			description={t('common:tenant-profile-load-error-description')}
 			testId="staff-tenant-profile-details-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };

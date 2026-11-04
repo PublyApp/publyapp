@@ -63,6 +63,8 @@ const EN_LABELS: TestLabelMap = {
 	'common:description': 'Description',
 	'common:unnamed-tenant': 'Unnamed tenant',
 	'common:retry': 'Retry',
+	retry: 'Retry',
+	'go-to-home': 'Back to home',
 	'read-only': 'Read only',
 	'not-available-yet': 'Not available yet',
 	'default-workspace-coming-later-title':

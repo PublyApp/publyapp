@@ -1,10 +1,7 @@
 import { IconAlertCircle } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
@@ -46,14 +43,6 @@ export const StaffUserDetailsError = ({
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-not-found-description')}
 				testId="staff-user-details-not-found"
-				actions={
-					<Link
-						to="/staff/staff-users"
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-staff-users')}
-					</Link>
-				}
 			/>
 		);
 	}
@@ -69,19 +58,7 @@ export const StaffUserDetailsError = ({
 			title={t('unable-to-load-staff-user')}
 			description={t('problem-loading-staff-user-details')}
 			testId="staff-user-details-error"
-			actions={
-				<>
-					<Button variant="default" onClick={onRetry} type="button">
-						{t('common:try-again')}
-					</Button>
-					<Link
-						to="/staff/staff-users"
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-staff-users')}
-					</Link>
-				</>
-			}
+			onRetry={onRetry}
 		/>
 	);
 };

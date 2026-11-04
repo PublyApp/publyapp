@@ -18,6 +18,10 @@ const EN_LABELS: TestLabelMap = {
 	'failed-to-load-organization-description': 'Try again later.',
 	retry: 'Retry',
 	'common:retry': 'Retry',
+	'go-to-home': 'Back to home',
+	'common:go-to-home': 'Back to home',
+	'error-details': 'Technical details',
+	'common:error-details': 'Technical details',
 	'common:title': 'Title',
 	'common:description': 'Description',
 	'error-403-code': '403 — Forbidden',
@@ -69,7 +73,7 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		expect(onRetry).toHaveBeenCalledOnce();
 	});
 
-	test('renders the 404 cause and hides the retry button when the query failed with a not-found error', () => {
+	test('renders the 404 cause inside the ShopKart pair (retry + back home)', () => {
 		const error = new ServerFailure({
 			responseStatusCode: 404,
 			status: 404,
@@ -89,9 +93,11 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		);
 
 		expect(screen.getByTestId('tenant-card-error-404')).toBeTruthy();
-		expect(screen.getByText('404 — Not Found')).toBeTruthy();
+		expect(screen.queryByText('404 — Not Found')).toBeNull();
 		expect(screen.getByText('Page not found')).toBeTruthy();
-		expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+		expect(screen.getByText('The page could not be found.')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		expect(screen.getByRole('link', { name: /Back to home/ })).toBeTruthy();
 	});
 
 	test('renders the 500 cause and keeps the retry button when the query failed with a server error', () => {
@@ -114,7 +120,7 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		);
 
 		expect(screen.getByTestId('tenant-card-error-500')).toBeTruthy();
-		expect(screen.getByText('500 — Server Error')).toBeTruthy();
+		expect(screen.queryByText('500 — Server Error')).toBeNull();
 		expect(screen.getByText('Unable to load')).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
 	});

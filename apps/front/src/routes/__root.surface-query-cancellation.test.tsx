@@ -42,7 +42,7 @@ const unknownStaffMatches: MockMatch[] = [
 ];
 
 const mocks = vi.hoisted(() => ({
-	capturedSignal: undefined as AbortSignal | undefined,
+	capturedSignals: [] as AbortSignal[],
 	isHydrated: true,
 	matches: [] as MockMatch[],
 	tokens: { staffToken: 'staff-tok' } satisfies ParsedSessionTokens,
@@ -75,7 +75,9 @@ vi.mock('~/lib/hooks/use-hydrated', () => ({
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	createClient: ({ signal }: { signal?: AbortSignal }) => {
-		mocks.capturedSignal = signal;
+		if (signal) {
+			mocks.capturedSignals.push(signal);
+		}
 		return {
 			auth: {
 				redirectCode: {
@@ -109,7 +111,7 @@ import { RoutedShell } from './__root';
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	mocks.capturedSignal = undefined;
+	mocks.capturedSignals = [];
 	mocks.isHydrated = true;
 	mocks.matches = [];
 	mocks.tokens = { staffToken: 'staff-tok' };
@@ -129,9 +131,9 @@ describe('surface-redirect-code query cancellation on route-exactness loss', () 
 		);
 
 		await vi.waitFor(() => {
-			expect(mocks.capturedSignal).toBeDefined();
+			expect(mocks.capturedSignals.length).toBeGreaterThan(0);
 		});
-		expect(mocks.capturedSignal?.aborted).toBe(false);
+		expect(mocks.capturedSignals[0]?.aborted).toBe(false);
 
 		// Client-side navigation to an unknown path under the same /staff
 		// prefix: `getSessionSurface` still resolves to 'staff' for both, so
@@ -146,7 +148,10 @@ describe('surface-redirect-code query cancellation on route-exactness loss', () 
 		);
 
 		await vi.waitFor(() => {
-			expect(mocks.capturedSignal?.aborted).toBe(true);
+			// The exact-match query is detached and aborted; the unknown path
+			// then starts its own validation (it needs the session scope for
+			// the app shell), which is a distinct signal.
+			expect(mocks.capturedSignals[0]?.aborted).toBe(true);
 		});
 	});
 });

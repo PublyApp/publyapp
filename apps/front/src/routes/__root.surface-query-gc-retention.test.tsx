@@ -144,9 +144,9 @@ describe('surface-redirect-code query retention past the default GC window', () 
 		expect(mocks.fetchCount).toBe(1);
 
 		// Client-side navigation to an unknown path under the same /staff
-		// prefix: exactness is lost, so the [..., 'staff', true] entry becomes
-		// inactive (its only observer moves to the disabled [..., 'staff',
-		// false] key).
+		// prefix: exactness is lost, so the [..., 'staff', true, true] entry
+		// becomes inactive. The unknown path keeps the shell (it needs the
+		// session scope), so it validates once on its own key.
 		mocks.matches = unknownStaffMatches;
 		rerender(
 			<QueryClientProvider client={queryClient}>
@@ -156,6 +156,7 @@ describe('surface-redirect-code query retention past the default GC window', () 
 			</QueryClientProvider>,
 		);
 		await flushMicrotasks();
+		expect(mocks.fetchCount).toBe(2);
 
 		// Past the installed TanStack Query browser default gcTime (5 minutes).
 		await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1000);
@@ -171,6 +172,8 @@ describe('surface-redirect-code query retention past the default GC window', () 
 		);
 		await flushMicrotasks();
 
-		expect(mocks.fetchCount).toBe(1);
+		// The exact-match entry survived the detour: going back reads it from
+		// the cache instead of fetching a third time.
+		expect(mocks.fetchCount).toBe(2);
 	});
 });

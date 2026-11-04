@@ -154,6 +154,27 @@ describe('StateView — ShopKart OS pictogram geometry (app.css)', () => {
 		);
 	});
 
+	test('every state colour token has a dark counterpart (tile and rings stay readable)', () => {
+		const dark = css.slice(css.indexOf('html.dark'));
+
+		for (const token of [
+			'--publy-card',
+			'--publy-border',
+			'--publy-foreground-muted',
+			'--publy-chip-invited-bg',
+			'--publy-chip-invited-border',
+			'--publy-chip-invited-text',
+			'--publy-chip-pending-bg',
+			'--publy-chip-pending-border',
+			'--publy-chip-pending-text',
+			'--publy-chip-suspended-bg',
+			'--publy-chip-suspended-border',
+			'--publy-chip-suspended-text',
+		]) {
+			expect(dark).toContain(`${token}:`);
+		}
+	});
+
 	test('status tile: 144px rings, 64px tile radius 20px at −6°, icon 32px @1.75', () => {
 		expect(css).toContain(
 			".publy-state-icon-cluster[data-presentation='status'] {\n\t\tposition: relative;\n\t\twidth: 144px;\n\t\theight: 144px;",

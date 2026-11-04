@@ -17,7 +17,6 @@ import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { NeutralAuthedShell } from '~/components/app-shell/neutral-authed-shell';
-import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { AppToaster } from '~/components/ui/toaster';
 import {
@@ -84,6 +83,7 @@ import type { AuthBrand } from '../layouts/auth-layout';
 import { AuthLayout } from '../layouts/auth-layout';
 import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
+import { errorDetailsText } from '../lib/error-details';
 import appCss from '../styles/app.css?url';
 
 type RootRouteContext = {
@@ -237,10 +237,10 @@ const RootErrorBoundaryContent = ({
 		reset();
 		void router.invalidate();
 	};
-	const details = error instanceof Error ? error.message : String(error);
+	const details = errorDetailsText(error);
 
 	if (!online) {
-		return <OfflineView reset={reset} embedded={false} />;
+		return <OfflineView reset={reset} embedded={false} details={details} />;
 	}
 
 	if (routeStatus === 401) {
@@ -301,16 +301,7 @@ const RootErrorBoundaryContent = ({
 			description={t('unexpected-app-error-description')}
 			details={details}
 			detailsLabel={t('error-details')}
-			actions={
-				<>
-					<Button variant="default" onClick={retry} type="button">
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
-			}
+			onRetry={retry}
 		/>
 	);
 };
@@ -328,7 +319,21 @@ export const RootErrorBoundary = ({
 	reset: () => void;
 }) => <RootErrorBoundaryContent error={error} reset={reset} />;
 
-const RootNotFound = () => <View404 embedded={false} />;
+const RootNotFound = () => {
+	const pathname = useLocation({
+		select: (location) => location.pathname,
+	});
+	// Inside an authed prefix the shell already supplies the page frame, so
+	// the 404 is embedded exactly like View403 is. Marketing/auth keep the
+	// full-viewport `<main>`.
+	const embedded =
+		pathname === '/staff' ||
+		pathname.startsWith('/staff/') ||
+		pathname === '/tenant' ||
+		pathname.startsWith('/tenant/');
+
+	return <View404 embedded={embedded} />;
+};
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n/client');
@@ -491,6 +496,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 
 			return {
 				hasAuthedRouteMatch: hasExactAuthedRouteMatch(matches, pathname),
+				// Unknown paths under /staff or /tenant still match the pathless
+				// authed layout (their deepest match is the layout itself). That
+				// is what lets the not-found render inside the app shell.
+				hasAuthedLayoutMatch: matches.some(
+					(match) => match.routeId === '/_authed-layout',
+				),
 				pathname,
 				search: match?.search ?? {},
 			};
@@ -499,6 +510,18 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
 	const sessionSurface = getSessionSurface(pathname);
+	// `isAuthedArea` is an exact prefix check (not the looser `isAuthedSurface`,
+	// which would also catch `/tenantfoo`): an unknown `/staff/*` or
+	// `/tenant/*` URL has no exact route match but must still keep the app
+	// shell so its 404 never falls back to the public marketing chrome.
+	const isAuthedArea =
+		pathname === '/staff' ||
+		pathname.startsWith('/staff/') ||
+		pathname === '/tenant' ||
+		pathname.startsWith('/tenant/');
+	const wantsAuthedChrome =
+		location.hasAuthedRouteMatch ||
+		(isAuthedArea && location.hasAuthedLayoutMatch);
 	// Appending `hasAuthedRouteMatch` gives the query a different identity
 	// the moment the route stops being an exact authenticated match (e.g.
 	// navigating from a known /staff/* route to an unknown one under the
@@ -514,7 +537,11 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// which detaches it from the old one and fires its abort signal.
 	const surfaceRedirectCodeQueryKey = [
 		...getSurfaceRedirectCodeQueryKey(sessionSurface),
+		// Both flags are in the key: losing exactness aborts the in-flight
+		// validation (PR #997 finding 2) while `wantsAuthedChrome` keeps the
+		// shell's own validation running for an unknown authed-prefix path.
 		location.hasAuthedRouteMatch,
+		wantsAuthedChrome,
 	] as const;
 	const surfaceSessionState = useQuery<string | null>({
 		queryKey: surfaceRedirectCodeQueryKey,
@@ -536,8 +563,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 				signal,
 			);
 		},
-		enabled:
-			isHydrated && location.hasAuthedRouteMatch && sessionSurface !== 'other',
+		enabled: isHydrated && wantsAuthedChrome && sessionSurface !== 'other',
 		retry: false,
 		// Session-stable: which surface a token belongs to only changes on
 		// login/logout, both already invalidated explicitly (see
@@ -582,7 +608,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// exact-match one, so an unknown /staff/* path renders the layout's own
 	// 404 instead of crashing on a missing provider.
 	let shellContent: React.ReactNode;
-	if (location.hasAuthedRouteMatch) {
+	if (wantsAuthedChrome) {
 		// Only the exact `/tenant` portal root renders bare (no AppShell): the
 		// picker is its own SimpleLayout surface. Every `/tenant/*` CHILD path
 		// mounts inside the authed shell like any staff surface — the

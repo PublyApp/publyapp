@@ -1,10 +1,10 @@
 import { IconSearchOff } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { buttonVariants } from '~/components/ui/button.variants';
 
 import { AppErrorView } from './AppErrorView';
 
+/** ShopKart OS's 404 pair: « Réessayer » (the link may be right by now) then
+ * the outline « Retour à l'accueil »; no eyebrow, no raw status sentence. */
 export const View404 = ({ embedded }: { embedded?: boolean } = {}) => {
 	const { t } = useTranslation('common');
 
@@ -17,11 +17,6 @@ export const View404 = ({ embedded }: { embedded?: boolean } = {}) => {
 			testId="view-404"
 			tone="neutral"
 			embedded={embedded}
-			actions={
-				<Link to="/" className={buttonVariants({ variant: 'default' })}>
-					{t('go-to-home')}
-				</Link>
-			}
 		/>
 	);
 };

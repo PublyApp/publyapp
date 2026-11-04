@@ -1,10 +1,7 @@
 import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -56,14 +53,6 @@ const MissingProfileView = () => {
 			title={t('staff-profile-not-found')}
 			description={t('staff-profile-not-found-description')}
 			testId="staff-profile-details-not-found"
-			actions={
-				<Link
-					to="/staff/profiles"
-					className={buttonVariants({ variant: 'outline' })}
-				>
-					{t('back-to-staff-profiles')}
-				</Link>
-			}
 		/>
 	);
 };
@@ -95,19 +84,7 @@ export const ProfileDetailsError = ({
 			title={t('unable-to-load-staff-profile')}
 			description={t('problem-loading-staff-profile-details')}
 			testId="staff-profile-details-error"
-			actions={
-				<>
-					<Button variant="default" onClick={onRetry} type="button">
-						{t('try-again')}
-					</Button>
-					<Link
-						to="/staff/profiles"
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-staff-profiles')}
-					</Link>
-				</>
-			}
+			onRetry={onRetry}
 		/>
 	);
 };

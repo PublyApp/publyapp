@@ -1,6 +1,7 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { ErrorActions } from '~/components/error-views/error-actions';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
@@ -80,15 +81,7 @@ export const OverviewListCard = ({
 			<StateSurface
 				tone="danger"
 				title={t('overview-error-title')}
-				actions={
-					<button
-						type="button"
-						className={buttonVariants({ variant: 'outline', size: 'sm' })}
-						onClick={onRetry}
-					>
-						{t('retry')}
-					</button>
-				}
+				actions={<ErrorActions retry={onRetry} />}
 				testId={`${testId}-error`}
 			/>
 		);

@@ -85,7 +85,9 @@ describe('profile users page state views (moved out of the users route file)', (
 
 		expect(screen.getByTestId('staff-profile-users-error')).toBeTruthy();
 
-		const tryAgain = screen.getByText('Try again') as HTMLButtonElement;
+		const tryAgain = screen.getByRole('button', {
+			name: /retry/i,
+		}) as HTMLButtonElement;
 		tryAgain.click();
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});

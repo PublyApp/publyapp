@@ -1,5 +1,5 @@
 import { IconChevronDown } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { cn } from '~/lib/utils';
 
 type StateViewTone = 'info' | 'neutral' | 'warning' | 'danger' | 'primary';
@@ -17,10 +17,6 @@ type StateViewProps = {
 	/** Explicit ARIA role. Error surfaces use `alert` (owner decision #2291);
 	 * a self-healing status (offline) uses `status`. */
 	role?: 'alert' | 'status';
-	/** Eyebrow line above the title (e.g. an error code). Omitted entirely
-	 * when absent — that is the only structural difference the page and
-	 * inline scales are allowed beyond typography (owner decision R3-4b). */
-	eyebrow?: string;
 	title: string;
 	/** Extra content rendered directly under the title, before description. */
 	belowTitle?: ReactNode;
@@ -38,10 +34,13 @@ type StateViewProps = {
 	presentation?: StateViewPresentation;
 	testId?: string;
 	className?: string;
+	/** Lets a page-scale caller move focus to the title after an error
+	 * navigation (a11y requirement, owner decision 04/11). */
+	titleRef?: Ref<HTMLHeadingElement>;
 };
 
 /**
- * Shared icon + eyebrow? + title + description + actions composition for
+ * Shared icon + title + description + actions composition for
  * both AppErrorView (full-page) and StateSurface (inline list state) — a
  * table empty state and an error page must read as the same family (owner
  * decision R3-4b, 2026-07-10 round 3). Its pictogram is the ShopKart OS
@@ -53,7 +52,6 @@ export const StateView = ({
 	scale,
 	ariaLive,
 	role,
-	eyebrow,
 	title,
 	belowTitle,
 	description,
@@ -65,6 +63,7 @@ export const StateView = ({
 	presentation = 'status',
 	testId,
 	className,
+	titleRef,
 }: StateViewProps) => {
 	const isPage = scale === 'page';
 	const isEmpty = presentation === 'empty';
@@ -73,16 +72,18 @@ export const StateView = ({
 	const titleBlock = (
 		<>
 			<Heading
+				ref={isPage ? titleRef : undefined}
+				tabIndex={isPage ? -1 : undefined}
 				className={cn(
-					'text-lg leading-[1.3] font-semibold text-balance',
-					isEmpty ? 'mt-3' : 'mt-4',
+					'leading-[1.3] font-semibold text-balance',
+					isEmpty ? 'mt-3 text-lg' : 'mt-4 text-xl focus:outline-none',
 				)}
 			>
 				{title}
 			</Heading>
 			{belowTitle}
 			{description ? (
-				<p className="mt-1.5 max-w-[380px] text-sm leading-normal text-pretty text-muted-foreground">
+				<p className="mt-2 max-w-[380px] text-sm leading-normal text-pretty text-muted-foreground">
 					{description}
 				</p>
 			) : null}
@@ -152,18 +153,14 @@ export const StateView = ({
 					{icon}
 				</div>
 			</div>
-			{eyebrow ? (
-				<p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-					{eyebrow}
-				</p>
-			) : null}
 			{isPage ? titleBlock : <div>{titleBlock}</div>}
 			{beforeActions}
 			{actions ? (
 				<div
 					className={cn(
-						'flex w-full flex-wrap justify-center gap-2',
-						isEmpty ? 'mt-5' : 'mt-6',
+						isEmpty
+							? 'mt-5 flex flex-wrap justify-center gap-2'
+							: 'mt-6 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-center',
 					)}
 				>
 					{actions}
@@ -171,7 +168,7 @@ export const StateView = ({
 			) : null}
 			{afterActions}
 			{details && detailsLabel ? (
-				<details className="group mt-6 w-full text-left text-xs text-muted-foreground">
+				<details className="group mt-8 w-full text-left text-xs text-muted-foreground">
 					<summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1 select-none [&::-webkit-details-marker]:hidden">
 						{detailsLabel}
 						<IconChevronDown

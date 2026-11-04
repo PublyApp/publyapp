@@ -29,6 +29,7 @@ import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
+import { errorDetailsText } from '~/lib/error-details';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useOnline } from '~/lib/hooks/use-online';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
@@ -390,18 +391,9 @@ const LoginErrorBoundary = ({
 			code={t('common:error-500-code')}
 			title={t('common:something-went-wrong')}
 			description={t('sign-in-could-not-be-completed')}
-			details={error instanceof Error ? error.message : String(error)}
+			details={errorDetailsText(error)}
 			detailsLabel={t('common:error-details')}
-			actions={
-				<>
-					<Button variant="default" onClick={retry} type="button">
-						{t('common:retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('common:go-to-home')}
-					</Link>
-				</>
-			}
+			onRetry={retry}
 		/>
 	);
 };

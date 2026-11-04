@@ -1,7 +1,7 @@
 import type { TablerIcon } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '~/components/ui/button';
+import { ErrorActions } from '~/components/error-views/error-actions';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	ErrorStateSurface,
@@ -36,6 +36,9 @@ export type DataTableStatesProps = {
 	 * which the shared resolver marks non-retryable (#2291); omitted keeps the
 	 * historical always-retry behaviour. */
 	errorRetryable?: boolean;
+	/** Raw cause (HTTP status, problem title/detail, request id) folded under
+	 * « Détails techniques » — never painted as the sentence. */
+	errorDetails?: string;
 	emptyIcon?: TablerIcon;
 	emptyTitle?: string;
 	emptyActions?: ReactNode;
@@ -57,6 +60,7 @@ export const DataTableStates = ({
 	errorIcon,
 	errorTitle,
 	errorRetryable = true,
+	errorDetails,
 	emptyIcon,
 	emptyTitle,
 	emptyActions: emptyActionsProp,
@@ -120,15 +124,13 @@ export const DataTableStates = ({
 					icon={errorIcon}
 					title={errorTitle ?? t('list-unavailable-title')}
 					description={errorDescription}
+					details={errorDetails}
+					detailsLabel={errorDetails ? t('error-details') : undefined}
 					actions={
-						errorRetryable || errorActions ? (
+						errorActions || errorRetryable ? (
 							<>
 								{errorActions}
-								{errorRetryable ? (
-									<Button variant="outline" onClick={onRetry} type="button">
-										{t('retry')}
-									</Button>
-								) : null}
+								{errorRetryable ? <ErrorActions retry={onRetry} /> : null}
 							</>
 						) : undefined
 					}

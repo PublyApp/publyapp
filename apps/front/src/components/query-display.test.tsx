@@ -79,7 +79,7 @@ describe('QueryDisplay', () => {
 	test('routes the default error fallback text through t()', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		expect(screen.getByText('boom')).toBeTruthy();
+		expect(screen.getByText(/boom/)).toBeTruthy();
 	});
 
 	test('renders the default error through the shared state surface path', () => {
@@ -212,8 +212,10 @@ describe('QueryDisplay', () => {
 		expect(
 			screen.queryByText('An error occurred while loading data.'),
 		).toBeNull();
-		expect(screen.getByText('404 — Not Found')).toBeTruthy();
+		expect(screen.queryByText('404 — Not Found')).toBeNull();
 		expect(screen.getByText('Page not found')).toBeTruthy();
+		expect(screen.getByText('The page could not be found.')).toBeTruthy();
+		expect(screen.getByText(/HTTP 404/)).toBeTruthy();
 	});
 
 	test('default error surfaces a 500 ServerFailure cause with the server-error copy', () => {
@@ -229,8 +231,10 @@ describe('QueryDisplay', () => {
 
 		render(<QueryDisplay query={serverErrorQuery} />);
 
-		expect(screen.getByText('500 — Server Error')).toBeTruthy();
+		expect(screen.queryByText('500 — Server Error')).toBeNull();
 		expect(screen.getByText('Unable to load')).toBeTruthy();
+		expect(screen.getByText('Something went wrong on our end.')).toBeTruthy();
+		expect(screen.getByText(/HTTP 500/)).toBeTruthy();
 	});
 
 	test('default error surfaces a 400 ServerFailure detail for an unhandled status', () => {
@@ -247,13 +251,13 @@ describe('QueryDisplay', () => {
 		render(<QueryDisplay query={badRequestQuery} />);
 
 		expect(
-			screen.getByText('The request could not be understood.'),
-		).toBeTruthy();
-		expect(
-			screen.queryByText(
+			screen.getByText(
 				"We couldn't determine what went wrong. Try again in a moment.",
 			),
-		).toBeNull();
+		).toBeTruthy();
+		expect(
+			screen.getByText(/The request could not be understood\./),
+		).toBeTruthy();
 	});
 
 	test('default error surfaces a 429 ServerFailure detail for an unhandled status', () => {
@@ -269,12 +273,12 @@ describe('QueryDisplay', () => {
 
 		render(<QueryDisplay query={rateLimitedQuery} />);
 
-		expect(screen.getByText('Please wait before trying again.')).toBeTruthy();
 		expect(
-			screen.queryByText(
+			screen.getByText(
 				"We couldn't determine what went wrong. Try again in a moment.",
 			),
-		).toBeNull();
+		).toBeTruthy();
+		expect(screen.getByText(/Please wait before trying again\./)).toBeTruthy();
 	});
 
 	test('default error surfaces the problem title when detail is absent', () => {
@@ -291,9 +295,11 @@ describe('QueryDisplay', () => {
 		render(<QueryDisplay query={badRequestQuery} />);
 
 		expect(
-			screen.getByText('An error occurred while loading data.'),
+			screen.getByText(
+				"We couldn't determine what went wrong. Try again in a moment.",
+			),
 		).toBeTruthy();
-		expect(screen.getByText('Bad Request')).toBeTruthy();
+		expect(screen.getByText(/Bad Request/)).toBeTruthy();
 	});
 
 	// Secondary note in the issue: the loading branch carries `role="status"`
@@ -314,6 +320,6 @@ describe('QueryDisplay', () => {
 
 		render(<QueryDisplay query={bareErrorQuery} />);
 
-		expect(screen.getByText('boom')).toBeTruthy();
+		expect(screen.getByText(/boom/)).toBeTruthy();
 	});
 });

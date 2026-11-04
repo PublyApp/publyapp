@@ -1,7 +1,6 @@
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import { errorDetailsText } from '../error-details';
 
 /**
  * Shared resolver for QueryDisplay / read-only card error branches (issue
@@ -35,14 +34,20 @@ export type ResolvedQueryError = {
 	/** True when we had nothing usable to resolve; the title/description are
 	 * the generic fallback and the UI is expected to make that clear. */
 	fallback: boolean;
+	/** Raw cause (status, problem title/detail, request id) for the folded
+	 * « Détails techniques » disclosure — never the human sentence. */
+	details?: string;
 	/** True for intentional request cancellation, which should not paint a failure. */
 	silent: boolean;
+	/** 403 only: retrying cannot help, so the home button is the primary action. */
+	backOnly?: boolean;
 };
 
 type Translator = (key: string) => string;
 
-const getFallbackMessage = (
+const getHumanDescription = (
 	status: number | undefined,
+	failure: ReturnType<typeof toApiFailure>,
 	t: Translator,
 ): string => {
 	if (status === 403) {
@@ -51,6 +56,14 @@ const getFallbackMessage = (
 
 	if (status === 404) {
 		return t('not-found-sentence');
+	}
+
+	if (status !== undefined && status >= 500 && status < 600) {
+		return t('error-500-description');
+	}
+
+	if (failure.kind === 'network') {
+		return t('query-display-error-network-description');
 	}
 
 	return t('query-display-error-cause-unknown');
@@ -83,17 +96,15 @@ export const resolveQueryError = (
 		failure.kind === 'problem' || failure.kind === 'validation'
 			? { ...failure, detail: failure.detail?.trim() || undefined }
 			: failure;
-	const fallbackMessage = getFallbackMessage(status, t);
-	const description = getFailureMessage(normalizedFailure, {
-		fallback: fallbackMessage,
-	});
+	const description = getHumanDescription(status, normalizedFailure, t);
 	const hasCause = hasFailureCause(failure);
+	const details = hasCause ? errorDetailsText(error) : undefined;
 
 	if (failure.kind === 'abort') {
 		return {
 			code: undefined,
 			title: '',
-			description,
+			description: '',
 			supportsRetry: false,
 			fallback: false,
 			silent: true,
@@ -106,8 +117,10 @@ export const resolveQueryError = (
 			title: t('no-access-title'),
 			// Owner decision #2291: 403 and 404 paint their own translated
 			// message, never the API's English `detail`.
-			description: fallbackMessage,
+			description,
+			details,
 			supportsRetry: false,
+			backOnly: true,
 			fallback: !hasCause,
 			silent: false,
 		};
@@ -117,7 +130,8 @@ export const resolveQueryError = (
 		return {
 			code: t('error-404-code'),
 			title: t('page-not-found'),
-			description: fallbackMessage,
+			description,
+			details,
 			supportsRetry: false,
 			fallback: !hasCause,
 			silent: false,
@@ -129,19 +143,21 @@ export const resolveQueryError = (
 			code: t('error-500-code'),
 			title: t('error-500-title'),
 			description,
+			details,
 			supportsRetry: true,
 			fallback: !hasCause,
 			silent: false,
 		};
 	}
 
-	// Every remaining failure kind still goes through getFailureMessage: network
-	// and unknown messages, plus problem/validation title or translationKey,
-	// are real causes and must not be replaced with generic copy.
+	// Every remaining failure kind gets a human sentence here; the server's
+	// own `title`/`detail`/`translationKey`/`traceId` are carried in `details`
+	// for the folded disclosure instead of being painted as the sentence.
 	return {
 		code: undefined,
 		title: t('query-display-error-default'),
 		description,
+		details,
 		supportsRetry: true,
 		fallback: !hasCause,
 		silent: false,

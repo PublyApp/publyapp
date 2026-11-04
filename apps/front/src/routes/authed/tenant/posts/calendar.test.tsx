@@ -481,7 +481,7 @@ describe('TenantPostsCalendarPage', () => {
 
 		expect(
 			await screen.findByText(
-				'Calendar data could not be loaded from the publishing service.',
+				/Calendar data could not be loaded from the publishing service\./,
 			),
 		).toBeTruthy();
 	});

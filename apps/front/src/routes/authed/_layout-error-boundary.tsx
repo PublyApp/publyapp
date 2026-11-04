@@ -1,13 +1,12 @@
 import { IconAlertCircle } from '@tabler/icons-react';
-import { Link, useRouter } from '@tanstack/react-router';
+import { useRouter } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { OfflineView } from '~/components/error-views/OfflineView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
-import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
+import { errorDetailsText } from '~/lib/error-details';
 import { useOnline } from '~/lib/hooks/use-online';
 
 import { getFailureStatus } from './_api-problem-status';
@@ -23,8 +22,10 @@ export const AuthedLayoutErrorBoundary = ({
 	const { t } = useTranslation('common');
 	const online = useOnline();
 	const routeStatus = getFailureStatus(error);
+	const details = errorDetailsText(error);
+
 	if (!online) {
-		return <OfflineView reset={reset} />;
+		return <OfflineView reset={reset} details={details} />;
 	}
 
 	if (routeStatus === 401) {
@@ -48,20 +49,11 @@ export const AuthedLayoutErrorBoundary = ({
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
 			code={t('error-500-code')}
-			title={t('something-went-wrong')}
-			description={t('problem-loading-page')}
-			details={error instanceof Error ? error.message : String(error)}
+			title={t('error-500-title')}
+			description={t('error-500-description')}
+			details={details}
 			detailsLabel={t('error-details')}
-			actions={
-				<>
-					<Button variant="default" onClick={() => retry()} type="button">
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
-			}
+			onRetry={retry}
 		/>
 	);
 };

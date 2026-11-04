@@ -19,7 +19,6 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
-	TenantRetryActions,
 } from './_tenant-details-shell';
 import { ProfileBulkActions } from './profiles/_profile-bulk-actions';
 import {
@@ -144,9 +143,6 @@ const StaffTenantProfilesPage = () => {
 				title={t('tenant-details-error-title')}
 				description={t('tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-				}
 			/>
 		);
 	}

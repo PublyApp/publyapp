@@ -276,7 +276,7 @@ describe('ListPage', () => {
 
 		expect(screen.getByText('403 specific explanation')).toBeTruthy();
 		expect(screen.queryByText('list-error-default-description')).toBeNull();
-		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
 	});
 
 	// #2291 / review-tokens non-blocking note 5: the 403-no-retry and
@@ -295,7 +295,7 @@ describe('ListPage', () => {
 		expect(screen.getByText('no-access-title')).toBeTruthy();
 		expect(screen.getByText('forbidden-description')).toBeTruthy();
 		expect(screen.queryByText('Permission revoked.')).toBeNull();
-		expect(screen.queryByRole('button', { name: 'retry' })).toBeNull();
+		expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
 	});
 
 	test('a 500 renders the unable-to-load copy with a retry action', () => {
@@ -308,7 +308,7 @@ describe('ListPage', () => {
 		);
 
 		expect(screen.getByText('error-500-title')).toBeTruthy();
-		expect(screen.getByText('Trace id: abc')).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
+		expect(screen.getByText(/Trace id: abc/)).toBeTruthy();
+		expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
 	});
 });

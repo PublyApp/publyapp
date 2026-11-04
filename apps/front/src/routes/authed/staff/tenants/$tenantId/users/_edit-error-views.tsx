@@ -5,11 +5,7 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-import {
-	BackToTenantsLink,
-	MALFORMED_ID_TRANSLATION_KEY,
-	TenantRetryActions,
-} from '../_tenant-details-shell';
+import { MALFORMED_ID_TRANSLATION_KEY } from '../_tenant-details-shell';
 
 const isProblemStatus = (
 	error: unknown,
@@ -53,7 +49,6 @@ const MissingTenantUserView = () => {
 			title={t('tenant-user-not-found-title')}
 			description={t('tenant-user-not-found-description')}
 			testId="staff-tenant-user-edit-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -93,7 +88,7 @@ export const TenantUserEditError = ({
 			title={t('unable-to-load-tenant-user')}
 			description={t('tenant-user-load-error-description')}
 			testId="staff-tenant-user-edit-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -112,7 +107,7 @@ export const TenantDetailsIncompleteView = ({
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -127,7 +122,6 @@ export const MissingTenantUserPayloadView = () => {
 			title={t('tenant-user-not-found-title')}
 			description={t('tenant-user-payload-empty')}
 			testId="staff-tenant-user-edit-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };

@@ -6,11 +6,7 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-import {
-	BackToTenantsLink,
-	MALFORMED_ID_TRANSLATION_KEY,
-	TenantRetryActions,
-} from '../../_tenant-details-shell';
+import { MALFORMED_ID_TRANSLATION_KEY } from '../../_tenant-details-shell';
 
 const isProblemStatus = (
 	error: unknown,
@@ -54,7 +50,6 @@ const MissingTenantProfileView = () => {
 			title={t('tenant-profile-not-found-title')}
 			description={t('tenant-profile-not-found-description')}
 			testId="staff-tenant-profile-members-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -86,7 +81,7 @@ export const TenantProfileMembersError = ({
 			title={t('unable-to-load-tenant-profile')}
 			description={t('tenant-profile-load-error-description')}
 			testId="staff-tenant-profile-members-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -101,7 +96,7 @@ export const TenantMissingSlot = ({ onRetry }: { onRetry: () => void }) => {
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -116,7 +111,6 @@ export const ProfileMissingSlot = () => {
 			title={t('tenant-profile-not-found-title')}
 			description={t('tenant-profile-payload-empty')}
 			testId="staff-tenant-profile-members-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };

@@ -7,7 +7,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	toStaffProfileUserRows,
@@ -161,14 +160,6 @@ const StaffProfileUsersPage = () => {
 				title={t('staff-profile-not-found')}
 				description={t('staff-profile-payload-empty')}
 				testId="staff-profile-users-empty"
-				actions={
-					<Link
-						to="/staff/profiles"
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-staff-profiles')}
-					</Link>
-				}
 			/>
 		);
 	}

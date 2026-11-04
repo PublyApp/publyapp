@@ -144,6 +144,8 @@ vi.mock('~/layouts/marketing-layout', () => ({
 	),
 }));
 
+import { View404 } from '~/components/error-views/View404';
+
 import { RoutedShell } from '../__root';
 import { Route as StaffIndexRoute } from './staff';
 
@@ -178,6 +180,31 @@ afterEach(() => {
 });
 
 describe('authenticated shell continuity', () => {
+	test('an unknown /staff/x path keeps the app shell and paints the 404 inside it', () => {
+		mocks.location = {
+			pathname: '/staff/this-route-does-not-exist',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		// The pathless authed layout matches an unknown path under /staff; its
+		// deepest match does not consume the URL, which is exactly the bubble
+		// the root not-found takes over.
+		mocks.matchedPathname = '/staff';
+
+		render(
+			<RoutedShell>
+				<View404 />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('app-shell-shell')).toBeTruthy();
+		expect(screen.getByTestId('app-shell-topbar')).toBeTruthy();
+		expect(screen.getByTestId('app-shell-rail')).toBeTruthy();
+		expect(screen.getByTestId('view-404')).toBeTruthy();
+		expect(screen.queryByTestId('marketing-layout-stub')).toBeNull();
+	});
+
 	test('holds neutral shell geometry before hydration without identity or navigation', () => {
 		mocks.location = {
 			pathname: '/staff/profiles',

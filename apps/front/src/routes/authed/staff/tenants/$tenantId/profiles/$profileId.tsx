@@ -12,10 +12,8 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
-	BackToTenantsLink,
 	TenantDetailsError,
 	TenantDetailsLoading,
-	TenantRetryActions,
 } from '../_tenant-details-shell';
 import { staffTenantProfileCrumbsBase } from './$profileId/_crumbs';
 import type { StaffTenantProfileDetailsContextValue } from './$profileId/_details-context';
@@ -121,9 +119,6 @@ const StaffTenantProfileDetailsPage = () => {
 				title={t('common:tenant-details-error-title')}
 				description={t('common:tenant-response-incomplete')}
 				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
-				}
 			/>
 		);
 	}
@@ -169,7 +164,6 @@ const StaffTenantProfileDetailsPage = () => {
 				title={t('common:tenant-profile-not-found-title')}
 				description={t('common:tenant-profile-payload-empty')}
 				testId="staff-tenant-profile-details-not-found"
-				actions={<BackToTenantsLink />}
 			/>
 		);
 	}

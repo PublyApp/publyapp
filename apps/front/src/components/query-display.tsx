@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorActions } from '~/components/error-views/error-actions';
 import { errorToneFromCode } from '~/components/ui/error-tone';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import {
@@ -73,7 +74,11 @@ const LoadingSpinner = ({
 	/>
 );
 
-const renderDefaultError = (resolved: ResolvedQueryError) => {
+const renderDefaultError = (
+	resolved: ResolvedQueryError,
+	onRetry: () => void,
+	detailsLabel: string,
+) => {
 	if (resolved.silent) {
 		return null;
 	}
@@ -81,9 +86,11 @@ const renderDefaultError = (resolved: ResolvedQueryError) => {
 	return (
 		<ErrorStateSurface
 			tone={errorToneFromCode(resolved.code)}
-			eyebrow={resolved.code}
 			title={resolved.title}
 			description={resolved.description}
+			details={resolved.details}
+			detailsLabel={detailsLabel}
+			actions={<ErrorActions retry={onRetry} />}
 		/>
 	);
 };
@@ -106,7 +113,11 @@ const renderError = <TData, TError>(
 	// 404, a malformed payload, the browser offline). Resolve whatever the
 	// caller threw through the shared status→copy matcher; the fallback
 	// branch inside the resolver covers the bare-Error case explicitly.
-	return renderDefaultError(resolveQueryError(error, t));
+	return renderDefaultError(
+		resolveQueryError(error, t),
+		() => void query.refetch(),
+		t('error-details'),
+	);
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
