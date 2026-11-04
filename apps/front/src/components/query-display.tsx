@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { errorToneFromCode } from '~/components/ui/error-tone';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import {
 	resolveQueryError,
@@ -79,6 +80,7 @@ const renderDefaultError = (resolved: ResolvedQueryError) => {
 
 	return (
 		<ErrorStateSurface
+			tone={errorToneFromCode(resolved.code)}
 			eyebrow={resolved.code}
 			title={resolved.title}
 			description={resolved.description}

@@ -9,7 +9,7 @@ import { StateView } from '~/components/ui/state-view';
 
 type StateSurfaceProps = {
 	icon?: TablerIcon;
-	tone?: 'danger' | 'neutral' | 'primary';
+	tone?: 'info' | 'neutral' | 'warning' | 'danger' | 'primary';
 	ariaLive?: 'polite' | 'assertive' | 'off';
 	role?: 'alert' | 'status';
 	/** Eyebrow line above the title (e.g. an error code). Omitted entirely
@@ -21,8 +21,8 @@ type StateSurfaceProps = {
 	actions?: ReactNode;
 	technicalIdentifier?: string;
 	/** `empty` (the default) is the ShopKart OS empty-collection shape; the
-	 * error surface keeps the flat `plain` family. */
-	presentation?: 'plain' | 'empty';
+	 * error surface is the same family, tinted by tone. */
+	presentation?: 'status' | 'empty';
 	testId?: string;
 };
 
@@ -61,17 +61,18 @@ export const StateSurface = ({
 
 export const ErrorStateSurface = ({
 	icon: Icon = IconAlertCircle,
+	tone = 'danger',
 	ariaLive = 'assertive',
 	role = 'alert',
 	...props
-}: Omit<StateSurfaceProps, 'tone'>) => (
+}: StateSurfaceProps) => (
 	<StateSurface
 		{...props}
 		ariaLive={ariaLive}
 		role={role}
 		icon={Icon}
-		presentation="plain"
-		tone="danger"
+		presentation="status"
+		tone={tone}
 	/>
 );
 
@@ -79,5 +80,5 @@ export const NoMatchStateSurface = ({
 	icon: Icon = IconSearchOff,
 	...props
 }: Omit<StateSurfaceProps, 'tone'>) => (
-	<StateSurface {...props} icon={Icon} tone="primary" />
+	<StateSurface {...props} icon={Icon} tone="neutral" />
 );

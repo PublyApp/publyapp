@@ -15,6 +15,7 @@ export const View404 = ({ embedded }: { embedded?: boolean } = {}) => {
 			title={t('page-not-found')}
 			description={t('not-found-sentence')}
 			testId="view-404"
+			tone="neutral"
 			embedded={embedded}
 			actions={
 				<Link to="/" className={buttonVariants({ variant: 'default' })}>

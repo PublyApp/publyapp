@@ -3,10 +3,12 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { OfflineView } from '~/components/error-views/OfflineView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
+import { useOnline } from '~/lib/hooks/use-online';
 
 import { getFailureStatus } from './_api-problem-status';
 
@@ -19,7 +21,12 @@ export const AuthedLayoutErrorBoundary = ({
 }) => {
 	const router = useRouter();
 	const { t } = useTranslation('common');
+	const online = useOnline();
 	const routeStatus = getFailureStatus(error);
+	if (!online) {
+		return <OfflineView reset={reset} />;
+	}
+
 	if (routeStatus === 401) {
 		return <LogoutRedirect />;
 	}
@@ -43,6 +50,8 @@ export const AuthedLayoutErrorBoundary = ({
 			code={t('error-500-code')}
 			title={t('something-went-wrong')}
 			description={t('problem-loading-page')}
+			details={error instanceof Error ? error.message : String(error)}
+			detailsLabel={t('error-details')}
 			actions={
 				<>
 					<Button variant="default" onClick={() => retry()} type="button">

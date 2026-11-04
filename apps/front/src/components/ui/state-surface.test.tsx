@@ -109,7 +109,7 @@ describe('state-surface', () => {
 				.getByTestId('nomatch')
 				.querySelector('.publy-state-icon')
 				?.getAttribute('data-tone'),
-		).toBe('primary');
+		).toBe('neutral');
 	});
 
 	test('hides the decorative glyph cluster from assistive tech', () => {
@@ -200,12 +200,16 @@ describe('state-surface', () => {
 		).toBe('empty');
 	});
 
-	test('the error surface keeps the flat, ring-less family', () => {
+	test('the error surface is the tinted ShopKart OS status shape', () => {
 		render(<ErrorStateSurface title="List unavailable" testId="error" />);
 		const root = screen.getByTestId('error');
 
-		expect(root.getAttribute('data-presentation')).toBeNull();
+		expect(root.getAttribute('data-presentation')).toBe('status');
 		expect(root.querySelector('.publy-empty-ring')).toBeNull();
+		expect(root.querySelectorAll('.publy-status-ring')).toHaveLength(2);
+		expect(
+			root.querySelector('.publy-state-icon')?.getAttribute('data-tone'),
+		).toBe('danger');
 	});
 
 	test('AppErrorView renders actions without a separator rule above them (owner-approved 2026-07-10 round 3)', () => {

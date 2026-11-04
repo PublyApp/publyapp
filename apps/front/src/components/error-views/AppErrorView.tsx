@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
+import { errorToneFromCode } from '~/components/ui/error-tone';
+import type { ErrorTone } from '~/components/ui/error-tone';
 import { StateView } from '~/components/ui/state-view';
 import { cn } from '~/lib/utils';
+
+export type AppErrorTone = ErrorTone;
 
 type AppErrorViewProps = {
 	icon: ReactNode;
@@ -8,11 +12,17 @@ type AppErrorViewProps = {
 	code?: string;
 	description?: string;
 	actions?: ReactNode;
-	errorDetails?: ReactNode;
+	/** Raw error text, folded under a collapsed "technical details" disclosure. */
+	details?: string;
+	detailsLabel?: string;
 	diagnosticId?: string;
 	testId?: string;
-	/** Icon tint. Defaults to 'neutral' (e.g. 404/not-found). */
-	tone?: 'neutral' | 'danger';
+	/** Icon tint. Defaults to the tone of the visible `code` (404 neutral,
+	 * 401/403 warning, otherwise danger). */
+	tone?: AppErrorTone;
+	/** Announcement role: `alert` for a failure, `status` for a self-healing
+	 * state such as offline. */
+	role?: 'alert' | 'status';
 	/**
 	 * Renders inside an existing page shell (a `<div>`, no `min-h-screen`)
 	 * instead of a full-viewport `<main>`. Defaults to `true` — almost every
@@ -30,13 +40,16 @@ export const AppErrorView = ({
 	code,
 	description,
 	actions,
-	errorDetails,
+	details,
+	detailsLabel,
 	diagnosticId,
 	testId,
-	tone = 'neutral',
+	tone,
+	role = 'alert',
 	embedded = true,
 }: AppErrorViewProps) => {
 	const Wrapper = embedded ? 'div' : 'main';
+	const resolvedTone = tone ?? errorToneFromCode(code);
 
 	return (
 		<Wrapper
@@ -50,20 +63,15 @@ export const AppErrorView = ({
 		>
 			<StateView
 				icon={icon}
-				tone={tone}
+				tone={resolvedTone}
 				scale="page"
-				role="alert"
-				ariaLive="assertive"
+				role={role}
+				ariaLive={role === 'alert' ? 'assertive' : 'polite'}
 				eyebrow={code}
 				title={title}
 				description={description}
-				beforeActions={
-					errorDetails ? (
-						<div className="mt-3 w-full text-left text-sm text-muted-foreground">
-							{errorDetails}
-						</div>
-					) : null
-				}
+				details={details}
+				detailsLabel={detailsLabel}
 				actions={actions}
 				afterActions={
 					diagnosticId ? (

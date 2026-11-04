@@ -648,6 +648,8 @@ describe('toStaffTenantRows', () => {
 			{
 				id: 'tenant-1',
 				name: 'Acme Corporation',
+				code: null,
+				defaultLocale: null,
 				logoUrl: 'https://api.example.test/files/uploads/acme.png',
 				status: 'Active',
 				usersCount: 12,

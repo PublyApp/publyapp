@@ -39,7 +39,7 @@ export const InvalidLinkView = ({
 		<div data-testid={testId}>
 			<StateView
 				icon={icon ?? <IconLinkOff aria-hidden="true" className="size-7" />}
-				tone="danger"
+				tone="warning"
 				scale="page"
 				title={title ?? t('invalid-link-title')}
 				description={description}

@@ -20,6 +20,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { errorToneFromCode } from '~/components/ui/error-tone';
 import { Skeleton } from '~/components/ui/skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
@@ -81,6 +82,7 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 		return (
 			<ErrorStateSurface
 				icon={IconAlertCircle}
+				tone={errorToneFromCode(resolved.code)}
 				eyebrow={resolved.code}
 				title={resolved.title}
 				description={resolved.description}

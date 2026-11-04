@@ -22,6 +22,7 @@ import { AuthAlert } from '~/components/auth/auth-alert';
 import { AuthFormHeader } from '~/components/auth/auth-form-header';
 import { PasswordField } from '~/components/auth/password-field';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
+import { OfflineView } from '~/components/error-views/OfflineView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { Button } from '~/components/ui/button';
@@ -29,6 +30,7 @@ import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth/auth-route-guard';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
+import { useOnline } from '~/lib/hooks/use-online';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
@@ -345,7 +347,12 @@ const LoginErrorBoundary = ({
 }) => {
 	const router = useRouter();
 	const { t } = useTranslation(['auth', 'common']);
+	const online = useOnline();
 	const routeStatus = getFailureStatus(error);
+
+	if (!online) {
+		return <OfflineView reset={reset} embedded={false} />;
+	}
 
 	if (routeStatus === 401) {
 		return (
@@ -383,6 +390,8 @@ const LoginErrorBoundary = ({
 			code={t('common:error-500-code')}
 			title={t('common:something-went-wrong')}
 			description={t('sign-in-could-not-be-completed')}
+			details={error instanceof Error ? error.message : String(error)}
+			detailsLabel={t('common:error-details')}
 			actions={
 				<>
 					<Button variant="default" onClick={retry} type="button">

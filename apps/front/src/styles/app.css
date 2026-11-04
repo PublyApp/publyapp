@@ -1876,10 +1876,12 @@ html.dark {
 		color: var(--publy-primary);
 	}
 
-	/* ShopKart OS's empty state (owner decision 04/11): two faint rings around
-	   a −6° tilted tile carrying the icon. Same shape on every empty list,
-	   since it lives in the shared StateSurface — no page assembles its own. */
-	.publy-state-surface[data-presentation='empty'] {
+	/* ShopKart OS's empty and error/status states (owner decision 04/11): two
+	   faint rings around a −6° tilted tile carrying the icon. Same shape on
+	   every empty list and every error screen, since it lives in the shared
+	   StateView — no page assembles its own. Both presentations position the
+	   tile themselves, so the column gap is zero and margins do the rhythm. */
+	.publy-state-surface[data-presentation] {
 		gap: 0;
 	}
 
@@ -1921,6 +1923,73 @@ html.dark {
 		height: 28px;
 		stroke-width: 1.5;
 		transform: rotate(6deg);
+	}
+
+	/* Error/status: 144px rings at 30 % / 60 % opacity and a 64px tinted tile,
+	   both coloured from PublyApp's existing status palette (info → invited,
+	   warning → pending, danger → suspended, neutral → border/card). */
+	.publy-state-icon-cluster[data-presentation='status'] {
+		position: relative;
+		width: 144px;
+		height: 144px;
+	}
+
+	.publy-status-ring {
+		fill: var(--publy-card);
+		stroke: var(--publy-border);
+		stroke-width: 1;
+		opacity: 0.3;
+	}
+
+	.publy-status-ring--inner {
+		opacity: 0.6;
+	}
+
+	.publy-state-icon-cluster[data-presentation='status'][data-tone='info']
+		.publy-status-ring {
+		fill: var(--publy-chip-invited-bg);
+		stroke: var(--publy-chip-invited-border);
+	}
+
+	.publy-state-icon-cluster[data-presentation='status'][data-tone='warning']
+		.publy-status-ring {
+		fill: var(--publy-chip-pending-bg);
+		stroke: var(--publy-chip-pending-border);
+	}
+
+	.publy-state-icon-cluster[data-presentation='status'][data-tone='danger']
+		.publy-status-ring {
+		fill: var(--publy-chip-suspended-bg);
+		stroke: var(--publy-chip-suspended-border);
+	}
+
+	.publy-state-icon[data-presentation='status'] {
+		width: 64px;
+		height: 64px;
+		border: 1px solid var(--publy-border);
+		border-radius: 20px;
+		background: var(--publy-card);
+		box-shadow: var(--effect-raised-control);
+		color: var(--publy-foreground-secondary);
+		transform: rotate(-6deg);
+	}
+
+	.publy-state-icon[data-presentation='status'][data-tone='info'] {
+		border-color: var(--publy-chip-invited-border);
+		background: var(--publy-chip-invited-bg);
+		color: var(--publy-chip-invited-text);
+	}
+
+	.publy-state-icon[data-presentation='status'][data-tone='warning'] {
+		border-color: var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		color: var(--publy-chip-pending-text);
+	}
+
+	.publy-state-icon[data-presentation='status'][data-tone='danger'] {
+		border-color: var(--publy-chip-suspended-border);
+		background: var(--publy-chip-suspended-bg);
+		color: var(--publy-chip-suspended-text);
 	}
 
 	.publy-state-technical-id {
@@ -3239,17 +3308,16 @@ html[data-theme-changing] * {
 	}
 }
 
-/* R3-1: the state/error icon glyph must fill its 48px cluster box (same
-   scale on both inline and page, owner decision R3-4b reaffirmed 2026-07-11)
-   regardless of any `size-*` utility a call site still puts on the icon
-   element. Tailwind's `size-*` lives in the utilities layer and beats a
-   layered `.publy-state-icon svg` rule, so this override is deliberately
-   un-layered — un-layered CSS wins over every Tailwind v4 layer. */
-/* The empty presentation sizes its own glyph (28px, the ShopKart reference),
-   so this fill-the-cluster rule excludes it. */
-.publy-state-icon:not([data-presentation='empty']) svg {
-	width: 100%;
-	height: 100%;
+/* R3-1/04-11: each ShopKart presentation sizes its own glyph (28px empty,
+   32px status). Tailwind's `size-*` from a call site lives in the utilities
+   layer and would beat a layered `.publy-state-icon svg` rule, so the size
+   is pinned un-layered here — un-layered CSS wins over every Tailwind v4
+   layer. */
+.publy-state-icon[data-presentation='status'] svg {
+	width: 32px;
+	height: 32px;
+	stroke-width: 1.75;
+	transform: rotate(6deg);
 }
 
 /* ---- Marketing shell (#1038) ----

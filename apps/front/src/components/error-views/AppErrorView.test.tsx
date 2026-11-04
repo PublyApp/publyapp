@@ -39,4 +39,50 @@ describe('AppErrorView', () => {
 		expect(alert.getAttribute('aria-live')).toBe('assertive');
 		expect(alert.textContent).toContain('Not found');
 	});
+
+	test.each([
+		['404 — Not Found', 'neutral'],
+		['401 — Unauthorized', 'warning'],
+		['403 — Forbidden', 'warning'],
+		['500 — Server Error', 'danger'],
+	])('derives the %s tone from the visible code', (code, tone) => {
+		render(
+			<AppErrorView icon={<span />} title="Title" code={code} testId="error" />,
+		);
+
+		expect(
+			screen
+				.getByTestId('error')
+				.querySelector('.publy-state-icon')
+				?.getAttribute('data-tone'),
+		).toBe(tone);
+	});
+
+	test('defaults an unknown error to the danger tone', () => {
+		render(<AppErrorView icon={<span />} title="Title" testId="error" />);
+
+		expect(
+			screen
+				.getByTestId('error')
+				.querySelector('.publy-state-icon')
+				?.getAttribute('data-tone'),
+		).toBe('danger');
+	});
+
+	test('folds raw details under the technical-details disclosure', () => {
+		render(
+			<AppErrorView
+				icon={<span />}
+				title="Title"
+				details="boom"
+				detailsLabel="Technical details"
+				testId="error"
+			/>,
+		);
+
+		const disclosure = screen.getByTestId('error').querySelector('details');
+		expect(disclosure?.hasAttribute('open')).toBe(false);
+		expect(screen.getByText('Technical details')).toBeTruthy();
+		expect(screen.getByText('boom')).toBeTruthy();
+	});
 });

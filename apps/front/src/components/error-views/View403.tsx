@@ -15,7 +15,7 @@ export const View403 = ({ embedded }: { embedded?: boolean } = {}) => {
 			title={t('no-access-title')}
 			description={t('forbidden-description')}
 			testId="view-403"
-			tone="danger"
+			tone="warning"
 			embedded={embedded}
 			actions={
 				<Link to="/" className={buttonVariants({ variant: 'default' })}>

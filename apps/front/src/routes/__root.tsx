@@ -29,6 +29,7 @@ import { isAuthPath } from '~/lib/auth/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
+import { useOnline } from '~/lib/hooks/use-online';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 import { registerMutationToastI18n } from '~/lib/mutation-feedback/mutation-toast';
 import {
@@ -76,6 +77,7 @@ import { withSessionValidationTimeout } from '@org/shared-ts/lib/session-validat
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
+import { OfflineView } from '../components/error-views/OfflineView';
 import { View403 } from '../components/error-views/View403';
 import { View404 } from '../components/error-views/View404';
 import type { AuthBrand } from '../layouts/auth-layout';
@@ -229,11 +231,17 @@ const RootErrorBoundaryContent = ({
 	});
 	const router = useRouter();
 	const { t } = useTranslation('common');
+	const online = useOnline();
 	const routeStatus = getRouteFailureStatus(error);
 	const retry = () => {
 		reset();
 		void router.invalidate();
 	};
+	const details = error instanceof Error ? error.message : String(error);
+
+	if (!online) {
+		return <OfflineView reset={reset} embedded={false} />;
+	}
 
 	if (routeStatus === 401) {
 		if (isAuthPath(pathname)) {
@@ -291,6 +299,8 @@ const RootErrorBoundaryContent = ({
 			code={t('error-500-code')}
 			title={t('something-went-wrong')}
 			description={t('unexpected-app-error-description')}
+			details={details}
+			detailsLabel={t('error-details')}
 			actions={
 				<>
 					<Button variant="default" onClick={retry} type="button">
