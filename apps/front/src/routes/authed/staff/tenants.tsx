@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -9,7 +9,6 @@ import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import {
 	toStaffTenantRows,
 	useStaffTenantsQuery,
@@ -225,12 +224,11 @@ const StaffTenantsPage = () => {
 				/>
 			)}
 			onExport={() => exportTenantRows(rows, t, locale)}
-			newAction={
-				<Link to="/staff/tenants/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('new-organization')}
-				</Link>
-			}
+			newAction={{
+				label: t('new-organization'),
+				icon: IconPlus,
+				to: '/staff/tenants/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,

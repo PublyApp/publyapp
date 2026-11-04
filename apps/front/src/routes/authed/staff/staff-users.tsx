@@ -10,7 +10,6 @@ import { FloatingSelectionBar } from '~/components/table/floating-selection-bar'
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { toStaffUserRows, useStaffUsersQuery } from '~/lib/query/staff-users';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
@@ -223,12 +222,11 @@ const StaffUsersPage = () => {
 				</DataTableRowActions>
 			)}
 			onExport={() => exportStaffUserRows(rows, t)}
-			newAction={
-				<Link to="/staff/invitations/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('invite-member')}
-				</Link>
-			}
+			newAction={{
+				label: t('invite-member'),
+				icon: IconPlus,
+				to: '/staff/invitations/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,

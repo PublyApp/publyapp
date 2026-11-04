@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -9,7 +9,6 @@ import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 import { formatDateTime } from '~/utils/format-time';
@@ -222,12 +221,11 @@ const StaffInvitationsPage = () => {
 			selection={listSelection}
 			renderActions={(row) => <InvitationRowActions row={row} />}
 			onExport={() => exportInvitationRows(rows, t, i18n.language)}
-			newAction={
-				<Link to="/staff/invitations/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('invite-member')}
-				</Link>
-			}
+			newAction={{
+				label: t('invite-member'),
+				icon: IconPlus,
+				to: '/staff/invitations/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,

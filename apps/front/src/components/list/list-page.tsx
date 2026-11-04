@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableStates } from '~/components/table/data-table-states';
 import { Collapse } from '~/components/ui/collapse';
+import type { PageAction } from '~/components/ui/product-page';
 import {
 	NoMatchStateSurface,
 	StateSurface,
@@ -102,8 +103,9 @@ export type ListPageProps<T extends { id: string }> = {
 	selection?: ListSelection;
 	renderActions?: (row: T) => ReactNode;
 	onExport?: () => void;
-	/** The primary action element (a link to the create page, or a button). */
-	newAction?: ReactNode;
+	/** The primary action as data: the desktop button and the mobile
+	 * speed-dial action. */
+	newAction?: PageAction;
 	inset?: { description?: string };
 	queryState: {
 		isPending: boolean;

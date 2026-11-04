@@ -122,9 +122,13 @@ const renderPage = (
 				cards={<div data-testid="stats" />}
 				onExport={options.headerActions ? vi.fn() : undefined}
 				newAction={
-					options.headerActions ? (
-						<button type="button">Create profile</button>
-					) : undefined
+					options.headerActions
+						? {
+								label: 'Create profile',
+								icon: IconBuilding,
+								onSelect: vi.fn(),
+							}
+						: undefined
 				}
 				queryState={{
 					isPending: false,
@@ -303,6 +307,19 @@ describe('ListPage', () => {
 		expect(screen.getByText('forbidden-description')).toBeTruthy();
 		expect(screen.queryByText('Permission revoked.')).toBeNull();
 		expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
+	});
+
+	test('hides the desktop header actions below md and keeps the stats toggle', () => {
+		renderPage({}, { headerActions: true });
+
+		const exportButton = screen.getByRole('button', { name: /list-export/ });
+		expect(exportButton.className).toContain('max-md:hidden');
+		const create = screen.getByRole('button', { name: 'Create profile' });
+		expect(create.closest('span')?.className).toContain('max-md:hidden');
+		// The statistics chevron is not an action: it stays in the header.
+		expect(
+			screen.getByRole('button', { name: /list-stats/ }).className,
+		).not.toContain('max-md:hidden');
 	});
 
 	test('a 403 hides the page create/export chrome', () => {

@@ -142,7 +142,13 @@ vi.mock('~/components/list/list-page', () => ({
 				'data-testid': props.testId as string,
 				'data-count': String(props.count),
 			},
-			props.newAction as ReactNode,
+			props.newAction
+				? createElement(
+						'a',
+						{ href: '#' },
+						(props.newAction as { label: string }).label,
+					)
+				: null,
 			props.errorContent as ReactNode,
 		);
 	},

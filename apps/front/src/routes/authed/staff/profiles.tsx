@@ -10,7 +10,6 @@ import { FloatingSelectionBar } from '~/components/table/floating-selection-bar'
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import {
 	toStaffProfileRows,
@@ -204,12 +203,11 @@ const StaffProfilesPage = () => {
 				</DataTableRowActions>
 			)}
 			onExport={() => exportStaffProfileRows(rows, t)}
-			newAction={
-				<Link to="/staff/profiles/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('new-profile')}
-				</Link>
-			}
+			newAction={{
+				label: t('new-profile'),
+				icon: IconPlus,
+				to: '/staff/profiles/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,

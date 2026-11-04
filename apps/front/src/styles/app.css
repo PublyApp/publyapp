@@ -334,6 +334,9 @@
 	--publy-z-raised: 10;
 	--publy-z-shell-topbar: 20;
 	--publy-z-selection-bar: 40;
+	/* The mobile speed-dial: above the bulk-selection bar it can sit over,
+	   below every modal/drawer backdrop. */
+	--publy-z-fab: 45;
 	--publy-z-overlay: 70;
 	--publy-z-drawer-surface: 80;
 	--publy-z-menu: 100;
@@ -1076,6 +1079,16 @@ html.dark {
 		}
 	}
 
+	/* The mobile speed-dial button lands with a small pop (Shopkart OS
+	   `speed-dial-in`): it is the page's one entry animation, so it reads as
+	   the primary action arriving, not as a decorative loop. */
+	@keyframes publy-speed-dial-in {
+		from {
+			opacity: 0;
+			scale: 0.6;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.publy-state-icon-cluster {
 			animation: none;
@@ -1566,6 +1579,25 @@ html.dark {
 			--page-pad-top: 16px;
 			--page-pad-bottom: 16px;
 		}
+
+		/* A page that renders a speed-dial keeps its last card, its pager and
+		   its error-state buttons scrollable above the 56px button instead of
+		   permanently hidden under it. The button is portalled to <body>, so
+		   `:has` sees it from there. */
+		body:has([data-speed-dial]) .app-shell-main {
+			padding-bottom: calc(96px + env(safe-area-inset-bottom));
+		}
+	}
+
+	/* The speed-dial is not a base-ui surface: it locks the shell's real
+	   scroller itself (`.app-shell-main`), not only the document. */
+	html[data-scroll-locked],
+	html[data-scroll-locked] body {
+		overflow: hidden;
+	}
+
+	html[data-scroll-locked] .app-shell-main {
+		overflow: hidden;
 	}
 
 	/* §2.10 bis: a modal Select (or a bottom sheet) opened from a page locks

@@ -282,7 +282,6 @@ export const buildStaffUserTotals = (
 
 export const buildStaffUserMobileCard =
 	(t: Translate) => (row: StaffUserRow) => ({
-		code: row.email,
 		badges: (
 			<StatusPill tone={statusPillTone(row.status)}>
 				{formatStaffStatusLabel(row.status, t)}

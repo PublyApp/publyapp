@@ -140,7 +140,6 @@ export const buildInvitationTotals =
 
 export const buildInvitationMobileCard =
 	(t: Translate, locale: string) => (row: StaffInvitationRow) => ({
-		code: row.email,
 		badges: (
 			<StatusPill tone={invitationStatusTone(row.status)}>
 				{t(getInvitationStatusLabelKey(row.status))}

@@ -60,7 +60,9 @@ export const ListCard = ({
 }: {
 	onOpen: () => void;
 	openLabel: string;
-	code: string;
+	/** The header's small code; omit it when the card has none (a person's
+	 * name is the title, not a code) so nothing is shown twice. */
+	code?: string;
 	badges?: ReactNode;
 	end?: ReactNode;
 	title: ReactNode;
@@ -80,9 +82,11 @@ export const ListCard = ({
 		className="cursor-pointer rounded-[var(--publy-radius-control)] bg-card p-1 shadow-[var(--effect-raised-control)] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
 	>
 		<div className="flex items-center gap-2 px-2 py-1.5">
-			<span className="text-sm font-medium whitespace-nowrap text-muted-foreground">
-				{code}
-			</span>
+			{code && code !== title && code !== sub ? (
+				<span className="text-sm font-medium whitespace-nowrap text-muted-foreground">
+					{code}
+				</span>
+			) : null}
 			{badges}
 			<span className="ml-auto text-xs whitespace-nowrap text-muted-foreground">
 				{end}
