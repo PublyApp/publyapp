@@ -373,7 +373,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 ## Languages — C# and TypeScript only
 
 Every program in this repository (application code, tests, build/CI scripts, guards, servers,
-hooks, tooling) is C# (`.cs`) or TypeScript (`.ts`, `.tsx`). Never add `.js`/`.mjs`/`.cjs`/`.jsx`,
+hooks, tooling) is C# (`.cs`) or TypeScript (`.ts`, `.tsx`). Never add `.js`/`.mjs`/`.cjs`/`.jsx`/`.mts`/`.cts`,
 shell, Python or PowerShell programs. Configuration and data files (JSON, XML/MSBuild, YAML,
 Markdown, CSS, `.env*`, Dockerfile, justfile…) are not programs. Shell is tolerated only as
 one-line glue that calls a tool or a `.ts` script (just recipes, CI `run:` steps, Dockerfile `RUN`,
