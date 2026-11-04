@@ -18,7 +18,7 @@ Spec: `docs/records/2026-11-04-spec-justfile-cleanup.md` (issue #2305).
 - Branches older than this change are refused with « Cette branche est trop ancienne : mets-la à jour avec develop » — no compatibility layer.
 - User-facing messages of `just dev` are French (the owner reads them); code, comments, commits are English.
 - Repo rules (AGENTS.md): no `Array.reduce`, no IIFE, `this.`/`_PascalCase` in C#, no new bespoke guard; `just ci-drift` stays green.
-- Incompatible shared database (spec decision « lance `just db-reset` »): the `migrate` resource of Task 1 fails visibly in the Aspire output and the API/worker never start. Planner's call: no extra detection code in `dev.ts`; Task 1 adds the hint to the migrate resource comment and Task 5 documents « si la migration échoue au démarrage : `just db-reset` ».
+- Incompatible shared database (owner, 04/11: the message must EXPLAIN the mismatch before suggesting a reset): the AppHost `migrate` resource runs `dev-migrate.ts` (Task 3b), which on failure writes a French explanation — which migration failed, why (shared database changed by another branch), the Postgres error line, then « `just db-reset` — efface toutes les données locales » — to `apps/api/.artifacts/dev-migrate-error.txt`. `dev.ts` watches that file and prints it in the owner's terminal, then stops the stack (Aspire does not stream resource logs to its console).
 - Linux is the target. The `dev` recipe gets a `[windows]` twin that only prints « just dev n'est pas pris en charge sous Windows ».
 
 ---
@@ -66,18 +66,15 @@ Keep the existing #1585 comment above them.
 		// boot (the master-key canary reads data_protection_keys) and Aspire never restarts
 		// them (#2305). The AppHost build already compiled the API project, hence --no-build;
 		// `just dev` runs `dotnet tool restore` first so dotnet-ef is available.
+		// dev-migrate.ts wraps `dotnet ef database update` and, on failure, writes the
+		// explanation `just dev` prints (shared database changed by another branch → db-reset).
 		var migrate = WithPostgresConnectionString(
 				WithDevelopmentEnvironment(
 					builder.AddExecutable(
 						"migrate",
-						"dotnet",
+						"node",
 						"../api",
-						"tool",
-						"run",
-						"dotnet-ef",
-						"database",
-						"update",
-						"--no-build"
+						"../../packages/scripts-ts/src/dev-migrate.ts"
 					).WithEnvironment("APP_ROLE", "api")
 				),
 				publyDb
@@ -521,6 +518,155 @@ git commit -m "feat(scripts): just dev resolves, creates and launches the right 
 
 ---
 
+### Task 3b: explicit message when the shared database does not match the branch
+
+**Files:**
+- Create: `packages/scripts-ts/src/dev-migrate.ts`
+- Modify: `packages/scripts-ts/src/dev.test.ts` (add `describe('migrationFailureMessage')`)
+- Modify: `packages/scripts-ts/src/dev.ts` (`main`: watch the error file)
+
+**Interfaces:**
+- Produces: `migrationFailureMessage(pending: string[], efOutput: string): string` exported from `dev-migrate.ts`; error file path `apps/api/.artifacts/dev-migrate-error.txt` (relative to the worktree). `.artifacts/` is already gitignored.
+- Consumes: the AppHost `migrate` resource of Task 1 runs `node ../../packages/scripts-ts/src/dev-migrate.ts` with cwd `apps/api`.
+
+- [ ] **Step 1: Failing tests** — append to `dev.test.ts`:
+
+```ts
+import { migrationFailureMessage } from './dev-migrate.ts';
+
+describe('migrationFailureMessage', () => {
+	const ef = [
+		'Applying migration \'20261102152047_RemoveAccountLevel\'.',
+		'Npgsql.PostgresException (0x80004005): 42703: column "level" does not exist',
+		'   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(...)',
+	].join('\n');
+
+	it('names the failing migration, explains why, quotes the Postgres error, then the reset', () => {
+		const message = migrationFailureMessage(['20261102152047_RemoveAccountLevel'], ef);
+		expect(message).toContain('20261102152047_RemoveAccountLevel');
+		expect(message).toContain('partagée entre toutes les branches');
+		expect(message).toContain('42703: column "level" does not exist');
+		expect(message).toContain('just db-reset');
+		expect(message).toContain('efface toutes les données locales');
+		expect(message.indexOf('partagée')).toBeLessThan(message.indexOf('just db-reset'));
+	});
+
+	it('never echoes a connection string', () => {
+		const message = migrationFailureMessage([], `${ef}\nHost=localhost;Password=secret`);
+		expect(message).not.toContain('Password=');
+	});
+});
+```
+
+Run: `pnpm test:dev` → FAIL (module not found).
+
+- [ ] **Step 2: Write `packages/scripts-ts/src/dev-migrate.ts`**
+
+```ts
+#!/usr/bin/env node
+// AppHost `migrate` resource (#2305), cwd apps/api. Applies migrations; on failure writes a
+// French explanation that `just dev` prints in the owner's terminal.
+
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+export const ERROR_FILE = path.join('.artifacts', 'dev-migrate-error.txt');
+
+export const migrationFailureMessage = (pending, efOutput) => {
+	const applying = [...efOutput.matchAll(/Applying migration '([^']+)'/g)].map((m) => m[1]);
+	const failed = applying.at(-1) ?? pending[0] ?? '(inconnue)';
+	const pgError =
+		efOutput
+			.split('\n')
+			.find((line) => line.includes('PostgresException'))
+			?.replace(/^.*PostgresException[^:]*:\s*/, '')
+			.trim() ?? 'aucun message Postgres';
+	return [
+		`La migration ${failed} de cette branche n'a pas pu s'appliquer à la base locale.`,
+		"Pourquoi : cette base est partagée entre toutes les branches, et une branche lancée avant celle-ci l'a modifiée d'une façon que celle-ci ne connaît pas.",
+		`Erreur Postgres : ${pgError}`,
+		'Pour repartir d\'une base propre : just db-reset — attention, ça efface toutes les données locales.',
+	].join('\n');
+};
+
+const ef = (args) =>
+	spawnSync('dotnet', ['tool', 'run', 'dotnet-ef', ...args, '--no-build'], { encoding: 'utf8' });
+
+const pendingMigrations = () => {
+	const out = ef(['migrations', 'list', '--json']).stdout ?? '';
+	const json = out.slice(out.indexOf('['), out.lastIndexOf(']') + 1);
+	try {
+		return JSON.parse(json)
+			.filter((migration) => !migration.applied)
+			.map((migration) => migration.id);
+	} catch {
+		return [];
+	}
+};
+
+const main = () => {
+	const pending = pendingMigrations();
+	const result = ef(['database', 'update']);
+	process.stdout.write(result.stdout ?? '');
+	if (result.status === 0) {
+		return;
+	}
+	const message = migrationFailureMessage(pending, `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
+	mkdirSync(path.dirname(ERROR_FILE), { recursive: true });
+	writeFileSync(ERROR_FILE, message);
+	process.stderr.write(`${message}\n`);
+	process.exit(1);
+};
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	main();
+}
+```
+
+- [ ] **Step 3: `dev.ts` watches the file.** In `main`, before `spawn`, delete a stale file; after `spawn`, poll every 2 s until the API is healthy or the file appears. Add at the top of `dev.ts`: `import { rmSync } from 'node:fs';` (merge into the existing `node:fs` import) and replace the `spawn(...)` block of `main` with:
+
+```ts
+	const errorFile = path.join(worktree, 'apps', 'api', '.artifacts', 'dev-migrate-error.txt');
+	rmSync(errorFile, { force: true });
+	const child = spawn('dotnet', ['run', '--project', 'apps/apphost', '--property:OpenApiGenerateDocuments=false'], {
+		cwd: worktree,
+		stdio: 'inherit',
+	});
+	for (const signal of ['SIGINT', 'SIGTERM']) {
+		process.on(signal, () => child.kill(signal));
+	}
+	child.on('exit', (code) => process.exit(code ?? 0));
+	for (;;) {
+		await sleep(2000);
+		if (existsSync(errorFile)) {
+			process.stderr.write(`\n✖ ${readFileSync(errorFile, 'utf8')}\n`);
+			child.kill('SIGINT');
+			return;
+		}
+		const healthy = await fetch('http://127.0.0.1:5000/health').then((r) => r.ok, () => false);
+		if (healthy) {
+			say('Prêt : API http://localhost:5000, interface http://localhost:5050');
+			return;
+		}
+	}
+```
+
+- [ ] **Step 4: Run** `pnpm test:dev` → PASS (12 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/scripts-ts/src/dev-migrate.ts packages/scripts-ts/src/dev.ts packages/scripts-ts/src/dev.test.ts
+git commit -m "feat(scripts): explain a shared-database mismatch before suggesting db-reset"
+```
+
+Acceptance addition (Task 6): on a database where another branch dropped a column this branch's pending migration needs, `just dev` prints the four-line explanation and stops; nothing is reset automatically.
+
+---
+
 ### Task 4: justfile — add `dev`, simplify lint/format, delete dead recipes and the review launchers
 
 **Files:**
@@ -560,7 +706,7 @@ format:
 
 - [ ] **Step 3: Delete the dead recipes** (both `[unix]` and `[windows]` variants where they exist): `dev-db`, `dev-services`, `dev-setup`, `quick-start`, `review-api`, `review-front`, `dev-api-alt`, `run-api`, `dev-api-migrated`, `update-client`, `client-info`, `env-check`, `publish-api`, `clean-api`, `test-api-debug`, `update-deps`, `ci-review-worktree-resolution`. Remove `ci-review-worktree-resolution` from the dependency list of the `ci:` recipe. Delete the comment blocks that only describe a deleted recipe.
 
-- [ ] **Step 4: Delete the review launcher files** listed above, then remove the `knip.ts` entry that names `review-front.ts`. If `apps/api/run-dev.mjs` is referenced only by the deleted `dev-api-alt`, delete it too (`git grep -n run-dev.mjs` must return nothing else).
+- [ ] **Step 4: Delete the review launcher files** listed above, then remove the `knip.ts` entry that names `review-front.ts`. Delete `apps/api/run-dev.mjs` (owner, 04/11; only the deleted `dev-api-alt` and a knip entry used it — `dotnet watch` in `dev-api` replaces it), the `'apps/api': { entry: 'run-dev.mjs' }` block in `knip.ts`, and the `chokidar` dependency in the root `package.json` (its only user was that file). The orchestrator then runs `pnpm install` once to update `pnpm-lock.yaml` (implementers never install). `git grep -n -e run-dev -e chokidar -- ':!pnpm-lock.yaml' ':!docs/records'` must return nothing.
 
 - [ ] **Step 5: Verify nothing still points at deleted names**
 
@@ -573,7 +719,7 @@ Run: `just ci-drift && just knip && pnpm test:dev` → all PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add -A justfile knip.ts packages/scripts-ts/src apps/api
+git add -A justfile knip.ts package.json pnpm-lock.yaml packages/scripts-ts/src apps/api
 git commit -m "chore(just): one dev command, lint/format fix by default, drop dead recipes and review launchers"
 ```
 
