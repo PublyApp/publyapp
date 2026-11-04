@@ -28,7 +28,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
 		expect(resolution.description).toBe('t(forbidden-description)');
-		expect(resolution.details).toBeUndefined();
 		expect(resolution.supportsRetry).toBe(false);
 		// A real cause existed, so the generic fallback flag stays false even
 		// though the owner decision paints our translated copy instead of it.
@@ -52,8 +51,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.title).toBe('t(page-not-found)');
 		// The API's English `detail` must not leak under a French title.
 		expect(resolution.description).toBe('t(not-found-sentence)');
-		// ShopKart's not-found screen has no technical details.
-		expect(resolution.details).toBeUndefined();
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -74,8 +71,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.code).toBe('t(error-500-code)');
 		expect(resolution.title).toBe('t(error-500-title)');
 		expect(resolution.description).toBe('t(error-500-description)');
-		expect(resolution.details).toContain('HTTP 500');
-		expect(resolution.details).toContain('Trace id: abc');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -95,9 +90,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toContain(
-			'The request could not be understood.',
-		);
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -117,7 +109,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toContain('Please wait before trying again.');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -136,7 +127,6 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.title).toBe('t(query-display-error-default)');
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toContain('Bad Request');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -147,7 +137,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toBe('boom');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -168,8 +157,6 @@ describe('resolveQueryError (#2043)', () => {
 		// fall back through getFailureMessage to the server-provided title.
 		expect(resolution.title).toBe('t(error-500-title)');
 		expect(resolution.description).toBe('t(error-500-description)');
-		expect(resolution.details).toContain('HTTP 503');
-		expect(resolution.details).toContain('Service Unavailable');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -183,7 +170,6 @@ describe('resolveQueryError (#2043)', () => {
 		expect(resolution.kind).toBe('offline');
 		expect(resolution.title).toBe('t(offline-title)');
 		expect(resolution.description).toBe('t(offline-description)');
-		expect(resolution.details).toBe('network: Failed to fetch the calendar.');
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -192,7 +178,6 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.kind).toBe('unknown');
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toBe('The cache is corrupt.');
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -207,7 +192,6 @@ describe('resolveQueryError (#2043)', () => {
 		);
 
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toContain('The request was rejected.');
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -223,7 +207,6 @@ describe('resolveQueryError (#2043)', () => {
 		);
 
 		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
-		expect(resolution.details).toContain('calendar-query-invalid');
 		expect(resolution.fallback).toBe(false);
 	});
 

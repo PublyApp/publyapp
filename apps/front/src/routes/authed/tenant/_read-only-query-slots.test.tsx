@@ -20,8 +20,6 @@ const EN_LABELS: TestLabelMap = {
 	'common:retry': 'Retry',
 	'go-to-home': 'Back to home',
 	'common:go-to-home': 'Back to home',
-	'error-details': 'Technical details',
-	'common:error-details': 'Technical details',
 	'common:title': 'Title',
 	'common:description': 'Description',
 	'error-403-code': '403 — Forbidden',

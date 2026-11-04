@@ -33,7 +33,6 @@ type Expected = {
 	role: 'status' | 'alert';
 	links: number;
 	buttons: number;
-	details: boolean;
 };
 
 const CASES: Expected[] = [
@@ -44,7 +43,6 @@ const CASES: Expected[] = [
 		role: 'status',
 		links: 1,
 		buttons: 1,
-		details: true,
 	},
 	{
 		kind: 'not_found',
@@ -53,7 +51,6 @@ const CASES: Expected[] = [
 		role: 'alert',
 		links: 1,
 		buttons: 1,
-		details: false,
 	},
 	{
 		kind: 'forbidden',
@@ -62,7 +59,6 @@ const CASES: Expected[] = [
 		role: 'alert',
 		links: 1,
 		buttons: 0,
-		details: false,
 	},
 	{
 		kind: 'server',
@@ -71,7 +67,6 @@ const CASES: Expected[] = [
 		role: 'alert',
 		links: 1,
 		buttons: 1,
-		details: true,
 	},
 	{
 		kind: 'unknown',
@@ -80,22 +75,14 @@ const CASES: Expected[] = [
 		role: 'alert',
 		links: 1,
 		buttons: 1,
-		details: true,
 	},
 ];
 
 describe('ErrorKindState — ShopKart per-kind mapping', () => {
 	test.each(CASES)(
-		'$kind uses $icon, tone $tone, role $role, $links link(s), $buttons button(s), details $details',
-		({ kind, icon, tone, role, links, buttons, details }) => {
-			render(
-				<ErrorKindState
-					scale="page"
-					kind={kind}
-					details="raw cause"
-					testId="state"
-				/>,
-			);
+		'$kind uses $icon, tone $tone, role $role, $links link(s), $buttons button(s)',
+		({ kind, icon, tone, role, links, buttons }) => {
+			render(<ErrorKindState scale="page" kind={kind} testId="state" />);
 
 			const root = screen.getByTestId('state');
 			expect(root.getAttribute('role')).toBe(role);
@@ -108,7 +95,6 @@ describe('ErrorKindState — ShopKart per-kind mapping', () => {
 			expect(root.querySelector(`svg.tabler-icon-${icon}`)).not.toBeNull();
 			expect(within(root).queryAllByRole('link')).toHaveLength(links);
 			expect(within(root).queryAllByRole('button')).toHaveLength(buttons);
-			expect(root.querySelector('details') !== null).toBe(details);
 		},
 	);
 
@@ -126,13 +112,7 @@ describe('ErrorKindState — ShopKart per-kind mapping', () => {
 describe('ErrorKindState — inline panel', () => {
 	test('keeps the sentence and only Réessayer, never the empty pictogram', () => {
 		render(
-			<ErrorKindState
-				scale="inline"
-				panel
-				kind="not_found"
-				details="raw cause"
-				testId="panel"
-			/>,
+			<ErrorKindState scale="inline" panel kind="not_found" testId="panel" />,
 		);
 
 		const root = screen.getByTestId('panel');

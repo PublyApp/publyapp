@@ -485,7 +485,6 @@ export const DataTable = <TData extends { id: string }>({
 				errorRetryable={resolvedError?.supportsRetry}
 				errorKind={resolvedError?.kind}
 				error={error}
-				errorDetails={resolvedError?.details}
 				emptyIcon={emptyIcon}
 				emptyTitle={emptyTitle}
 				emptyActions={emptyActions}

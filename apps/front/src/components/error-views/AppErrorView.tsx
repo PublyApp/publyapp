@@ -30,9 +30,6 @@ type AppErrorViewProps = {
 	backOnly?: boolean;
 	/** Auth surfaces only (e.g. « Se reconnecter »): overrides the pair. */
 	actions?: ReactNode;
-	/** Raw error text, folded under a collapsed "technical details" disclosure. */
-	details?: string;
-	detailsLabel?: string;
 	testId?: string;
 	/** Icon tint. Defaults to the tone of `code` (404 neutral, 401/403
 	 * warning, otherwise danger). */
@@ -66,8 +63,6 @@ export const AppErrorView = ({
 	onRetry,
 	backOnly,
 	actions,
-	details,
-	detailsLabel,
 	testId,
 	tone,
 	role = 'alert',
@@ -111,7 +106,6 @@ export const AppErrorView = ({
 					kind={resolvedKind}
 					panel={panel}
 					onRetry={onRetry}
-					details={details}
 					title={title}
 					titleRef={titleRef}
 					testId={testId ? `${testId}-state` : undefined}
@@ -126,8 +120,6 @@ export const AppErrorView = ({
 					title={title}
 					titleRef={titleRef}
 					description={description}
-					details={details}
-					detailsLabel={detailsLabel}
 					actions={
 						actions ?? <ErrorActions retry={onRetry} backOnly={backOnly} />
 					}

@@ -43,9 +43,6 @@ export type DataTableStatesProps = {
 	errorKind?: ErrorKind;
 	/** The real cause, when the caller has it; classified with `navigator.onLine`. */
 	error?: unknown;
-	/** Raw cause (HTTP status, problem title/detail, request id) folded under
-	 * « Détails techniques » — never painted as the sentence. */
-	errorDetails?: string;
 	emptyIcon?: TablerIcon;
 	emptyTitle?: string;
 	emptyActions?: ReactNode;
@@ -69,7 +66,6 @@ export const DataTableStates = ({
 	errorRetryable = true,
 	errorKind,
 	error,
-	errorDetails,
 	emptyIcon,
 	emptyTitle,
 	emptyActions: emptyActionsProp,
@@ -115,7 +111,6 @@ export const DataTableStates = ({
 					kind={errorKind}
 					error={error}
 					onRetry={onRetry}
-					details={errorDetails}
 					testId={`${testId}-error`}
 				/>
 			);
@@ -125,8 +120,6 @@ export const DataTableStates = ({
 					icon={errorIcon}
 					title={errorTitle ?? t('list-unavailable-title')}
 					description={errorDescription}
-					details={errorDetails}
-					detailsLabel={errorDetails ? t('error-details') : undefined}
 					actions={
 						errorActions || errorRetryable ? (
 							<>

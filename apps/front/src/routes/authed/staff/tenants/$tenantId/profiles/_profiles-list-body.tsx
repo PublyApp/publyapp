@@ -139,7 +139,6 @@ export const ProfilesListBody = ({
 					kind={resolvedError?.kind}
 					error={queryState.error}
 					onRetry={onRetry}
-					details={resolvedError?.details}
 					testId={`${testId}-error`}
 				/>
 			) : null}

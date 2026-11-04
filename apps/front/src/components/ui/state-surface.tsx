@@ -15,11 +15,6 @@ type StateSurfaceProps = {
 	title: string;
 	description?: string;
 	actions?: ReactNode;
-	/** Raw cause (status, problem title/detail, request id), folded under a
-	 * collapsed « Détails techniques » disclosure — never shown by default. */
-	details?: string;
-	detailsLabel?: string;
-	technicalIdentifier?: string;
 	/** `empty` (the default) is the ShopKart OS empty-collection shape; the
 	 * error surface is the same family, tinted by tone. */
 	presentation?: 'status' | 'empty';
@@ -34,9 +29,6 @@ export const StateSurface = ({
 	title,
 	description,
 	actions,
-	details,
-	detailsLabel,
-	technicalIdentifier,
 	presentation = 'empty',
 	testId,
 }: StateSurfaceProps) => (
@@ -47,15 +39,8 @@ export const StateSurface = ({
 		ariaLive={ariaLive}
 		role={role ?? (presentation === 'empty' ? 'status' : undefined)}
 		title={title}
-		belowTitle={
-			technicalIdentifier ? (
-				<p className="publy-state-technical-id">{technicalIdentifier}</p>
-			) : null
-		}
 		description={description}
 		actions={actions}
-		details={details}
-		detailsLabel={detailsLabel}
 		presentation={presentation}
 		testId={testId}
 	/>

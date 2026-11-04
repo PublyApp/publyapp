@@ -11,11 +11,9 @@ import { AppErrorView } from './AppErrorView';
 export const OfflineView = ({
 	reset,
 	embedded = true,
-	details,
 }: {
 	reset?: () => void;
 	embedded?: boolean;
-	details?: string;
 }) => {
 	const { t } = useTranslation('common');
 
@@ -26,7 +24,6 @@ export const OfflineView = ({
 			icon={<IconWifiOff aria-hidden="true" className="size-7" />}
 			title={t('offline-title')}
 			description={t('offline-description')}
-			details={details}
 			onRetry={reset}
 		/>
 	);

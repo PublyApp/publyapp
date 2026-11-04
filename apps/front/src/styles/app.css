@@ -1998,13 +1998,6 @@ html.dark {
 		color: var(--publy-chip-suspended-text);
 	}
 
-	.publy-state-technical-id {
-		@apply mt-0.5;
-		font-size: 11px;
-		font-family: var(--publy-font-mono);
-		color: var(--publy-foreground-muted);
-	}
-
 	.publy-pill-tabs {
 		@apply flex gap-1 p-1;
 		border-radius: var(--publy-radius-card);

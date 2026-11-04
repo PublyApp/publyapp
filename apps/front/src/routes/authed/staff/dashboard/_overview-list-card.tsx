@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
 import { StateSurface } from '~/components/ui/state-surface';
 import { statusPillTone } from '~/components/ui/status-tone';
-import { errorDetailsText } from '~/lib/error-details';
 
 /** Lifecycle status → the existing `status-*` label key in `common`; anything
  * else falls back to the backend's own string (the data, not a guess). */
@@ -87,7 +86,6 @@ export const OverviewListCard = ({
 				panel
 				error={error}
 				onRetry={onRetry}
-				details={errorDetailsText(error)}
 				testId={`${testId}-error`}
 			/>
 		);

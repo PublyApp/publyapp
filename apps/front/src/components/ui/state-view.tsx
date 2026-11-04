@@ -1,4 +1,3 @@
-import { IconChevronDown } from '@tabler/icons-react';
 import type { ReactNode, Ref } from 'react';
 import { cn } from '~/lib/utils';
 
@@ -26,11 +25,6 @@ type StateViewProps = {
 	actions?: ReactNode;
 	/** Extra content rendered after actions. */
 	afterActions?: ReactNode;
-	/** Raw error text, folded under a collapsed "technical details" disclosure
-	 * so it is never shown by default (ShopKart OS error-state). */
-	details?: string;
-	/** Labels that disclosure. Required with `details`; the caller owns i18n. */
-	detailsLabel?: string;
 	presentation?: StateViewPresentation;
 	testId?: string;
 	className?: string;
@@ -58,8 +52,6 @@ export const StateView = ({
 	beforeActions,
 	actions,
 	afterActions,
-	details,
-	detailsLabel,
 	presentation = 'status',
 	testId,
 	className,
@@ -167,20 +159,6 @@ export const StateView = ({
 				</div>
 			) : null}
 			{afterActions}
-			{details && detailsLabel ? (
-				<details className="group mt-8 w-full text-left text-xs text-muted-foreground">
-					<summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-1 select-none [&::-webkit-details-marker]:hidden">
-						{detailsLabel}
-						<IconChevronDown
-							aria-hidden="true"
-							className="size-3.5 transition-transform group-open:rotate-180"
-						/>
-					</summary>
-					<pre className="max-h-48 overflow-auto rounded-[10px] border bg-card p-3 font-mono text-[11px] leading-4 break-all whitespace-pre-wrap">
-						{details}
-					</pre>
-				</details>
-			) : null}
 		</div>
 	);
 };

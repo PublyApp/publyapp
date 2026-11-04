@@ -86,7 +86,6 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 				kind={resolved.kind}
 				error={error}
 				onRetry={() => void retry()}
-				details={resolved.details}
 				testId={testId}
 			/>
 		);

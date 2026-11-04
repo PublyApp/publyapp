@@ -3,7 +3,6 @@
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { errorDetailsText } from '~/lib/error-details';
 import { ServerFailure } from '~/lib/server/server-failure';
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -83,7 +82,7 @@ describe('no eyebrow, raw cause folded', () => {
 		expect(wrapper?.className).not.toContain('flex-nowrap');
 	});
 
-	test('the disclosure is collapsed by default and carries the HTTP status and trace id', () => {
+	test('a 500 problem response renders no technical details and no raw status', () => {
 		const error = new ServerFailure({
 			responseStatusCode: 500,
 			status: 500,
@@ -96,19 +95,23 @@ describe('no eyebrow, raw cause folded', () => {
 			<AppErrorView
 				icon={<span />}
 				title="Un problème est survenu"
-				description="Réessayez dans un instant."
-				details={errorDetailsText(error)}
-				detailsLabel="Détails techniques"
+				error={error}
 				testId="error"
 			/>,
 		);
 
-		const disclosure = screen.getByTestId('error').querySelector('details');
-		expect(disclosure).not.toBeNull();
-		expect(disclosure?.hasAttribute('open')).toBe(false);
-		const body = disclosure?.querySelector('pre')?.textContent ?? '';
-		expect(body).toContain('HTTP 500');
-		expect(body).toContain('Internal Server Error');
-		expect(body).toContain('traceId: trace-123');
+		const root = screen.getByTestId('error');
+		// No folded disclosure at all — not even a collapsed one.
+		expect(root.querySelector('details')).toBeNull();
+		expect(root.querySelector('pre')).toBeNull();
+		expect(
+			screen.queryByText(/Détails techniques|Technical details/),
+		).toBeNull();
+		// The raw cause stays out of the UI: no status, problem title/detail
+		// or request id. The human sentence is the only thing shown.
+		expect(root.textContent).not.toMatch(/HTTP \d{3}/);
+		expect(root.textContent).not.toContain('Internal Server Error');
+		expect(root.textContent).not.toContain('trace-123');
+		expect(root.textContent).toContain('error-500-description');
 	});
 });

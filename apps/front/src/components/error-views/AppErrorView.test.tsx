@@ -76,21 +76,4 @@ describe('AppErrorView', () => {
 				?.getAttribute('data-tone'),
 		).toBe('danger');
 	});
-
-	test('folds raw details under the technical-details disclosure', () => {
-		render(
-			<AppErrorView
-				icon={<span />}
-				title="Title"
-				details="boom"
-				detailsLabel="Technical details"
-				testId="error"
-			/>,
-		);
-
-		const disclosure = screen.getByTestId('error').querySelector('details');
-		expect(disclosure?.hasAttribute('open')).toBe(false);
-		expect(screen.getByText('Technical details')).toBeTruthy();
-		expect(screen.getByText('boom')).toBeTruthy();
-	});
 });

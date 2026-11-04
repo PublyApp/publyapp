@@ -87,7 +87,6 @@ const renderDefaultError = (
 			kind={resolved.kind}
 			error={error}
 			onRetry={onRetry}
-			details={resolved.details}
 		/>
 	);
 };

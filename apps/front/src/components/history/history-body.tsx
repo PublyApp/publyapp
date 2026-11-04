@@ -5,7 +5,6 @@ import {
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
-import { errorDetailsText } from '~/lib/error-details';
 
 import { HistoryFeed } from './history-feed';
 import { HistorySkeleton } from './history-skeleton';
@@ -69,11 +68,6 @@ export const HistoryBody = ({
 				panel
 				error={queryState.error}
 				onRetry={queryState.onRetry}
-				details={
-					queryState.error === undefined
-						? undefined
-						: errorDetailsText(queryState.error)
-				}
 				testId={`${testId}-error`}
 			/>
 		);

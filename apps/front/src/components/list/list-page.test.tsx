@@ -334,7 +334,7 @@ describe('ListPage', () => {
 		);
 
 		expect(screen.getByText('error-500-title')).toBeTruthy();
-		expect(screen.getByText(/Trace id: abc/)).toBeTruthy();
+		expect(screen.queryByText(/Trace id: abc/)).toBeNull();
 		expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
 	});
 });

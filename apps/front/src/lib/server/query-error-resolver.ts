@@ -2,13 +2,11 @@ import { classifyError, type ErrorKind } from '~/lib/error-kind';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-import { errorDetailsText } from '../error-details';
-
 /**
  * Shared resolver for QueryDisplay / list and card error branches (issue
  * #2043). It takes any `unknown` (ServerFailure, plain Error, duck-typed
  * problem payloads), classifies it through the one classifier
- * (`lib/error-kind.ts`) and returns the copy/actions/details that kind owns.
+ * (`lib/error-kind.ts`) and returns the copy that kind owns.
  */
 export type ResolvedQueryError = {
 	/** The ShopKart OS error family (offline, not found, forbidden, …). */
@@ -21,9 +19,6 @@ export type ResolvedQueryError = {
 	/** True when we had nothing usable to resolve; the title/description are
 	 * the generic fallback and the UI is expected to make that clear. */
 	fallback: boolean;
-	/** Raw cause (status, problem title/detail, request id) for the folded
-	 * « Détails techniques » disclosure — never the human sentence. */
-	details?: string;
 	/** True for intentional request cancellation, which should not paint a failure. */
 	silent: boolean;
 	/** 403 only: retrying cannot help, so the home button is the primary action. */
@@ -56,7 +51,6 @@ export const resolveQueryError = (
 ): ResolvedQueryError => {
 	const failure = toApiFailure(error);
 	const hasCause = hasFailureCause(failure);
-	const details = hasCause ? errorDetailsText(error) : undefined;
 
 	if (failure.kind === 'abort') {
 		return {
@@ -78,7 +72,6 @@ export const resolveQueryError = (
 			code: undefined,
 			title: t('offline-title'),
 			description: t('offline-description'),
-			details,
 			supportsRetry: true,
 			fallback: !hasCause,
 			silent: false,
@@ -91,7 +84,6 @@ export const resolveQueryError = (
 			code: t('error-401-code'),
 			title: t('session-expired'),
 			description: t('session-no-longer-valid-description'),
-			details,
 			supportsRetry: false,
 			fallback: !hasCause,
 			silent: false,
@@ -104,8 +96,6 @@ export const resolveQueryError = (
 			code: t('error-403-code'),
 			title: t('no-access-title'),
 			description: t('forbidden-description'),
-			// ShopKart's forbidden screen has no technical details.
-			details: undefined,
 			supportsRetry: false,
 			backOnly: true,
 			fallback: !hasCause,
@@ -119,8 +109,6 @@ export const resolveQueryError = (
 			code: t('error-404-code'),
 			title: t('page-not-found'),
 			description: t('not-found-sentence'),
-			// ShopKart's not-found screen has no technical details.
-			details: undefined,
 			// The thing may exist by now; « Réessayer » is part of the pair.
 			supportsRetry: true,
 			fallback: !hasCause,
@@ -134,7 +122,6 @@ export const resolveQueryError = (
 			code: t('error-500-code'),
 			title: t('error-500-title'),
 			description: t('error-500-description'),
-			details,
 			supportsRetry: true,
 			fallback: !hasCause,
 			silent: false,
@@ -146,7 +133,6 @@ export const resolveQueryError = (
 		code: undefined,
 		title: t('query-display-error-default'),
 		description: t('query-display-error-cause-unknown'),
-		details,
 		supportsRetry: true,
 		fallback: !hasCause,
 		silent: false,

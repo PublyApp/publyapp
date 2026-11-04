@@ -101,7 +101,6 @@
 	"go-to-home": "Back to home",
 	"error-404-code": "404 — Not Found",
 	"error-403-code": "403 — Forbidden",
-	"error-details": "Technical details",
 	"offline-title": "No connection",
 	"offline-description": "Check your Wi-Fi or mobile data. The page reloads by itself as soon as the network is back.",
 	"no-access-title": "Access denied",

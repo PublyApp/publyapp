@@ -34,16 +34,14 @@ describe('state-surface', () => {
 		).toBe('neutral');
 	});
 
-	test('renders a danger-toned error surface and keeps technical identifiers in mono style', () => {
+	test('renders a danger-toned error surface', () => {
 		render(
 			<ErrorStateSurface
 				title="List unavailable"
 				description="Unable to load."
-				technicalIdentifier="error-id-001"
 				testId="error-surface"
 			/>,
 		);
-		expect(screen.getByText('error-id-001')).toBeTruthy();
 		expect(screen.getByText('List unavailable')).toBeTruthy();
 		expect(screen.getByTestId('error-surface')).toBeTruthy();
 		expect(screen.getByTestId('error-surface').getAttribute('data-tone')).toBe(
@@ -55,9 +53,6 @@ describe('state-surface', () => {
 				.querySelector('.publy-state-icon')
 				?.getAttribute('data-tone'),
 		).toBe('danger');
-		expect(screen.getByText('error-id-001').className).toContain(
-			'publy-state-technical-id',
-		);
 	});
 
 	test('announces error surfaces through the shared live-region primitive', () => {

@@ -19,8 +19,7 @@ import { BackHomeButton, RetryButton } from './error-actions';
 
 /**
  * ShopKart OS's per-kind mapping, in one table: pictogram, tone, ARIA role,
- * translated title/sentence, whether the raw cause folds under « Détails
- * techniques », and which action pair belongs on the screen.
+ * translated title/sentence, and which action pair belongs on the screen.
  */
 type ErrorKindPresentation = {
 	icon: ReactNode;
@@ -28,7 +27,6 @@ type ErrorKindPresentation = {
 	role: 'alert' | 'status';
 	title: string;
 	description: string;
-	details: boolean;
 	/** `pair` = Réessayer + Retour; `back` = Retour only; `none` = no action. */
 	actions: 'pair' | 'back' | 'none';
 };
@@ -47,7 +45,6 @@ const presentationOf = (
 				role: 'status',
 				title: t('offline-title'),
 				description: t('offline-description'),
-				details: true,
 				actions: 'pair',
 			};
 		case 'not_found':
@@ -57,7 +54,6 @@ const presentationOf = (
 				role: 'alert',
 				title: t('page-not-found'),
 				description: t('not-found-sentence'),
-				details: false,
 				actions: 'pair',
 			};
 		case 'forbidden':
@@ -67,7 +63,6 @@ const presentationOf = (
 				role: 'alert',
 				title: t('no-access-title'),
 				description: t('forbidden-description'),
-				details: false,
 				actions: 'back',
 			};
 		case 'server':
@@ -77,7 +72,6 @@ const presentationOf = (
 				role: 'alert',
 				title: t('error-500-title'),
 				description: t('error-500-description'),
-				details: true,
 				actions: 'pair',
 			};
 		case 'unknown':
@@ -87,7 +81,6 @@ const presentationOf = (
 				role: 'alert',
 				title: t('query-display-error-default'),
 				description: t('query-display-error-cause-unknown'),
-				details: true,
 				actions: 'pair',
 			};
 		case 'signed_out':
@@ -105,7 +98,6 @@ type ErrorKindStateProps = {
 	/** Inside a panel: only « Réessayer » (going home is pointless there). */
 	panel?: boolean;
 	onRetry?: () => void;
-	details?: string;
 	testId?: string;
 	/** Page-scale callers keep their entity-specific title when they know it. */
 	title?: string;
@@ -124,7 +116,6 @@ export const ErrorKindState = ({
 	kind: explicitKind,
 	panel = false,
 	onRetry,
-	details,
 	testId,
 	title,
 	description,
@@ -185,8 +176,6 @@ export const ErrorKindState = ({
 			titleRef={titleRef}
 			description={description ?? presentation.description}
 			actions={actions}
-			details={presentation.details ? details : undefined}
-			detailsLabel={presentation.details ? t('error-details') : undefined}
 			testId={testId}
 		/>
 	);

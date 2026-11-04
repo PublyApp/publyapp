@@ -22,7 +22,6 @@ vi.mock('react-i18next', () => ({
 				'common:retry': 'Retry',
 				'go-to-home': 'Back to home',
 				'common:go-to-home': 'Back to home',
-				'error-details': 'Technical details',
 				'list-empty-title': 'Nothing here — yet',
 				'list-empty-default-description':
 					'No records yet. Create one to get started.',
@@ -1197,7 +1196,7 @@ describe('DataTable one error state (#2291)', () => {
 		);
 
 		expect(screen.getByText('Unable to load')).toBeTruthy();
-		expect(screen.getByText(/Trace id: abc/)).toBeTruthy();
+		expect(screen.queryByText(/Trace id: abc/)).toBeNull();
 		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
 		expect(onRetry).toHaveBeenCalledTimes(1);

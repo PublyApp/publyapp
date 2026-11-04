@@ -81,27 +81,6 @@ describe('StateView — ShopKart OS status pictogram', () => {
 
 		assertTitleSentenceActionsOrder();
 	});
-
-	test('folds the raw error under a collapsed technical-details disclosure', () => {
-		render(
-			<StateView
-				icon={<span />}
-				tone="danger"
-				scale="page"
-				title="Title"
-				description="Sentence"
-				details="Raw failure cause"
-				detailsLabel="Technical details"
-				testId="state"
-			/>,
-		);
-
-		const disclosure = screen.getByTestId('state').querySelector('details');
-		expect(disclosure).not.toBeNull();
-		expect(disclosure?.hasAttribute('open')).toBe(false);
-		expect(screen.getByText('Technical details')).toBeTruthy();
-		expect(screen.getByText('Raw failure cause').tagName).toBe('PRE');
-	});
 });
 
 describe('StateView — ShopKart OS empty pictogram', () => {

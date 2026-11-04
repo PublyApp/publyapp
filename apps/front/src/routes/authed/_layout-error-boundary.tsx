@@ -6,7 +6,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { OfflineView } from '~/components/error-views/OfflineView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
-import { errorDetailsText } from '~/lib/error-details';
 import { useOnline } from '~/lib/hooks/use-online';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
 
@@ -23,11 +22,10 @@ export const AuthedLayoutErrorBoundary = ({
 	const { t } = useTranslation('common');
 	const online = useOnline();
 	const routeStatus = getFailureStatus(error);
-	const details = errorDetailsText(error);
 	const resolved = resolveQueryError(error, t, online);
 
 	if (!online) {
-		return <OfflineView reset={reset} details={details} />;
+		return <OfflineView reset={reset} />;
 	}
 
 	if (routeStatus === 401) {
@@ -55,8 +53,6 @@ export const AuthedLayoutErrorBoundary = ({
 			code={t('error-500-code')}
 			title={t('error-500-title')}
 			description={t('error-500-description')}
-			details={resolved.details}
-			detailsLabel={t('error-details')}
 			onRetry={retry}
 		/>
 	);

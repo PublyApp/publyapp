@@ -79,7 +79,13 @@ describe('QueryDisplay', () => {
 	test('routes the default error fallback text through t()', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		expect(screen.getByText(/boom/)).toBeTruthy();
+		expect(
+			screen.getByText(
+				"We couldn't determine what went wrong. Try again in a moment.",
+			),
+		).toBeTruthy();
+		// The raw cause is never a user-facing sentence.
+		expect(screen.queryByText(/boom/)).toBeNull();
 	});
 
 	test('renders the default error through the shared state surface path', () => {
@@ -235,7 +241,9 @@ describe('QueryDisplay', () => {
 		expect(screen.queryByText('500 — Server Error')).toBeNull();
 		expect(screen.getByText('Unable to load')).toBeTruthy();
 		expect(screen.getByText('Something went wrong on our end.')).toBeTruthy();
-		expect(screen.getByText(/HTTP 500/)).toBeTruthy();
+		// No raw status, problem detail or request id reaches the UI.
+		expect(screen.queryByText(/HTTP 500/)).toBeNull();
+		expect(screen.queryByText(/Trace id: abc/)).toBeNull();
 	});
 
 	test('default error surfaces a 400 ServerFailure detail for an unhandled status', () => {
@@ -257,8 +265,8 @@ describe('QueryDisplay', () => {
 			),
 		).toBeTruthy();
 		expect(
-			screen.getByText(/The request could not be understood\./),
-		).toBeTruthy();
+			screen.queryByText(/The request could not be understood\./),
+		).toBeNull();
 	});
 
 	test('default error surfaces a 429 ServerFailure detail for an unhandled status', () => {
@@ -279,7 +287,7 @@ describe('QueryDisplay', () => {
 				"We couldn't determine what went wrong. Try again in a moment.",
 			),
 		).toBeTruthy();
-		expect(screen.getByText(/Please wait before trying again\./)).toBeTruthy();
+		expect(screen.queryByText(/Please wait before trying again\./)).toBeNull();
 	});
 
 	test('default error surfaces the problem title when detail is absent', () => {
@@ -300,7 +308,7 @@ describe('QueryDisplay', () => {
 				"We couldn't determine what went wrong. Try again in a moment.",
 			),
 		).toBeTruthy();
-		expect(screen.getByText(/Bad Request/)).toBeTruthy();
+		expect(screen.queryByText(/Bad Request/)).toBeNull();
 	});
 
 	// Secondary note in the issue: the loading branch carries `role="status"`
@@ -316,11 +324,16 @@ describe('QueryDisplay', () => {
 
 	// Unknown failures still carry a useful message. The resolver must surface
 	// it instead of discarding it behind the generic sentence.
-	test('default error surfaces an unknown failure message when the error carries no status', () => {
+	test('default error hides an unknown failure message behind the generic sentence', () => {
 		const bareErrorQuery = errorResultOf(new Error('boom'));
 
 		render(<QueryDisplay query={bareErrorQuery} />);
 
-		expect(screen.getByText(/boom/)).toBeTruthy();
+		expect(
+			screen.getByText(
+				"We couldn't determine what went wrong. Try again in a moment.",
+			),
+		).toBeTruthy();
+		expect(screen.queryByText(/boom/)).toBeNull();
 	});
 });

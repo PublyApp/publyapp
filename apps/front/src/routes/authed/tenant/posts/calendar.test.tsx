@@ -469,7 +469,9 @@ describe('TenantPostsCalendarPage', () => {
 		expect(allPagesMock.restart).toHaveBeenCalledOnce();
 	});
 
-	test('surfaces the calendar failure cause through the shared error slot', async () => {
+	// Owner decision 04/11: no technical detail in the UI (status, problem
+	// title/detail); the raw cause goes to the log only.
+	test('shows the shared server error, never the raw technical cause', async () => {
 		allPagesMock.error = new ServerFailure({
 			responseStatusCode: 500,
 			status: 500,
@@ -479,10 +481,8 @@ describe('TenantPostsCalendarPage', () => {
 		});
 		renderPage();
 
-		expect(
-			await screen.findByText(
-				/Calendar data could not be loaded from the publishing service\./,
-			),
-		).toBeTruthy();
+		expect(await screen.findByRole('alert')).toBeTruthy();
+		expect(screen.queryByText(/Calendar data could not be loaded/)).toBeNull();
+		expect(screen.queryByText(/Internal Server Error|HTTP 500/)).toBeNull();
 	});
 });

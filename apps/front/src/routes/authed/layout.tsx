@@ -13,7 +13,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
-import { errorDetailsText } from '~/lib/error-details';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
@@ -97,8 +96,6 @@ const AuthedRouteLayout = () => {
 				code={t('error-500-code')}
 				title={t('error-500-title')}
 				description={t('error-500-description')}
-				details={errorDetailsText(query.error)}
-				detailsLabel={t('error-details')}
 				onRetry={retry}
 			/>
 		);
