@@ -1841,6 +1841,12 @@ html.dark {
 	   (owner decision R2-2, 2026-07-10). */
 	.publy-state-surface {
 		@apply flex flex-col items-center justify-center gap-4 text-center;
+		/* Never a shrinking flex child of the bounded list-page column
+		   (.publy-page-fill): squeezed down to `min-height`, its centred
+		   content overflows upward and the sticky toolbar paints over the
+		   pictogram (mobile 500/empty states). Keep the natural height; the
+		   page scrolls instead. */
+		flex-shrink: 0;
 		min-height: 15rem;
 		padding: 48px 24px;
 	}

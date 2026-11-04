@@ -141,6 +141,16 @@ describe('StateView — ShopKart OS pictogram geometry (app.css)', () => {
 		'utf8',
 	);
 
+	// Mobile 500/empty on every list page: the state is a child of the bounded
+	// `.publy-page-fill` column. As a shrinkable flex item it collapsed to its
+	// `min-height` and its centred content spilled upward under the sticky
+	// toolbar. jsdom cannot lay this out, so pin the CSS contract instead.
+	test('inline state never shrinks inside the bounded list-page column', () => {
+		const start = css.indexOf('.publy-state-surface {');
+		const rule = css.slice(start, css.indexOf('}', start));
+		expect(rule).toContain('flex-shrink: 0;');
+	});
+
 	test('empty tile: 120px rings, 56px tile at −6°, icon counter-rotated +6°', () => {
 		expect(css).toContain(
 			".publy-state-icon-cluster[data-presentation='empty'] {\n\t\tposition: relative;\n\t\twidth: 120px;\n\t\theight: 120px;",
