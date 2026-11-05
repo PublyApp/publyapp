@@ -7,7 +7,7 @@
  * (git push origin :main) and force-pushes because git still reports the same
  * remote_ref value for those operations.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const PROTECTED = ['refs/heads/main', 'refs/heads/develop'];
@@ -19,7 +19,8 @@ export const findProtectedTarget = (stdin: string): string | undefined =>
 		.map((line) => line.trim().split(/\s+/)[2])
 		.find((remoteRef) => remoteRef && PROTECTED.includes(remoteRef));
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// realpath: a symlinked path to this file must not skip the check (fail open).
+if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	const target = findProtectedTarget(readFileSync(0, 'utf-8'));
 	if (target) {
 		console.error(

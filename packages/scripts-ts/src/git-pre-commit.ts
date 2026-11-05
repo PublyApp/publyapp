@@ -22,9 +22,18 @@ const pnpm = PNPM_CANDIDATES.find((p) => existsSync(p)) ?? 'pnpm';
 
 const result = spawnSync(pnpm, ['exec', 'lint-staged'], {
 	stdio: 'inherit',
+	// The root package.json has no "type": silence Node's reparse warning on
+	// `.lintstagedrc.ts` at every commit.
+	env: {
+		...process.env,
+		NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --disable-warning=MODULE_TYPELESS_PACKAGE_JSON`,
+	},
 });
 
 if (result.status !== 0) {
+	if (result.error) {
+		console.error(result.error.message);
+	}
 	console.error('lint-staged failed — staged files were not formatted.');
 	console.error(
 		"If lint-staged is not installed in this worktree, run 'pnpm install' here, then commit again.",
