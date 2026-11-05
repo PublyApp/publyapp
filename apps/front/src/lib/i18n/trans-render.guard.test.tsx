@@ -90,7 +90,6 @@ import {
 	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,6 +99,7 @@ import { createElement, type ReactElement, type ReactNode } from 'react';
 import { I18nextProvider, initReactI18next, Trans } from 'react-i18next';
 import { ts } from 'ts-morph';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { createGuardTempDir } from '~/components/ui/drawer-guard-tmp-dir.ts';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 
 import {
@@ -637,15 +637,6 @@ const THIS_FILE = import.meta.url.startsWith('file:')
 	? fileURLToPath(import.meta.url)
 	: import.meta.url;
 const SRC_ROOT = path.resolve(THIS_FILE, '..', '..', '..');
-const guardTempDirRequire = createRequire(import.meta.url);
-const { createGuardTempDir } = guardTempDirRequire(
-	'../../components/ui/drawer-guard-tmp-dir.cjs',
-) as {
-	createGuardTempDir: (prefix: string) => {
-		dir: string;
-		remove: () => void;
-	};
-};
 const TRANS_FIXTURE_TMP_DIR = createGuardTempDir('publy-trans-guard-').dir;
 
 const fixturePath = (relative: string): string => {

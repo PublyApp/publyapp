@@ -22,7 +22,7 @@ import { sleep } from '@org/shared-ts/utils/any.utils';
 // Production runtime contract (#1914): the env block below mirrors the
 // `env:` block of the matching workflow step. It must declare
 // `NODE_ENV=production` so the production `validateRuntimeEnv()` guard
-// in `server.mjs` actually runs, and a valid `PUBLIC_ORIGIN` so the
+// in `server.ts` actually runs, and a valid `PUBLIC_ORIGIN` so the
 // guard accepts the start. A `validateRuntimeEnv()` bypass is caught by
 // the existing `apps/front/scripts/ci/validate-runtime-env-startup.test.mts`;
 // if you change the env block here, update the workflow step to match.
@@ -98,7 +98,7 @@ const port = await getFreePort();
 const origin = `http://${host}:${port}/`;
 const logs: string[] = [];
 
-const server = spawn('node', ['server.mjs'], {
+const server = spawn('node', ['server.ts'], {
 	env: {
 		...process.env,
 		// #1914: mirror the production env block of the matching workflow

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONT_DIR = path.resolve(__dirname, '..', '..');
-const SERVER_ENTRY = path.join(FRONT_DIR, 'server.mjs');
+const SERVER_ENTRY = path.join(FRONT_DIR, 'server.ts');
 const DIST_SERVER_JS = path.join(FRONT_DIR, 'dist', 'server', 'server.js');
 
 const getFreePort = (): Promise<number> => {
@@ -30,7 +30,7 @@ const getFreePort = (): Promise<number> => {
 	});
 };
 
-// This test exercises the REAL startup path of server.mjs — not a model of it.
+// This test exercises the REAL startup path of server.ts — not a model of it.
 // GREEN with validateRuntimeEnv(): the production server exits on its own with
 // a non-zero code and names PUBLIC_ORIGIN when the variable is missing. RED if
 // that call is removed: serve() starts and hangs; spawnSync's timeout then

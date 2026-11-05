@@ -3,13 +3,13 @@
  * Build-artifact guard for the front Docker image (#1628, ronde 10).
  *
  * Why this exists: a previous change extracted `resolveTrustProxyFromEnv`
- * into a new top-level `apps/front/trust-proxy.mjs` module and rewired
- * `server.mjs` to `await import('./trust-proxy.mjs')`. Dynamic imports are
- * invisible to static analysis. The Dockerfile only COPYed `server.mjs`
+ * into a new top-level `apps/front/trust-proxy.ts` module and rewired
+ * `server.ts` to `await import('./trust-proxy.ts')`. Dynamic imports are
+ * invisible to static analysis. The Dockerfile only COPYed `server.ts`
  * and `dist/` from the deploy directory, so the runtime image launched a
  * process that crashed at startup with
- *   Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.mjs'
- * imported from /app/server.mjs
+ *   Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.ts'
+ * imported from /app/server.ts
  * Every other e2e test failed at setup with "element(s) not found" because
  * the front never served a single byte. The bug is a model bug — guarding
  * the model (the Dockerfile, the imports list) cannot catch a future
@@ -63,7 +63,7 @@ const PROBE_DELAY_MS = 1000;
 const PROBE_TIMEOUT_MS = 60_000;
 
 /**
- * Front `server.mjs` uses the production-only `validateRuntimeEnv()`
+ * Front `server.ts` uses the production-only `validateRuntimeEnv()`
  * gate (#1731 et al.): it refuses to start without `PUBLIC_ORIGIN` and
  * `SERVER_API_BASE_URL`. The runtime image is built with `NODE_ENV=production`
  * baked in, so this guard runs with the same surface. `PUBLIC_API_BASE_URL`
@@ -168,8 +168,8 @@ export const formatCause = (logs: string): string[] => {
 			'Cause: the runtime image is missing a module the server imports at startup.',
 			`  Missing module: ${missingModule}`,
 			`  Imported from:  ${importedFrom}`,
-			'  This is the same shape as the #1628 trust-proxy.mjs regression: a',
-			'  top-level .mjs file added next to server.mjs is required at runtime',
+			'  This is the same shape as the #1628 trust-proxy.ts regression: a',
+			'  top-level .ts file added next to server.ts is required at runtime',
 			'  but was not COPYed from /workspace/deploy into /app. Add the missing',
 			'  COPY to apps/front/Dockerfile and re-run this guard.',
 		];

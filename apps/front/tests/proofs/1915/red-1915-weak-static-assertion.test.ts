@@ -36,7 +36,7 @@
  *   AssertionError: expected false to be true // Object.is equality
  *
  * Production mutation evidence (replayed against the installed production
- * handler used by `server.mjs`): changing
+ * handler used by `server.ts`): changing
  * `apps/front/node_modules/srvx/dist/static.mjs:253` from
  * `new FastResponse(stream, { headers })` to
  * `new FastResponse(stream, { status: 500, headers })` made the real

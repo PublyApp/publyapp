@@ -2,7 +2,7 @@
  * Unit test for the typecheck coverage guard (#1758 / #1760).
  *
  * The guard exists to stop the typecheck gates from going decorative again:
- * the production entry `server.mjs` sat in the main tsconfig `include` for
+ * the production entry `server.ts` sat in the main tsconfig `include` for
  * months while tsc silently ignored it (measured ZERO times in `tsc
  * --listFiles`, #1692/#1758), `allowJs` on the main config measurably breaks
  * the gate (#1749), and `deploy/` + the tooling `.cjs` matched nothing at all
@@ -47,7 +47,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const frontDir = path.resolve(here, '..', '..');
 const e2eDir = path.join(frontDir, 'e2e');
 const resolveInFront = (file: string): string => path.resolve(frontDir, file);
-const serverEntry = resolveInFront('server.mjs');
+const serverEntry = resolveInFront('server.ts');
 
 void test('finding is empty when every expected file is in the program', () => {
 	const missing = findMissingProgramFiles(
@@ -65,15 +65,15 @@ void test('finding names each expected file absent from the program', () => {
 	assert.deepEqual(missing, [serverEntry]);
 });
 
-void test('the REAL tsconfig.server.json program attends the REAL server.mjs', () => {
+void test('the REAL tsconfig.server.json program attends the REAL server.ts', () => {
 	// Exported so the test can replay the exact invocation the typecheck gate
 	// runs. This is the durable "guard attends the real artifact" assertion:
-	// it fails (throws) if server.mjs stops typechecking clean, and the
+	// it fails (throws) if server.ts stops typechecking clean, and the
 	// coverage check below fails if the file leaves the program.
 	const programFiles = runTscListFiles('tsconfig.server.json');
 	assert.ok(
 		programFiles.includes(serverEntry),
-		`server.mjs must be in the tsconfig.server.json program. ` +
+		`server.ts must be in the tsconfig.server.json program. ` +
 			`Program listed ${programFiles.length} files, none of them ` +
 			`${serverEntry}.`,
 	);

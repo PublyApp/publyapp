@@ -77,7 +77,7 @@ assertCanonicalSearchCancelCss(
 // AUTHORITY 2 — the token appears nowhere in emitted JavaScript or HTML.
 //
 // dist/server is included deliberately: it is the SSR bundle the production
-// `node server.mjs` process executes, so a runtime `<style>` injection compiled
+// `node server.ts` process executes, so a runtime `<style>` injection compiled
 // into it ships to every visitor exactly like the client bundle does.
 const isEmittedBundle = (entry: Dirent) =>
 	EMITTED_BUNDLE_FILE_EXTENSIONS.some((extension) =>

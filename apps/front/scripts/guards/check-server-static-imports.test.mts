@@ -1,7 +1,7 @@
 /**
  * Tests for the server-static-imports guard (#1822 / #1872 paired red proof).
  *
- * The one these exist for: `apps/front/server.mjs` was rewritten twice
+ * The one these exist for: `apps/front/server.ts` was rewritten twice
  * across the srvx 0.12 bump (commits `50f4a7dea` and `326548b79` in
  * `lane/deps-migrations`) and the pre-rewrite line
  *     import { serveStatic } from 'srvx/static';
@@ -17,7 +17,7 @@
  * These tests exercise both halves of the contract on real on-disk
  * fixtures, not on a regex over source:
  *
- *   - `findServerStaticImports(serverPath)` reads `server.mjs` via
+ *   - `findServerStaticImports(serverPath)` reads `server.ts` via
  *     ts-morph's AST. A regression that drops the `srvx/static`
  *     filter, misses `import { X as Y }` aliases, or follows a
  *     namespace import (`import * as S from 'srvx/static'`) wrongly
@@ -32,16 +32,16 @@
  * #2018 — declared vs installed. The same suite also pins the
  * declared/installed srvx version comparison: when `package.json` pins
  * `srvx@0.12.7` but `node_modules/srvx` reports `0.11.16`, the guard's
- * previous advice ("Update server.mjs to use a name that does exist")
+ * previous advice ("Update server.ts to use a name that does exist")
  * was a foot-gun — following it reintroduces the original #1822 defect.
  * The contract for #2018 is that an installed version that disagrees
  * with the declared one is reported with a DIFFERENT message that names
- * `pnpm install` and never suggests editing `server.mjs`. Tests in this
+ * `pnpm install` and never suggests editing `server.ts`. Tests in this
  * file pin both halves: the message includes the install advice and is
  * silent on source edits, and source-edit messaging only appears
  * after the versions agree.
  *
- * The paired red proof itself (a fixture `server.mjs` that imports
+ * The paired red proof itself (a fixture `server.ts` that imports
  * `serveStatic`, asserted against the real installed srvx) lives
  * under `apps/front/tests/proofs/1822/`, in a vitest harness with
  * inverted semantics — that is the contract the `Verify paired red
@@ -120,10 +120,7 @@ void nodeTest(
 		]);
 		const detail = lines[1];
 		assert.ok(detail !== undefined);
-		assert.match(
-			detail,
-			/rejects this named import while loading server\.mjs/i,
-		);
+		assert.match(detail, /rejects this named import while loading server\.ts/i);
 		assert.doesNotMatch(detail, /undefined|not a function/i);
 	},
 );
@@ -149,7 +146,7 @@ let serverPath: string;
 
 before(() => {
 	serverPath = write(
-		'server.mjs',
+		'server.ts',
 		[
 			"import { serve } from 'srvx';",
 			"import { serveStatic } from 'srvx/static';",
@@ -225,7 +222,7 @@ void nodeTest('returns multiple named imports in source order', () => {
 void nodeTest(
 	'checkServerStaticImports: missing export surfaces the right name',
 	async () => {
-		// The shape of the #1822 / #1872 bug: server.mjs imports `serveStatic`,
+		// The shape of the #1822 / #1872 bug: server.ts imports `serveStatic`,
 		// the installed srvx does NOT export it, so the call site would be
 		// `undefined({dir:...})` at runtime. The guard catches it here, where
 		// it is loud and cheap, instead of inside a 30-second e2e timeout.
@@ -267,7 +264,7 @@ void nodeTest(
 void nodeTest(
 	'checkServerStaticImports: zero imports fails closed',
 	async () => {
-		// A `server.mjs` that no longer imports anything from `srvx/static`
+		// A `server.ts` that no longer imports anything from `srvx/static`
 		// is one the guard can no longer protect. The contract requires a
 		// loud failure, not a silent OK — the test pins that.
 		const fixturePath = write('empty.mjs', "import { serve } from 'srvx';\n");
@@ -283,7 +280,7 @@ void nodeTest(
 );
 
 void nodeTest(
-	'checkServerStaticImports: missing server.mjs fails closed',
+	'checkServerStaticImports: missing server.ts fails closed',
 	async () => {
 		// The guard cannot report compliance for a file it never read.
 		await assert.rejects(
@@ -346,7 +343,7 @@ void nodeTest(
 // Tests below pin both halves of the contract:
 //   - declared ≠ installed → the guard fails with a `pnpm install`
 //     message that names the mismatch and does NOT suggest editing
-//     server.mjs;
+//     server.ts;
 //   - declared = installed → the guard proceeds to the export check, and
 //     a real source defect is the only thing that produces the source-edit
 //     advice;
@@ -358,7 +355,7 @@ void nodeTest(
 		// The exact shape of the #2018 reproduction: package.json declares
 		// srvx@0.12.7 but node_modules still carries 0.11.16. Source is
 		// correct; install is behind. The guard must NEVER suggest editing
-		// server.mjs here — that advice is what reintroduces #1822.
+		// server.ts here — that advice is what reintroduces #1822.
 		const fixturePath = write(
 			'#2018-stale.mjs',
 			"import { staticMiddleware as createStaticMiddleware } from 'srvx/static';\n",
@@ -398,8 +395,8 @@ void nodeTest(
 		);
 		assert.doesNotMatch(
 			message,
-			/Update server\.mjs/,
-			`#2018 message must NOT suggest editing server.mjs — that advice reintroduces #1822. got: ${message}`,
+			/Update server\.ts/,
+			`#2018 message must NOT suggest editing server.ts — that advice reintroduces #1822. got: ${message}`,
 		);
 		assert.doesNotMatch(
 			message,

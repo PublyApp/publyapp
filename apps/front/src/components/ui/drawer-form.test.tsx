@@ -172,7 +172,6 @@ import {
 	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -227,6 +226,7 @@ import {
 	DRAWER_FORM_CALL_SITES,
 	type DrawerFormCallSiteId,
 } from '../../../e2e/helpers/drawer-form-call-sites';
+import { createGuardTempDir } from './drawer-guard-tmp-dir.ts';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
@@ -448,25 +448,16 @@ const DRAWER_MODULE_PATH = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
 // then reads each one — a fixture deleted between the list and the read is
 // an ENOENT that reddens an innocent suite (reproduced at HEAD in round 11:
 // five i18n tests red). They live in a per-run temp directory instead,
-// created once here by drawer-guard-tmp-dir.cjs, which registers the
+// created once here by drawer-guard-tmp-dir.ts, which registers the
 // cleanup on every exit path: an 'exit' handler (crashes and failures) and
 // explicit SIGINT/SIGTERM handlers (cancellation — round 13's IMPORTANT 4:
 // `exit` never runs on a signal, so a cancelled run used to leak the whole
 // directory; a sibling guard once leaked 60,000 /tmp directories).
-const guardTempDirRequire = createRequire(import.meta.url);
-const { createGuardTempDir } = guardTempDirRequire(
-	'./drawer-guard-tmp-dir.cjs',
-) as {
-	createGuardTempDir: (prefix: string) => {
-		dir: string;
-		remove: () => void;
-	};
-};
 const FIXTURE_TMP_DIR = createGuardTempDir('publy-drawer-guard-').dir;
 
 // ---------------------------------------------------------------------------
 // Round 14, IMPORTANT 4: the SIGTERM probe. The "with handlers" child
-// requires the SAME drawer-guard-tmp-dir.cjs module the guard itself uses,
+// requires the SAME drawer-guard-tmp-dir.ts module the guard itself uses,
 // so a killed child exercises the guard's exact registration — the child
 // creates the directory through createGuardTempDir and then waits for the
 // signal. The exit-only child is the round-13 shape (raw mkdtempSync + an
@@ -479,7 +470,7 @@ const FIXTURE_TMP_DIR = createGuardTempDir('publy-drawer-guard-').dir;
 
 const GUARD_TMP_DIR_MODULE_PATH = path.join(
 	import.meta.dirname,
-	'drawer-guard-tmp-dir.cjs',
+	'drawer-guard-tmp-dir.ts',
 );
 
 const SIGNAL_PROBE_WITH_HANDLERS = `
@@ -12867,7 +12858,7 @@ describe('drawer surface flex chain guard (#990)', () => {
 		// Round 13's IMPORTANT 4: `process.on('exit')` does not run when the
 		// process dies on a signal, so the round-12 crash net leaked the
 		// whole temp dir on SIGTERM — exactly how CI cancels a job. The
-		// child below requires the guard's OWN drawer-guard-tmp-dir.cjs, so
+		// child below requires the guard's OWN drawer-guard-tmp-dir.ts, so
 		// this exercises the exact registration a cancelled run goes
 		// through, and dies if the signal handlers are removed.
 		// Round 17's IMPORTANT 5: the handlers used to `process.exit(1)`,

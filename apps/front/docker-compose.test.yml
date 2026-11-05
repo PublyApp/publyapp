@@ -254,7 +254,7 @@ services:
       # canonical/Open Graph URLs. This stack runs NODE_ENV=production, so it
       # must declare it — it matches playwright.config.ts's default baseURL.
       PUBLIC_ORIGIN: https://front.localhost:${E2E_PORT_TRAEFIK_WEBSECURE:-8443}
-      # Traefik's IP is discovered at runtime (see server.mjs discoverTraefikIp).
+      # Traefik's IP is discovered at runtime (see server.ts discoverTraefikIp).
       # Docker allocates a free subnet, so two concurrent stacks never collide.
       # Only Traefik's discovered IP is trusted for x-forwarded-* headers;
       # a direct request from any other IP falls back to socket origin.

@@ -20,7 +20,7 @@
 		"**/*.ts",
 		"**/*.tsx",
 		"**/*.mts",
-		// `server.mjs` (the production entry point) is deliberately NOT listed.
+		// `server.ts` (the production entry point) is deliberately NOT listed.
 		// It used to be, before #1692 — but with no `allowJs`, TypeScript
 		// silently ignored it: `tsc --listFiles` matched it ZERO times. It was a
 		// decorative entry, the same defect as the `scripts/**/*.mjs` glob that
