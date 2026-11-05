@@ -85,7 +85,7 @@ const ensureDependencies = (worktreePath) => {
 		'front',
 		'scripts',
 		'guards',
-		'assert-pinned.mts',
+		'assert-pinned.ts',
 	);
 
 	if (existsSync(worktreeFrontNodeModules)) {
@@ -96,14 +96,14 @@ const ensureDependencies = (worktreePath) => {
 	console.log('Checking pinned deps in worktree...');
 
 	if (existsSync(assertPinnedPath)) {
-		runCommand('node', ['apps/front/scripts/guards/assert-pinned.mts'], {
+		runCommand('node', ['apps/front/scripts/guards/assert-pinned.ts'], {
 			cwd: worktreePath,
 			stdio: 'inherit',
 			timeout: 10 * 60_000,
 		});
 	} else {
 		console.error(
-			'Skipping assert-pinned check (missing target script): apps/front/scripts/guards/assert-pinned.mts',
+			'Skipping assert-pinned check (missing target script): apps/front/scripts/guards/assert-pinned.ts',
 		);
 	}
 

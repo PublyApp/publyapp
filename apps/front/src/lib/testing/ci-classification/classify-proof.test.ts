@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  *
- * Unit test for the proof classifier (classify-proof.mts).
+ * Unit test for the proof classifier (classify-proof.ts).
  *
  * This test exercises the REAL classification pipeline end-to-end:
  * 1. It runs the REAL vitest on a fixture test that throws an Error
@@ -29,7 +29,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	classifyProof,
 	readProofReport,
-} from '../../../../scripts/ci/classify-proof.mts';
+} from '../../../../scripts/ci/classify-proof.ts';
 
 const FIXTURE_PATH =
 	'tests/fixtures/1784/_repro-1784-throws-assertion-error.test.ts';

@@ -455,7 +455,7 @@ const scanFuncStyleSuppressions = async (
 		'.ts',
 		'.tsx',
 		'.mjs',
-		'.mts',
+		'.ts',
 		'.js',
 		'.jsx',
 		'.cts',
@@ -1282,7 +1282,7 @@ describe('func-style: ["error", "expression"] (#1834 — uniform arrow form)', (
 		// runs — `ReferenceError: Cannot access 'x' before initialization` at
 		// module load, invisible to the compiler and the typechecker. This
 		// leg analyses the ACTUAL syntax tree (via ts-morph's vendored
-		// compiler, the same surface check-design-system.mts uses) and
+		// compiler, the same surface check-design-system.ts uses) and
 		// refuses any module-eval call of an arrow constant before its
 		// definition.
 		//

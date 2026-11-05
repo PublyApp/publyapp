@@ -57,7 +57,7 @@ export default defineConfig({
 			'e2e/helpers/**/*.test.ts',
 			'e2e/__tests__/**/*.test.ts',
 			'scripts/ci/**/*.test.ts',
-			'scripts/ci/run-non-vitest-report-all.test.mts',
+			'scripts/ci/run-non-vitest-report-all.test.ts',
 		],
 		// Round 19 I3: the drawer-description contrast guard is the ONLY
 		// browser-launching test in the suite. It now runs in the e2e lane
@@ -70,7 +70,7 @@ export default defineConfig({
 		// tests/proofs/ holds EXPECTED-TO-FAIL red proof tests (issue #1659).
 		// They must never run in the green suite — a leaked red proof would
 		// make the suite permanently red. They are replayed by
-		// vitest.proofs.config.ts + run-proofs.mts instead.
+		// vitest.proofs.config.ts + run-proofs.ts instead.
 		//
 		// scripts/ci/__fixtures__ holds test files that PRODUCE the JSON reports
 		// the consume-verdict tests read. They are inputs to the test, not tests

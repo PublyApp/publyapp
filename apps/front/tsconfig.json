@@ -19,7 +19,7 @@
 	"include": [
 		"**/*.ts",
 		"**/*.tsx",
-		"**/*.mts",
+		"**/*.ts",
 		// `server.mjs` (the production entry point) is deliberately NOT listed.
 		// It used to be, before #1692 — but with no `allowJs`, TypeScript
 		// silently ignored it: `tsc --listFiles` matched it ZERO times. It was a
@@ -33,8 +33,8 @@
 		// genuine work (a dedicated tsconfig excluding `dist/`), tracked
 		// separately; putting the name back without `allowJs` would only restore
 		// the illusion of coverage.
-		"scripts/**/*.mts",
-		"tools/**/*.mts",
+		"scripts/**/*.ts",
+		"tools/**/*.ts",
 		"../../packages/shared-ts/src/@types/**/*.d.ts"
 	],
 	"exclude": ["node_modules", "dist", ".output"]

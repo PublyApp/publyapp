@@ -3310,7 +3310,7 @@ html[data-theme-changing] * {
 /* ---------------------------------------------------------------------------
  * Shared ScrollArea primitive (#840) — pulled from the installed upstream at
  * build time by `publy:transform-simplebar-upstream-css` (see
- * apps/front/tools/vite/transform-simplebar-upstream-css.mts). The plugin
+ * apps/front/tools/vite/transform-simplebar-upstream-css.ts). The plugin
  * reads `simplebar-core/dist/simplebar.css` from `node_modules`, validates the
  * structural contract, retokenizes the raw literals upstream ships (a named
  * keyword colour, the hard-coded track radius, and the stock transition

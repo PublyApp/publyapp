@@ -39,7 +39,7 @@ import path from 'node:path';
  *
  * ## Mutation to introduce the red (restore the bug)
  *
- * In scripts/guards/check-design-system.mts, replace the span-wise skip
+ * In scripts/guards/check-design-system.ts, replace the span-wise skip
  * (`isMatchFullyInsideComment(match.index, match[0].length, commentRanges)`)
  * with the old start-index-only judge (`isInsideComment(match.index, ...)`).
  * The proof then passes because the whole match is dropped again.
@@ -50,8 +50,8 @@ import { expect, test } from 'vitest';
 import {
 	cleanupFixtures,
 	makeFixture,
-} from '../../../scripts/guards/check-design-system-fixtures.mts';
-import { scanFront2DesignSystem } from '../../../scripts/guards/check-design-system.mts';
+} from '../../../scripts/guards/check-design-system-fixtures.ts';
+import { scanFront2DesignSystem } from '../../../scripts/guards/check-design-system.ts';
 
 test('a real route glob call after a comment-prefixed match start is masked (issue #1844 r3)', async () => {
 	const root = await makeFixture({

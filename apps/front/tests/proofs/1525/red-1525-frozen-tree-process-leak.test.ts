@@ -5,7 +5,7 @@
  *
  * ## Context
  *
- * `apps/front/scripts/run-guarded.mts` wraps every front guard invocation with
+ * `apps/front/scripts/run-guarded.ts` wraps every front guard invocation with
  * two guarantees:
  *
  * 1. **Process-tree kill.** The guard runs in a NEW PROCESS GROUP
@@ -62,11 +62,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// scripts/run-guarded.mts is at apps/front/scripts/run-guarded.mts
+// scripts/run-guarded.ts is at apps/front/scripts/run-guarded.ts
 // tests/proofs/1525/red-1525-*.test.ts → 4 levels up.
 const _thisFile = fileURLToPath(import.meta.url);
 const FRONT_ROOT = path.resolve(_thisFile, '..', '..', '..', '..');
-const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.mts');
+const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.ts');
 
 // The proof itself must never hang more than ~15s even if the wrapper is
 // missing or misbehaving. A 3-second guard timeout × safety multiplier of 5.
@@ -112,7 +112,7 @@ const makeFrozenTree = async (): Promise<{
 	dir: string;
 }> => {
 	const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-'));
-	const childScriptPath = path.join(dir, 'frozen-child.mts');
+	const childScriptPath = path.join(dir, 'frozen-child.ts');
 	const childToken = `proof-1525-child-${Date.now()}`;
 	await writeFile(
 		childScriptPath,
@@ -122,7 +122,7 @@ const makeFrozenTree = async (): Promise<{
 		].join('\n'),
 		'utf-8',
 	);
-	const guardPath = path.join(dir, 'frozen-guard.mts');
+	const guardPath = path.join(dir, 'frozen-guard.ts');
 	await writeFile(
 		guardPath,
 		[
@@ -172,7 +172,7 @@ const countSurvivors = (childToken: string): number => {
 	return count;
 };
 
-describe('run-guarded.mts process-tree kill — RED: detached:true missing from spawn (#1525)', () => {
+describe('run-guarded.ts process-tree kill — RED: detached:true missing from spawn (#1525)', () => {
 	it(
 		'kills a frozen process tree and leaves no orphaned descendants',
 		async () => {
@@ -211,12 +211,12 @@ describe('run-guarded.mts process-tree kill — RED: detached:true missing from 
 	);
 });
 
-describe('run-guarded.mts clear timeout message — RED: error message absent (#1525)', () => {
+describe('run-guarded.ts clear timeout message — RED: error message absent (#1525)', () => {
 	it(
 		'prints the guard path and timeout duration on timeout',
 		async () => {
 			const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-'));
-			const guardPath = path.join(dir, 'eternal-guard.mts');
+			const guardPath = path.join(dir, 'eternal-guard.ts');
 			await writeFile(
 				guardPath,
 				[
@@ -231,7 +231,7 @@ describe('run-guarded.mts clear timeout message — RED: error message absent (#
 			await rm(dir, { recursive: true, force: true });
 
 			// The kept-red state: if the error message format is stripped from
-			// run-guarded.mts (e.g. the message is replaced with a bare
+			// run-guarded.ts (e.g. the message is replaced with a bare
 			// `console.error('timeout')` or removed entirely), stderr no longer
 			// contains the guard path. The assertion `not.toContain(guardPath)`
 			// therefore PASSES when the message is stripped (bug present, green),

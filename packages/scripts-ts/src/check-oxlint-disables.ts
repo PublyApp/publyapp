@@ -37,7 +37,7 @@ const scannedExtensions = new Set([
 	'.js',
 	'.jsx',
 	'.mjs',
-	'.mts',
+	'.ts',
 	'.ts',
 	'.tsx',
 ]);

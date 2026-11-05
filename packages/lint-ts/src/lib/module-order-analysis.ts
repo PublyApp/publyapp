@@ -146,7 +146,7 @@ interface Scope {
 
 /** ts-morph's SourceFile type omits parseDiagnostics, but its vendored
  * compiler always populates it (same widening as
- * apps/front/scripts/guards/check-design-system.mts). */
+ * apps/front/scripts/guards/check-design-system.ts). */
 interface SourceFileWithParseDiagnostics extends ts.SourceFile {
 	parseDiagnostics: readonly ts.Diagnostic[];
 }
@@ -154,7 +154,7 @@ interface SourceFileWithParseDiagnostics extends ts.SourceFile {
 /** The file extensions the module-order scan analyses (oxlint's scope). */
 type SourceFileExtension =
 	| '.ts'
-	| '.mts'
+	| '.ts'
 	| '.cts'
 	| '.tsx'
 	| '.js'
@@ -164,7 +164,7 @@ type SourceFileExtension =
 
 const SCRIPT_KIND_BY_EXTENSION = {
 	'.ts': ts.ScriptKind.TS,
-	'.mts': ts.ScriptKind.TS,
+	'.ts': ts.ScriptKind.TS,
 	'.cts': ts.ScriptKind.TS,
 	'.tsx': ts.ScriptKind.TSX,
 	'.js': ts.ScriptKind.JS,
@@ -1927,7 +1927,7 @@ export const analyzeModuleOrder = (
 
 const SOURCE_EXTENSIONS = new Set<string>([
 	'.ts',
-	'.mts',
+	'.ts',
 	'.cts',
 	'.tsx',
 	'.js',
