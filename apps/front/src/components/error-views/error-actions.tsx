@@ -1,4 +1,5 @@
 import { IconArrowLeft, IconRefresh } from '@tabler/icons-react';
+import { useRouter } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 
@@ -20,8 +21,11 @@ export const RetryButton = ({ onClick }: { onClick: () => void }) => {
 };
 
 /**
- * The shared `Button` rendering as a real anchor: it must work in router-less
- * component tests too, and going home is navigation, not an action.
+ * The shared `Button` rendering as a real anchor whose click the router owns:
+ * going home is navigation, not an action, and it must stay client-side (a
+ * bare navigation would reload the document and drop the SPA, #713).
+ * `useRouter({ warn: false })` is `undefined` outside a `RouterProvider`, so
+ * plain component renders keep the browser's own navigation.
  */
 export const BackHomeButton = ({
 	variant = 'outline',
@@ -29,16 +33,29 @@ export const BackHomeButton = ({
 	variant?: 'outline' | 'default';
 }) => {
 	const { t } = useTranslation('common');
+	const router = useRouter({ warn: false });
 	const label = t('common:go-to-home');
 
 	return (
 		<Button
 			variant={variant}
 			className="h-11 px-4"
-			// The accessible name is on the anchor itself so the static
+			// The accessible name is on the link itself so the static
 			// anchor-has-content check sees a named link; the visible icon and
 			// text are Base UI's merged children.
-			render={<a href="/" aria-label={label} />}
+			render={
+				<a
+					href="/"
+					aria-label={label}
+					onClick={(event) => {
+						if (!router) {
+							return;
+						}
+						event.preventDefault();
+						void router.navigate({ to: '/' });
+					}}
+				/>
+			}
 		>
 			<IconArrowLeft data-icon="inline-start" />
 			{label}

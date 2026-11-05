@@ -4229,14 +4229,37 @@ test('F4: the real .publy-selection-bar rule no longer hardcodes a raw rgb() sha
 	assert.match(ruleMatch[1], /var\(--publy-shadow-selection-bar\)/);
 });
 
-test('F6: .publy-state-icon svg is declared exactly once (the un-layered copy); the layered duplicate is gone', async () => {
+test('F6: each .publy-state-icon presentation declares its glyph size exactly once, in the un-layered block', async () => {
 	const css = await readFile(
 		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
-	const occurrences = css.match(/\.publy-state-icon svg \{/g) ?? [];
-	assert.equal(occurrences.length, 1);
+	// Owner decision 04/11 split the one glyph rule into two presentations with
+	// different sizes (28px empty, 32px status), so "exactly once" now means
+	// once PER presentation — the bare unscoped rule it was written for must
+	// not come back.
+	assert.doesNotMatch(css, /\.publy-state-icon svg \{/);
+	const block = css.slice(
+		css.indexOf('R3-1/04-11: each ShopKart presentation'),
+	);
+	const unscoped = block.slice(0, block.indexOf('@layer components'));
+	assert.equal(
+		(
+			unscoped.match(
+				/\.publy-state-icon\[data-presentation='empty'\] svg \{/g,
+			) ?? []
+		).length,
+		1,
+	);
+	assert.equal(
+		(
+			unscoped.match(
+				/\.publy-state-icon\[data-presentation='status'\] svg \{/g,
+			) ?? []
+		).length,
+		1,
+	);
 });
 
 test('F6: the tbody last-child border-bottom rule no longer has a dead layered `{ border-bottom: 0 }` duplicate, and its comment no longer claims a specificity/order win', async () => {

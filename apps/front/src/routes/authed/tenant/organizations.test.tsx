@@ -36,6 +36,9 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 	}),
+	// No RouterProvider in this render: the home action falls back to a plain
+	// anchor (see BackHomeButton).
+	useRouter: () => undefined,
 }));
 
 vi.mock('@tanstack/react-query', () => ({

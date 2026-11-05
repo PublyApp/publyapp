@@ -1956,13 +1956,6 @@ html.dark {
 		transform: rotate(-6deg);
 	}
 
-	.publy-state-icon[data-presentation='empty'] svg {
-		width: 28px;
-		height: 28px;
-		stroke-width: 1.5;
-		transform: rotate(6deg);
-	}
-
 	/* Error/status: 144px rings at 30 % / 60 % opacity and a 64px tinted tile,
 	   both coloured from PublyApp's existing status palette (info → invited,
 	   warning → pending, danger → suspended, neutral → border/card). */
@@ -3341,9 +3334,16 @@ html[data-theme-changing] * {
 
 /* R3-1/04-11: each ShopKart presentation sizes its own glyph (28px empty,
    32px status). Tailwind's `size-*` from a call site lives in the utilities
-   layer and would beat a layered `.publy-state-icon svg` rule, so the size
-   is pinned un-layered here — un-layered CSS wins over every Tailwind v4
-   layer. */
+   layer and would beat a layered `.publy-state-icon svg` rule, so BOTH sizes
+   are pinned un-layered here — un-layered CSS wins over every Tailwind v4
+   layer. One rule per presentation, declared once (F6). */
+.publy-state-icon[data-presentation='empty'] svg {
+	width: 28px;
+	height: 28px;
+	stroke-width: 1.5;
+	transform: rotate(6deg);
+}
+
 .publy-state-icon[data-presentation='status'] svg {
 	width: 32px;
 	height: 32px;

@@ -32,10 +32,10 @@ import { slugifyTenantCode } from './tenants-new-helpers';
 export const ROW_CONTROL =
 	'h-9 rounded-[var(--publy-radius-medium-control)] border-(--publy-input-border) bg-muted px-3 shadow-[var(--publy-shadow-ring)] md:text-sm';
 
-export const ROW_TEXTAREA =
+const ROW_TEXTAREA =
 	'min-h-16 resize-none rounded-[var(--publy-radius-medium-control)] border-(--publy-input-border) bg-muted px-3 py-3 shadow-[var(--publy-shadow-ring)] md:text-sm';
 
-export const ROW_SELECT =
+const ROW_SELECT =
 	'w-full rounded-[var(--publy-radius-medium-control)] border-(--publy-input-border) bg-muted px-3 text-sm shadow-[var(--publy-shadow-ring)]';
 
 const FieldNote = ({ error, help }: { error?: string; help?: ReactNode }) => {

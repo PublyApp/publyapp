@@ -14,8 +14,6 @@ import { cn } from '~/lib/utils';
 import { ErrorActions } from './error-actions';
 import { ErrorKindState } from './error-kind-state';
 
-export type AppErrorTone = ErrorTone;
-
 type AppErrorViewProps = {
 	icon: ReactNode;
 	title: string;
@@ -33,7 +31,7 @@ type AppErrorViewProps = {
 	testId?: string;
 	/** Icon tint. Defaults to the tone of `code` (404 neutral, 401/403
 	 * warning, otherwise danger). */
-	tone?: AppErrorTone;
+	tone?: ErrorTone;
 	/** Announcement role: `alert` for a failure, `status` for a self-healing
 	 * state such as offline. */
 	role?: 'alert' | 'status';

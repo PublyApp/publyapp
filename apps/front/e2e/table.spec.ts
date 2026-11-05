@@ -169,7 +169,8 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-			await expect(headerOf(page, 'Member')).toHaveCSS('width', '260px');
+			// The prototype's list grid widens « Member » to 330px (#2301).
+			await expect(headerOf(page, 'Member')).toHaveCSS('width', '330px');
 			await expect(headerOf(page, 'Level')).toHaveCSS('width', '160px');
 			await expect(headerOf(page, 'Status')).toHaveCSS('width', '130px');
 

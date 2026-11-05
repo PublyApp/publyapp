@@ -139,7 +139,7 @@ describe('StateView — ShopKart OS pictogram geometry (app.css)', () => {
 		);
 		expect(css).toContain('transform: rotate(-6deg);');
 		expect(css).toContain(
-			".publy-state-icon[data-presentation='empty'] svg {\n\t\twidth: 28px;\n\t\theight: 28px;\n\t\tstroke-width: 1.5;\n\t\ttransform: rotate(6deg);",
+			".publy-state-icon[data-presentation='empty'] svg {\n\twidth: 28px;\n\theight: 28px;\n\tstroke-width: 1.5;\n\ttransform: rotate(6deg);",
 		);
 	});
 

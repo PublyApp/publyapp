@@ -331,28 +331,31 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(noMatch).toHaveCSS('box-shadow', 'none');
 		await expect(noMatch).toHaveCSS('border-radius', '0px');
 
+		// Owner decision 04/11 supersedes the flat 2026-07-10 shape: every empty
+		// state is now the ShopKart OS pictogram — two faint rings around a −6°
+		// tilted tile carrying the icon (the surface itself stays un-boxed).
 		const cluster = noMatch.locator('.publy-state-icon-cluster');
-		await expect(cluster).toHaveCSS('width', '48px');
-		await expect(cluster).toHaveCSS('height', '48px');
-		await expect(cluster).toHaveAttribute('data-tone', 'primary');
+		await expect(cluster).toHaveCSS('width', '120px');
+		await expect(cluster).toHaveCSS('height', '120px');
+		// A no-match list is the neutral empty kind (04/11 per-kind tone); the
+		// old flat design tinted this glyph primary.
+		await expect(cluster).toHaveAttribute('data-tone', 'neutral');
 		await expect(cluster).toHaveAttribute('data-scale', 'inline');
+		await expect(cluster).toHaveAttribute('data-presentation', 'empty');
 		await expect(cluster).toHaveAttribute('aria-hidden', 'true');
+		await expect(cluster.locator('.publy-empty-ring')).toHaveCount(2);
 		await expect(cluster.locator('.publy-state-icon-wash')).toHaveCount(0);
-		await expect(cluster.locator('.publy-state-icon-ring')).toHaveCount(0);
 
-		const icon = cluster.locator('.publy-state-icon[data-tone="primary"]');
-		await expect(icon).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-		await expect(icon).toHaveCSS('box-shadow', 'none');
-		await expect(icon).toHaveCSS('border-radius', '0px');
-		await expect(icon).toHaveCSS('color', 'rgb(254, 205, 0)');
+		const icon = cluster.locator(
+			'.publy-state-icon[data-tone="neutral"][data-presentation="empty"]',
+		);
+		await expect(icon).toHaveCSS('width', '56px');
+		await expect(icon).toHaveCSS('height', '56px');
+		await expect(icon).toHaveCSS('border-radius', '18px');
 
-		// Owner decision R3-4b (reaffirmed 2026-07-11): the inline empty/no-match
-		// scale now matches the page error scale exactly — the glyph fills the
-		// same 48px cluster on both, no backing shape, size + tone colour carry
-		// the presence.
 		const glyph = icon.locator('svg');
-		await expect(glyph).toHaveCSS('width', '48px');
-		await expect(glyph).toHaveCSS('height', '48px');
+		await expect(glyph).toHaveCSS('width', '28px');
+		await expect(glyph).toHaveCSS('height', '28px');
 	});
 
 	test('the 404 view no longer renders a separator above its actions (owner-approved 2026-07-10 round 3)', async ({
@@ -365,9 +368,14 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 
 		const cluster = view404.locator('.publy-state-icon-cluster');
 		await expect(cluster).toHaveAttribute('data-scale', 'page');
-		const glyph = view404.locator('.publy-state-icon svg');
-		await expect(glyph).toHaveCSS('width', '48px');
-		await expect(glyph).toHaveCSS('height', '48px');
+		await expect(cluster).toHaveAttribute('data-presentation', 'status');
+		await expect(cluster).toHaveCSS('width', '144px');
+		await expect(cluster).toHaveCSS('height', '144px');
+		const glyph = view404.locator(
+			'.publy-state-icon[data-presentation="status"] svg',
+		);
+		await expect(glyph).toHaveCSS('width', '32px');
+		await expect(glyph).toHaveCSS('height', '32px');
 
 		const actionsWrap = view404
 			.getByRole('link', { name: /home/i })
@@ -395,9 +403,11 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 				await page.reload();
 			}
 
-			await expect(page.getByText('Something went wrong')).toBeVisible();
+			// The 500 is the per-kind « Unable to load » screen (owner decision
+			// 04/11), with the pair's English copy.
+			await expect(page.getByText('Unable to load')).toBeVisible();
 			const retryButton = page.getByRole('button', { name: 'Retry' });
-			const homeLink = page.getByRole('link', { name: 'Go to home' });
+			const homeLink = page.getByRole('link', { name: 'Back to home' });
 			await expect(retryButton).toBeVisible();
 			await expect(homeLink).toBeVisible();
 

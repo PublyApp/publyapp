@@ -61,6 +61,8 @@ type HistoryPageProps = {
 	errorText?: string;
 	/** The cursor pager, under the history. */
 	pager?: ReactNode;
+	/** Extra pinned-toolbar controls (e.g. a locale-formatted date range). */
+	toolbarExtra?: ReactNode;
 	showOrganisation?: boolean;
 	retentionDays?: number;
 };
@@ -119,6 +121,7 @@ export const HistoryPage = ({
 	queryState,
 	errorText,
 	pager,
+	toolbarExtra,
 	showOrganisation = false,
 	retentionDays = 365,
 }: HistoryPageProps) => {
@@ -228,6 +231,7 @@ export const HistoryPage = ({
 							) : null
 						}
 					>
+						{toolbarExtra}
 						<FilterMenu
 							filters={listFilters}
 							active={filtersValue}

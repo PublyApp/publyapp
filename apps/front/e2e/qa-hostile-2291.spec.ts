@@ -300,9 +300,10 @@ test.describe(
 			);
 			expect(lightHeading.opacity).toBe(1);
 			expect(lightHeading.ratio).toBeGreaterThanOrEqual(4.5);
-			// The helper class is shared; the new-tenant form is the surface
-			// that renders several of them without needing a tenant fixture.
-			await page.goto('/staff/tenants/new');
+			// The helper class is shared; the invite form is the surface that
+			// still renders it without needing a tenant fixture (the new-tenant
+			// page was rebuilt on the prototype's FieldGroup notes).
+			await page.goto('/staff/invitations/new');
 			await expect(page.locator('.publy-type-helper').first()).toBeVisible();
 			const lightHelper = await contrastRatio(page, '.publy-type-helper');
 			expect(lightHelper.opacity).toBe(1);
@@ -316,7 +317,7 @@ test.describe(
 				'#app-shell-secondary-heading',
 			);
 			expect(darkHeading.ratio).toBeGreaterThanOrEqual(4.5);
-			await page.goto('/staff/tenants/new');
+			await page.goto('/staff/invitations/new');
 			await expect(page.locator('.publy-type-helper').first()).toBeVisible();
 			const darkHelper = await contrastRatio(page, '.publy-type-helper');
 			expect(darkHelper.ratio).toBeGreaterThanOrEqual(4.5);
@@ -707,9 +708,11 @@ test.describe(
 			await expect(missing).toBeVisible();
 			await expect(missing).toContainText('Page introuvable');
 			await expect(missing).not.toContainText('Access denied by upstream');
-			await expect(page.getByRole('button', { name: 'Réessayer' })).toHaveCount(
-				0,
-			);
+			// Owner decision 04/11: a 404 is retryable — only a 403 is « Retour
+			// à l'accueil » alone, because retrying cannot grant access.
+			await expect(
+				page.getByRole('button', { name: 'Réessayer' }),
+			).toBeVisible();
 			await page.unroute('**/staff/tenants**');
 
 			await mockListFailure(500);

@@ -44,7 +44,10 @@ import {
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
 } from '~/lib/session/session-scope';
-import { SessionSurfaceValidationProvider } from '~/lib/session/session-surface-recovery-context';
+import {
+	SessionSurfaceValidationProvider,
+	useSessionSurfaceValidation,
+} from '~/lib/session/session-surface-recovery-context';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -366,17 +369,32 @@ export const RootNotFound = () => {
 	const pathname = useLocation({
 		select: (location) => location.pathname,
 	});
+	const surfaceSession = useSessionSurfaceValidation();
+	const hasAuthedRouteMatch = hasExactAuthedRouteMatch(matches, pathname);
 	// Inside an authed prefix the shell already supplies the page frame, so
 	// the 404 is embedded exactly like View403 is. Marketing/auth keep the
-	// full-viewport `<main>`.
-	const embedded = resolveWantsAuthedChrome({
-		hasAuthedLayoutMatch: matches.some(
-			(match) => match.routeId === '/_authed-layout',
-		),
-		hasAuthedRouteMatch: hasExactAuthedRouteMatch(matches, pathname),
-		isHydrated,
-		pathname,
-	});
+	// full-viewport `<main>`. An UNKNOWN authed-prefix URL only embeds once the
+	// surface session is proven valid — a stale or forged cookie must keep the
+	// genuine public 404 (PR #997), never an inert skeleton around it.
+	const embedded =
+		resolveWantsAuthedChrome({
+			hasAuthedLayoutMatch: matches.some(
+				(match) => match.routeId === '/_authed-layout',
+			),
+			hasAuthedRouteMatch,
+			isHydrated,
+			pathname,
+		}) &&
+		(hasAuthedRouteMatch ||
+			shouldRenderAuthenticatedChrome({
+				failureStatus:
+					surfaceSession.status === 'error'
+						? getRouteFailureStatus(surfaceSession.error)
+						: undefined,
+				isHydrated,
+				queryData: surfaceSession.data,
+				queryStatus: surfaceSession.status,
+			}));
 
 	return <View404 embedded={embedded} />;
 };
@@ -575,14 +593,14 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// stopped matching (PR #997 finding 2). Changing the key identity here
 	// makes the observer move to a new (disabled, never-fetched) query,
 	// which detaches it from the old one and fires its abort signal.
-	const surfaceRedirectCodeQueryKey = [
-		...getSurfaceRedirectCodeQueryKey(sessionSurface),
-		// Both flags are in the key: losing exactness aborts the in-flight
-		// validation (PR #997 finding 2) while `wantsAuthedChrome` keeps the
-		// shell's own validation running for an unknown authed-prefix path.
-		location.hasAuthedRouteMatch,
-		wantsAuthedChrome,
-	] as const;
+	// One entry per surface — deliberately NOT keyed by route exactness: an
+	// unknown authed-prefix path must be able to read the session a previous
+	// exact route already validated (so a signed-in user's stale link renders
+	// the 404 inside the shell), while the query itself only ever FETCHES on an
+	// exact match. A cold load of an unknown path therefore never validates a
+	// cookie (PR #997: the 404 stays genuine).
+	const surfaceRedirectCodeQueryKey =
+		getSurfaceRedirectCodeQueryKey(sessionSurface);
 	const surfaceSessionState = useQuery<string | null>({
 		queryKey: surfaceRedirectCodeQueryKey,
 		queryFn: async ({ signal }): Promise<string | null> => {
@@ -603,7 +621,8 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 				signal,
 			);
 		},
-		enabled: isHydrated && wantsAuthedChrome && sessionSurface !== 'other',
+		enabled:
+			isHydrated && location.hasAuthedRouteMatch && sessionSurface !== 'other',
 		retry: false,
 		// Session-stable: which surface a token belongs to only changes on
 		// login/logout, both already invalidated explicitly (see
@@ -639,6 +658,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 		queryData: surfaceSessionState.data,
 		queryStatus: surfaceSessionState.status,
 	});
+	// Unknown authed-prefix paths keep the shell only once the session is
+	// proven; otherwise they are ordinary public 404s (never an inert skeleton
+	// holding a 404 that a stale cookie cannot unlock).
+	const rendersAuthedChrome =
+		wantsAuthedChrome &&
+		(location.hasAuthedRouteMatch || canRenderAuthenticatedChrome);
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
 	// `_authed-layout` also matches an unknown path under an authed prefix
@@ -648,7 +673,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// exact-match one, so an unknown /staff/* path renders the layout's own
 	// 404 instead of crashing on a missing provider.
 	let shellContent: React.ReactNode;
-	if (wantsAuthedChrome) {
+	if (rendersAuthedChrome) {
 		// Only the exact `/tenant` portal root renders bare (no AppShell): the
 		// picker is its own SimpleLayout surface. Every `/tenant/*` CHILD path
 		// mounts inside the authed shell like any staff surface — the

@@ -46,6 +46,7 @@ import {
 	type AuditLogsListSearchParamInput,
 	type AuditLogsListSearchParams,
 } from './audit-logs/_list-search-params';
+import { LocalizedDateInput } from './audit-logs/_localized-date-input';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -234,6 +235,54 @@ const StaffAuditLogsPage = () => {
 		});
 	};
 
+	/** A typed custom range replaces the period preset: the two are the same
+	 * filter, and `resolveAuditLogSelection` prefers `period` when both exist. */
+	const setDateFilter = (
+		key: 'startDate' | 'endDate',
+		value: string | undefined,
+	): void => {
+		void navigate({
+			search: serializeAuditLogsListSearchParams({
+				...search,
+				period: undefined,
+				[key]: value,
+				cursor: undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	const dateRangeFilter = (
+		<div
+			className="flex items-center gap-1.5"
+			data-testid="staff-audit-logs-date-range-filter"
+		>
+			<LocalizedDateInput
+				locale={locale}
+				ariaLabel={tCommon('start-date')}
+				errorMessage={tCommon('invalid-date')}
+				testId="staff-audit-logs-start-date"
+				value={search.startDate}
+				max={search.endDate ?? undefined}
+				onChange={(value) => setDateFilter('startDate', value)}
+				className="h-9 w-37"
+			/>
+			<span aria-hidden="true" className="text-muted-foreground">
+				–
+			</span>
+			<LocalizedDateInput
+				locale={locale}
+				ariaLabel={tCommon('end-date')}
+				errorMessage={tCommon('invalid-date')}
+				testId="staff-audit-logs-end-date"
+				value={search.endDate}
+				min={search.startDate ?? undefined}
+				onChange={(value) => setDateFilter('endDate', value)}
+				className="h-9 w-37"
+			/>
+		</div>
+	);
+
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
 		(to: StaffTeamPath) => {
@@ -320,6 +369,7 @@ const StaffAuditLogsPage = () => {
 				filters={filters}
 				filtersValue={filtersValue}
 				onFiltersChange={applyFilters}
+				toolbarExtra={dateRangeFilter}
 				panelGroups={buildStaffTeamPanelGroups(
 					tCommon,
 					'audit',

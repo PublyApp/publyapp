@@ -126,6 +126,7 @@ export const TenantCreateMembersRow = ({
 								render={({ field: emailField }) => (
 									<Input
 										type="email"
+										name={`manualMembers.${index}.email`}
 										value={emailField.value}
 										placeholder={t('member-email-placeholder')}
 										disabled={isFormLocked}

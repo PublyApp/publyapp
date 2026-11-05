@@ -125,6 +125,8 @@ export type ListPageProps<T extends { id: string }> = {
 	after?: ReactNode;
 	/** Rendered between the chips and the table (a floating selection bar). */
 	bulkBar?: ReactNode;
+	/** Extra pinned-toolbar controls (e.g. a locale-formatted date range). */
+	toolbarExtra?: ReactNode;
 };
 
 // createElement, not <Icon />: the drawer-description guard cannot attribute a JSX tag bound to a parameter.
@@ -282,6 +284,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					) : null
 				}
 			>
+				{props.toolbarExtra}
 				<SortMenu
 					sort={
 						page.sort && page.specs.has(page.sort.id) ? page.sort : undefined

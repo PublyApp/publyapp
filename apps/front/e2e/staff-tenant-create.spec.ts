@@ -187,6 +187,7 @@ test.describe(
 
 			const formNameField = page.getByRole('textbox', {
 				name: 'Name',
+				exact: true,
 			});
 			const previewCard = page.getByTestId('staff-tenant-create-preview');
 			await expect(formNameField).toBeVisible();
@@ -220,7 +221,7 @@ test.describe(
 			await expect(page.getByTestId('preview-members')).toHaveText('0');
 
 			await page
-				.getByRole('textbox', { name: 'Name' })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
@@ -247,7 +248,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: 'Name' })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
@@ -272,7 +273,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: 'Name' })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('admin@acme.com');
 
@@ -328,7 +329,7 @@ test.describe(
 			).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: 'Name' })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 			await page
@@ -379,7 +380,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: 'Name' })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('admin@acme.com');
 
@@ -410,9 +411,9 @@ test.describe(
 			await dialog.getByRole('button', { name: 'Cancel' }).click();
 			await expect(dialog).toBeHidden();
 			expect(createRequestFired).toBe(false);
-			await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue(
-				'Acme Corporation',
-			);
+			await expect(
+				page.getByRole('textbox', { name: 'Name', exact: true }),
+			).toHaveValue('Acme Corporation');
 		});
 	},
 );
@@ -432,7 +433,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
 			await page
-				.getByRole('textbox', { name: 'Name' })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill('Acme Corporation');
 			await page.locator('input[name="owners.0.email"]').fill('owner@acme.com');
 
@@ -496,7 +497,10 @@ test.describe(
 			await expect(
 				page.getByText('Image must be 2 MB or smaller'),
 			).toBeVisible();
-			await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
+			await expect(page.getByTestId('logo-upload-url')).toHaveText('');
+			await expect(page.getByTestId('logo-upload-dropzone-chosen')).toHaveCount(
+				0,
+			);
 		});
 	},
 );

@@ -111,7 +111,7 @@ const relativeText = (
 };
 
 /** « 24/10/2026 · il y a 3 j » (§4.1 item 11). */
-export const jobWhen = (t: Translate, locale: string) => {
+const jobWhen = (t: Translate, locale: string) => {
 	const render = (value: Date | null): ReactNode => {
 		if (!value) {
 			return dash;

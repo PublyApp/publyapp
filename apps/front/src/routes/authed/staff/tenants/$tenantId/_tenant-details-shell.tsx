@@ -9,7 +9,6 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { CopyButton } from '~/components/ui/copy-button';
 import { BrandTile } from '~/components/ui/initials-avatar';
@@ -127,34 +126,6 @@ export const TenantDetailsLoading = () => {
 				<span>{t('loading-tenant')}</span>
 			</div>
 		</div>
-	);
-};
-
-export const BackToTenantsLink = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<Link
-			to="/staff/tenants"
-			className={buttonVariants({ variant: 'outline' })}
-		>
-			{t('back-to-tenants')}
-		</Link>
-	);
-};
-
-/** Retry + Back-to-tenants action pair shared by every tenant-scoped 500
- * view (owner decision R3-4a, 2026-07-10 round 3). */
-export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => {
-	const { t } = useTranslation('common');
-
-	return (
-		<>
-			<Button variant="default" onClick={onRetry} type="button">
-				{t('try-again')}
-			</Button>
-			<BackToTenantsLink />
-		</>
 	);
 };
 

@@ -8,7 +8,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import { Field } from '~/components/field';
+import { Field, FormActionBar } from '~/components/field';
 import { FieldGroup, GroupRow } from '~/components/field/field-group';
 import { Button } from '~/components/ui/button';
 import { Collapse } from '~/components/ui/collapse';
@@ -156,6 +156,7 @@ export const TenantCreateOwnersRow = ({
 							render={({ field: emailField, fieldState: { error } }) => (
 								<Input
 									type="email"
+									name={`owners.${index}.email`}
 									value={emailField.value}
 									placeholder={t('member-email-placeholder')}
 									disabled={isFormLocked}
@@ -210,7 +211,7 @@ export const TenantCreateOwnersRow = ({
 
 /** A section folded to one line saying what it holds (`Fold` in the
  * prototype); opens in place. */
-export const Fold = ({
+const Fold = ({
 	title,
 	summary,
 	children,
@@ -394,10 +395,10 @@ export const TenantCreateActionBar = ({
 	summary: string;
 	onCancel: () => void;
 }) => (
-	<div className="sticky -bottom-8 z-(--publy-z-raised) flex items-center justify-end gap-2 border-t bg-background pt-4 pb-6">
-		<span className="publy-form-action-bar-status mr-auto text-muted-foreground">
-			<span data-testid="create-tenant-summary">{summary}</span>
-		</span>
+	<FormActionBar
+		className="mx-0 mt-6 px-0 pb-0"
+		status={<span data-testid="create-tenant-summary">{summary}</span>}
+	>
 		<Button
 			type="button"
 			variant="outline"
@@ -415,7 +416,7 @@ export const TenantCreateActionBar = ({
 			<IconCheck data-icon="inline-start" />
 			{t('create-tenant-cta')}
 		</Button>
-	</div>
+	</FormActionBar>
 );
 
 export const TenantCreateRootError = ({ message }: { message: string }) => (

@@ -185,16 +185,6 @@ export const jobDescription = (
 	return job.descriptionKey ? t(job.descriptionKey) : '';
 };
 
-export const familyLabel = (t: Translate, family: JobFamily): string =>
-	t(JOB_FAMILY_META[family].labelKey);
-
-/** Free-text haystack for the client-side search (the list endpoints have no
- * `q` parameter — see `.report-4b.md`). */
-export const jobSearchText = (
-	t: Translate,
-	key: string | null | undefined,
-): string => `${key ?? ''} ${jobLabel(t, key)} ${jobDescription(t, key)}`;
-
 const everyMinutes = (minute: string): string | null => {
 	for (const prefix of ['*/', '0/']) {
 		if (minute.startsWith(prefix)) {
