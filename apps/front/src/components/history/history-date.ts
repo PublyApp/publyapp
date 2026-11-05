@@ -1,5 +1,7 @@
 /** The shared history's day headings and times (§5.1 « Par jour »). */
 
+import { formatLongWeekdayDate, formatTimeOfDay } from '~/utils/format-time';
+
 const DAY_MS = 86_400_000;
 
 const pad = (value: number): string => String(value).padStart(2, '0');
@@ -53,13 +55,8 @@ export const historyDayLabel = ({
 	}
 
 	try {
-		return capitalize(
-			new Intl.DateTimeFormat(locale, {
-				weekday: 'long',
-				day: 'numeric',
-				month: 'long',
-			}).format(date),
-		);
+		const formatted = formatLongWeekdayDate(date, locale);
+		return formatted === '—' ? unknown : capitalize(formatted);
 	} catch {
 		return unknown;
 	}
@@ -71,15 +68,7 @@ export const historyTimeLabel = (date: Date | null, locale: string): string => {
 		return '—';
 	}
 
-	try {
-		return new Intl.DateTimeFormat(locale, {
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23',
-		}).format(date);
-	} catch {
-		return '—';
-	}
+	return formatTimeOfDay(date, locale);
 };
 
 /** The date alone, for a custom period chip (« 12/10/2026 – 20/10/2026 »). */

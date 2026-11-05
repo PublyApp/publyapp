@@ -66,14 +66,19 @@ const StaffProfilesPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: [search.members.join(','), search.type.join(',')].join('|'),
 	});
-	const query = useStaffProfilesQuery({
+	const listVariables = {
 		q: controller.apiVariables.q,
 		sortId: controller.apiVariables.sortId,
 		sortOrder: controller.apiVariables.sortOrder,
 		cursor: controller.apiVariables.cursor,
 		limit: controller.apiVariables.size,
+	};
+	const query = useStaffProfilesQuery(listVariables);
+	const hasListFilters =
+		Boolean(search.q) || search.members.length > 0 || search.type.length > 0;
+	const team = useStaffTeamOverview({
+		profiles: hasListFilters ? undefined : listVariables,
 	});
-	const team = useStaffTeamOverview();
 	const rows = toStaffProfileRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const listSelection = buildListSelection(

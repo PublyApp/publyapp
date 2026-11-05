@@ -88,12 +88,16 @@ const StaffInvitationsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: search.status ?? '',
 	});
-	const query = useStaffInvitationsQuery({
+	const listVariables = {
 		...controller.apiVariables,
 		q: search.q,
 		status: search.status,
+	};
+	const query = useStaffInvitationsQuery(listVariables);
+	const hasListFilters = Boolean(search.q) || Boolean(search.status);
+	const team = useStaffTeamOverview({
+		invitations: hasListFilters ? undefined : listVariables,
 	});
-	const team = useStaffTeamOverview();
 
 	const rows = toStaffInvitationRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));

@@ -5,9 +5,18 @@ import {
 	IconUserPlus,
 } from '@tabler/icons-react';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
-import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
-import { useStaffUsersQuery } from '~/lib/query/staff-users';
+import {
+	useStaffInvitationsQuery,
+	type StaffInvitationsQueryVariables,
+} from '~/lib/query/staff-invitations';
+import {
+	useStaffProfilesQuery,
+	type StaffProfilesQueryVariables,
+} from '~/lib/query/staff-profiles';
+import {
+	useStaffUsersQuery,
+	type StaffUsersQueryVariables,
+} from '~/lib/query/staff-users';
 
 import type {
 	StaffInvitationListCounts,
@@ -41,11 +50,27 @@ export type StaffTeamOverview = {
  * The side panel's « Équipe » counters, from the lists' own `totalCount`
  * (issue #2301) — one row per list instead of a 100-row page whose length was
  * only a total when the page happened to be the whole collection.
+ *
+ * A page already rendering one of these lists passes the exact variables of
+ * its own query: the shared query key lets TanStack dedupe them into a single
+ * request (the KPI counters used to fire a second, distinct `size=1` GET on
+ * every staff page). Pages with an active filter omit the variable so the
+ * counters keep reading the whole collection, not the filtered page.
  */
-export const useStaffTeamOverview = (): StaffTeamOverview => {
-	const staffQuery = useStaffUsersQuery({ size: 1 });
-	const invitationsQuery = useStaffInvitationsQuery({ size: 1 });
-	const profilesQuery = useStaffProfilesQuery({ limit: 100 });
+export type StaffTeamOverviewQueries = {
+	staff?: StaffUsersQueryVariables;
+	invitations?: StaffInvitationsQueryVariables;
+	profiles?: StaffProfilesQueryVariables;
+};
+
+export const useStaffTeamOverview = ({
+	staff,
+	invitations,
+	profiles,
+}: StaffTeamOverviewQueries = {}): StaffTeamOverview => {
+	const staffQuery = useStaffUsersQuery(staff ?? { size: 1 });
+	const invitationsQuery = useStaffInvitationsQuery(invitations ?? { size: 1 });
+	const profilesQuery = useStaffProfilesQuery(profiles ?? { limit: 100 });
 
 	return {
 		counts: {
