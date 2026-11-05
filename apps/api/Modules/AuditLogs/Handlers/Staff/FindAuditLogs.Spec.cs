@@ -154,6 +154,67 @@ public sealed class FindAuditLogsSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnWholeHistoryCountsForTheStatCardsAndPanels() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// A fresh actor, so its panel counter is exactly what this test seeds;
+		// the action and window figures only have to contain the new rows.
+		var marker = $"counts-{Guid.NewGuid():N}";
+		var actorId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker,
+			lastName: "Actor"
+		);
+
+		for (var index = 0; index < 2; index++) {
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				this._Fixture.Factory,
+				actorId,
+				AuditActions.LoginFailed
+			);
+		}
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			AuditLogTestHelper.GetFindUrl(limit: 1)
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// The figures are whole-history facets, not the page's own length.
+		result.Data.Should().HaveCount(1);
+		result.Counts.Today.Should().BeGreaterOrEqualTo(2);
+		result.Counts.Last30Days
+			.Should().BeGreaterOrEqualTo(result.Counts.Today);
+		result.Counts.ByAction
+			.Should()
+			.Contain(count =>
+				count.Action == AuditActions.LoginFailed
+				&& count.Count >= 2
+			);
+		var actorRow = result.Counts.ByActor
+			.Should()
+			.ContainSingle(count =>
+				count.UserId == actorId
+			)
+			.Subject;
+		actorRow.Name.Should().Be($"{marker} Actor");
+		actorRow.Count.Should().Be(2);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldFilterByAction() {
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
@@ -326,11 +387,13 @@ public sealed class FindAuditLogsSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturn422WhenMoreThanFiftyActionsProvided() {
+	ItShouldReturn422WhenMoreActionsThanTheRegistryHoldsAreProvided() {
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
+		// The bound is the registry's own size — a category selection may
+		// already list more than the old fixed 50 (#2286).
 		var actions = new List<string>();
-		for (var i = 0; i < 51; i++) {
+		for (var i = 0; i <= AuditActionsRegistry.All.Count; i++) {
 			actions.Add(AuditActions.LoginSucceeded);
 		}
 
@@ -622,6 +685,25 @@ public sealed class FindAuditLogsSpec
 	private record FindResponse {
 		public List<AuditLogListItem> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+		public AuditLogCounts Counts { get; init; } = new();
+	}
+
+	private record AuditLogCounts {
+		public int Today { get; init; }
+		public int Last30Days { get; init; }
+		public List<AuditLogActionCount> ByAction { get; init; } = [];
+		public List<AuditLogActorCount> ByActor { get; init; } = [];
+	}
+
+	private record AuditLogActionCount {
+		public string Action { get; init; } = string.Empty;
+		public int Count { get; init; }
+	}
+
+	private record AuditLogActorCount {
+		public Guid UserId { get; init; }
+		public string Name { get; init; } = string.Empty;
+		public int Count { get; init; }
 	}
 
 	private record AuditLogListItem {

@@ -4705,6 +4705,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -10252,6 +10259,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -11072,6 +11086,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -11280,6 +11301,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -11468,6 +11496,13 @@
           },
           {
             "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
@@ -15718,6 +15753,36 @@
           }
         }
       },
+      "AuditLogActionCountItem": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "AuditLogActorCountItem": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "AuditLogDetail": {
         "required": [
           "id",
@@ -15774,6 +15839,33 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "AuditLogListCounts": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "last30Days": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byAction": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogActionCountItem"
+            }
+          },
+          "byActor": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogActorCountItem"
+            }
           }
         }
       },
@@ -16880,6 +16972,42 @@
           }
         }
       },
+      "DeadLetterListCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "open": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "triaged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "requeued": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "recent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byJobType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeCountItem"
+            }
+          }
+        }
+      },
       "DeadLetterListItem": {
         "required": [
           "id",
@@ -16914,6 +17042,12 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "tenantName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "lastError": {
             "type": [
@@ -17044,6 +17178,14 @@
       "FindAuditLogsResponse": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AuditLogListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17061,6 +17203,14 @@
       "FindDeadLettersResponse": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/DeadLetterListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17095,6 +17245,14 @@
       "FindJobQueueItemsResponse": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/JobQueueListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17210,6 +17368,14 @@
       "FindStaffInvitationsResult": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/StaffInvitationListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17241,6 +17407,16 @@
       "FindStaffProfilesResult": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalAssignments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17278,6 +17454,14 @@
       "FindStaffUsersResponse": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/StaffUserListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17295,6 +17479,14 @@
       "FindSystemJobDefinitionsResponse": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SystemJobListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -17397,6 +17589,14 @@
       "FindTenantsAsStaffResponse": {
         "type": "object",
         "properties": {
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/TenantListCountsResponse"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -18152,6 +18352,37 @@
           }
         }
       },
+      "JobQueueListCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "processing": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "retrying": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byJobType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobTypeCountItem"
+            }
+          }
+        }
+      },
       "JobQueueListItem": {
         "required": [
           "id",
@@ -18198,6 +18429,12 @@
             ],
             "format": "uuid"
           },
+          "tenantName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "lockedBy": {
             "type": [
               "null",
@@ -18228,6 +18465,19 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "JobTypeCountItem": {
+        "type": "object",
+        "properties": {
+          "jobType": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -19692,6 +19942,41 @@
           }
         }
       },
+      "StaffInvitationListCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "accepted": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "expired": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "revoked": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "expiringSoon": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "StaffInvitationProfile": {
         "required": [
           "id",
@@ -19955,6 +20240,52 @@
           },
           "level": {
             "$ref": "#/components/schemas/AccountLevel"
+          },
+          "profileNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "StaffUserListCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "active": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "suspended": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "admins": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "users": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "connectedToday": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "openSessions": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -20216,6 +20547,45 @@
           }
         }
       },
+      "SystemJobKeyCountItem": {
+        "type": "object",
+        "properties": {
+          "jobKey": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SystemJobListCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "enabled": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "disabled": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byJobKey": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SystemJobKeyCountItem"
+            }
+          }
+        }
+      },
       "SystemJobOccurrenceItem": {
         "required": [
           "enqueuedJobId",
@@ -20435,6 +20805,7 @@
         "required": [
           "id",
           "name",
+          "code",
           "usersCount",
           "projectsCount",
           "maxUsers",
@@ -20448,6 +20819,15 @@
           },
           "name": {
             "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "defaultLocale": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "logoUrl": {
             "type": [
@@ -20500,6 +20880,82 @@
           }
         }
       },
+      "TenantListCountsResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "active": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "suspended": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "seats": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "projects": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "almostFull": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "full": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "activeThisWeek": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pendingInvitations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pendingInvitationTenants": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "expiringInvitations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "byLocale": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantLocaleCountItem"
+            }
+          }
+        }
+      },
       "TenantListItem": {
         "type": "object",
         "properties": {
@@ -20518,6 +20974,19 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "TenantLocaleCountItem": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

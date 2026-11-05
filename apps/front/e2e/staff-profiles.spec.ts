@@ -121,7 +121,7 @@ test.describe(
 			}
 		});
 
-		test('filters profiles by member presence through the Team panel', async ({
+		test('filters profiles by member presence through the filter menu', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -132,8 +132,18 @@ test.describe(
 			await expect(
 				panel.getByRole('button', { name: /Profiles\s+\d+/ }),
 			).toBeVisible();
-			await panel.getByRole('button', { name: /With members/ }).click();
-			await expect(page).toHaveURL(/[?&]members=with(?:&|$)/);
+			// The prototype's list moved member presence from the Team panel
+			// shortcuts into the generic filter menu (Types stays a panel filter).
+			await page.getByRole('button', { name: /^Filters/ }).click();
+			const withMembers = page.getByRole('checkbox', {
+				name: 'With members',
+				exact: true,
+			});
+			await withMembers.click();
+			await expect(withMembers).toBeChecked();
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get('members'))
+				.toBe('with');
 		});
 
 		test('search filters seeded profiles and clearing search restores the list', async ({

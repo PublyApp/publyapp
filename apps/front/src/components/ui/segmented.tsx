@@ -40,7 +40,7 @@ export const Segmented = <T extends string>({
 					className={cn(
 						'h-7 rounded-[var(--publy-radius-menu-item)] px-2 text-xs whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
 						active &&
-							'bg-background text-foreground shadow-[var(--publy-shadow-chrome)]',
+							'bg-background text-foreground shadow-[var(--effect-raised-control)]',
 						itemClassName,
 					)}
 				>

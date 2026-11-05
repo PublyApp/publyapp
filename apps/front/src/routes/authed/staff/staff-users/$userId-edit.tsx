@@ -7,7 +7,6 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	useUpdateStaffUserMutation,
@@ -147,14 +146,6 @@ const StaffUserEditPage = () => {
 				title={t('staff-user-not-found-title')}
 				description={t('staff-user-payload-empty')}
 				testId="staff-user-edit-not-found"
-				actions={
-					<Link
-						to="/staff/staff-users"
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-staff-users')}
-					</Link>
-				}
 			/>
 		);
 	}

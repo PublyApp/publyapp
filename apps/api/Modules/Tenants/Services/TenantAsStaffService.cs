@@ -19,6 +19,8 @@ namespace PublyApp.Api.Modules.Tenants.Services;
 public class TenantAsStaffListItem {
 	public required Guid Id { get; init; }
 	public required string Name { get; init; }
+	public required string Code { get; init; }
+	public string? DefaultLocale { get; init; }
 	public string? LogoUrl { get; init; }
 	public required int UsersCount { get; init; }
 	public required int ProjectsCount { get; init; }
@@ -139,9 +141,33 @@ public record CreateTenantWithInitialUsersArgs(
 	string? Notes
 );
 
+public sealed record TenantLocaleCount(
+	string Locale,
+	int Count
+);
+
+public sealed record TenantListCounts(
+	int Total,
+	int Active,
+	int Pending,
+	int Suspended,
+	int Members,
+	int Seats,
+	int Projects,
+	int AlmostFull,
+	int Full,
+	int ActiveThisWeek,
+	int PendingInvitations,
+	int PendingInvitationTenants,
+	int ExpiringInvitations,
+	IReadOnlyList<TenantLocaleCount> ByLocale
+);
+
 public abstract record FindTenantsAsStaffServiceResult {
-	public sealed record Success(CursorPaginatedResult<TenantAsStaffListItem> Data)
-		: FindTenantsAsStaffServiceResult;
+	public sealed record Success(
+		CursorPaginatedResult<TenantAsStaffListItem> Data,
+		TenantListCounts Counts
+	) : FindTenantsAsStaffServiceResult;
 
 	public sealed record CursorNotFound(string Cursor)
 		: FindTenantsAsStaffServiceResult;
@@ -357,6 +383,130 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			baseQuery = baseQuery.Where(t => statuses.Contains(t.Status));
 		}
 
+		// Facets describe the whole filtered collection (cursor and limit are
+		// pagination only). Occupancy needs the per-tenant member count; the
+		// grouped projection loads two ints per tenant, never whole rows.
+		var occupancyRows = await (
+			from tenant in baseQuery
+			join ua in this._DbContext.UserAccount.AsNoTracking()
+				on tenant.Id equals ua.TenantId
+			where ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			group ua by new { tenant.Id, tenant.MaxUsers } into g
+			select new { g.Key.MaxUsers, Members = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var seats = await baseQuery.SumAsync(t => t.MaxUsers, cancellationToken);
+		var weekAgo = DateTime.UtcNow.AddDays(-7);
+		var activeThisWeek = await baseQuery.CountAsync(
+			t => t.LastActivityAt != null && t.LastActivityAt >= weekAgo,
+			cancellationToken
+		);
+		var projects = await (
+			from project in this._DbContext.Project.AsNoTracking()
+			where !project.IsDeleted
+				&& baseQuery.Any(tenant => tenant.Id == project.TenantId)
+			select project
+		).CountAsync(cancellationToken);
+
+		var members = 0;
+		var almostFull = 0;
+		var full = 0;
+		foreach (var row in occupancyRows) {
+			members += row.Members;
+			if (row.MaxUsers <= 0) {
+				continue;
+			}
+			var percent = Math.Min(100, (int)Math.Round(row.Members * 100.0 / row.MaxUsers));
+			if (percent >= 100) {
+				full += 1;
+			}
+			if (percent >= 80) {
+				almostFull += 1;
+			}
+		}
+
+		var statusFacets = await (
+			from tenant in baseQuery
+			group tenant by tenant.Status into g
+			select new { Status = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var active = 0;
+		var pending = 0;
+		var suspended = 0;
+		foreach (var facet in statusFacets) {
+			total += facet.Count;
+			if (facet.Status == TenantStatus.Active) {
+				active += facet.Count;
+			} else if (facet.Status == TenantStatus.Pending) {
+				pending += facet.Count;
+			} else if (facet.Status == TenantStatus.Suspended) {
+				suspended += facet.Count;
+			}
+		}
+
+		// The « Langues » panel counts the tenants' own default language.
+		var localeFacets = await (
+			from tenant in baseQuery
+			group tenant by tenant.DefaultLocale into g
+			select new { Locale = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var byLocale = localeFacets
+			.Select(facet => new TenantLocaleCount(
+				Locale: facet.Locale ?? string.Empty,
+				Count: facet.Count
+			))
+			.ToList();
+
+		// « Invitations en attente »: pending organisation invitations for the
+		// filtered tenants, the organisations concerned, and the ones expiring
+		// within seven days (already-expired rows are not expiring).
+		var now = DateTime.UtcNow;
+		var expiringBoundary = now.AddDays(7);
+		var pendingInvitationRows = await (
+			from invitation in this._DbContext.Invitation.AsNoTracking()
+			where invitation.Scope == InvitationScope.Tenant
+				&& invitation.Status == InvitationStatus.Pending
+				&& !invitation.IsDeleted
+				&& invitation.TenantId != null
+				&& baseQuery.Any(tenant => tenant.Id == invitation.TenantId)
+			select new {
+				invitation.TenantId,
+				invitation.ExpiresAt,
+			}
+		).ToListAsync(cancellationToken);
+
+		var pendingInvitationTenantIds = new HashSet<Guid>();
+		var expiringInvitations = 0;
+		foreach (var row in pendingInvitationRows) {
+			if (row.TenantId is { } invitationTenantId) {
+				pendingInvitationTenantIds.Add(invitationTenantId);
+			}
+			if (row.ExpiresAt > now && row.ExpiresAt <= expiringBoundary) {
+				expiringInvitations += 1;
+			}
+		}
+
+		var counts = new TenantListCounts(
+			Total: total,
+			Active: active,
+			Pending: pending,
+			Suspended: suspended,
+			Members: members,
+			Seats: seats,
+			Projects: projects,
+			AlmostFull: almostFull,
+			Full: full,
+			ActiveThisWeek: activeThisWeek,
+			PendingInvitations: pendingInvitationRows.Count,
+			PendingInvitationTenants: pendingInvitationTenantIds.Count,
+			ExpiringInvitations: expiringInvitations,
+			ByLocale: byLocale
+		);
+
 		// Apply cursor filter
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(args.Cursor);
@@ -424,6 +574,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new TenantAsStaffListItem {
 				Id = tenantId,
 				Name = t.Name,
+				Code = t.Code,
+				DefaultLocale = t.DefaultLocale,
 				LogoUrl = t.LogoUrl,
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
 				ProjectsCount = projectsCountDict.GetValueOrDefault(tenantId, 0),
@@ -437,7 +589,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			new CursorPaginatedResult<TenantAsStaffListItem> {
 				Data = items,
 				NextCursor = nextCursor
-			}
+			},
+			counts
 		);
 	}
 

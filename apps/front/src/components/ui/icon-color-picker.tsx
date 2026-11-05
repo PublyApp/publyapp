@@ -81,7 +81,7 @@ const IconColorPicker = ({
 					align="start"
 					className="z-(--publy-z-menu)"
 				>
-					<Popover.Popup className="w-[min(320px,calc(100vw-24px))] rounded-[var(--publy-radius-card)] bg-popover p-4 text-popover-foreground shadow-[var(--publy-shadow-ring)] outline-none">
+					<Popover.Popup className="w-[min(320px,calc(100vw-24px))] rounded-[10px] bg-popover-surface p-4 text-popover-foreground shadow-[var(--effect-popover)] outline-none">
 						<section aria-labelledby="icon-color-picker-color-heading">
 							<h2
 								id="icon-color-picker-color-heading"

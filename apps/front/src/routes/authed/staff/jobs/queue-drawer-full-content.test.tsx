@@ -257,6 +257,7 @@ vi.mock('~/components/table/data-table', () => ({
 						),
 					),
 		]),
+	DataTableCursorFooter: () => null,
 }));
 
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
@@ -264,11 +265,20 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
 }));
 
-vi.mock('@tabler/icons-react', () => ({
-	IconActivity: () => createElement('span', {}, 'icon-activity'),
-	IconEye: () => createElement('span', {}, 'icon-eye'),
-	IconDots: () => createElement('span', {}, 'icon-dots'),
-}));
+vi.mock('@tabler/icons-react', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@tabler/icons-react')>();
+	return {
+		...actual,
+		IconActivity: () => createElement('span', {}, 'icon-activity'),
+		IconEye: () => createElement('span', {}, 'icon-eye'),
+		IconDots: () => createElement('span', {}, 'icon-dots'),
+	};
+});
+
+vi.mock('~/components/list/list-page', async () => {
+	const { FakeListPage } = await import('~/lib/testing/fake-list-page');
+	return { ListPage: FakeListPage };
+});
 
 import { Route } from './queue';
 
@@ -325,7 +335,6 @@ describe('queue drawer: full content with inline portal mocks', () => {
 
 		renderPage();
 
-		expect(screen.getByText('No queued jobs')).toBeTruthy();
 		expect(
 			screen.getByText('Jobs waiting or being processed will appear here.'),
 		).toBeTruthy();

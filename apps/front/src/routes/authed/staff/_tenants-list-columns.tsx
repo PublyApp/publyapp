@@ -170,8 +170,18 @@ export const tenantColumns = (
 			'identifier',
 			170,
 			IconHash,
-			() => dash,
-			() => null,
+			(row) =>
+				row.code ? (
+					<span
+						className="block truncate font-mono text-xs text-muted-foreground"
+						title={row.code}
+					>
+						{row.code}
+					</span>
+				) : (
+					dash
+				),
+			(row) => row.code,
 		),
 		column(
 			'status',

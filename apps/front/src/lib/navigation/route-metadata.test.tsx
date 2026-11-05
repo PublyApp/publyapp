@@ -60,8 +60,8 @@ describe('front route metadata', () => {
 			getSecondaryPanelItems('/staff/tenants').map((item) => item.labelKey),
 		).toEqual([
 			'nav-tenants-all',
-			'nav-tenants-pending',
 			'nav-tenants-active',
+			'nav-tenants-pending',
 			'nav-tenants-suspended',
 		]);
 	});
@@ -355,7 +355,7 @@ describe('front route metadata', () => {
 	});
 
 	test('tenants panel items distinguish All tenants from the status filters', () => {
-		const [allTenants, pending, active, suspended] =
+		const [allTenants, active, pending, suspended] =
 			getSecondaryPanelItems('/staff/tenants');
 		if (!allTenants || !pending || !active || !suspended) {
 			throw new Error('expected all four tenants panel items to exist');

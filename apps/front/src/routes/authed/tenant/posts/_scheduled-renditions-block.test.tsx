@@ -45,6 +45,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	Link: ({ children }: { children: unknown }) => children,
 }));
 

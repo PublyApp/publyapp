@@ -155,20 +155,21 @@ describe('buildCreateStaffTenantBody', () => {
 		]);
 	});
 
-	test('includes a trimmed code and the seedDefaultProfile flag when provided', () => {
+	test('includes a trimmed code when provided', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
 			code: '  acme-corp  ',
-			seedDefaultProfile: false,
 			initialUsers: [{ email: 'user@example.com', accountLevel: 'Admin' }],
 		});
 
 		expect(unwrapUntyped(body.code)).toBe('acme-corp');
-		expect(unwrapUntyped(body.seedDefaultProfile)).toBe(false);
+		// The API defaults seedDefaultProfile to false; the create form never
+		// sends the flag (the "seed default profiles" switch was removed).
+		expect(body.seedDefaultProfile).toBeUndefined();
 	});
 
-	test('omits code and seedDefaultProfile when not provided', () => {
+	test('omits code when not provided', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
@@ -647,6 +648,8 @@ describe('toStaffTenantRows', () => {
 			{
 				id: 'tenant-1',
 				name: 'Acme Corporation',
+				code: null,
+				defaultLocale: null,
 				logoUrl: 'https://api.example.test/files/uploads/acme.png',
 				status: 'Active',
 				usersCount: 12,

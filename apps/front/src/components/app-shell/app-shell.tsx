@@ -200,6 +200,23 @@ const AuthedWorkspaceShell = ({
 			tenantPermissions !== undefined ? new Set(tenantPermissions) : undefined,
 	});
 	const secondaryItems = getSecondaryPanelItems(pathname);
+	// #2291 M4: the panel heading names the page the user is actually on
+	// (« Membres du personnel », « Profils », « Rapports » …), never the
+	// broader module label (« Équipe », « Tableau de bord ») that the H1 does
+	// not repeat. Filter-shortcut variants carry a `search` and are skipped:
+	// their label describes a filter, not the section, so a filtered URL
+	// deliberately falls back to the rail item's section label.
+	const activeSecondaryItem = secondaryItems.find(
+		(item) =>
+			item.search === undefined &&
+			isSecondaryPanelItemActive(item, pathname, search),
+	);
+	let secondaryPanelTitle: string | null = null;
+	if (activeSecondaryItem) {
+		secondaryPanelTitle = t(activeSecondaryItem.labelKey);
+	} else if (activeRoute) {
+		secondaryPanelTitle = t(activeRoute.labelKey);
+	}
 	// List pages own their secondary panel: it repeats the section links with
 	// API counts and appends the page's filter shortcuts. The static nav would
 	// otherwise render the same links twice, without counters.
@@ -330,28 +347,39 @@ const AuthedWorkspaceShell = ({
 					inert={showSecondaryPanel ? undefined : true}
 				>
 					<div className="app-shell-secondary-panel-inner">
-						<SecondaryPanelHeader
-							title={activeRoute ? t(activeRoute.labelKey) : null}
-						/>
-						{pageOwnsSecondaryNav ? null : (
-							<nav
-								className="app-shell-secondary-nav"
-								aria-label={t('nav-secondary')}
-							>
-								{secondaryItems.map((item) => (
-									<SecondaryPanelNavItem
-										key={item.id}
-										item={item}
-										pathname={pathname}
-										search={search}
-									/>
-								))}
-							</nav>
+						{pageOwnsSecondaryNav ? (
+							<>
+								{/* The page's panel already repeats the section links (with
+								    their real counters) and its filter groups: it owns the
+								    whole panel, so no separate section header above it. The
+								    heading survives for assistive tech only. */}
+								<h2 id="app-shell-secondary-heading" className="sr-only">
+									{secondaryPanelTitle}
+								</h2>
+								<div
+									id="app-shell-page-panel"
+									className="app-shell-page-panel"
+								/>
+							</>
+						) : (
+							<>
+								<SecondaryPanelHeader title={secondaryPanelTitle} />
+								<nav
+									className="app-shell-secondary-nav"
+									aria-label={t('nav-secondary')}
+								>
+									{secondaryItems.map((item) => (
+										<SecondaryPanelNavItem
+											key={item.id}
+											item={item}
+											pathname={pathname}
+											search={search}
+										/>
+									))}
+								</nav>
+								<div id="app-shell-page-panel" />
+							</>
 						)}
-						{/* A list page's filter-shortcut groups portal here (#2274
-						    §4.1): page-owned runtime counters cannot live in the route
-						    metadata, so the page mounts its own panel content. */}
-						<div id="app-shell-page-panel" />
 					</div>
 				</aside>
 			) : null}
@@ -399,11 +427,17 @@ const AuthedWorkspaceShell = ({
 						>
 							{breadcrumbs.map((item, index) => {
 								const isLast = index === breadcrumbs.length - 1;
+								// #2291: label crumbs ellipsize like the entity crumb and
+								// expose their full text on hover. The entity crumb owns its
+								// own `title` (it is the user-supplied name), so the wrapper
+								// only titles the i18n label crumbs.
+								const labelText =
+									item.kind === 'entity' ? undefined : t(item.labelKey);
 								const label: ReactNode =
 									item.kind === 'entity' ? (
 										<EntityCrumb spec={item} params={breadcrumbParams} />
 									) : (
-										t(item.labelKey)
+										labelText
 									);
 								const path = item.to;
 								let content: ReactNode;
@@ -412,19 +446,29 @@ const AuthedWorkspaceShell = ({
 										<span
 											aria-current="page"
 											className="app-shell-breadcrumb-current"
+											title={labelText}
 										>
 											{label}
 										</span>
 									);
 								} else if (path) {
 									content = (
-										<Link to={path} className="app-shell-breadcrumb-link">
+										<Link
+											to={path}
+											className="app-shell-breadcrumb-link"
+											title={labelText}
+										>
 											{label}
 										</Link>
 									);
 								} else {
 									content = (
-										<span className="app-shell-breadcrumb-muted">{label}</span>
+										<span
+											className="app-shell-breadcrumb-muted"
+											title={labelText}
+										>
+											{label}
+										</span>
 									);
 								}
 								return (

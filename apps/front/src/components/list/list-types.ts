@@ -58,7 +58,8 @@ export type ListSelection = {
 };
 
 export type ListMobileCard = {
-	code: string;
+	/** The header's small code; omit it for a record whose title is its name. */
+	code?: string;
 	badges?: ReactNode;
 	end?: ReactNode;
 	title: ReactNode;

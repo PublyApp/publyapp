@@ -7,8 +7,10 @@ import {
 	formatCalendarDay,
 	formatDateTime,
 	formatInZone,
+	formatLongWeekdayDate,
 	formatMonthYear,
 	formatShortDate,
+	formatTimeOfDay,
 	getBrowserTimeZone,
 	getRelativeTimeParts,
 } from './format-time';
@@ -70,6 +72,17 @@ describe('format-time', () => {
 
 	test('formats a calendar day with a weekday in the requested locale', () => {
 		expect(formatCalendarDay('2026-08-01', 'fr')).toBe('sam. 1 août 2026');
+	});
+
+	test('formats the spelled-out history day and a 24-hour clock time', () => {
+		const instant = new Date('2026-10-25T07:02:00Z');
+
+		expect(formatLongWeekdayDate(instant, 'fr', { timeZone: 'UTC' })).toBe(
+			'dimanche 25 octobre',
+		);
+		expect(formatTimeOfDay(instant, 'fr', { timeZone: 'UTC' })).toBe('07:02');
+		expect(formatLongWeekdayDate(null, 'fr')).toBe('—');
+		expect(formatTimeOfDay(new Date('invalid'), 'fr')).toBe('—');
 	});
 
 	test('keeps viewer-local undefined distinct from unavailable null zone', () => {

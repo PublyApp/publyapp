@@ -1,5 +1,4 @@
 import { IconUserPlus } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import type { SortingState } from '@tanstack/react-table';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +11,6 @@ import type {
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
-import { buttonVariants } from '~/components/ui/button.variants';
 import type { StaffProfileUserRow } from '~/lib/query/staff-profile-users';
 
 import type { StaffTeamOverview } from '../../_staff-list-team';
@@ -41,6 +39,7 @@ type StaffProfileUsersListProps = {
 		isPending: boolean;
 		isError: boolean;
 		isFetching: boolean;
+		error?: unknown;
 	};
 	/** Replaces the generic list error description (a 403 explanation). */
 	errorContent?: ReactNode;
@@ -132,28 +131,24 @@ export const StaffProfileUsersList = ({
 					counts,
 					onTeamSelect,
 				)}
-				newAction={
+				newAction={{
 					// ponytail: no bulk-assign endpoint exists yet — the profile
 					// overview is the only place membership is editable today.
-					<Link
-						to="/staff/profiles/$profileId"
-						params={{ profileId }}
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						<IconUserPlus aria-hidden="true" data-icon="inline-start" />
-						{t('assign-staff-members')}
-					</Link>
-				}
+					label: t('assign-staff-members'),
+					icon: IconUserPlus,
+					to: '/staff/profiles/$profileId',
+					params: { profileId },
+					variant: 'outline',
+				}}
 				onOpen={onOpen}
 				openLabel={(row) => t('list-open-row', { name: displayName(row, t) })}
 				rowLabel={(row) => displayName(row, t)}
 				mobileCard={(row) => ({
-					code: row.email,
 					title: displayName(row, t),
 					sub: row.email,
 				})}
 				selection={selection}
-				queryState={{ isPending, isError, onRetry }}
+				queryState={{ isPending, isError, error: queryState.error, onRetry }}
 				errorContent={errorContent}
 				footer={
 					rows.length > 0 ? (

@@ -84,3 +84,8 @@ obj/
 .ai/
 .aidesigner/
 .superpowers/
+
+# Temporary local agent caches (reverted after e2e image build)
+.xdg*/
+.tmp*/
+.report-*

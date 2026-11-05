@@ -1,11 +1,12 @@
 import {
-	IconBriefcase,
+	IconHash,
+	IconShieldLock,
 	IconStack2,
-	IconTextCaption,
 	IconUsers,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ListColumn, ListFilter } from '~/components/list/list-types';
+import { IconTile } from '~/components/ui/icon-tile';
 import { StatusPill } from '~/components/ui/product-page';
 import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import type { StaffProfileRow } from '~/lib/query/staff-profiles';
@@ -30,26 +31,26 @@ export const staffProfileColumns = (
 	{
 		id: 'name',
 		header: t('profile'),
-		icon: IconBriefcase,
+		icon: IconShieldLock,
 		width: 260,
 		value: (row) => row.name,
 		cell: (row) => {
-			const { Icon: ProfileIcon, tone } = deriveProfileCardStyle(
+			// Uniform shield tile (prototype's profile cell): every profile reads
+			// as a permission set, not as a per-row icon choice.
+			const tone = deriveProfileCardStyle(
 				row.name,
 				row.icon,
 				row.iconTone,
-			);
+			).tone;
 			return (
 				<Link
 					to="/staff/profiles/$profileId"
 					params={{ profileId: row.id }}
-					className="flex min-w-0 items-center gap-[11px] no-underline"
+					className="flex min-w-0 items-center gap-2 no-underline"
 				>
-					<span className="publy-profile-icon-tile" data-tone={tone}>
-						<ProfileIcon className="size-[17px]" />
-					</span>
+					<IconTile icon={IconShieldLock} size="sm" tone={tone} />
 					<span
-						className="publy-record-link min-w-0 truncate text-[13px]"
+						className="publy-record-link min-w-0 truncate font-medium"
 						title={row.name}
 					>
 						{row.name}
@@ -63,9 +64,13 @@ export const staffProfileColumns = (
 		header: t('list-column-type'),
 		icon: IconStack2,
 		width: 140,
-		// No `isDefault`/system flag on StaffProfileItem: the design's
-		// Système/Personnalisé split cannot be computed, so it is a dash.
-		cell: Dash,
+		// Staff profiles can never be `isDefault` (Profile.ValidateProfileType),
+		// so every one of them is custom — the prototype's own data has 0
+		// system profiles too.
+		cell: () => (
+			<StatusPill tone="neutral">{t('list-profile-type-custom')}</StatusPill>
+		),
+		value: () => 'custom',
 		sortable: false,
 	},
 	{
@@ -78,13 +83,13 @@ export const staffProfileColumns = (
 			row.userAccountCount === null ? (
 				<Dash />
 			) : (
-				<span className="font-medium tabular-nums">{row.userAccountCount}</span>
+				<span className="tabular-nums">{row.userAccountCount}</span>
 			),
 	},
 	{
 		id: 'description',
 		header: t('description'),
-		icon: IconTextCaption,
+		icon: IconHash,
 		// The grid's fluid slot (1fr): the other columns keep their handoff
 		// pixel widths, and a long description truncates inside the rest of
 		// the card instead of stretching them (SPEC 2g).
@@ -98,22 +103,36 @@ export const staffProfileColumns = (
 					{row.description}
 				</span>
 			) : (
-				<Dash />
+				<span className="text-muted-foreground">
+					{t('list-no-description')}
+				</span>
 			),
 		sortable: false,
 	},
 ];
 
-/** The only §4.6 profile filter the list DTO can answer: at least one member vs
- * none. The Types filter is omitted — no system/custom field exists (#2281). */
+/** The prototype's panel filter: Types (Système / Personnalisé). Membres stays
+ * in the filter menu. Staff profiles are never system profiles, so the custom
+ * value is the only one a row can carry. */
 export const buildStaffProfileFilters = (
 	t: Translate,
 ): ListFilter<StaffProfileRow>[] => [
 	{
+		key: 'type',
+		label: t('list-types'),
+		icon: IconStack2,
+		panel: true,
+		choices: [
+			{ value: 'system', label: t('list-profile-type-system') },
+			{ value: 'custom', label: t('list-profile-type-custom') },
+		],
+		valueOf: () => 'custom',
+	},
+	{
 		key: 'members',
 		label: t('members'),
 		icon: IconUsers,
-		panel: true,
+		panel: false,
 		choices: [
 			{ value: 'with', label: t('list-members-with') },
 			{ value: 'without', label: t('list-members-without') },
@@ -124,18 +143,18 @@ export const buildStaffProfileFilters = (
 
 export const buildStaffProfileTotals = (
 	t: Translate,
-	rows: StaffProfileRow[],
+	totalCount: number | null | undefined,
+	totalAssignments: number | null | undefined,
 ): Map<string, string> => {
-	let assignments = 0;
-	for (const row of rows) {
-		assignments += row.userAccountCount ?? 0;
-	}
 	const totals = new Map<string, string>();
-	totals.set('name', t('list-total-staff-profiles', { count: rows.length }));
+	totals.set(
+		'name',
+		t('list-total-staff-profiles', { count: totalCount ?? 0 }),
+	);
 	totals.set('type', DASH);
 	totals.set(
 		'members',
-		t('list-total-profile-members', { count: assignments }),
+		t('list-total-profile-members', { count: totalAssignments ?? 0 }),
 	);
 	totals.set('description', DASH);
 	return totals;

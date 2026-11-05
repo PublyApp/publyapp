@@ -26,7 +26,6 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
-	TenantRetryActions,
 } from './_tenant-details-shell';
 
 // Freshness contract (#168): the numbers are exact at read time, but
@@ -65,9 +64,6 @@ const StaffTenantUsagePage = () => {
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
-			actions={
-				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-			}
 		/>
 	);
 
@@ -119,11 +115,6 @@ const StaffTenantUsagePage = () => {
 											title={t('tenant-details-error-title')}
 											description={t('tenant-response-incomplete')}
 											testId="staff-tenant-details-error"
-											actions={
-												<TenantRetryActions
-													onRetry={() => void usageQuery.refetch()}
-												/>
-											}
 										/>
 									);
 								}

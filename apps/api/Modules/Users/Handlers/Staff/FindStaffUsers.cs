@@ -20,9 +20,25 @@ public class StaffUserItem {
 	public string? AvatarUrl { get; set; }
 	public UserStatus Status { get; set; }
 	public AccountLevel Level { get; set; }
+
+	// Staff profile names, assigned to the account (batched read, never N+1).
+	public List<string> ProfileNames { get; set; } = [];
 }
 
-public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
+public class StaffUserListCounts {
+	public int Total { get; set; }
+	public int Active { get; set; }
+	public int Suspended { get; set; }
+	public int Admins { get; set; }
+	public int Users { get; set; }
+	public int ConnectedToday { get; set; }
+	public int OpenSessions { get; set; }
+}
+
+public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> {
+	public int TotalCount { get; set; }
+	public StaffUserListCounts Counts { get; set; } = new();
+}
 
 public class FindStaffUsersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
@@ -50,8 +66,7 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 			return null;
 		}
 
-		var parts = trimmed
-			.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+		var parts = trimmed.Split(',', StringSplitOptions.TrimEntries);
 		if (parts.Length == 0) {
 			return null;
 		}
@@ -81,9 +96,14 @@ public class FindStaffUsersQueryValidator
 					return true;
 				}
 
-				var parts = raw
-					.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-				return parts.All(FindStaffUsersQueryValidator._AllowedStatuses.Contains);
+				// Split WITHOUT RemoveEmptyEntries so empty tokens are rejected
+				// (",", ",,", "active,,suspended") instead of silently dropped,
+				// matching FindTenantsAsStaffQueryValidator.
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				return parts.All(part =>
+					part.Length > 0
+					&& FindStaffUsersQueryValidator._AllowedStatuses.Contains(part)
+				);
 			})
 			.WithMessage(
 				"Invalid status value. Must be comma-separated: "
@@ -160,9 +180,20 @@ public sealed class FindStaffUsers {
 							AvatarUrl = staffUser.User.AvatarUrl,
 							Status = staffUser.User.Status,
 							Level = staffUser.AccountLevel,
+							ProfileNames = staffUser.ProfileNames,
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,
+					TotalCount = success.Counts.Total,
+					Counts = new StaffUserListCounts {
+						Total = success.Counts.Total,
+						Active = success.Counts.Active,
+						Suspended = success.Counts.Suspended,
+						Admins = success.Counts.Admins,
+						Users = success.Counts.Users,
+						ConnectedToday = success.Counts.ConnectedToday,
+						OpenSessions = success.Counts.OpenSessions,
+					},
 				}
 			);
 		}

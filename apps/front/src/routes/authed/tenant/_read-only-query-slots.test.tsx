@@ -18,16 +18,18 @@ const EN_LABELS: TestLabelMap = {
 	'failed-to-load-organization-description': 'Try again later.',
 	retry: 'Retry',
 	'common:retry': 'Retry',
+	'go-to-home': 'Back to home',
+	'common:go-to-home': 'Back to home',
 	'common:title': 'Title',
 	'common:description': 'Description',
 	'error-403-code': '403 — Forbidden',
-	'no-access-title': "You don't have access",
+	'no-access-title': 'Access denied',
 	'forbidden-description': 'The page is restricted.',
 	'error-404-code': '404 — Not Found',
 	'page-not-found': 'Page not found',
 	'not-found-sentence': 'The page could not be found.',
 	'error-500-code': '500 — Server Error',
-	'error-500-title': 'Internal Server Error',
+	'error-500-title': 'Unable to load',
 	'error-500-description': 'Something went wrong on our end.',
 	'query-display-error-cause-unknown':
 		"We couldn't determine what went wrong. Try again in a moment.",
@@ -69,7 +71,7 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		expect(onRetry).toHaveBeenCalledOnce();
 	});
 
-	test('renders the 404 cause and hides the retry button when the query failed with a not-found error', () => {
+	test('renders the 404 cause with the classified copy and only a retry in a panel', () => {
 		const error = new ServerFailure({
 			responseStatusCode: 404,
 			status: 404,
@@ -89,9 +91,12 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		);
 
 		expect(screen.getByTestId('tenant-card-error-404')).toBeTruthy();
-		expect(screen.getByText('404 — Not Found')).toBeTruthy();
+		expect(screen.queryByText('404 — Not Found')).toBeNull();
 		expect(screen.getByText('Page not found')).toBeTruthy();
-		expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+		expect(screen.getByText('The page could not be found.')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		// « Retour à l'accueil » is pointless inside a card.
+		expect(screen.queryByRole('link', { name: /Back to home/ })).toBeNull();
 	});
 
 	test('renders the 500 cause and keeps the retry button when the query failed with a server error', () => {
@@ -114,8 +119,8 @@ describe('TenantReadOnlyCardError (#2043)', () => {
 		);
 
 		expect(screen.getByTestId('tenant-card-error-500')).toBeTruthy();
-		expect(screen.getByText('500 — Server Error')).toBeTruthy();
-		expect(screen.getByText('Internal Server Error')).toBeTruthy();
+		expect(screen.queryByText('500 — Server Error')).toBeNull();
+		expect(screen.getByText('Unable to load')).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
 	});
 

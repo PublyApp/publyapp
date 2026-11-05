@@ -373,6 +373,7 @@ describe('row mappers', () => {
 				attempts: 0,
 				maxAttempts: 3,
 				tenantId: 'tenant-1',
+				tenantName: ' Acme ',
 				createdAt,
 			} as JobQueueListItem,
 			{ id: '', jobType: 'skip.me' } as JobQueueListItem,
@@ -391,6 +392,7 @@ describe('row mappers', () => {
 				lockedUntil: null,
 				lastError: null,
 				tenantId: 'tenant-1',
+				tenantName: 'Acme',
 				createdAt,
 				updatedAt: null,
 			},
@@ -409,6 +411,7 @@ describe('row mappers', () => {
 				externalStateStatus: 6,
 				failedAt,
 				tenantId: 'tenant-1',
+				tenantName: ' Acme ',
 			} as DeadLetterListItem,
 			{ id: null } as DeadLetterListItem,
 		]);
@@ -426,6 +429,7 @@ describe('row mappers', () => {
 				requeuedAsJobId: null,
 				requeuedAt: null,
 				tenantId: 'tenant-1',
+				tenantName: 'Acme',
 			},
 		]);
 	});

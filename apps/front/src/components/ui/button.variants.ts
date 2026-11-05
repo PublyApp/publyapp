@@ -13,7 +13,7 @@ export const buttonVariants = cva(
 				// same fill from the global [aria-haspopup][aria-expanded] rule; a
 				// neutral disclosure stays neutral at rest.
 				outline:
-					'border-(--publy-border-strong) bg-background hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground',
+					'bg-background shadow-[var(--effect-raised-control)] hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] hover:text-foreground',
 				secondary:
 					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
 				ghost:
@@ -24,11 +24,11 @@ export const buttonVariants = cva(
 			},
 			size: {
 				default:
-					'h-9 gap-1.5 rounded-[var(--publy-radius-medium-control)] px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5',
+					'h-9 gap-1.5 rounded-[var(--publy-radius-control)] px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5',
 				xs: "h-6 gap-1 rounded-[var(--publy-radius-chip)] px-2.5 text-xs has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
-				sm: 'h-8 gap-1 rounded-[var(--publy-radius-small-control)] px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
+				sm: 'h-8 gap-1 rounded-[var(--publy-radius-control)] px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
 				lg: 'h-10 gap-1.5 rounded-[var(--publy-radius-control)] px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3',
-				icon: 'size-9 rounded-[var(--publy-radius-medium-control)]',
+				icon: 'size-9 rounded-[var(--publy-radius-control)]',
 				'icon-xs':
 					"size-6 rounded-[var(--publy-radius-chip)] [&_svg:not([class*='size-'])]:size-3",
 				'icon-sm': 'size-8 rounded-[var(--publy-radius-small-control)]',

@@ -33,11 +33,12 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindJobQueueItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: null,
 				StatusCsv: null,
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 
 			var page = result.Should().BeOfType<FindJobQueueItemsResult.Success>()
@@ -67,11 +68,12 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindJobQueueItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: null,
 				StatusCsv: "pending",
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 
 			var page = result.Should().BeOfType<FindJobQueueItemsResult.Success>()
@@ -81,11 +83,12 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			);
 
 			var rejected = await service.FindAsync(new FindJobQueueItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: null,
 				StatusCsv: "not-a-status",
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 			rejected.Should()
 				.BeOfType<FindJobQueueItemsResult.InvalidStatusCsv>();
@@ -110,11 +113,12 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindJobQueueItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: tenantId,
 				StatusCsv: null,
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 
 			var page = result.Should().BeOfType<FindJobQueueItemsResult.Success>()
@@ -152,11 +156,12 @@ public sealed class JobQueueQueryServiceSpec : IClassFixture<ApiFixture> {
 			while (true) {
 				var service = await this._CreateServiceAsync();
 				var result = await service.FindAsync(new FindJobQueueItemsArgs(
-					Cursor: cursor,
+Cursor: cursor,
 					Limit: 2,
 					TenantId: null,
 					StatusCsv: null,
-					JobType: jobType
+					JobType: jobType,
+					Search: null
 				));
 				var page = result.Should()
 					.BeOfType<FindJobQueueItemsResult.Success>().Subject.Data;

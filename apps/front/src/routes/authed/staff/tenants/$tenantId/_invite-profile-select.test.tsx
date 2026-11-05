@@ -32,6 +32,7 @@ vi.mock('react-i18next', () => ({
 				'no-profiles-available': 'No profiles are available.',
 				'unable-to-load-profiles': 'Unable to load profiles.',
 				'profiles-selected-count_one': '{{count}} profile selected',
+				'common:default-profile-name': 'Profil par défaut',
 			})[key] ?? key,
 	}),
 }));
@@ -98,7 +99,7 @@ beforeEach(() => {
 	mocks.useStaffTenantProfilesQuery.mockReset();
 	mocks.useStaffTenantProfilesQuery.mockReturnValue(
 		pageOf([
-			{ id: 'profile-1', name: 'Everyone', isDefault: true },
+			{ id: 'profile-1', name: 'Default profile', isDefault: true },
 			{ id: 'profile-2', name: 'Reviewers', isDefault: false },
 		]),
 	);
@@ -135,6 +136,26 @@ describe('InviteProfileSelect', () => {
 			),
 		);
 		expect(screen.getAllByText('Reviewers').length).toBeGreaterThan(1);
+	});
+
+	test('renders the translated default profile name in the dropdown and chips', async () => {
+		render(<TestForm />);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Profiles' }));
+
+		expect(screen.getByText('Profil par défaut')).toBeTruthy();
+		expect(screen.queryByText('Default profile')).toBeNull();
+
+		fireEvent.click(screen.getByText('Profil par défaut'));
+
+		await waitFor(() =>
+			expect(screen.getByTestId('selected-profile-ids').textContent).toBe(
+				'profile-1',
+			),
+		);
+		// The dropdown row and the selected chip both use the display name.
+		expect(screen.getAllByText('Profil par défaut')).toHaveLength(2);
+		expect(screen.queryByText('Default profile')).toBeNull();
 	});
 
 	test('passes a trimmed search term as q and keeps typing settled state', async () => {
