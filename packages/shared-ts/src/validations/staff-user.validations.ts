@@ -1,8 +1,8 @@
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import type { ZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 
 import { getFileSchemaClientSide } from './file/file-client.validations';
 
-export const getNewStaffUserSchema = (z: InterZod) => {
+export const getNewStaffUserSchema = (z: ZodI18n) => {
 	return z.object({
 		firstName: z.string().min(1).optional(),
 		lastName: z.string().min(1),
@@ -13,7 +13,7 @@ export const getNewStaffUserSchema = (z: InterZod) => {
 	});
 };
 
-export const getUpdateStaffUserSchema = (z: InterZod) => {
+export const getUpdateStaffUserSchema = (z: ZodI18n) => {
 	return (
 		getNewStaffUserSchema(z)
 			// Email updates are a high-risk identity operation and are handled by a dedicated endpoint/flow.
