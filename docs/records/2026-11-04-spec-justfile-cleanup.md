@@ -126,9 +126,13 @@ and `dev-db` / `dev-services` / `dev-setup` / `quick-start` are redundant.
   name contains `/<N>-`. Exactly one hit → use it. Several → interactive choice (or a clear
   error listing them when not a TTY). None → create `<type>/<N>-<slug>`.
 - **Bug label** *(my call)*: the repo label is `bug` → `fix/`; anything else → `feat/`.
-- **One shared database for all refs** *(stated to the owner earlier, not objected)*:
-  forward-only drift is accepted. When a branch's API refuses the schema, `just dev`
-  prints « base incompatible : lance `just db-reset` » rather than resetting silently.
+- **One database per worktree** *(OWNER, 05/11: « une base de données par dossier »)*:
+  Aspire names the Postgres data volume after the AppHost path, so each worktree already has
+  its own volume (finding of 04/11: seven volumes). Kept on purpose: a branch's migrations never
+  touch another branch's data. `just dev` migrates its own database on first start. Only one
+  stack runs at a time (port 5454). When the database of THIS worktree refuses the branch's
+  migrations (the branch was switched or rebased), `just dev` explains it, then suggests
+  `just db-reset`, rather than resetting silently.
 - **Leftover stack after a crash** *(my call)*: `just dev` detects 5454/5000/5050 held by
   something it cannot identify as ours and stops with the exact command to free it
   (container name / PID shown). No automatic kill of unidentified processes.

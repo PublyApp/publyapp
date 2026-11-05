@@ -18,7 +18,7 @@ Spec: `docs/records/2026-11-04-spec-justfile-cleanup.md` (issue #2305).
 - Branches older than this change are refused with « Cette branche est trop ancienne : mets-la à jour avec develop » — no compatibility layer.
 - User-facing messages of `just dev` are French (the owner reads them); code, comments, commits are English.
 - Repo rules (AGENTS.md): no `Array.reduce`, no IIFE, `this.`/`_PascalCase` in C#, no new bespoke guard; `just ci-drift` stays green.
-- Incompatible shared database (owner, 04/11: the message must EXPLAIN the mismatch before suggesting a reset): the AppHost `migrate` resource runs `dev-migrate.ts` (Task 3b), which on failure writes a French explanation — which migration failed, why (shared database changed by another branch), the Postgres error line, then « `just db-reset` — efface toutes les données locales » — to `apps/api/.artifacts/dev-migrate-error.txt`. `dev.ts` watches that file and prints it in the owner's terminal, then stops the stack (Aspire does not stream resource logs to its console).
+- Database of this worktree out of step with the branch (one database per worktree, owner 05/11; owner 04/11, 04/11: the message must EXPLAIN the mismatch before suggesting a reset): the AppHost `migrate` resource runs `dev-migrate.ts` (Task 3b), which on failure writes a French explanation — which migration failed, why (this worktree's database was migrated by an earlier state of the branch), the Postgres error line, then « `just db-reset` — efface toutes les données locales de ce dossier » — to `apps/api/.artifacts/dev-migrate-error.txt`. `dev.ts` watches that file and prints it in the owner's terminal, then stops the stack (Aspire does not stream resource logs to its console).
 - Linux is the target. The `dev` recipe gets a `[windows]` twin that only prints « just dev n'est pas pris en charge sous Windows ».
 
 ---
@@ -67,7 +67,7 @@ Keep the existing #1585 comment above them.
 		// them (#2305). The AppHost build already compiled the API project, hence --no-build;
 		// `just dev` runs `dotnet tool restore` first so dotnet-ef is available.
 		// dev-migrate.ts wraps `dotnet ef database update` and, on failure, writes the
-		// explanation `just dev` prints (shared database changed by another branch → db-reset).
+		// explanation `just dev` prints (this worktree's database no longer matches the branch → db-reset).
 		var migrate = WithPostgresConnectionString(
 				WithDevelopmentEnvironment(
 					builder.AddExecutable(
@@ -518,7 +518,7 @@ git commit -m "feat(scripts): just dev resolves, creates and launches the right 
 
 ---
 
-### Task 3b: explicit message when the shared database does not match the branch
+### Task 3b: explicit message when this worktree's database does not match the branch
 
 **Files:**
 - Create: `packages/scripts-ts/src/dev-migrate.ts`
@@ -544,11 +544,11 @@ describe('migrationFailureMessage', () => {
 	it('names the failing migration, explains why, quotes the Postgres error, then the reset', () => {
 		const message = migrationFailureMessage(['20261102152047_RemoveAccountLevel'], ef);
 		expect(message).toContain('20261102152047_RemoveAccountLevel');
-		expect(message).toContain('partagée entre toutes les branches');
+		expect(message).toContain('propre à ce dossier');
 		expect(message).toContain('42703: column "level" does not exist');
 		expect(message).toContain('just db-reset');
 		expect(message).toContain('efface toutes les données locales');
-		expect(message.indexOf('partagée')).toBeLessThan(message.indexOf('just db-reset'));
+		expect(message.indexOf('propre à ce dossier')).toBeLessThan(message.indexOf('just db-reset'));
 	});
 
 	it('never echoes a connection string', () => {
@@ -586,7 +586,7 @@ export const migrationFailureMessage = (pending, efOutput) => {
 			.trim() ?? 'aucun message Postgres';
 	return [
 		`La migration ${failed} de cette branche n'a pas pu s'appliquer à la base locale.`,
-		"Pourquoi : cette base est partagée entre toutes les branches, et une branche lancée avant celle-ci l'a modifiée d'une façon que celle-ci ne connaît pas.",
+		"Pourquoi : cette base est propre à ce dossier, et elle a été migrée par une version précédente de la branche (changement de branche ou rebase) d'une façon que la branche actuelle ne connaît pas.",
 		`Erreur Postgres : ${pgError}`,
 		'Pour repartir d\'une base propre : just db-reset — attention, ça efface toutes les données locales.',
 	].join('\n');
@@ -660,7 +660,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 
 ```bash
 git add packages/scripts-ts/src/dev-migrate.ts packages/scripts-ts/src/dev.ts packages/scripts-ts/src/dev.test.ts
-git commit -m "feat(scripts): explain a shared-database mismatch before suggesting db-reset"
+git commit -m "feat(scripts): explain a database mismatch before suggesting db-reset"
 ```
 
 Acceptance addition (Task 6): on a database where another branch dropped a column this branch's pending migration needs, `just dev` prints the four-line explanation and stops; nothing is reset automatically.
