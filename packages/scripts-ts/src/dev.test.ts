@@ -1,10 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { migrationFailureMessage } from './dev-migrate.ts';
 import {
 	READY_TARGETS,
+	dependenciesInstalled,
 	isCurrentAppHost,
 	isPublyAppHostCmdline,
+	isUnderPath,
 	issueBranchName,
 	parseRef,
 	readinessFailure,
@@ -74,6 +80,48 @@ describe('isCurrentAppHost', () => {
 		expect(
 			isCurrentAppHost('builder.AddViteApp("front", "../front", "dev")'),
 		).toBe(false);
+	});
+});
+
+describe('isUnderPath', () => {
+	const clone = path.join(tmpdir(), 'publyapp');
+
+	it('accepts the clone itself and its worktrees', () => {
+		expect(isUnderPath(clone, clone)).toBe(true);
+		expect(isUnderPath(path.join(clone, '.worktrees', '2305-x'), clone)).toBe(
+			true,
+		);
+	});
+
+	it('refuses a sibling clone that only shares the prefix', () => {
+		expect(
+			isUnderPath(path.join(`${clone}-foo`, '.worktrees', '1-x'), clone),
+		).toBe(false);
+	});
+
+	it('refuses the parent and an unrelated path', () => {
+		expect(isUnderPath(path.dirname(clone), clone)).toBe(false);
+		expect(isUnderPath(path.join(tmpdir(), 'other', 'publyapp'), clone)).toBe(
+			false,
+		);
+	});
+});
+
+describe('dependenciesInstalled', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'dev-gate-'));
+	const nodeModules = path.join(root, 'node_modules');
+	afterAll(() => {
+		rmSync(root, { recursive: true, force: true });
+	});
+
+	it('is false for an empty node_modules — a Ctrl+C mid-install', () => {
+		mkdirSync(nodeModules, { recursive: true });
+		expect(dependenciesInstalled(root)).toBe(false);
+	});
+
+	it('is true once pnpm wrote its completion marker', () => {
+		writeFileSync(path.join(nodeModules, '.modules.yaml'), '');
+		expect(dependenciesInstalled(root)).toBe(true);
 	});
 });
 

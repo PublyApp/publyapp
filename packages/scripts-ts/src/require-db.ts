@@ -6,15 +6,25 @@
 import { connect } from 'node:net';
 import process from 'node:process';
 
+const MESSAGE = "La base locale ne tourne pas : lance d'abord just dev.\n";
 const socket = connect(5454, '127.0.0.1');
+
+// A connect timeout (#2317): a silent handshake wait must not hang `just db-migrate`.
+socket.setTimeout(3000);
 
 socket.on('connect', () => {
 	socket.end();
+	// Explicit success (#2317): do not rely on the event loop draining to exit.
+	process.exit(0);
+});
+
+socket.on('timeout', () => {
+	socket.destroy();
+	process.stderr.write(MESSAGE);
+	process.exit(1);
 });
 
 socket.on('error', () => {
-	process.stderr.write(
-		"La base locale ne tourne pas : lance d'abord just dev.\n",
-	);
+	process.stderr.write(MESSAGE);
 	process.exit(1);
 });

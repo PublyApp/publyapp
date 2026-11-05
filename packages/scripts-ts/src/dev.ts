@@ -56,6 +56,17 @@ export const issueBranchName = (number, title, labels) => {
 export const isCurrentAppHost = (programSource) =>
 	programSource.includes(CURRENT_APPHOST_MARKER);
 
+// Directory-boundary containment (#2317): a bare prefix also matches a sibling
+// clone (`.../publyapp-foo` starts with `.../publyapp`), which once made
+// `just dev` stop the other clone's stack.
+export const isUnderPath = (candidate, root) =>
+	candidate === root || candidate.startsWith(root + path.sep);
+
+// pnpm writes node_modules/.modules.yaml at the END of a successful install, so
+// its presence — not the folder's — proves the install finished (#2317).
+export const dependenciesInstalled = (worktree) =>
+	existsSync(path.join(worktree, 'node_modules', '.modules.yaml'));
+
 const say = (message) => {
 	process.stdout.write(`▶ ${message}\n`);
 };
@@ -239,12 +250,26 @@ const prepare = (worktree, clone) => {
 		cwd: worktree,
 		stdio: 'inherit',
 	});
-	if (!existsSync(path.join(worktree, 'node_modules'))) {
+	if (!dependenciesInstalled(worktree)) {
 		say('Installation des dépendances (quelques minutes la première fois)…');
-		execFileSync('pnpm', ['install', '--frozen-lockfile'], {
-			cwd: worktree,
-			stdio: 'inherit',
-		});
+		// Ctrl+C hits pnpm and us: the no-op listener keeps this process alive
+		// (execFileSync blocks the event loop, a real handler would never run), then
+		// the throw carries the child's signal (#2317).
+		const ignore = () => {};
+		process.on('SIGINT', ignore);
+		try {
+			execFileSync('pnpm', ['install', '--frozen-lockfile'], {
+				cwd: worktree,
+				stdio: 'inherit',
+			});
+		} catch (error) {
+			if (error?.signal) {
+				fail('Installation interrompue : relance just dev.');
+			}
+			throw error;
+		} finally {
+			process.off('SIGINT', ignore);
+		}
 	}
 };
 
@@ -369,7 +394,7 @@ const ourAppHostPids = (clone) =>
 			try {
 				const cmdline = readFileSync(`/proc/${pid}/cmdline`, 'utf8');
 				const cwd = readlinkSync(`/proc/${pid}/cwd`);
-				return isPublyAppHostCmdline(cmdline) && cwd.startsWith(clone);
+				return isPublyAppHostCmdline(cmdline) && isUnderPath(cwd, clone);
 			} catch {
 				return false;
 			}
@@ -397,15 +422,23 @@ const stopPrevious = async (clone) => {
 	);
 };
 
+const readProgramSource = (worktree) => {
+	try {
+		return readFileSync(
+			path.join(worktree, 'apps', 'apphost', 'Program.cs'),
+			'utf8',
+		);
+	} catch {
+		return null;
+	}
+};
+
 const main = async () => {
 	const ref = parseRef(process.argv.slice(2).join(' '));
 	const clone = mainClone();
 	const worktree = ensureWorktree(ref, clone);
-	const program = path.join(worktree, 'apps', 'apphost', 'Program.cs');
-	if (
-		!existsSync(program) ||
-		!isCurrentAppHost(readFileSync(program, 'utf8'))
-	) {
+	const programSource = readProgramSource(worktree);
+	if (programSource === null || !isCurrentAppHost(programSource)) {
 		fail('Cette branche est trop ancienne : mets-la à jour avec develop.');
 	}
 	prepare(worktree, clone);
