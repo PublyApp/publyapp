@@ -350,7 +350,7 @@ const buildUpdateStaffUserProfilesBody = (
 	),
 });
 
-const staffUsersQueryOptions = buildStaffQueryOptions<
+export const staffUsersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffUsersResponse,
 	StaffUsersQueryVariables

@@ -77,11 +77,9 @@ const StaffUsersPage = () => {
 		status: search.status.length > 0 ? search.status.join(',') : undefined,
 	};
 	const query = useStaffUsersQuery(listVariables);
-	const hasListFilters =
-		Boolean(search.q) || search.status.length > 0 || search.level.length > 0;
-	const team = useStaffTeamOverview({
-		staff: hasListFilters ? undefined : listVariables,
-	});
+	// The overview publishes these variables as the counter only while they
+	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
+	const team = useStaffTeamOverview({ staff: listVariables });
 	const rows = toStaffUserRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const listSelection = buildListSelection(

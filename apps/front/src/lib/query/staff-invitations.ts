@@ -167,7 +167,7 @@ const bulkRevokeStaffInvitationsMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffInvitationsQueryOptions = buildStaffQueryOptions<
+export const staffInvitationsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffInvitationsResult,
 	StaffInvitationsQueryVariables

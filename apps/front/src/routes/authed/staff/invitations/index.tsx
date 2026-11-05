@@ -94,10 +94,9 @@ const StaffInvitationsPage = () => {
 		status: search.status,
 	};
 	const query = useStaffInvitationsQuery(listVariables);
-	const hasListFilters = Boolean(search.q) || Boolean(search.status);
-	const team = useStaffTeamOverview({
-		invitations: hasListFilters ? undefined : listVariables,
-	});
+	// The overview publishes these variables as the counter only while they
+	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
+	const team = useStaffTeamOverview({ invitations: listVariables });
 
 	const rows = toStaffInvitationRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));

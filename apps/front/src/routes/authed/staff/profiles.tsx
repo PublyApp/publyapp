@@ -74,11 +74,9 @@ const StaffProfilesPage = () => {
 		limit: controller.apiVariables.size,
 	};
 	const query = useStaffProfilesQuery(listVariables);
-	const hasListFilters =
-		Boolean(search.q) || search.members.length > 0 || search.type.length > 0;
-	const team = useStaffTeamOverview({
-		profiles: hasListFilters ? undefined : listVariables,
-	});
+	// The overview publishes these variables as the counter only while they
+	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
+	const team = useStaffTeamOverview({ profiles: listVariables });
 	const rows = toStaffProfileRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const listSelection = buildListSelection(
