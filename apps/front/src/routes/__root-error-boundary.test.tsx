@@ -58,7 +58,6 @@ const makeRootI18nContext = (locale: SupportedLanguage) => {
 		resources: {
 			[locale]: {
 				common: resource.common,
-				zod: resource.zod,
 				'response-message': resource['response-message'],
 			},
 		},

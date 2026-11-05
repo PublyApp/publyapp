@@ -452,11 +452,19 @@ export const scanSharedTsSrcForSharedTsReExports = (
  * a derivation that returns empty or a partial set (e.g. after a directory rename
  * or a partial checkout) fails loudly rather than silently passing with a
  * degraded pattern (#1678 A1).
+ *
+ * #2316: `scripts` used to be listed here because the Zod i18n generator lived
+ * at `packages/shared-ts/src/scripts/`. That generator was deleted with the
+ * Zod 4 locale migration, so the directory no longer exists. This list is
+ * "what must be PRESENT", not "what once existed": keeping a deleted directory
+ * would turn every run red for a tree that is correct. The protection that
+ * matters — unknown segments fail loudly, empty/partial derivations fail loudly,
+ * any present segment is recognised — is unchanged, and the paired proof builds
+ * a `scripts` segment in a fixture to keep that branch covered.
  */
 const EXPECTED_SHARED_TS_SEGMENTS = [
 	'@types',
 	'lib',
-	'scripts',
 	'types',
 	'utils',
 	'validations',

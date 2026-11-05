@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -431,7 +431,10 @@ describe('dead PostHog env var guard', () => {
 		.filter((line) => !line.startsWith('docs/records/'))
 		// This test file legitimately names the dead var to assert its absence
 		// elsewhere; it must not flag itself.
-		.filter((line) => line !== 'apps/front/src/lib/env.test.ts');
+		.filter((line) => line !== 'apps/front/src/lib/env.test.ts')
+		// `git ls-files` keeps a path whose deletion is not committed yet, so a
+		// worktree with unstaged removals would otherwise crash this guard.
+		.filter((line) => existsSync(`${REPO_ROOT}${line}`));
 
 	test('no tracked non-record file references the dead VITE_POSTHOG_PROJECT_TOKEN', () => {
 		const offenders: string[] = [];

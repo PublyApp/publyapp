@@ -6,8 +6,8 @@ import { z } from 'zod';
  * version through the public API surface so a silent downgrade back to v3
  * (an accidental `pnpm update zod@3`, a bad resolution override, a stale
  * lockfile entry) turns the suite red instead of surfacing months later as
- * subtle validator behaviour differences. Mirrors the pin living next to
- * InterZod in `packages/shared-ts` — the two packages declare their zod
+ * subtle validator behaviour differences. Mirrors the zod pin living in
+ * `packages/shared-ts` — the two packages declare their zod
  * dependency independently, so each guards its own specifier.
  */
 describe('zod major version pin (#155)', () => {

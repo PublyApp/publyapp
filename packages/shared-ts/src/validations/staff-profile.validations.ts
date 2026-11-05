@@ -1,6 +1,6 @@
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import type { ZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 
-export const getNewStaffProfileSchema = (z: InterZod) => {
+export const getNewStaffProfileSchema = (z: ZodI18n) => {
 	return z.object({
 		name: z
 			.string()
@@ -32,7 +32,7 @@ export const getNewStaffProfileSchema = (z: InterZod) => {
 	});
 };
 
-export const getUpdateStaffProfileSchema = (z: InterZod) => {
+export const getUpdateStaffProfileSchema = (z: ZodI18n) => {
 	return z.object({
 		name: z
 			.string()

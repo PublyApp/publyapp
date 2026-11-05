@@ -6,25 +6,6 @@ import {
 	isSupportedLanguage,
 	type SupportedLanguage,
 } from '@org/shared-ts/lib/i18n/shared';
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
-
-type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
-type InterZodI18nLike = InterZodOptions['i18n'];
-
-const bindInterZodToI18n = (
-	instance: I18nInstance,
-	locale: SupportedLanguage,
-) => {
-	const i18nLike: InterZodI18nLike = {
-		getFixedT: instance.getFixedT.bind(instance),
-		t: instance.t.bind(instance),
-	};
-
-	return new InterZod({
-		i18n: i18nLike,
-		locale,
-	});
-};
 
 let activeClientI18n: I18nInstance | undefined;
 let activeLocale: SupportedLanguage = FALLBACK_LANGUAGE;
@@ -45,12 +26,8 @@ export const initI18nOnClient = async (
 	}
 	activeClientI18n = instance;
 	activeLocale = locale;
-	const boundInterZod = bindInterZodToI18n(instance, locale);
-	// zod v4 replaced `z.setErrorMap` with the global `z.config` hook; the
-	// InterZod instance translates raw issues through the `zod` i18n
-	// namespace exactly as its v3 error map did.
-	z.config({
-		customError: (issue) => ({ message: boundInterZod.resolveMessage(issue) }),
-	});
+	// zod v4 keeps one process-wide error map, so a language change re-installs
+	// that locale's own messages.
+	z.config(z.locales[locale]());
 	return instance;
 };
