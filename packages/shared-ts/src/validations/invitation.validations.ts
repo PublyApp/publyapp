@@ -1,8 +1,8 @@
 import { MAX_PROFILES_PER_ACCOUNT } from '../lib/constants';
-import type InterZod from '../lib/zod/InterZod';
+import type { ZodI18n } from '../lib/zod/zod-i18n';
 import { getEmailFieldSchema } from './auth.validations';
 
-export const getCreateInvitationSchema = (z: InterZod) => {
+export const getCreateInvitationSchema = (z: ZodI18n) => {
 	return z.object({
 		email: getEmailFieldSchema(z),
 		profileIds: z
@@ -12,7 +12,7 @@ export const getCreateInvitationSchema = (z: InterZod) => {
 	});
 };
 
-export const getBulkCreateInvitationsSchema = (z: InterZod) => {
+export const getBulkCreateInvitationsSchema = (z: ZodI18n) => {
 	return z
 		.object({
 			invitations: z
@@ -75,7 +75,7 @@ export const getBulkCreateInvitationsSchema = (z: InterZod) => {
 		});
 };
 
-export const getAcceptInvitationSchema = (z: InterZod) => {
+export const getAcceptInvitationSchema = (z: ZodI18n) => {
 	return z
 		.object({
 			firstName: z

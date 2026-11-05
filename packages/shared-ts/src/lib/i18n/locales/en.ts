@@ -13,7 +13,6 @@ import staffJobs from '../json/staff-jobs.en.json' with { type: 'json' };
 import staffTenantActivity from '../json/staff-tenant-activity.en.json' with { type: 'json' };
 import staffTenantProfiles from '../json/staff-tenant-profiles.en.json' with { type: 'json' };
 import staffUsers from '../json/staff-users.en.json' with { type: 'json' };
-import zod from '../json/zod.en.json' with { type: 'json' };
 import { I18N_NAMESPACES } from '../namespaces';
 import type { NamespaceResource } from '../shared';
 
@@ -24,7 +23,6 @@ import type { NamespaceResource } from '../shared';
 // `satisfies` clause makes the same guarantee a typecheck error.
 const resourceEN = {
 	common,
-	zod,
 	'response-message': responseMessage,
 	auth,
 	account,

@@ -10,7 +10,7 @@ import { isFrontSourceFile, normalizeFilename } from './path-scopes.ts';
  *
  * The rule is intentionally scoped to application/source package files and is
  * enabled in `.oxlintrc.json` at error level. It does not report test files,
- * scripts, server scripts, or obvious Node CLI entrypoints.
+ * server scripts, or obvious Node CLI entrypoints.
  */
 const LOGGER_IMPORT_SOURCE = '@org/shared-ts/lib/logger/iso-logger';
 const LOGGER_IMPORT = `import { logger } from '${LOGGER_IMPORT_SOURCE}';\n`;
@@ -37,10 +37,6 @@ const isSharedSourceFile = (filename: string): boolean =>
 	filename.startsWith('packages/shared-ts/src/') ||
 	filename.includes('/packages/shared-ts/src/');
 
-const isSharedScriptFile = (filename: string): boolean =>
-	filename.startsWith('packages/shared-ts/src/scripts/') ||
-	filename.includes('/packages/shared-ts/src/scripts/');
-
 const isFrontServerFile = (filename: string): boolean =>
 	filename.startsWith('apps/old-front/server/') ||
 	filename.includes('/apps/old-front/server/');
@@ -57,7 +53,6 @@ const shouldCheckFile = (rawFilename: string): boolean => {
 
 	if (
 		isTestFile(filename) ||
-		isSharedScriptFile(filename) ||
 		isFrontServerFile(filename) ||
 		isNodeCliFile(filename)
 	) {

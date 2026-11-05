@@ -4,9 +4,10 @@ import { z } from 'zod';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
-import InterZod, {
-	type InterZodTranslator,
-} from '@org/shared-ts/lib/zod/InterZod';
+import {
+	createZodI18n,
+	type ZodTranslator,
+} from '@org/shared-ts/lib/zod/zod-i18n';
 import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 
 import { createClient } from '../api-client/client-manager';
@@ -43,11 +44,12 @@ export type SerializedDeliveryFailure =
  * sync with the shared `getRegisterSchema` contract instead of drifting via
  * a second hand-maintained copy.
  */
-const identityTranslate: InterZodTranslator = (key) => key;
+const identityTranslate: ZodTranslator = (key) => key;
 
 // Only `getFixedT` is supplied because this validator runs server-side
-// (InterZod resolves its translator through `getFixedT` there).
-const structuralZod = new InterZod({
+// (the facade resolves its translator through `getFixedT` there). The global
+// zod locale it installs is irrelevant: these messages are never rendered.
+const structuralZod = createZodI18n({
 	i18n: { getFixedT: () => identityTranslate },
 });
 

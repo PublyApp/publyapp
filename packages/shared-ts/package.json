@@ -13,7 +13,6 @@
 		}
 	},
 	"scripts": {
-		"postinstall": "node src/scripts/generate-zod-i18n-map.mjs",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},

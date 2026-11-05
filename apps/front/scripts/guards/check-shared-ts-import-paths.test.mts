@@ -493,6 +493,13 @@ void test('RED: re-export of @org/shared-ts/@types/* is detected as DUAL_PATH (#
 
 void test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (#1678)', () => {
 	const root = makeSandbox();
+	// #2316: the real tree no longer has a `scripts` segment — its only file, the
+	// Zod i18n generator, was deleted with the Zod 4 locale migration. Build the
+	// segment in the fixture and derive the pattern from it, so this proof still
+	// exercises the "a present segment is recognised" branch without asserting a
+	// directory the real tree no longer contains. The `@types` proof above keeps
+	// the same guarantee against a segment the real tree does contain.
+	mkdirSync(path.join(root, 'shared-ts-src/scripts'), { recursive: true });
 	writeFileSync(
 		path.join(root, 'front-src/lib/scripts-shim.ts'),
 		`export type { JsonElement } from '${SCRIPTS_SPECIFIER}';\n`,
@@ -500,6 +507,7 @@ void test('RED: re-export of @org/shared-ts/scripts/* is detected as DUAL_PATH (
 
 	const findings = scanFrontSrcForSharedTsReExports(
 		path.join(root, 'front-src'),
+		buildSharedTsModulePattern(path.join(root, 'shared-ts-src')),
 	);
 	const hit = findings.find(
 		(f) => f.file === 'apps/front/src/lib/scripts-shim.ts',
@@ -678,17 +686,31 @@ main({
 	);
 });
 
-void test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types and scripts (#1678)', () => {
-	// The old hardcoded regex (lib|utils|validations|types) missed @types and scripts.
-	// This assertion ensures the derivation picks them up — a regression to the
-	// hardcoded list or an empty segment set would break this.
+void test('SHARED_TS_SEGMENTS is derived from packages/shared-ts/src and contains @types (#1678)', () => {
+	// The old hardcoded regex (lib|utils|validations|types) missed @types. This
+	// assertion ensures the derivation picks it up from the REAL tree — a
+	// regression to the hardcoded list or an empty segment set would break this.
 	assert.ok(
 		SHARED_TS_SEGMENTS.includes('@types'),
 		`SHARED_TS_SEGMENTS must contain @types, got ${JSON.stringify(SHARED_TS_SEGMENTS)}`,
 	);
+});
+
+void test('SHARED_TS_SEGMENTS recognises a scripts segment when the tree has one (#1678)', () => {
+	// #2316: `scripts` was also missed by the old hardcoded regex, but the real
+	// `packages/shared-ts/src/scripts/` directory was deleted with the Zod 4
+	// locale migration. Assert the derivation (not a hardcoded list) recognises
+	// the segment from a tree that actually has it, so the #1678 fix stays
+	// covered without requiring the real tree to keep a dead directory.
+	const root = mkdtempSync(path.join(tmpdir(), 'seg-scripts-'));
+	sandboxes.push(root);
+	mkdirSync(path.join(root, 'scripts'), { recursive: true });
+
+	const segments = deriveSharedTsSegments(root);
+
 	assert.ok(
-		SHARED_TS_SEGMENTS.includes('scripts'),
-		`SHARED_TS_SEGMENTS must contain scripts, got ${JSON.stringify(SHARED_TS_SEGMENTS)}`,
+		segments.includes('scripts'),
+		`deriveSharedTsSegments must include a present 'scripts' segment, got ${JSON.stringify(segments)}`,
 	);
 });
 

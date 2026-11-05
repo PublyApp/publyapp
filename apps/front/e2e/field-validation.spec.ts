@@ -127,7 +127,7 @@ const runAxe = async (page: Page) => {
 };
 
 test.describe('field validation', { tag: ['@design', '@721'] }, () => {
-	test('shows French InterZod message on invalid email, clears on valid input', async ({
+	test('shows French zod validation message on invalid email, clears on valid input', async ({
 		page,
 		baseURL,
 	}) => {
@@ -149,7 +149,7 @@ test.describe('field validation', { tag: ['@design', '@721'] }, () => {
 		await runAxe(page);
 	});
 
-	test('shows English InterZod message on invalid email, clears on valid input', async ({
+	test('shows English zod validation message on invalid email, clears on valid input', async ({
 		page,
 		baseURL,
 	}) => {
