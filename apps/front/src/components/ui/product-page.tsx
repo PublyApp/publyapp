@@ -115,7 +115,7 @@ export const PageActions = ({
 	];
 
 	return (
-		<div className="publy-action-cluster">
+		<div className="publy-action-cluster max-md:shrink-0">
 			{children}
 			{action ? (
 				<span className="max-md:hidden">
@@ -133,9 +133,8 @@ export const PageActions = ({
 	);
 };
 
-// Under md the actions drop below the title (Shopkart's PageTitle): a 390px
-// row cannot hold « Organisations » and the action cluster side by side
-// without the buttons painting over the title (#2280).
+// One row at every width: the title truncates so a long one never pushes the
+// trailing chrome (the statistics chevron) off-screen (#2280).
 export const PageHeader = ({
 	title,
 	description,
@@ -160,15 +159,17 @@ export const PageHeader = ({
 	/** Count badge rendered beside the title inside a shared flex wrapper. */
 	count?: ReactNode;
 }) => (
-	<header className="publy-page-header max-md:flex-col max-md:items-stretch">
+	<header className="publy-page-header max-md:items-center">
 		<div className="min-w-0">
 			{count ? (
-				<div className="flex items-center gap-2.5">
-					<h1 className="publy-type-page-title">{title}</h1>
+				<div className="flex min-w-0 items-center gap-2.5">
+					<h1 className="publy-type-page-title max-md:min-w-0 max-md:truncate">
+						{title}
+					</h1>
 					{count}
 				</div>
 			) : (
-				<h1 className="publy-type-page-title">{title}</h1>
+				<h1 className="publy-type-page-title max-md:truncate">{title}</h1>
 			)}
 			{description ? (
 				// `text-muted-foreground` overrides `.publy-type-helper`'s subtle
