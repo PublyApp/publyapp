@@ -12,33 +12,12 @@ import {
 import { useForm } from 'react-hook-form';
 import { afterEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
-import { createI18nFromResources } from '~/lib/i18n/react-i18n';
-
-import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
-import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { Field } from './fields';
 import { Form } from './form';
 
-const zodResources = { en: sharedEn.zod, fr: sharedFr.zod } as const;
-
-const configureInterZodLocale = (locale: 'en' | 'fr') => {
-	const i18n = createI18nFromResources(locale, ['zod'], {
-		[locale]: { zod: zodResources[locale] },
-	});
-	const interZod = new InterZod({
-		i18n: {
-			getFixedT: i18n.getFixedT.bind(i18n),
-			t: i18n.t.bind(i18n),
-		},
-		locale,
-	});
-
-	// zod v4 replaced `z.setErrorMap` with the global `z.config` hook.
-	z.config({
-		customError: (issue) => ({ message: interZod.resolveMessage(issue) }),
-	});
+const configureZodLocale = (locale: 'en' | 'fr') => {
+	z.config(z.locales[locale]());
 };
 
 describe('Field API', () => {
@@ -108,7 +87,7 @@ describe('Field Text components wire error text to aria-describedby', () => {
 		fireEvent.click(submitButton);
 
 		const errorText = await waitFor(() =>
-			screen.getByText(/Invalid email|e-mail non valide/),
+			screen.getByText(/Invalid email address|adresse e-mail invalide/),
 		);
 		expect(errorText).toBeTruthy();
 		expect(input.getAttribute('aria-invalid')).toBe('true');
@@ -129,7 +108,7 @@ describe('Field Text components wire error text to aria-describedby', () => {
 		expect(input.getAttribute('autocomplete')).toBe('email');
 
 		const errorText = await waitFor(() =>
-			screen.getByText(/Invalid email|e-mail non valide/),
+			screen.getByText(/Invalid email address|adresse e-mail invalide/),
 		);
 		expect(errorText).toBeTruthy();
 		expect(input.getAttribute('aria-describedby')).toContain(errorText.id);
@@ -180,7 +159,9 @@ describe('Field error and helper line contracts (handoff 2d)', () => {
 			}
 			return line;
 		});
-		expect(errorLine.textContent).toMatch(/Invalid email|e-mail non valide/);
+		expect(errorLine.textContent).toMatch(
+			/Invalid email address|adresse e-mail invalide/,
+		);
 		expect(errorLine.querySelector('svg')).not.toBeNull();
 	});
 });
@@ -269,9 +250,9 @@ describe('Field.Select (handoff select trigger)', () => {
 	});
 });
 
-describe('InterZod localization via zodResolver-compatible schema setup', () => {
+describe('zod locale localization via zodResolver-compatible schema setup', () => {
 	test('validates email with localized English message', async () => {
-		configureInterZodLocale('en');
+		configureZodLocale('en');
 
 		const schema = z.object({
 			email: z.email(),
@@ -284,7 +265,7 @@ describe('InterZod localization via zodResolver-compatible schema setup', () => 
 	});
 
 	test('validates email with localized French message', async () => {
-		configureInterZodLocale('fr');
+		configureZodLocale('fr');
 
 		const schema = z.object({
 			email: z.email(),

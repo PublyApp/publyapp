@@ -20,7 +20,6 @@ describe('i18n Vite backend', () => {
 	test.each([
 		['en', 'common', 'hello', 'Hello'],
 		['fr', 'common', 'hello', 'Bonjour'],
-		['en', 'zod', 'validations.email', 'email'],
 		['fr', 'response-message', 'unauthorized', 'Non autorisé'],
 	] as const)('loads %s/%s', async (locale, namespace, key, expected) => {
 		const resource = await readNamespaceResource(locale, namespace);
@@ -77,14 +76,12 @@ describe('i18n Vite backend', () => {
 		const instance = await createBackendI18n('fr');
 		const result = await loadI18nContext(instance, 'fr', [
 			'common',
-			'zod',
 			'response-message',
 			'auth',
 		]);
 		expect(Object.keys(result.resources)).toEqual(['fr']);
 		expect(Object.keys(result.resources.fr ?? {})).toEqual([
 			'common',
-			'zod',
 			'response-message',
 			'auth',
 		]);
