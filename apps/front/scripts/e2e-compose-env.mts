@@ -62,7 +62,7 @@ const BASE_PORTS = {
 // Postgres service is internal-only (`Host=postgres;Port=5432` inside the
 // compose network) — `E2E_PORT_POSTGRES` is emitted for symmetry but never
 // bound, so it must NOT be probed: probing it would false-positive on any
-// machine running `just dev-db` (host 5454) and break band 0 for everyone.
+// machine running `just dev` (host 5454) and break band 0 for everyone.
 const PUBLISHED_BASE_PORTS = {
 	traefik_web: BASE_PORTS.traefik_web,
 	traefik_websecure: BASE_PORTS.traefik_websecure,
@@ -144,7 +144,7 @@ const findRepoRoot = (): string => {
  * The host ports a band PUBLISHES (the same offsets docker-compose.test.yml
  * binds): Web/Websecure/Request-counter/Toxiproxy. The Postgres service is
  * internal to the compose network and never bound on the host, so it is
- * deliberately absent — probing it would flag `just dev-db`'s host 5454 as a
+ * deliberately absent — probing it would flag `just dev`'s host 5454 as a
  * squatter and block band 0 on every dev machine.
  */
 export const bandPortsFor = (basePort: number): number[] => {

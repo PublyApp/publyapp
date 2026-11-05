@@ -1048,8 +1048,8 @@
 		},
 		"ci.yml::quality-js::Check formatting": {
 			"hash": "cb9f1e39f601b392",
-			"mirror": "just format",
-			"reason": "Local mirror just format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
+			"mirror": "just ci-format",
+			"reason": "Local mirror just ci-format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
 		},
 		"ci.yml::quality-js::Check unused exports and dependencies": {
 			"hash": "2016ff898fdc8bc7",

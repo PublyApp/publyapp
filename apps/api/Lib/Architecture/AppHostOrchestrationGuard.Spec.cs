@@ -64,7 +64,7 @@ namespace PublyApp.Api.Lib.Architecture;
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private const int _HostPort = 5454;
 
-	// Same pin as the justfile dev-services recipe: the implicit build must not
+	// Same pin as the justfile `just dev` recipe: the implicit build must not
 	// run OpenAPI document generation, which boots the app with the ambient
 	// .env.development (APP_ROLE=all) while no Postgres is up yet. These tests
 	// exercise the AppHost model and port pre-flight, not doc-gen.

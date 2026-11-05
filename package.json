@@ -22,7 +22,6 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.2",
-		"chokidar": "^5.0.0",
 		"knip": "6.43.0",
 		"lint-staged": "^17.6.0",
 		"oxfmt": "0.74.0",
