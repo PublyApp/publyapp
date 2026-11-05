@@ -321,8 +321,23 @@ public class Program {
 		// `just dev` installs the workspace with `pnpm install --frozen-lockfile` itself.
 		// Injecting both base URLs means a fresh clone without .env.development still points
 		// at the orchestrated API (vite.config.ts uses ??= so explicit env wins).
+		// #2305: pin the port instead of letting Aspire allocate one — AddViteApp passes
+		// `--port <TargetPort>` to Vite, which overrides the `server.port: 5050` in
+		// vite.config.ts, so `just dev` announced 5050 while Vite listened elsewhere. Direct
+		// bind (IsProxied = false) keeps one listener: Vite itself on 5050.
+		// Aspire's JavaScript hosting sets NODE_ENV to "production" whenever the AppHost runs
+		// outside Development; the front then refuses to render without PUBLIC_ORIGIN (its
+		// production guard is deliberate). Pin dev mode and the local origin here rather than
+		// weakening the front's check.
 		builder.AddViteApp("front", "../front", "dev")
 			.WithPnpm(install: false)
+			.WithEndpoint("http", endpoint => {
+				endpoint.Port = 5050;
+				endpoint.TargetPort = 5050;
+				endpoint.IsProxied = false;
+			})
+			.WithEnvironment("NODE_ENV", "development")
+			.WithEnvironment("PUBLIC_ORIGIN", "http://localhost:5050")
 			.WithEnvironment("PUBLIC_API_BASE_URL", api.GetEndpoint("http"))
 			.WithEnvironment("SERVER_API_BASE_URL", api.GetEndpoint("http"));
 

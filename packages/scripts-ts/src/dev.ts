@@ -263,6 +263,104 @@ const busyPorts = async () => {
 	return PORTS.filter((_, index) => states[index]);
 };
 
+// #2305: "Prêt" is announced only once BOTH listeners answer. The front sat on a
+// random Aspire-allocated port while dev.ts claimed 5050, unchecked.
+export const READY_TARGETS = [
+	{
+		label: "l'API (http://127.0.0.1:5000/health)",
+		url: 'http://127.0.0.1:5000/health',
+	},
+	{
+		label: "l'interface (http://127.0.0.1:5050/)",
+		url: 'http://127.0.0.1:5050/',
+	},
+];
+
+export const readinessFailure = (labels) =>
+	`La pile n'est pas prête : ${labels.join(' et ')} ${labels.length > 1 ? 'ne répondent' : 'ne répond'} pas (200 attendu).`;
+
+// Stop escalation (#2305): SIGINT first (the terminal's Ctrl+C), SIGTERM once the
+// grace window expires. A SIGTERM request starts at SIGTERM.
+export const stopEscalation = (signal) =>
+	signal === 'SIGINT'
+		? [
+				{ signal: 'SIGINT', waitMs: 15_000 },
+				{ signal: 'SIGTERM', waitMs: 15_000 },
+			]
+		: [{ signal: 'SIGTERM', waitMs: 30_000 }];
+
+// The AppHost artifact path, not a bare "PublyApp.AppHost" substring: the latter
+// also matches the `dotnet run --project apps/apphost` launcher and any editor's
+// language server, and we must never signal a process that is not our AppHost.
+export const isPublyAppHostCmdline = (cmdline) =>
+	cmdline.includes(path.join('.artifacts', 'bin', 'PublyApp.AppHost'));
+
+const probeReady = async (url) => {
+	try {
+		const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+		return response.ok;
+	} catch {
+		return false;
+	}
+};
+
+const missingReadyTargets = async () => {
+	const states = await Promise.all(
+		READY_TARGETS.map((target) => probeReady(target.url)),
+	);
+	return READY_TARGETS.filter((_, index) => !states[index]).map(
+		(target) => target.label,
+	);
+};
+
+const waitPortsFree = async (timeoutMs) => {
+	const deadline = Date.now() + timeoutMs;
+	for (;;) {
+		if ((await busyPorts()).length === 0) {
+			return true;
+		}
+		if (Date.now() >= deadline) {
+			return false;
+		}
+		await sleep(500);
+	}
+};
+
+const processGroupOf = (pid) => {
+	try {
+		const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+		// stat = "pid (comm) state ppid pgrp ..." — comm may contain spaces/parens,
+		// so split after the LAST ')'. [0]=state [1]=ppid [2]=pgrp.
+		const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+		return Number(fields[2]);
+	} catch {
+		return null;
+	}
+};
+
+const signalPid = (pid, signal, grouped) => {
+	try {
+		process.kill(grouped ? -pid : pid, signal);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+// SIGINT, wait, SIGTERM, wait. A process is signalled with its process group ONLY
+// when it leads that group: a foreign AppHost launched from a terminal shares the
+// terminal's job group, and signalling -pid there would kill unrelated processes.
+const stopProcess = async (pid, signal) => {
+	const grouped = processGroupOf(pid) === pid;
+	for (const step of stopEscalation(signal)) {
+		signalPid(pid, step.signal, grouped);
+		if (await waitPortsFree(step.waitMs)) {
+			return true;
+		}
+	}
+	return false;
+};
+
 // Our stack = an AppHost process whose cwd is the main clone or one of its worktrees.
 const ourAppHostPids = (clone) =>
 	readdirSync('/proc')
@@ -271,7 +369,7 @@ const ourAppHostPids = (clone) =>
 			try {
 				const cmdline = readFileSync(`/proc/${pid}/cmdline`, 'utf8');
 				const cwd = readlinkSync(`/proc/${pid}/cwd`);
-				return cmdline.includes('PublyApp.AppHost') && cwd.startsWith(clone);
+				return isPublyAppHostCmdline(cmdline) && cwd.startsWith(clone);
 			} catch {
 				return false;
 			}
@@ -283,14 +381,11 @@ const stopPrevious = async (clone) => {
 	if (pids.length > 0) {
 		say("Arrêt de l'appli déjà lancée…");
 		for (const pid of pids) {
-			process.kill(pid, 'SIGINT');
+			await stopProcess(pid, 'SIGINT');
 		}
 	}
-	for (let attempt = 0; attempt < 30; attempt += 1) {
-		if ((await busyPorts()).length === 0) {
-			return;
-		}
-		await sleep(2000);
+	if (await waitPortsFree(30_000)) {
+		return;
 	}
 	const still = await busyPorts();
 	const holders = tryRun('ss', ['-ltnp']) ?? '';
@@ -337,25 +432,58 @@ const main = async () => {
 		{
 			cwd: worktree,
 			stdio: 'inherit',
+			// Own process group (#2305): signalling -pid reaches dotnet run, the
+			// AppHost, DCP and the Vite child. Without it a SIGINT to dev.ts only
+			// reached the launcher and left the stack (and its ports) behind.
+			detached: true,
 		},
 	);
-	for (const signal of ['SIGINT', 'SIGTERM']) {
-		process.on(signal, () => child.kill(signal));
-	}
-	child.on('exit', (code) => process.exit(code ?? 0));
+	let stopping = false;
+	const stop = async (signal, exitCode = 0) => {
+		if (stopping) {
+			return;
+		}
+		stopping = true;
+		say('Arrêt de la pile…');
+		if (child.pid !== undefined) {
+			await stopProcess(child.pid, signal);
+		}
+		const still = await busyPorts();
+		if (still.length > 0) {
+			process.stderr.write(
+				`✖ Ports encore occupés après l'arrêt (${still.join(', ')}).\n`,
+			);
+		}
+		process.exit(exitCode);
+	};
+	process.on('SIGINT', () => {
+		void stop('SIGINT');
+	});
+	process.on('SIGTERM', () => {
+		void stop('SIGTERM');
+	});
+	child.on('exit', (code) => {
+		if (!stopping) {
+			process.exit(code ?? 0);
+		}
+	});
+	const startedAt = Date.now();
 	for (;;) {
 		await sleep(2000);
 		if (existsSync(errorFile)) {
 			process.stderr.write(`\n✖ ${readFileSync(errorFile, 'utf8')}\n`);
-			child.kill('SIGINT');
+			await stop('SIGINT', 1);
 			return;
 		}
-		const healthy = await fetch('http://127.0.0.1:5000/health').then(
-			(response) => response.ok,
-			() => false,
-		);
-		if (healthy) {
+		const missing = await missingReadyTargets();
+		if (missing.length === 0) {
 			say('Prêt : API http://localhost:5000, interface http://localhost:5050');
+			return;
+		}
+		// 3 minutes covers a cold migration + boot (#2305 measured ~25 s on a warm DB).
+		if (Date.now() - startedAt > 180_000) {
+			process.stderr.write(`\n✖ ${readinessFailure(missing)}\n`);
+			await stop('SIGINT', 1);
 			return;
 		}
 	}

@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { migrationFailureMessage } from './dev-migrate.ts';
 import {
+	READY_TARGETS,
 	isCurrentAppHost,
+	isPublyAppHostCmdline,
 	issueBranchName,
 	parseRef,
+	readinessFailure,
+	stopEscalation,
 	worktreeDirName,
 } from './dev.ts';
 
@@ -69,6 +73,70 @@ describe('isCurrentAppHost', () => {
 	it('refuses an older AppHost', () => {
 		expect(
 			isCurrentAppHost('builder.AddViteApp("front", "../front", "dev")'),
+		).toBe(false);
+	});
+});
+
+describe('readiness', () => {
+	it('checks both the API and the front — the front used to be unchecked', () => {
+		expect(READY_TARGETS.map((target) => target.url)).toEqual([
+			'http://127.0.0.1:5000/health',
+			'http://127.0.0.1:5050/',
+		]);
+	});
+	it('names the failed target in French', () => {
+		const message = readinessFailure(["l'interface (http://127.0.0.1:5050/)"]);
+		expect(message).toContain("l'interface (http://127.0.0.1:5050/)");
+		expect(message).toContain('ne répond pas');
+		expect(message).not.toContain('ne répondent');
+	});
+	it('names every failed target when both are down', () => {
+		const message = readinessFailure(
+			READY_TARGETS.map((target) => target.label),
+		);
+		expect(message).toContain("l'API (http://127.0.0.1:5000/health)");
+		expect(message).toContain("l'interface (http://127.0.0.1:5050/)");
+		expect(message).toContain('ne répondent pas');
+	});
+});
+
+describe('stopEscalation', () => {
+	it('starts with SIGINT on Ctrl+C, then falls back to SIGTERM', () => {
+		expect(stopEscalation('SIGINT').map((step) => step.signal)).toEqual([
+			'SIGINT',
+			'SIGTERM',
+		]);
+	});
+	it('does not wait for SIGINT when SIGTERM was requested', () => {
+		expect(stopEscalation('SIGTERM').map((step) => step.signal)).toEqual([
+			'SIGTERM',
+		]);
+	});
+	it('frees the ports within the 60 s the live proof allows', () => {
+		let total = 0;
+		for (const step of stopEscalation('SIGINT')) {
+			total += step.waitMs;
+		}
+		expect(total).toBeLessThanOrEqual(60_000);
+	});
+});
+
+describe('isPublyAppHostCmdline', () => {
+	it('accepts the built AppHost artifact path', () => {
+		expect(
+			isPublyAppHostCmdline(
+				'dotnet\u0000/apps/apphost/.artifacts/bin/PublyApp.AppHost/Debug/net10.0/PublyApp.AppHost.dll',
+			),
+		).toBe(true);
+	});
+	it('refuses the dotnet run launcher and unrelated processes', () => {
+		expect(
+			isPublyAppHostCmdline('dotnet\u0000run\u0000--project\u0000apps/apphost'),
+		).toBe(false);
+		expect(
+			isPublyAppHostCmdline(
+				'node\u0000/apps/front/node_modules/.bin/vite\u0000dev',
+			),
 		).toBe(false);
 	});
 });
