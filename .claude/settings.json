@@ -5,7 +5,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.ts\"",
+						"command": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.ts\"",
 						"timeout": 900
 					}
 				]
