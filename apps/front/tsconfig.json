@@ -19,7 +19,7 @@
 	"include": [
 		"**/*.ts",
 		"**/*.tsx",
-		"**/*.ts",
+		"**/*.d.mts", // ponytail: types for .mjs files (trust-proxy.mjs) need a .d.mts; drop with the .mjs conversion
 		// `server.mjs` (the production entry point) is deliberately NOT listed.
 		// It used to be, before #1692 — but with no `allowJs`, TypeScript
 		// silently ignored it: `tsc --listFiles` matched it ZERO times. It was a
