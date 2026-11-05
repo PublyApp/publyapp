@@ -62,10 +62,17 @@ export const isCurrentAppHost = (programSource) =>
 export const isUnderPath = (candidate, root) =>
 	candidate === root || candidate.startsWith(root + path.sep);
 
-// pnpm writes node_modules/.modules.yaml at the END of a successful install, so
-// its presence — not the folder's — proves the install finished (#2317).
+// pnpm writes node_modules/.modules.yaml once every dependency is linked and
+// built (before the root lifecycle scripts), so its presence — not the folder's —
+// proves the dependencies are complete (#2317).
 export const dependenciesInstalled = (worktree) =>
 	existsSync(path.join(worktree, 'node_modules', '.modules.yaml'));
+
+// Ctrl+C either kills pnpm (signal) or pnpm traps it and exits 130 (#2317).
+export const installFailureMessage = (error) =>
+	error?.signal || error?.status === 130
+		? 'Installation interrompue : relance just dev.'
+		: "L'installation des dépendances a échoué : relis les messages ci-dessus.";
 
 const say = (message) => {
 	process.stdout.write(`▶ ${message}\n`);
@@ -257,18 +264,17 @@ const prepare = (worktree, clone) => {
 		// the throw carries the child's signal (#2317).
 		const ignore = () => {};
 		process.on('SIGINT', ignore);
+		process.on('SIGTERM', ignore);
 		try {
 			execFileSync('pnpm', ['install', '--frozen-lockfile'], {
 				cwd: worktree,
 				stdio: 'inherit',
 			});
 		} catch (error) {
-			if (error?.signal) {
-				fail('Installation interrompue : relance just dev.');
-			}
-			throw error;
+			fail(installFailureMessage(error));
 		} finally {
 			process.off('SIGINT', ignore);
+			process.off('SIGTERM', ignore);
 		}
 	}
 };

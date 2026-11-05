@@ -8,6 +8,7 @@ import { migrationFailureMessage } from './dev-migrate.ts';
 import {
 	READY_TARGETS,
 	dependenciesInstalled,
+	installFailureMessage,
 	isCurrentAppHost,
 	isPublyAppHostCmdline,
 	isUnderPath,
@@ -217,5 +218,22 @@ describe('migrationFailureMessage', () => {
 			`${ef}\nHost=localhost;Password=secret`,
 		);
 		expect(message).not.toContain('Password=');
+	});
+});
+
+describe('installFailureMessage', () => {
+	it('says the install was interrupted when pnpm died by a signal or exited 130', () => {
+		expect(installFailureMessage({ signal: 'SIGINT', status: null })).toContain(
+			'interrompue',
+		);
+		expect(installFailureMessage({ signal: null, status: 130 })).toContain(
+			'interrompue',
+		);
+	});
+
+	it('reports an ordinary failure without claiming an interruption', () => {
+		expect(installFailureMessage({ signal: null, status: 1 })).toContain(
+			'a échoué',
+		);
 	});
 });
