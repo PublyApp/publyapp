@@ -14,9 +14,7 @@
 		"prepare": "node packages/scripts-ts/src/install-git-hooks.ts",
 		"test:ci-drift": "pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts",
 		"test:ci-contracts": "node packages/scripts-ts/src/run-ci-contract-tests.ts",
-		"test:review-worktree-resolution": "pnpm --filter scripts-ts exec vitest run src/review-worktree.resolve.test.ts",
-		"test:review-api": "pnpm --filter scripts-ts exec vitest run src/review-api.test.ts",
-		"test:review-api-migration-guard": "pnpm --filter scripts-ts exec vitest run src/review-api.migration-guard.integration.test.ts",
+		"test:dev": "pnpm --filter scripts-ts exec vitest run src/dev.test.ts",
 		"test:frontend-barrels": "pnpm --filter scripts-ts exec vitest run src/check-frontend-barrels.test.ts",
 		"test:project-closure-adapter": "node packages/scripts-ts/src/run-project-closure-adapter.ts",
 		"test:require-linked-issue": "pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts",
@@ -24,7 +22,6 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.2",
-		"chokidar": "^5.0.0",
 		"knip": "6.43.0",
 		"lint-staged": "^17.6.0",
 		"oxfmt": "0.74.0",

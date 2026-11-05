@@ -28,6 +28,7 @@ namespace PublyApp.Api.Lib.Architecture;
 ///   remove .WithDataVolume()        -> ItShouldPersistPostgresDataInANamedVolume
 ///   remove .WithHostPort(5454)      -> ItShouldPinThePostgresHostPortTo5454
 ///   drop launchProfileName: null    -> ItShouldKeepTheWorkerOffTheApiPort
+///   drop the front endpoint pin     -> ItShouldPinTheFrontHostPortTo5050
 ///   drop the port-5454 pre-flight   -> ItShouldFailLoudlyWhenHostPort5454IsAlreadyOccupied
 ///                                     (without the guard, DCP logs 'address already
 ///                                     in use' only in its internal per-resource logs,
@@ -64,7 +65,7 @@ namespace PublyApp.Api.Lib.Architecture;
 public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 	private const int _HostPort = 5454;
 
-	// Same pin as the justfile dev-services recipe: the implicit build must not
+	// Same pin as the justfile `just dev` recipe: the implicit build must not
 	// run OpenAPI document generation, which boots the app with the ambient
 	// .env.development (APP_ROLE=all) while no Postgres is up yet. These tests
 	// exercise the AppHost model and port pre-flight, not doc-gen.
@@ -160,6 +161,22 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 				+ "which then tried to bind the API's port 5000 (DCP proxy fails with "
 				+ "'address already in use'), while the source-token guard stayed green. "
 				+ "The worker must have NO launch profile: it has no HTTP endpoints. "
+				+ $"Dump: {dump}"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldPinTheFrontHostPortTo5050() {
+		var dump = await AppHostOrchestrationGuardSpec._ModelDump.Value;
+
+		dump.Should().Contain(
+			"endpoint front name=http protocol=Tcp hostPort=5050 targetPort=5050",
+			"the AppHost must pin the front's http endpoint to 5050 in the CONSTRUCTED "
+				+ "model — AddViteApp otherwise lets Aspire allocate a random target port and "
+				+ "passes it to Vite as `--port`, which overrides server.port: 5050 in "
+				+ "vite.config.ts. `just dev` then announces http://localhost:5050 while Vite "
+				+ "listens elsewhere (#2305). The dump is printed by the AppHost from the "
+				+ "model it actually built. "
 				+ $"Dump: {dump}"
 		);
 	}

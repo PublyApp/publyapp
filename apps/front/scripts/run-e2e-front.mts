@@ -109,7 +109,7 @@ export type WindowsTaskkillPlan = {
 
 /**
  * The `taskkill` argument vectors used to end a Windows process tree, mirroring
- * `killApiChildGroup` in `packages/scripts-ts/src/review-api.ts`. `/T` walks the
+ * the child-group kill of the API launcher retired in #2305. `/T` walks the
  * real tree rooted at the PID (Windows has no process groups, and
  * `child.kill()` would end only `cmd.exe`, orphaning pnpm/playwright/browsers).
  * `/T` alone requests a normal termination; `/F` forces it. SIGKILL is already
