@@ -552,7 +552,7 @@
 			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Download fork e2e images": {
-			"hash": "555217f785761d1e",
+			"hash": "e298e42f59ebd90e",
 			"mirror": null,
 			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
@@ -572,7 +572,7 @@
 			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Login to GHCR": {
-			"hash": "13b514df3fe14a94",
+			"hash": "f7f44ad74a67a684",
 			"mirror": null,
 			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
