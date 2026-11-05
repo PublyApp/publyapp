@@ -54,8 +54,8 @@ import type {
 
 // Re-exported so the public-API type probe in
 // check-context-chunk-isolation.test.ts (which compiles a real consumer
-// against this module's surface, not a hand-written .d.ts) can name
-// `SourceSpan` from this module. The hand-written .d.ts was retired in
+// against this module's surface, not a hand-written .d.mts) can name
+// `SourceSpan` from this module. The hand-written .d.mts was retired in
 // #1449 (scripts/ -> tools/ move); the public type surface now flows
 // through the source. Without `export type`, the probe's
 // `type SourceSpan` import fails with TS2459 ("declares 'SourceSpan'
@@ -63,7 +63,7 @@ import type {
 // front test lane at 02d2db493.
 export type { CopyAttribution, SourceSpan };
 
-// The retired hand-written .d.ts exported this shape; types now live in
+// The retired hand-written .d.mts exported this shape; types now live in
 // source and are re-exported here so consumers keep a single import surface.
 
 /**

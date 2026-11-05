@@ -146,7 +146,7 @@ const BANNED_SPECIFIERS = new Set([
 export const SCANNED_EXTENSIONS = new Set([
 	'.ts',
 	'.tsx',
-	'.ts',
+	'.mts',
 	'.cts', // CommonJS TypeScript (CommonJS module + TS syntax)
 	'.ctsx', // CommonJS TypeScript with JSX
 	'.mjs', // ES Module JavaScript
@@ -155,7 +155,7 @@ export const SCANNED_EXTENSIONS = new Set([
 
 /**
  * R6 (Hole 2): extensions that the AST parser handles AND that can NEVER be
- * declared non-code. These four (.ts, .tsx, .ts, .cts) are the backbone of
+ * declared non-code. These four (.ts, .tsx, .mts, .cts) are the backbone of
  * the codebase — declaring any of them non-code would silently disable a
  * huge surface of analysis. This set makes the gesture structurally
  * impossible: assertCoreExtensionsScanned fails loudly if any core extension
@@ -167,7 +167,7 @@ export const SCANNED_EXTENSIONS = new Set([
  * the scan set. They are protected by the "still scanned" test in the suite,
  * not by this structural lock.
  */
-export const CORE_EXTENSIONS = new Set(['.ts', '.tsx', '.ts', '.cts']);
+export const CORE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 
 /** Preserve captured Git stderr when Node's process error omits it. */
 export const formatGitCommandError = (error: unknown): string => {
@@ -284,7 +284,7 @@ const lineOf = (sourceFile: ts.SourceFile, node: ts.Node): number =>
 
 /**
  * Determines the ScriptKind for ts-morph's createSourceFile based on file
- * extension, so .tsx/.ctsx files are parsed as TSX, .ts/.mjs as External
+ * extension, so .tsx/.ctsx files are parsed as TSX, .mts/.mjs as External
  * (ES module), and .cjs as JS (CommonJS JavaScript).
  */
 const scriptKindForPath = (relativePath: string): ts.ScriptKind => {
@@ -293,7 +293,7 @@ const scriptKindForPath = (relativePath: string): ts.ScriptKind => {
 		case '.tsx':
 		case '.ctsx':
 			return ts.ScriptKind.TSX;
-		case '.ts':
+		case '.mts':
 		case '.mjs':
 			return ts.ScriptKind.External;
 		case '.cjs':
@@ -1094,7 +1094,7 @@ export const scanFrontSrcForBannedImports = (
 		// making the guard itself red on the bypass, not just the test suite.
 		//
 		// R9 (#1851): the previous version only walked `.ts`/`.tsx`. A bypass
-		// on a `.ts`/`.cts`/`.ctsx`/`.mjs`/`.cjs` file (all in
+		// on a `.mts`/`.cts`/`.ctsx`/`.mjs`/`.cjs` file (all in
 		// SCANNED_EXTENSIONS) was invisible to the assertion. The fix iterates
 		// every scanned extension so the assertion's perimeter matches the
 		// guard's scan perimeter.

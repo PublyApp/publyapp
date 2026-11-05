@@ -121,7 +121,7 @@ const deriveSharedTsSegments = (dir: string): string[] => {
 			// is resolvable as @org/shared-ts/foo (per the package's "./*" export
 			// pattern), so it must also be recognised as a segment. Directories
 			// contribute their name directly; files contribute their name with the
-			// extension stripped (.ts, .ts, .cts). Non-source files (e.g. .json)
+			// extension stripped (.ts, .mts, .cts). Non-source files (e.g. .json)
 			// are not resolvable via the "@org/shared-ts/*" specifier and are
 			// excluded so a stray .d.ts or package.json at the root cannot widen
 			// the recognised segment set.

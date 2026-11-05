@@ -65,7 +65,7 @@ const workflowSurfaces = readdirSync(path.join(repoRoot, '.github/workflows'), {
 // `apps/front/`, or the bogus `apps/front/packages/` from the original bug.
 const referencedPathPatterns = [
 	/(?:[A-Za-z0-9._-]+\/)*packages\/scripts-ts\/src\/[A-Za-z0-9._-]+\.(?:ts|mjs|json)/g,
-	/(?:[A-Za-z0-9._-]+\/)*apps\/front\/scripts\/[A-Za-z0-9._/-]+\.(?:mjs|mts)/g,
+	/(?:[A-Za-z0-9._-]+\/)*apps\/front\/scripts\/[A-Za-z0-9._/-]+\.(?:mjs|mts|ts)(?![A-Za-z])/g,
 ];
 
 // `base-ref/packages/scripts-ts/...` names the same package checked out at the

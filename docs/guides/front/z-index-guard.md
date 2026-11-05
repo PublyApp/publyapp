@@ -270,7 +270,7 @@ Five components:
    the guard cannot enumerate is a named `z-index-static-candidate-overflow` diagnostic because the
    write cannot be ruled out. Unimported script samples are not runtime code and stay green. The same pass
    rejects native JSX stylesheet links and static link-descriptor objects when the `rel` token list
-   and `href` are static, including `.jsx`, `.tsx`, `.ts`, and `.cts` modules and values wrapped in
+   and `href` are static, including `.jsx`, `.tsx`, `.mts`, and `.cts` modules and values wrapped in
    transparent TypeScript syntax such as `as const`, `satisfies`, non-null, or parentheses. Static
    identifier resolution respects lexical shadowing. The latter closes framework head APIs as well
    as direct JSX while leaving the existing

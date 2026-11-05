@@ -455,7 +455,7 @@ const scanFuncStyleSuppressions = async (
 		'.ts',
 		'.tsx',
 		'.mjs',
-		'.ts',
+		'.mts',
 		'.js',
 		'.jsx',
 		'.cts',

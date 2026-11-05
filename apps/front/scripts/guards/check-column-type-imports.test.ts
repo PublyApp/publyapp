@@ -731,10 +731,10 @@ void test('R5 NON-REGRESSION: .cts/.cjs/.mjs/.ctsx still scanned', () => {
 // ---------------------------------------------------------------------------
 
 void test('R6 HOLE 2 RED: assertCoreExtensionsScanned fails when a core extension is missing', () => {
-	// The reviewer's mutation: removing .ts from SCANNED_EXTENSIONS. The
+	// The reviewer's mutation: removing .mts from SCANNED_EXTENSIONS. The
 	// core-extension check must fail loudly naming the missing core
 	// extension. We test the helper directly with a synthetic scanned set
-	// that omits .ts.
+	// that omits .mts.
 	const scannedWithoutMts = new Set([
 		'.ts',
 		'.tsx',
@@ -745,8 +745,8 @@ void test('R6 HOLE 2 RED: assertCoreExtensionsScanned fails when a core extensio
 	]);
 	assert.throws(
 		() => assertCoreExtensionsScanned(scannedWithoutMts, CORE_EXTENSIONS),
-		/Guard #1769: CORE_EXTENSIONS member\(s\) \.ts are missing from SCANNED_EXTENSIONS/,
-		'expected the guard to fail loudly naming .ts',
+		/Guard #1769: CORE_EXTENSIONS member\(s\) \.mts are missing from SCANNED_EXTENSIONS/,
+		'expected the guard to fail loudly naming .mts',
 	);
 });
 
@@ -762,7 +762,7 @@ void test('R6 HOLE 2 RED: removing .tsx from SCANNED_EXTENSIONS fails core check
 	// The captain's exact mutation: .tsx removed from SCANNED_EXTENSIONS.
 	const scannedWithoutTsx = new Set([
 		'.ts',
-		'.ts',
+		'.mts',
 		'.cts',
 		'.ctsx',
 		'.mjs',
@@ -812,10 +812,10 @@ void test('R6: every CORE_EXTENSIONS member is in SCANNED_EXTENSIONS (invariant 
 	);
 });
 
-void test('R6: .ts file importing banned type is caught (dedicated .ts test)', () => {
-	// The reviewer's mutation: .ts has no dedicated test. Now it does.
+void test('R6: .mts file importing banned type is caught (dedicated .mts test)', () => {
+	// The reviewer's mutation: .mts has no dedicated test. Now it does.
 	const root = makeSandbox({
-		'src/routes/authed/tenant/posts/probe.ts':
+		'src/routes/authed/tenant/posts/probe.mts':
 			`import { ColumnDef } from '@tanstack/react-table';\n` +
 			`export const x = null as ColumnDef<any>;\n`,
 	});
@@ -845,7 +845,7 @@ void test('R6 ADVERSE: a fourth gesture — emptying SCANNED_EXTENSIONS fails co
 	const emptyScanned = new Set<string>();
 	assert.throws(
 		() => assertCoreExtensionsScanned(emptyScanned, CORE_EXTENSIONS),
-		/Guard #1769: CORE_EXTENSIONS member\(s\) \.cts, \.ts, \.ts, \.tsx are missing from SCANNED_EXTENSIONS/,
+		/Guard #1769: CORE_EXTENSIONS member\(s\) \.cts, \.mts, \.ts, \.tsx are missing from SCANNED_EXTENSIONS/,
 		'expected the guard to fail loudly naming all missing core extensions',
 	);
 });
@@ -997,7 +997,7 @@ void test('R7 HOLE 3 RED: current SCANNED_EXTENSIONS matches the pinned baseline
 void test('R8: isExempt returns false for every scanned-extension file in apps/front/src except the sanctioned passthrough', () => {
 	// Walk the real tree and collect every scanned-extension file's
 	// normalized path. #1851: the previous version only walked .ts/.tsx,
-	// so a hardcoded bypass on .ts/.cts/.ctsx/.mjs/.cjs went undetected.
+	// so a hardcoded bypass on .mts/.cts/.ctsx/.mjs/.cjs went undetected.
 	const { files } = walk(frontSrc);
 	const codeFiles = files.filter((f) => {
 		const ext = path.extname(f).toLowerCase();
@@ -1075,7 +1075,7 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 	);
 	const illicitExemptions: string[] = [];
 	// Walk the real tree (as the R8 assertion does). #1851: iterate every
-	// scanned extension, not just .ts/.tsx, so a bypass on .ts/.cts is
+	// scanned extension, not just .ts/.tsx, so a bypass on .mts/.cts is
 	// also caught.
 	const { files } = walk(frontSrc);
 	for (const file of files) {
@@ -1129,17 +1129,17 @@ void test('R9 MUTATION: guard catches a hardcoded || bypass in isExempt on the r
 	);
 });
 
-void test('R9 #1851 MUTATION: a hardcoded || bypass on a .ts real file is caught', () => {
+void test('R9 #1851 MUTATION: a hardcoded || bypass on a .mts real file is caught', () => {
 	// #1851: the previous R8 assertion only walked .ts/.tsx. A bypass on a
-	// `.ts` file (still in SCANNED_EXTENSIONS) went undetected. With the
+	// `.mts` file (still in SCANNED_EXTENSIONS) went undetected. With the
 	// fix, the assertion walks every scanned extension; this test plants a
-	// `.ts` file in a sandbox and a bypass scoped to `.ts`, and proves the
-	// fixed assertion catches it. The production tree has no `.ts` files
+	// `.mts` file in a sandbox and a bypass scoped to `.mts`, and proves the
+	// fixed assertion catches it. The production tree has no `.mts` files
 	// today, so a sandbox is required to exercise this branch — but the
 	// assertion logic under test is the same one that runs in production
 	// (scoped through the `files` array it walks).
 	const root = makeSandbox({
-		'src/components/table/probe-bypass.ts':
+		'src/components/table/probe-bypass.mts':
 			`import type { ColumnDef } from '@tanstack/react-table';\n` +
 			`export const x = null as ColumnDef<never>;\n`,
 	});
@@ -1150,9 +1150,9 @@ void test('R9 #1851 MUTATION: a hardcoded || bypass on a .ts real file is caught
 				return true;
 			}
 		}
-		// BYPASS SCOPED TO .ts: silently exempt any .ts file. The previous
-		// R8 assertion ignored .ts so the bypass flew under the radar.
-		if (normalizedPath.endsWith('.ts')) {
+		// BYPASS SCOPED TO .mts: silently exempt any .mts file. The previous
+		// R8 assertion ignored .mts so the bypass flew under the radar.
+		if (normalizedPath.endsWith('.mts')) {
 			return true;
 		}
 		return false;
@@ -1186,8 +1186,8 @@ void test('R9 #1851 MUTATION: a hardcoded || bypass on a .ts real file is caught
 			`the mutation was not applied correctly`,
 	);
 	assert.ok(
-		illicitExemptions.some((f) => f.endsWith('probe-bypass.ts')),
-		`expected probe-bypass.ts to be caught as illicit — ` +
+		illicitExemptions.some((f) => f.endsWith('probe-bypass.mts')),
+		`expected probe-bypass.mts to be caught as illicit — ` +
 			`got: ${JSON.stringify(illicitExemptions)}`,
 	);
 	// With the CORRECT isExempt (no bypass), illicitExemptions must be EMPTY.

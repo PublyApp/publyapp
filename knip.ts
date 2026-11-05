@@ -99,7 +99,7 @@ const config: KnipConfig = {
 				// SourceSpan, CopyAttribution) and pins the removed
 				// position-key mechanism's absence — without this entry, knip
 				// reports those re-exports as unused even though the test
-				// imports them type-only. The hand-written .d.ts was retired
+				// imports them type-only. The hand-written .d.mts was retired
 				// in #1449 (scripts/ -> tools/ move); the public type surface
 				// now flows through the source.
 				'tools/vite/check-context-chunk-isolation.ts',

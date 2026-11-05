@@ -4140,7 +4140,7 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 
 void test('type-checks the guard\u2019s source-declared public API against a real consumer probe', async () => {
 	// Types live in the .ts sources themselves since the scripts/ -> tools/
-	// move retired the hand-written .d.ts files; the probe below uses the
+	// move retired the hand-written .d.mts files; the probe below uses the
 	// current API (mintSpans, chunk maps, the output directory parameter)
 	// and pins the removed position-key mechanism's absence, then the real
 	// TypeScript compiler must accept it.

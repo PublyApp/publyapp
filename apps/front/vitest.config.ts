@@ -79,6 +79,12 @@ export default defineConfig({
 			'tests/proofs/**',
 			'scripts/ci/__fixtures__/**',
 			'src/styles/drawer-description-contrast.test.ts',
+			// node:test files (run by run-non-vitest-report-all via node --test):
+			// the scripts/ci glob above would otherwise load them as vitest suites.
+			'scripts/ci/check-front-runtime-image.test.ts',
+			'scripts/ci/compose-startup.test.ts',
+			'scripts/ci/validate-runtime-env-startup.test.ts',
+			'scripts/ci/vitest-shard-coverage.test.ts',
 			// The e2e tag guard is pure static analysis (reads .spec.ts files);
 			// it runs in the vitest lane but belongs under e2e/ for proximity.
 			...DESIGN_GUARD_TEST_FILES,

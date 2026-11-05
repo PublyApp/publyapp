@@ -18,7 +18,7 @@
 		"and scanned. A committed deletion is naturally absent from HEAD, so it",
 		"needs no authored declaration, count, directory, glob, or other slack."
 	],
-	"scannedExtensions": [".ts", ".tsx", ".ts", ".cts", ".ctsx", ".mjs", ".cjs"],
+	"scannedExtensions": [".ts", ".tsx", ".mts", ".cts", ".ctsx", ".mjs", ".cjs"],
 	"nonCodeExtensions": {
 		".json": "static data (e.g. translation files), never imports code",
 		".css": "style declarations, never imports code",

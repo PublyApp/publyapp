@@ -871,7 +871,7 @@ main({
 // file like packages/shared-ts/src/foo.ts IS resolvable as @org/shared-ts/foo. The
 // previous isDirectory()-only filter silently dropped it, leaving the guard blind
 // to re-exports of that segment. The fix extends the derivation to file entries,
-// stripping the .ts/.ts/.cts extension to obtain the segment name.
+// stripping the .ts/.mts/.cts extension to obtain the segment name.
 
 void test('RED: a .ts file at shared-ts/src root is recognised as a segment (#1707)', () => {
 	const root = mkdtempSync(path.join(tmpdir(), 'seg-file-'));

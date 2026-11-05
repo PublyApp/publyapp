@@ -154,7 +154,7 @@ interface SourceFileWithParseDiagnostics extends ts.SourceFile {
 /** The file extensions the module-order scan analyses (oxlint's scope). */
 type SourceFileExtension =
 	| '.ts'
-	| '.ts'
+	| '.mts'
 	| '.cts'
 	| '.tsx'
 	| '.js'
@@ -164,7 +164,7 @@ type SourceFileExtension =
 
 const SCRIPT_KIND_BY_EXTENSION = {
 	'.ts': ts.ScriptKind.TS,
-	'.ts': ts.ScriptKind.TS,
+	'.mts': ts.ScriptKind.TS,
 	'.cts': ts.ScriptKind.TS,
 	'.tsx': ts.ScriptKind.TSX,
 	'.js': ts.ScriptKind.JS,
@@ -1927,7 +1927,7 @@ export const analyzeModuleOrder = (
 
 const SOURCE_EXTENSIONS = new Set<string>([
 	'.ts',
-	'.ts',
+	'.mts',
 	'.cts',
 	'.tsx',
 	'.js',

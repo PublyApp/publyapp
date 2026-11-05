@@ -79,14 +79,10 @@ const ensureDependencies = (worktreePath) => {
 		'shared-ts',
 		'package.json',
 	);
-	const assertPinnedPath = path.join(
-		worktreePath,
-		'apps',
-		'front',
-		'scripts',
-		'guards',
-		'assert-pinned.ts',
-	);
+	// Branches that predate the .mts -> .ts rename (#2306) still ship .mts.
+	const assertPinnedScript = ['ts', 'mts']
+		.map((ext) => `apps/front/scripts/guards/assert-pinned.${ext}`)
+		.find((relative) => existsSync(path.join(worktreePath, relative)));
 
 	if (existsSync(worktreeFrontNodeModules)) {
 		console.log('Dependency check: front dependencies already installed.');
@@ -95,8 +91,8 @@ const ensureDependencies = (worktreePath) => {
 
 	console.log('Checking pinned deps in worktree...');
 
-	if (existsSync(assertPinnedPath)) {
-		runCommand('node', ['apps/front/scripts/guards/assert-pinned.ts'], {
+	if (assertPinnedScript) {
+		runCommand('node', [assertPinnedScript], {
 			cwd: worktreePath,
 			stdio: 'inherit',
 			timeout: 10 * 60_000,

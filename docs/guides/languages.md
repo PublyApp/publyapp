@@ -18,7 +18,7 @@ servers, hooks, one-off tooling.
 
 ## Forbidden for programs
 
-`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.cts`, shell scripts (`.sh`, bash, sh), `.py`, `.ps1`, and any other
+`.js`, `.mjs`, `.cjs`, `.jsx`, `.mts`, `.cts`, shell scripts (`.sh`, bash, sh), `.py`, `.ps1`, and any other
 language. Do not add one, do not convert a TypeScript file to one, and do not keep a new one "just
 for now". Node 24 runs `.ts` directly (`node script.ts`), so there is no runtime reason for a
 JavaScript file.
@@ -39,9 +39,9 @@ line calls.
 
 ## When you meet an exception
 
-The `.ts` suffix is useless here: every TypeScript package that has them declares
+The `.mts` suffix is useless here: every TypeScript package that has them declares
 `"type": "module"`, so a `.ts` file behaves the same. Owner, 2026-11-04: « Il faut tout convertir en
-.ts. Je veux pas de .ts. »
+.ts. Je veux pas de .mts. »
 
 Files that predate this rule are listed in issue #2306 and are being converted or deleted. When a
 change touches one of them, convert it in the same change if it is small; otherwise leave it to
