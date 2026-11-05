@@ -34,19 +34,18 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(topbar).toHaveCSS('height', '64px');
 		await expect(topbar).toHaveCSS('border-bottom-width', '0px');
 
-		await expect(page.getByRole('link', { name: /invite users/i })).toHaveCSS(
+		// #2292: the primary fill is the prototype's #FECD00 in both themes.
+		await expect(page.getByRole('link', { name: /invite member/i })).toHaveCSS(
 			'background-color',
-			'rgb(253, 199, 0)',
+			'rgb(254, 205, 0)',
 		);
 		const tableCard = page.getByTestId(`${TABLE_TEST_ID}-card`);
 		await expect(tableCard).toHaveCSS('border-radius', '14px');
 		await expect(page.getByTestId(`${TABLE_TEST_ID}-rows`)).toBeVisible();
-		await expect(
-			page
-				.getByTestId(`${TABLE_TEST_ID}-rows`)
-				.locator('[data-slot="table-sortable-column-header"]')
-				.first(),
-		).toHaveCSS('height', '40px');
+		await expect(tableCard.locator('thead th').first()).toHaveCSS(
+			'height',
+			'40px',
+		);
 		await expect(
 			page
 				.getByTestId(`${TABLE_TEST_ID}-rows`)
@@ -62,11 +61,11 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 			'48px',
 		);
 
-		const tableContainer = tableCard.locator('[data-slot="table-container"]');
+		const tableContainer = page.getByTestId(`${TABLE_TEST_ID}-rows`);
 		await expect(tableContainer).toHaveCSS('overflow-y', 'auto');
 		const scrollContract = await tableCard.evaluate((card) => {
 			const container = card.querySelector<HTMLElement>(
-				'[data-slot="table-container"]',
+				'[data-testid$="-rows"]',
 			);
 			const cardRect = card.getBoundingClientRect();
 			const containerRect = container?.getBoundingClientRect();
@@ -99,17 +98,25 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		// Upper bound alone passes at width 0 (a collapsed/hidden wrapper) — pair
 		// with a real minimum (review-r1-tests.md F25).
 		expect(searchWrapperWidth).toBeGreaterThan(200);
-		expect(searchWrapperWidth).toBeLessThanOrEqual(420);
+		// #2292: the list search wrapper matches the prototype's 448px field.
+		expect(searchWrapperWidth).toBeLessThanOrEqual(448);
 
-		const selectionCell = page
-			.getByTestId(`${TABLE_TEST_ID}-rows`)
-			.locator('[data-slot="table-selection-cell"]')
-			.first();
-		await expect(selectionCell).toBeVisible();
-		const selectionCellWidth = await selectionCell.evaluate((el) =>
-			Math.round(el.getBoundingClientRect().width),
+		// The generic table folds selection into the first column (the old
+		// separate 40px selection cell is gone) and pins the actions column at
+		// 40px. Guard both affordances instead of the removed cell.
+		await expect(
+			tableCard.getByRole('checkbox', { name: /Select all/ }),
+		).toBeVisible();
+		await expect(
+			page
+				.getByTestId(`${TABLE_TEST_ID}-rows`)
+				.getByRole('checkbox', { name: /^Select / })
+				.first(),
+		).toBeVisible();
+		await expect(tableCard.locator('thead th').last()).toHaveCSS(
+			'width',
+			'40px',
 		);
-		expect(selectionCellWidth).toBe(40);
 
 		const firstAction = page
 			.getByRole('button', { name: /Actions for/ })
@@ -124,7 +131,8 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		);
 		await expect(rowMenu).toBeVisible();
 		await expect(rowMenu).toHaveCSS('width', '196px');
-		await expect(rowMenu).toHaveCSS('border-radius', '14px');
+		// #2292: every menu surface is the prototype's 10px popover radius.
+		await expect(rowMenu).toHaveCSS('border-radius', '10px');
 		await expect(rowMenu.getByRole('menuitem').first()).toHaveCSS(
 			'height',
 			'32px',
@@ -171,12 +179,12 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 
 		await page.goto(STAFF_INVITATIONS_PATH);
 
-		const filterButton = page.locator('.publy-data-table-filter-button');
+		const filterButton = page.getByRole('button', { name: /^Filters/ });
 		await expect(filterButton).toBeVisible();
 		await expect(filterButton).toHaveCSS('height', '36px');
-		// default-size (36px) button radius is 12px per the owner-ratified per-size
-		// scale (xs 8 / sm 10 / default 12 / lg 14) — see conventions.md.
-		await expect(filterButton).toHaveCSS('border-radius', '12px');
+		// #2292: default-size (36px) button radius is 14px per the prototype's
+		// radius scale (default/sm 14, icon 36px/14).
+		await expect(filterButton).toHaveCSS('border-radius', '14px');
 	});
 
 	test('asserts confirm modal geometry uses handoff radius', async ({
@@ -281,11 +289,13 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 
 		const panel = page.getByTestId('app-shell-secondary-panel');
 		await expect(panel).toBeVisible();
-		await expect(panel.getByRole('link', { name: 'All users' })).toBeVisible();
 		await expect(
-			panel.getByRole('link', { name: 'Invitations' }),
+			panel.getByRole('button', { name: /Staff members/ }),
 		).toBeVisible();
-		await expect(panel.getByRole('link', { name: 'Profiles' })).toBeVisible();
+		await expect(
+			panel.getByRole('button', { name: /Invitations/ }),
+		).toBeVisible();
+		await expect(panel.getByRole('button', { name: /Profiles/ })).toBeVisible();
 	});
 
 	test('asserts the no-match state renders a bare, un-boxed icon with no card, ring, or shadow (flat, owner-approved 2026-07-10 round 2)', async ({
@@ -321,28 +331,31 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(noMatch).toHaveCSS('box-shadow', 'none');
 		await expect(noMatch).toHaveCSS('border-radius', '0px');
 
+		// Owner decision 04/11 supersedes the flat 2026-07-10 shape: every empty
+		// state is now the ShopKart OS pictogram — two faint rings around a −6°
+		// tilted tile carrying the icon (the surface itself stays un-boxed).
 		const cluster = noMatch.locator('.publy-state-icon-cluster');
-		await expect(cluster).toHaveCSS('width', '48px');
-		await expect(cluster).toHaveCSS('height', '48px');
-		await expect(cluster).toHaveAttribute('data-tone', 'primary');
+		await expect(cluster).toHaveCSS('width', '120px');
+		await expect(cluster).toHaveCSS('height', '120px');
+		// A no-match list is the neutral empty kind (04/11 per-kind tone); the
+		// old flat design tinted this glyph primary.
+		await expect(cluster).toHaveAttribute('data-tone', 'neutral');
 		await expect(cluster).toHaveAttribute('data-scale', 'inline');
+		await expect(cluster).toHaveAttribute('data-presentation', 'empty');
 		await expect(cluster).toHaveAttribute('aria-hidden', 'true');
+		await expect(cluster.locator('.publy-empty-ring')).toHaveCount(2);
 		await expect(cluster.locator('.publy-state-icon-wash')).toHaveCount(0);
-		await expect(cluster.locator('.publy-state-icon-ring')).toHaveCount(0);
 
-		const icon = cluster.locator('.publy-state-icon[data-tone="primary"]');
-		await expect(icon).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-		await expect(icon).toHaveCSS('box-shadow', 'none');
-		await expect(icon).toHaveCSS('border-radius', '0px');
-		await expect(icon).toHaveCSS('color', 'rgb(253, 199, 0)');
+		const icon = cluster.locator(
+			'.publy-state-icon[data-tone="neutral"][data-presentation="empty"]',
+		);
+		await expect(icon).toHaveCSS('width', '56px');
+		await expect(icon).toHaveCSS('height', '56px');
+		await expect(icon).toHaveCSS('border-radius', '18px');
 
-		// Owner decision R3-4b (reaffirmed 2026-07-11): the inline empty/no-match
-		// scale now matches the page error scale exactly — the glyph fills the
-		// same 48px cluster on both, no backing shape, size + tone colour carry
-		// the presence.
 		const glyph = icon.locator('svg');
-		await expect(glyph).toHaveCSS('width', '48px');
-		await expect(glyph).toHaveCSS('height', '48px');
+		await expect(glyph).toHaveCSS('width', '28px');
+		await expect(glyph).toHaveCSS('height', '28px');
 	});
 
 	test('the 404 view no longer renders a separator above its actions (owner-approved 2026-07-10 round 3)', async ({
@@ -355,9 +368,14 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 
 		const cluster = view404.locator('.publy-state-icon-cluster');
 		await expect(cluster).toHaveAttribute('data-scale', 'page');
-		const glyph = view404.locator('.publy-state-icon svg');
-		await expect(glyph).toHaveCSS('width', '48px');
-		await expect(glyph).toHaveCSS('height', '48px');
+		await expect(cluster).toHaveAttribute('data-presentation', 'status');
+		await expect(cluster).toHaveCSS('width', '144px');
+		await expect(cluster).toHaveCSS('height', '144px');
+		const glyph = view404.locator(
+			'.publy-state-icon[data-presentation="status"] svg',
+		);
+		await expect(glyph).toHaveCSS('width', '32px');
+		await expect(glyph).toHaveCSS('height', '32px');
 
 		const actionsWrap = view404
 			.getByRole('link', { name: /home/i })
@@ -385,9 +403,11 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 				await page.reload();
 			}
 
-			await expect(page.getByText('Something went wrong')).toBeVisible();
+			// The 500 is the per-kind « Unable to load » screen (owner decision
+			// 04/11), with the pair's English copy.
+			await expect(page.getByText('Unable to load')).toBeVisible();
 			const retryButton = page.getByRole('button', { name: 'Retry' });
-			const homeLink = page.getByRole('link', { name: 'Go to home' });
+			const homeLink = page.getByRole('link', { name: 'Back to home' });
 			await expect(retryButton).toBeVisible();
 			await expect(homeLink).toBeVisible();
 

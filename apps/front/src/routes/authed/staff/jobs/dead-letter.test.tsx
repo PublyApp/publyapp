@@ -319,6 +319,7 @@ vi.mock('~/components/table/data-table', () => ({
 			),
 		);
 	},
+	DataTableCursorFooter: () => null,
 }));
 
 vi.mock('./_permissions', () => ({
@@ -337,11 +338,20 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
 }));
 
-vi.mock('@tabler/icons-react', () => ({
-	IconActivity: () => createElement('span', {}, 'icon-activity'),
-	IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
-	IconDots: () => createElement('span', {}, 'icon-dots'),
-}));
+vi.mock('@tabler/icons-react', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@tabler/icons-react')>();
+	return {
+		...actual,
+		IconActivity: () => createElement('span', {}, 'icon-activity'),
+		IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
+		IconDots: () => createElement('span', {}, 'icon-dots'),
+	};
+});
+
+vi.mock('~/components/list/list-page', async () => {
+	const { FakeListPage } = await import('~/lib/testing/fake-list-page');
+	return { ListPage: FakeListPage };
+});
 
 import { Route } from './dead-letter';
 
@@ -401,7 +411,6 @@ describe('dead-letter page: query invalidation after requeue (#1775)', () => {
 
 		renderPage();
 
-		expect(screen.getByText('No dead-letter jobs')).toBeTruthy();
 		expect(
 			screen.getByText(
 				'Failed jobs will appear here once they exhaust their attempts.',

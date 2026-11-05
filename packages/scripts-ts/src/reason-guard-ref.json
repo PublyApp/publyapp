@@ -577,8 +577,8 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Login to GHCR": {
-			"reason_hash": "6bb273c2677d38db",
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason_hash": "c26341cd875a57df",
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Resolve fork state": {
 			"reason_hash": "5857a97733549f3d",
@@ -657,8 +657,8 @@
 			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Download fork e2e images": {
-			"reason_hash": "3b9f83d05ef69969",
-			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
+			"reason_hash": "2f84a1749a32e610",
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Install dependencies": {
 			"reason_hash": "e1ece79f66c50373",
@@ -673,8 +673,8 @@
 			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Login to GHCR": {
-			"reason_hash": "b08857c54ac43fb6",
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason_hash": "e561f920b1c81d1c",
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Pull stack images": {
 			"reason_hash": "7eaebe4c5505c219",
@@ -733,8 +733,8 @@
 			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Download fork e2e images": {
-			"reason_hash": "8a81bc1757a5a63f",
-			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
+			"reason_hash": "cf8fcf9e65ab9bdc",
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Install dependencies": {
 			"reason_hash": "e1ece79f66c50373",
@@ -749,8 +749,8 @@
 			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Login to GHCR": {
-			"reason_hash": "9d79c2900a0c66ef",
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason_hash": "c7ba6018dc5a58cb",
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Pull stack images": {
 			"reason_hash": "7eaebe4c5505c219",
@@ -985,8 +985,8 @@
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
 		"ci.yml::gate::Download exact upstream result artifacts": {
-			"reason_hash": "abfae96c13d7910b",
-			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-*\",\"path\":\"ci-results\"},\"env\":null}."
+			"reason_hash": "54241bda8071295b",
+			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-*\",\"path\":\"ci-results\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install pnpm": {
 			"reason_hash": "59d7d531f04d2e8d",
@@ -1301,8 +1301,8 @@
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"deploy-images.yml::publish::Log in to GHCR": {
-			"reason_hash": "23327808ed51640b",
-			"reason": "Hosted-only action step \"Log in to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":null,\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ secrets.GITHUB_TOKEN }}\"},\"env\":null}."
+			"reason_hash": "aa83fb88ff5599b1",
+			"reason": "Hosted-only action step \"Log in to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":null,\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ secrets.GITHUB_TOKEN }}\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Resolve immutable release tag": {
 			"reason_hash": "5c0b2a459e9cd4e4",

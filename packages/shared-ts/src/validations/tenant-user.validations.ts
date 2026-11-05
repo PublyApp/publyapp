@@ -1,8 +1,8 @@
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import type { ZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 
 import { getFileSchemaClientSide } from './file/file-client.validations';
 
-export const getUpdateTenantUserSchema = (z: InterZod) => {
+export const getUpdateTenantUserSchema = (z: ZodI18n) => {
 	return z.object({
 		id: z.string(),
 		tenantId: z.string(),
@@ -13,7 +13,7 @@ export const getUpdateTenantUserSchema = (z: InterZod) => {
 	});
 };
 
-export const getUpdateTenantUserIdentitySchema = (z: InterZod) => {
+export const getUpdateTenantUserIdentitySchema = (z: ZodI18n) => {
 	return z.object({
 		id: z.string(),
 		firstName: z.string().min(1).optional(),

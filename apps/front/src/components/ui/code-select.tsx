@@ -58,7 +58,7 @@ export const CodeSelect = <T extends string>({
 					aria-label={ariaLabel}
 					className={className}
 				>
-					<SelectValue />
+					<SelectValue placeholder={label(value)} />
 				</SelectTrigger>
 				<SelectContent>
 					{options.map((option) => (

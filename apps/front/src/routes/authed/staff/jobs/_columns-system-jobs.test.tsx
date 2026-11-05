@@ -2,20 +2,19 @@
  * @vitest-environment jsdom
  *
  * Brief #1626: the system-job actions (enabled Switch, Edit cron, Trigger now)
- * must never be clickable while the live staff auth-scope permission request is
- * in flight (or once it resolves denied). A click that vanishes into nothing is
- * the exact silence the brief forbids. The controls stay rendered (never hidden)
- * but are disabled-with-explanation.
+ * must never be clickable while the live staff auth-scope permission request
+ * is in flight (or once it resolves denied). The controls stay rendered (never
+ * hidden) but are disabled-with-explanation.
  *
- * Race-free by construction: the in-flight/denied state is held by an explicit
- * flag on the column builder. See .dump/preuve-1626.md for the red/green proof.
+ * Race-free by construction: the in-flight/denied state is an explicit flag on
+ * the column builder / row-action component.
  */
-import { fireEvent, render } from '@testing-library/react';
-import type { ReactElement } from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { StaffSystemJobDefinitionRow } from '~/lib/query/staff-jobs';
 
-import { makeSystemJobColumns } from './_columns-system-jobs';
+import { systemJobColumns } from './_jobs-list-config';
+import { SystemJobRowActions } from './_jobs-row-actions';
 
 const t = (key: string): string => key;
 
@@ -36,42 +35,49 @@ const renderActions = (permissions: {
 	const onToggleEnabled = vi.fn();
 	const onTriggerNow = vi.fn();
 	const onEditCron = vi.fn();
-	const columns = makeSystemJobColumns(t, 'en', {
-		canUpdateSystemJob: true,
-		canTriggerSystemJob: true,
-		permissionsPending: permissions.permissionsPending ?? false,
-		updateDenied: permissions.updateDenied ?? false,
-		triggerDenied: permissions.triggerDenied ?? false,
+	const permissionsPending = permissions.permissionsPending ?? false;
+	const updateDenied = permissions.updateDenied ?? false;
+	const triggerDenied = permissions.triggerDenied ?? false;
+	const explanation = permissionsPending
+		? 'action-permission-checking'
+		: 'action-permission-denied';
+
+	const columns = systemJobColumns(t, 'en', {
+		permissionsPending,
+		updateDenied,
 		isTogglePending: false,
+		explanation,
 		onToggleEnabled,
-		onTriggerNow,
-		onEditCron,
 	});
-	const toggleCell = columns.find((c) => c.id === 'is_enabled');
-	const actionsCell = columns.find((c) => c.id === 'actions');
-	const toggleUi = (
-		toggleCell!.cell as (ctx: {
-			row: { original: StaffSystemJobDefinitionRow };
-		}) => ReactElement
-	)({ row: { original: row } });
-	const actionsUi = (
-		actionsCell!.cell as (ctx: {
-			row: { original: StaffSystemJobDefinitionRow };
-		}) => ReactElement
-	)({ row: { original: row } });
+	const stateCell = columns.find((c) => c.id === 'state');
+	expect(stateCell).toBeDefined();
+
 	const { container } = render(
 		<div>
-			{toggleUi}
-			{actionsUi}
+			{stateCell?.cell(row)}
+			<SystemJobRowActions
+				row={row}
+				t={t}
+				permissionsPending={permissionsPending}
+				updateDenied={updateDenied}
+				triggerDenied={triggerDenied}
+				explanation={explanation}
+				onEditCron={onEditCron}
+				onTriggerNow={onTriggerNow}
+			/>
 		</div>,
 	);
 
 	const toggle = container.querySelector('[role="switch"]') as HTMLElement;
-	const editCron = container.querySelector(
-		'[data-testid="system-job-edit-cron-sj-1"]',
+	const menuTrigger = container.querySelector(
+		'[data-slot="dropdown-menu-trigger"]',
+	) as HTMLElement;
+	fireEvent.click(menuTrigger);
+	const editCron = screen.getByTestId(
+		'system-job-edit-cron-sj-1',
 	) as HTMLButtonElement;
-	const trigger = container.querySelector(
-		'[data-testid="system-job-trigger-sj-1"]',
+	const trigger = screen.getByTestId(
+		'system-job-trigger-sj-1',
 	) as HTMLButtonElement;
 
 	return {
@@ -81,8 +87,13 @@ const renderActions = (permissions: {
 		toggle,
 		editCron,
 		trigger,
+		menuTrigger,
 	};
 };
+
+afterEach(() => {
+	cleanup();
+});
 
 describe('system-job actions gating (brief #1626)', () => {
 	test('while the permission request is in flight, all actions are disabled-with-explanation', () => {
@@ -167,6 +178,7 @@ describe('system-job actions gating (brief #1626)', () => {
 			toggle,
 			editCron,
 			trigger,
+			menuTrigger,
 		} = renderActions({});
 
 		for (const control of [toggle, editCron, trigger]) {
@@ -176,7 +188,11 @@ describe('system-job actions gating (brief #1626)', () => {
 
 		fireEvent.click(toggle);
 		fireEvent.click(editCron);
-		fireEvent.click(trigger);
+		// Choosing an item closes the menu: reopen it for the next action.
+		fireEvent.click(menuTrigger);
+		fireEvent.click(
+			screen.getByTestId('system-job-trigger-sj-1') as HTMLButtonElement,
+		);
 
 		expect(onToggleEnabled).toHaveBeenCalledTimes(1);
 		expect(onEditCron).toHaveBeenCalledTimes(1);

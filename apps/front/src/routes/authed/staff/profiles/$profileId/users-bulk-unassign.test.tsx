@@ -120,6 +120,20 @@ vi.mock('~/lib/query/staff-profiles', async (importOriginal) => {
 // cross-history navigation — start-server seams outside this suite's scope.
 // Mocking it keeps the pin on the ROUTE's decision (a 401-class rejection
 // must swap the page for the central logout redirect).
+vi.mock('../../_staff-list-team', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('../../_staff-list-team')>();
+	return {
+		...actual,
+		useStaffTeamOverview: () => ({
+			counts: { staff: 10, invitations: 10, profiles: 7 },
+			staff: [],
+			invitations: [],
+			profiles: [],
+		}),
+	};
+});
+
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));
@@ -147,6 +161,8 @@ vi.mock('react-i18next', () => ({
 				'select-all-visible': 'Select all {{count}}',
 				'row-selection-column': 'Select row',
 				'select-row-named': 'Select {{name}}',
+				'list-select-row': 'Select {{name}}',
+				'list-select-all': 'Select all rows',
 				'search-staff-profile-users': 'Search assigned users',
 				'no-email-address': 'No email address',
 				'status-active': 'Active',
@@ -318,7 +334,9 @@ const renderAtPage = async () => {
 	await waitFor(() =>
 		expect(screen.getByTestId('staff-profile-users-table')).toBeTruthy(),
 	);
-	await waitFor(() => expect(screen.getByText('Alex User')).toBeTruthy());
+	await waitFor(() =>
+		expect(screen.getAllByText('Alex User').length).toBeGreaterThan(0),
+	);
 
 	return harness;
 };
@@ -379,7 +397,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 	test('selection mode exposes the Unassign selected action', async () => {
 		await renderAtPage();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 
 		const trigger = await screen.findByRole('button', {
 			name: 'More actions',
@@ -398,7 +416,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 	test('a confirmed unassign drives the real route component into the bulk mutation', async () => {
 		await renderAtPage();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 
 		await chooseBulkAction('Unassign selected', 'More actions');
 
@@ -454,11 +472,11 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
 		).toBe(false);
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('true'),
 		);
@@ -491,7 +509,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('false'),
 		);
@@ -533,11 +551,11 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
 		).toBe(false);
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('true'),
 		);
@@ -559,7 +577,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('false'),
 		);
@@ -604,11 +622,11 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
 		).toBe(false);
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('true'),
 		);
@@ -624,7 +642,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('false'),
 		);
@@ -667,19 +685,19 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
 		).toBe(false);
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_B}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Blake Row' }));
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('true'),
 		);
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_B}` })
+					.getByRole('checkbox', { name: 'Select Blake Row' })
 					.getAttribute('aria-checked'),
 			).toBe('true'),
 		);
@@ -706,14 +724,14 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getByRole('checkbox', { name: 'Select Alex User' })
 					.getAttribute('aria-checked'),
 			).toBe('false'),
 		);
 		await waitFor(() =>
 			expect(
 				screen
-					.getByRole('checkbox', { name: `Select ${USER_B}` })
+					.getByRole('checkbox', { name: 'Select Blake Row' })
 					.getAttribute('aria-checked'),
 			).toBe('false'),
 		);
@@ -759,7 +777,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 
 		await renderAtPage();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
@@ -779,7 +797,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		cleanup();
 		await renderAtPage();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
@@ -816,7 +834,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 
 		await renderAtPage();
 
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
@@ -839,7 +857,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 
 		// The selection bar (and its bulk menu) only mounts once a row is
 		// selected; select then clear to reach the bar with an EMPTY selection.
-		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alex User' }));
 		fireEvent.click(
 			await screen.findByRole('button', { name: 'Clear selection' }),
 		);

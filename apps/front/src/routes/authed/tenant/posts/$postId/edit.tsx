@@ -11,7 +11,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
@@ -235,14 +234,7 @@ const TenantPostEditPage = () => {
 						fallback: t('common:an-error-occurred'),
 						translate: translateResponseMessage,
 					})}
-					actions={
-						<Link
-							to="/tenant/posts/drafts"
-							className={buttonVariants({ variant: 'outline' })}
-						>
-							{t('posts:back-to-drafts')}
-						</Link>
-					}
+
 					testId="tenant-post-edit-error"
 				/>
 			}

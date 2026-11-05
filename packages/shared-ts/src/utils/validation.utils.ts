@@ -1,8 +1,8 @@
 // import { z } from 'zod';
 
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import type { ZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 
-export const getListParamsSchema = (z: InterZod) => {
+export const getListParamsSchema = (z: ZodI18n) => {
 	return z.object({
 		page: z.number().optional(),
 		pageSize: z.number().optional(),

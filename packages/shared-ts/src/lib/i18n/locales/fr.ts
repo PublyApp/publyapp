@@ -13,14 +13,12 @@ import staffJobs from '../json/staff-jobs.fr.json' with { type: 'json' };
 import staffTenantActivity from '../json/staff-tenant-activity.fr.json' with { type: 'json' };
 import staffTenantProfiles from '../json/staff-tenant-profiles.fr.json' with { type: 'json' };
 import staffUsers from '../json/staff-users.fr.json' with { type: 'json' };
-import zod from '../json/zod.fr.json' with { type: 'json' };
 import type { LooseResource } from './en';
 
 // Same registry order as `./en.ts`; `satisfies LooseResource` is what pins EN/FR key parity at
 // the type level (a namespace or a key added on one side and not the other fails typecheck).
 const resourceFR = {
 	common,
-	zod,
 	'response-message': responseMessage,
 	auth,
 	account,

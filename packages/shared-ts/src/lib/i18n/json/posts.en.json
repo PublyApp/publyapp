@@ -10,7 +10,7 @@
 	"danger-zone-description": "Move this post to the bin. It stays recoverable.",
 	"danger-zone-title": "Danger zone",
 	"drafts": "Drafts",
-	"drafts-coming-later-description": "Your draft posts will appear here once the posts API ships.",
+	"drafts-coming-later-description": "Your draft posts will appear here once publishing is available.",
 	"drafts-coming-later-title": "Drafts are coming later",
 	"drafts-description": "Your unpublished posts. Search, open, and keep writing.",
 	"edit-post": "Edit post",

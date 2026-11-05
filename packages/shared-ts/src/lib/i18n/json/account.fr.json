@@ -17,7 +17,7 @@
 	"enable-two-factor-authentication": "Activer la 2FA",
 	"active-sessions": "Sessions actives",
 	"active-sessions-coming-later-title": "La gestion des sessions arrive plus tard",
-	"active-sessions-coming-later-description": "Les appareils et l'activité de connexion apparaîtront ici lorsque l'API des sessions sera disponible.",
+	"active-sessions-coming-later-description": "Les appareils et l'activité de connexion apparaîtront ici dès que la gestion des sessions sera disponible.",
 	"marketing-emails-description": "Actualités, fonctionnalités et nouveautés produits",
 	"product-updates-description": "Mises à jour importantes concernant la plateforme",
 	"security-alerts-description": "Alertes de sécurité et d'activité du compte",

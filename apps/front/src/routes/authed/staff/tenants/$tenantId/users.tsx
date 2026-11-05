@@ -1,6 +1,6 @@
 import { IconAlertCircle } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -28,7 +28,6 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
-	TenantRetryActions,
 } from './_tenant-details-shell';
 import { TenantUserBulkActions } from './_users-bulk-actions';
 import { makeTenantUserColumns } from './_users-columns';
@@ -66,6 +65,8 @@ const StaffTenantUsersPage = () => {
 	);
 	const { t } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
+	// #2291 M5: the drawer's Escape/close returns focus to this button.
+	const inviteButtonRef = useRef<HTMLButtonElement>(null);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
 	const selectedLevels = parseTenantUserLevelFilter(search.level);
@@ -158,9 +159,6 @@ const StaffTenantUsersPage = () => {
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
-			actions={
-				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-			}
 		/>
 	);
 
@@ -245,6 +243,7 @@ const StaffTenantUsersPage = () => {
 						<TenantUsersPageHeader
 							usersCount={tenant.usersCount}
 							onInvite={() => setInviteDrawerOpen(true)}
+							inviteButtonRef={inviteButtonRef}
 						/>
 
 						<TenantUsersTable
@@ -258,6 +257,7 @@ const StaffTenantUsersPage = () => {
 							queryState={{
 								isPending: usersQuery.isPending,
 								isError: usersQuery.isError,
+								error: usersQuery.error,
 								isFetching: usersQuery.isFetching,
 								hasNextPage: usersQuery.data?.nextCursor != null,
 							}}
@@ -304,6 +304,7 @@ const StaffTenantUsersPage = () => {
 							isOpen={isInviteDrawerOpen}
 							onOpenChange={setInviteDrawerOpen}
 							onSessionExpired={() => setShouldLogout(true)}
+							finalFocusRef={inviteButtonRef}
 						/>
 					</TenantDetailsPageShell>
 				);

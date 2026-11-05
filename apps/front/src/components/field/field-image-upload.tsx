@@ -1,9 +1,11 @@
-import { IconLoader2, IconX } from '@tabler/icons-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import {
+	FieldDropZone,
+	type DropZoneFile,
+} from '~/components/field/field-drop-zone';
 import { renderFieldHelper } from '~/components/field/field-helper-text';
-import { Button } from '~/components/ui/button';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
@@ -27,12 +29,25 @@ const ACCEPTED_MIME_TYPES = [
 ];
 const ACCEPT_ATTR = ACCEPTED_MIME_TYPES.join(',');
 
+const fileNameOf = (url: string): string => {
+	const last = url.split('?')[0]?.split('/').pop() ?? '';
+	try {
+		return decodeURIComponent(last);
+	} catch {
+		return last;
+	}
+};
+
 export type FieldImageUploadProps = {
 	name: string;
 	label: string;
 	previewName: string;
 	helperText?: string;
 	isDisabled?: boolean;
+	/** The caller already shows the field's label in its own row. */
+	hideLabel?: boolean;
+	/** `optional` badge shown next to the stacked label. */
+	optional?: boolean;
 };
 
 export const FieldImageUpload = ({
@@ -41,11 +56,14 @@ export const FieldImageUpload = ({
 	previewName,
 	helperText,
 	isDisabled,
+	hideLabel = false,
+	optional = false,
 }: FieldImageUploadProps) => {
 	const { t } = useTranslation('common');
 	const { control } = useFormContext();
 	const uploadImage = useUploadStaffImageMutation();
 	const [localError, setLocalError] = useState('');
+	const [picked, setPicked] = useState<DropZoneFile | null>(null);
 	const fieldId = useId();
 	const helperId = `${fieldId}-helper`;
 	const isUploading = uploadImage.isPending;
@@ -62,6 +80,10 @@ export const FieldImageUpload = ({
 
 				const acceptFile = (file: File) => {
 					setLocalError('');
+					setPicked({
+						name: file.name,
+						meta: `${Math.max(1, Math.round(file.size / 1024))} Ko`,
+					});
 
 					if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
 						setLocalError(t('logo-upload-invalid-type'));
@@ -96,112 +118,69 @@ export const FieldImageUpload = ({
 					);
 				};
 
-				const handleFiles = (fileList: FileList | null) => {
-					const file = fileList?.[0];
-					if (file) {
-						acceptFile(file);
-					}
-				};
-
 				const hasUrl = currentUrl.trim().length > 0;
-
-				let statusContent: ReactNode;
-				if (isUploading) {
-					statusContent = (
-						<p className="publy-type-helper flex items-center gap-1">
-							<IconLoader2 aria-hidden="true" className="size-3 animate-spin" />
-							{t('uploading-logo')}
-						</p>
-					);
-				} else if (hasUrl) {
-					statusContent = (
-						<p
-							className="truncate font-mono text-xs text-muted-foreground"
-							data-testid="logo-upload-url"
-							title={currentUrl}
-						>
-							{currentUrl}
-						</p>
-					);
-				} else {
-					statusContent = (
-						<p className="publy-type-helper">{t('logo-upload-hint')}</p>
-					);
-				}
-
-				const helperContent = renderFieldHelper({
-					helper,
-					isInvalid,
-					helperId,
-				});
+				const file: DropZoneFile | undefined = hasUrl
+					? (picked ?? { name: fileNameOf(currentUrl), meta: '' })
+					: undefined;
 
 				return (
-					<div className="space-y-1.5">
-						<Label htmlFor={fieldId}>{label}</Label>
-						<div
-							data-testid="logo-upload-dropzone"
-							className="flex items-center gap-3 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-3"
-							onDragOver={(event) => {
-								event.preventDefault();
-							}}
-							onDrop={(event) => {
-								event.preventDefault();
-								if (!isControlDisabled) {
-									handleFiles(event.dataTransfer.files);
+					<div className="flex flex-col gap-1.5">
+						{hideLabel ? null : (
+							<div className="flex items-center gap-2">
+								<Label htmlFor={fieldId}>{label}</Label>
+								{optional ? (
+									<span className="text-xs text-muted-foreground">
+										{t('optional')}
+									</span>
+								) : null}
+							</div>
+						)}
+						<FieldDropZone
+							kind="logo"
+							title={t('organization-logo-title')}
+							dropLabel={t('drop-file-here')}
+							action={t('choose-image')}
+							hint={
+								<span>
+									{t('or-drag-here')} · {t('logo-drop-hint')}
+								</span>
+							}
+							inputId={fieldId}
+							inputName={name}
+							inputRef={field.ref}
+							accept={ACCEPT_ATTR}
+							file={isUploading ? undefined : file}
+							thumb={
+								file ? (
+									<BrandTile
+										name={previewName}
+										logoUrl={currentUrl}
+										className="size-9 shrink-0 rounded-[10px] text-xs"
+									/>
+								) : undefined
+							}
+							isDisabled={isControlDisabled}
+							isBusy={isUploading}
+							busyLabel={t('uploading-logo')}
+							clearLabel={t('clear-logo')}
+							testId="logo-upload-dropzone"
+							onFiles={(fileList) => {
+								const next = fileList?.[0];
+								if (next) {
+									acceptFile(next);
 								}
 							}}
-						>
-							<BrandTile
-								name={previewName}
-								logoUrl={hasUrl ? currentUrl : null}
-								className="size-10 shrink-0 rounded-[10px] text-xs"
-							/>
-							<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-								<p className="text-[13px] text-foreground">
-									{t('drag-image-here')}{' '}
-									<label
-										htmlFor={fieldId}
-										className="cursor-pointer font-medium underline underline-offset-2"
-									>
-										{t('browse')}
-									</label>
-								</p>
-								{statusContent}
-							</div>
-							{hasUrl && !isUploading ? (
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									disabled={isControlDisabled}
-									onClick={() => {
-										field.onChange('');
-										setLocalError('');
-									}}
-								>
-									<IconX aria-hidden="true" className="size-3.5" />
-									{t('clear-logo')}
-								</Button>
-							) : null}
-							<input
-								id={fieldId}
-								ref={field.ref}
-								name={field.name}
-								type="file"
-								accept={ACCEPT_ATTR}
-								aria-label={label}
-								aria-invalid={isInvalid || undefined}
-								aria-describedby={helper ? helperId : undefined}
-								disabled={isControlDisabled}
-								className="sr-only"
-								onBlur={field.onBlur}
-								onChange={(event) => {
-									handleFiles(event.target.files);
-									event.target.value = '';
-								}}
-							/>
-						</div>
-						{helperContent}
+							onClear={() => {
+								field.onChange('');
+								setPicked(null);
+								setLocalError('');
+							}}
+							onBlur={field.onBlur}
+						/>
+						<span className="sr-only" data-testid="logo-upload-url">
+							{currentUrl}
+						</span>
+						{renderFieldHelper({ helper, isInvalid, helperId })}
 					</div>
 				);
 			}}

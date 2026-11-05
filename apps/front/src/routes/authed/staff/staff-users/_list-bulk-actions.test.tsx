@@ -150,6 +150,7 @@ const row = (
 	level: AccountLevelObject.User,
 	status,
 	displayName,
+	profileNames: [],
 });
 
 const buildSelection = (selectedIds: string[]): UseRowSelectionResult => ({

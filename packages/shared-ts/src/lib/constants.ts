@@ -425,7 +425,6 @@ export const voidFunction = () => {};
 
 export const I18N_NAMESPACES = {
 	COMMON: 'common',
-	ZOD: 'zod',
 	RESPONSE_MESSAGE: 'response-message',
 } as const satisfies Record<string, NameSpace>;
 

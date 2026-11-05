@@ -21,24 +21,27 @@ describe('PageHeader', () => {
 		expect(screen.getByText('12')).toBeTruthy();
 	});
 
-	// #2280: at 390px the action cluster painted over the end of the title.
-	// Under md the title takes its own row and the actions drop below it.
-	test('drops the actions below the title under md', () => {
+	// #2280: at 390px the title must truncate instead of painting over the
+	// actions. The header is one row at every width, so the statistics chevron
+	// (trailing chrome) sits on the title's line at the right.
+	test('keeps the trailing chrome on the title row under md', () => {
 		const { container } = render(
 			<PageHeader
 				title="Organisations"
-				actions={<button type="button">Exporter</button>}
+				trailingActions={<button type="button">Stats</button>}
 			/>,
 		);
 
 		const header = container.querySelector('header');
-		expect(header?.className).toContain('max-md:flex-col');
-		expect(header?.className).toContain('max-md:items-stretch');
+		expect(header?.className).not.toContain('max-md:flex-col');
+		expect(header?.className).toContain('max-md:items-center');
 
-		const actions = screen.getByRole('button', {
-			name: 'Exporter',
-		}).parentElement;
-		expect(header?.lastElementChild).toBe(actions);
+		const title = screen.getByRole('heading', { name: 'Organisations' });
+		expect(title.className).toContain('max-md:truncate');
+
+		const cluster = screen.getByRole('button', { name: 'Stats' }).parentElement;
+		expect(cluster?.className).toContain('max-md:shrink-0');
+		expect(header?.lastElementChild).toBe(cluster);
 	});
 });
 

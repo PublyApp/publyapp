@@ -43,11 +43,11 @@ export const queueStatusTone = (status: string | null): StatusPillTone => {
 	}
 
 	if (status === 'processing') {
-		return 'warning';
+		return 'info';
 	}
 
 	if (status === 'pending') {
-		return 'info';
+		return 'warning';
 	}
 
 	return 'neutral';

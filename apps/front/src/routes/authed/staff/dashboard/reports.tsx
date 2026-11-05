@@ -97,6 +97,7 @@ const AuditLogExportCard = ({
 						<SelectTrigger
 							id="staff-dashboard-reports-format"
 							className="w-40"
+							aria-label={t('format')}
 							data-testid="staff-dashboard-reports-format"
 						>
 							<SelectValue />

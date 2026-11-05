@@ -204,7 +204,7 @@ test.describe(
 				'OPTIONS',
 			);
 
-			await page.getByRole('link', { name: 'All users' }).click();
+			await page.getByRole('button', { name: /Staff members/ }).click();
 			await expect(page.getByTestId('staff-users-table')).toBeVisible();
 
 			const unexpectedGetResponse = page
@@ -218,7 +218,10 @@ test.describe(
 					() => true,
 					() => false,
 				);
-			await page.getByRole('link', { name: 'Invitations' }).click();
+			await page
+				.getByTestId('app-shell-secondary-panel')
+				.getByRole('button', { name: /Invitations/ })
+				.click();
 			await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
 
 			expect(await unexpectedGetResponse).toBe(false);
@@ -258,9 +261,9 @@ test.describe(
 			);
 			const filterResponse = waitForStaffInvitationsGetResponse(page);
 
-			await page.getByRole('button', { name: 'All statuses' }).click();
+			await page.getByRole('button', { name: /^Filters/ }).click();
 			await page
-				.getByRole('menuitemcheckbox', { name: 'Pending', exact: true })
+				.getByRole('checkbox', { name: 'Pending', exact: true })
 				.click();
 			await filterResponse;
 

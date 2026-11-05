@@ -36,7 +36,9 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 /** The staff users table's query variables ARE the shared table search
  * contract (`~/lib/url-state/table-search-params`) — re-declaring the five
  * fields here is what let a fourth field drift in earlier. */
-export type StaffUsersQueryVariables = TableSearchParams;
+export type StaffUsersQueryVariables = TableSearchParams & {
+	status?: string;
+};
 
 export type StaffUserDetailsQueryVariables = {
 	userId: string;
@@ -55,6 +57,8 @@ export type StaffUserRow = {
 	level: AccountLevel | null;
 	status: UserStatus | null;
 	displayName: string;
+	/** Staff profile names assigned to the account, from the list row. */
+	profileNames: string[];
 };
 
 export type AssignedStaffProfile = {
@@ -176,6 +180,7 @@ export const buildFindStaffUsersQueryParameters = (
 ) => {
 	return {
 		q: normalizeString(variables.q),
+		status: normalizeString(variables.status),
 		sortId: normalizeString(variables.sortId),
 		sortOrder: variables.sortOrder,
 		cursor: normalizeString(variables.cursor),
@@ -213,6 +218,10 @@ export const toStaffUserRows = (
 			level: item.level ?? null,
 			status: item.status ?? null,
 			displayName: getDisplayName({ firstName, lastName, email }),
+			profileNames: (item.profileNames ?? []).flatMap((name) => {
+				const normalized = normalizeString(name ?? undefined);
+				return normalized ? [normalized] : [];
+			}),
 		});
 	}
 
@@ -341,7 +350,7 @@ const buildUpdateStaffUserProfilesBody = (
 	),
 });
 
-const staffUsersQueryOptions = buildStaffQueryOptions<
+export const staffUsersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffUsersResponse,
 	StaffUsersQueryVariables

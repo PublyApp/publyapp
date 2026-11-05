@@ -357,9 +357,9 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Login to GHCR": {
-			"hash": "e2e55763fb7ac8e0",
+			"hash": "a1a78d0e5a7a252e",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Resolve fork state": {
 			"hash": "a41d1b32bb253201",
@@ -457,9 +457,9 @@
 			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Download fork e2e images": {
-			"hash": "a5703efcfb902e84",
+			"hash": "a26b0649f6bc3254",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Install dependencies": {
 			"hash": "32d0b8ce13c29719",
@@ -477,9 +477,9 @@
 			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Login to GHCR": {
-			"hash": "d420e18ca803a874",
+			"hash": "77be1267a21692a6",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Pull stack images": {
 			"hash": "9871c251a6270aa3",
@@ -554,7 +554,7 @@
 		"ci.yml::e2e-test::Download fork e2e images": {
 			"hash": "555217f785761d1e",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Download fork e2e images\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ needs.e2e-build.outputs.tag }}\",\"path\":\"/tmp/e2e-images\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Install dependencies": {
 			"hash": "2b4fcc2651373832",
@@ -574,7 +574,7 @@
 		"ci.yml::e2e-test::Login to GHCR": {
 			"hash": "13b514df3fe14a94",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Login to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true'\",\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ github.token }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Pull stack images": {
 			"hash": "7f018528f5b2bc48",
@@ -867,9 +867,9 @@
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
 		},
 		"ci.yml::gate::Download exact upstream result artifacts": {
-			"hash": "9dc3cd31483cb17e",
+			"hash": "ad7c40e5a2a4c762",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-*\",\"path\":\"ci-results\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Download exact upstream result artifacts\" uses actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333; exact hosted fields: {\"if\":null,\"with\":{\"pattern\":\"ci-lane-result-${{ github.run_id }}-*\",\"path\":\"ci-results\"},\"env\":null}."
 		},
 		"ci.yml::gate::Install pnpm": {
 			"hash": "fe22da5e51d30f96",
@@ -1262,9 +1262,9 @@
 			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
 		},
 		"deploy-images.yml::publish::Log in to GHCR": {
-			"hash": "49f3c47b7fbf6259",
+			"hash": "c77ccdb123640fbd",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Log in to GHCR\" uses docker/login-action@dbcb813823bdd20940b903addbd779551569679f; exact hosted fields: {\"if\":null,\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ secrets.GITHUB_TOKEN }}\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Log in to GHCR\" uses docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6; exact hosted fields: {\"if\":null,\"with\":{\"registry\":\"ghcr.io\",\"username\":\"${{ github.actor }}\",\"password\":\"${{ secrets.GITHUB_TOKEN }}\"},\"env\":null}."
 		},
 		"deploy-images.yml::publish::Resolve immutable release tag": {
 			"hash": "224b349bb25ae583",

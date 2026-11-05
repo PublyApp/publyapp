@@ -1,3 +1,4 @@
+import { IconRobot } from '@tabler/icons-react';
 import type { CSSProperties } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { paletteIndex, toInitials } from '~/components/ui/avatar-initials';
@@ -18,6 +19,7 @@ export const PersonAvatar = ({
 	avatarUrl,
 	size,
 	accessibleLabel,
+	system = false,
 	className,
 	style,
 }: {
@@ -25,32 +27,55 @@ export const PersonAvatar = ({
 	avatarUrl?: string | null;
 	size?: PersonAvatarSize;
 	accessibleLabel?: string;
+	/** The system actor of an audit event: a robot on the muted surface, not a
+	 * person's initials on an avatar tint (#2286 §5.1). */
+	system?: boolean;
 	className?: string;
 	style?: CSSProperties;
-}) => (
-	<Avatar
-		key={avatarUrl ?? 'no-avatar'}
-		data-slot="person-avatar"
-		role={accessibleLabel ? 'img' : undefined}
-		aria-label={accessibleLabel}
-		aria-hidden={accessibleLabel ? undefined : true}
-		style={style}
-		className={cn(
-			'inline-flex shrink-0 overflow-hidden rounded-full after:hidden',
-			sizeClassNames[size ?? 'default'],
-			className,
-		)}
-	>
-		{avatarUrl ? (
-			<AvatarImage src={avatarUrl} alt="" aria-hidden="true" />
-		) : null}
-		<AvatarFallback
-			aria-hidden="true"
-			data-slot="person-avatar-fallback"
-			data-palette={paletteIndex(name)}
-			className="publy-avatar-initials text-[var(--publy-avatar-foreground)] font-semibold text-[length:inherit] select-none"
+}) => {
+	if (system) {
+		return (
+			<span
+				aria-hidden="true"
+				data-slot="person-avatar"
+				data-system=""
+				className={cn(
+					'inline-flex shrink-0 items-center justify-center rounded-full bg-muted-foreground text-[var(--publy-avatar-foreground)]',
+					sizeClassNames[size ?? 'default'],
+					className,
+				)}
+				style={style}
+			>
+				<IconRobot className="size-4" />
+			</span>
+		);
+	}
+
+	return (
+		<Avatar
+			key={avatarUrl ?? 'no-avatar'}
+			data-slot="person-avatar"
+			role={accessibleLabel ? 'img' : undefined}
+			aria-label={accessibleLabel}
+			aria-hidden={accessibleLabel ? undefined : true}
+			style={style}
+			className={cn(
+				'inline-flex shrink-0 overflow-hidden rounded-full after:hidden',
+				sizeClassNames[size ?? 'default'],
+				className,
+			)}
 		>
-			{toInitials(name)}
-		</AvatarFallback>
-	</Avatar>
-);
+			{avatarUrl ? (
+				<AvatarImage src={avatarUrl} alt="" aria-hidden="true" />
+			) : null}
+			<AvatarFallback
+				aria-hidden="true"
+				data-slot="person-avatar-fallback"
+				data-palette={paletteIndex(name)}
+				className="publy-avatar-initials text-[var(--publy-avatar-foreground)] font-semibold text-[length:inherit] select-none"
+			>
+				{toInitials(name)}
+			</AvatarFallback>
+		</Avatar>
+	);
+};

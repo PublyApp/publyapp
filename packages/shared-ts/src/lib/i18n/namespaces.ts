@@ -1,10 +1,6 @@
 import { z } from 'zod';
 
-export const GLOBAL_I18N_NAMESPACES = [
-	'common',
-	'zod',
-	'response-message',
-] as const;
+export const GLOBAL_I18N_NAMESPACES = ['common', 'response-message'] as const;
 const FEATURE_I18N_NAMESPACES = [
 	'auth',
 	'account',

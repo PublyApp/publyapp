@@ -1,15 +1,59 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { COLOR_SCHEME_STORAGE_KEY } from '../src/lib/store/ui-store';
 import { loginAsStaffAdmin } from './helpers/login';
 import { waitForBoundingBoxToSettle } from './helpers/settle';
 
-// #d4d4d8 (light --publy-border-strong) vs the old, too-faint #e4e4e7
-// (--publy-border). #f0bd00 (dark --publy-primary/accent, the amber that was
-// leaking into menu-item hover).
-const LIGHT_BORDER_STRONG = 'rgb(212, 212, 216)';
-const DARK_BORDER_STRONG = 'rgba(255, 255, 255, 0.15)';
-const DARK_ACCENT_AMBER = 'rgb(240, 189, 0)';
+// #2292: an outline button's edge is the 1px `--effect-raised-control` ring
+// (`0 0 0 1px var(--border)`) on a transparent border — light --publy-border
+// #e3e3e3, dark #323234. The primary fill is #FECD00 in both themes.
+const LIGHT_RAISED_RING = 'rgb(227, 227, 227) 0px 0px 0px 1px';
+const DARK_RAISED_RING = 'rgb(50, 50, 52) 0px 0px 0px 1px';
+const DARK_ACCENT_AMBER = 'rgb(254, 205, 0)';
+
+/**
+ * Splits a computed `box-shadow` into its painted layers and drops the
+ * `rgba(0, 0, 0, 0)` slots Tailwind emits for its ring variables. A substring
+ * match on one colour cannot catch the exact "double line" regression this
+ * spec guards (an extra layer keeps the original match), so assert the full
+ * single-layer value instead.
+ */
+const visibleShadowLayers = (boxShadow: string): string[] => {
+	const layers: string[] = [];
+	let depth = 0;
+	let start = 0;
+	for (let index = 0; index < boxShadow.length; index += 1) {
+		const char = boxShadow[index];
+		if (char === '(') {
+			depth += 1;
+		} else if (char === ')') {
+			depth -= 1;
+		} else if (char === ',' && depth === 0) {
+			layers.push(boxShadow.slice(start, index).trim());
+			start = index + 1;
+		}
+	}
+	layers.push(boxShadow.slice(start).trim());
+
+	return layers.filter(
+		(layer) => layer !== '' && !/^rgba?\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(layer),
+	);
+};
+
+const expectSingleVisibleShadow = async (
+	locator: Locator,
+	expected: string,
+): Promise<void> => {
+	await expect
+		.poll(async () =>
+			visibleShadowLayers(
+				await locator.evaluate(
+					(element) => getComputedStyle(element).boxShadow,
+				),
+			),
+		)
+		.toEqual([expected]);
+};
 
 // DESIGN.md "Hover states": a menu item highlights with a 5% foreground mix
 // over the popover base. The item is compared against a probe carrying that
@@ -52,18 +96,27 @@ test.describe(
 			// rule). Use a genuine toolbar `variant="outline"` filter button instead.
 			await loginAsStaffAdmin(page);
 			await page.goto('/staff/invitations');
-			const filterTrigger = page.getByRole('button', { name: 'All statuses' });
+			// The generic filter menu's outline trigger replaces the old
+			// per-filter "All statuses" button; its aria-label starts with
+			// "Filters" and appends the active count.
+			const filterTrigger = page.getByRole('button', { name: /^Filters/ });
 			await expect(filterTrigger).toBeVisible();
 
+			// The ring is the edge (no visible border): transparent 1px border
+			// plus a 1px outset shadow in the theme's border colour.
 			await expect(filterTrigger).toHaveCSS(
 				'border-top-color',
-				LIGHT_BORDER_STRONG,
+				'rgba(0, 0, 0, 0)',
 			);
+			await expectSingleVisibleShadow(filterTrigger, LIGHT_RAISED_RING);
 
 			await seedDarkTheme(page);
-			await expect(
-				page.getByRole('button', { name: 'All statuses' }),
-			).toHaveCSS('border-top-color', DARK_BORDER_STRONG);
+			const darkTrigger = page.getByRole('button', { name: /^Filters/ });
+			await expect(darkTrigger).toHaveCSS(
+				'border-top-color',
+				'rgba(0, 0, 0, 0)',
+			);
+			await expectSingleVisibleShadow(darkTrigger, DARK_RAISED_RING);
 		});
 
 		test('multi-select filter menu items are 9px-radius with muted (never amber) hover, and carry a visible end-aligned checkbox (#5, #7)', async ({
@@ -195,11 +248,6 @@ test.describe(
 
 			const trigger = page.getByTestId('staff-users-table-page-size-trigger');
 			await expect(trigger).toBeVisible();
-			// Every geometry read in this test goes through waitForBoundingBoxToSettle,
-			// never a raw boundingBox(): the trigger can briefly detach while the table
-			// re-renders (see the second read below), and a raw read then returns null.
-			const triggerBox = await waitForBoundingBoxToSettle(trigger);
-			expect(triggerBox).not.toBeNull();
 
 			await trigger.click();
 			const popup = page.locator('[data-slot="select-content"]');
@@ -215,29 +263,29 @@ test.describe(
 			// mid-transition one (review-r1-tests.md F26).
 			const firstPopupBox = await waitForBoundingBoxToSettle(popup);
 			expect(firstPopupBox).not.toBeNull();
+			// #2292: the owner-mandated spacing rhythm (32px main padding, 24px
+			// page gap) can leave the trigger just below the fold at 1280x720, so
+			// clicking it auto-scrolls the shell — re-read the trigger AFTER the
+			// click so the assertion still measures popup-vs-trigger adjacency
+			// (a popup centered over the trigger would still be ~50px away).
+			const openTriggerBox = await waitForBoundingBoxToSettle(trigger);
+			expect(openTriggerBox).not.toBeNull();
 
-			if (triggerBox && firstPopupBox) {
+			if (openTriggerBox && firstPopupBox) {
 				// Adjacent to the trigger's top or bottom edge (whichever side
 				// floating-ui picked for collision avoidance) — never centered
 				// somewhere in the middle to align a selected item.
 				const distanceBelow = Math.abs(
-					firstPopupBox.y - (triggerBox.y + triggerBox.height),
+					firstPopupBox.y - (openTriggerBox.y + openTriggerBox.height),
 				);
 				const distanceAbove = Math.abs(
-					firstPopupBox.y + firstPopupBox.height - triggerBox.y,
+					firstPopupBox.y + firstPopupBox.height - openTriggerBox.y,
 				);
 				expect(Math.min(distanceBelow, distanceAbove)).toBeLessThan(12);
 			}
 
 			await page.getByRole('option', { name: '50', exact: true }).click();
 			await expect(popup).toBeHidden();
-
-			// Selecting 50 re-renders the table with a different row count, which
-			// can move the trigger itself — anchoring is judged relative to the
-			// trigger, so re-measure it before the second open. Settle-wait rather
-			// than a raw boundingBox(): the re-render can detach the trigger mid-read.
-			const secondTriggerBox = await waitForBoundingBoxToSettle(trigger);
-			expect(secondTriggerBox).not.toBeNull();
 
 			// The reopen click can race the previous close's focus-settle on a cold
 			// stack, landing during the transition and being dropped — the popup then
@@ -249,21 +297,34 @@ test.describe(
 			}).toPass({ timeout: 15000 });
 			const secondPopupBox = await waitForBoundingBoxToSettle(popup);
 			expect(secondPopupBox).not.toBeNull();
+			// Selecting 50 re-renders the table with a different row count, and the
+			// reopen click can scroll the shell again — so measure the trigger AFTER
+			// that click too, in the same viewport state as its popup. Settle-wait
+			// rather than a raw boundingBox(): the re-render can detach the trigger.
+			const secondTriggerBox = await waitForBoundingBoxToSettle(trigger);
+			expect(secondTriggerBox).not.toBeNull();
 
 			// The popup must keep the same offset FROM ITS TRIGGER regardless of
 			// which value (10 vs. 50, i.e. first item vs. a later one) is
 			// currently selected — alignItemWithTrigger must not reposition it
 			// over the selected item.
-			if (triggerBox && firstPopupBox && secondTriggerBox && secondPopupBox) {
+			if (
+				openTriggerBox &&
+				firstPopupBox &&
+				secondTriggerBox &&
+				secondPopupBox
+			) {
 				// A generous but still tight tolerance: if alignItemWithTrigger were
 				// re-centering the popup over the newly-selected item, moving from
 				// the 1st option (10) to the 3rd (50) would shift its trigger-
 				// relative offset by roughly two item heights (~64px), far outside
-				// this window.
-				const firstOffsetY = firstPopupBox.y - triggerBox.y;
+				// this window. Both offsets use the trigger box measured AFTER its
+				// own click: the first click can auto-scroll the shell, so the
+				// pre-click read is stale for the first popup (review-r1-tests W2).
+				const firstOffsetY = firstPopupBox.y - openTriggerBox.y;
 				const secondOffsetY = secondPopupBox.y - secondTriggerBox.y;
 				expect(Math.abs(secondOffsetY - firstOffsetY)).toBeLessThan(8);
-				const firstOffsetX = firstPopupBox.x - triggerBox.x;
+				const firstOffsetX = firstPopupBox.x - openTriggerBox.x;
 				const secondOffsetX = secondPopupBox.x - secondTriggerBox.x;
 				expect(Math.abs(secondOffsetX - firstOffsetX)).toBeLessThan(8);
 			}

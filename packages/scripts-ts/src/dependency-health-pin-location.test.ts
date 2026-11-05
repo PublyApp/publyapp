@@ -31,7 +31,7 @@ const clientTsManifestPath = new URL(
 );
 
 const fetchLibrary = '@microsoft/kiota-http-fetchlibrary';
-const pinnedVersion = '1.0.0-preview.103';
+const pinnedVersion = '1.0.0-preview.111';
 
 const readJson = async (url: URL): Promise<Record<string, unknown>> =>
 	JSON.parse(await readFile(url, 'utf8'));
@@ -101,7 +101,7 @@ const recordBlock = (rawDoc: string): string => {
 };
 
 // Sentence-shaped chunks of a normalized block. Version numbers are masked
-// first (dots become middle dots) so "1.0.0-preview.103" cannot pose as a
+// first (dots become middle dots) so "1.0.0-preview.111" cannot pose as a
 // sentence boundary; a sentence then ends only at a period followed by
 // whitespace and a capital letter, backtick, asterisk, or em dash. Residual
 // limit, stated honestly: two claims fused into ONE sentence — a true
@@ -151,7 +151,7 @@ test('dependency-health.md attributes the fetch-library pin to apps/front/packag
 	);
 
 	const correctClaim =
-		'`apps/front/package.json` carries the patched `1.0.0-preview.103`';
+		'`apps/front/package.json` carries the patched `1.0.0-preview.111`';
 	assert.ok(
 		normalizeWhitespace(rawDoc).includes(correctClaim),
 		`dependency-health.md must state the pin location as: ${correctClaim}`,

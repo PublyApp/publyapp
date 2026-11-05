@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 type ListColumnSpec = {
 	label: string;
 	icon: TablerIcon;
-	width: number;
+	/** Omitted for the one fluid column (`1fr`), which absorbs the rest. */
+	width?: number;
 };
 
 export type ColumnSpecs = ReadonlyMap<string, ListColumnSpec>;
@@ -15,7 +16,8 @@ export type ListColumn<T> = {
 	id: string;
 	header: string;
 	icon: TablerIcon;
-	width: number;
+	/** Omitted for the one fluid column (`1fr`), which absorbs the rest. */
+	width?: number;
 	/** The value used by sorting and totals; `null` means the API has none. */
 	value?: (row: T) => string | number | null;
 	cell: (row: T) => ReactNode;
@@ -56,7 +58,8 @@ export type ListSelection = {
 };
 
 export type ListMobileCard = {
-	code: string;
+	/** The header's small code; omit it for a record whose title is its name. */
+	code?: string;
 	badges?: ReactNode;
 	end?: ReactNode;
 	title: ReactNode;

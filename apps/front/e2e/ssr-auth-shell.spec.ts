@@ -512,10 +512,10 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 			).toBeVisible();
 			await expect(casePage.getByTestId('neutral-authed-shell')).toHaveCount(0);
 			await expect(casePage.getByTestId('app-shell-shell')).toHaveCount(0);
-			// The only link on this screen is the always-rendered "Go to home"
+			// The only link on this screen is the always-rendered "Back to home"
 			// control (PR #997 finding 3) — it must never be hidden, including
 			// during a goto-driven (not reload-driven) recovery flow like this one.
-			const homeLink = casePage.getByRole('link', { name: 'Go to home' });
+			const homeLink = casePage.getByRole('link', { name: 'Back to home' });
 			await expect(casePage.getByRole('link')).toHaveCount(1);
 			await expect(homeLink).toBeVisible();
 			await expect(homeLink).toHaveAttribute('href', '/');

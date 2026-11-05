@@ -40,7 +40,11 @@ const mocks = vi.hoisted(() => ({
 			params: {},
 			staticData: { crumbs: 'shell' as const },
 		},
-	],
+	] as {
+		pathname: string;
+		params: Record<string, string>;
+		staticData: Record<string, unknown>;
+	}[],
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -888,5 +892,53 @@ describe('AppShell issues no tenants-for-picker request on staff surfaces', () =
 		renderShellUnderQueryClient('/tenant/settings/integrations');
 
 		await waitFor(() => expect(mocks.pickerGetCallCount).toBe(1));
+	});
+});
+
+describe('AppShell page-owned secondary panel', () => {
+	const defaultMatches = mocks.matches;
+
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		window.localStorage.clear();
+		resetUiStore();
+		mocks.matches = [
+			{
+				pathname: LIST_ROUTE,
+				params: {},
+				staticData: { crumbs: 'shell' as const, pageOwnsSecondaryPanel: true },
+			},
+		];
+	});
+
+	afterEach(() => {
+		mocks.matches = defaultMatches;
+		cleanup();
+	});
+
+	test('the page owns the whole panel: no static section nav above it', () => {
+		const { container } = render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		// The prototype stacks no shell header above a list's own panel: the
+		// page's first group title IS the panel's first row (PROMPT §4.1).
+		expect(container.querySelector('.app-shell-secondary-header')).toBeNull();
+		expect(
+			screen.queryByRole('navigation', { name: 'nav-secondary' }),
+		).toBeNull();
+
+		// The panel keeps an accessible name, just not a visible second title.
+		const heading = screen.getByRole('heading', { level: 2 });
+		// #2291 M4: the panel heading names the page, not the broader module.
+		expect(heading.textContent).toBe('nav-staff-all-users');
+		expect(heading.className).toContain('sr-only');
+
+		// The page's portal slot is the panel's scroller.
+		expect(
+			container.querySelector('#app-shell-page-panel')?.className,
+		).toContain('app-shell-page-panel');
 	});
 });

@@ -11,11 +11,36 @@ using PublyApp.Api.Modules.Jobs.Services;
 
 namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 
+public class SystemJobKeyCountItem {
+	public string JobKey { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
+public class SystemJobListCounts {
+	public int Total { get; set; }
+	public int Enabled { get; set; }
+	public int Disabled { get; set; }
+	public List<SystemJobKeyCountItem> ByJobKey { get; set; } = [];
+}
+
 public class FindSystemJobDefinitionsResponse
-	: CursorPaginatedResult<SystemJobDefinitionListItem> { }
+	: CursorPaginatedResult<SystemJobDefinitionListItem> {
+	public int TotalCount { get; set; }
+	public SystemJobListCounts Counts { get; set; } = new();
+}
 
 public class FindSystemJobDefinitionsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "is_enabled")] public string? IsEnabled { get; set; }
+	[FromQuery(Name = "q")] public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (this.Search is null) {
+			return null;
+		}
+
+		var trimmed = this.Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 
 	public bool? GetIsEnabled() {
 		return QueryPredicates.ParseNullableBoolean(this.IsEnabled);
@@ -25,6 +50,8 @@ public class FindSystemJobDefinitionsQuery : CursorPaginatedQuery {
 public class FindSystemJobDefinitionsQueryValidator
 	: CursorPaginatedQueryValidator<FindSystemJobDefinitionsQuery> {
 	public FindSystemJobDefinitionsQueryValidator() {
+		this.RuleFor(x => x.Search).MaximumLength(200);
+
 		this.RuleFor(x => x.IsEnabled)
 			.Must(QueryPredicates.BeValidNullableBoolean)
 			.WithMessage("is_enabled must be a boolean");
@@ -56,7 +83,8 @@ public sealed class FindSystemJobDefinitionsForStaff {
 			new FindSystemJobDefinitionsArgs(
 				Cursor: cursorGuid,
 				Limit: query.GetLimit(),
-				IsEnabled: query.GetIsEnabled()
+				IsEnabled: query.GetIsEnabled(),
+				Search: query.GetSearchNormalized()
 			),
 			cancellationToken
 		);
@@ -66,6 +94,18 @@ public sealed class FindSystemJobDefinitionsForStaff {
 		return TypedResults.Ok(new FindSystemJobDefinitionsResponse {
 			Data = success.Data.Data,
 			NextCursor = success.Data.NextCursor,
+			TotalCount = success.Counts.Total,
+			Counts = new SystemJobListCounts {
+				Total = success.Counts.Total,
+				Enabled = success.Counts.Enabled,
+				Disabled = success.Counts.Disabled,
+				ByJobKey = success.Counts.ByJobKey
+					.Select(count => new SystemJobKeyCountItem {
+						JobKey = count.JobKey,
+						Count = count.Count,
+					})
+					.ToList(),
+			},
 		});
 	}
 }

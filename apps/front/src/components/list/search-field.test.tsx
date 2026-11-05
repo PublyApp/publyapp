@@ -4,6 +4,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 import { SEARCH_DELAY_MS, SearchField } from './search-field';
 
 beforeEach(() => {
@@ -48,5 +52,24 @@ describe('SearchField', () => {
 		fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
 		vi.advanceTimersByTime(SEARCH_DELAY_MS);
 		expect(onSearch).toHaveBeenCalledWith(undefined);
+	});
+
+	test('the clear control empties the field, reports at once and refocuses it', () => {
+		const onSearch = vi.fn();
+		render(
+			<SearchField q="acme" onSearch={onSearch} placeholder="Rechercher" />,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'clear-search' }));
+
+		expect(onSearch).toHaveBeenCalledWith(undefined);
+		const input = screen.getByRole('searchbox') as HTMLInputElement;
+		expect(input.value).toBe('');
+		expect(document.activeElement).toBe(input);
+	});
+
+	test('no clear control while the field is empty', () => {
+		render(<SearchField q="" onSearch={vi.fn()} placeholder="Rechercher" />);
+		expect(screen.queryByRole('button', { name: 'clear-search' })).toBeNull();
 	});
 });

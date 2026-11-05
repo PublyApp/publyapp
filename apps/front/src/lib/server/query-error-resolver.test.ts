@@ -1,8 +1,15 @@
 import { describe, expect, test } from 'vitest';
+import enLocale from '~/i18n/locales/en';
+import frLocale from '~/i18n/locales/fr';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
 import { ServerFailure } from '~/lib/server/server-failure';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const t = (key: string) => `t(${key})`;
+
+const realTranslator = (common: TestLabelMap) => {
+	return (key: string) => common[key] ?? key;
+};
 
 describe('resolveQueryError (#2043)', () => {
 	test('maps a 403 ServerFailure to the forbidden copy', () => {
@@ -17,16 +24,17 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
+		expect(resolution.kind).toBe('forbidden');
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
-		expect(resolution.description).toBe(
-			'Your profile no longer has access to this tenant.',
-		);
+		expect(resolution.description).toBe('t(forbidden-description)');
 		expect(resolution.supportsRetry).toBe(false);
+		// A real cause existed, so the generic fallback flag stays false even
+		// though the owner decision paints our translated copy instead of it.
 		expect(resolution.fallback).toBe(false);
 	});
 
-	test('maps a 404 ServerFailure to the not-found copy and disables retry', () => {
+	test('maps a 404 ServerFailure to the not-found copy and keeps the retry pair', () => {
 		const resolution = resolveQueryError(
 			new ServerFailure({
 				responseStatusCode: 404,
@@ -38,10 +46,12 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
+		expect(resolution.kind).toBe('not_found');
 		expect(resolution.code).toBe('t(error-404-code)');
 		expect(resolution.title).toBe('t(page-not-found)');
-		expect(resolution.description).toBe('The resource was deleted.');
-		expect(resolution.supportsRetry).toBe(false);
+		// The API's English `detail` must not leak under a French title.
+		expect(resolution.description).toBe('t(not-found-sentence)');
+		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -57,9 +67,10 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
+		expect(resolution.kind).toBe('server');
 		expect(resolution.code).toBe('t(error-500-code)');
 		expect(resolution.title).toBe('t(error-500-title)');
-		expect(resolution.description).toBe('Trace id: abc');
+		expect(resolution.description).toBe('t(error-500-description)');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -78,7 +89,7 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
-		expect(resolution.description).toBe('The request could not be understood.');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -97,7 +108,7 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
-		expect(resolution.description).toBe('Please wait before trying again.');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -115,7 +126,7 @@ describe('resolveQueryError (#2043)', () => {
 		);
 
 		expect(resolution.title).toBe('t(query-display-error-default)');
-		expect(resolution.description).toBe('Bad Request');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -125,7 +136,7 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBeUndefined();
 		expect(resolution.title).toBe('t(query-display-error-default)');
-		expect(resolution.description).toBe('boom');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -145,7 +156,7 @@ describe('resolveQueryError (#2043)', () => {
 		// 503 is a 5xx — generic server-error copy, server detail absent so we
 		// fall back through getFailureMessage to the server-provided title.
 		expect(resolution.title).toBe('t(error-500-title)');
-		expect(resolution.description).toBe('Service Unavailable');
+		expect(resolution.description).toBe('t(error-500-description)');
 		expect(resolution.supportsRetry).toBe(true);
 		expect(resolution.fallback).toBe(false);
 	});
@@ -156,14 +167,17 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
-		expect(resolution.description).toBe('Failed to fetch the calendar.');
+		expect(resolution.kind).toBe('offline');
+		expect(resolution.title).toBe('t(offline-title)');
+		expect(resolution.description).toBe('t(offline-description)');
 		expect(resolution.fallback).toBe(false);
 	});
 
 	test('surfaces an unknown failure message through the shared failure seam', () => {
 		const resolution = resolveQueryError(new Error('The cache is corrupt.'), t);
 
-		expect(resolution.description).toBe('The cache is corrupt.');
+		expect(resolution.kind).toBe('unknown');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -177,7 +191,7 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
-		expect(resolution.description).toBe('The request was rejected.');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -192,7 +206,7 @@ describe('resolveQueryError (#2043)', () => {
 			t,
 		);
 
-		expect(resolution.description).toBe('calendar-query-invalid');
+		expect(resolution.description).toBe('t(query-display-error-cause-unknown)');
 		expect(resolution.fallback).toBe(false);
 	});
 
@@ -220,7 +234,7 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
-		expect(resolution.description).toBe('No access.');
+		expect(resolution.description).toBe('t(forbidden-description)');
 	});
 
 	test('reads nested problem details carried by an API client error', () => {
@@ -236,6 +250,23 @@ describe('resolveQueryError (#2043)', () => {
 
 		expect(resolution.code).toBe('t(error-403-code)');
 		expect(resolution.title).toBe('t(no-access-title)');
-		expect(resolution.description).toBe('The tenant permission was revoked.');
+		expect(resolution.description).toBe('t(forbidden-description)');
+	});
+});
+
+// review-tokens non-blocking note 4: the unit mocks above pin a local label
+// map, so they cannot catch a bundle rename. This one reads the shipped
+// common bundle through the real resolver.
+describe('shipped one-error-state copy (#2291)', () => {
+	test('the real bundles carry the owner titles, not the old generic copy', () => {
+		const en = realTranslator(enLocale.common);
+		const fr = realTranslator(frLocale.common);
+
+		expect(resolveQueryError({ status: 403 }, en).title).toBe('Access denied');
+		expect(resolveQueryError({ status: 403 }, fr).title).toBe('Accès refusé');
+		expect(resolveQueryError({ status: 500 }, en).title).toBe('Unable to load');
+		expect(resolveQueryError({ status: 500 }, fr).title).toBe(
+			'Impossible de charger',
+		);
 	});
 });

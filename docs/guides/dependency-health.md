@@ -112,7 +112,7 @@ above; #880's closure adds the proof, not a new pin.
 
 - **`@microsoft/kiota-http-fetchlibrary` (GHSA-396q-4vc8-28x9)** — closed by the direct exact
   pin: `apps/front/package.json` carries the patched
-  `1.0.0-preview.103` (bump assessed in
+  `1.0.0-preview.111` (bump assessed in
   [`docs/records/2026-07-31-audit-kiota-cross-origin-redirect-header-leak.md`](../records/2026-07-31-audit-kiota-cross-origin-redirect-header-leak.md),
   landed with the Kiota 1.34.1 toolchain bump; `packages/client-ts/package.json` declares the rest of
   the pinned preview chain but not this fetch library). A pre-release patch line is acceptable here
