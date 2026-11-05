@@ -84,7 +84,8 @@ existing and newly created worktree of the clone inherits that setting
 immediately, so commits are formatted in every worktree with zero per-worktree
 setup. The previous husky-generated `.husky/_` scheme silently left fresh
 worktrees with no hooks at all (three PRs went red on it); do not reintroduce a
-generated hooks directory. The installer fails loudly when it cannot wire the
+generated hooks directory. Each hook file is one line of glue calling a `.ts` script in
+`packages/scripts-ts/src/` (`git-pre-commit.ts`, `git-pre-push.ts`). The installer fails loudly when it cannot wire the
 hooks. CI wires hooks explicitly via the `Install Git hooks` step
 (`pnpm run prepare`) in every verification job of `ci.yml`.
 

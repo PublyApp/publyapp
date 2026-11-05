@@ -47,7 +47,9 @@ const config: KnipConfig = {
 			// `just` is a system binary (extractions/setup-just in CI, brew/pkg
 			// locally), not an npm package: ci.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
-			ignoreBinaries: ['just'],
+			ignoreBinaries: ['just', 'dockerd'],
+			// Run by Claude Code cloud sessions via .claude/settings.json (SessionStart).
+			entry: ['.claude/hooks/session-start.ts'],
 			// `winston-transport-browserconsole` is declared in
 			// packages/shared-ts/package.json but never imported directly:
 			// winston resolves it at runtime as an optional browser transport,
@@ -60,7 +62,7 @@ const config: KnipConfig = {
 			// gates on it); with husky removed, the hook is invisible to
 			// dependency tracing, so the real usage is declared here. The
 			// lint-staged plugin still resolves oxfmt/dotnet from
-			// .lintstagedrc.js, so those stay covered.
+			// .lintstagedrc.ts, so those stay covered.
 			ignoreDependencies: ['winston-transport-browserconsole', 'lint-staged'],
 		},
 		'apps/api': {
@@ -70,7 +72,7 @@ const config: KnipConfig = {
 			entry: [
 				// Runtime-discovered files knip cannot trace. One line per file,
 				// never a blanket ignore of a whole app.
-				'deploy/request-counter/server.mjs', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
+				'deploy/request-counter/server.ts', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
 				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
 				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
 				'e2e/helpers/data-table-icon-guard-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-data-table-icon-guard.ts (real DataTable SSR markup for the #1799 spec), never imported
@@ -111,7 +113,6 @@ const config: KnipConfig = {
 				// above (check-context-chunk-isolation.mts): an entry, not an
 				// ignore, so the file stays in the knip surface.
 				'src/components/table/column-distribute.typecheck.ts',
-				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
 				// Used via CLI `--config` argument, not imported: replay config
 				// for kept red tests under apps/front/tests/proofs/ (issue #1659).
 				// Knip cannot trace CLI-argument usage. Now wired: `just test-preuves`
@@ -145,7 +146,7 @@ const config: KnipConfig = {
 			// child tree by exact PID (a ready file plus process.kill(pid, 0))
 			// instead of matching argv text across the whole host.
 			ignoreBinaries: ['openssl', 'ss'],
-			// #1758: server.mjs imports the built server bundle through the
+			// #1758: server.ts imports the built server bundle through the
 			// `#server-build` package-imports alias so tsconfig.server.json can
 			// typecheck it without pulling build output into the program. Node
 			// resolves the alias's `default` condition to ./dist/server/server.js

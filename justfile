@@ -525,7 +525,7 @@ ci-front:
   # `import { serveStatic } from 'srvx/static'` would throw at module
   # load and crash the front server at startup, surfacing as the
   # publish-now e2e timing out on a `toBeVisible` (Traefik 502 over the
-  # down upstream). This guard parses server.mjs with ts-morph, loads
+  # down upstream). This guard parses server.ts with ts-morph, loads
   # the real installed srvx/static, and asserts every imported name
   # resolves — without it, a future rename would re-open the same
   # shape behind the next dependabot srvx bump.

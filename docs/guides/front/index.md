@@ -43,7 +43,7 @@ The package scripts in `apps/front/package.json` are the source of truth:
 
 - `dev` starts the TanStack Start/Vite dev server.
 - `build` builds the app.
-- `start` runs `apps/front/server.mjs`.
+- `start` runs `apps/front/server.ts`.
 - `typecheck` runs `tsc --noEmit`.
 - `test` runs `vitest run`.
 
