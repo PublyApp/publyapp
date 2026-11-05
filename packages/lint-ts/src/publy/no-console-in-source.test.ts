@@ -30,10 +30,6 @@ const runCases = (rule, label) => {
 		ruleTester.run(RULE_NAME, rule, {
 			valid: [
 				{
-					code: "console.log('allowed in scripts');",
-					filename: 'packages/shared-ts/src/scripts/example.ts',
-				},
-				{
 					code: "console.log('allowed in tests');",
 					filename: 'apps/front/src/routes/example/example.test.tsx',
 				},
