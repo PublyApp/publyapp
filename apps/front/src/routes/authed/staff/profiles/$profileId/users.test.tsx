@@ -101,7 +101,9 @@ vi.mock('~/lib/query/staff-profile-users', () => ({
 	useStaffProfileUsersQuery: mocks.useStaffProfileUsersQuery,
 }));
 
-vi.mock('~/lib/query/staff-profiles', () => ({
+vi.mock('~/lib/query/staff-profiles', async (importOriginal) => ({
+	// The team side panel (`_staff-list-team`) reads the real query keys/options.
+	...(await importOriginal<typeof import('~/lib/query/staff-profiles')>()),
 	toStaffProfileDetails: (
 		data: { id: string; name: string; userAccountCount: number } | undefined,
 	) => data ?? null,
