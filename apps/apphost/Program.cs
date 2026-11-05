@@ -259,46 +259,70 @@ public class Program {
 		// and the worker cannot drift onto different variable names or different expressions
 		// without someone noticing. A drift there would be invisible at build time and would
 		// only show up as one of the two processes failing to reach the database at run time.
-		static IResourceBuilder<ProjectResource> WithPostgresConnectionString(
-			IResourceBuilder<ProjectResource> project,
+		static IResourceBuilder<T> WithPostgresConnectionString<T>(
+			IResourceBuilder<T> resource,
 			IResourceBuilder<PostgresDatabaseResource> database
-		) {
-			return project.WithEnvironment(context => {
+		)
+			where T : IResourceWithEnvironment {
+			return resource.WithEnvironment(context => {
 				context.EnvironmentVariables["POSTGRES_CONNECTION_STRING"] =
 					database.Resource.ConnectionStringExpression;
 			});
 		}
 
-		static IResourceBuilder<ProjectResource> WithDevelopmentEnvironment(
-			IResourceBuilder<ProjectResource> project
-		) {
-			return project
+		static IResourceBuilder<T> WithDevelopmentEnvironment<T>(IResourceBuilder<T> resource)
+			where T : IResourceWithEnvironment {
+			return resource
 				.WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
 				.WithEnvironment("DOTNET_ENVIRONMENT", "Development");
 		}
+
+		// Migrations run BEFORE the api and the worker: on an empty database both crash at
+		// boot (the master-key canary reads data_protection_keys) and Aspire never restarts
+		// them (#2305). The AppHost build already compiled the API project, hence --no-build;
+		// `just dev` runs `dotnet tool restore` first so dotnet-ef is available.
+		// dev-migrate.ts wraps `dotnet ef database update` and, on failure, writes the
+		// explanation `just dev` prints (this worktree's database no longer matches the
+		// branch → db-reset).
+		var migrate = WithPostgresConnectionString(
+				WithDevelopmentEnvironment(
+					builder.AddExecutable(
+						"migrate",
+						"node",
+						"../api",
+						"../../packages/scripts-ts/src/dev-migrate.ts"
+					).WithEnvironment("APP_ROLE", "api")
+				),
+				publyDb
+			)
+			.WaitFor(publyDb);
 
 		var api = WithPostgresConnectionString(
 				WithDevelopmentEnvironment(builder.AddProject<Projects.PublyApp_Api>("api").WithEnvironment("APP_ROLE", "api")),
 				publyDb
 			)
-			.WaitFor(publyDb);
+			.WaitFor(publyDb)
+			.WaitForCompletion(migrate);
 
 		// Same binary, APP_ROLE=worker: job engine only, no HTTP server (design §3.2).
 		// launchProfileName: null — the worker has no HTTP endpoints, so it must not bind
 		// the API's port 5000 (DCP proxy fails with "address already in use" otherwise).
-		// No WaitFor(api): the worker's WorkerMigrationStartupGate already retries until
-		// pending migrations clear, which absorbs the boot-order race by design.
+		// WaitForCompletion(migrate) replaces the worker's old blind retry: an empty database
+		// killed it at boot before the migration gate could even run (#2305).
 		WithPostgresConnectionString(
 				WithDevelopmentEnvironment(builder.AddProject<Projects.PublyApp_Api>("worker", launchProfileName: null).WithEnvironment("APP_ROLE", "worker")),
 				publyDb
 			)
-			.WaitFor(publyDb);
+			.WaitFor(publyDb)
+			.WaitForCompletion(migrate);
 
-		// The shipped frontend in dev mode. TanStack Start dev server is Vite under the hood,
-		// so AddViteApp runs `pnpm dev` from apps/front. Injecting both base URLs means a fresh
-		// clone without .env.development still points at the orchestrated API (vite.config.ts
-		// uses ??= so explicit env wins over repo-root files either way).
+		// The shipped frontend in dev mode (TanStack Start = Vite). pnpm, never npm: npm
+		// cannot resolve the monorepo's `workspace:*` dependencies (#2305). install: false —
+		// `just dev` installs the workspace with `pnpm install --frozen-lockfile` itself.
+		// Injecting both base URLs means a fresh clone without .env.development still points
+		// at the orchestrated API (vite.config.ts uses ??= so explicit env wins).
 		builder.AddViteApp("front", "../front", "dev")
+			.WithPnpm(install: false)
 			.WithEnvironment("PUBLIC_API_BASE_URL", api.GetEndpoint("http"))
 			.WithEnvironment("SERVER_API_BASE_URL", api.GetEndpoint("http"));
 

@@ -10,6 +10,9 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
+# The AppHost database (single source of truth, #2305). Local-dev literal password, the
+# same constant as apps/apphost/Program.cs and .env.example — not a secret.
+apphost_db := "Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"
 front_dir := "apps/front"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
@@ -212,24 +215,33 @@ nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
 # trying to apply, a bootstrap deadlock). Mirrors `dev-api`, which skips doc-gen the same
 # way.
 
-# Run EF Core migrations
-db-migrate $APP_ROLE="api":
+# Fails fast when the AppHost Postgres is not running.
+[private]
+_require-db:
+  @node packages/scripts-ts/src/require-db.ts
+
+# Run EF Core migrations against the AppHost database
+db-migrate $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db: _require-db
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Drop + migrate database
-db-reset $APP_ROLE="api":
+db-reset $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db: _require-db
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef database drop -f --no-build
   cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Add new migration: `just db-add CreateUsers`
-db-add name $APP_ROLE="api":
+db-add name $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db:
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations add {{name}} --no-build
 
 # Remove last migration
-db-remove $APP_ROLE="api":
+db-remove $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db:
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations remove --no-build
 
