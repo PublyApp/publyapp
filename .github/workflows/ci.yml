@@ -1635,7 +1635,7 @@ jobs:
 
   e2e-cleanup:
     name: Clean up e2e images
-    needs: [classify, e2e-build, e2e-test]
+    needs: [classify, e2e-build, e2e-test, e2e-smoke]
     if: always()
     runs-on: ubuntu-latest
     permissions:
