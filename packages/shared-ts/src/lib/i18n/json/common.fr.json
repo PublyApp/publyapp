@@ -763,7 +763,7 @@
 	"profile-id": "ID du rôle",
 	"different": "Différent",
 	"search-tenants": "Rechercher des organisations...",
-	"search-invitations": "Rechercher par e-mail ou profil…",
+	"search-invitations": "Rechercher par e-mail ou rôle…",
 	"search-users": "Rechercher des utilisateurs",
 	"export-tenants": "Exporter les organisations",
 	"export-selected-tenants": "Exporter les organisations sélectionnées",

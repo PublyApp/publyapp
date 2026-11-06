@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 using Npgsql;
 
@@ -56,7 +57,8 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldKeepACustomOwnerProfileLimitedAndAssignTheAdminToANewFullAccessProfile() {
-		var seed = await this._SeedAndMigrateUpAsync();
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
 
 		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
 		await conn.OpenAsync();
@@ -81,7 +83,8 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldCreateANewOwnerProfileForATenantWithoutOneAndAssignItsAdmin() {
-		var seed = await this._SeedAndMigrateUpAsync();
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
 
 		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
 		await conn.OpenAsync();
@@ -96,7 +99,8 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldLinkAPendingAdminInvitationToItsTenantsFullAccessProfile() {
-		var seed = await this._SeedAndMigrateUpAsync();
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
 
 		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
 		await conn.OpenAsync();
@@ -111,7 +115,8 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task ItShouldGiveTheStaffAdminAccountTheStaffOwnerFullAccessProfile() {
-		var seed = await this._SeedAndMigrateUpAsync();
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
 
 		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
 		await conn.OpenAsync();
@@ -125,8 +130,83 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 	}
 
 	[Fact]
+	public async Task ItShouldLinkAPendingStaffAdminInvitationToTheStaffOwnerProfile() {
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
+
+		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
+		await conn.OpenAsync();
+
+		var staffOwnerId = await RemoveAccountLevelSpec._StaffProfileIdAsync(conn, "Staff Owner");
+		staffOwnerId.Should().NotBeNull();
+		(await RemoveAccountLevelSpec._CountInvitationProfilesAsync(
+			conn, seed.PendingStaffInvitationId, staffOwnerId.Required()
+		)).Should().Be(1, "a pending staff Admin invitation must still yield full access when accepted");
+	}
+
+	[Fact]
+	public async Task ItShouldPickANameThatDoesNotCollideWhenBothOwnerNamesAreTaken() {
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
+
+		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
+		await conn.OpenAsync();
+
+		var systemProfileId = await RemoveAccountLevelSpec._ProfileIdAsync(
+			conn, seed.TenantCId, "Owner (full access) 2"
+		);
+		systemProfileId.Should().NotBeNull("both preferred names are already taken by custom profiles");
+		(await RemoveAccountLevelSpec._IsFullAccessAsync(conn, systemProfileId.Required())).Should().BeTrue();
+		(await RemoveAccountLevelSpec._IsFullAccessAsync(conn, seed.CustomOwnerCProfileId))
+			.Should().BeFalse("a custom 'Owner' profile must never be promoted");
+		(await RemoveAccountLevelSpec._IsFullAccessAsync(conn, seed.CustomOwnerFullAccessCProfileId))
+			.Should().BeFalse("a custom 'Owner (full access)' profile must never be promoted");
+	}
+
+	[Fact]
+	public async Task ItShouldNotCreateASystemProfileForASoftDeletedTenant() {
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
+
+		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
+		await conn.OpenAsync();
+
+		(await RemoveAccountLevelSpec._CountFullAccessProfilesAsync(conn, seed.TenantDId))
+			.Should().Be(0, "soft-deleted tenants must not receive a system profile");
+	}
+
+	[Fact]
+	public async Task ItShouldNotDuplicateTheSystemProfilesWhenTheProfileStepsAreReRun() {
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
+
+		await this._ReRunProfileStepsAsync();
+
+		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
+		await conn.OpenAsync();
+
+		(await RemoveAccountLevelSpec._CountFullAccessProfilesAsync(conn, seed.TenantAId)).Should().Be(1);
+		(await RemoveAccountLevelSpec._CountFullAccessProfilesAsync(conn, seed.TenantBId)).Should().Be(1);
+		(await RemoveAccountLevelSpec._CountFullAccessProfilesAsync(conn, seed.TenantCId)).Should().Be(1);
+		(await RemoveAccountLevelSpec._CountStaffFullAccessProfilesAsync(conn)).Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldAbortTheMigrationWhenAProjectAccountStillCarriesTheAdminLevel() {
+		var seed = await this._SeedAsync();
+		await this._SeedProjectAdminAsync(seed.TenantBId);
+
+		var act = async () => await this._MigrateUpAsync();
+
+		await act.Should().ThrowAsync<PostgresException>()
+			.WithMessage("*RemoveAccountLevel aborted*")
+			.WithMessage("*project-scope*");
+	}
+
+	[Fact]
 	public async Task ItShouldRoundTripDownAndUpAgainWithoutLosingTheReconstructedLevels() {
-		var seed = await this._SeedAndMigrateUpAsync();
+		var seed = await this._SeedAsync();
+		await this._MigrateUpAsync();
 
 		await using (var db = this._CreateDbContext()) {
 			var migrator = db.GetService<IMigrator>();
@@ -158,10 +238,12 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 			.Should().BeTrue("the Admin must still hold full access after the round-trip");
 	}
 
-	private async Task<SeededRows> _SeedAndMigrateUpAsync() {
+	private async Task<SeededRows> _SeedAsync() {
 		var seed = new SeededRows {
 			TenantAId = Guid.CreateVersion7(),
 			TenantBId = Guid.CreateVersion7(),
+			TenantCId = Guid.CreateVersion7(),
+			TenantDId = Guid.CreateVersion7(),
 			StaffUserId = Guid.CreateVersion7(),
 			AdminAUserId = Guid.CreateVersion7(),
 			UserAUserId = Guid.CreateVersion7(),
@@ -171,7 +253,10 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 			UserAAccountId = Guid.CreateVersion7(),
 			AdminBAccountId = Guid.CreateVersion7(),
 			CustomOwnerProfileId = Guid.CreateVersion7(),
+			CustomOwnerCProfileId = Guid.CreateVersion7(),
+			CustomOwnerFullAccessCProfileId = Guid.CreateVersion7(),
 			PendingInvitationId = Guid.CreateVersion7(),
+			PendingStaffInvitationId = Guid.CreateVersion7(),
 		};
 
 		await using (var db = this._CreateDbContext()) {
@@ -183,11 +268,63 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 			await RemoveAccountLevelSpec._SeedLegacyRowsAsync(conn, seed);
 		}
 
-		await using (var db = this._CreateDbContext()) {
-			await db.GetService<IMigrator>().MigrateAsync();
-		}
-
 		return seed;
+	}
+
+	private async Task _MigrateUpAsync() {
+		await using var db = this._CreateDbContext();
+		await db.GetService<IMigrator>().MigrateAsync();
+	}
+
+	// Re-runs the two profile-creating SQL steps (A and B) of Up(), exactly as a retried
+	// migration would. Steps C and D cannot be replayed once the level columns are gone;
+	// they are NOT EXISTS-guarded on the link tables and create no profile.
+	private async Task _ReRunProfileStepsAsync() {
+		var builder = new MigrationBuilder("Npgsql.EntityFrameworkCore.PostgreSQL");
+		new ProfileStepsProbe().InvokeUp(builder);
+
+		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
+		await conn.OpenAsync();
+		foreach (var operation in builder.Operations
+			.OfType<SqlOperation>()
+			.Where(operation =>
+				operation.Sql.Contains("INSERT INTO profiles", StringComparison.Ordinal)
+				|| operation.Sql.Contains("UPDATE profiles", StringComparison.Ordinal)
+			)) {
+			await using var command = new NpgsqlCommand(operation.Sql, conn);
+			await command.ExecuteNonQueryAsync();
+		}
+	}
+
+	private async Task _SeedProjectAdminAsync(Guid tenantId) {
+		var projectId = Guid.CreateVersion7();
+		var projectUserId = Guid.CreateVersion7();
+
+		await using var conn = new NpgsqlConnection(this._ConnectionString.Required());
+		await conn.OpenAsync();
+		await using var command = new NpgsqlCommand(
+			"""
+			INSERT INTO projects (id, tenant_id, name, status, created_at, updated_at, is_deleted)
+			VALUES (@projectId, @tenantId, @projectName, 10, now(), now(), false);
+
+			INSERT INTO users (id, email, password, status, is_verified, created_at, updated_at, is_deleted)
+			VALUES (@projectUserId, @projectUserEmail, 'unused', 40, true, now(), now(), false);
+
+			INSERT INTO user_accounts
+				(id, user_id, tenant_id, project_id, scope, level, status,
+				 created_at, updated_at, is_deleted)
+			VALUES (@projectAccountId, @projectUserId, @tenantId, @projectId, 2, 50, 0,
+				now(), now(), false);
+			""",
+			conn
+		);
+		command.Parameters.AddWithValue("projectId", projectId);
+		command.Parameters.AddWithValue("tenantId", tenantId);
+		command.Parameters.AddWithValue("projectName", $"Migration Project {projectId:N}");
+		command.Parameters.AddWithValue("projectUserId", projectUserId);
+		command.Parameters.AddWithValue("projectUserEmail", $"project-{projectUserId:N}@example.com");
+		command.Parameters.AddWithValue("projectAccountId", Guid.CreateVersion7());
+		await command.ExecuteNonQueryAsync();
 	}
 
 	private AppDbContext _CreateDbContext() {
@@ -200,13 +337,18 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 	private static async Task _SeedLegacyRowsAsync(NpgsqlConnection connection, SeededRows seed) {
 		// Tenant A already owns a custom, limited profile called "Owner" — the exact shape
-		// that used to be promoted. Tenant B has none. The staff Admin has no profile at all.
+		// that used to be promoted. Tenant B has none. Tenant C owns both "Owner" and
+		// "Owner (full access)" as custom profiles, forcing the numeric-suffix fallback.
+		// Tenant D is soft-deleted and must receive no system profile. The staff Admin has
+		// no profile at all, and both a tenant and a staff Admin invitation are pending.
 		await using var command = new NpgsqlCommand(
 			"""
 			INSERT INTO tenants (id, code, name, status, max_users, created_at, updated_at, is_deleted)
 			VALUES
 				(@tenantA, @codeA, @nameA, 20, 10, now(), now(), false),
-				(@tenantB, @codeB, @nameB, 20, 10, now(), now(), false);
+				(@tenantB, @codeB, @nameB, 20, 10, now(), now(), false),
+				(@tenantC, @codeC, @nameC, 20, 10, now(), now(), false),
+				(@tenantD, @codeD, @nameD, 20, 10, now(), now(), true);
 
 			INSERT INTO users (id, email, password, status, is_verified, created_at, updated_at, is_deleted)
 			VALUES
@@ -229,7 +371,11 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 				 created_at, updated_at, is_deleted)
 			VALUES
 				(@customOwner, @tenantA, NULL, 'Owner', 'Custom limited profile', 1, false,
-				 now(), now(), false);
+				 now(), now(), false),
+				(@customOwnerC, @tenantC, NULL, 'Owner', 'Custom limited profile', 1, false,
+				 now(), now(), false),
+				(@customOwnerFullAccessC, @tenantC, NULL, 'Owner (full access)',
+				 'Custom limited profile with a colliding name', 1, false, now(), now(), false);
 
 			INSERT INTO user_account_profiles (user_account_id, profile_id, created_at, updated_at)
 			VALUES (@userAAccount, @customOwner, now(), now());
@@ -239,16 +385,24 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 				 invited_by_user_id, account_level, created_at, updated_at, is_deleted)
 			VALUES
 				(@invitation, @invitationEmail, 1, @tenantB, NULL, @invitationToken,
+				 now() + interval '7 days', 0, @staffUser, 50, now(), now(), false),
+				(@staffInvitation, @staffInvitationEmail, 0, NULL, NULL, @staffInvitationToken,
 				 now() + interval '7 days', 0, @staffUser, 50, now(), now(), false);
 			""",
 			connection
 		);
 		command.Parameters.AddWithValue("tenantA", seed.TenantAId);
 		command.Parameters.AddWithValue("tenantB", seed.TenantBId);
+		command.Parameters.AddWithValue("tenantC", seed.TenantCId);
+		command.Parameters.AddWithValue("tenantD", seed.TenantDId);
 		command.Parameters.AddWithValue("codeA", $"mig-a-{seed.TenantAId:N}"[..20]);
 		command.Parameters.AddWithValue("codeB", $"mig-b-{seed.TenantBId:N}"[..20]);
+		command.Parameters.AddWithValue("codeC", $"mig-c-{seed.TenantCId:N}"[..20]);
+		command.Parameters.AddWithValue("codeD", $"mig-d-{seed.TenantDId:N}"[..20]);
 		command.Parameters.AddWithValue("nameA", $"Migration Tenant A {seed.TenantAId:N}");
 		command.Parameters.AddWithValue("nameB", $"Migration Tenant B {seed.TenantBId:N}");
+		command.Parameters.AddWithValue("nameC", $"Migration Tenant C {seed.TenantCId:N}");
+		command.Parameters.AddWithValue("nameD", $"Migration Tenant D {seed.TenantDId:N}");
 		command.Parameters.AddWithValue("staffUser", seed.StaffUserId);
 		command.Parameters.AddWithValue("adminAUser", seed.AdminAUserId);
 		command.Parameters.AddWithValue("userAUser", seed.UserAUserId);
@@ -262,9 +416,16 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 		command.Parameters.AddWithValue("userAAccount", seed.UserAAccountId);
 		command.Parameters.AddWithValue("adminBAccount", seed.AdminBAccountId);
 		command.Parameters.AddWithValue("customOwner", seed.CustomOwnerProfileId);
+		command.Parameters.AddWithValue("customOwnerC", seed.CustomOwnerCProfileId);
+		command.Parameters.AddWithValue("customOwnerFullAccessC", seed.CustomOwnerFullAccessCProfileId);
 		command.Parameters.AddWithValue("invitation", seed.PendingInvitationId);
 		command.Parameters.AddWithValue("invitationEmail", $"invitee-{seed.PendingInvitationId:N}@example.com");
 		command.Parameters.AddWithValue("invitationToken", $"tok-{seed.PendingInvitationId:N}");
+		command.Parameters.AddWithValue("staffInvitation", seed.PendingStaffInvitationId);
+		command.Parameters.AddWithValue(
+			"staffInvitationEmail", $"staff-invitee-{seed.PendingStaffInvitationId:N}@example.com"
+		);
+		command.Parameters.AddWithValue("staffInvitationToken", $"staff-tok-{seed.PendingStaffInvitationId:N}");
 		await command.ExecuteNonQueryAsync();
 	}
 
@@ -312,6 +473,39 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 		);
 		command.Parameters.AddWithValue("name", name);
 		return await command.ExecuteScalarAsync() as Guid?;
+	}
+
+	private static async Task<int> _CountFullAccessProfilesAsync(
+		NpgsqlConnection connection,
+		Guid tenantId
+	) {
+		await using var command = new NpgsqlCommand(
+			"""
+			SELECT COUNT(*)
+			FROM profiles
+			WHERE scope = 1
+			  AND tenant_id = @tenantId
+			  AND is_full_access = true
+			  AND is_deleted = false
+			""",
+			connection
+		);
+		command.Parameters.AddWithValue("tenantId", tenantId);
+		return (int)(long)(await command.ExecuteScalarAsync() ?? 0L);
+	}
+
+	private static async Task<int> _CountStaffFullAccessProfilesAsync(NpgsqlConnection connection) {
+		await using var command = new NpgsqlCommand(
+			"""
+			SELECT COUNT(*)
+			FROM profiles
+			WHERE scope = 0
+			  AND is_full_access = true
+			  AND is_deleted = false
+			""",
+			connection
+		);
+		return (int)(long)(await command.ExecuteScalarAsync() ?? 0L);
 	}
 
 	private static async Task<bool> _HoldsProfileAsync(
@@ -363,9 +557,19 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 		return (int)(await command.ExecuteScalarAsync() ?? 0);
 	}
 
+	// Exposes the migration's protected Up() so the idempotence spec can replay its data
+	// steps. Lives in the test assembly, which EF never scans for migrations.
+	private sealed class ProfileStepsProbe : RemoveAccountLevel {
+		public void InvokeUp(MigrationBuilder migrationBuilder) {
+			this.Up(migrationBuilder);
+		}
+	}
+
 	private sealed class SeededRows {
 		public Guid TenantAId { get; init; }
 		public Guid TenantBId { get; init; }
+		public Guid TenantCId { get; init; }
+		public Guid TenantDId { get; init; }
 		public Guid StaffUserId { get; init; }
 		public Guid AdminAUserId { get; init; }
 		public Guid UserAUserId { get; init; }
@@ -375,6 +579,9 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 		public Guid UserAAccountId { get; init; }
 		public Guid AdminBAccountId { get; init; }
 		public Guid CustomOwnerProfileId { get; init; }
+		public Guid CustomOwnerCProfileId { get; init; }
+		public Guid CustomOwnerFullAccessCProfileId { get; init; }
 		public Guid PendingInvitationId { get; init; }
+		public Guid PendingStaffInvitationId { get; init; }
 	}
 }

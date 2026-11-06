@@ -14,9 +14,25 @@ namespace PublyApp.Api.Migrations
     /// 2. create the full-access profile wherever it is missing (staff scope, and one
     ///    per tenant) and mark the seeded ones,
     /// 3. copy every Admin account's full access into a profile assignment,
-    /// 4. carry pending Admin invitations over to the full-access profile so accepting
-    ///    them still yields full access,
+    /// 4. carry pending Admin invitations (staff and tenant) over to the full-access
+    ///    profile so accepting them still yields full access,
     /// 5. only then drop the three columns.
+    ///
+    /// Idempotence: every data step is guarded by NOT EXISTS, so a retried migration
+    /// never creates a second system profile, never promotes a tenant's custom profile
+    /// and never duplicates an assignment or invitation link. A tenant may already own
+    /// custom profiles named "Owner" and/or "Owner (full access)": neither is ever
+    /// promoted, and the new system profile falls back to a numeric suffix that provably
+    /// does not exist for that tenant. Soft-deleted tenants get no system profile.
+    ///
+    /// Project scope: project accounts and project invitations never carried the Admin
+    /// level (they are created at level 10 / NULL), so there is no project branch. A
+    /// guard at the top of Up() aborts the migration if such a row is ever found, rather
+    /// than silently losing its intent when the columns go.
+    ///
+    /// Deployment: single SHA only — migrate, api, worker and front ship together, so no
+    /// mixed-version window exists in which an old binary still writes these columns.
+    /// The three DropColumn calls carry the expand-contract acknowledgement for #2289.
     ///
     /// Existing profile assignments are never touched. Down() reconstructs
     /// <c>level</c>/<c>account_level</c> from full-access profile membership, which is a
@@ -27,6 +43,36 @@ namespace PublyApp.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // M2 guard: project scope never used the Admin level (project accounts are
+            // created at level 10, project invitations carry no account level). If that
+            // ever stopped being true, dropping the columns would silently erase the
+            // intent of those rows — abort loudly instead.
+            migrationBuilder.Sql(
+                """
+                DO $$
+                DECLARE
+                    account_count integer;
+                    invitation_count integer;
+                BEGIN
+                    SELECT count(*) INTO account_count
+                    FROM user_accounts
+                    WHERE scope = 2
+                      AND level = 50;
+
+                    SELECT count(*) INTO invitation_count
+                    FROM invitations
+                    WHERE scope = 2
+                      AND account_level = 50;
+
+                    IF account_count > 0 OR invitation_count > 0 THEN
+                        RAISE EXCEPTION
+                            'RemoveAccountLevel aborted: % project-scope user_accounts row(s) with level = 50 and % project-scope invitations row(s) with account_level = 50 exist. Project scope never used the Admin level; refusing to remove the columns and silently lose that intent. Migrate these rows to the intended profile first.',
+                            account_count,
+                            invitation_count;
+                    END IF;
+                END $$;
+                """);
+
             migrationBuilder.AddColumn<bool>(
                 name: "is_full_access",
                 table: "profiles",
@@ -35,9 +81,24 @@ namespace PublyApp.Api.Migrations
                 defaultValue: false);
 
             // A) Staff scope full-access profile. The seeder creates it as "Staff Owner";
-            //    recreate that exact name so seeding stays idempotent afterwards.
+            //    mark that seeded row when it already exists, otherwise create it. Both
+            //    statements are skipped when a full-access staff profile already exists,
+            //    so a retried migration cannot add a second one.
             migrationBuilder.Sql(
                 """
+                UPDATE profiles
+                SET is_full_access = true,
+                    updated_at = now()
+                WHERE scope = 0
+                  AND name = 'Staff Owner'
+                  AND is_deleted = false
+                  AND NOT EXISTS (
+                      SELECT 1 FROM profiles f
+                      WHERE f.scope = 0
+                        AND f.is_full_access = true
+                        AND f.is_deleted = false
+                  );
+
                 INSERT INTO profiles
                     (name, description, scope, is_default, is_full_access, created_at, updated_at, is_deleted)
                 SELECT
@@ -50,36 +111,26 @@ namespace PublyApp.Api.Migrations
                     now(),
                     false
                 WHERE NOT EXISTS (
-                    SELECT 1 FROM profiles
-                    WHERE scope = 0
-                      AND name = 'Staff Owner'
-                      AND is_deleted = false
+                    SELECT 1 FROM profiles f
+                    WHERE f.scope = 0
+                      AND f.is_full_access = true
+                      AND f.is_deleted = false
                 );
-
-                UPDATE profiles
-                SET is_full_access = true,
-                    updated_at = now()
-                WHERE scope = 0
-                  AND name = 'Staff Owner'
-                  AND is_deleted = false;
                 """);
 
-            // B) One tenant-scope full-access profile per tenant, named "Owner" — the same
-            //    name TenantAsStaffService now creates for new tenants. A tenant may already
-            //    own a custom, limited profile called "Owner": never promote it (that would
-            //    silently grant full access to its members). In that case the new system
-            //    profile is named "Owner (full access)" instead.
+            // B) One tenant-scope full-access profile per non-deleted tenant, named
+            //    "Owner" — the same name TenantAsStaffService creates for new tenants. A
+            //    tenant may already own custom, limited profiles called "Owner" and/or
+            //    "Owner (full access)": never promote them (that would silently grant
+            //    full access to their members). The new system profile takes the first
+            //    free name among "Owner", "Owner (full access)", then numeric suffixes,
+            //    and tenants that already have a full-access profile are skipped.
             migrationBuilder.Sql(
                 """
                 INSERT INTO profiles
                     (name, description, scope, tenant_id, is_default, is_full_access, created_at, updated_at, is_deleted)
                 SELECT
-                    CASE WHEN EXISTS (
-                        SELECT 1 FROM profiles p
-                        WHERE p.scope = 1
-                          AND p.tenant_id = t.id
-                          AND p.name = 'Owner'
-                    ) THEN 'Owner (full access)' ELSE 'Owner' END,
+                    candidate.name,
                     'Organization owner with full access',
                     1,
                     t.id,
@@ -88,7 +139,49 @@ namespace PublyApp.Api.Migrations
                     now(),
                     now(),
                     false
-                FROM tenants t;
+                FROM tenants t
+                CROSS JOIN LATERAL (
+                    SELECT c.name
+                    FROM (
+                        SELECT
+                            1 AS rank,
+                            CASE WHEN EXISTS (
+                                SELECT 1 FROM profiles p
+                                WHERE p.scope = 1
+                                  AND p.tenant_id = t.id
+                                  AND p.name = 'Owner'
+                                  AND p.is_deleted = false
+                            ) THEN 'Owner (full access)' ELSE 'Owner' END AS name
+                        UNION ALL
+                        SELECT
+                            n,
+                            CASE WHEN EXISTS (
+                                SELECT 1 FROM profiles p
+                                WHERE p.scope = 1
+                                  AND p.tenant_id = t.id
+                                  AND p.name = 'Owner'
+                                  AND p.is_deleted = false
+                            ) THEN 'Owner (full access) ' || n ELSE 'Owner ' || n END
+                        FROM generate_series(2, 1000) AS n
+                    ) c
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM profiles p
+                        WHERE p.scope = 1
+                          AND p.tenant_id = t.id
+                          AND p.name = c.name
+                          AND p.is_deleted = false
+                    )
+                    ORDER BY c.rank
+                    LIMIT 1
+                ) AS candidate
+                WHERE t.is_deleted = false
+                  AND NOT EXISTS (
+                      SELECT 1 FROM profiles p
+                      WHERE p.scope = 1
+                        AND p.tenant_id = t.id
+                        AND p.is_full_access = true
+                        AND p.is_deleted = false
+                  );
                 """);
 
             // C) Every former Admin keeps full access as a profile assignment.
@@ -131,7 +224,9 @@ namespace PublyApp.Api.Migrations
                 """);
 
             // D) A still-pending Admin invitation must still yield full access once
-            //    accepted; the profile list is now the only carrier of that intent.
+            //    accepted; the profile list is now the only carrier of that intent. Staff
+            //    invitations (scope 0) carry no tenant, so they need their own branch
+            //    pointing at the staff full-access profile.
             migrationBuilder.Sql(
                 """
                 INSERT INTO invitation_profiles (invitation_id, profile_id, created_at, updated_at)
@@ -145,7 +240,25 @@ namespace PublyApp.Api.Migrations
                 WHERE i.account_level = 50
                   AND i.status = 0
                   AND i.is_deleted = false
+                  AND i.scope = 1
                   AND i.tenant_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM invitation_profiles x
+                      WHERE x.invitation_id = i.id
+                        AND x.profile_id = p.id
+                  );
+
+                INSERT INTO invitation_profiles (invitation_id, profile_id, created_at, updated_at)
+                SELECT i.id, p.id, now(), now()
+                FROM invitations i
+                JOIN profiles p
+                  ON p.scope = 0
+                 AND p.is_full_access = true
+                 AND p.is_deleted = false
+                WHERE i.account_level = 50
+                  AND i.status = 0
+                  AND i.is_deleted = false
+                  AND i.scope = 0
                   AND NOT EXISTS (
                       SELECT 1 FROM invitation_profiles x
                       WHERE x.invitation_id = i.id
@@ -153,14 +266,17 @@ namespace PublyApp.Api.Migrations
                   );
                 """);
 
+            // expand-contract-ok: single-SHA deploy, no mixed-version window (#2289)
             migrationBuilder.DropColumn(
                 name: "level",
                 table: "user_accounts");
 
+            // expand-contract-ok: single-SHA deploy, no mixed-version window (#2289)
             migrationBuilder.DropColumn(
                 name: "account_level",
                 table: "invitations");
 
+            // expand-contract-ok: single-SHA deploy, no mixed-version window (#2289)
             migrationBuilder.DropColumn(
                 name: "account_level",
                 table: "invitation_email_outbox");

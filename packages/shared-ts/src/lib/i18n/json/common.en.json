@@ -763,7 +763,7 @@
 	"profile-id": "Role ID",
 	"different": "Different",
 	"search-tenants": "Search organizations...",
-	"search-invitations": "Search by email or profile…",
+	"search-invitations": "Search by email or role…",
 	"search-users": "Search users",
 	"export-tenants": "Export organizations",
 	"export-selected-tenants": "Export selected organizations",
