@@ -24,7 +24,12 @@ import { lookup as defaultLookup } from 'node:dns/promises';
  */
 export const resolveTrustProxyFromEnv = async ({
 	lookup = defaultLookup,
-} = {}) => {
+}: {
+	lookup?: (
+		hostname: string,
+		options: { family: number },
+	) => Promise<{ address: string }>;
+} = {}): Promise<string[]> => {
 	// E2E_DISCOVER_TRUSTED_PROXY takes precedence: the Dockerfile sets a
 	// default TRUSTED_PROXY_CIDRS (loopback-only), but the e2e compose stack
 	// explicitly opts into runtime discovery of Traefik's IP. Without this

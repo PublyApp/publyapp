@@ -3,7 +3,7 @@
  * `check-front-runtime-image.ts`. These are the part of the guard the
  * owner rule "every failure names its cause in plain words" rides on:
  * a regression in the format function would silently turn a useful
- * "Missing module: /app/trust-proxy.mjs" message back into an opaque
+ * "Missing module: /app/trust-proxy.ts" message back into an opaque
  * exit code, which is the exact thing this guard exists to prevent.
  */
 import assert from 'node:assert/strict';
@@ -24,7 +24,7 @@ void test('explainNodeCrash pulls the missing module and importer from a Node cr
 		'    throw new ERR_MODULE_NOT_FOUND(',
 		'          ^',
 		'',
-		"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.mjs' imported from /app/server.mjs",
+		"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.ts' imported from /app/server.ts",
 		'    at finalizeResolution (node:internal/modules/esm/resolve:271:11)',
 		'    at moduleResolve (node:internal/modules/esm/resolve:865:10)',
 		'',
@@ -32,8 +32,8 @@ void test('explainNodeCrash pulls the missing module and importer from a Node cr
 	].join('\n');
 
 	assert.deepEqual(explainNodeCrash(logs), {
-		missingModule: '/app/trust-proxy.mjs',
-		importedFrom: '/app/server.mjs',
+		missingModule: '/app/trust-proxy.ts',
+		importedFrom: '/app/server.ts',
 	});
 });
 
@@ -60,7 +60,7 @@ void test('explainNodeCrash returns nulls on empty input', () => {
 
 void test('formatCause names the missing module and the importer in plain words', () => {
 	const logs = [
-		"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.mjs' imported from /app/server.mjs",
+		"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/trust-proxy.ts' imported from /app/server.ts",
 		'    at finalizeResolution (node:internal/modules/esm/resolve:271:11)',
 	].join('\n');
 
@@ -71,11 +71,11 @@ void test('formatCause names the missing module and the importer in plain words'
 	// from the output turns this guard back into a bare exit code, which
 	// is the bug this guard exists to prevent.
 	assert.ok(
-		cause.some((line) => line.includes('Missing module: /app/trust-proxy.mjs')),
+		cause.some((line) => line.includes('Missing module: /app/trust-proxy.ts')),
 		`formatCause did not name the missing module: ${cause.join(' | ')}`,
 	);
 	assert.ok(
-		cause.some((line) => line.includes('Imported from:  /app/server.mjs')),
+		cause.some((line) => line.includes('Imported from:  /app/server.ts')),
 		`formatCause did not name the importer: ${cause.join(' | ')}`,
 	);
 	assert.ok(

@@ -77,8 +77,8 @@ RUN addgroup -S app && adduser -S -G app app
 WORKDIR /app
 COPY --from=build /workspace/deploy/node_modules ./node_modules
 COPY --from=build /workspace/deploy/package.json /app/package.json
-COPY --from=build /workspace/deploy/server.mjs /app/server.mjs
-COPY --from=build /workspace/deploy/trust-proxy.mjs /app/trust-proxy.mjs
+COPY --from=build /workspace/deploy/server.ts /app/server.ts
+COPY --from=build /workspace/deploy/trust-proxy.ts /app/trust-proxy.ts
 COPY --from=build /workspace/deploy/dist ./dist
 
 ENV PORT=5050
@@ -91,4 +91,4 @@ HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=20 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||5050)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 USER app
-CMD ["node", "server.mjs"]
+CMD ["node", "server.ts"]

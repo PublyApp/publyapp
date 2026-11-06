@@ -27,7 +27,7 @@ vi.mock('./lib/env', async (importOriginal) => {
 
 import { injectSeoMarkup } from './server';
 
-const { resolveTrustProxyFromEnv } = await import('../trust-proxy.mjs');
+const { resolveTrustProxyFromEnv } = await import('../trust-proxy.ts');
 
 // `logger.warn` is silenced through vi.spyOn rather than by saving the
 // original and reassigning it. Two reasons: the saved reference tripped

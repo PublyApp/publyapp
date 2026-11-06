@@ -6,8 +6,8 @@
 	"scripts": {
 		"check:frontend-barrels": "node ./packages/scripts-ts/src/check-frontend-barrels.ts",
 		"check:doc-links": "node ./packages/scripts-ts/src/check-doc-links.ts",
-		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\" || node -e \"console.error('Formatting check failed: the files above are not formatted. Fix with: pnpm format:write'); process.exit(1)\"",
-		"format:write": "oxfmt --write \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\"",
+		"format": "oxfmt --check \".lintstagedrc.ts\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\" || node -e \"console.error('Formatting check failed: the files above are not formatted. Fix with: pnpm format:write'); process.exit(1)\"",
+		"format:write": "oxfmt --write \".lintstagedrc.ts\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts,mts,cts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,mts,cts,json}\"",
 		"lint": "oxlint --quiet . && pnpm lint:disables && pnpm check:frontend-barrels",
 		"lint:disables": "node ./packages/scripts-ts/src/check-oxlint-disables.ts",
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
@@ -22,10 +22,10 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.2",
-		"knip": "6.43.0",
+		"knip": "6.44.1",
 		"lint-staged": "^17.6.0",
-		"oxfmt": "0.74.0",
-		"oxlint": "1.89.0",
+		"oxfmt": "0.75.0",
+		"oxlint": "1.90.0",
 		"oxlint-tsgolint": "7.0.2005",
 		"typescript": "^7.0.2",
 		"yaml": "^2.9.1"

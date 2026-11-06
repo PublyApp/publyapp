@@ -19,7 +19,7 @@
  *   `node:test` convention as the other guard tests.
  * - GUARD FAMILIES: a family script that does not invoke run-guarded.ts at
  *   all (bare `vitest run` / `playwright test` shape) is a named finding.
- * - LONG-RUNNING EXEMPTIONS: `start` (node server.mjs) is exempted with a
+ * - LONG-RUNNING EXEMPTIONS: `start` (node server.ts) is exempted with a
  *   stated reason and must NOT produce a finding; the reason is visible in
  *   the exemption record itself.
  * - FAIL-CLOSED: an empty family, a missing file, unparseable JSON, and a
@@ -108,7 +108,7 @@ void test('the long-running `start` exemption carries its reason and never flags
 		'expected the exemption reason to say WHY `start` is exempt',
 	);
 	const findings = analyzeScripts({
-		start: 'node server.mjs',
+		start: 'node server.ts',
 		dev: 'vite dev',
 		'test:ok': 'node scripts/run-guarded.ts scripts/guards/check-ok.ts',
 	});
@@ -117,7 +117,7 @@ void test('the long-running `start` exemption carries its reason and never flags
 
 void test('an empty guard family is a loud throw, not a compliant green', () => {
 	assert.throws(
-		() => analyzeScripts({ start: 'node server.mjs' }),
+		() => analyzeScripts({ start: 'node server.ts' }),
 		/no test:\/check:\/verify: scripts found/,
 	);
 });

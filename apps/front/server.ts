@@ -19,7 +19,7 @@ const staticFileHandler = createStaticMiddleware({
 	dir: `${__dirname}/dist/client`,
 });
 
-const { resolveTrustProxyFromEnv } = await import('./trust-proxy.mjs');
+const { resolveTrustProxyFromEnv } = await import('./trust-proxy.ts');
 
 const trustProxy = await resolveTrustProxyFromEnv();
 

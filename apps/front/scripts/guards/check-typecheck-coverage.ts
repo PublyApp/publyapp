@@ -3,7 +3,7 @@
  *
  * This repo has been bitten twice by decorative typecheck coverage: an entry
  * listed in `include` without `allowJs` is silently ignored by tsc — the
- * production entry `server.mjs` was measured ZERO times in `tsc --listFiles`
+ * production entry `server.ts` was measured ZERO times in `tsc --listFiles`
  * (#1692 / #1758) — and a `typecheck` script that no gate calls protects
  * nothing (#1692). This guard closes both classes for the configs the front
  * `typecheck` script runs:
@@ -24,7 +24,7 @@
  *   already inside the main program (the tsconfig include globs match it),
  *   so this entry pins that measurement: a future edit that excludes e2e from
  *   the main config turns the guard red instead of silently reopening the gap.
- * - tsconfig.server.json — the production entry `server.mjs` (#1758).
+ * - tsconfig.server.json — the production entry `server.ts` (#1758).
  * - tsconfig.js-surfaces.json — the deploy/request-counter scripts and the
  *   tooling `.cjs` (#1760).
  *
@@ -50,13 +50,16 @@ export type CoverageExpectation = {
 	expected: readonly string[];
 };
 
-export const EXPECTED_SERVER_FILES: readonly string[] = ['server.mjs'];
+export const EXPECTED_SERVER_FILES: readonly string[] = [
+	'server.ts',
+	'trust-proxy.ts',
+];
 
 export const EXPECTED_JS_SURFACE_FILES: readonly string[] = [
-	'deploy/request-counter/control-routes.mjs',
-	'deploy/request-counter/control-routes.test.mjs',
-	'deploy/request-counter/server.mjs',
-	'src/components/ui/drawer-guard-tmp-dir.cjs',
+	'deploy/request-counter/control-routes.ts',
+	'deploy/request-counter/control-routes.test.ts',
+	'deploy/request-counter/server.ts',
+	'src/components/ui/drawer-guard-tmp-dir.ts',
 ];
 
 /** Real `.ts`/`.tsx` files under a root, walked from the actual tree. Fails

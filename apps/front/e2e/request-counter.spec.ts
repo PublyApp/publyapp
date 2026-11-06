@@ -59,7 +59,7 @@ const getCounter = async (
  * Moved out of staff-invitations.spec.ts into its own file and its own
  * dependency-ordered playwright project (see playwright.config.ts, project
  * `chromium-hermetic-counter`). The request-counter sidecar
- * (deploy/request-counter/server.mjs) counts traffic from EVERY worker and
+ * (deploy/request-counter/server.ts) counts traffic from EVERY worker and
  * browser globally — it has no per-test/per-header bucketing — so running
  * this test concurrently with anything else that unmocked-GETs the same path
  * (e.g. parity-happy-path.spec.ts navigating to /staff/invitations) can red
