@@ -7,6 +7,7 @@ import {
 	isE2eTransportStep,
 	isValidE2eTransportProfile,
 } from './ci-lane-result.ts';
+import type { LaneResultMode } from './ci-lane-result.ts';
 import { NON_VITEST_COMMANDS } from './ci-non-vitest-manifest.ts';
 import type { JsonObject, JsonValue } from './json-value.ts';
 
@@ -156,6 +157,13 @@ type JobContract = {
 	id: string;
 	lane: string;
 	classifierLane?: ClassifierLane;
+	/**
+	 * The one event that owns this lane (#2267): the full e2e lane runs only in
+	 * the merge queue, the smoke lane only on pull requests. On any other event
+	 * the classifier boolean cannot make the lane relevant, so the workflow
+	 * scopes it away and the only valid mode is `not_applicable`.
+	 */
+	classifierEvent?: 'pull_request' | 'merge_group';
 	expectedSteps: string[];
 	sentinel: string;
 };
@@ -167,6 +175,7 @@ const contract = (
 	lane: string,
 	expectedSteps: string[],
 	classifierLane?: ClassifierLane,
+	classifierEvent?: 'pull_request' | 'merge_group',
 ): JobContract => {
 	const sentinel =
 		expectedSteps.find((step) => step.endsWith('.not-applicable')) ??
@@ -175,6 +184,7 @@ const contract = (
 		id,
 		lane,
 		classifierLane,
+		classifierEvent,
 		expectedSteps,
 		sentinel,
 	};
@@ -462,6 +472,7 @@ const baseJobLaneContracts = {
 				'e2e-smoke.not-applicable',
 			],
 			'e2e',
+			'pull_request',
 		),
 	],
 	'e2e-cleanup': [
@@ -566,6 +577,7 @@ const e2eMatrixJobLaneContracts = Object.fromEntries(
 						'e2e-test.not-applicable',
 					],
 					'e2e',
+					'merge_group',
 				),
 			],
 		]),
@@ -1067,6 +1079,38 @@ export function validateCiLaneResult(
 	return failures.length === 0;
 }
 
+/**
+ * The mode a classifier-gated lane must report. A lane pinned to one event is
+ * `not_applicable` on every other event even when the classifier says its specs
+ * are relevant, because the workflow scopes the classifier boolean the same way
+ * (#2267).
+ */
+const expectedClassifierMode = (
+	contractForLane: JobContract,
+	classifierOutputs: Record<string, unknown>,
+	eventName: string | undefined,
+): LaneResultMode | undefined => {
+	const classifierLane = contractForLane.classifierLane;
+	if (classifierLane === undefined) {
+		return undefined;
+	}
+	const output = classifierOutputs[classifierLane];
+	if (output === undefined) {
+		return undefined;
+	}
+	// An unknown event falls back to the classifier boolean (fail closed): only a
+	// KNOWN other event may exempt a pinned lane.
+	if (
+		contractForLane.classifierEvent !== undefined &&
+		eventName !== undefined &&
+		eventName !== '' &&
+		eventName !== contractForLane.classifierEvent
+	) {
+		return 'not_applicable';
+	}
+	return output === 'true' ? 'relevant' : 'not_applicable';
+};
+
 const validateLaneMode = (
 	jobKey: string,
 	laneName: string,
@@ -1449,14 +1493,12 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 				continue;
 			}
 			validateLaneMode(key, laneContract.lane, lane, laneContract, failures);
-			if (
-				laneContract.classifierLane !== undefined &&
-				input.classifier.outputs[laneContract.classifierLane] !== undefined &&
-				lane.mode !==
-					(input.classifier.outputs[laneContract.classifierLane] === 'true'
-						? 'relevant'
-						: 'not_applicable')
-			) {
+			const expectedMode = expectedClassifierMode(
+				laneContract,
+				input.classifier.outputs,
+				input.event_name,
+			);
+			if (expectedMode !== undefined && lane.mode !== expectedMode) {
 				push(
 					failures,
 					`${key}/${laneContract.lane}: lane mode does not match classifier output`,
