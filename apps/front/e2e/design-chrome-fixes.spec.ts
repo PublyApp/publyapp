@@ -198,15 +198,15 @@ test.describe(
 			);
 
 			// Checking a row fills its box with the primary token, not indicator-only.
-			const adminItem = page.locator(
-				'[data-slot="dropdown-menu-checkbox-item"]',
-				{
-					hasText: 'Admin',
-				},
+			// The role toggles are « Full access » / « No full access » (the old
+			// account-level "Admin" row is gone), so address the toggle by its
+			// stable test id rather than by its label.
+			const fullAccessItem = page.getByTestId(
+				'staff-tenant-users-role-filter-full_access',
 			);
-			await adminItem.click();
+			await fullAccessItem.click();
 			await expect(
-				adminItem.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
+				fullAccessItem.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
 			).toHaveCSS('background-color', DARK_ACCENT_AMBER);
 			await page.keyboard.press('Escape');
 		});

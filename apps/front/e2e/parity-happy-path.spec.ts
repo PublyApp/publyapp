@@ -277,7 +277,7 @@ test.describe(
 			await expect(page.getByText('adresse e-mail invalide')).toBeVisible();
 		});
 
-		test('invite form requires a profile and submits with intercepted bulk create', async ({
+		test('invite form requires a role and submits with intercepted bulk create', async ({
 			page,
 		}) => {
 			await loginAndWaitForSeededRows(page);
@@ -312,7 +312,7 @@ test.describe(
 			await invitationEmailInput(page).fill('new-staff@example.com');
 			await invitationSubmitButton(page).click();
 			await expect(
-				page.getByText('At least one profile is required'),
+				page.getByText('At least one role is required'),
 			).toBeVisible();
 
 			const profileCheckbox = page.getByRole('checkbox', {

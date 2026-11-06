@@ -511,9 +511,7 @@ test.describe(
 			await page.goto(`/staff/profiles/${UNKNOWN_ID}`);
 			const profileView = page.getByTestId('staff-profile-details-not-found');
 			await expect(profileView).toBeVisible();
-			await expect(profileView).toContainText(
-				'Profil du personnel introuvable',
-			);
+			await expect(profileView).toContainText('Rôle du personnel introuvable');
 			await expect(profileView).not.toContainText('Profile not found');
 
 			await page.route('**/staff/staff-users/**', async (route) => {
@@ -603,7 +601,7 @@ test.describe(
 
 			const cases = [
 				['/staff/staff-users', 'Membres du personnel'],
-				['/staff/profiles', 'Profils'],
+				['/staff/profiles', 'Rôles'],
 				['/staff/audit-logs', "Journaux d'audit"],
 				['/staff/dashboard/reports', 'Rapports'],
 			] as const;
@@ -770,7 +768,7 @@ test.describe(
 			).toBeVisible();
 		});
 
-		test('M7: the profile selector label can ellipsize instead of clipping its last letters', async ({
+		test('M7: the role selector label can ellipsize instead of clipping its last letters', async ({
 			page,
 		}) => {
 			await openFrench(page);
@@ -781,7 +779,7 @@ test.describe(
 			await expect(drawer).toBeVisible();
 			const trigger = drawer
 				.locator('button')
-				.filter({ hasText: 'Sélectionner les profils' })
+				.filter({ hasText: 'Sélectionner les rôles' })
 				.first();
 			const label = trigger.locator('span').first();
 			const measured = await label.evaluate((element) => ({
@@ -818,7 +816,7 @@ test.describe(
 			await expect(start).toBeFocused();
 		});
 
-		test('M9 + L2: the default profile is translated and list cells truncate with an ellipsis', async ({
+		test('M9 + L2: the default role is translated and list cells truncate with an ellipsis', async ({
 			page,
 		}) => {
 			await openFrench(page);
@@ -827,9 +825,9 @@ test.describe(
 			const defaultCard = page.getByTestId(
 				`staff-tenant-profile-card-${DEFAULT_PROFILE_ID}`,
 			);
-			await expect(defaultCard).toContainText('Profil par défaut');
+			await expect(defaultCard).toContainText('Rôle par défaut');
 			await expect(defaultCard).toContainText(
-				'Profil par défaut sans autorisations',
+				'Rôle par défaut sans autorisations',
 			);
 			await expect(defaultCard).not.toContainText('Default profile');
 
@@ -840,12 +838,12 @@ test.describe(
 			await expect(drawer).toBeVisible();
 			const profileTrigger = drawer
 				.locator('button')
-				.filter({ hasText: 'Sélectionner les profils' })
+				.filter({ hasText: 'Sélectionner les rôles' })
 				.first();
 			await expect(profileTrigger).toBeEnabled();
 			await profileTrigger.click();
 			await expect(
-				page.getByRole('menuitemcheckbox', { name: /Profil par défaut/ }),
+				page.getByRole('menuitemcheckbox', { name: /Rôle par défaut/ }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('menuitemcheckbox', { name: /Default profile/ }),

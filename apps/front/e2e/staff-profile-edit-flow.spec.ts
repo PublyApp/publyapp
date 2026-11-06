@@ -122,7 +122,7 @@ test.describe(
 
 			await page
 				.getByTestId('staff-profile-edit-details-drawer')
-				.getByLabel('Profile name')
+				.getByLabel('Role name')
 				.fill(`${profile.name} renamed`);
 			await page
 				.getByTestId('staff-profile-edit-details-drawer')
@@ -136,9 +136,7 @@ test.describe(
 			await patchResponse;
 
 			// Success feedback, then the drawer closes and the flag leaves the URL.
-			await expect(
-				page.getByText('Profile updated successfully.'),
-			).toBeVisible();
+			await expect(page.getByText('Role updated successfully.')).toBeVisible();
 			await expect(
 				page.getByTestId('staff-profile-edit-details-drawer'),
 			).toHaveCount(0);
