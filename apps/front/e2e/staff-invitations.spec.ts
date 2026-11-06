@@ -32,6 +32,9 @@ const seededInvitationsPayload = {
 		},
 	],
 	nextCursor: null,
+	// The Team panel reads the collection's own totalCount (#2301), never the
+	// length of the page it happens to have loaded.
+	totalCount: 2,
 } as const;
 
 const profilesPayload = {
@@ -163,6 +166,11 @@ test.describe(
 			await expect(
 				page.getByRole('columnheader', { name: 'Expires on' }),
 			).toBeVisible();
+			// « Accepted at » is hidden by default in the prototype's six-column
+			// grid but stays reachable from the Columns picker.
+			await page.getByRole('button', { name: /^Columns/ }).click();
+			await page.getByRole('button', { name: 'Accepted at' }).click();
+			await page.keyboard.press('Escape');
 			await expect(
 				page.getByRole('columnheader', { name: 'Accepted at' }),
 			).toBeVisible();

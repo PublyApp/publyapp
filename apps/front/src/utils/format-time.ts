@@ -72,9 +72,28 @@ const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 	dateStyle: 'medium',
 };
 
+/** « 24/10/2026 » — the compact numeric day used in list cells (§4.1). */
+const NUMERIC_DAY_OPTIONS: Intl.DateTimeFormatOptions = {
+	day: '2-digit',
+	month: '2-digit',
+	year: 'numeric',
+};
+
 const MONTH_YEAR_OPTIONS: Intl.DateTimeFormatOptions = {
 	month: 'short',
 	year: 'numeric',
+};
+
+const LONG_WEEKDAY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+	weekday: 'long',
+	day: 'numeric',
+	month: 'long',
+};
+
+const TIME_OF_DAY_OPTIONS: Intl.DateTimeFormatOptions = {
+	hour: '2-digit',
+	minute: '2-digit',
+	hourCycle: 'h23',
 };
 
 export const formatDateTime = (
@@ -97,11 +116,32 @@ export const formatShortDate = (
 	options?: FormatTimeOptions,
 ): string => formatDate(value, locale, SHORT_DATE_OPTIONS, options?.timeZone);
 
+export const formatNumericDay = (
+	value: DateValue,
+	locale: string,
+	options?: FormatTimeOptions,
+): string => formatDate(value, locale, NUMERIC_DAY_OPTIONS, options?.timeZone);
+
 export const formatMonthYear = (
 	value: DateValue,
 	locale: string,
 	options?: FormatTimeOptions,
 ): string => formatDate(value, locale, MONTH_YEAR_OPTIONS, options?.timeZone);
+
+/** « dimanche 25 octobre » — the shared history's spelled-out day heading. */
+export const formatLongWeekdayDate = (
+	value: DateValue,
+	locale: string,
+	options?: FormatTimeOptions,
+): string =>
+	formatDate(value, locale, LONG_WEEKDAY_DATE_OPTIONS, options?.timeZone);
+
+/** « 07:02 » — a 24-hour clock time. */
+export const formatTimeOfDay = (
+	value: DateValue,
+	locale: string,
+	options?: FormatTimeOptions,
+): string => formatDate(value, locale, TIME_OF_DAY_OPTIONS, options?.timeZone);
 
 export type RelativeTimeParts = {
 	key: 'minutes-ago' | 'hours-ago' | 'days-ago' | 'months-ago' | 'years-ago';

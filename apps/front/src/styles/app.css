@@ -120,6 +120,7 @@
 	--color-card-foreground: var(--card-foreground);
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
+	--color-popover-surface: var(--popover-surface);
 	--color-primary: var(--primary);
 	--color-primary-active: var(--publy-primary-active);
 	--color-primary-foreground: var(--primary-foreground);
@@ -153,7 +154,7 @@
 	--foreground: var(--publy-foreground);
 	--card: var(--publy-card);
 	--card-foreground: var(--publy-foreground);
-	--popover: var(--publy-card);
+	--popover: var(--popover-surface);
 	--popover-foreground: var(--publy-foreground);
 	--primary: var(--publy-primary);
 	--primary-foreground: var(--publy-primary-foreground);
@@ -172,10 +173,10 @@
 	--publy-font-mono:
 		'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
-	--publy-primary: #fdc700;
+	--publy-primary: #fecd00;
 	--publy-primary-active: #d9aa00;
 	--publy-primary-soft: #fffbeb;
-	--publy-primary-foreground: #733e0a;
+	--publy-primary-foreground: #423600;
 	/* Text colour for content painted on --publy-primary-soft (chips, the
 	   'primary' status pill tone) — distinct from --publy-primary-foreground,
 	   which is the text colour for the *solid* primary button fill and pairs
@@ -209,20 +210,24 @@
 	--publy-border: #e3e3e3;
 	--publy-border-strong: #d4d4d8;
 	--publy-input-border: #e4e4e7;
+	/* Dashed drop-zone hairline: Shopkart's `--input` — darker than the field
+	   hairline so a dashed surface reads as a target in both themes. */
+	--publy-dropzone-border: #414141;
 	--publy-row-border: #f1f1f3;
-	/* W4-GUARDS: #ca8a04 measured 2.94:1 against #ffffff, under the 3:1
-	   focus-indicator floor; darkened to the amber-700 step to clear it
-	   (see focus-ring-contrast.test.ts). */
-	--publy-focus-ring: #a16207;
+	/* #2292: the focus indicator is the near-black foreground in light mode
+	   and the light grey border in dark — both far above the 3:1 floor
+	   (see focus-ring-contrast.test.ts). The pre-redesign amber existed only
+	   to lift #ca8a04 over that floor and is retired with it. */
+	--publy-focus-ring: #18181b;
 	--publy-danger: #dc2626;
 	--publy-danger-soft: rgba(220, 38, 38, 0.08);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.2);
 	--publy-success: #047857;
 	--publy-warning: #b45309;
-	--publy-chip-active-border: #a7f3d0;
-	--publy-chip-active-bg: #ecfdf5;
-	--publy-chip-active-text: #047857;
+	--publy-chip-active-border: #bbf7d0;
+	--publy-chip-active-bg: #dcfce7;
+	--publy-chip-active-text: #166534;
 	--publy-chip-invited-border: #bae6fd;
 	--publy-chip-invited-bg: #f0f9ff;
 	--publy-chip-invited-text: #0369a1;
@@ -230,8 +235,8 @@
 	--publy-chip-suspended-bg: #fff1f2;
 	--publy-chip-suspended-text: #be123c;
 	--publy-chip-pending-border: #fde68a;
-	--publy-chip-pending-bg: #fffbeb;
-	--publy-chip-pending-text: #b45309;
+	--publy-chip-pending-bg: #fef3c7;
+	--publy-chip-pending-text: #92400e;
 	/* Floating selection bar: inverted pill chrome (dark pill on light theme,
 	   light pill on dark theme — see html.dark for the counterpart values). */
 	--publy-selection-bar-bg: #09090b;
@@ -329,6 +334,9 @@
 	--publy-z-raised: 10;
 	--publy-z-shell-topbar: 20;
 	--publy-z-selection-bar: 40;
+	/* The mobile speed-dial: above the bulk-selection bar it can sit over,
+	   below every modal/drawer backdrop. */
+	--publy-z-fab: 45;
 	--publy-z-overlay: 70;
 	--publy-z-drawer-surface: 80;
 	--publy-z-menu: 100;
@@ -340,12 +348,16 @@
 	--publy-shadow-modal: 0 24px 64px rgba(24, 24, 27, 0.28);
 	--publy-shadow-drawer: -16px 0 40px rgba(24, 24, 27, 0.14);
 	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.03);
-	--publy-shadow-chrome:
-		0 0 0 0.67px rgba(0, 0, 0, 0.2) inset,
-		0 2px 2px rgba(255, 255, 255, 0.1) inset,
-		0 2px 2.67px -0.67px rgba(42, 42, 42, 0.1),
-		0 0.67px 0.67px rgba(42, 42, 42, 0.08);
-	--publy-chrome-border: 1.33px solid rgba(255, 255, 255, 0.12);
+	/* Shopkart OS / Gray UI effects (#2292). A raised control's edge is ONE
+	   1 px ring — never a visible border plus an inset bevel, which is what
+	   drew the second line under the list search field. */
+	--effect-raised-control: 0 0 0 1px var(--border);
+	--effect-primary-raised: 0 0 0 1px rgb(120 96 0 / 30%);
+	/* "Net" menus and popovers: a solid popover surface, no border. */
+	--popover-surface: #ffffff;
+	--effect-popover:
+		0 0 0 1px rgb(0 0 0 / 6%), 0 4px 8px -2px rgb(0 0 0 / 6%),
+		0 12px 24px -6px rgb(0 0 0 / 12%);
 	--publy-shadow-selection-bar:
 		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -398,10 +410,12 @@
 
 html.dark {
 	color-scheme: dark;
-	--publy-primary: #f0bd00;
+	/* The shop yellow and its label are theme-invariant by owner decision
+	   (#2292): the reference keeps #FECD00 / #423600 in both themes. */
+	--publy-primary: #fecd00;
 	--publy-primary-active: #c49700;
 	--publy-primary-soft: #2a2400;
-	--publy-primary-foreground: #1a0d00;
+	--publy-primary-foreground: #423600;
 	--publy-primary-soft-foreground: #fbbf24;
 	--publy-marketing-eyebrow-accent: #d97706;
 	--publy-background: #18181b;
@@ -412,7 +426,7 @@ html.dark {
 	--publy-surface-hover: #222226;
 	--publy-surface-active: #27272a;
 	--publy-muted: #1f1f23;
-	--publy-focus-ring: #facc15;
+	--publy-focus-ring: #d4d4d8;
 	--publy-foreground: #feffff;
 	--publy-foreground-secondary: #d4d4d8;
 	--publy-foreground-muted: #898989;
@@ -423,6 +437,7 @@ html.dark {
 	--publy-border: #323234;
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
 	--publy-input-border: #27272a;
+	--publy-dropzone-border: #646a7a;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
@@ -442,6 +457,14 @@ html.dark {
 	--publy-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
 	--publy-shadow-drawer: -16px 0 40px rgba(0, 0, 0, 0.35);
 	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.3);
+	/* Restated, not inherited: the dark ring is the same translucent dark
+	   yellow, and stating it here keeps the token-theme-parity guard's
+	   contract ("every colour-valued :root token has a dark counterpart")
+	   literal instead of allowlisted. */
+	--effect-primary-raised: 0 0 0 1px rgb(120 96 0 / 30%);
+	--popover-surface: #1f1f23;
+	--effect-popover:
+		0 0 0 1px rgb(255 255 255 / 8%), 0 12px 24px -6px rgb(0 0 0 / 60%);
 	/* The selection-bar pill itself inverts per theme (light pill on this
 	   dark theme — see --publy-selection-bar-bg below), so its drop shadow
 	   needs more contrast than the light-mode value to read against a dark
@@ -466,18 +489,18 @@ html.dark {
 	--publy-alert-success-bg: rgba(4, 120, 87, 0.18);
 	--publy-alert-success-border: rgba(4, 120, 87, 0.36);
 	--publy-alert-success-text: #34d399;
-	--publy-chip-active-border: #065f46;
-	--publy-chip-active-bg: #052e22;
-	--publy-chip-active-text: #34d399;
+	--publy-chip-active-border: #226344;
+	--publy-chip-active-bg: #123524;
+	--publy-chip-active-text: #86efac;
 	--publy-chip-invited-border: #075985;
 	--publy-chip-invited-bg: #082f49;
 	--publy-chip-invited-text: #38bdf8;
 	--publy-chip-suspended-border: #9f1239;
 	--publy-chip-suspended-bg: #4c0519;
 	--publy-chip-suspended-text: #fb7185;
-	--publy-chip-pending-border: #92400e;
-	--publy-chip-pending-bg: #451a03;
-	--publy-chip-pending-text: #fbbf24;
+	--publy-chip-pending-border: #78551b;
+	--publy-chip-pending-bg: #382b12;
+	--publy-chip-pending-text: #fcd34d;
 	--publy-selection-bar-bg: #f4f4f5;
 	--publy-selection-bar-fg: #18181b;
 	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);
@@ -1056,6 +1079,16 @@ html.dark {
 		}
 	}
 
+	/* The mobile speed-dial button lands with a small pop (Shopkart OS
+	   `speed-dial-in`): it is the page's one entry animation, so it reads as
+	   the primary action arriving, not as a decorative loop. */
+	@keyframes publy-speed-dial-in {
+		from {
+			opacity: 0;
+			scale: 0.6;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.publy-state-icon-cluster {
 			animation: none;
@@ -1247,9 +1280,10 @@ html.dark {
 			transform var(--publy-motion-medium) var(--publy-motion-ease);
 	}
 
-	/* Shopkart FilterPanel group title (#2273 §2.2): mono 14/500, muted at
-	   65%, a 32px row with no separator rule of its own — the group's links
-	   own the bottom border. */
+	/* Shopkart FilterPanel group title (#2273 §2.2): mono 14/500, a 32px row
+	   with no separator rule of its own — the group's links own the bottom
+	   border. The heading is the AA secondary grey (#2291 owner decision):
+	   muted-at-65% measured under 4.5:1, so it is stated at full strength. */
 	.app-shell-secondary-header {
 		@apply flex items-center px-6;
 		padding-top: 8px;
@@ -1262,8 +1296,7 @@ html.dark {
 		font-family: var(--publy-font-mono);
 		font-size: 14px;
 		font-weight: 500;
-		color: var(--publy-foreground-muted);
-		opacity: 0.65;
+		color: var(--publy-foreground-secondary);
 	}
 
 	/* Same horizontal inset as .app-shell-secondary-nav so the search input
@@ -1327,7 +1360,7 @@ html.dark {
 		@apply flex items-center gap-2;
 		height: 32px;
 		padding-inline: 8px;
-		border-radius: 8px;
+		border-radius: 10px;
 		font-size: 14px;
 		color: var(--publy-foreground-muted);
 		transition:
@@ -1356,6 +1389,13 @@ html.dark {
 		font-variant-numeric: tabular-nums;
 		color: var(--publy-foreground-subtle);
 		opacity: 0.7;
+	}
+
+	/* A page-owned panel (a list's filter-shortcut groups, #2274 §4.1) is the
+	   panel's only child once it owns the navigation: it is the scroller, as
+	   Shopkart's FilterPanel group column is. */
+	.app-shell-page-panel {
+		@apply flex min-h-0 flex-1 flex-col overflow-y-auto;
 	}
 
 	.app-shell-secondary-nav-count[data-tone='warning'] {
@@ -1444,7 +1484,7 @@ html.dark {
 	   (see `_staff-user-name-cell.tsx`, `staff-users.tsx`'s email cell) — see
 	   docs/guides/front/conventions.md's "Long descriptions… truncate" rule. */
 	.app-shell-breadcrumb-link {
-		@apply min-w-0;
+		@apply min-w-0 truncate;
 		color: var(--publy-foreground-muted);
 	}
 
@@ -1453,13 +1493,13 @@ html.dark {
 	}
 
 	.app-shell-breadcrumb-current {
-		@apply min-w-0;
+		@apply min-w-0 truncate;
 		color: var(--publy-foreground);
 		font-weight: 500;
 	}
 
 	.app-shell-breadcrumb-muted {
-		@apply min-w-0;
+		@apply min-w-0 truncate;
 		color: var(--publy-foreground-muted);
 	}
 
@@ -1506,11 +1546,11 @@ html.dark {
 
 	.app-shell-main {
 		@apply min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto;
-		padding: 20px 28px 32px;
+		padding: 32px;
 		/* The real page padding, exposed to pinned list chrome (#2274 §2.10):
 		   a sticky search bar / table header offsets itself by this instead of
 		   a hard-coded 32px that only matched Shopkart's own layout. */
-		--page-pad-top: 20px;
+		--page-pad-top: 32px;
 		--page-pad-bottom: 32px;
 		/* Reserve the scrollbar's width so a page that grows past the viewport
 		   does not shift its content sideways (#2271 §2.6). */
@@ -1521,12 +1561,43 @@ html.dark {
 		container-type: inline-size;
 	}
 
+	/* The pages built from Shopkart's list page (the generic ListPage) use its
+	   32px frame on every side, as the prototype does — its pinned toolbar and
+	   table header offsets are calibrated on that padding through
+	   --page-pad-top. Legacy detail pages keep the 20px frame above. */
+	@media (min-width: 768px) {
+		.app-shell-main:has(> [data-list-page]) {
+			padding: 32px;
+			--page-pad-top: 32px;
+			--page-pad-bottom: 32px;
+		}
+	}
+
 	@media (max-width: 767px) {
 		.app-shell-main {
 			padding: 16px;
 			--page-pad-top: 16px;
 			--page-pad-bottom: 16px;
 		}
+
+		/* A page that renders a speed-dial keeps its last card, its pager and
+		   its error-state buttons scrollable above the 56px button instead of
+		   permanently hidden under it. The button is portalled to <body>, so
+		   `:has` sees it from there. */
+		body:has([data-speed-dial]) .app-shell-main {
+			padding-bottom: calc(96px + env(safe-area-inset-bottom));
+		}
+	}
+
+	/* The speed-dial is not a base-ui surface: it locks the shell's real
+	   scroller itself (`.app-shell-main`), not only the document. */
+	html[data-scroll-locked],
+	html[data-scroll-locked] body {
+		overflow: hidden;
+	}
+
+	html[data-scroll-locked] .app-shell-main {
+		overflow: hidden;
 	}
 
 	/* §2.10 bis: a modal Select (or a bottom sheet) opened from a page locks
@@ -1605,9 +1676,9 @@ html.dark {
 
 @layer components {
 	.publy-type-page-title {
-		/* Shopkart's Page: 28px / 600 / tight (#2271 §2.5). */
-		@apply text-[28px] font-semibold leading-9;
-		letter-spacing: -0.02em;
+		/* Shopkart's Page: 28px / 600 / 42px, -0.025em (#2292). */
+		@apply text-[28px] font-semibold leading-[42px];
+		letter-spacing: -0.025em;
 		color: var(--publy-foreground);
 	}
 
@@ -1636,27 +1707,34 @@ html.dark {
 
 	.publy-type-helper {
 		@apply text-xs leading-4;
-		color: var(--publy-foreground-subtle);
+		/* 12px helper copy is still text: `--publy-foreground-subtle` measured
+		   2.39:1 on the light surface (#2291 H2). The muted token is the
+		   lowest neutral that clears WCAG AA at this size in both themes
+		   without changing any token value. */
+		color: var(--publy-foreground-muted);
 	}
 
 	/* ---- Product primitives ---- */
 
 	.publy-page-header {
-		@apply flex items-start justify-between gap-4;
+		@apply flex items-start justify-between gap-3;
 	}
 
 	.publy-action-cluster {
 		@apply flex flex-wrap items-center gap-2;
 	}
 
+	/* Shopkart OS status badge (#2292): a pill, 12/16 text, 2 px vertical
+	   padding inside the 20 px row. */
 	.publy-status-pill {
 		@apply inline-flex shrink-0 items-center;
-		border-radius: var(--publy-radius-chip);
+		gap: 4px;
+		border-radius: 999px;
 		height: 20px;
-		padding: 0 8px;
-		font-size: 11px;
+		padding: 2px 8px;
+		font-size: 12px;
 		font-weight: 500;
-		line-height: 1;
+		line-height: 16px;
 		white-space: nowrap;
 		border: 1px solid var(--publy-border);
 		background: var(--publy-surface);
@@ -1795,6 +1873,12 @@ html.dark {
 	   (owner decision R2-2, 2026-07-10). */
 	.publy-state-surface {
 		@apply flex flex-col items-center justify-center gap-4 text-center;
+		/* Never a shrinking flex child of the bounded list-page column
+		   (.publy-page-fill): squeezed down to `min-height`, its centred
+		   content overflows upward and the sticky toolbar paints over the
+		   pictogram (mobile 500/empty states). Keep the natural height; the
+		   page scrolls instead. */
+		flex-shrink: 0;
 		min-height: 15rem;
 		padding: 48px 24px;
 	}
@@ -1830,11 +1914,113 @@ html.dark {
 		color: var(--publy-primary);
 	}
 
-	.publy-state-technical-id {
-		@apply mt-0.5;
-		font-size: 11px;
-		font-family: var(--publy-font-mono);
+	/* ShopKart OS's empty and error/status states (owner decision 04/11): two
+	   faint rings around a −6° tilted tile carrying the icon. Same shape on
+	   every empty list and every error screen, since it lives in the shared
+	   StateView — no page assembles its own. Both presentations position the
+	   tile themselves, so the column gap is zero and margins do the rhythm. */
+	.publy-state-surface[data-presentation] {
+		gap: 0;
+	}
+
+	.publy-state-icon-cluster[data-presentation='empty'] {
+		position: relative;
+		width: 120px;
+		height: 120px;
+	}
+
+	.publy-empty-ring {
+		fill: var(--publy-card);
+		stroke: var(--publy-border);
+		stroke-width: 1;
+		opacity: 0.45;
+	}
+
+	.publy-empty-ring--inner {
+		opacity: 0.9;
+	}
+
+	/* The tile sits at inset (120 − 56) / 2 so the shared overlay guard does
+	   not read a translate pair into it. */
+	.publy-state-icon[data-presentation='empty'] {
+		position: absolute;
+		top: 32px;
+		left: 32px;
+		width: 56px;
+		height: 56px;
+		border: 1px solid var(--publy-border);
+		border-radius: 18px;
+		background: var(--publy-background);
+		box-shadow: var(--effect-raised-control);
 		color: var(--publy-foreground-muted);
+		transform: rotate(-6deg);
+	}
+
+	/* Error/status: 144px rings at 30 % / 60 % opacity and a 64px tinted tile,
+	   both coloured from PublyApp's existing status palette (info → invited,
+	   warning → pending, danger → suspended, neutral → border/card). */
+	.publy-state-icon-cluster[data-presentation='status'] {
+		position: relative;
+		width: 144px;
+		height: 144px;
+	}
+
+	.publy-status-ring {
+		fill: var(--publy-card);
+		stroke: var(--publy-border);
+		stroke-width: 1;
+		opacity: 0.3;
+	}
+
+	.publy-status-ring--inner {
+		opacity: 0.6;
+	}
+
+	.publy-state-icon-cluster[data-presentation='status'][data-tone='info']
+		.publy-status-ring {
+		fill: var(--publy-chip-invited-bg);
+		stroke: var(--publy-chip-invited-border);
+	}
+
+	.publy-state-icon-cluster[data-presentation='status'][data-tone='warning']
+		.publy-status-ring {
+		fill: var(--publy-chip-pending-bg);
+		stroke: var(--publy-chip-pending-border);
+	}
+
+	.publy-state-icon-cluster[data-presentation='status'][data-tone='danger']
+		.publy-status-ring {
+		fill: var(--publy-chip-suspended-bg);
+		stroke: var(--publy-chip-suspended-border);
+	}
+
+	.publy-state-icon[data-presentation='status'] {
+		width: 64px;
+		height: 64px;
+		border: 1px solid var(--publy-border);
+		border-radius: 20px;
+		background: var(--publy-card);
+		box-shadow: var(--effect-raised-control);
+		color: var(--publy-foreground-secondary);
+		transform: rotate(-6deg);
+	}
+
+	.publy-state-icon[data-presentation='status'][data-tone='info'] {
+		border-color: var(--publy-chip-invited-border);
+		background: var(--publy-chip-invited-bg);
+		color: var(--publy-chip-invited-text);
+	}
+
+	.publy-state-icon[data-presentation='status'][data-tone='warning'] {
+		border-color: var(--publy-chip-pending-border);
+		background: var(--publy-chip-pending-bg);
+		color: var(--publy-chip-pending-text);
+	}
+
+	.publy-state-icon[data-presentation='status'][data-tone='danger'] {
+		border-color: var(--publy-chip-suspended-border);
+		background: var(--publy-chip-suspended-bg);
+		color: var(--publy-chip-suspended-text);
 	}
 
 	.publy-pill-tabs {
@@ -1946,6 +2132,10 @@ html.dark {
 		max-width: 960px;
 	}
 
+	.publy-form-page[data-width='1080'] {
+		max-width: 1080px;
+	}
+
 	/* Placed as the last child of .app-shell-main: the horizontal negative
 	   margin bleeds the bar to the column edges. Vertically, a sticky
 	   element can only be pulled *earlier* than its natural (static) flow
@@ -2000,6 +2190,20 @@ html.dark {
 		height: 7px;
 		border-radius: var(--publy-radius-circular);
 		background: var(--publy-primary);
+	}
+
+	/* ---- Grouped form rows (Shopkart OS `container.css` `field-row`) ----
+	   A `FieldGroup`'s rows: label left (170px), control right; stacked once
+	   the group is 480px wide or less. */
+	.field-row {
+		display: grid;
+		grid-template-columns: 170px minmax(0, 1fr);
+	}
+
+	@container (max-width: 480px) {
+		.field-row {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 
 	/* ---- Field helper / error lines (handoff 2d) ---- */
@@ -2298,7 +2502,7 @@ html.dark {
 	/* Page wrapper for list routes: caps the page at the viewport so the
 	   table body scrolls inside its card (like the Gray UI template). */
 	.publy-page-fill {
-		@apply flex h-full min-h-0 flex-col gap-4;
+		@apply flex h-full min-h-0 flex-col gap-6;
 	}
 
 	.publy-data-table-shell {
@@ -2625,9 +2829,9 @@ html.dark {
 	.publy-row-actions-menu {
 		width: 196px;
 		min-width: 196px;
-		border-radius: var(--publy-radius-control);
-		background: var(--publy-overlay-surface);
-		box-shadow: var(--publy-shadow-menu);
+		border-radius: 10px;
+		background: var(--popover-surface);
+		box-shadow: var(--effect-popover);
 	}
 }
 
@@ -2684,7 +2888,7 @@ html.dark {
 .publy-row-actions-menu[data-slot='dropdown-menu-content'] {
 	width: 196px;
 	min-width: 196px;
-	border-radius: var(--publy-radius-control);
+	border-radius: 10px;
 }
 
 .publy-row-actions-menu [data-slot='dropdown-menu-item'] {
@@ -2698,15 +2902,16 @@ html.dark {
 	color: var(--publy-danger);
 }
 
-/* Gray UI primary "chrome" treatment (design handoff §Design Tokens). No
+/* Gray UI primary "chrome" treatment (#2292): a transparent 1 px border plus
+   one dark-yellow ring — the reference's `--effect-primary-raised`. No
    border-radius here: this class stacks with a Tailwind `rounded-[...]`
    size utility on `Button`'s `default` variant, and (being un-layered)
    would otherwise always beat it, forcing every primary button — xs/sm/lg
-   included — to the same 14px `--publy-radius-button` regardless of size
-   (F6). The size variant already supplies the correct per-size radius. */
+   included — to the same radius regardless of size (F6). The size variant
+   already supplies the correct per-size radius. */
 .btn-primary-chrome {
-	border: var(--publy-chrome-border);
-	box-shadow: var(--publy-shadow-chrome);
+	border: 1px solid transparent;
+	box-shadow: var(--effect-primary-raised);
 }
 
 /* W6-GUARDS ui-F1: the unlayered chrome rule above sets `border`/`box-shadow`
@@ -2716,11 +2921,11 @@ html.dark {
    keyboard focus indicator at all. Restore both properties, at the
    already-verified-3:1 `--ring` token, specifically for the focus-visible
    state so it wins the same unlayered-vs-layered fight the chrome rule
-   itself depends on. */
+   itself depends on. The raised ring is preserved, as the reference does. */
 .btn-primary-chrome:focus-visible {
 	border-color: var(--ring);
 	box-shadow:
-		var(--publy-shadow-chrome),
+		var(--effect-primary-raised),
 		0 0 0 3px var(--ring);
 }
 
@@ -3127,15 +3332,23 @@ html[data-theme-changing] * {
 	}
 }
 
-/* R3-1: the state/error icon glyph must fill its 48px cluster box (same
-   scale on both inline and page, owner decision R3-4b reaffirmed 2026-07-11)
-   regardless of any `size-*` utility a call site still puts on the icon
-   element. Tailwind's `size-*` lives in the utilities layer and beats a
-   layered `.publy-state-icon svg` rule, so this override is deliberately
-   un-layered — un-layered CSS wins over every Tailwind v4 layer. */
-.publy-state-icon svg {
-	width: 100%;
-	height: 100%;
+/* R3-1/04-11: each ShopKart presentation sizes its own glyph (28px empty,
+   32px status). Tailwind's `size-*` from a call site lives in the utilities
+   layer and would beat a layered `.publy-state-icon svg` rule, so BOTH sizes
+   are pinned un-layered here — un-layered CSS wins over every Tailwind v4
+   layer. One rule per presentation, declared once (F6). */
+.publy-state-icon[data-presentation='empty'] svg {
+	width: 28px;
+	height: 28px;
+	stroke-width: 1.5;
+	transform: rotate(6deg);
+}
+
+.publy-state-icon[data-presentation='status'] svg {
+	width: 32px;
+	height: 32px;
+	stroke-width: 1.75;
+	transform: rotate(6deg);
 }
 
 /* ---- Marketing shell (#1038) ----
@@ -3310,7 +3523,7 @@ html[data-theme-changing] * {
 /* ---------------------------------------------------------------------------
  * Shared ScrollArea primitive (#840) — pulled from the installed upstream at
  * build time by `publy:transform-simplebar-upstream-css` (see
- * apps/front/tools/vite/transform-simplebar-upstream-css.mts). The plugin
+ * apps/front/tools/vite/transform-simplebar-upstream-css.ts). The plugin
  * reads `simplebar-core/dist/simplebar.css` from `node_modules`, validates the
  * structural contract, retokenizes the raw literals upstream ships (a named
  * keyword colour, the hard-coded track radius, and the stock transition
@@ -3348,6 +3561,18 @@ html[data-theme-changing] * {
 		min-width: 0;
 		min-height: 0;
 		overflow: hidden;
+	}
+
+	/* A raised control's 1px outer ring is a box-shadow drawn OUTSIDE the card,
+	   so the clip box above used to cut it on the collapse's four edges. While
+	   open, the clip box gains 1px of padding — the ring now paints into it —
+	   and the same 1px as a negative margin, so its border box grows outward
+	   while the content (and the track's own layout size) stays put. Only
+	   while open: a closed collapse must still measure exactly 0. Fixed once
+	   here, so no page needs a local fix. */
+	[data-collapse][data-open] > div {
+		margin: -1px;
+		padding: 1px;
 	}
 
 	[data-collapse] > div > div {
@@ -3388,5 +3613,24 @@ html[data-theme-changing] * {
 		[data-collapse] > div > div {
 			transition: none;
 		}
+	}
+}
+
+@layer utilities {
+	/* The prototype's outline theme button keeps the Button's
+	   `dark:bg-input/20` / `dark:hover:bg-input/30` fill, so it reads as a
+	   raised control in dark mode instead of melting into the page. The
+	   prototype's `--input` is its dark `--border` (#323234), not PublyApp's
+	   one-step-darker `--publy-input-border` (#27272a): the fill must use the
+	   same base to composite to the same colour.
+	   These live in the utilities layer — same layer as the Button's own
+	   `bg-background` / `dark:hover:bg-input/30`, so the higher-specificity
+	   selector wins on specificity alone. */
+	html.dark .app-shell-topbar-action-btn {
+		background-color: color-mix(in oklab, var(--publy-border) 20%, transparent);
+	}
+
+	html.dark .app-shell-topbar-action-btn:hover {
+		background-color: color-mix(in oklab, var(--publy-border) 30%, transparent);
 	}
 }

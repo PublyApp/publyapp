@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { transformSimplebarUpstreamCssOrThrow } from '../../../tools/vite/transform-simplebar-upstream-css.mts';
+import { transformSimplebarUpstreamCssOrThrow } from '../../../tools/vite/transform-simplebar-upstream-css.ts';
 import { ScrollArea } from './scroll-area';
 
 /** Load the REAL installed upstream and run it through the production transformer. */

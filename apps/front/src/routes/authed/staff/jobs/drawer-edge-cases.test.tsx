@@ -295,6 +295,7 @@ vi.mock('~/components/table/data-table', () => ({
 				),
 			),
 		]),
+	DataTableCursorFooter: () => null,
 }));
 
 vi.mock('./_permissions', () => ({
@@ -313,13 +314,23 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
 }));
 
-vi.mock('@tabler/icons-react', () => ({
-	IconActivity: () => createElement('span', {}, 'icon-activity'),
-	IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
-	IconDots: () => createElement('span', {}, 'icon-dots'),
-}));
+vi.mock('@tabler/icons-react', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@tabler/icons-react')>();
+	return {
+		...actual,
+		IconActivity: () => createElement('span', {}, 'icon-activity'),
+		IconRotateClockwise: () => createElement('span', {}, 'icon-rotate'),
+		IconDots: () => createElement('span', {}, 'icon-dots'),
+	};
+});
 
 import { formatFailureCause } from './_jobs-helpers';
+
+vi.mock('~/components/list/list-page', async () => {
+	const { FakeListPage } = await import('~/lib/testing/fake-list-page');
+	return { ListPage: FakeListPage };
+});
+
 import { Route } from './dead-letter';
 
 const LONG_CAUSE =

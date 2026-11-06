@@ -1,31 +1,22 @@
 import { IconCircleCheck, IconCircleX, IconClock } from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
 
-import type { StaffInvitationRow } from './list-helpers';
+import type { StaffInvitationListCounts } from '@org/client-ts/models/index';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const Dash = () => <span className="text-muted-foreground">—</span>;
-const THREE_DAYS_MS = 3 * 86_400_000;
-
-const countStatus = (
-	rows: StaffInvitationRow[],
-	status: StaffInvitationRow['status'],
-): number => rows.filter((row) => row.status === status).length;
-
-/** The three invitation StatCards of §4.6, from the full list when the API
- * returned no next cursor. Expiring-soon counts pending invitations whose
- * expiry falls within the next three days. */
+/** The three invitation StatCards of §4.6, from the list API's whole-
+ * collection `counts` (issue #2301). Expiring-soon counts pending invitations
+ * whose expiry falls within the next three days, computed by the API. */
 export const InvitationsStatCards = ({
-	rows,
+	counts,
 	t,
-	known,
 }: {
-	rows: StaffInvitationRow[] | null;
+	counts: StaffInvitationListCounts | null | undefined;
 	t: Translate;
-	known: boolean;
 }) => {
-	if (!known || rows === null) {
+	if (!counts) {
 		return (
 			<>
 				<StatCard
@@ -53,18 +44,11 @@ export const InvitationsStatCards = ({
 		);
 	}
 
-	const now = Date.now();
-	const pending = countStatus(rows, 'pending');
-	const accepted = countStatus(rows, 'accepted');
-	const expiredOrRevoked =
-		countStatus(rows, 'expired') + countStatus(rows, 'revoked');
-	const expiringSoon = rows.filter(
-		(row) =>
-			row.status === 'pending' &&
-			row.expiresAt !== null &&
-			row.expiresAt.getTime() >= now &&
-			row.expiresAt.getTime() <= now + THREE_DAYS_MS,
-	).length;
+	const pending = counts.pending ?? 0;
+	const accepted = counts.accepted ?? 0;
+	const expiredOrRevoked = (counts.expired ?? 0) + (counts.revoked ?? 0);
+	const expiringSoon = counts.expiringSoon ?? 0;
+	const total = counts.total ?? 0;
 
 	return (
 		<>
@@ -80,7 +64,7 @@ export const InvitationsStatCards = ({
 				label={t('list-stat-invitations-accepted')}
 				icon={<IconCircleCheck />}
 				value={accepted}
-				footer={t('list-stat-invitations-sent', { count: rows.length })}
+				footer={t('list-stat-invitations-sent', { count: total })}
 			/>
 			<StatCard
 				testId="staff-invitation-stat-expired"

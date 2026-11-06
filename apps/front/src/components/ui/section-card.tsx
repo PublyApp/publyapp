@@ -28,7 +28,7 @@ export const SectionCard = ({
 }) => (
 	<section
 		className={cn(
-			'flex flex-col rounded-[var(--publy-radius-control)] bg-card p-1.5 shadow-[var(--publy-shadow-chrome)]',
+			'flex flex-col rounded-[var(--publy-radius-control)] bg-card p-1.5 shadow-[var(--effect-raised-control)]',
 			className,
 		)}
 	>

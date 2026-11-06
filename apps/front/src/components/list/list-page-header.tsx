@@ -6,20 +6,27 @@ import {
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { PageHeader } from '~/components/ui/product-page';
+import {
+	PageActions,
+	PageHeader,
+	type PageAction,
+} from '~/components/ui/product-page';
 
 /** The unknown-total convention (§4.1 item 11): « — », never a page sum. */
 const DASH = '—';
 
 type ListPageHeaderProps = {
 	title: string;
-	description?: string;
 	inset?: { description?: string };
 	/** The whole-collection count, or `null` when it is not fully known. */
 	count: number | null;
 	onExport?: () => void;
-	/** The primary action element (a link to the create page, or a button). */
-	newAction?: ReactNode;
+	/** The established test id of the page's export control (the audit log's
+	 * export drawer spec opens it by id). */
+	exportTestId?: string;
+	/** The primary action as data: rendered as the desktop button and as a
+	 * mobile speed-dial action. */
+	newAction?: PageAction;
 	cards?: ReactNode;
 	statsOpen: boolean;
 	onToggleStats: () => void;
@@ -30,16 +37,31 @@ type ListPageHeaderProps = {
  * stays under the `react-doctor/no-giant-component` size bound. */
 export const ListPageHeader = ({
 	title,
-	description,
 	inset,
 	count,
 	onExport,
+	exportTestId,
 	newAction,
 	cards,
 	statsOpen,
 	onToggleStats,
 }: ListPageHeaderProps) => {
 	const { t } = useTranslation('common');
+	const statsToggle = cards ? (
+		<Button
+			variant="ghost"
+			size="icon"
+			aria-expanded={statsOpen}
+			aria-label={statsOpen ? t('list-stats-collapse') : t('list-stats-expand')}
+			onClick={onToggleStats}
+		>
+			{statsOpen ? (
+				<IconChevronUp aria-hidden="true" />
+			) : (
+				<IconChevronDown aria-hidden="true" />
+			)}
+		</Button>
+	) : undefined;
 
 	if (inset) {
 		return (
@@ -55,7 +77,9 @@ export const ListPageHeader = ({
 						<p className="text-sm text-muted-foreground">{inset.description}</p>
 					) : null}
 				</div>
-				{newAction}
+				{newAction ? (
+					<PageActions action={newAction} speedDialLabel={t('actions')} />
+				) : null}
 			</div>
 		);
 	}
@@ -63,39 +87,35 @@ export const ListPageHeader = ({
 	return (
 		<PageHeader
 			title={title}
-			description={description}
 			actions={
-				<>
-					{onExport ? (
-						<Button
-							variant="outline"
-							aria-label={t('list-export')}
-							onClick={onExport}
-						>
-							<IconDownload data-icon="inline-start" />
-							<span className="hidden md:inline">{t('list-export')}</span>
-						</Button>
-					) : null}
-					{newAction}
-					{cards ? (
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-expanded={statsOpen}
-							aria-label={
-								statsOpen ? t('list-stats-collapse') : t('list-stats-expand')
-							}
-							onClick={onToggleStats}
-						>
-							{statsOpen ? (
-								<IconChevronUp aria-hidden="true" />
-							) : (
-								<IconChevronDown aria-hidden="true" />
-							)}
-						</Button>
-					) : null}
-				</>
+				onExport ? (
+					<Button
+						variant="outline"
+						aria-label={t('list-export')}
+						onClick={onExport}
+						data-testid={exportTestId}
+						className="max-md:hidden"
+					>
+						<IconDownload data-icon="inline-start" />
+						{t('list-export')}
+					</Button>
+				) : null
 			}
+			action={newAction}
+			trailingActions={statsToggle}
+			speedDialActions={
+				onExport
+					? [
+							{
+								id: 'export',
+								label: t('list-export'),
+								icon: IconDownload,
+								onSelect: onExport,
+							},
+						]
+					: undefined
+			}
+			speedDialLabel={t('actions')}
 		/>
 	);
 };

@@ -22,8 +22,11 @@ public abstract record FindStaffProfilesResult {
 	/// <summary>
 	/// Successful result containing the paginated staff profiles.
 	/// </summary>
-	public sealed record Success(CursorPaginatedResult<StaffProfileItem> Data)
-		: FindStaffProfilesResult;
+	public sealed record Success(
+		CursorPaginatedResult<StaffProfileItem> Data,
+		int TotalCount,
+		int TotalAssignments
+	) : FindStaffProfilesResult;
 
 	/// <summary>
 	/// Error result when the cursor record was not found (deleted or invalid).
@@ -199,6 +202,13 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 			);
 		}
 
+		// The header badge/panel counter describes the whole filtered collection.
+		var totalCount = await query.CountAsync(cancellationToken);
+		var totalAssignments = await query.SumAsync(
+			profile => profile.UserAccountProfiles.Count,
+			cancellationToken
+		);
+
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 3: Apply cursor-based filter (if paginating)
 		// ───────────────────────────────────────────────────────────────────────
@@ -261,7 +271,9 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 			new CursorPaginatedResult<StaffProfileItem> {
 				Data = results,
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
-			}
+			},
+			totalCount,
+			totalAssignments
 		);
 	}
 

@@ -12,8 +12,29 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 
 namespace PublyApp.Api.Modules.AuditLogs.Handlers.Staff;
 
+public class AuditLogActionCountItem {
+	public string Action { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
+public class AuditLogActorCountItem {
+	public Guid UserId { get; set; }
+	public string Name { get; set; } = string.Empty;
+	public int Count { get; set; }
+}
+
+public class AuditLogListCounts {
+	public int Today { get; set; }
+	public int Last30Days { get; set; }
+	public List<AuditLogActionCountItem> ByAction { get; set; } = [];
+	public List<AuditLogActorCountItem> ByActor { get; set; } = [];
+}
+
 public class FindAuditLogsResponse
-	: CursorPaginatedResult<AuditLogListItem> { }
+	: CursorPaginatedResult<AuditLogListItem> {
+	public int TotalCount { get; set; }
+	public AuditLogListCounts Counts { get; set; } = new();
+}
 
 public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "user_id")] public string? UserId { get; set; }
@@ -22,6 +43,7 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "target_id")] public string? TargetId { get; set; }
 	[FromQuery(Name = "start_date")] public string? StartDate { get; set; }
 	[FromQuery(Name = "end_date")] public string? EndDate { get; set; }
+	[FromQuery(Name = "q")] public string? Search { get; set; }
 
 	// CSV-encoded so the property remains primitive - required for
 	// [AsParameters] binding and so the OpenAPI generator emits the
@@ -55,6 +77,15 @@ public class FindAuditLogsQuery : CursorPaginatedQuery {
 			this.EndDate
 		);
 	}
+
+	public string? GetSearchNormalized() {
+		if (this.Search is null) {
+			return null;
+		}
+
+		var trimmed = this.Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 }
 
 public class FindAuditLogsQueryValidator
@@ -77,6 +108,8 @@ public class FindAuditLogsQueryValidator
 					);
 				}
 			});
+
+		this.RuleFor(x => x.Search).MaximumLength(200);
 
 		this.RuleFor(x => x.TargetId)
 			.Must(QueryPredicates.BeValidNullableGuid)
@@ -158,8 +191,15 @@ internal static class AuditLogActionsCsv {
 			}
 		}
 
-		if (actions.Count > 50) {
-			return "At most 50 actions can be filtered at once.";
+		// The redesigned audit log filters by history category, so one request
+		// may legitimately list every action of several categories. The bound is
+		// the registry's own size (a request cannot name more distinct valid
+		// actions than exist), not a fixed 50 that a real category selection
+		// already exceeds (#2286).
+		if (actions.Count > AuditActionsRegistry.All.Count) {
+			return "At most "
+				+ AuditActionsRegistry.All.Count
+				+ " actions can be filtered at once.";
 		}
 
 		foreach (var action in actions) {
@@ -210,7 +250,8 @@ public sealed class FindAuditLogs {
 				Actions: query.GetActionsList(),
 				TargetId: query.GetTargetId(),
 				StartDate: query.GetStartDate(),
-				EndDate: query.GetEndDate()
+				EndDate: query.GetEndDate(),
+				Search: query.GetSearchNormalized()
 			),
 			cancellationToken
 		);
@@ -248,6 +289,24 @@ public sealed class FindAuditLogs {
 					Data = success.Data.Data,
 					NextCursor =
 						success.Data.NextCursor,
+					TotalCount = success.TotalCount,
+					Counts = new AuditLogListCounts {
+						Today = success.Counts.Today,
+						Last30Days = success.Counts.Last30Days,
+						ByAction = success.Counts.ByAction
+							.Select(count => new AuditLogActionCountItem {
+								Action = count.Action,
+								Count = count.Count,
+							})
+							.ToList(),
+						ByActor = success.Counts.ByActor
+							.Select(count => new AuditLogActorCountItem {
+								UserId = count.UserId,
+								Name = count.Name,
+								Count = count.Count,
+							})
+							.ToList(),
+					},
 				}
 			);
 		}

@@ -117,6 +117,7 @@ const staffUserRow = {
 	level: AccountLevelObject.Admin,
 	status: UserStatusObject.Active,
 	displayName: 'Alex User',
+	profileNames: [],
 };
 
 const staffSelection = {

@@ -31,6 +31,34 @@ describe('ListCard', () => {
 		expect(onOpen).toHaveBeenCalledTimes(1);
 	});
 
+	test('shows the e-mail once when the code repeats the sub line', () => {
+		render(
+			<ListCard
+				onOpen={vi.fn()}
+				openLabel="Ouvrir Demo Staff 6"
+				code="demo.staff6@example.com"
+				title="Demo Staff 6"
+				sub="demo.staff6@example.com"
+			/>,
+		);
+
+		expect(screen.getAllByText('demo.staff6@example.com')).toHaveLength(1);
+	});
+
+	test('renders a card with no code', () => {
+		render(
+			<ListCard
+				onOpen={vi.fn()}
+				openLabel="Ouvrir Demo Staff 6"
+				title="Demo Staff 6"
+				sub="demo.staff6@example.com"
+			/>,
+		);
+
+		expect(screen.getByText('Demo Staff 6')).toBeTruthy();
+		expect(screen.getByText('demo.staff6@example.com')).toBeTruthy();
+	});
+
 	test('ListCards shows the empty content without rows', () => {
 		render(
 			<ListCards count={0} empty={<p>Aucune organisation</p>}>

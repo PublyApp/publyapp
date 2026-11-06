@@ -36,7 +36,7 @@ import {
 	isSupportedLanguage,
 } from '@org/shared-ts/lib/i18n/shared';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { createZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 
 import {
@@ -48,9 +48,6 @@ import {
 type InvitationFormValues = z.infer<
 	ReturnType<typeof getBulkCreateInvitationsSchema>
 >;
-
-type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
-type InterZodI18nLike = InterZodOptions['i18n'];
 
 const DEFAULT_VALUES: InvitationFormValues = {
 	invitations: [
@@ -66,17 +63,16 @@ const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
 // Success-toast dwell time before redirecting to the invitations index.
 const REDIRECT_DELAY_MS = 600;
 
-const getInterZodForI18n = (instance: I18nInstance) => {
+const getZodForI18n = (instance: I18nInstance) => {
 	const locale = isSupportedLanguage(instance.language)
 		? instance.language
 		: FALLBACK_LANGUAGE;
-	const i18nLike: InterZodI18nLike = {
-		getFixedT: instance.getFixedT.bind(instance),
-		t: instance.t.bind(instance),
-	};
 
-	return new InterZod({
-		i18n: i18nLike,
+	return createZodI18n({
+		i18n: {
+			getFixedT: instance.getFixedT.bind(instance),
+			t: instance.t.bind(instance),
+		},
 		locale,
 	});
 };
@@ -145,7 +141,7 @@ const NewStaffInvitationsRoute = () => {
 	);
 
 	const resolver = useMemo(
-		() => zodResolver(getBulkCreateInvitationsSchema(getInterZodForI18n(i18n))),
+		() => zodResolver(getBulkCreateInvitationsSchema(getZodForI18n(i18n))),
 		[i18n, i18n.language],
 	);
 

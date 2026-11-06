@@ -1,4 +1,4 @@
-Date: 2026-09-05. Type: review. Scope: issue #2018 correction to `apps/front/scripts/guards/check-server-static-imports.mts`.
+Date: 2026-09-05. Type: review. Scope: issue #2018 correction to `apps/front/scripts/guards/check-server-static-imports.ts`.
 
 # Bespoke guard admission record — declared versus installed `srvx` (#2018)
 

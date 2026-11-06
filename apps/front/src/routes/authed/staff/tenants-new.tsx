@@ -11,7 +11,7 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
 	staticData: {
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{ kind: 'label', labelKey: 'common:create-tenant' },
+			{ kind: 'label', labelKey: 'common:new-organization' },
 		],
 	},
 	component: StaffTenantCreateRoute,

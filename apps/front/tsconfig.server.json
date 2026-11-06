@@ -26,7 +26,7 @@
 	// `types/server-build.d.ts`, the `default` condition is what Node uses at
 	// runtime.
 	//
-	// The guard `scripts/guards/check-typecheck-coverage.mts` asserts this
+	// The guard `scripts/guards/check-typecheck-coverage.ts` asserts this
 	// config really attends `server.mjs` (it replays `tsc --listFiles` and
 	// fails loud if the file is absent from the program), so a future edit
 	// cannot quietly turn this entry decorative again.

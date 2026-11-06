@@ -30,7 +30,7 @@ export const TenantCreateConfirmDialog = ({
 			isOpen={values !== null}
 			title={t('confirm-create-tenant-title')}
 			description={t('confirm-create-tenant-description')}
-			confirmLabel={t('create-tenant')}
+			confirmLabel={t('create-tenant-cta')}
 			cancelLabel={t('cancel')}
 			tone="primary"
 			isPending={isPending}

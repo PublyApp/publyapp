@@ -12,14 +12,36 @@ using PublyApp.Api.Modules.Jobs.Services;
 
 namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 
+public class DeadLetterListCounts {
+	public int Total { get; set; }
+	public int Open { get; set; }
+	public int Triaged { get; set; }
+	public int Requeued { get; set; }
+	public int Recent { get; set; }
+	public List<JobTypeCountItem> ByJobType { get; set; } = [];
+}
+
 public class FindDeadLettersResponse
-	: CursorPaginatedResult<DeadLetterListItem> { }
+	: CursorPaginatedResult<DeadLetterListItem> {
+	public int TotalCount { get; set; }
+	public DeadLetterListCounts Counts { get; set; } = new();
+}
 
 public class FindDeadLettersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "tenant_id")] public string? TenantId { get; set; }
 	[FromQuery(Name = "external_state_status")]
 	public string? ExternalStateStatus { get; set; }
 	[FromQuery(Name = "job_type")] public string? JobType { get; set; }
+	[FromQuery(Name = "q")] public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (this.Search is null) {
+			return null;
+		}
+
+		var trimmed = this.Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 
 	public Guid? GetTenantId() {
 		return QueryPredicates.ParseNullableGuid(this.TenantId);
@@ -46,6 +68,8 @@ public class FindDeadLettersQuery : CursorPaginatedQuery {
 public class FindDeadLettersQueryValidator
 	: CursorPaginatedQueryValidator<FindDeadLettersQuery> {
 	public FindDeadLettersQueryValidator() {
+		this.RuleFor(x => x.Search).MaximumLength(200);
+
 		this.RuleFor(x => x.TenantId)
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage("tenant_id must be a valid GUID");
@@ -107,7 +131,8 @@ public sealed class FindDeadLettersForStaff {
 				Limit: query.GetLimit(),
 				TenantId: query.GetTenantId(),
 				ExternalStateStatusCsv: query.ExternalStateStatus,
-				JobType: query.GetJobType()
+				JobType: query.GetJobType(),
+				Search: query.GetSearchNormalized()
 			),
 			cancellationToken
 		);
@@ -124,6 +149,20 @@ public sealed class FindDeadLettersForStaff {
 		return TypedResults.Ok(new FindDeadLettersResponse {
 			Data = success.Data.Data,
 			NextCursor = success.Data.NextCursor,
+			TotalCount = success.Counts.Total,
+			Counts = new DeadLetterListCounts {
+				Total = success.Counts.Total,
+				Open = success.Counts.Open,
+				Triaged = success.Counts.Triaged,
+				Requeued = success.Counts.Requeued,
+				Recent = success.Counts.Recent,
+				ByJobType = success.Counts.ByJobType
+					.Select(count => new JobTypeCountItem {
+						JobType = count.JobType,
+						Count = count.Count,
+					})
+					.ToList(),
+			},
 		});
 	}
 }

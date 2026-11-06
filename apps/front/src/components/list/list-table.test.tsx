@@ -242,10 +242,9 @@ describe('ListTable', () => {
 		expect(scroller.className).not.toContain('scrollbar-gutter');
 	});
 
-	// The staff statuses total (« 12 actifs · 3 suspendus ») is longer than its
-	// 130 px column: it used to ellipsise at 1440 px. A total wraps; it never
-	// truncates.
-	test('a long totals cell wraps instead of truncating', () => {
+	// Owner decision 04/11: a totals cell never wraps. It keeps one line with
+	// an ellipsis, and the full text stays available in `title`.
+	test('a long totals cell stays on one ellipsised line', () => {
 		render(
 			<Harness
 				sorting={[]}
@@ -261,9 +260,11 @@ describe('ListTable', () => {
 
 		const summary = screen.getByRole('table', { name: 'list-summary' });
 		const cell = within(summary).getByTitle('12 actifs · 3 suspendus');
-		expect(cell.className).not.toContain('truncate');
-		expect(cell.className).toContain('break-words');
-		expect(cell.closest('tr')?.className).toContain('whitespace-normal');
+		expect(cell.className).toContain('whitespace-nowrap');
+		expect(cell.className).toContain('overflow-hidden');
+		expect(cell.className).toContain('text-ellipsis');
+		expect(cell.className).not.toContain('break-words');
+		expect(cell.closest('tr')?.className).not.toContain('whitespace-normal');
 	});
 
 	// Lot 4a: the profile users inset passes an empty totals map. Rendering the

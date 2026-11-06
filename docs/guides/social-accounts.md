@@ -61,7 +61,7 @@ process has **no database**, so `Program.IsOpenApiGenerationProcess` detects it 
 canary pass line is logged either**.
 
 Do not assume a green CI build exercised the canary. It never has. Only a real boot of the
-api or worker role (local `just dev-api-migrated`, docker compose smoke, or the deployed
+api or worker role (local `just dev`, docker compose smoke, or the deployed
 services) performs and logs the verification.
 
 ## The test-only boot-log probe (#1309/#1319)

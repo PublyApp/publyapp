@@ -34,7 +34,7 @@ export const ScheduledPublicationQueueTable = ({
 }: {
 	query: Pick<
 		UseQueryResult,
-		'isPending' | 'isError' | 'isFetching' | 'refetch'
+		'isPending' | 'isError' | 'error' | 'isFetching' | 'refetch'
 	>;
 	rows: ScheduledPublicationRow[];
 	pagination: QueuePagination;
@@ -139,6 +139,7 @@ export const ScheduledPublicationQueueTable = ({
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 				hasActiveSearch: false,
 			}}

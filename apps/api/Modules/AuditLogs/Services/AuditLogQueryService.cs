@@ -18,7 +18,8 @@ public record FindAuditLogsArgs(
 	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
-	DateTime? EndDate
+	DateTime? EndDate,
+	string? Search = null
 );
 
 public record ExportAuditLogsArgs(
@@ -31,7 +32,9 @@ public record ExportAuditLogsArgs(
 
 public abstract record FindAuditLogsResult {
 	public sealed record Success(
-		CursorPaginatedResult<AuditLogListItem> Data
+		CursorPaginatedResult<AuditLogListItem> Data,
+		int TotalCount,
+		AuditLogListCounts Counts
 	) : FindAuditLogsResult;
 
 	public sealed record CursorNotFound(
@@ -42,6 +45,30 @@ public abstract record FindAuditLogsResult {
 		string SortId
 	) : FindAuditLogsResult;
 }
+
+public sealed record AuditLogActionCount(
+	string Action,
+	int Count
+);
+
+public sealed record AuditLogActorCount(
+	Guid UserId,
+	string Name,
+	int Count
+);
+
+/// <summary>
+/// Whole-history facets behind the audit page's StatCards and its two panel
+/// groups. Deliberately unfiltered: the cards name fixed windows (« today »,
+/// « 30 derniers jours ») and the panels count what the history holds, so the
+/// user's current filter never rewrites the navigation offers.
+/// </summary>
+public sealed record AuditLogListCounts(
+	int Today,
+	int Last30Days,
+	IReadOnlyList<AuditLogActionCount> ByAction,
+	IReadOnlyList<AuditLogActorCount> ByActor
+);
 
 public record AuditLogListItem {
 	public required Guid Id { get; init; }
@@ -147,13 +174,19 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var query = this._BaseQuery();
 
 		query = AuditLogQueryService._ApplyFilters(
+			this._DbContext,
 			query,
 			args.UserId,
 			args.Actions,
 			args.TargetId,
 			args.StartDate,
-			args.EndDate
+			args.EndDate,
+			args.Search
 		);
+
+		// Whole filtered collection, cursor excluded.
+		var totalCount = await query.CountAsync(cancellationToken);
+		var counts = await this._BuildCountsAsync(cancellationToken);
 
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue =
@@ -220,7 +253,85 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			new CursorPaginatedResult<AuditLogListItem> {
 				Data = results,
 				NextCursor = nextCursor,
+			},
+			totalCount,
+			counts
+		);
+	}
+
+	/// <summary>
+	/// The StatCards' two time windows and the per-action / per-actor panel
+	/// counters, computed over the whole history (never the current filter, see
+	/// <see cref="AuditLogListCounts"/>).
+	/// </summary>
+	private async Task<AuditLogListCounts> _BuildCountsAsync(
+		CancellationToken cancellationToken
+	) {
+		var logs = this._BaseQuery();
+		var todayStart = DateTime.UtcNow.Date;
+		var monthStart = todayStart.AddDays(-30);
+
+		var today = await logs.CountAsync(
+			auditLog => auditLog.CreatedAt >= todayStart,
+			cancellationToken
+		);
+		var last30Days = await logs.CountAsync(
+			auditLog => auditLog.CreatedAt >= monthStart,
+			cancellationToken
+		);
+
+		var actionRows = await (
+			from auditLog in logs
+			group auditLog by auditLog.Action into grouped
+			select new AuditLogActionCount(grouped.Key, grouped.Count())
+		).ToListAsync(cancellationToken);
+
+		var actorRows = await (
+			from auditLog in logs
+			join user in this._DbContext.User.IgnoreQueryFilters()
+				on (Guid?)auditLog.UserId equals user.Id into userJoin
+			from user in userJoin.DefaultIfEmpty()
+			group auditLog by new {
+				auditLog.UserId,
+				user.FirstName,
+				user.LastName,
+				user.Email,
+			} into grouped
+			select new {
+				grouped.Key.UserId,
+				grouped.Key.FirstName,
+				grouped.Key.LastName,
+				grouped.Key.Email,
+				Count = grouped.Count(),
 			}
+		).ToListAsync(cancellationToken);
+
+		var actors = new List<AuditLogActorCount>();
+		foreach (var row in actorRows) {
+			// Same display name as the list rows (deleted actor, name, else email).
+			var name = "(deleted user)";
+			if (row.Email is not null) {
+				name = row.FirstName is not null || row.LastName is not null
+					? ((row.FirstName ?? "") + " " + (row.LastName ?? "")).Trim()
+					: row.Email;
+			}
+			actors.Add(new AuditLogActorCount(row.UserId, name, row.Count));
+		}
+
+		actors.Sort((left, right) => {
+			var byCount = right.Count.CompareTo(left.Count);
+			return byCount != 0
+				? byCount
+				: string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+		});
+
+		return new AuditLogListCounts(
+			Today: today,
+			Last30Days: last30Days,
+			ByAction: actionRows,
+			// The panel is a shortcut list, not an exhaustive export: keep the
+			// busiest actors and let the search find the rest.
+			ByActor: [.. actors.Take(50)]
 		);
 	}
 
@@ -284,6 +395,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var query = this._BaseQuery();
 
 		query = AuditLogQueryService._ApplyFilters(
+			this._DbContext,
 			query,
 			args.UserId,
 			args.Actions,
@@ -310,6 +422,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var query = this._BaseQuery();
 
 		query = AuditLogQueryService._ApplyFilters(
+			this._DbContext,
 			query,
 			args.UserId,
 			args.Actions,
@@ -365,12 +478,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 	}
 
 	private static IQueryable<AuditLog> _ApplyFilters(
+		AppDbContext dbContext,
 		IQueryable<AuditLog> query,
 		Guid? userId,
 		IReadOnlyList<string>? actions,
 		Guid? targetId,
 		DateTime? startDate,
-		DateTime? endDate
+		DateTime? endDate,
+		string? search = null
 	) {
 		if (userId.HasValue) {
 			query =
@@ -400,6 +515,23 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			query =
 				from auditLog in query
 				where auditLog.CreatedAt <= endDate.Value
+				select auditLog;
+		}
+		if (!string.IsNullOrWhiteSpace(search)) {
+			var pattern = "%" + search.Trim() + "%";
+			query =
+				from auditLog in query
+				where EF.Functions.ILike(auditLog.Action, pattern)
+					|| (auditLog.IpAddress != null
+						&& EF.Functions.ILike(auditLog.IpAddress, pattern))
+					|| dbContext.User
+						.IgnoreQueryFilters()
+						.Any(user => user.Id == auditLog.UserId
+							&& ((user.FirstName != null
+									&& EF.Functions.ILike(user.FirstName, pattern))
+								|| (user.LastName != null
+									&& EF.Functions.ILike(user.LastName, pattern))
+								|| EF.Functions.ILike(user.Email, pattern)))
 				select auditLog;
 		}
 		return query;

@@ -6,18 +6,14 @@
  * (or once it resolves denied). A click that vanishes into nothing is the exact
  * silence the brief forbids.
  *
- * These tests are intentionally race-free: the in-flight state is held by an
- * explicit `permissionsPending`/`permissionsDenied` flag passed to the column
- * builder — there is no timer race to win. The proof file (.dump/preuve-1626.md)
- * shows the suite goes red when the faulty form (item clickable during flight) is
- * reinserted.
+ * Race-free: the in-flight state is an explicit flag passed to the row-action
+ * component; there is no timer race to win.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { ReactElement } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { StaffDeadLetterRow } from '~/lib/query/staff-jobs';
 
-import { makeDeadLetterColumns } from './_columns-dead-letter';
+import { DeadLetterRowActions } from './_jobs-row-actions';
 
 const t = (key: string): string => key;
 
@@ -42,18 +38,19 @@ const renderRequeueItem = (options?: {
 }) => {
 	const onInspect = vi.fn();
 	const onRequeue = vi.fn();
-	const columns = makeDeadLetterColumns(t, 'en', onInspect, onRequeue, options);
-	const actions = columns.find((c) => c.id === 'actions');
-	const ui = (
-		actions!.cell as (ctx: {
-			row: { original: StaffDeadLetterRow };
-		}) => ReactElement
-	)({
-		row: { original: row },
-	});
-	render(ui);
+	render(
+		<DeadLetterRowActions
+			row={row}
+			t={t}
+			onInspect={onInspect}
+			onRequeue={onRequeue}
+			permissionsPending={options?.permissionsPending ?? false}
+			permissionsDenied={options?.permissionsDenied ?? false}
+			explanation={options?.title}
+		/>,
+	);
 	// Open the row menu so the (portaled) items render.
-	fireEvent.click(screen.getByRole('button'));
+	fireEvent.click(screen.getByRole('button', { name: 'email.send' }));
 	const item = screen.getByTestId('dead-letter-requeue-dl-1');
 	return { onRequeue, item };
 };

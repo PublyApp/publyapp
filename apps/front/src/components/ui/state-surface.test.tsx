@@ -34,16 +34,14 @@ describe('state-surface', () => {
 		).toBe('neutral');
 	});
 
-	test('renders a danger-toned error surface and keeps technical identifiers in mono style', () => {
+	test('renders a danger-toned error surface', () => {
 		render(
 			<ErrorStateSurface
 				title="List unavailable"
 				description="Unable to load."
-				technicalIdentifier="error-id-001"
 				testId="error-surface"
 			/>,
 		);
-		expect(screen.getByText('error-id-001')).toBeTruthy();
 		expect(screen.getByText('List unavailable')).toBeTruthy();
 		expect(screen.getByTestId('error-surface')).toBeTruthy();
 		expect(screen.getByTestId('error-surface').getAttribute('data-tone')).toBe(
@@ -55,9 +53,6 @@ describe('state-surface', () => {
 				.querySelector('.publy-state-icon')
 				?.getAttribute('data-tone'),
 		).toBe('danger');
-		expect(screen.getByText('error-id-001').className).toContain(
-			'publy-state-technical-id',
-		);
 	});
 
 	test('announces error surfaces through the shared live-region primitive', () => {
@@ -70,8 +65,10 @@ describe('state-surface', () => {
 		);
 
 		const surface = screen.getByTestId('error-surface');
-		expect(surface.getAttribute('role')).toBe('status');
-		expect(surface.getAttribute('aria-live')).toBe('polite');
+		// #2291 owner decision: an error state is `role="alert"`, not a polite
+		// status update.
+		expect(surface.getAttribute('role')).toBe('alert');
+		expect(surface.getAttribute('aria-live')).toBe('assertive');
 	});
 
 	test('ErrorStateSurface and NoMatchStateSurface accept an icon override while keeping their tone', () => {
@@ -107,7 +104,7 @@ describe('state-surface', () => {
 				.getByTestId('nomatch')
 				.querySelector('.publy-state-icon')
 				?.getAttribute('data-tone'),
-		).toBe('primary');
+		).toBe('neutral');
 	});
 
 	test('hides the decorative glyph cluster from assistive tech', () => {
@@ -180,6 +177,34 @@ describe('state-surface', () => {
 		expect(root.querySelector('.publy-state-icon')).not.toBeNull();
 		expect(root.querySelector('.publy-error-hero')).toBeNull();
 		expect(root.querySelector('.publy-error-ghost-numeral')).toBeNull();
+	});
+
+	test('empty lists render the ShopKart OS shape: two rings around a tilted tile', () => {
+		render(<StateSurface title="Nothing yet" testId="surface" />);
+		const root = screen.getByTestId('surface');
+
+		expect(root.getAttribute('data-presentation')).toBe('empty');
+		expect(root.querySelectorAll('.publy-empty-ring')).toHaveLength(2);
+		const cluster = root.querySelector('.publy-state-icon-cluster');
+		expect(cluster?.getAttribute('data-presentation')).toBe('empty');
+		expect(cluster?.getAttribute('aria-hidden')).toBe('true');
+		expect(
+			root
+				.querySelector('.publy-state-icon')
+				?.getAttribute('data-presentation'),
+		).toBe('empty');
+	});
+
+	test('the error surface is the tinted ShopKart OS status shape', () => {
+		render(<ErrorStateSurface title="List unavailable" testId="error" />);
+		const root = screen.getByTestId('error');
+
+		expect(root.getAttribute('data-presentation')).toBe('status');
+		expect(root.querySelector('.publy-empty-ring')).toBeNull();
+		expect(root.querySelectorAll('.publy-status-ring')).toHaveLength(2);
+		expect(
+			root.querySelector('.publy-state-icon')?.getAttribute('data-tone'),
+		).toBe('danger');
 	});
 
 	test('AppErrorView renders actions without a separator rule above them (owner-approved 2026-07-10 round 3)', () => {

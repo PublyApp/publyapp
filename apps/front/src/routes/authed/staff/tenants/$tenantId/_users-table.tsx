@@ -28,6 +28,7 @@ export const TenantUsersTable = ({
 	queryState: {
 		isPending: boolean;
 		isError: boolean;
+		error?: unknown;
 		isFetching: boolean;
 		hasNextPage: boolean;
 	};
@@ -47,6 +48,7 @@ export const TenantUsersTable = ({
 			queryState={{
 				isPending: queryState.isPending,
 				isError: queryState.isError,
+				error: queryState.error,
 				onRetry: onRetry,
 				hasActiveSearch: hasActiveFilters,
 			}}

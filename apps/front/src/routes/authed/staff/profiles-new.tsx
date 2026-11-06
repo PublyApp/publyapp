@@ -29,7 +29,7 @@ import {
 	isSupportedLanguage,
 } from '@org/shared-ts/lib/i18n/shared';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { createZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
 import {
@@ -40,9 +40,6 @@ import {
 type NewStaffProfileValues = z.infer<
 	ReturnType<typeof getNewStaffProfileSchema>
 >;
-
-type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
-type InterZodI18nLike = InterZodOptions['i18n'];
 
 const STAFF_PROFILE_FORM_FIELDS = [
 	'name',
@@ -67,17 +64,16 @@ const DEFAULT_VALUES: NewStaffProfileValues = {
 	tone: '',
 };
 
-const getInterZodForI18n = (instance: I18nInstance) => {
+const getZodForI18n = (instance: I18nInstance) => {
 	const locale = isSupportedLanguage(instance.language)
 		? instance.language
 		: FALLBACK_LANGUAGE;
-	const i18nLike: InterZodI18nLike = {
-		getFixedT: instance.getFixedT.bind(instance),
-		t: instance.t.bind(instance),
-	};
 
-	return new InterZod({
-		i18n: i18nLike,
+	return createZodI18n({
+		i18n: {
+			getFixedT: instance.getFixedT.bind(instance),
+			t: instance.t.bind(instance),
+		},
 		locale,
 	});
 };
@@ -195,7 +191,7 @@ const NewStaffProfileRoute = () => {
 	// two steps (one assertion per statement) instead of a chained cast.
 	const resolver = useMemo(() => {
 		const rawResolver: unknown = zodResolver(
-			getNewStaffProfileSchema(getInterZodForI18n(i18n)),
+			getNewStaffProfileSchema(getZodForI18n(i18n)),
 		);
 		return rawResolver as Resolver<NewStaffProfileValues>;
 	}, [i18n, i18n.language]);

@@ -7,7 +7,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
-import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
@@ -138,16 +137,12 @@ const TenantPostsDraftsPage = () => {
 			<PageHeader
 				title={t('posts:drafts')}
 				description={t('posts:drafts-description')}
-				actions={
-					<Button
-						variant="default"
-						onClick={() => setIsCreateOpen(true)}
-						data-testid="tenant-posts-new-post"
-					>
-						<IconPlus aria-hidden className="size-4" />
-						{t('posts:new-post')}
-					</Button>
-				}
+				action={{
+					label: t('posts:new-post'),
+					icon: IconPlus,
+					onSelect: () => setIsCreateOpen(true),
+					testId: 'tenant-posts-new-post',
+				}}
 			/>
 			<DataTable
 				testId="tenant-posts-drafts-table"
@@ -157,6 +152,7 @@ const TenantPostsDraftsPage = () => {
 				queryState={{
 					isPending: query.isPending,
 					isError: query.isError,
+					error: query.error,
 					onRetry: () => void query.refetch(),
 					hasActiveSearch: Boolean(controller.search.committed),
 				}}

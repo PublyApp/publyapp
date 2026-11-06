@@ -1,5 +1,9 @@
 import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '~/components/table/column-type';
+import {
+	displayProfileDescription,
+	displayProfileName,
+} from '~/lib/profiles/display-profile';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 
 import { ProfileRowActions } from './_profile-card';
@@ -15,6 +19,7 @@ const ProfileNameCell = ({
 	profile: StaffTenantProfileRow;
 	t: (key: string, options?: Record<string, unknown>) => string;
 }) => {
+	const profileName = displayProfileName(profile, t);
 	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
 		profile.name,
 		profile.icon,
@@ -33,9 +38,9 @@ const ProfileNameCell = ({
 			<span className="flex min-w-0 flex-wrap items-center gap-2">
 				<span
 					className="publy-record-link truncate text-[13px] font-medium"
-					title={profile.name}
+					title={profileName}
 				>
-					{profile.name}
+					{profileName}
 				</span>
 				<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
 					{profile.isDefault ? t('system') : t('custom')}
@@ -62,14 +67,18 @@ export const makeTenantProfileColumns = (
 		id: 'description',
 		header: t('description'),
 		enableSorting: false,
-		cell: ({ row }) => (
-			<span
-				className="block truncate text-xs text-muted-foreground"
-				title={row.original.description || undefined}
-			>
-				{row.original.description || t('no-description-provided')}
-			</span>
-		),
+		cell: ({ row }) => {
+			const profileDescription = displayProfileDescription(row.original, t);
+
+			return (
+				<span
+					className="block truncate text-xs text-muted-foreground"
+					title={profileDescription || undefined}
+				>
+					{profileDescription || t('no-description-provided')}
+				</span>
+			);
+		},
 	},
 	{
 		id: 'members',

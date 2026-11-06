@@ -102,11 +102,11 @@ the i18n mock is not needed there.
   enumeration makes all 5 pass (bug present, as the proof demands).
 
 - **1802 proof test** (`tests/proofs/1802/red-1802-catch-accuses-wrong-command.test.ts`)
-  against the fixed two-try/catch `run-proofs.mts`: 1/1 RED (the proof asserts
+  against the fixed two-try/catch `run-proofs.ts`: 1/1 RED (the proof asserts
   the buggy single-try structure exists; the fix removed it).
 
 - **1829 proof test** (`tests/proofs/1829/red-1829-switch-not-independently-testable.test.ts`)
-  against the fixed code with `consume-verdict.mts` present: 1/1 RED (the proof
+  against the fixed code with `consume-verdict.ts` present: 1/1 RED (the proof
   asserts the module does not exist; the fix added it).
 
 - **1824 consume-verdict unit tests** (`scripts/ci/consume-verdict.test.ts`):

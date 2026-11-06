@@ -7,6 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
 		<a href={to} {...props}>
 			{children}
@@ -61,16 +62,15 @@ describe('profile users page state views (moved out of the users route file)', (
 		expect(screen.getByText('Loading staff profile…')).toBeTruthy();
 	});
 
-	test('a 404 problem renders the not-found view with the problem detail', () => {
-		render(
-			<MissingProfileView
-				error={{ status: 404, detail: 'No profile with this id.' }}
-			/>,
-		);
+	test('a 404 problem renders the not-found view with the classified sentence', () => {
+		render(<MissingProfileView />);
 
 		expect(screen.getByTestId('staff-profile-users-not-found')).toBeTruthy();
 		expect(screen.getByText('Staff profile not found')).toBeTruthy();
-		expect(screen.getByText('No profile with this id.')).toBeTruthy();
+		// ShopKart's not-found family owns one sentence per kind.
+		expect(screen.getByText('not-found-sentence')).toBeTruthy();
+		// #2291 M1: the API's English detail is never painted under the title.
+		expect(screen.queryByText('No profile with this id.')).toBeNull();
 	});
 
 	test('a 403 problem renders the forbidden view without logging out', () => {
@@ -85,7 +85,9 @@ describe('profile users page state views (moved out of the users route file)', (
 
 		expect(screen.getByTestId('staff-profile-users-error')).toBeTruthy();
 
-		const tryAgain = screen.getByText('Try again') as HTMLButtonElement;
+		const tryAgain = screen.getByRole('button', {
+			name: /retry/i,
+		}) as HTMLButtonElement;
 		tryAgain.click();
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});

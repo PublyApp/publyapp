@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { buttonVariants } from '~/components/ui/button.variants';
+import { StateView } from '~/components/ui/state-view';
 
 type EmailSentConfirmationProps = {
 	title: string;
@@ -25,27 +26,25 @@ export const EmailSentConfirmation = ({
 	const { t } = useTranslation('common');
 
 	return (
-		<div className="space-y-6 text-center" data-testid={testId}>
-			<div
-				className="publy-state-icon-cluster mx-auto"
-				data-tone="primary"
-				aria-hidden="true"
-			>
-				<div className="publy-state-icon" data-tone="primary">
-					<IconMailCheck aria-hidden="true" className="size-7" />
-				</div>
-			</div>
-			<div className="space-y-2">
-				<h1 className="text-2xl font-semibold tracking-[-0.01em] text-foreground">
-					{title}
-				</h1>
-				<p className="text-sm text-muted-foreground">{description}</p>
-				{hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-			</div>
-			<Link to="/" className={buttonVariants({ variant: 'default' })}>
-				{t('go-to-home')}
-				<IconArrowRight aria-hidden="true" className="size-4" />
-			</Link>
+		<div data-testid={testId}>
+			<StateView
+				scale="page"
+				tone="info"
+				icon={<IconMailCheck aria-hidden="true" />}
+				title={title}
+				description={description}
+				beforeActions={
+					hint ? (
+						<p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+					) : null
+				}
+				actions={
+					<Link to="/" className={buttonVariants({ variant: 'default' })}>
+						{t('go-to-home')}
+						<IconArrowRight aria-hidden="true" className="size-4" />
+					</Link>
+				}
+			/>
 		</div>
 	);
 };

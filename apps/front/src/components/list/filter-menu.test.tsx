@@ -45,6 +45,24 @@ const filters: ListFilter<Row>[] = [
 ];
 
 describe('FilterMenu', () => {
+	test('names the trigger with its visible « Filtres 1 » label first (WCAG 2.5.3)', () => {
+		render(
+			<FilterMenu
+				filters={filters}
+				active={{ status: ['active'] }}
+				counts={{ status: { active: 3, pending: 1 } }}
+				onToggle={vi.fn()}
+				onClear={vi.fn()}
+			/>,
+		);
+
+		const trigger = screen.getByRole('button', { name: /^list-filters 1/ });
+		expect(trigger.textContent).toContain('list-filters');
+		expect(trigger.getAttribute('aria-label')).toBe(
+			'list-filters 1 — list-filter-active',
+		);
+	});
+
 	test('opens the categories and reports a toggle', () => {
 		const onToggle = vi.fn();
 		render(

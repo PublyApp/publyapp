@@ -1,13 +1,18 @@
 import { IconPlus } from '@tabler/icons-react';
+import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 
 export const TenantUsersPageHeader = ({
 	usersCount,
 	onInvite,
+	inviteButtonRef,
 }: {
 	usersCount: number | null;
 	onInvite: () => void;
+	/** #2291 M5: the invite drawer returns focus here when it closes,
+	 * including when it was opened directly from a `?invite=1` URL. */
+	inviteButtonRef?: RefObject<HTMLButtonElement | null>;
 }) => {
 	const { t } = useTranslation('common');
 
@@ -24,7 +29,14 @@ export const TenantUsersPageHeader = ({
 				</h2>
 				<p className="publy-type-helper">{t('tenant-users-tab-description')}</p>
 			</div>
-			<Button type="button" size="sm" variant="default" onClick={onInvite}>
+			<Button
+				ref={inviteButtonRef}
+				type="button"
+				size="sm"
+				variant="default"
+				onClick={onInvite}
+				data-testid="staff-tenant-users-invite"
+			>
 				<IconPlus aria-hidden="true" className="size-[15px]" />
 				{t('invite-people')}
 			</Button>
