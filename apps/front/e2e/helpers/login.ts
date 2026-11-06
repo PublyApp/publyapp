@@ -57,11 +57,6 @@ export const loginAsTenantUser = async (
 	});
 };
 
-export const getInviteStaffUserButton = (page: Page) =>
-	page.getByRole('link', {
-		name: /^(Invite member|Inviter un membre)$/,
-	});
-
 export const setLocaleCookie = async (page: Page, locale: 'fr') => {
 	await page.context().addCookies([
 		{

@@ -105,23 +105,28 @@ const displayToast = async (
 	method: ToastMethod,
 	message: string,
 	description?: string,
+	durationMs?: number,
 ): Promise<void> => {
 	const sonner = await loadSonner();
 	if (!sonner) {
 		return;
 	}
 
+	const options = { description, duration: durationMs };
+	const hasOptions =
+		options.description !== undefined || options.duration !== undefined;
+
 	try {
-		if (method === 'default') {
-			if (description === undefined) {
+		if (!hasOptions) {
+			if (method === 'default') {
 				sonner.toast(message);
 			} else {
-				sonner.toast(message, { description });
+				sonner.toast[method](message);
 			}
-		} else if (description === undefined) {
-			sonner.toast[method](message);
+		} else if (method === 'default') {
+			sonner.toast(message, options);
 		} else {
-			sonner.toast[method](message, { description });
+			sonner.toast[method](message, options);
 		}
 	} catch (error) {
 		logger.error('[Mutation Toast Error]', { error });
@@ -164,10 +169,16 @@ export const displayLocalMutationFailure = async (
 
 /**
  * Local, message-only toasts for inline mutation feedback. The optional
- * `description` parameter and the `default` variant are the toast-contrast
- * fixture's way of raising a described neutral toast through the real
- * product API (routes/field-validation.tsx) — that fixture is their only
- * consumer today; every product call site passes a single message string.
+ * `description` and `durationMs` parameters and the `default` variant are the
+ * toast-contrast fixture's way of raising a described neutral toast through
+ * the real product API (routes/field-validation.tsx) — that fixture is their
+ * only consumer today; every product call site passes a single message string.
+ *
+ * `durationMs` exists because Sonner's 4 s default auto-dismiss was the
+ * binding constraint on every one of the contrast guard's 38 measurements
+ * (#2260 FIX-FLAKY): a measurement batch that outran the window lost its toast
+ * mid-read. The fixture asks for a duration far beyond any run; product call
+ * sites keep Sonner's default by omission.
  *
  * `satisfies Record<ToastMethod, …>` pins this object to the `ToastMethod`
  * union: the toast-contrast guard's type-level equality check ties this
@@ -178,22 +189,22 @@ export const displayLocalMutationFailure = async (
  * guard excludes that class.
  */
 export const toastLocalMutationResult = {
-	default(message: string, description?: string): void {
-		void displayToast('default', message, description);
+	default(message: string, description?: string, durationMs?: number): void {
+		void displayToast('default', message, description, durationMs);
 	},
-	success(message: string, description?: string): void {
-		void displayToast('success', message, description);
+	success(message: string, description?: string, durationMs?: number): void {
+		void displayToast('success', message, description, durationMs);
 	},
-	error(message: string, description?: string): void {
-		void displayToast('error', message, description);
+	error(message: string, description?: string, durationMs?: number): void {
+		void displayToast('error', message, description, durationMs);
 	},
-	warning(message: string, description?: string): void {
-		void displayToast('warning', message, description);
+	warning(message: string, description?: string, durationMs?: number): void {
+		void displayToast('warning', message, description, durationMs);
 	},
-	info(message: string, description?: string): void {
-		void displayToast('info', message, description);
+	info(message: string, description?: string, durationMs?: number): void {
+		void displayToast('info', message, description, durationMs);
 	},
 } satisfies Record<
 	ToastMethod,
-	(message: string, description?: string) => void
+	(message: string, description?: string, durationMs?: number) => void
 >;
