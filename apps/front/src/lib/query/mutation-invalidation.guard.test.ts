@@ -8,7 +8,7 @@ import { QueryClient } from '@tanstack/react-query';
 // string literal, or a type definition it could not resolve, defeated it
 // silently. We go through the AST via ts-morph's vendored TypeScript
 // (`import ts from 'typescript'` bare no longer exposes the Compiler API
-// under TypeScript 7 — precedent: check-design-system.mts, same comment).
+// under TypeScript 7 — precedent: check-design-system.ts, same comment).
 import { ts } from 'ts-morph';
 import { describe, expect, test, vi } from 'vitest';
 

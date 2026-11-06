@@ -609,8 +609,8 @@
 			"reason": "Hosted-only action step \"Upload fork e2e images\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'\",\"with\":{\"name\":\"e2e-stack-images-${{ steps.image-tag.outputs.tag }}\",\"path\":\"/tmp/e2e-images/*.tar.gz\",\"retention-days\":1,\"compression-level\":0,\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Verify built front image": {
-			"reason_hash": "f01939beaed8688b",
-			"reason": "No exact local command match for run step \"Verify built front image\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/ci/check-front-runtime-image.mts --image \\\"${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "0cd5eb21feae47a4",
+			"reason": "No exact local command match for run step \"Verify built front image\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/ci/check-front-runtime-image.ts --image \\\"${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Checkout": {
 			"reason_hash": "78cf6713208e8581",
@@ -633,8 +633,8 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-cleanup\",\"path\":\"ci-results/e2e-cleanup.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Assert exact pins": {
-			"reason_hash": "712ef234877f676b",
-			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
+			"reason_hash": "94ab399b2b410923",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts\"]."
 		},
 		"ci.yml::e2e-smoke::Cache Playwright browsers": {
 			"reason_hash": "047032225e2a6a18",
@@ -709,8 +709,8 @@
 			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
-			"reason_hash": "712ef234877f676b",
-			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
+			"reason_hash": "94ab399b2b410923",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts\"]."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
 			"reason_hash": "252583b7f4f3dacf",
@@ -841,20 +841,20 @@
 			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &\",\"front_server_pid=$!\",\"trap 'kill \\\"$front_server_pid\\\" || true' EXIT\",\"for attempt in $(seq 1 20); do\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html && break\",\"sleep 1\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html\",\"grep -aEq 'rel=\\\"stylesheet\\\"[^>]*href=\\\"[^\\\"]+\\\\.css\\\"' /tmp/front-home.html\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Test front (non-vitest report-all)": {
-			"reason_hash": "ed33de86e4956f2f",
-			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "8d95ff1770bf4055",
+			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Upload ci-lane-result": {
 			"reason_hash": "8180f37c9f9ea98b",
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-build\",\"path\":\"ci-results/front-build.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::front-build::Verify front CSS asset": {
-			"reason_hash": "31eb281766a5c7ac",
-			"reason": "No exact local command match for run step \"Verify front CSS asset\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "726245329f975d21",
+			"reason": "No exact local command match for run step \"Verify front CSS asset\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/verify-build-css-link.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Verify front font bundle": {
-			"reason_hash": "8f27e3bc9c0ba61e",
-			"reason": "No exact local command match for run step \"Verify front font bundle\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "6d4225c8a70f5052",
+			"reason": "No exact local command match for run step \"Verify front font bundle\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/verify-font-bundle.ts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-quality::Check front column-type imports": {
 			"reason_hash": "c75d9d733ca99e78",
@@ -1197,16 +1197,16 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-quality-dotnet\",\"path\":\"ci-results/quality-dotnet.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::quality-js::Assert exact pins": {
-			"reason_hash": "712ef234877f676b",
-			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts\"]."
+			"reason_hash": "94ab399b2b410923",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts\"]."
 		},
 		"ci.yml::quality-js::Check complexity bounds": {
 			"reason_hash": "e1d5df7d16c33a3c",
 			"reason": "No exact local command match for run step \"Check complexity bounds\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-cyclomatic-bound.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::quality-js::Check formatting": {
-			"reason_hash": "917c37da3f3b4901",
-			"reason": "Local mirror just format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
+			"reason_hash": "a12e9294d646031f",
+			"reason": "Local mirror just ci-format is derived from exact normalized workflow command match(es): [\"pnpm format\"]."
 		},
 		"ci.yml::quality-js::Check unused exports and dependencies": {
 			"reason_hash": "cb1d0cd877b052ad",

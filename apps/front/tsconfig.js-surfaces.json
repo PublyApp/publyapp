@@ -24,7 +24,7 @@
 	//
 	// Enabled via `allowJs`/`checkJs` with the same strictness as the .ts
 	// surfaces; each file is JSDoc-typed where checkJs needs it. The guard
-	// `scripts/guards/check-typecheck-coverage.mts` asserts all four files
+	// `scripts/guards/check-typecheck-coverage.ts` asserts all four files
 	// stay in this config's program.
 	"include": [
 		"deploy/request-counter/control-routes.mjs",

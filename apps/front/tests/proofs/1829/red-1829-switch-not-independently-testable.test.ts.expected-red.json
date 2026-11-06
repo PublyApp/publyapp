@@ -4,7 +4,7 @@
 	"expectedRed": [
 		{
 			"testName": "the verdict-to-counter switch is NOT independently testable (issue #1829)",
-			"why": "On correct code the verdict-to-counter switch has been extracted into an independently testable pure function (consume-verdict.mts), so the structural assertion that it is NOT independently testable fails with an AssertionError. If this test passes, the switch was folded back into the untestable script body."
+			"why": "On correct code the verdict-to-counter switch has been extracted into an independently testable pure function (consume-verdict.ts), so the structural assertion that it is NOT independently testable fails with an AssertionError. If this test passes, the switch was folded back into the untestable script body."
 		}
 	]
 }

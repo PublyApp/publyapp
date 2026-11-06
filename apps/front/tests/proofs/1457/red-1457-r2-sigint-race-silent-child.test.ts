@@ -6,7 +6,7 @@
  * ## Context
  *
  * The fixture script the r2 test of #1352 inlines into a child process
- * (`apps/front/scripts/guards/check-design-system.test.mts`, the
+ * (`apps/front/scripts/guards/check-design-system.test.ts`, the
  * `r2-ignored-sigint-parent.mjs` entry inside the `makeFixture({...})`
  * call, lines ~532-544) carries a deliberate two-line ordering whose
  * meaning ONLY shows up under a real SIGINT race. The line that installs
@@ -159,7 +159,7 @@
  * ## Mutations to introduce the red (restore the bug)
  *
  * **Mutation A — classic swap** (the r1 mutation): in
- * `apps/front/scripts/guards/check-design-system.test.mts`, inside the
+ * `apps/front/scripts/guards/check-design-system.test.ts`, inside the
  * `r2-ignored-sigint-parent.mjs` array (~line 540-542), swap the two lines
  * so the handshake write comes BEFORE the handler installation.
  *
@@ -250,7 +250,7 @@ import { describe, expect, test } from 'vitest';
 import {
 	findHandlerLine,
 	isHandlerDeferred,
-} from './lib/sigint-handler-detection.mts';
+} from './lib/sigint-handler-detection.ts';
 
 // The real production-code test file. Reading the r2 fixture's array lines
 // out of THIS file is the load-bearing part of the proof: a proof that
@@ -258,7 +258,7 @@ import {
 // production file changed.
 const GUARD_TEST_FILE = fileURLToPath(
 	new URL(
-		'../../../scripts/guards/check-design-system.test.mts',
+		'../../../scripts/guards/check-design-system.test.ts',
 		import.meta.url,
 	),
 );

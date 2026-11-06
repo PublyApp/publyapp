@@ -10,6 +10,9 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
+# The AppHost database (single source of truth, #2305). Local-dev literal password, the
+# same constant as apps/apphost/Program.cs and .env.example — not a secret.
+apphost_db := "Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"
 front_dir := "apps/front"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
@@ -32,75 +35,30 @@ install:
   @echo "Running shared package postinstall..."
   cd {{shared_dir}} && pnpm run postinstall
 
-# Update all pnpm workspace dependencies
-update-deps:
-  pnpm up -r
-
 # =============================================================================
 # Development
 # =============================================================================
+
+# `set positional-arguments` + "$@" forwards each argument as its own argv entry instead of
+# interpolating `{{args}}` as shell text (worktree paths/branches with spaces are ordinary
+# here). The Windows variant only refuses: `just dev` is not supported there.
+# Run the whole local stack (Aspire) for a PR, an issue, a branch, or the current folder.
+[unix]
+[positional-arguments]
+dev *args:
+  node packages/scripts-ts/src/dev.ts "$@"
+
+[windows]
+dev *args:
+  Write-Error "just dev n'est pas pris en charge sous Windows."; exit 1
 
 # Start API development server (dotnet watch)
 dev-api:
   cd {{api_dir}} && dotnet watch run --no-restore -property:OpenApiGenerateDocuments=false
 
-# Apply pending migrations, then start the API development server
-dev-api-migrated: db-migrate dev-api
-
-# Start API using Node.js watcher (alternative)
-dev-api-alt:
-  node {{api_dir}}/run-dev.mjs
-
-
 # Start front frontend (Vite)
 dev-front port="5050":
   cd {{front_dir}} && pnpm exec vite dev --port {{port}} --strictPort
-
-# {{args}} would interpolate as raw shell text, splitting on internal whitespace and
-# letting metacharacters execute (worktree paths/branches with spaces are ordinary here).
-# `set positional-arguments` + "$@"/@args forwards each argument as its own argv entry
-# instead. `pwsh -Command` (the configured windows-shell) joins trailing args back into
-# one string and re-parses it as PowerShell source, defeating positional-arguments — see
-# https://github.com/casey/just/issues/1592 — so the Windows variant runs as a real script
-# file via [script("pwsh")], which binds $args from genuine process arguments.
-
-# Start another worktree's front frontend by PR/issue number
-[unix]
-[positional-arguments]
-review-front *args:
-  node packages/scripts-ts/src/review-front.ts "$@"
-
-[windows]
-[script("pwsh")]
-[positional-arguments]
-review-front *args:
-  node packages/scripts-ts/src/review-front.ts @args
-
-# Start another worktree's API by PR/issue number, against the shared dev database.
-# Refuses to start if the branch carries a migration the database hasn't applied
-# (pass --allow-migrations to proceed anyway) — see #1016.
-[unix]
-[positional-arguments]
-review-api *args:
-  node packages/scripts-ts/src/review-api.ts "$@"
-
-[windows]
-[script("pwsh")]
-[positional-arguments]
-review-api *args:
-  node packages/scripts-ts/src/review-api.ts @args
-
-# Start Aspire AppHost (postgres + api + worker + front).
-# -property:OpenApiGenerateDocuments=false: `dotnet run`'s implicit build would
-# otherwise run the API's OpenAPI document generation, which boots the app with
-# the ambient .env.development (APP_ROLE=all) while no Postgres is up yet, and the
-# worker's migration gate retries until the build fails. This recipe only needs a
-# build; the drift gate (build-api-full) and `just generate-client` regenerate.
-dev-services:
-  dotnet run --project apps/apphost --property:OpenApiGenerateDocuments=false
-
-# Start Aspire AppHost (alias for dev-services)
-dev-db: dev-services
 
 # =============================================================================
 # Building
@@ -120,57 +78,20 @@ build-api $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAA
 build-api-full $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build
 
-# Publish API
-publish-api $APP_ROLE="api":
-  cd {{api_dir}} && dotnet publish
-
-
 # Build + push the three GHCR deploy images from a clean checkout at REF (Actions is stalled).
 deploy-images ref="origin/develop":
   node packages/scripts-ts/src/deploy-images.ts {{ref}}
 
 # =============================================================================
-# Running
-# =============================================================================
-
-# Run API (skip restore; run `just install` first)
-run-api:
-  cd {{api_dir}} && dotnet run --no-restore -property:OpenApiGenerateDocuments=false
-
-
-# =============================================================================
-# Type checking
-# =============================================================================
-
-
-# =============================================================================
 # Code quality
 # =============================================================================
 
-# Lint (oxlint)
+# Lint and fix what can be fixed (oxlint)
 lint:
-  pnpm lint
-
-# Lint with auto-fix
-lint-write:
   pnpm lint:fix
 
-# Format check (oxfmt)
+# Format files (oxfmt)
 format:
-  pnpm format
-
-# Format with auto-fix
-format-write:
-  pnpm format:write
-
-# Run all checks (lint + format)
-check:
-  pnpm lint
-  pnpm format
-
-# Run all checks with auto-fix
-check-write:
-  pnpm lint:fix
   pnpm format:write
 
 # Check for unused dependencies
@@ -212,24 +133,33 @@ nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
 # trying to apply, a bootstrap deadlock). Mirrors `dev-api`, which skips doc-gen the same
 # way.
 
-# Run EF Core migrations
-db-migrate $APP_ROLE="api":
+# Fails fast when the AppHost Postgres is not running.
+[private]
+_require-db:
+  @node packages/scripts-ts/src/require-db.ts
+
+# Run EF Core migrations against the AppHost database
+db-migrate $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db: _require-db
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Drop + migrate database
-db-reset $APP_ROLE="api":
+db-reset $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db: _require-db
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef database drop -f --no-build
   cd {{api_dir}} && dotnet tool run dotnet-ef database update --no-build
 
 # Add new migration: `just db-add CreateUsers`
-db-add name $APP_ROLE="api":
+db-add name $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db:
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations add {{name}} --no-build
 
 # Remove last migration
-db-remove $APP_ROLE="api":
+db-remove $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db:
+  dotnet tool restore
   cd {{api_dir}} && dotnet build -property:OpenApiGenerateDocuments=false
   cd {{api_dir}} && dotnet tool run dotnet-ef migrations remove --no-build
 
@@ -287,11 +217,6 @@ test-api-shard shard total $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 test-analyzers:
   dotnet restore packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj
   dotnet test packages/lint-cs/Tests/PublyApp.Analyzers.Tests.csproj -c Release --no-restore --nologo
-
-# Run API integration tests with verbose diagnostics
-test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
-  cd {{api_dir}} && dotnet restore Tests/PublyApp.Api.Tests.csproj
-  cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-restore --nologo --verbosity minimal --logger "console;verbosity=detailed" --environment TEST_VERBOSE_LOGS=1 --diag .artifacts/logs/test-api-debug.log
 
 # =============================================================================
 # Local CI gate
@@ -380,10 +305,6 @@ ci-migration-expand-contract:
   pnpm --filter scripts-ts exec vitest run src/check-migration-expand-contract.test.ts
   node ./packages/scripts-ts/src/check-migration-expand-contract.ts
 
-# Ensure the review-worktree pure-resolution logic remains covered in the gate.
-ci-review-worktree-resolution:
-  pnpm test:review-worktree-resolution
-
 # Repo-wide dead relative links in tracked Markdown (docs/records/ bodies
 # are write-once evidence and exempt) + prune-inventory freshness (--check
 # fails when the committed audit record no longer matches its generator)
@@ -440,7 +361,7 @@ ci-dockerignore-shadow:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
+  node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
@@ -451,7 +372,8 @@ ci-install:
 # the globs enumerate fails the gate naming the directory. Mirrors
 # the src/check-formatter-scope.test.ts case inside
 # .github/workflows/ci.yml::guards::Test CI guard suite (#1875).
-ci-format: format
+ci-format:
+  pnpm format
   pnpm --filter scripts-ts exec vitest run src/check-formatter-scope.test.ts
   @echo "=== [gate] format (done) ==="
 
@@ -631,7 +553,7 @@ ci-api-shard-partition:
 # can run independent stacks simultaneously. CI sets COMPOSE_PROJECT_NAME
 # explicitly (via E2E_IMAGE_TAG, unique per run) so CI stacks never collide.
 ci-e2e-front:
-  @node apps/front/scripts/run-e2e-front.mts
+  @node apps/front/scripts/run-e2e-front.ts
 
 # The `smoke` lane: the twelve specs every pull request runs, on ONE stack
 # (target <= 3 min). Same lifecycle as `ci-e2e-front`; the lane is selected by
@@ -639,11 +561,11 @@ ci-e2e-front:
 # apps/front/e2e/smoke-specs.ts for the list and why it is a file list, not a
 # grep). Unset `E2E_LANE` runs everything, which is what `ci-e2e-front` does.
 e2e-smoke:
-  @E2E_LANE=smoke node apps/front/scripts/run-e2e-front.mts
+  @E2E_LANE=smoke node apps/front/scripts/run-e2e-front.ts
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit ci-api-shard-partition test-api
+ci: ci-drift ci-migration-expand-contract ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit ci-api-shard-partition test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
@@ -673,15 +595,6 @@ generate-client $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAA
   cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient
   cd {{js_client_dir}} && node -e "const fs=require('fs'),path=require('path'); const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{const p=path.join(d,e.name); return e.isDirectory()?walk(p):[p];}); for (const f of walk('src')) { if (f.endsWith('.ts')||f.endsWith('.json')) { const c=fs.readFileSync(f,'utf8'); const n=c.replace(/\r\n?/g,'\n'); if (n!==c) fs.writeFileSync(f,n); } }"
 
-# Update existing client
-update-client:
-  cd {{js_client_dir}} && dotnet kiota update -o src
-  cd {{js_client_dir}} && node -e "const fs=require('fs'); const p='src/kiota-lock.json'; if (fs.existsSync(p)) fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/\r\n?/g, '\n'))"
-
-# Show client info
-client-info:
-  cd {{js_client_dir}} && dotnet kiota info -d ../../{{api_dir}}/openapi.json -l typeScript
-
 # =============================================================================
 # Cleaning
 # =============================================================================
@@ -690,12 +603,6 @@ client-info:
 clean:
   node -e "const fs=require('fs'); const rm=(x)=>fs.rmSync(x,{recursive:true,force:true}); const glob=(dir)=>fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).filter((x)=>x.isDirectory()).map((x)=>`${dir}/${x.name}/.artifacts`):[]; ['node_modules','apps/api/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','packages/scripts-cs/bin','packages/scripts-cs/obj'...glob('apps'),...glob('packages')].forEach(rm)"
 
-# Clean API artifacts
-clean-api:
-  cd {{api_dir}} && dotnet clean
-  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/api/.artifacts'].forEach(p)"
-
-
 # =============================================================================
 # Utility
 # =============================================================================
@@ -703,19 +610,3 @@ clean-api:
 # Set up Git hooks
 prepare:
   pnpm run prepare
-
-# Print basic toolchain info
-env-check:
-  @echo "Node version: $(node --version)"
-  @echo "pnpm version: $(pnpm --version)"
-  @echo "Dotnet version: $(dotnet --version)"
-  @echo "Docker version: $(docker --version)"
-
-# Convenience: setup dev env (install + apphost)
-dev-setup: install dev-services
-  @echo "Development environment ready!"
-  @echo "The Aspire AppHost is running the API, worker, and front."
-
-# Convenience: quick-start (install + apphost)
-quick-start: install dev-services
-  @echo "Aspire AppHost started — API on http://localhost:5000, front on http://localhost:5050"

@@ -16,24 +16,25 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 ### Starting Development Servers
 
 ```bash
-# Preferred: the full local stack in one command — the Aspire AppHost runs a
-# persistent Postgres (host port 5454, named data volume), the API (5000), the
-# worker, and the front dev server.
-just dev-db
+# The whole local stack (Aspire AppHost: Postgres 5454, migrations, API 5000, worker,
+# front 5050) for the current folder, or for a PR / issue / branch from anywhere in the repo.
+# A missing worktree is created under .worktrees/ (issue without a branch → feat|fix/<n>-<slug>).
+just dev
+just dev 2297
+just dev feat/2172-renditions-api
 
-# Alternative, without the AppHost (each in its own terminal):
-#   just db-migrate          # or: just dev-api-migrated (migrate + start API)
-#   just dev-api             # API with hot reload (5000)
-#   just dev-front           # frontend (TanStack Start dev server, 5050)
+# Single pieces, when you only need one:
+#   just dev-api             # API with hot reload (5000) — needs the AppHost database running
+#   just dev-front           # frontend only (5050)
 ```
 
-Do NOT run `just dev-api` (or `just dev-api-migrated`) alongside `just dev-db`: the
-AppHost already runs the API on port 5000, and a second API would fail to bind it.
+One app at a time: `just dev` stops the stack already running before starting the new one.
+Branches created before #2305 are refused — update them with develop first.
 
-Drive `apps/front` — the app that actually ships — with `just dev-front`, `just review-front <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate. See also the retired-app note below.
+Drive `apps/front` — the app that actually ships — with `just dev-front`, `just dev <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate. See also the retired-app note below.
 
-Since #885, the API waits for pending migrations but does not apply them. Run
-`just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
+`just dev` applies pending migrations before the API and the worker start; `just db-migrate`
+targets the AppHost database and needs `just dev` running.
 
 **Windows note:** the repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
 
@@ -66,7 +67,7 @@ checkout.
 ### Code Quality
 
 ```bash
-just check-write                       # Run oxlint + oxfmt (auto-fix)
+just lint && just format             # oxlint + oxfmt, both fixing by default
 pnpm --filter front typecheck          # TypeScript type checking (front)
 just knip                              # Check for unused dependencies
 ```
@@ -114,7 +115,7 @@ just test-api                  # Run API integration tests (requires Docker)
 pnpm --filter front test       # Run the front unit/component suite (Vitest)
 ```
 
-**Timeout protection for front guards:** front guard tests and check scripts route through `apps/front/scripts/run-guarded.mts` — every `test:*`/`check:*`/`verify:*` script, the check-script invocations inside `preinstall`, `typecheck` and `generate:route-tree`, and the front image runtime check step in `ci.yml`. The wrapper spawns each guard in its own process group and SIGKILLs the entire tree on timeout, replacing an indefinite gate-lock (issue #1525) with a failure that names the guard and its duration. The coverage gate `apps/front/scripts/guards/check-guard-coverage.mts` runs inside `pnpm --filter front test` and fails naming any `test:*`/`check:*`/`verify:*` script or bare `node` invocation that bypasses the wrapper. Exempt by design: the long-running `dev` and `start` servers (a 300s bound would kill them mid-session). Vitest `vitest run` calls (the main unit suite) are likewise not wrapped — they use Vitest's internal per-test timeouts. Default timeout is 300s (measured durations: `docs/records/2026-08-30-analysis-front-guard-durations.md`); override via `GUARD_TIMEOUT_SECONDS`.
+**Timeout protection for front guards:** front guard tests and check scripts route through `apps/front/scripts/run-guarded.ts` — every `test:*`/`check:*`/`verify:*` script, the check-script invocations inside `preinstall`, `typecheck` and `generate:route-tree`, and the front image runtime check step in `ci.yml`. The wrapper spawns each guard in its own process group and SIGKILLs the entire tree on timeout, replacing an indefinite gate-lock (issue #1525) with a failure that names the guard and its duration. The coverage gate `apps/front/scripts/guards/check-guard-coverage.ts` runs inside `pnpm --filter front test` and fails naming any `test:*`/`check:*`/`verify:*` script or bare `node` invocation that bypasses the wrapper. Exempt by design: the long-running `dev` and `start` servers (a 300s bound would kill them mid-session). Vitest `vitest run` calls (the main unit suite) are likewise not wrapped — they use Vitest's internal per-test timeouts. Default timeout is 300s (measured durations: `docs/records/2026-08-30-analysis-front-guard-durations.md`); override via `GUARD_TIMEOUT_SECONDS`.
 
 **Prerequisites:** Docker must be running (Testcontainers spins up Postgres automatically).
 
@@ -351,7 +352,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - No IIFEs — extract a named function or compute the value with preceding statements (enforced by `publy/no-iife`).
 - React Hook Form + Zod for form validation; go through the front form/field wrappers rather than wiring `register()` onto raw inputs.
 - Loading/empty/error states use the front state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
-- **Entity images and avatars:** preserve the real image when one exists and keep the intended aspect ratio. When there is genuinely no image, an **entity identity** surface — a person or an organization — falls back to initials on a deterministic, name-hashed colour from the `--publy-avatar-1`…`--publy-avatar-8` palette with `--publy-avatar-foreground` text (`paletteIndex()` in [`apps/front/src/components/ui/avatar-initials.ts`](apps/front/src/components/ui/avatar-initials.ts), applied via [`apps/front/src/components/ui/person-avatar.tsx`](apps/front/src/components/ui/person-avatar.tsx)). That colour is **identity, not decoration**: it is what distinguishes two photoless people in the same list and makes one person recognizable across a table row, a drawer, and the account menu — a uniform grey column carries no information at all. The palette is WCAG-pinned against fixed white text and deliberately theme-invariant, so do **not** swap it for muted tokens, and do **not** give it an `html.dark` counterpart (see `THEME_INVARIANT_TOKENS` in [`apps/front/scripts/guards/check-design-system.mts`](apps/front/scripts/guards/check-design-system.mts) and the contrast guard in [`apps/front/src/styles/avatar-fallback-contrast.test.ts`](apps/front/src/styles/avatar-fallback-contrast.test.ts)). Neutral muted tokens remain correct for fallbacks that are **not** entity identity. Build on the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front/src/components/ui/avatar.tsx`](apps/front/src/components/ui/avatar.tsx), whose image preserves a square cover crop and whose bare fallback stays neutral for those non-identity consumers. **front has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
+- **Entity images and avatars:** preserve the real image when one exists and keep the intended aspect ratio. When there is genuinely no image, an **entity identity** surface — a person or an organization — falls back to initials on a deterministic, name-hashed colour from the `--publy-avatar-1`…`--publy-avatar-8` palette with `--publy-avatar-foreground` text (`paletteIndex()` in [`apps/front/src/components/ui/avatar-initials.ts`](apps/front/src/components/ui/avatar-initials.ts), applied via [`apps/front/src/components/ui/person-avatar.tsx`](apps/front/src/components/ui/person-avatar.tsx)). That colour is **identity, not decoration**: it is what distinguishes two photoless people in the same list and makes one person recognizable across a table row, a drawer, and the account menu — a uniform grey column carries no information at all. The palette is WCAG-pinned against fixed white text and deliberately theme-invariant, so do **not** swap it for muted tokens, and do **not** give it an `html.dark` counterpart (see `THEME_INVARIANT_TOKENS` in [`apps/front/scripts/guards/check-design-system.ts`](apps/front/scripts/guards/check-design-system.ts) and the contrast guard in [`apps/front/src/styles/avatar-fallback-contrast.test.ts`](apps/front/src/styles/avatar-fallback-contrast.test.ts)). Neutral muted tokens remain correct for fallbacks that are **not** entity identity. Build on the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front/src/components/ui/avatar.tsx`](apps/front/src/components/ui/avatar.tsx), whose image preserves a square cover crop and whose bare fallback stays neutral for those non-identity consumers. **front has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
 - **React Doctor HARD gate:** a PR must not leave any React Doctor finding in a file it changes. Run `just react-doctor` before pushing. CI enforces this via `.github/workflows/ci.yml` (`--scope files --blocking warning`). Full guide: [`docs/guides/react-doctor.md`](docs/guides/react-doctor.md).
 - **Client route loaders are sanctioned by a guard, not by prose (#1552/#1560):** the only permitted client `loader` warms the SAME TanStack Query options the route's own components pass to `useQuery` (query-key-set inclusion, never equality). `apps/front/src/lib/query/route-loader-query-key-guard.test.ts` enforces it statically over the real `src/routes/` modules and fails loud (naming the route) on any loader it cannot resolve — a dynamic loader is not a silent pass. It runs in CI via `ci.yml` → job `front-build` → step "Test front (non-vitest report-all)". See [`docs/guides/front/conventions.md`](docs/guides/front/conventions.md) §"Client route loaders (#851)".
 - Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its old MUI-era `apps/old-front` code snippets died with that retired app).

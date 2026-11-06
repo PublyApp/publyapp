@@ -2,7 +2,7 @@
  * @vitest-environment node
  *
  * Paired red/green proof for issue #1525 — the front guard-test runner
- * (`apps/front/scripts/run-guarded.mts`) must kill the entire process tree
+ * (`apps/front/scripts/run-guarded.ts`) must kill the entire process tree
  * of a frozen guard, not merely the runner PID.
  *
  * ## Why this test
@@ -15,7 +15,7 @@
  *
  * ## RED without the fix
  *
- * Without `run-guarded.mts`, spawning a deliberately frozen guard and waiting
+ * Without `run-guarded.ts`, spawning a deliberately frozen guard and waiting
  * for the configured 3-second timeout would hang the test past vitest's own
  * `testTimeout` (30s) — the proof would fail (timeout exit, no assertions
  * reached). The safety-net `GUARD_TIMEOUT_SECONDS` ceiling prevents the proof
@@ -37,7 +37,7 @@ import process from 'node:process';
 import { describe, expect, it } from 'vitest';
 
 const FRONT_ROOT = path.resolve(import.meta.dirname, '..', '..'); // scripts/ci → apps/front
-const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.mts');
+const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.ts');
 
 // The proof itself must never hang more than ~15s even if the wrapper is
 // missing or misbehaving (3s guard timeout × safety multiplier of 5,
@@ -58,7 +58,7 @@ const runWrapper = (
 
 /**
  * `runWrapper` with explicit wrapper arguments, used for the `--` passthrough
- * mode (`node scripts/run-guarded.mts -- <command line...>`).
+ * mode (`node scripts/run-guarded.ts -- <command line...>`).
  */
 const runWrapperArgs = (
 	args: readonly string[],
@@ -113,7 +113,7 @@ const runWrapperArgs = (
 
 const makeFrozenGuard = async (): Promise<string> => {
 	const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-'));
-	const childScriptPath = path.join(dir, 'frozen-child.mts');
+	const childScriptPath = path.join(dir, 'frozen-child.ts');
 	await writeFile(
 		childScriptPath,
 		[
@@ -123,17 +123,17 @@ const makeFrozenGuard = async (): Promise<string> => {
 		].join('\n'),
 		'utf-8',
 	);
-	const guardPath = path.join(dir, 'frozen-guard.mts');
+	const guardPath = path.join(dir, 'frozen-guard.ts');
 	await writeFile(
 		guardPath,
 		[
 			'// Deliberately frozen guard that spawns a child process.',
-			'// Without run-guarded.mts this hangs forever AND leaves the child',
+			'// Without run-guarded.ts this hangs forever AND leaves the child',
 			'// orphaned when killed by PID (the exact #1525 bug class).',
 			"import { spawn } from 'node:child_process';",
 			"import process from 'node:process';",
 			"process.stdout.write('frozen-guard-started\\n');",
-			"const child = spawn(process.execPath, [process.argv[1].replace('frozen-guard.mts', 'frozen-child.mts')], { stdio: 'inherit' });",
+			"const child = spawn(process.execPath, [process.argv[1].replace('frozen-guard.ts', 'frozen-child.ts')], { stdio: 'inherit' });",
 			'// setInterval keeps the parent alive forever.',
 			'setInterval(() => {}, 1000);',
 		].join('\n'),
@@ -217,7 +217,7 @@ const expectNoOrphanSurvivors = async (
 
 const makeNormalGuard = async (): Promise<{ path: string; dir: string }> => {
 	const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-'));
-	const guardPath = path.join(dir, 'normal-guard.mts');
+	const guardPath = path.join(dir, 'normal-guard.ts');
 	await writeFile(
 		guardPath,
 		["process.stdout.write('normal-guard-ok\\n');", 'process.exit(0);'].join(
@@ -228,7 +228,7 @@ const makeNormalGuard = async (): Promise<{ path: string; dir: string }> => {
 	return { path: guardPath, dir };
 };
 
-describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
+describe('run-guarded.ts — issue #1525 timeout kills process tree', () => {
 	it(
 		'kills a frozen guard within the timeout and names it in stderr',
 		async () => {
@@ -285,8 +285,8 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 			// 'frozen-guard' token matches another lane's (or an earlier leaked)
 			// run and reds this test for processes it never spawned.
 			await expectNoOrphanSurvivors([
-				path.join(frozenGuardDir, 'frozen-guard.mts'),
-				path.join(frozenGuardDir, 'frozen-child.mts'),
+				path.join(frozenGuardDir, 'frozen-guard.ts'),
+				path.join(frozenGuardDir, 'frozen-child.ts'),
 			]);
 
 			await rm(path.dirname(frozenGuardPath), { recursive: true, force: true });
@@ -316,7 +316,7 @@ describe('run-guarded.mts — issue #1525 timeout kills process tree', () => {
 		'propagates SIGINT to the child process group on Ctrl-C',
 		async () => {
 			const dir = await mkdtemp(path.join(tmpdir(), 'proof-1525-sigint-'));
-			const guardPath = path.join(dir, 'running-guard.mts');
+			const guardPath = path.join(dir, 'running-guard.ts');
 			await writeFile(
 				guardPath,
 				[

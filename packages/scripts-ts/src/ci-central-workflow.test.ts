@@ -1575,7 +1575,7 @@ test('central structure rejects provenance, dataflow, and collector mutations', 
 			'front report runner is replaced',
 			(value) =>
 				value.replace(
-					'run: node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts',
+					'run: node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts',
 					'run: pnpm test:ci-non-vitest',
 				),
 			/report-all runner/i,
@@ -1901,13 +1901,13 @@ test('just manifest evidence recognizes real star defaults but not required sing
 			encoding: 'utf8',
 		}),
 	) as { recipes: Record<string, JustRecipeDump> };
-	const reviewFront = justDump.recipes['review-front'];
+	const devRecipe = justDump.recipes['dev'];
 	const dbAdd = justDump.recipes['db-add'];
-	assert.ok(reviewFront !== undefined);
+	assert.ok(devRecipe !== undefined);
 	assert.ok(dbAdd !== undefined);
-	const reviewFrontParameter = reviewFront.parameters?.[0];
+	const devRecipeParameter = devRecipe.parameters?.[0];
 	const dbAddParameter = dbAdd.parameters?.[0];
-	assert.ok(reviewFrontParameter !== undefined);
+	assert.ok(devRecipeParameter !== undefined);
 	assert.ok(dbAddParameter !== undefined);
 	const assertParameterSemantics = (
 		parameter: JustRecipeParameterDump | undefined,
@@ -1922,7 +1922,7 @@ test('just manifest evidence recognizes real star defaults but not required sing
 			expected,
 		);
 	};
-	const expectedReviewFrontParameter = {
+	const expectedDevParameter = {
 		default: null,
 		kind: 'star',
 		name: 'args',
@@ -1932,7 +1932,7 @@ test('just manifest evidence recognizes real star defaults but not required sing
 		kind: 'singular',
 		name: 'name',
 	};
-	assertParameterSemantics(reviewFrontParameter, expectedReviewFrontParameter);
+	assertParameterSemantics(devRecipeParameter, expectedDevParameter);
 	assertParameterSemantics(dbAddParameter, expectedDbAddParameter);
 	const withHostedJustMetadata = (parameter: JustRecipeParameterDump) =>
 		({
@@ -1946,9 +1946,9 @@ test('just manifest evidence recognizes real star defaults but not required sing
 			short: null,
 			value: null,
 		}) satisfies JustRecipeParameterDump;
-	const extendedReviewFront = {
-		...reviewFront,
-		parameters: [withHostedJustMetadata(reviewFrontParameter)],
+	const extendedDev = {
+		...devRecipe,
+		parameters: [withHostedJustMetadata(devRecipeParameter)],
 	};
 	const extendedDbAdd = {
 		...dbAdd,
@@ -1958,10 +1958,7 @@ test('just manifest evidence recognizes real star defaults but not required sing
 		],
 	};
 	assert.doesNotThrow(() => {
-		assertParameterSemantics(
-			extendedReviewFront.parameters[0],
-			expectedReviewFrontParameter,
-		);
+		assertParameterSemantics(extendedDev.parameters[0], expectedDevParameter);
 		assertParameterSemantics(
 			extendedDbAdd.parameters[0],
 			expectedDbAddParameter,
@@ -1969,19 +1966,16 @@ test('just manifest evidence recognizes real star defaults but not required sing
 	});
 	const recipes = {
 		ci: {
-			dependencies: [{ recipe: 'review-front' }, { recipe: 'db-add' }],
+			dependencies: [{ recipe: 'dev' }, { recipe: 'db-add' }],
 		},
-		'review-front': extendedReviewFront,
+		dev: extendedDev,
 		'db-add': extendedDbAdd,
 	};
 	const assertClassifierSemantics = (
 		candidateRecipes: Record<string, JustRecipeDump>,
 	): void => {
 		const commands = buildExpandedJustCommands(candidateRecipes);
-		assert.equal(
-			selectLocalRecipe(['just review-front'], commands),
-			'review-front',
-		);
+		assert.equal(selectLocalRecipe(['just dev'], commands), 'dev');
 		assert.equal(selectLocalRecipe(['just db-add'], commands), null);
 	};
 	assert.doesNotThrow(() => assertClassifierSemantics(recipes));
@@ -1989,11 +1983,9 @@ test('just manifest evidence recognizes real star defaults but not required sing
 		() =>
 			assertClassifierSemantics({
 				...recipes,
-				'review-front': {
-					...extendedReviewFront,
-					parameters: [
-						{ ...extendedReviewFront.parameters[0], kind: 'singular' },
-					],
+				dev: {
+					...extendedDev,
+					parameters: [{ ...extendedDev.parameters[0], kind: 'singular' }],
 				},
 			}),
 		assert.AssertionError,

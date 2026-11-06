@@ -31,7 +31,7 @@ import {
 	readProofReport,
 	type ExpectedRedManifest,
 	type ProofReport,
-} from '../../../../scripts/ci/classify-proof.mts';
+} from '../../../../scripts/ci/classify-proof.ts';
 
 // --- Helpers ---
 

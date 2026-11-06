@@ -2144,7 +2144,7 @@ const checkCentralVerificationSpecifics = (
 	if (JSON.stringify(jobs.gate ?? {}).includes('continue-on-error')) {
 		findings.push('gate: final reducer may not use continue-on-error');
 	}
-	if (!JSON.stringify(document).includes('run-non-vitest-report-all.mts')) {
+	if (!JSON.stringify(document).includes('run-non-vitest-report-all.ts')) {
 		findings.push(
 			'ci.yml: verification must invoke the durable report-all runner',
 		);
@@ -2164,7 +2164,7 @@ const checkCentralVerificationSpecifics = (
 		Array.isArray(job?.steps) ? job.steps : [],
 	);
 	const frontReportStep = (jobs[FRONT_REPORT_JOB_ID]?.steps ?? []).find(
-		(step) => String(step.run).includes('run-non-vitest-report-all.mts'),
+		(step) => String(step.run).includes('run-non-vitest-report-all.ts'),
 	);
 	if (frontReportStep?.['working-directory'] !== 'apps/front') {
 		findings.push(

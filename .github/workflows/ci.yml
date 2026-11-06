@@ -143,7 +143,7 @@ jobs:
         id: assert_pins
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
         continue-on-error: true
-        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
+        run: node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts
       - name: Check formatting
         id: format
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
@@ -697,12 +697,12 @@ jobs:
         id: front_css
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
         continue-on-error: true
-        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-build-css-link.mts
+        run: node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/verify-build-css-link.ts
       - name: Verify front font bundle
         id: front_font
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
         continue-on-error: true
-        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/verify-font-bundle.mts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
+        run: node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/verify-font-bundle.ts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
       - name: Smoke front production server
         id: front_smoke
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
@@ -736,7 +736,7 @@ jobs:
         working-directory: apps/front
         env:
           GUARD_TIMEOUT_SECONDS: '600'
-        run: node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts
+        run: node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts
       - name: CI lane not applicable (front)
         id: front-sentinel
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'false'
@@ -1267,7 +1267,7 @@ jobs:
         env:
           E2E_IMAGE_NS: ${{ steps.image-root.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/ci/check-front-runtime-image.mts --image "${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}"
+        run: node apps/front/scripts/run-guarded.ts apps/front/scripts/ci/check-front-runtime-image.ts --image "${E2E_IMAGE_NS}-front:${E2E_IMAGE_TAG}"
       - name: Upload fork e2e images
         id: upload-images
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork == 'true' && steps.images.outcome == 'success'
@@ -1334,7 +1334,7 @@ jobs:
         id: assert-pins
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
         continue-on-error: true
-        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
+        run: node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts
       - name: Install dependencies
         id: install-dependencies
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
@@ -1499,7 +1499,7 @@ jobs:
         id: assert-pins
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
         continue-on-error: true
-        run: node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
+        run: node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts
       - name: Install dependencies
         id: install-dependencies
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'

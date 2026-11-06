@@ -129,7 +129,7 @@ declarations are deliberately distinct. Full entry is the `K1` table below.
 | Single home (to create) | `packages/shared-ts/src/types/json-value.types.ts` — the only package both consumers can reach; its `./*` export map makes `@org/shared-ts/types/json-value.types` importable from `apps/front` **today**, once the file exists |
 | Why defer | The home does **not** exist today, and `packages/scripts-ts` has **no** `@org/shared-ts` dependency at all (its devDependencies are `yaml`, `@types/node`, `vitest`). Fixing only the `apps/front` side would leave three declarations where there are three now, plus a new shared file that one consumer uses — a worse ratio than the defect. |
 | Cost to fix | ~12 lines in `shared-ts`; `apps/front` imports it (0 dependency change); `apps/front/e2e` imports it (0 dependency change, but `readJson`'s `Record<string, unknown>` becomes the stricter `JsonObject`, so the fixture's field readers must be re-checked — they narrow with `typeof`, so this is expected to hold); `packages/scripts-ts` needs `"@org/shared-ts": "workspace:*"` added as its **first** workspace dependency, or keeps its copy and the duplication survives. Recommendation: do the whole family in one packet, accept the workspace dep, and re-run `just ci-drift` afterwards. |
-| Risk if merged wrongly | The strict union rejects `undefined`, `Date` and class instances that `Record<string, unknown>` accepted; the e2e fixture passes a Kiota `response.json()` payload, which is plain JSON, so the narrowing is sound — but it must be verified by `pnpm --filter front typecheck` (the e2e tree is inside the main program, per `check-typecheck-coverage.mts`). |
+| Risk if merged wrongly | The strict union rejects `undefined`, `Date` and class instances that `Record<string, unknown>` accepted; the e2e fixture passes a Kiota `response.json()` payload, which is plain JSON, so the narrowing is sound — but it must be verified by `pnpm --filter front typecheck` (the e2e tree is inside the main program, per `check-typecheck-coverage.ts`). |
 
 ### A7 — the translate-callback type declared twice · **DEFER**
 
@@ -231,10 +231,10 @@ Ranked by cost of leaving them.
 
 | | |
 |---|---|
-| Files | `apps/front/scripts/guards/check-e2e-shared-constants.mts`, `check-column-type-imports.mts`, `check-shared-ts-import-paths.mts`, `check-typecheck-coverage.mts` (and the `formatFinding` pair at `check-column-type-imports.mts:275` / `check-shared-ts-import-paths.mts:209`) |
+| Files | `apps/front/scripts/guards/check-e2e-shared-constants.ts`, `check-column-type-imports.ts`, `check-shared-ts-import-paths.ts`, `check-typecheck-coverage.ts` (and the `formatFinding` pair at `check-column-type-imports.ts:275` / `check-shared-ts-import-paths.ts:209`) |
 | What it means | The same recursive source-file collector and "cannot report compliance for a tree I never read" exit path, re-written per guard. |
 | Verdict | **defer** — not because it is hard, but because consolidating it is *bespoke-guard infrastructure work* (see AGENTS.md's bespoke-guard admission rule) and would touch four guards whose own tests pin their output strings. |
-| Single home if done | `apps/front/scripts/guards/_shared/source-tree.mts` |
+| Single home if done | `apps/front/scripts/guards/_shared/source-tree.ts` |
 | Risk | Low value, non-zero review cost. Rank last. |
 
 ---
@@ -328,7 +328,7 @@ Ranked by cost of leaving them.
 | | |
 |---|---|
 | Files | `routes/authed/staff/tenants-new-helpers.ts:42` (`EMAIL_REGEX`), `routes/authed/staff/tenants/$tenantId/_invite-user-form-state.ts:60` (`EMAIL_REGEX`, exported), `apps/front/e2e/helpers/tenant-account-fixture.ts:49` (`EMAIL_PATTERN`), and the same pattern inlined in `apps/front/e2e/helpers/tenant-account-fixture.ts:166,:305` uses |
-| What it means | `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`, four times, under three names. The e2e copy is the dangerous one: a spec validating with its own regex keeps passing when production's rule changes — the exact failure mode `check-e2e-shared-constants.mts` was written for (`SESSION_TOKEN_HEADER_KEY`). |
+| What it means | `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`, four times, under three names. The e2e copy is the dangerous one: a spec validating with its own regex keeps passing when production's rule changes — the exact failure mode `check-e2e-shared-constants.ts` was written for (`SESSION_TOKEN_HEADER_KEY`). |
 | Verdict | **defer** (the guard's own admission rule says a new shared constant in `shared-ts` should be the home, and the guard already scans for exactly this) |
 | Single home | `packages/shared-ts/src/lib/constants.ts` (or `utils/validation.utils.ts`), imported by both front modules and by the e2e helper |
 | Fix sketch | Export `EMAIL_PATTERN` from shared-ts; four import swaps; the guard then keeps it from being re-declared. |
@@ -370,7 +370,7 @@ declaration each, now exported.
 | E1 | `apps/front/src/i18n/locales/en.ts:38` and `packages/shared-ts/src/lib/i18n/locales/en.ts:12` — both `LooseResource = ToPrimitive<…>` | Same name, same *pattern*, different resource trees (front's bundle is the app's superset; shared's is the shared-only subset). Merging them is D1's decision, not a type alias. |
 | E2 | `packages/scripts-ts/src/ci-lane-result.ts:36` and `check-ci-gate-aggregation.ts:47` — both `StepEvidence` | Same name, **different types**: the lane result carries `outcome`/`exit_code`/`signal`; the aggregation carries `StepResult & {id, execution}`. Two layers of the same CI pipeline. Worth a rename (`AggregatedStepEvidence`), not a merge — the shapes are genuinely different. |
 | E3 | `routes/authed/staff/_profile-columns.tsx:17` and `routes/authed/staff/profiles/$profileId/_users-columns.tsx:14` — both `buildColumns` | Different tables (profiles list vs profile members), different column sets, different row types. Only the `ColumnDef` shape rhymes. |
-| E4 | `apps/front/scripts/run-e2e-front.mts:195` and `packages/scripts-ts/src/review-launcher.ts:107` — both `runCommand` | Async `spawn` with a signal-tree escalation vs `spawnSync` with timeout + secret redaction. Same name, incompatible contracts. |
+| E4 | `apps/front/scripts/run-e2e-front.ts:195` and `packages/scripts-ts/src/review-launcher.ts:107` — both `runCommand` | Async `spawn` with a signal-tree escalation vs `spawnSync` with timeout + secret redaction. Same name, incompatible contracts. |
 | E5 | `routes/authed/staff/_staff-permission-options.ts:3` (`StaffPermissionOption`) and `_staff-profile-options.ts:3` (`StaffProfileOption`) | Identical `{value,label,description?}` shape, unrelated domains (permissions vs profiles). A generic `SelectOption` would be the abstraction the packet forbids; the two lists never meet. |
 | E6 | `lib/query/tenant-scheduled-publications.ts:27` (`type ScheduledPublicationStatus`) and `routes/authed/tenant/posts/_scheduled-publication-display.tsx:27` (`const ScheduledPublicationStatus` component) | A type alias and a React component that happen to share a domain name. Different namespaces; no import conflict. |
 | E7 | `lib/query/staff-tenant-invitations.ts:20` and `lib/query/staff-tenant-users.ts:41` — `*QueryVariables` with identical 9 fields | Two resources whose filter sets happen to coincide today (status + level + table). Aliasing them would make an invitation-only filter silently appear on the users table. Keep them separate; the coincidence is not a contract. |
