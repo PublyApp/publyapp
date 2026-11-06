@@ -511,7 +511,7 @@ test.describe(
 			await page.goto(`/staff/profiles/${UNKNOWN_ID}`);
 			const profileView = page.getByTestId('staff-profile-details-not-found');
 			await expect(profileView).toBeVisible();
-			await expect(profileView).toContainText('Rôle du personnel introuvable');
+			await expect(profileView).toContainText('Rôle du staff introuvable');
 			await expect(profileView).not.toContainText('Profile not found');
 
 			await page.route('**/staff/staff-users/**', async (route) => {
@@ -526,7 +526,7 @@ test.describe(
 			await page.goto(`/staff/staff-users/${UNKNOWN_ID}`);
 			const userView = page.getByTestId('staff-user-details-not-found');
 			await expect(userView).toBeVisible();
-			await expect(userView).toContainText('Membre du personnel introuvable');
+			await expect(userView).toContainText('Membre du staff introuvable');
 			await expect(userView).not.toContainText('User not found');
 
 			await page.route('**/staff/audit-logs/**', async (route) => {
@@ -600,7 +600,7 @@ test.describe(
 			await openFrench(page);
 
 			const cases = [
-				['/staff/staff-users', 'Membres du personnel'],
+				['/staff/staff-users', 'Membres du staff'],
 				['/staff/profiles', 'Rôles'],
 				['/staff/audit-logs', "Journaux d'audit"],
 				['/staff/dashboard/reports', 'Rapports'],
