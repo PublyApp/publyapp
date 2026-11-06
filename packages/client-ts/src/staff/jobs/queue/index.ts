@@ -38,6 +38,7 @@ export interface QueueRequestBuilderGetQueryParameters {
     cursor?: string;
     jobType?: string;
     limit?: string;
+    q?: string;
     sortId?: string;
     sortOrder?: string;
     status?: string;
@@ -46,7 +47,7 @@ export interface QueueRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const QueueRequestBuilderUriTemplate = "{+baseurl}/staff/jobs/queue{?cursor*,job_type*,limit*,sort_id*,sort_order*,status*,tenant_id*}";
+export const QueueRequestBuilderUriTemplate = "{+baseurl}/staff/jobs/queue{?cursor*,job_type*,limit*,q*,sort_id*,sort_order*,status*,tenant_id*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */

@@ -39,10 +39,12 @@ describe('staff profiles column grid', () => {
 		});
 	});
 
-	test('renders Type as a dash because StaffProfileItem has no system flag', () => {
+	test('renders Type as the custom pill: staff profiles are never system', () => {
 		const columns = staffProfileColumns(t);
 		const typeColumn = columns.find((column) => column.id === 'type');
-		expect(typeColumn?.value).toBeUndefined();
+		// Every staff profile is « Personnalisé » (Profile.ValidateProfileType
+		// forbids a default staff profile), so the column carries a real value.
+		expect(typeColumn?.value).toBeDefined();
 		expect(typeColumn?.sortable).toBe(false);
 	});
 });

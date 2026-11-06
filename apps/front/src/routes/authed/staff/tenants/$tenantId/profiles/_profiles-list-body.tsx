@@ -1,6 +1,7 @@
 import { IconShield } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import type { ColumnDef } from '~/components/table/column-type';
 import {
 	DataTable,
@@ -11,13 +12,12 @@ import {
 import type { TableBodyState } from '~/components/table/table-body-state';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { UseTableControllerResult } from '~/components/table/use-table-controller';
-import { Button } from '~/components/ui/button';
 import {
-	ErrorStateSurface,
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
+import { resolveQueryError } from '~/lib/server/query-error-resolver';
 
 import { ProfileCard, ProfileCardGridSkeleton } from './_profile-card';
 import type { StaffTenantProfilesViewMode } from './_profiles-search-params';
@@ -37,6 +37,7 @@ type ProfilesListBodyProps = {
 		hasActiveSearch: boolean;
 		isPending: boolean;
 		isError: boolean;
+		error?: unknown;
 		isFetching: boolean;
 	};
 	nextCursor: string | null | undefined;
@@ -68,6 +69,12 @@ export const ProfilesListBody = ({
 }: ProfilesListBodyProps) => {
 	const { t } = useTranslation('common');
 	const { hasActiveSearch, isPending, isError, isFetching } = queryState;
+	// #2291: the card-grid branch owns its error surface (no DataTable), so it
+	// resolves the same one-error-state copy: 5xx retries, 403 has no Retry.
+	const resolvedError =
+		queryState.error === undefined
+			? undefined
+			: resolveQueryError(queryState.error, t);
 
 	if (view === 'table') {
 		return (
@@ -79,6 +86,7 @@ export const ProfilesListBody = ({
 				queryState={{
 					isPending: isPending,
 					isError: isError,
+					error: queryState.error,
 					onRetry: onRetry,
 					hasActiveSearch: hasActiveSearch,
 				}}
@@ -125,14 +133,12 @@ export const ProfilesListBody = ({
 			) : null}
 
 			{bodyState === 'error' ? (
-				<ErrorStateSurface
-					title={t('list-unavailable-title')}
-					description={t('list-error-default-description')}
-					actions={
-						<Button type="button" variant="outline" onClick={onRetry}>
-							{t('retry')}
-						</Button>
-					}
+				<ErrorKindState
+					scale="inline"
+					panel
+					kind={resolvedError?.kind}
+					error={queryState.error}
+					onRetry={onRetry}
 					testId={`${testId}-error`}
 				/>
 			) : null}

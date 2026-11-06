@@ -30,7 +30,7 @@
  * > (or any other `srvx/static` named import that the installed srvx
  * > does not export — see below).
  *
- * The matching guard, `apps/front/scripts/guards/check-server-static-imports.mts`,
+ * The matching guard, `apps/front/scripts/guards/check-server-static-imports.ts`,
  * loads the real installed `srvx/static` and asserts every name
  * `server.ts` imports from it actually exists. This proof asserts the
  * BUG the guard exists to catch, by reading the source directly — an

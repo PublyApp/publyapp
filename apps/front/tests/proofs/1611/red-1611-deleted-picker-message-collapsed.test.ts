@@ -14,7 +14,7 @@ import { expect, test } from 'vitest';
 import {
 	runBoundedProcessTree,
 	type BoundedProcessResult,
-} from '../../../scripts/run-proof-child.mts';
+} from '../../../scripts/run-proof-child.ts';
 
 /**
  * KEPT RED PROOF — issue #1611.

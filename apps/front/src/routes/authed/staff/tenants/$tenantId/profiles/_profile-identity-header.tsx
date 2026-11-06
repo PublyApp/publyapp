@@ -1,6 +1,10 @@
 import { IconPencil } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
+import {
+	displayProfileDescription,
+	displayProfileName,
+} from '~/lib/profiles/display-profile';
 import type { StaffTenantProfileDetails } from '~/lib/query/staff-tenant-profiles';
 
 import { getRelativeTimeParts } from '../_tenant-details-shell';
@@ -18,7 +22,9 @@ export const ProfileIdentityHeader = ({
 	permissionCount: number;
 	onEdit: () => void;
 }) => {
-	const { t } = useTranslation('staff-tenant-profiles');
+	const { t } = useTranslation(['staff-tenant-profiles', 'common']);
+	const profileName = displayProfileName(profile, t);
+	const profileDescription = displayProfileDescription(profile, t);
 	const { Icon: ProfileIcon, tone: profileTone } = deriveTenantProfileCardStyle(
 		profile.name,
 		profile.icon,
@@ -38,14 +44,14 @@ export const ProfileIdentityHeader = ({
 				<div className="min-w-0 space-y-1.5">
 					<div className="flex flex-wrap items-center gap-2">
 						<h1 className="text-2xl font-semibold text-foreground">
-							{profile.name}
+							{profileName}
 						</h1>
 						<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
 							{profile.isDefault ? t('system-profile') : t('custom-profile')}
 						</span>
 					</div>
 					<p className="max-w-3xl text-sm text-muted-foreground">
-						{profile.description ?? t('common:no-description-provided')}
+						{profileDescription ?? t('common:no-description-provided')}
 					</p>
 					<p className="text-xs text-muted-foreground">
 						{t('common:tenant-member-count', {

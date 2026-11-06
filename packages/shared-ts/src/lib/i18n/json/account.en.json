@@ -17,7 +17,7 @@
 	"enable-two-factor-authentication": "Enable 2FA",
 	"active-sessions": "Active sessions",
 	"active-sessions-coming-later-title": "Session management is coming later",
-	"active-sessions-coming-later-description": "Devices and sign-in activity will appear here once the session API ships.",
+	"active-sessions-coming-later-description": "Devices and sign-in activity will appear here once session management is available.",
 	"marketing-emails-description": "News, features, and product updates",
 	"product-updates-description": "Important updates about the platform",
 	"security-alerts-description": "Security and account activity alerts",

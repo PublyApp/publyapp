@@ -12,6 +12,8 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -180,6 +182,31 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			FindStaffUserSpec._GetFindUrl(status: "pending")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem =
+			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("status");
+	}
+
+	[Theory]
+	[InlineData("active,,suspended")]
+	[InlineData(",active")]
+	[InlineData("active, ,suspended")]
+	public async Task ItShouldReturnValidationProblemWhenStatusCsvHasAnEmptyToken(
+		string status
+	) {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(status: status)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -968,6 +995,152 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnWholeFilteredCollectionCountsWithMixedData() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"counts-{Guid.NewGuid():N}";
+
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-admin@example.com",
+			firstName: marker,
+			lastName: "Admin",
+			accountLevel: AccountLevel.Admin
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-user@example.com",
+			firstName: marker,
+			lastName: "User"
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-suspended@example.com",
+			firstName: marker,
+			lastName: "Suspended",
+			status: UserStatus.Suspended
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: 1, q: marker)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// limit=1 proves the counts are not the page length.
+		result.Data.Should().HaveCount(1);
+		result.TotalCount.Should().Be(3);
+		result.Counts.Total.Should().Be(3);
+		result.Counts.Active.Should().Be(2);
+		result.Counts.Suspended.Should().Be(1);
+		result.Counts.Admins.Should().Be(1);
+		result.Counts.Users.Should().Be(2);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnAssignedProfileNamesOnTheRow() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"profiled-{Guid.NewGuid():N}";
+
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker,
+			lastName: "Profiled"
+		);
+		var profileName = $"Support-{marker}";
+		await this._AttachStaffProfileAsync(userId, profileName);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: 20, q: marker)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		var row = result.Data.Should()
+			.ContainSingle(user => user.Email == $"{marker}@example.com")
+			.Subject;
+		row.ProfileNames.Should().Equal(profileName);
+	}
+
+	[Fact]
+	public async Task ItShouldCountConnectedStaffTodayAndOpenSessions() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var before = await this._ReadCountsAsync(token);
+
+		var marker = $"session-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com"
+		);
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(1));
+
+		var after = await this._ReadCountsAsync(token);
+
+		// The seeded session is the only change: both figures move by exactly one.
+		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
+		after.OpenSessions.Should().Be(before.OpenSessions + 1);
+	}
+
+	[Fact]
+	public async Task ItShouldNotCountAnExpiredSessionAsOpen() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var before = await this._ReadCountsAsync(token);
+
+		var marker = $"expired-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com"
+		);
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(-1));
+
+		var after = await this._ReadCountsAsync(token);
+
+		after.OpenSessions.Should().Be(before.OpenSessions);
+		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
+	}
+
+	[Fact]
+	public async Task ItShouldMatchTheRoleNamedByTheSearchPlaceholder() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"role-{Guid.NewGuid():N}";
+
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-admin@example.com",
+			firstName: marker,
+			lastName: "Admin",
+			accountLevel: AccountLevel.Admin
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: 100, q: "admin")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Should().Contain(user =>
+			user.Email == $"{marker}-admin@example.com"
+		);
+	}
+
 	private static string _GetFindUrl(
 		string? cursor = null,
 		int? limit = null,
@@ -1017,6 +1190,55 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			firstName: "Test",
 			lastName: "Staff"
 		);
+	}
+
+	/// <summary>
+	/// Seeds a staff profile and assigns it to the user's staff account, the
+	/// same junction row the profile surfaces write.
+	/// </summary>
+	private async Task _AttachStaffProfileAsync(Guid userId, string profileName) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var account = await dbContext.UserAccount.FirstAsync(account =>
+			account.UserId == userId && account.Scope == AccountScope.Staff
+		);
+		var profile = Profile.CreateStaffProfile(profileName);
+		_ = await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		_ = await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+			UserAccountId = account.GetRequiredId(),
+			ProfileId = profile.GetRequiredId(),
+		});
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task _AddStaffSessionAsync(Guid userId, DateTime expiresAt) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		_ = await dbContext.Session.AddAsync(new Session {
+			UserId = userId,
+			Token = Guid.NewGuid().ToString("N"),
+			ExpiresAt = expiresAt,
+		});
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task<StaffUserCountsDto> _ReadCountsAsync(string token) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: 1)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		return result.Counts;
 	}
 
 	private async Task _SetStaffUserStatusAsync(Guid userId, UserStatus status) {
@@ -1106,6 +1328,18 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	private record FindResponse {
 		public List<StaffUserItemDto> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+		public int TotalCount { get; init; }
+		public StaffUserCountsDto Counts { get; init; } = new();
+	}
+
+	private record StaffUserCountsDto {
+		public int Total { get; init; }
+		public int Active { get; init; }
+		public int Suspended { get; init; }
+		public int Admins { get; init; }
+		public int Users { get; init; }
+		public int ConnectedToday { get; init; }
+		public int OpenSessions { get; init; }
 	}
 
 	private record StaffUserItemDto {
@@ -1116,6 +1350,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; } = string.Empty;
 		public string Level { get; init; } = string.Empty;
+		public List<string> ProfileNames { get; init; } = [];
 	}
 
 	private static async Task<AppProblemDetails?> _ReadProblemAsync(

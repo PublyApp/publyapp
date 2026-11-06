@@ -15,7 +15,7 @@
 	// `#server-build` package-imports entry: the `types` condition resolves to
 	// `types/server-build.d.ts`, the `default` condition is what Node uses.
 	//
-	// The guard `scripts/guards/check-typecheck-coverage.mts` asserts this
+	// The guard `scripts/guards/check-typecheck-coverage.ts` asserts this
 	// config really attends both files (it replays `tsc --listFiles`).
 	"include": ["server.ts", "trust-proxy.ts"],
 	"exclude": ["node_modules", "dist", ".output"]

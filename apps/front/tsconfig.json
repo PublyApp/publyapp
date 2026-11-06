@@ -19,11 +19,10 @@
 	"include": [
 		"**/*.ts",
 		"**/*.tsx",
-		"**/*.mts",
 		// `server.ts`, `trust-proxy.ts` and `deploy/request-counter/*.ts` are in
 		// this program through `**/*.ts` since #2306 (no `allowJs` needed).
-		"scripts/**/*.mts",
-		"tools/**/*.mts",
+		"scripts/**/*.ts",
+		"tools/**/*.ts",
 		"../../packages/shared-ts/src/@types/**/*.d.ts"
 	],
 	"exclude": ["node_modules", "dist", ".output"]

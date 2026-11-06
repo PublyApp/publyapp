@@ -10,7 +10,7 @@
 	},
 	// Dedicated tsconfig for the deployment-time request-counter scripts and the
 	// drawer guard temp-dir helper (#1760, #2306). The guard
-	// `scripts/guards/check-typecheck-coverage.mts` asserts all four files stay
+	// `scripts/guards/check-typecheck-coverage.ts` asserts all four files stay
 	// in this config's program.
 	"include": [
 		"deploy/request-counter/control-routes.ts",

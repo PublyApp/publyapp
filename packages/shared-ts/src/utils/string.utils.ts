@@ -3,7 +3,13 @@ import kebabCase from 'lodash/kebabCase';
 import takeRight from 'lodash/takeRight';
 
 export const slugify = (str?: string) => {
-	return kebabCase(str);
+	return kebabCase(
+		(str ?? '')
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/œ/gi, 'oe')
+			.replace(/æ/gi, 'ae'),
+	);
 };
 
 export const toPascalCase = (str: string) => {

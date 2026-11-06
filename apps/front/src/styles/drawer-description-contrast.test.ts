@@ -3712,7 +3712,7 @@ describe('drawer description text contrast (#1043)', () => {
 	// colourless — the inverse direction, asserted together so neither can
 	// regress.
 	test.each([
-		['publy-type-helper', '--publy-foreground-subtle'],
+		['publy-type-helper', '--publy-foreground-muted'],
 		['publy-field-helper', '--publy-foreground-subtle'],
 		['publy-type-eyebrow', '--publy-foreground-subtle'],
 		['publy-back-link', '--publy-foreground-secondary'],

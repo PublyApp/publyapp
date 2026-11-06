@@ -29,7 +29,7 @@ const StaffDashboardPage = () => {
 		<div className="space-y-5" data-testid="staff-dashboard-page">
 			<div className="space-y-1" data-testid="staff-dashboard-heading">
 				<h1 className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground">
-					{t('dashboard')}
+					{t(activeSection === 'overview' ? 'dashboard' : activeSection)}
 				</h1>
 			</div>
 

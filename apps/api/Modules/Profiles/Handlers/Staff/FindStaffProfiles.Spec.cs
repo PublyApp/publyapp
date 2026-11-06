@@ -11,7 +11,9 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -26,6 +28,18 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 		this._Fixture = fixture;
 		this._Http = fixture.HttpClient;
 		this._AuthClient = new TestAuthClient(this._Http);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var token = await this._CreateUnprivilegedStaffTokenAsync();
+
+		using var response = await this._Http.SendAsync(
+			new HttpRequestMessage(HttpMethod.Get, FindStaffProfilesSpec._GetUrl())
+				.WithSessionToken(token)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
 	private static string _GetUrl(string query = "") {
@@ -115,9 +129,61 @@ public sealed class FindStaffProfilesSpec : IClassFixture<ApiFixture> {
 		return profile.GetRequiredId();
 	}
 
+	[Fact]
+	public async Task ItShouldReturnTheWholeFilteredCollectionTotal() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"totals-{Guid.NewGuid():N}";
+		_ = await this._SeedStaffProfileAsync($"{marker}-a");
+		_ = await this._SeedStaffProfileAsync($"{marker}-b");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffProfilesSpec._GetUrl($"limit=1&q={marker}")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindStaffProfilesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.Data.Should().HaveCount(1);
+		result.TotalCount.Should().Be(2);
+	}
+
+	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
+		var email = $"no-perms-profiles-{Guid.NewGuid():N}@example.com";
+
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "NoPerm",
+			LastName = "Profiles",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+		_ = dbContext.User.Add(user);
+		_ = await dbContext.SaveChangesAsync();
+
+		var staffAccount = UserAccount.CreateStaffAccount(
+			user.GetRequiredId(),
+			AccountLevel.User
+		);
+		staffAccount.ValidateAccountType();
+		_ = dbContext.UserAccount.Add(staffAccount);
+		_ = await dbContext.SaveChangesAsync();
+
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+	}
+
 	private sealed record FindStaffProfilesResponse {
 		public List<StaffProfileItemResponse> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+		public int TotalCount { get; init; }
+		public int TotalAssignments { get; init; }
 	}
 
 	private sealed record StaffProfileItemResponse {

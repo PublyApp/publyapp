@@ -1,6 +1,7 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
@@ -76,19 +77,15 @@ export const OverviewListCard = ({
 			</div>
 		);
 	} else if (error) {
+		// A failed summary must never look like the empty inbox: the classified
+		// surface carries its own sentence, and inside this panel the only useful
+		// action is « Réessayer » (no « Retour à l'accueil »).
 		body = (
-			<StateSurface
-				tone="danger"
-				title={t('overview-error-title')}
-				actions={
-					<button
-						type="button"
-						className={buttonVariants({ variant: 'outline', size: 'sm' })}
-						onClick={onRetry}
-					>
-						{t('retry')}
-					</button>
-				}
+			<ErrorKindState
+				scale="inline"
+				panel
+				error={error}
+				onRetry={onRetry}
 				testId={`${testId}-error`}
 			/>
 		);

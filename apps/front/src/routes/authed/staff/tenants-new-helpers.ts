@@ -1,3 +1,5 @@
+import { slugify } from '@org/shared-ts/utils/string.utils';
+
 const TENANT_CODE_MIN_LENGTH = 3;
 const TENANT_CODE_MAX_LENGTH = 40;
 
@@ -15,13 +17,12 @@ export const isValidTenantCode = (code: string): boolean => {
 	);
 };
 
+export const slugifyTenantCode = (value: string): string =>
+	slugify(value).slice(0, 40);
+
 /** Preview-only fallback (never submitted) when the slug field is left blank. */
 export const slugifyTenantNamePlaceholder = (name: string): string =>
-	name
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '');
+	slugifyTenantCode(name);
 
 export type ImportedMemberRole = 'Admin' | 'User';
 

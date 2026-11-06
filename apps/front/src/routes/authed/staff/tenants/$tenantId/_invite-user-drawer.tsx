@@ -6,7 +6,7 @@ import {
 	IconX,
 } from '@tabler/icons-react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { ChangeEvent, DragEvent } from 'react';
+import type { ChangeEvent, DragEvent, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -755,6 +755,9 @@ type InviteTenantUserDrawerProps = {
 	onInvited: () => void;
 	onSessionExpired: () => void;
 	onDirtyChange?: (isDirty: boolean) => void;
+	/** #2291 M5: where Escape/close returns focus — the Invite button that
+	 * opened this drawer (or the page's Invite action for `?invite=1`). */
+	finalFocusRef?: RefObject<HTMLButtonElement | null>;
 };
 
 type InviteFileImportState = {
@@ -1044,6 +1047,7 @@ const InviteTenantUserDrawerInner = ({
 	onInvited,
 	onSessionExpired,
 	onDirtyChange,
+	finalFocusRef,
 }: InviteTenantUserDrawerProps) => {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -1184,7 +1188,10 @@ const InviteTenantUserDrawerInner = ({
 				onOpenChange(open);
 			}}
 		>
-			<DrawerContent data-testid="invite-tenant-user-drawer">
+			<DrawerContent
+				data-testid="invite-tenant-user-drawer"
+				finalFocus={finalFocusRef}
+			>
 				<DrawerHeader>
 					<DrawerTitle>{t('invite-tenant-user')}</DrawerTitle>
 					<DrawerDescription>

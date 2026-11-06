@@ -4,7 +4,7 @@ Date: 2026-08-30. Type: analysis. Issue: #1525, PR #1944.
 
 ## Why this record exists
 
-`apps/front/scripts/run-guarded.mts` defaults to `GUARD_TIMEOUT_SECONDS=300`.
+`apps/front/scripts/run-guarded.ts` defaults to `GUARD_TIMEOUT_SECONDS=300`.
 Issue #1525 demanded a ceiling "sufficiently large to not turn a loaded
 machine into a false positive — measure the real duration of each guard
 first, then fix the threshold with a frank margin, and document the number
@@ -12,7 +12,7 @@ and its justification". The round-1 review of #1944 found the claimed
 durations lived only in a header comment with no measurement artifact in the
 diff. This record is that artifact: what was measured, how, on what machine,
 and what the numbers do and do not justify. It supersedes the inline table
-previously carried in the `run-guarded.mts` header, which now points here.
+previously carried in the `run-guarded.ts` header, which now points here.
 
 ## Methodology
 
@@ -34,30 +34,30 @@ unless noted):
 
 | Guard test file | Idle | Loaded | Exit |
 | --- | --- | --- | --- |
-| `tools/vite/check-context-chunk-isolation.test.mts` | — | 164.7 s | 0 |
-| `scripts/guards/check-design-system.test.mts` | 15.2 s | — | 0 |
-| `scripts/guards/check-shared-ts-import-paths.test.mts` | 15.7 s | — | 0 |
-| `scripts/guards/check-typecheck-coverage.test.mts` | 15.5 s | — | 0 |
-| `scripts/guards/check-column-type-imports.test.mts` | 2.5 s | — | 0 |
-| `scripts/guards/check-shared-ts-node-resolution.test.mts` | 1.5 s | — | 0 |
-| `scripts/guards/verify-font-bundle.test.mts` | 1.4 s | — | 0 |
-| `scripts/guards/check-e2e-shared-constants.test.mts` | 1.0 s | — | 0 |
-| `scripts/guards/search-cancel-css-policy.test.mts` | 0.5 s | — | 0 |
-| `scripts/guards/check-guard-coverage.test.mts` | 0.6 s | — | 0 |
-| `scripts/guards/check-react-compiler.test.mts` | 0.3 s | — | 0 |
-| `scripts/guards/check-zindex-guard.test.mts` (full suite, 181-182 tests) | 40.7 s / 44.2 s | 216.5 s | 0 |
+| `tools/vite/check-context-chunk-isolation.test.ts` | — | 164.7 s | 0 |
+| `scripts/guards/check-design-system.test.ts` | 15.2 s | — | 0 |
+| `scripts/guards/check-shared-ts-import-paths.test.ts` | 15.7 s | — | 0 |
+| `scripts/guards/check-typecheck-coverage.test.ts` | 15.5 s | — | 0 |
+| `scripts/guards/check-column-type-imports.test.ts` | 2.5 s | — | 0 |
+| `scripts/guards/check-shared-ts-node-resolution.test.ts` | 1.5 s | — | 0 |
+| `scripts/guards/verify-font-bundle.test.ts` | 1.4 s | — | 0 |
+| `scripts/guards/check-e2e-shared-constants.test.ts` | 1.0 s | — | 0 |
+| `scripts/guards/search-cancel-css-policy.test.ts` | 0.5 s | — | 0 |
+| `scripts/guards/check-guard-coverage.test.ts` | 0.6 s | — | 0 |
+| `scripts/guards/check-react-compiler.test.ts` | 0.3 s | — | 0 |
+| `scripts/guards/check-zindex-guard.test.ts` (full suite, 181-182 tests) | 40.7 s / 44.2 s | 216.5 s | 0 |
 | `scripts/ci/run-guarded.test.ts` (+ env-var suite, vitest) | ~11.5 s | — | 0 |
 
-The slowest guard sampled under load is `check-zindex-guard.test.mts` at
-216.5 s, ahead of `check-context-chunk-isolation.test.mts` at 164.7 s; for
+The slowest guard sampled under load is `check-zindex-guard.test.ts` at
+216.5 s, ahead of `check-context-chunk-isolation.test.ts` at 164.7 s; for
 zindex the loaded run was 5.3x the idle run. The heaviest single zindex test
 (`unmodified repository passes with zero violations`) builds the ENTIRE real
 app through `vite.createBuilder` and measured 118 s alone under load.
 
 ## What the numbers justify
 
-- The slowest guard measured under load in this sample was `check-zindex-guard.test.mts`
-  at 216.5 s, ahead of `check-context-chunk-isolation.test.mts` at 164.7 s. A 300 s
+- The slowest guard measured under load in this sample was `check-zindex-guard.test.ts`
+  at 216.5 s, ahead of `check-context-chunk-isolation.test.ts` at 164.7 s. A 300 s
   ceiling is ~1.4x that 216.5 s figure — a **modest** margin, deliberately not called
   "ample" anywhere in the code. Only the sampled runs on this machine, on this date,
   stayed under the ceiling; this does not generalize to other machines, other guards,

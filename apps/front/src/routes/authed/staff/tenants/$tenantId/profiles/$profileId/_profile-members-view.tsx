@@ -121,6 +121,7 @@ export const ProfileMembersView = ({
 						queryState={{
 							isPending: membersQuery.isPending,
 							isError: membersQuery.isError,
+							error: membersQuery.error,
 							onRetry: () => void membersQuery.refetch(),
 							hasActiveSearch: Boolean(membersController.search.committed),
 						}}

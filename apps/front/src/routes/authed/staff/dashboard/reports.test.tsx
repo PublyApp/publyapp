@@ -62,13 +62,14 @@ vi.mock('@tanstack/react-router', () => ({
 
 const EN_LABELS: TestLabelMap = {
 	export: 'Export',
+	format: 'Export format',
 	'export-complete': 'Export complete',
 	'export-failed': 'Export failed',
 	exporting: 'Exporting…',
 	'analytics-reports': 'Analytics & reports',
 	'reports-coming-later-title': 'Analytics & reports are coming later',
 	'reports-coming-later-description':
-		'Usage dashboards and scheduled report summaries will appear here once the analytics API ships.',
+		'Usage dashboards and scheduled report summaries will appear here soon.',
 	'reports-download': 'Download export',
 	'reports-export-description':
 		'Download every recorded audit event as CSV or JSON. Filtered exports are available from the audit logs page.',
@@ -109,6 +110,13 @@ describe('StaffDashboardReportsTab', () => {
 			screen.getByTestId('staff-dashboard-reports-export-card'),
 		).toBeTruthy();
 		expect(screen.getByTestId('staff-dashboard-reports-format')).toBeTruthy();
+		// #2291 H5: the combobox needs an explicit accessible name; the visible
+		// « csv » value is not one.
+		expect(
+			screen
+				.getByTestId('staff-dashboard-reports-format')
+				.getAttribute('aria-label'),
+		).toBe('Export format');
 		const download = screen.getByTestId('staff-dashboard-reports-download');
 		expect(download.textContent).toContain('Download export');
 

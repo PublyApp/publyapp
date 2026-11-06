@@ -40,7 +40,7 @@ export const EXPECTED_VERIFICATION_JOB_KEYS = [
 
 /**
  * The one job allowed to carry the nested front non-Vitest report. It is the
- * only job that runs `run-non-vitest-report-all.mts`, and the aggregate gate
+ * only job that runs `run-non-vitest-report-all.ts`, and the aggregate gate
  * requires the report on exactly this job's `front` lane.
  */
 export const FRONT_REPORT_JOB_ID = 'front-build';

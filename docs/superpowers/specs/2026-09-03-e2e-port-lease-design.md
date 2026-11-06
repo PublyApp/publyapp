@@ -35,7 +35,7 @@ the band available again.
 
 ## Components and Interface
 
-`e2e-compose-env.mts` will expose one asynchronous reservation operation. It
+`e2e-compose-env.ts` will expose one asynchronous reservation operation. It
 returns:
 
 - the closed set of Compose environment variables required by the E2E stack;
@@ -46,7 +46,7 @@ The reservation helper owns all partial-acquisition cleanup. If project-name
 derivation, service-port inspection, environment construction, or abort
 handling fails after a lease binds, it closes the server before rejecting.
 
-`run-e2e-front.mts` will be the only production owner of a reservation. It
+`run-e2e-front.ts` will be the only production owner of a reservation. It
 installs its `SIGINT` and `SIGTERM` handlers before reservation begins, stores
 the reservation only after successful acquisition, and releases it from the
 outer lifecycle cleanup.

@@ -22,12 +22,20 @@ const FilterButton = ({
 	...props
 }: ComponentProps<typeof Button> & { activeCount: number }) => {
 	const { t } = useTranslation('common');
+	// WCAG 2.5.3: the accessible name must start with the visible label
+	// (« Filtres 1 »), not merely contain the same words in another form.
+	const label = t('list-filters');
+	const accessibleLabel =
+		activeCount > 0
+			? `${label} ${activeCount} — ${t('list-filter-active', { count: activeCount })}`
+			: label;
+
 	return (
 		<Button
 			{...props}
 			type="button"
 			variant="outline"
-			aria-label={`${t('list-filters')} · ${t('list-filter-active', { count: activeCount })}`}
+			aria-label={accessibleLabel}
 		>
 			<IconFilter data-icon="inline-start" />
 			{t('list-filters')}

@@ -33,7 +33,6 @@ import {
 	getRelativeTimeParts,
 	TenantDetailsError,
 	TenantDetailsLoading,
-	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 import { TenantEditPreviewAside } from './_tenantId-edit-preview';
 import {
@@ -143,9 +142,6 @@ const StaffTenantEditRoute = () => {
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-edit-not-found"
-			actions={
-				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-			}
 		/>
 	);
 

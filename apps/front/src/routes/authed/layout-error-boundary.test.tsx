@@ -67,7 +67,7 @@ describe('authed layout 500 branch renders a translated code, not a hardcoded En
 	// cannot distinguish a real t('error-500-code') call from a hardcoded
 	// string that happens to match — it would pass against either. Spying on
 	// the i18n instance's `t` proves the translation path is actually taken.
-	test('English: renders the translated 500 code, calling t() rather than a hardcoded literal', () => {
+	test('English: paints the human 500 title and still resolves the tone code through t()', () => {
 		const i18n = buildI18n('en');
 		const tSpy = vi.spyOn(i18n, 't');
 
@@ -77,20 +77,21 @@ describe('authed layout 500 branch renders a translated code, not a hardcoded En
 			</I18nextProvider>,
 		);
 
-		expect(screen.getByText('500 — Server Error')).toBeTruthy();
+		expect(screen.queryByText('500 — Server Error')).toBeNull();
+		expect(screen.getByText('Unable to load')).toBeTruthy();
 		expect(
 			tSpy.mock.calls.some((call) => Object.is(call[0], 'error-500-code')),
 		).toBe(true);
 	});
 
-	test('French: renders the French 500 code, not the hardcoded English literal', () => {
+	test('French: paints the French 500 title, not the hardcoded English literal', () => {
 		render(
 			<I18nextProvider i18n={buildI18n('fr')}>
 				<AuthedLayoutErrorBoundary error={new Error('boom')} reset={vi.fn()} />
 			</I18nextProvider>,
 		);
 
-		expect(screen.getByText('500 — Erreur serveur')).toBeTruthy();
-		expect(screen.queryByText('500 — Server Error')).toBeNull();
+		expect(screen.getByText('Impossible de charger')).toBeTruthy();
+		expect(screen.queryByText('Unable to load')).toBeNull();
 	});
 });
