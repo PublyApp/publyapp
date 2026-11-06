@@ -10,7 +10,6 @@ import { FloatingSelectionBar } from '~/components/table/floating-selection-bar'
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import {
 	toStaffProfileRows,
@@ -65,16 +64,19 @@ const StaffProfilesPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: search.members.join(','),
+		cursorResetKey: [search.members.join(','), search.type.join(',')].join('|'),
 	});
-	const query = useStaffProfilesQuery({
+	const listVariables = {
 		q: controller.apiVariables.q,
 		sortId: controller.apiVariables.sortId,
 		sortOrder: controller.apiVariables.sortOrder,
 		cursor: controller.apiVariables.cursor,
 		limit: controller.apiVariables.size,
-	});
-	const team = useStaffTeamOverview();
+	};
+	const query = useStaffProfilesQuery(listVariables);
+	// The overview publishes these variables as the counter only while they
+	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
+	const team = useStaffTeamOverview({ profiles: listVariables });
 	const rows = toStaffProfileRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const listSelection = buildListSelection(
@@ -84,10 +86,8 @@ const StaffProfilesPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
+	// `totalCount`/`totalAssignments` cover the whole filtered collection.
+	const countsKnown = query.data !== undefined;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -103,7 +103,10 @@ const StaffProfilesPage = () => {
 		[navigate],
 	);
 
-	const filtersValue: ListFiltersValue = { members: search.members };
+	const filtersValue: ListFiltersValue = {
+		members: search.members,
+		type: search.type,
+	};
 
 	const setFilters = (next: ListFiltersValue): void => {
 		selection.clearSelection();
@@ -112,6 +115,7 @@ const StaffProfilesPage = () => {
 				...search,
 				members: (next.members ??
 					[]) as StaffProfileListSearchParams['members'],
+				type: (next.type ?? []) as StaffProfileListSearchParams['type'],
 				cursor: undefined,
 			}),
 			replace: true,
@@ -132,7 +136,6 @@ const StaffProfilesPage = () => {
 			testId="staff-profiles-table"
 			ariaLabel={t('profiles')}
 			title={t('profiles')}
-			description={t('staff-profiles-page-description')}
 			searchPlaceholder={t('search-profiles')}
 			rows={rows}
 			columns={staffProfileColumns(t)}
@@ -158,12 +161,16 @@ const StaffProfilesPage = () => {
 			filters={buildStaffProfileFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			countsKnown={team.counts.profiles !== null}
-			countRows={team.profiles ?? []}
-			totalsKnown={collectionComplete}
+			countsKnown={countsKnown}
 			emptyText={t('list-empty-staff-profiles')}
 			locale={i18n.language}
-			totals={(visible) => buildStaffProfileTotals(t, visible)}
+			totals={() =>
+				buildStaffProfileTotals(
+					t,
+					query.data?.totalCount,
+					query.data?.totalAssignments,
+				)
+			}
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'profiles',
@@ -199,15 +206,15 @@ const StaffProfilesPage = () => {
 				</DataTableRowActions>
 			)}
 			onExport={() => exportStaffProfileRows(rows, t)}
-			newAction={
-				<Link to="/staff/profiles/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('new-profile')}
-				</Link>
-			}
+			newAction={{
+				label: t('new-profile'),
+				icon: IconPlus,
+				to: '/staff/profiles/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={

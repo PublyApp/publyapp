@@ -17,7 +17,6 @@ import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { NeutralAuthedShell } from '~/components/app-shell/neutral-authed-shell';
-import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { AppToaster } from '~/components/ui/toaster';
 import {
@@ -29,6 +28,7 @@ import { isAuthPath } from '~/lib/auth/auth-paths';
 import { serializePublicRuntimeEnv } from '~/lib/env';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
+import { useOnline } from '~/lib/hooks/use-online';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 import { registerMutationToastI18n } from '~/lib/mutation-feedback/mutation-toast';
 import {
@@ -44,7 +44,10 @@ import {
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
 } from '~/lib/session/session-scope';
-import { SessionSurfaceValidationProvider } from '~/lib/session/session-surface-recovery-context';
+import {
+	SessionSurfaceValidationProvider,
+	useSessionSurfaceValidation,
+} from '~/lib/session/session-surface-recovery-context';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -76,12 +79,14 @@ import { withSessionValidationTimeout } from '@org/shared-ts/lib/session-validat
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
+import { OfflineView } from '../components/error-views/OfflineView';
 import { View403 } from '../components/error-views/View403';
 import { View404 } from '../components/error-views/View404';
 import type { AuthBrand } from '../layouts/auth-layout';
 import { AuthLayout } from '../layouts/auth-layout';
 import { AuthedLayout } from '../layouts/authed-layout';
 import { MarketingLayout } from '../layouts/marketing-layout';
+import { resolveQueryError } from '../lib/server/query-error-resolver';
 import appCss from '../styles/app.css?url';
 
 type RootRouteContext = {
@@ -229,11 +234,17 @@ const RootErrorBoundaryContent = ({
 	});
 	const router = useRouter();
 	const { t } = useTranslation('common');
+	const online = useOnline();
 	const routeStatus = getRouteFailureStatus(error);
 	const retry = () => {
 		reset();
 		void router.invalidate();
 	};
+	const resolved = resolveQueryError(error, t, online);
+
+	if (!online) {
+		return <OfflineView reset={reset} embedded={false} />;
+	}
 
 	if (routeStatus === 401) {
 		if (isAuthPath(pathname)) {
@@ -287,20 +298,12 @@ const RootErrorBoundaryContent = ({
 	return (
 		<AppErrorView
 			embedded={false}
+			error={error}
+			kind={resolved.kind}
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
 			title={t('something-went-wrong')}
 			description={t('unexpected-app-error-description')}
-			actions={
-				<>
-					<Button variant="default" onClick={retry} type="button">
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
-			}
+			onRetry={retry}
 		/>
 	);
 };
@@ -318,7 +321,83 @@ export const RootErrorBoundary = ({
 	reset: () => void;
 }) => <RootErrorBoundaryContent error={error} reset={reset} />;
 
-const RootNotFound = () => <View404 embedded={false} />;
+const isAuthedAreaPath = (pathname: string): boolean =>
+	pathname === '/staff' ||
+	pathname.startsWith('/staff/') ||
+	pathname === '/tenant' ||
+	pathname.startsWith('/tenant/');
+
+/**
+ * Whether an authed-prefix URL should keep the app shell. An exact authed
+ * match always does (its layout's `beforeLoad` owns the login redirect). An
+ * UNKNOWN `/staff/*` or `/tenant/*` URL only matches the pathless authed
+ * layout, so it must also prove a session exists for that surface — without
+ * a token it is the public 404, not an inert skeleton shell (M-1). The
+ * `isHydrated` guard keeps the server render (no `document`, hence no
+ * session cookie) identical to the first client render.
+ */
+const resolveWantsAuthedChrome = ({
+	hasAuthedLayoutMatch,
+	hasAuthedRouteMatch,
+	isHydrated,
+	pathname,
+}: {
+	hasAuthedLayoutMatch: boolean;
+	hasAuthedRouteMatch: boolean;
+	isHydrated: boolean;
+	pathname: string;
+}): boolean => {
+	if (hasAuthedRouteMatch) {
+		return true;
+	}
+
+	if (!isAuthedAreaPath(pathname) || !hasAuthedLayoutMatch) {
+		return false;
+	}
+
+	return (
+		isHydrated &&
+		Boolean(
+			determineSessionToken(getSessionTokensFromBrowser(), pathname).token,
+		)
+	);
+};
+
+export const RootNotFound = () => {
+	const isHydrated = useHydrated();
+	const matches = useMatches();
+	const pathname = useLocation({
+		select: (location) => location.pathname,
+	});
+	const surfaceSession = useSessionSurfaceValidation();
+	const hasAuthedRouteMatch = hasExactAuthedRouteMatch(matches, pathname);
+	// Inside an authed prefix the shell already supplies the page frame, so
+	// the 404 is embedded exactly like View403 is. Marketing/auth keep the
+	// full-viewport `<main>`. An UNKNOWN authed-prefix URL only embeds once the
+	// surface session is proven valid — a stale or forged cookie must keep the
+	// genuine public 404 (PR #997), never an inert skeleton around it.
+	const embedded =
+		resolveWantsAuthedChrome({
+			hasAuthedLayoutMatch: matches.some(
+				(match) => match.routeId === '/_authed-layout',
+			),
+			hasAuthedRouteMatch,
+			isHydrated,
+			pathname,
+		}) &&
+		(hasAuthedRouteMatch ||
+			shouldRenderAuthenticatedChrome({
+				failureStatus:
+					surfaceSession.status === 'error'
+						? getRouteFailureStatus(surfaceSession.error)
+						: undefined,
+				isHydrated,
+				queryData: surfaceSession.data,
+				queryStatus: surfaceSession.status,
+			}));
+
+	return <View404 embedded={embedded} />;
+};
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n/client');
@@ -481,6 +560,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 
 			return {
 				hasAuthedRouteMatch: hasExactAuthedRouteMatch(matches, pathname),
+				// Unknown paths under /staff or /tenant still match the pathless
+				// authed layout (their deepest match is the layout itself). That
+				// is what lets the not-found render inside the app shell.
+				hasAuthedLayoutMatch: matches.some(
+					(match) => match.routeId === '/_authed-layout',
+				),
 				pathname,
 				search: match?.search ?? {},
 			};
@@ -489,6 +574,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	const pathname = location.pathname;
 	const surface = resolveRouteSurface(pathname);
 	const sessionSurface = getSessionSurface(pathname);
+	const wantsAuthedChrome = resolveWantsAuthedChrome({
+		hasAuthedLayoutMatch: location.hasAuthedLayoutMatch,
+		hasAuthedRouteMatch: location.hasAuthedRouteMatch,
+		isHydrated,
+		pathname,
+	});
 	// Appending `hasAuthedRouteMatch` gives the query a different identity
 	// the moment the route stops being an exact authenticated match (e.g.
 	// navigating from a known /staff/* route to an unknown one under the
@@ -502,10 +593,14 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// stopped matching (PR #997 finding 2). Changing the key identity here
 	// makes the observer move to a new (disabled, never-fetched) query,
 	// which detaches it from the old one and fires its abort signal.
-	const surfaceRedirectCodeQueryKey = [
-		...getSurfaceRedirectCodeQueryKey(sessionSurface),
-		location.hasAuthedRouteMatch,
-	] as const;
+	// One entry per surface — deliberately NOT keyed by route exactness: an
+	// unknown authed-prefix path must be able to read the session a previous
+	// exact route already validated (so a signed-in user's stale link renders
+	// the 404 inside the shell), while the query itself only ever FETCHES on an
+	// exact match. A cold load of an unknown path therefore never validates a
+	// cookie (PR #997: the 404 stays genuine).
+	const surfaceRedirectCodeQueryKey =
+		getSurfaceRedirectCodeQueryKey(sessionSurface);
 	const surfaceSessionState = useQuery<string | null>({
 		queryKey: surfaceRedirectCodeQueryKey,
 		queryFn: async ({ signal }): Promise<string | null> => {
@@ -563,6 +658,12 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 		queryData: surfaceSessionState.data,
 		queryStatus: surfaceSessionState.status,
 	});
+	// Unknown authed-prefix paths keep the shell only once the session is
+	// proven; otherwise they are ordinary public 404s (never an inert skeleton
+	// holding a 404 that a stale cookie cannot unlock).
+	const rendersAuthedChrome =
+		wantsAuthedChrome &&
+		(location.hasAuthedRouteMatch || canRenderAuthenticatedChrome);
 	const [brand, setBrand] = React.useState<AuthBrand | undefined>(undefined);
 
 	// `_authed-layout` also matches an unknown path under an authed prefix
@@ -572,7 +673,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// exact-match one, so an unknown /staff/* path renders the layout's own
 	// 404 instead of crashing on a missing provider.
 	let shellContent: React.ReactNode;
-	if (location.hasAuthedRouteMatch) {
+	if (rendersAuthedChrome) {
 		// Only the exact `/tenant` portal root renders bare (no AppShell): the
 		// picker is its own SimpleLayout surface. Every `/tenant/*` CHILD path
 		// mounts inside the authed shell like any staff surface — the
@@ -668,27 +769,12 @@ const RootShell = ({ children }: { children: React.ReactNode }) => {
 				<HeadContent />
 				<meta name="csp-nonce" content={cspNonce || undefined} />
 				<title>{t(isLogin ? 'seo-login-title' : 'seo-default-title')}</title>
-				<link
-					rel="preload"
-					href="/fonts/geist/geist-sans-latin-400.woff2"
-					as="font"
-					type="font/woff2"
-					crossOrigin="anonymous"
-				/>
-				<link
-					rel="preload"
-					href="/fonts/geist/geist-sans-latin-500.woff2"
-					as="font"
-					type="font/woff2"
-					crossOrigin="anonymous"
-				/>
-				<link
-					rel="preload"
-					href="/fonts/geist/geist-sans-latin-600.woff2"
-					as="font"
-					type="font/woff2"
-					crossOrigin="anonymous"
-				/>
+				{/* #2291 L1: no font preloads. The three self-hosted Geist
+				    weights are declared by @font-face and requested by the
+				    stylesheet when a rendered weight needs them; preloading
+				    them unconditionally made Chromium warn that the preloaded
+				    resource went unused on pages that render none of those
+				    weights. */}
 				<script
 					nonce={cspNonce || undefined}
 					suppressHydrationWarning

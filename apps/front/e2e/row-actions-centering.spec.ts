@@ -188,6 +188,9 @@ test.describe(
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
+			// The staff home is the dashboard since the admin redesign: go to the
+			// staff-members list explicitly before measuring its rows.
+			await page.goto('/staff/staff-users');
 			await expect(page.getByTestId('staff-users-table-rows')).toBeVisible();
 
 			const firstRow = page

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, expect, test } from 'vitest';
 
-import { makeQueueColumns } from './_columns';
+import { queueColumns } from './_jobs-list-config';
 import {
 	externalStateStatusLabel,
 	externalStateStatusTone,
@@ -15,7 +15,7 @@ const t = (key: string): string => key;
 describe('queue status presentation', () => {
 	test('maps wire statuses to label keys and tones', () => {
 		expect(queueStatusLabel(t, 'pending')).toBe('queue-status-pending');
-		expect(queueStatusTone('processing')).toBe('warning');
+		expect(queueStatusTone('processing')).toBe('info');
 		expect(queueStatusTone('failed')).toBe('danger');
 	});
 
@@ -54,30 +54,28 @@ describe('isPayloadRedacted', () => {
 	});
 });
 
-describe('makeQueueColumns', () => {
-	test('exposes the contract-backed column set with widths and hidden-below breakpoints', () => {
-		const columns = makeQueueColumns(t, 'en', () => {});
-
-		const metaById = Object.fromEntries(
-			columns.map((column) => [
-				column.id,
-				{
-					width: column.meta?.width,
-					hideBelow: column.meta?.hideBelow,
-				},
-			]),
+describe('queueColumns', () => {
+	test('exposes the contract-backed column set with widths', () => {
+		const columns = queueColumns(t, 'en');
+		const widths = Object.fromEntries(
+			columns.map((column) => [column.id, column.width]),
 		);
 
-		expect(Object.keys(metaById)).toEqual([
-			'job_type',
+		expect(Object.keys(widths)).toEqual([
+			'type',
+			'what',
 			'status',
+			'org',
 			'attempts',
-			'tenant_id',
-			'next_attempt_at',
-			'actions',
+			'priority',
+			'next',
+			'error',
+			'worker',
 		]);
-		expect(metaById.job_type).toEqual({ width: '240px', hideBelow: undefined });
-		expect(metaById.attempts).toEqual({ width: '100px', hideBelow: 768 });
-		expect(metaById.tenant_id).toEqual({ width: '180px', hideBelow: 1024 });
+		expect(widths.type).toBe(360);
+		expect(widths.attempts).toBe(150);
+		expect(widths.priority).toBe(130);
+		expect(widths.org).toBe(190);
+		expect(widths.error).toBe(380);
 	});
 });

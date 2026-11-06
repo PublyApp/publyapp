@@ -1,9 +1,9 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
-import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
@@ -111,19 +111,11 @@ const StaffDashboardActivityTab = () => {
 						</div>
 					}
 					ErrorSlot={
-						<StateSurface
-							tone="danger"
-							title={t('failed-to-load-activity')}
-							description={t('failed-to-load-activity-description')}
-							actions={
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => void query.refetch()}
-								>
-									{t('common:retry')}
-								</Button>
-							}
+						<ErrorKindState
+							scale="inline"
+							panel
+							error={query.error}
+							onRetry={() => void query.refetch()}
 							testId="staff-dashboard-activity-error"
 						/>
 					}

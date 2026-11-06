@@ -152,7 +152,7 @@ The worst entries in the "large functions" list are real, and they are worth see
 
 | File | Symbol | Lines |
 | --- | --- | --- |
-| `apps/front/scripts/guards/check-zindex-guard.mts:881` | `scanZIndexFile` | 3,246 (file is 5,286) |
+| `apps/front/scripts/guards/check-zindex-guard.ts:881` | `scanZIndexFile` | 3,246 (file is 5,286) |
 | `apps/front/src/components/ui/drawer-form.test.tsx:10060` | `describe("drawer surface flex chain guard (#990)")` | 3,164 (file is 13,223) |
 | `apps/front/src/styles/drawer-description-contrast.test.ts:3509` | `describe(…)` | 2,037 (5,545) |
 | `packages/lint-ts/src/publy/func-style-config.test.ts:689` | `describe(…)` | 1,526 (2,214) |
@@ -187,8 +187,8 @@ reviewable entries.
 Unconfigured, fallow reports **0 boundary violations** (it has nothing to check) on an
 `architecture` run of 2.6 s. Its only architecture finding on this tree is the one circular
 dependency that `dead-code` also reports:
-`apps/front/scripts/guards/check-design-system-runner-probe.mts` ↔
-`check-design-system.test.mts`.
+`apps/front/scripts/guards/check-design-system-runner-probe.ts` ↔
+`check-design-system.test.ts`.
 
 Its model, read from `fallow config-schema` (`BoundaryConfig` → `BoundaryZone`, `BoundaryRule`,
 `BoundaryCoverageConfig`, `BoundaryCallsConfig`, plus presets `layered` / `hexagonal` /
@@ -237,29 +237,29 @@ transitive dependency"* — not usable as findings).
 
 | Disposition | Count | Files |
 | --- | --- | --- |
-| Explicitly declared as `entry` in `knip.ts` | 14 | `apps/api/run-dev.mjs`; `apps/front/deploy/request-counter/server.mjs`; the four `e2e/helpers/*` targets; `scripts/e2e-compose-env.contention-harness.mts`; `scripts/generate/generate-route-tree.mts`; `scripts/generate/generate-suppression-inventory.mts`; `scripts/run-e2e-front.signal-harness.mts`; `src/components/table/column-distribute.typecheck.ts`; `src/components/ui/drawer-guard-tmp-dir.cjs`; `tools/ci/node-24-type-stripping.mts`; `vitest.proofs.config.ts` |
+| Explicitly declared as `entry` in `knip.ts` | 14 | `apps/api/run-dev.mjs`; `apps/front/deploy/request-counter/server.mjs`; the four `e2e/helpers/*` targets; `scripts/e2e-compose-env.contention-harness.ts`; `scripts/generate/generate-route-tree.ts`; `scripts/generate/generate-suppression-inventory.ts`; `scripts/run-e2e-front.signal-harness.ts`; `src/components/table/column-distribute.typecheck.ts`; `src/components/ui/drawer-guard-tmp-dir.cjs`; `tools/ci/node-24-type-stripping.ts`; `vitest.proofs.config.ts` |
 | Covered by knip's `packages/scripts-ts` entry pattern `src/*.ts` | 4 | `src/_review-launcher.fixture.ts`, `src/deploy-images.ts`, `src/gen-reason-ref.ts`, `src/review-front.ts` |
 | Inside knip.ts's directory `ignore` (`packages/lint-ts/src/anti-slop/**`) | 2 | `src/anti-slop/effect/index.ts`, `src/anti-slop/effect/rules/no-service-constructor-imports.ts` |
 | knip's own config file | 1 | `knip.ts` |
-| **Not explained by knip's config** | **3** | `apps/front/scripts/ci/compose-startup.test.mts`; `apps/front/tools/ci/node-24-type-stripping.test.mts`; `apps/front/tools/ci/node-24-type-stripping-lib.mts` |
+| **Not explained by knip's config** | **3** | `apps/front/scripts/ci/compose-startup.test.ts`; `apps/front/tools/ci/node-24-type-stripping.test.ts`; `apps/front/tools/ci/node-24-type-stripping-lib.ts` |
 
 Those last three are the only genuinely new dead-code signal, and they split two ways:
 
-- `compose-startup.test.mts` — **fallow false positive.** Knip treats `*.test.mts` as an entry;
+- `compose-startup.test.ts` — **fallow false positive.** Knip treats `*.test.ts` as an entry;
   fallow does not see the reference because it lives in `apps/front/package.json`'s
   `ciNonVitestCommandInventory` array (a command inventory the guard scripts parse), not in a
   `scripts.*` value. The file is run by CI.
-- `node-24-type-stripping.test.mts` — **likely a true positive that knip structurally cannot
+- `node-24-type-stripping.test.ts` — **likely a true positive that knip structurally cannot
   report.** Nothing runs it: not in the justfile, not in `.github/workflows/*`, not in
   `apps/front/package.json`, and `apps/front/vitest.config.ts`'s `include` list does not reach
   `tools/ci/`. Knip's automatic test-entry classification keeps it quiet.
-- `node-24-type-stripping-lib.mts` — true positive by transitivity: its only importer is the
+- `node-24-type-stripping-lib.ts` — true positive by transitivity: its only importer is the
   unrun test above.
 
 ### The 38 unused exports/types: mostly "over-exported", not dead
 
 I measured each of the 38 names by textual reference count across `apps/` and `packages/`
-(`*.ts|*.tsx|*.mts|*.cts`). Seven occur exactly once — the definition itself:
+(`*.ts|*.tsx|*.ts|*.cts`). Seven occur exactly once — the definition itself:
 
 | Name | File | Reading |
 | --- | --- | --- |
@@ -283,7 +283,7 @@ identically by fallow:
 | --- | --- |
 | `buildTenantActivityQueryParameters`, `tenantActivityQueryOptions` | `ignoreIssues['src/lib/query/staff-tenant-activity.ts']` — "self-consumption false positive: knip does not trace the chain across the `buildStaffQueryOptions()`/`useQuery()` generic boundary" |
 | `BulkUnassignStaffProfileUsersInput` | `ignoreIssues['src/lib/query/staff-profile-users.ts']` — "knip cannot trace the type through the `build*()` generic" |
-| `CopyAttribution` | `tools/vite/check-context-chunk-isolation.mts` entry comment — a type-probe target whose exports are type-only |
+| `CopyAttribution` | `tools/vite/check-context-chunk-isolation.ts` entry comment — a type-probe target whose exports are type-only |
 
 So on the type-generic boundary, fallow is **not better than knip; it is the same**. Enabling
 fallow's opt-in type-aware mode (`--type-aware`, which loads the separate `fallow-type-aware`
@@ -335,7 +335,7 @@ they include the API, where the business logic lives.
 | Wish | Verdict | Measured cost | Maintenance cost |
 | --- | --- | --- | --- |
 | **Dead code** (knip's job) | **Keep as is — keep knip.** | knip 24.4 s / 648 MB, currently green. fallow 7.4 s / 197 MB, 67 findings. | Replacing knip means porting 232 lines of `knip.ts` — including the regex that extracts guard entry points from `apps/front/package.json` and the 6 scoped `ignoreIssues` — into a fallow config, and then still needing entries for the 21 runtime-discovered paths fallow flagged. That is a second config to keep truthful, for a 3× speed win and 2 real findings. Not worth it. |
-| **Duplication** | **Add fallow alongside.** | 3.8 s / 194 MB standalone; ≈2 s incremental inside a warm bare run. | +1 pinned devDependency (`fallow` 3.37.0: 1.8 MB unpacked main package, `detect-libc`, 8 platform binary packages + `fallow-type-aware`), +1 root config with exclusions (`packages/client-ts`, the `app.css` font block), +1 CI step, +1 failure mode (a percentage threshold). In this repo that step is not free: any new `check:`/`verify:` script must route through `apps/front/scripts/run-guarded.mts` (enforced by `check-guard-coverage.mts`) and must be reconciled with `packages/scripts-ts/src/ci-gate-manifest.json` or `just ci-drift` fails. |
+| **Duplication** | **Add fallow alongside.** | 3.8 s / 194 MB standalone; ≈2 s incremental inside a warm bare run. | +1 pinned devDependency (`fallow` 3.37.0: 1.8 MB unpacked main package, `detect-libc`, 8 platform binary packages + `fallow-type-aware`), +1 root config with exclusions (`packages/client-ts`, the `app.css` font block), +1 CI step, +1 failure mode (a percentage threshold). In this repo that step is not free: any new `check:`/`verify:` script must route through `apps/front/scripts/run-guarded.ts` (enforced by `check-guard-coverage.ts`) and must be reconciled with `packages/scripts-ts/src/ci-gate-manifest.json` or `just ci-drift` fails. |
 | **Health / complexity** | **Keep as is for gating; add fallow health only as an advisory tool, never a gate.** | oxlint 19.9 s / 2.0 GB with **0 errors and 0 `complexity` findings** at ceilings 60/90/125. fallow 4.6 s / 233 MB with 552 findings at threshold 20. | As a gate it costs a threshold policy decision (re-cut 20/15/30/60 to something above the repo's ratified 60/125) plus a new CI step. As an advisory it costs nothing but a recipe and does surface real facts — 1,160 functions over 60 LOC, a 3,246-line `scanZIndexFile` — that nothing else reports today. Its hotspot list needs `packages/client-ts` excluded before it is readable. |
 | **Architecture boundaries** | **Keep as is.** | fallow `architecture` 2.6 s, 0 boundary violations unconfigured, and it cannot express any of the 7 rules in the mapping table above. | Configuring zones would buy one new rule class (generic layering) at the cost of a second boundary system alongside the guards that already fail loud and are test-pinned. Not justified by this measurement. |
 
@@ -389,7 +389,7 @@ model that this repo's rules do not fit into.
     payload inspection, but I did not capture network traffic to prove no datagram left the host.
 12. **Cost of a second tool is undercounted.** I did not measure the CI wall-clock cost of the new
     guard wrapper, the `ci-gate-manifest.json` reconciliation or the justfile recipe — I only
-    observed, from `AGENTS.md` and `check-guard-coverage.mts`, that they are mandatory here.
+    observed, from `AGENTS.md` and `check-guard-coverage.ts`, that they are mandatory here.
 13. **Nothing was migrated.** `fallow migrate knip`, `fallow init`, `fallow agent`, `fallow hooks`
     and `fallow fix` were deliberately not run — each writes a config, a Git hook or agent
     wiring, which this measurement is forbidden to leave behind.

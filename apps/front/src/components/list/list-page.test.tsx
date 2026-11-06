@@ -83,7 +83,9 @@ const renderPage = (
 		q?: string;
 		data?: Row[];
 		isError?: boolean;
+		error?: unknown;
 		errorContent?: ReactNode;
+		headerActions?: boolean;
 	} = {},
 ) =>
 	render(
@@ -118,9 +120,20 @@ const renderPage = (
 				openLabel={(row) => `Ouvrir ${row.name}`}
 				mobileCard={(row) => ({ code: row.status, title: row.name })}
 				cards={<div data-testid="stats" />}
+				onExport={options.headerActions ? vi.fn() : undefined}
+				newAction={
+					options.headerActions
+						? {
+								label: 'Create profile',
+								icon: IconBuilding,
+								onSelect: vi.fn(),
+							}
+						: undefined
+				}
 				queryState={{
 					isPending: false,
 					isError: options.isError ?? false,
+					error: options.error,
 					onRetry: vi.fn(),
 				}}
 				errorContent={options.errorContent}
@@ -274,6 +287,71 @@ describe('ListPage', () => {
 
 		expect(screen.getByText('403 specific explanation')).toBeTruthy();
 		expect(screen.queryByText('list-error-default-description')).toBeNull();
-		expect(screen.getByRole('button', { name: 'retry' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
+	});
+
+	// #2291 / review-tokens non-blocking note 5: the 403-no-retry and
+	// 500-retry branches were wired but had no unit cover.
+	test('a 403 renders the access-denied copy without a retry action', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				error: { status: 403, detail: 'Permission revoked.' },
+			},
+		);
+
+		// Owner decision #2291: a 403 paints the translated copy, never the API's
+		// English `detail`.
+		expect(screen.getByText('no-access-title')).toBeTruthy();
+		expect(screen.getByText('forbidden-description')).toBeTruthy();
+		expect(screen.queryByText('Permission revoked.')).toBeNull();
+		expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
+	});
+
+	test('hides the desktop header actions below md and keeps the stats toggle', () => {
+		renderPage({}, { headerActions: true });
+
+		const exportButton = screen.getByRole('button', { name: /list-export/ });
+		expect(exportButton.className).toContain('max-md:hidden');
+		const create = screen.getByRole('button', { name: 'Create profile' });
+		expect(create.closest('span')?.className).toContain('max-md:hidden');
+		// The statistics chevron is not an action: it stays in the header.
+		expect(
+			screen.getByRole('button', { name: /list-stats/ }).className,
+		).not.toContain('max-md:hidden');
+	});
+
+	test('a 403 hides the page create/export chrome', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				headerActions: true,
+				error: { status: 403, detail: 'Permission revoked.' },
+			},
+		);
+
+		expect(screen.queryByRole('button', { name: 'Create profile' })).toBeNull();
+		expect(screen.queryByRole('button', { name: /list-export/ })).toBeNull();
+		// Exactly one action remains in the error body: the primary « Retour à
+		// l'accueil »; a 403 offers no retry.
+		const errorSurface = screen.getByTestId('list-error');
+		expect(within(errorSurface).getAllByRole('link')).toHaveLength(1);
+		expect(within(errorSurface).queryByRole('button')).toBeNull();
+	});
+
+	test('a 500 renders the unable-to-load copy with a retry action', () => {
+		renderPage(
+			{},
+			{
+				isError: true,
+				error: { status: 500, detail: 'Trace id: abc' },
+			},
+		);
+
+		expect(screen.getByText('error-500-title')).toBeTruthy();
+		expect(screen.queryByText(/Trace id: abc/)).toBeNull();
+		expect(screen.getByRole('button', { name: /retry/i })).toBeTruthy();
 	});
 });

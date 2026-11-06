@@ -9,7 +9,6 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { CopyButton } from '~/components/ui/copy-button';
 import { BrandTile } from '~/components/ui/initials-avatar';
@@ -53,16 +52,6 @@ const isProblemStatus = (
 	return (
 		translationKey === undefined || failure.translationKey === translationKey
 	);
-};
-
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
 };
 
 export const DetailItem = ({
@@ -140,35 +129,7 @@ export const TenantDetailsLoading = () => {
 	);
 };
 
-export const BackToTenantsLink = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<Link
-			to="/staff/tenants"
-			className={buttonVariants({ variant: 'outline' })}
-		>
-			{t('back-to-tenants')}
-		</Link>
-	);
-};
-
-/** Retry + Back-to-tenants action pair shared by every tenant-scoped 500
- * view (owner decision R3-4a, 2026-07-10 round 3). */
-export const TenantRetryActions = ({ onRetry }: { onRetry: () => void }) => {
-	const { t } = useTranslation('common');
-
-	return (
-		<>
-			<Button variant="default" onClick={onRetry} type="button">
-				{t('try-again')}
-			</Button>
-			<BackToTenantsLink />
-		</>
-	);
-};
-
-const MissingTenantView = ({ error }: { error: unknown }) => {
+const MissingTenantView = () => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -176,13 +137,12 @@ const MissingTenantView = ({ error }: { error: unknown }) => {
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code={t('error-404-code')}
 			title={t('tenant-not-found-title')}
-			description={getFailureDescription(
-				error,
-				t('tenant-not-found-description'),
-			)}
+			// #2291 M1: a 404 shows its own translated message. The API's
+			// problem `detail` is English and must not leak under the French
+			// title.
+			description={t('tenant-not-found-description')}
 			testId="staff-tenant-details-not-found"
 			embedded
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -202,7 +162,7 @@ export const TenantDetailsError = ({
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
 	) {
-		return <MissingTenantView error={error} />;
+		return <MissingTenantView />;
 	}
 
 	if (isProblemStatus(error, 403)) {
@@ -218,13 +178,8 @@ export const TenantDetailsError = ({
 			testId="staff-tenant-details-error"
 			tone="danger"
 			embedded
-			actions={
-				onRetry ? (
-					<TenantRetryActions onRetry={onRetry} />
-				) : (
-					<BackToTenantsLink />
-				)
-			}
+
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -250,7 +205,7 @@ export const TenantDetailsIncomplete = ({
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId={testId}
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -310,8 +265,8 @@ export const TenantDetailsPageShell = ({
 				</Link>
 			</div>
 
-			<header className="flex shrink-0 flex-wrap items-start justify-between gap-4">
-				<div className="flex items-start gap-4">
+			<header className="flex shrink-0 flex-wrap items-start justify-between gap-4 max-sm:flex-col max-sm:items-stretch">
+				<div className="flex min-w-0 flex-1 items-start gap-4">
 					<BrandTile name={tenant.name} logoUrl={tenant.logoUrl} />
 					<div className="min-w-0 space-y-1">
 						<div className="flex flex-wrap items-center gap-2">
@@ -322,11 +277,11 @@ export const TenantDetailsPageShell = ({
 									: t('unknown')}
 							</StatusPill>
 						</div>
-						<p className="publy-tenant-identity-meta flex items-center gap-1">
-							<span className="publy-tenant-identity-meta-prefix">
+						<p className="publy-tenant-identity-meta flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5">
+							<span className="publy-tenant-identity-meta-prefix shrink-0 whitespace-nowrap">
 								publyapp.com/
 							</span>
-							<span className="publy-tenant-identity-meta-code">
+							<span className="publy-tenant-identity-meta-code min-w-0 max-w-full truncate whitespace-nowrap">
 								{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
 								{tenant.code ?? '—'}
 							</span>
@@ -337,7 +292,7 @@ export const TenantDetailsPageShell = ({
 									testId="tenant-meta-code-copy"
 								/>
 							) : null}
-							<span>
+							<span className="min-w-0 max-sm:basis-full">
 								{' '}
 								·{' '}
 								{t('tenant-member-count', {

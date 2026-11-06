@@ -258,6 +258,20 @@ const INVITATION_STATUS_LABEL_KEYS = {
 	unknown: 'unknown',
 } satisfies Record<InvitationDisplayStatus, string>;
 
+/** The prototype's chip tones: pending amber, accepted emerald, expired and
+ * revoked neutral (a lapsed invitation is not a failure). */
+export const invitationStatusTone = (
+	status: InvitationDisplayStatus,
+): 'warning' | 'success' | 'neutral' => {
+	if (status === 'pending') {
+		return 'warning';
+	}
+	if (status === 'accepted') {
+		return 'success';
+	}
+	return 'neutral';
+};
+
 /** Translation key for an invitation status, for callers that render through
  * `t()` instead of the untranslated `formatInvitationStatusLabel`. */
 export const getInvitationStatusLabelKey = (

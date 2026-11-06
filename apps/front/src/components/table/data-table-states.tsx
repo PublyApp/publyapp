@@ -1,13 +1,15 @@
 import type { TablerIcon } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '~/components/ui/button';
+import { ErrorActions } from '~/components/error-views/error-actions';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	ErrorStateSurface,
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
+import type { ErrorKind } from '~/lib/error-kind';
 
 import type { TableBodyState } from './table-body-state';
 import type { TableRowHeight } from './table-row-height';
@@ -32,6 +34,15 @@ export type DataTableStatesProps = {
 	noMatchContent?: ReactNode;
 	errorIcon?: TablerIcon;
 	errorTitle?: string;
+	/** Whether the error surface offers a Retry action. `false` for 403/404,
+	 * which the shared resolver marks non-retryable (#2291); omitted keeps the
+	 * historical always-retry behaviour. */
+	errorRetryable?: boolean;
+	/** The classified error family: takes the exact ShopKart OS mapping and
+	 * ignores the legacy icon/title/content overrides. */
+	errorKind?: ErrorKind;
+	/** The real cause, when the caller has it; classified with `navigator.onLine`. */
+	error?: unknown;
 	emptyIcon?: TablerIcon;
 	emptyTitle?: string;
 	emptyActions?: ReactNode;
@@ -52,6 +63,9 @@ export const DataTableStates = ({
 	noMatchContent,
 	errorIcon,
 	errorTitle,
+	errorRetryable = true,
+	errorKind,
+	error,
 	emptyIcon,
 	emptyTitle,
 	emptyActions: emptyActionsProp,
@@ -88,6 +102,38 @@ export const DataTableStates = ({
 			? noMatchContent
 			: undefined;
 
+	let errorBody: ReactNode = null;
+	if (bodyState === 'error') {
+		if (errorKind || error !== undefined) {
+			errorBody = (
+				<ErrorKindState
+					scale="inline"
+					kind={errorKind}
+					error={error}
+					onRetry={onRetry}
+					testId={`${testId}-error`}
+				/>
+			);
+		} else {
+			errorBody = (
+				<ErrorStateSurface
+					icon={errorIcon}
+					title={errorTitle ?? t('list-unavailable-title')}
+					description={errorDescription}
+					actions={
+						errorActions || errorRetryable ? (
+							<>
+								{errorActions}
+								{errorRetryable ? <ErrorActions retry={onRetry} /> : null}
+							</>
+						) : undefined
+					}
+					testId={`${testId}-error`}
+				/>
+			);
+		}
+	}
+
 	return (
 		<>
 			{bodyState === 'loading' ? (
@@ -110,22 +156,7 @@ export const DataTableStates = ({
 				</div>
 			) : null}
 
-			{bodyState === 'error' ? (
-				<ErrorStateSurface
-					icon={errorIcon}
-					title={errorTitle ?? t('list-unavailable-title')}
-					description={errorDescription}
-					actions={
-						<>
-							{errorActions}
-							<Button variant="outline" onClick={onRetry} type="button">
-								{t('retry')}
-							</Button>
-						</>
-					}
-					testId={`${testId}-error`}
-				/>
-			) : null}
+			{errorBody}
 
 			{bodyState === 'empty' ? (
 				<StateSurface

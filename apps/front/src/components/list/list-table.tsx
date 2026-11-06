@@ -229,7 +229,7 @@ const TableRow = ({
 							</div>
 							<Button
 								variant="outline"
-								className="h-7 shrink-0 gap-1 rounded-[var(--publy-radius-small-control)] px-2.5 text-xs text-muted-foreground opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:text-foreground [&_svg]:size-3.5"
+								className="h-7 shrink-0 gap-1 rounded-[var(--publy-radius-control)] px-2.5 text-xs text-muted-foreground opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:text-foreground [&_svg]:size-3.5"
 								onClick={onOpen}
 								aria-label={openLabel}
 							>
@@ -512,17 +512,16 @@ export const ListTable = <T extends { id: string }>({
 						>
 							{cols}
 							<tbody>
-								{/* The totals wrap instead of truncating: a filtered list's
-								    summary is longer than its column (the staff statuses at
-								    1440 px), and an ellipsised total is not a total. The
-								    row keeps 40 px as its minimum and grows. */}
-								<tr className="h-10 text-xs whitespace-normal text-muted-foreground">
+								<tr className="h-10 text-xs text-muted-foreground">
 									{ids.map((id, index) => (
 										<td
 											key={id}
 											title={totals.get(id)}
 											className={cn(
-												'border-t border-r bg-background px-2 py-1.5 align-top break-words last:border-r-0',
+												// One line, always: a total that wraps pushes the
+												// pinned summary up and costs the rows a second
+												// line. The full text stays in `title`.
+												'overflow-hidden text-ellipsis whitespace-nowrap border-t border-r bg-background px-2 py-1.5 align-top last:border-r-0',
 												index === 0 &&
 													'sticky left-0 z-(--publy-z-sticky-cell)',
 											)}

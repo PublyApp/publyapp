@@ -6,6 +6,10 @@ import { Card } from '~/components/ui/card';
 import { Checkbox } from '~/components/ui/checkbox';
 import { EntityHeaderSkeleton } from '~/components/ui/detail-skeleton';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
+import {
+	displayProfileDescription,
+	displayProfileName,
+} from '~/lib/profiles/display-profile';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 import { cn } from '~/lib/utils';
 
@@ -38,10 +42,11 @@ export const ProfileRowActions = ({
 	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
 }) => {
 	const { t } = useTranslation('common');
+	const profileName = displayProfileName(profile, t);
 
 	return (
 		<DataTableRowActions
-			ariaLabel={t('actions-for', { name: profile.name || t('profile') })}
+			ariaLabel={t('actions-for', { name: profileName || t('profile') })}
 			testId={`staff-tenant-profile-actions-${profile.id}`}
 		>
 			<DropdownMenuItem
@@ -102,6 +107,8 @@ export const ProfileCard = ({
 	onToggleSelect: (profileId: string) => void;
 }) => {
 	const { t } = useTranslation('common');
+	const profileName = displayProfileName(profile, t);
+	const profileDescription = displayProfileDescription(profile, t);
 	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
 		profile.name,
 		profile.icon,
@@ -111,7 +118,7 @@ export const ProfileCard = ({
 	return (
 		<Card
 			className={cn(
-				'group/profile-card relative flex items-start gap-3 p-4',
+				'group/profile-card relative flex min-w-0 flex-row items-start gap-3 overflow-hidden p-4',
 				isSelected && 'publy-profile-card--selected',
 			)}
 			data-testid={`staff-tenant-profile-card-${profile.id}`}
@@ -128,7 +135,7 @@ export const ProfileCard = ({
 					checked={isSelected}
 					onCheckedChange={() => onToggleSelect(profile.id)}
 					aria-label={t('select-profile-checkbox-label', {
-						name: profile.name || t('profile'),
+						name: profileName || t('profile'),
 					})}
 					data-testid={`staff-tenant-profile-card-select-${profile.id}`}
 				/>
@@ -152,10 +159,10 @@ export const ProfileCard = ({
 					<Link
 						to="/staff/tenants/$tenantId/profiles/$profileId"
 						params={{ tenantId, profileId: profile.id }}
-						className="publy-record-link truncate text-[14px] font-semibold text-foreground no-underline"
-						title={profile.name}
+						className="publy-record-link min-w-0 truncate text-[14px] font-semibold text-foreground no-underline"
+						title={profileName}
 					>
-						{profile.name}
+						{profileName}
 					</Link>
 					<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
 						{profile.isDefault ? t('system') : t('custom')}
@@ -163,9 +170,9 @@ export const ProfileCard = ({
 				</div>
 				<p
 					className="truncate text-xs text-muted-foreground"
-					title={profile.description || undefined}
+					title={profileDescription || undefined}
 				>
-					{profile.description || t('no-description-provided')}
+					{profileDescription || t('no-description-provided')}
 				</p>
 				<p className="text-[11px] text-muted-foreground">
 					{t('tenant-member-count', { count: profile.userAccountCount })}

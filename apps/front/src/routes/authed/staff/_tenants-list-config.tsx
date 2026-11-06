@@ -1,4 +1,8 @@
-import { IconChartPie, IconCircleDashed } from '@tabler/icons-react';
+import {
+	IconChartPie,
+	IconCircleDashed,
+	IconLanguage,
+} from '@tabler/icons-react';
 import type { ListFilter } from '~/components/list/list-types';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import { StatusPill } from '~/components/ui/product-page';
@@ -7,6 +11,8 @@ import type { StaffTenantRow } from '~/lib/query/staff-tenants';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { formatShortDate, getRelativeTimeParts } from '~/utils/format-time';
+
+import type { TenantListCountsResponse } from '@org/client-ts/models/index';
 
 import { tenantColumns } from './_tenants-list-columns';
 import { StatusIcon, type TenantStatusFilterKey } from './_tenants-list-model';
@@ -23,6 +29,9 @@ const TENANT_STATUS_ORDER = [
 	'pending',
 	'suspended',
 ] as const satisfies readonly TenantStatusFilterKey[];
+
+/** The « Langues » panel values, in the prototype's order. */
+const TENANT_LOCALE_ORDER = ['fr', 'en'] as const;
 
 export const tenantStatusKey = (
 	status: string | null,
@@ -79,12 +88,10 @@ export const DEFAULT_TENANT_COLUMNS = [
 	'lastActivityAt',
 ] as const;
 
-/** The organisations list's filters: statuses and seats in the side panel.
- *
- * ponytail: the « Langues » and « Invitations » filters are omitted until the
- * list API returns `defaultLocale` and a pending-invitation count — offering
- * a filter whose `valueOf` is always empty empties the list with a lie. Both
- * return with the API fields, tracked in issue #2275. */
+/** The organisations list's filters: statuses, seats and languages in the side
+ * panel. The « Invitations » filter stays out until a row carries its own
+ * pending-invitation count — a filter whose `valueOf` is always empty empties
+ * the list with a lie. */
 export const buildTenantFilters = (
 	t: Translate,
 ): ListFilter<StaffTenantRow>[] => [
@@ -112,6 +119,20 @@ export const buildTenantFilters = (
 		],
 		valueOf: (row) => occupancyBand(row) ?? [],
 	},
+	{
+		key: 'locale',
+		label: t('list-languages'),
+		icon: IconLanguage,
+		panel: true,
+		choices: TENANT_LOCALE_ORDER.map((locale) => ({
+			value: locale,
+			label: t(`list-language-${locale}`),
+		})),
+		valueOf: (row) =>
+			row.defaultLocale === 'fr' || row.defaultLocale === 'en'
+				? row.defaultLocale
+				: [],
+	},
 ];
 
 /** The totals row: one summary per column of the filtered rows.
@@ -120,33 +141,15 @@ export const buildTenantFilters = (
  * whole collection, every cell shows « — » instead of a page-local sum
  * presented as a total (issue #2274 review round 2). */
 export const buildTenantTotals =
-	(t: Translate, known = true) =>
-	(visible: StaffTenantRow[]): Map<string, string> => {
-		let members = 0;
-		let seats = 0;
-		let projects = 0;
-		let active = 0;
-		let pending = 0;
-		let suspended = 0;
-		let activeThisWeek = 0;
-		const weekAgo = Date.now() - 7 * 86_400_000;
-
-		for (const row of visible) {
-			members += row.usersCount;
-			seats += row.maxUsers;
-			projects += row.projectsCount;
-			const status = tenantStatusKey(row.status);
-			if (status === 'active') {
-				active += 1;
-			} else if (status === 'pending') {
-				pending += 1;
-			} else if (status === 'suspended') {
-				suspended += 1;
-			}
-			if (row.lastActivityAt && row.lastActivityAt.getTime() >= weekAgo) {
-				activeThisWeek += 1;
-			}
-		}
+	(t: Translate, counts: TenantListCountsResponse | null) =>
+	(): Map<string, string> => {
+		const members = counts?.members ?? 0;
+		const seats = counts?.seats ?? 0;
+		const projects = counts?.projects ?? 0;
+		const active = counts?.active ?? 0;
+		const pending = counts?.pending ?? 0;
+		const suspended = counts?.suspended ?? 0;
+		const activeThisWeek = counts?.activeThisWeek ?? 0;
 
 		const statusParts = [
 			active > 0 ? t('list-total-active', { count: active }) : '',
@@ -156,7 +159,10 @@ export const buildTenantTotals =
 
 		const dash = '—';
 		const map = new Map<string, string>();
-		map.set('name', t('list-total-organisations', { count: visible.length }));
+		map.set(
+			'name',
+			t('list-total-organisations', { count: counts?.total ?? 0 }),
+		);
 		map.set('code', dash);
 		map.set('status', statusParts.join(' · '));
 		map.set('members', t('list-total-members', { count: members }));
@@ -188,11 +194,6 @@ export const buildTenantTotals =
 			'lastActivityAt',
 			t('list-total-active-week', { count: activeThisWeek }),
 		);
-		if (!known) {
-			for (const id of map.keys()) {
-				map.set(id, DASH);
-			}
-		}
 		return map;
 	};
 
@@ -211,8 +212,7 @@ export const buildTenantMobileCard =
 				: formatShortDate(row.lastActivityAt, locale);
 		}
 		return {
-			// The list API has no code: the table shows « — », so the card does too.
-			code: DASH,
+			code: row.code ?? DASH,
 			badges: status ? (
 				<StatusPill tone={statusPillTone(row.status)}>
 					{t(`list-status-${status}`)}

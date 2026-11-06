@@ -14,8 +14,8 @@
 
 **Files:**
 
-- Modify: `apps/front/scripts/guards/check-column-type-imports.test.mts`
-- Test: `apps/front/scripts/guards/check-column-type-imports.test.mts`
+- Modify: `apps/front/scripts/guards/check-column-type-imports.test.ts`
+- Test: `apps/front/scripts/guards/check-column-type-imports.test.ts`
 
 - [x] **Step 1: Replace merge-base/deletion-policy unit tests with the exact set-difference contract**
 
@@ -58,8 +58,8 @@ uses merge-base/deletion derivation.
 
 **Files:**
 
-- Modify: `apps/front/scripts/guards/check-column-type-imports.mts`
-- Test: `apps/front/scripts/guards/check-column-type-imports.test.mts`
+- Modify: `apps/front/scripts/guards/check-column-type-imports.ts`
+- Test: `apps/front/scripts/guards/check-column-type-imports.test.ts`
 
 - [x] **Step 1: Add the minimal path-coverage assertion**
 
@@ -133,8 +133,8 @@ Expected: PASS and a non-zero scanned-file count.
 Run:
 
 ```bash
-pnpm exec oxlint apps/front/scripts/guards/check-column-type-imports.mts apps/front/scripts/guards/check-column-type-imports.test.mts
-pnpm exec oxfmt --check apps/front/scripts/guards/check-column-type-imports.mts apps/front/scripts/guards/check-column-type-imports.test.mts
+pnpm exec oxlint apps/front/scripts/guards/check-column-type-imports.ts apps/front/scripts/guards/check-column-type-imports.test.ts
+pnpm exec oxfmt --check apps/front/scripts/guards/check-column-type-imports.ts apps/front/scripts/guards/check-column-type-imports.test.ts
 git diff --check
 ```
 
@@ -143,8 +143,8 @@ Expected: zero errors and a clean diff check.
 - [ ] **Step 4: Commit after the serialized full gate is available**
 
 ```bash
-git add apps/front/scripts/guards/check-column-type-imports.mts \
-  apps/front/scripts/guards/check-column-type-imports.test.mts \
+git add apps/front/scripts/guards/check-column-type-imports.ts \
+  apps/front/scripts/guards/check-column-type-imports.test.ts \
   apps/front/scripts/guards/column-type-imports-baseline.json \
   docs/records/2026-09-05-analysis-column-type-imports-guard-admission.md \
   docs/superpowers/plans/2026-09-05-column-scan-head-tree.md

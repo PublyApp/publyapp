@@ -103,6 +103,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
@@ -405,6 +406,8 @@ vi.mock('react-i18next', () => ({
 				members: 'Members',
 				system: 'System',
 				'system-profile': 'System profile',
+				'default-profile-name': 'Default profile',
+				'default-profile-description': 'Default profile with no permissions',
 				'open-tenant': 'Open tenant',
 				'back-to-tenant-profiles': 'Back to {{name}} profiles',
 				assign: 'Assign',
@@ -812,6 +815,8 @@ describe('staff tenant profile details route', () => {
 			openTenantLink.querySelector('.tabler-icon-arrow-right'),
 		).toBeTruthy();
 		expect(identity.querySelector('.publy-profile-detail-tile')).toBeTruthy();
+		// A renamed default profile keeps its own name (display-profile.ts): only
+		// the untouched seeded copy is translated at render time.
 		expect(identity.textContent).toContain('Approvers');
 		expect(identity.textContent).toContain('System profile');
 		expect(identity.textContent).toContain('Can review approvals');

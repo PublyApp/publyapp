@@ -11,11 +11,26 @@ namespace PublyApp.Api.Modules.Users.Services;
 public class StaffUserData {
 	public required User User { get; set; }
 	public required AccountLevel AccountLevel { get; set; }
+
+	// Assigned staff profile names, loaded in one batched query per page (no
+	// N+1): the « Profils » column reads them as pills.
+	public List<string> ProfileNames { get; set; } = [];
 }
+
+public sealed record StaffUserCounts(
+	int Total,
+	int Active,
+	int Suspended,
+	int Admins,
+	int Users,
+	int ConnectedToday,
+	int OpenSessions
+);
 
 public abstract record FindStaffUsersResult {
 	public sealed record Success(
-		CursorPaginatedResult<StaffUserData> Data
+		CursorPaginatedResult<StaffUserData> Data,
+		StaffUserCounts Counts
 	) : FindStaffUsersResult;
 
 	public sealed record CursorNotFound(
@@ -201,11 +216,19 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				// Search is intentionally substring-based so staff can quickly find
 				// records by partial email or name fragments.
 				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
+				// The search box names the role too: "admin" / "user" match the
+				// account level, not only a name fragment.
+				var wantsAdmin = string.Equals(trimmed, "admin", StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(trimmed, nameof(AccountLevel.Admin), StringComparison.OrdinalIgnoreCase);
+				var wantsUser = string.Equals(trimmed, "user", StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(trimmed, nameof(AccountLevel.User), StringComparison.OrdinalIgnoreCase);
 				query =
 					from ua in query
 					where (ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar))
 						|| (ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar))
 						|| EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
+						|| (wantsAdmin && ua.Level == AccountLevel.Admin)
+						|| (wantsUser && ua.Level == AccountLevel.User)
 					select ua;
 			}
 		}
@@ -216,6 +239,60 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				where statuses.Contains(ua.User.Status)
 				select ua;
 		}
+
+		// Facets cover the whole filtered collection (cursor and page size are
+		// pagination only, never a filter).
+		var facetRows = await (
+			from ua in query
+			group ua by new { ua.User.Status, ua.Level } into g
+			select new { g.Key.Status, g.Key.Level, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var active = 0;
+		var suspended = 0;
+		var admins = 0;
+		foreach (var facet in facetRows) {
+			total += facet.Count;
+			if (facet.Status == UserStatus.Active) {
+				active += facet.Count;
+			} else if (facet.Status == UserStatus.Suspended) {
+				suspended += facet.Count;
+			}
+			if (facet.Level == AccountLevel.Admin) {
+				admins += facet.Count;
+			}
+		}
+
+		// Sessions are the only activity the database records (created_at /
+		// expires_at); there is no last-activity or MFA column. « Connectés
+		// aujourd'hui » is therefore the users with a session opened since
+		// midnight UTC, and the open-session figure the still-valid ones.
+		var now = DateTime.UtcNow;
+		var todayStart = now.Date;
+		var filteredUserIds = query.Select(ua => ua.UserId);
+		var openSessions = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where session.ExpiresAt > now
+				&& filteredUserIds.Contains(session.UserId)
+			select session
+		).CountAsync(cancellationToken);
+		var connectedToday = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where session.CreatedAt >= todayStart
+				&& filteredUserIds.Contains(session.UserId)
+			select session.UserId
+		).Distinct().CountAsync(cancellationToken);
+
+		var counts = new StaffUserCounts(
+			Total: total,
+			Active: active,
+			Suspended: suspended,
+			Admins: admins,
+			Users: total - admins,
+			ConnectedToday: connectedToday,
+			OpenSessions: openSessions
+		);
 
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(args.Cursor);
@@ -246,11 +323,50 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			nextCursor = results.Last().User.GetRequiredId().ToString();
 		}
 
+		// One batched profile query for the whole page, never one per row.
+		var pageUserIds = results
+			.Select(staffUser => staffUser.User.GetRequiredId())
+			.ToList();
+		var profileRows = await (
+			from accountProfile in this._DbContext.UserAccountProfile.AsNoTracking()
+			join account in this._DbContext.UserAccount.AsNoTracking()
+				on (Guid?)accountProfile.UserAccountId equals account.Id
+			join profile in this._DbContext.Profile.AsNoTracking()
+				on (Guid?)accountProfile.ProfileId equals profile.Id
+			where account.Scope == AccountScope.Staff
+				&& pageUserIds.Contains(account.UserId)
+				&& !profile.IsDeleted
+			select new {
+				account.UserId,
+				profile.Name,
+			}
+		).ToListAsync(cancellationToken);
+
+		var profileNamesByUser = new Dictionary<Guid, List<string>>();
+		foreach (var row in profileRows) {
+			if (!profileNamesByUser.TryGetValue(row.UserId, out var names)) {
+				names = [];
+				profileNamesByUser[row.UserId] = names;
+			}
+			names.Add(row.Name);
+		}
+
+		foreach (var staffUser in results) {
+			if (profileNamesByUser.TryGetValue(
+				staffUser.User.GetRequiredId(),
+				out var names
+			)) {
+				names.Sort(StringComparer.OrdinalIgnoreCase);
+				staffUser.ProfileNames = names;
+			}
+		}
+
 		return new FindStaffUsersResult.Success(
 			new CursorPaginatedResult<StaffUserData> {
 				Data = results,
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 }

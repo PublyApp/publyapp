@@ -4,7 +4,6 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -183,14 +182,6 @@ const StaffProfileDetailsPage = () => {
 				title={t('staff-profile-not-found')}
 				description={t('staff-profile-payload-empty')}
 				testId="staff-profile-details-empty"
-				actions={
-					<Link
-						to="/staff/profiles"
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-staff-profiles')}
-					</Link>
-				}
 			/>
 		);
 	}

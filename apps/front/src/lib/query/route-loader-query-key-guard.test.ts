@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 // `typescript/unstable/ast` is explicitly unstable. ts-morph vendors its own
 // version-pinned copy of the classic compiler (`@ts-morph/common`), so AST
 // work keeps a stable API across TypeScript upgrades — same precedent as
-// check-design-system.mts and i18n-key-coverage.test.ts.
+// check-design-system.ts and i18n-key-coverage.test.ts.
 import { ts } from 'ts-morph';
 import { describe, expect, test } from 'vitest';
 

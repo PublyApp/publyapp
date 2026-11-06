@@ -109,8 +109,10 @@ test.describe(
 
 			await expectOpaqueBackground(page);
 
+			// The new-tenant page (prototype #2299) labels this « Default
+			// profile »; the old « Seed default profiles » copy is gone.
 			const lastField = page.getByRole('switch', {
-				name: 'Seed default profiles',
+				name: 'Default profile',
 			});
 			await lastField.focus();
 			await expect(lastField).toBeFocused();

@@ -4,27 +4,27 @@
 
 **Goal:** Replace persistent E2E port-band lock files with OS-owned loopback TCP leases that cannot survive their owning process.
 
-**Architecture:** `e2e-compose-env.mts` asynchronously binds one exclusive loopback lease port per candidate band and returns the Compose environment plus an awaited, idempotent release function. `run-e2e-front.mts` installs signal handling before acquisition, owns the lease through teardown, and surfaces release failures without hiding an earlier primary failure.
+**Architecture:** `e2e-compose-env.ts` asynchronously binds one exclusive loopback lease port per candidate band and returns the Compose environment plus an awaited, idempotent release function. `run-e2e-front.ts` installs signal handling before acquisition, owns the lease through teardown, and surfaces release failures without hiding an earlier primary failure.
 
-**Tech Stack:** Node.js 24 ESM, TypeScript `.mts`, `node:net`, `node:test`, pnpm, Docker Compose, GitHub PR closure gate.
+**Tech Stack:** Node.js 24 ESM, TypeScript `.ts`, `node:net`, `node:test`, pnpm, Docker Compose, GitHub PR closure gate.
 
 ---
 
 ## File Map
 
-- Modify `apps/front/scripts/e2e-compose-env.mts`: preserve naming and service-port inspection; replace the entire disk-lock API with the TCP lease API.
-- Modify `apps/front/scripts/e2e-compose-env.test.mts`: replace stale-lock tests with real lease, crash, partial-failure, and runner tests.
-- Modify `apps/front/scripts/run-e2e-front.mts`: register signals before reservation and await cleanup.
-- Modify `apps/front/scripts/run-e2e-front.signal.test.mts` and `apps/front/scripts/run-e2e-front.signal-harness.mts`: prove socket release and process-tree cleanup with real POSIX signals.
-- Preserve `apps/front/scripts/run-e2e-front.launch.test.mts`: retain Windows `taskkill /T` unit coverage, adapting types only if necessary.
+- Modify `apps/front/scripts/e2e-compose-env.ts`: preserve naming and service-port inspection; replace the entire disk-lock API with the TCP lease API.
+- Modify `apps/front/scripts/e2e-compose-env.test.ts`: replace stale-lock tests with real lease, crash, partial-failure, and runner tests.
+- Modify `apps/front/scripts/run-e2e-front.ts`: register signals before reservation and await cleanup.
+- Modify `apps/front/scripts/run-e2e-front.signal.test.ts` and `apps/front/scripts/run-e2e-front.signal-harness.ts`: prove socket release and process-tree cleanup with real POSIX signals.
+- Preserve `apps/front/scripts/run-e2e-front.launch.test.ts`: retain Windows `taskkill /T` unit coverage, adapting types only if necessary.
 - Modify `justfile`: describe unconditional teardown accurately.
 - Update the PR body through `gh api`; do not add another repository document or guard.
 
 ### Task 1: Lock the new lease contract with RED tests
 
 **Files:**
-- Modify: `apps/front/scripts/e2e-compose-env.test.mts`
-- Test: `apps/front/scripts/e2e-compose-env.test.mts`
+- Modify: `apps/front/scripts/e2e-compose-env.test.ts`
+- Test: `apps/front/scripts/e2e-compose-env.test.ts`
 
 - [ ] **Step 1: Replace lock-only imports and scaffolding**
 
@@ -39,7 +39,7 @@ import {
   reserveE2EComposeEnv,
   type E2EComposeEnv,
   type E2EComposeReservation,
-} from './e2e-compose-env.mts';
+} from './e2e-compose-env.ts';
 ```
 
 Keep a test helper that closes a real `Server` by awaiting its close callback.
@@ -70,7 +70,7 @@ Inject `deriveProjectName: () => { throw new Error('derivation failed'); }`, ass
 - [ ] **Step 5: Run the test and observe RED**
 
 ```bash
-pnpm --filter front exec node --test scripts/e2e-compose-env.test.mts
+pnpm --filter front exec node --test scripts/e2e-compose-env.test.ts
 ```
 
 Expected: module-load failure because `reserveE2EComposeEnv` and `E2EComposeReservation` do not exist.
@@ -78,15 +78,15 @@ Expected: module-load failure because `reserveE2EComposeEnv` and `E2EComposeRese
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/front/scripts/e2e-compose-env.test.mts
+git add apps/front/scripts/e2e-compose-env.test.ts
 git commit -m "test(e2e): define port lease contract"
 ```
 
 ### Task 2: Replace disk locks with a single deep lease API
 
 **Files:**
-- Modify: `apps/front/scripts/e2e-compose-env.mts`
-- Modify: `apps/front/scripts/e2e-compose-env.test.mts`
+- Modify: `apps/front/scripts/e2e-compose-env.ts`
+- Modify: `apps/front/scripts/e2e-compose-env.test.ts`
 
 - [ ] **Step 1: Delete the persistent-lock subsystem**
 
@@ -155,7 +155,7 @@ After a successful bind, create `release` before service-port inspection or name
 - [ ] **Step 6: Make focused tests GREEN**
 
 ```bash
-pnpm --filter front exec node --test scripts/e2e-compose-env.test.mts
+pnpm --filter front exec node --test scripts/e2e-compose-env.test.ts
 ```
 
 Expected: all retained naming/holder/service-port tests and all lease tests pass.
@@ -167,16 +167,16 @@ Spawn a Node child that binds 14000, prints `READY`, and waits. Kill it without 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add apps/front/scripts/e2e-compose-env.mts apps/front/scripts/e2e-compose-env.test.mts
+git add apps/front/scripts/e2e-compose-env.ts apps/front/scripts/e2e-compose-env.test.ts
 git commit -m "refactor(e2e): use OS-owned port leases"
 ```
 
 ### Task 3: Make the runner own acquisition through cleanup
 
 **Files:**
-- Modify: `apps/front/scripts/run-e2e-front.mts`
-- Modify: `apps/front/scripts/e2e-compose-env.test.mts`
-- Modify if required: `apps/front/scripts/run-e2e-front.launch.test.mts`
+- Modify: `apps/front/scripts/run-e2e-front.ts`
+- Modify: `apps/front/scripts/e2e-compose-env.test.ts`
+- Modify if required: `apps/front/scripts/run-e2e-front.launch.test.ts`
 
 - [ ] **Step 1: Write RED acquisition-window tests**
 
@@ -199,7 +199,7 @@ A fake reservation has `release: async () => { throw new Error('release failed')
 - [ ] **Step 3: Run RED**
 
 ```bash
-pnpm --filter front exec node --test scripts/e2e-compose-env.test.mts
+pnpm --filter front exec node --test scripts/e2e-compose-env.test.ts
 ```
 
 Expected: failure because the runner still acquires synchronously before installing handlers and consumes lock path/token.
@@ -228,7 +228,7 @@ Attempt Compose teardown only when reservation succeeded, and keep the lease unt
 - [ ] **Step 6: Run GREEN**
 
 ```bash
-pnpm --filter front exec node --test   scripts/e2e-compose-env.test.mts   scripts/run-e2e-front.launch.test.mts
+pnpm --filter front exec node --test   scripts/e2e-compose-env.test.ts   scripts/run-e2e-front.launch.test.ts
 ```
 
 Expected: all runner, lease, launch, and Windows plan tests pass.
@@ -236,15 +236,15 @@ Expected: all runner, lease, launch, and Windows plan tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/front/scripts/run-e2e-front.mts   apps/front/scripts/e2e-compose-env.test.mts   apps/front/scripts/run-e2e-front.launch.test.mts
+git add apps/front/scripts/run-e2e-front.ts   apps/front/scripts/e2e-compose-env.test.ts   apps/front/scripts/run-e2e-front.launch.test.ts
 git commit -m "fix(e2e): own lease through teardown"
 ```
 
 ### Task 4: Convert real signal proofs from files to sockets
 
 **Files:**
-- Modify: `apps/front/scripts/run-e2e-front.signal.test.mts`
-- Modify: `apps/front/scripts/run-e2e-front.signal-harness.mts`
+- Modify: `apps/front/scripts/run-e2e-front.signal.test.ts`
+- Modify: `apps/front/scripts/run-e2e-front.signal-harness.ts`
 
 - [ ] **Step 1: Make the harness expose a real lease**
 
@@ -265,7 +265,7 @@ For normal SIGINT, SIGTERM, and cleanup-window SIGINT, retain the real descendan
 - [ ] **Step 5: Run**
 
 ```bash
-pnpm --filter front exec node --test scripts/run-e2e-front.signal.test.mts
+pnpm --filter front exec node --test scripts/run-e2e-front.signal.test.ts
 ```
 
 Expected on POSIX: every signal/process-tree/socket proof passes. Expected on Windows: intentional platform skip.
@@ -273,15 +273,15 @@ Expected on POSIX: every signal/process-tree/socket proof passes. Expected on Wi
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/front/scripts/run-e2e-front.signal.test.mts   apps/front/scripts/run-e2e-front.signal-harness.mts
+git add apps/front/scripts/run-e2e-front.signal.test.ts   apps/front/scripts/run-e2e-front.signal-harness.ts
 git commit -m "test(e2e): prove signal-safe lease cleanup"
 ```
 
 ### Task 5: Prune obsolete surfaces and correct prose
 
 **Files:**
-- Modify: `apps/front/scripts/e2e-compose-env.mts`
-- Modify: `apps/front/scripts/e2e-compose-env.test.mts`
+- Modify: `apps/front/scripts/e2e-compose-env.ts`
+- Modify: `apps/front/scripts/e2e-compose-env.test.ts`
 - Modify: `justfile`
 
 - [ ] **Step 1: Scan for removed vocabulary**
@@ -303,8 +303,8 @@ Keep `ci-e2e-front` as one Node invocation. Say the runner derives an isolated p
 - [ ] **Step 4: Format and lint**
 
 ```bash
-pnpm exec oxfmt --check   apps/front/scripts/e2e-compose-env.mts   apps/front/scripts/e2e-compose-env.test.mts   apps/front/scripts/run-e2e-front.mts   apps/front/scripts/run-e2e-front.signal.test.mts   apps/front/scripts/run-e2e-front.signal-harness.mts   apps/front/scripts/run-e2e-front.launch.test.mts justfile
-npx oxlint   apps/front/scripts/e2e-compose-env.mts   apps/front/scripts/e2e-compose-env.test.mts   apps/front/scripts/run-e2e-front.mts   apps/front/scripts/run-e2e-front.signal.test.mts   apps/front/scripts/run-e2e-front.signal-harness.mts   apps/front/scripts/run-e2e-front.launch.test.mts
+pnpm exec oxfmt --check   apps/front/scripts/e2e-compose-env.ts   apps/front/scripts/e2e-compose-env.test.ts   apps/front/scripts/run-e2e-front.ts   apps/front/scripts/run-e2e-front.signal.test.ts   apps/front/scripts/run-e2e-front.signal-harness.ts   apps/front/scripts/run-e2e-front.launch.test.ts justfile
+npx oxlint   apps/front/scripts/e2e-compose-env.ts   apps/front/scripts/e2e-compose-env.test.ts   apps/front/scripts/run-e2e-front.ts   apps/front/scripts/run-e2e-front.signal.test.ts   apps/front/scripts/run-e2e-front.signal-harness.ts   apps/front/scripts/run-e2e-front.launch.test.ts
 ```
 
 Expected: formatting exits 0 and Oxlint reports 0 errors.
@@ -312,7 +312,7 @@ Expected: formatting exits 0 and Oxlint reports 0 errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/front/scripts/e2e-compose-env.mts   apps/front/scripts/e2e-compose-env.test.mts   apps/front/scripts/run-e2e-front.signal.test.mts   apps/front/scripts/run-e2e-front.signal-harness.mts justfile
+git add apps/front/scripts/e2e-compose-env.ts   apps/front/scripts/e2e-compose-env.test.ts   apps/front/scripts/run-e2e-front.signal.test.ts   apps/front/scripts/run-e2e-front.signal-harness.ts justfile
 git commit -m "refactor(e2e): prune disk lock machinery"
 ```
 
@@ -326,7 +326,7 @@ git commit -m "refactor(e2e): prune disk lock machinery"
 - [ ] **Step 1: Run all focused tests**
 
 ```bash
-pnpm --filter front exec node --test   scripts/e2e-compose-env.test.mts   scripts/run-e2e-front.launch.test.mts   scripts/run-e2e-front.signal.test.mts
+pnpm --filter front exec node --test   scripts/e2e-compose-env.test.ts   scripts/run-e2e-front.launch.test.ts   scripts/run-e2e-front.signal.test.ts
 ```
 
 Expected: every applicable test passes, with only documented platform skips.

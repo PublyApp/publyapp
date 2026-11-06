@@ -42,7 +42,7 @@ import path from 'node:path';
  *
  * ## Mutation to introduce the red (restore the bug)
  *
- * In scripts/guards/check-design-system.mts, disable the JSX scanner pass
+ * In scripts/guards/check-design-system.ts, disable the JSX scanner pass
  * in `collectCommentRanges` (remove the `if (scriptKind ===
  * ts.ScriptKind.TSX)` block). The proof then passes because the JSX comment
  * is invisible to the comment ranges again.
@@ -53,8 +53,8 @@ import { expect, test } from 'vitest';
 import {
 	cleanupFixtures,
 	makeFixture,
-} from '../../../scripts/guards/check-design-system-fixtures.mts';
-import { scanFront2DesignSystem } from '../../../scripts/guards/check-design-system.mts';
+} from '../../../scripts/guards/check-design-system-fixtures.ts';
+import { scanFront2DesignSystem } from '../../../scripts/guards/check-design-system.ts';
 
 test('a forbidden primitive inside a JSX comment is flagged (issue #1844 r3)', async () => {
 	const root = await makeFixture({

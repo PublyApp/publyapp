@@ -9,16 +9,15 @@ import { StateView } from '~/components/ui/state-view';
 
 type StateSurfaceProps = {
 	icon?: TablerIcon;
-	tone?: 'danger' | 'neutral' | 'primary';
+	tone?: 'info' | 'neutral' | 'warning' | 'danger' | 'primary';
 	ariaLive?: 'polite' | 'assertive' | 'off';
-	/** Eyebrow line above the title (e.g. an error code). Omitted entirely
-	 * when absent — the same omission rule the page-scale AppErrorView uses,
-	 * so the inline and page scales read as the same family. */
-	eyebrow?: string;
+	role?: 'alert' | 'status';
 	title: string;
 	description?: string;
 	actions?: ReactNode;
-	technicalIdentifier?: string;
+	/** `empty` (the default) is the ShopKart OS empty-collection shape; the
+	 * error surface is the same family, tinted by tone. */
+	presentation?: 'status' | 'empty';
 	testId?: string;
 };
 
@@ -26,11 +25,11 @@ export const StateSurface = ({
 	icon: Icon = IconInbox,
 	tone = 'neutral',
 	ariaLive,
-	eyebrow,
+	role,
 	title,
 	description,
 	actions,
-	technicalIdentifier,
+	presentation = 'empty',
 	testId,
 }: StateSurfaceProps) => (
 	<StateView
@@ -38,30 +37,35 @@ export const StateSurface = ({
 		tone={tone}
 		scale="inline"
 		ariaLive={ariaLive}
-		eyebrow={eyebrow}
+		role={role ?? (presentation === 'empty' ? 'status' : undefined)}
 		title={title}
-		belowTitle={
-			technicalIdentifier ? (
-				<p className="publy-state-technical-id">{technicalIdentifier}</p>
-			) : null
-		}
 		description={description}
 		actions={actions}
+		presentation={presentation}
 		testId={testId}
 	/>
 );
 
 export const ErrorStateSurface = ({
 	icon: Icon = IconAlertCircle,
-	ariaLive = 'polite',
+	tone = 'danger',
+	ariaLive = 'assertive',
+	role = 'alert',
 	...props
-}: Omit<StateSurfaceProps, 'tone'>) => (
-	<StateSurface {...props} ariaLive={ariaLive} icon={Icon} tone="danger" />
+}: StateSurfaceProps) => (
+	<StateSurface
+		{...props}
+		ariaLive={ariaLive}
+		role={role}
+		icon={Icon}
+		presentation="status"
+		tone={tone}
+	/>
 );
 
 export const NoMatchStateSurface = ({
 	icon: Icon = IconSearchOff,
 	...props
 }: Omit<StateSurfaceProps, 'tone'>) => (
-	<StateSurface {...props} icon={Icon} tone="primary" />
+	<StateSurface {...props} icon={Icon} tone="neutral" />
 );

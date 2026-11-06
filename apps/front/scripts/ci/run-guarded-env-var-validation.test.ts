@@ -2,7 +2,7 @@
  * @vitest-environment node
  *
  * Paired red/green proof for PR #1944 correction — `GUARD_TIMEOUT_SECONDS`
- * env var validation in `run-guarded.mts`.
+ * env var validation in `run-guarded.ts`.
  *
  * ## Problem measured
  *
@@ -22,7 +22,7 @@
  *
  * ## RED without the fix
  *
- * `run-guarded.mts` exits 1 with "did not finish within NaNs/0s/-5s"
+ * `run-guarded.ts` exits 1 with "did not finish within NaNs/0s/-5s"
  * for invalid inputs. The test asserts exit 2 and a message that names the
  * variable — so it fails.
  *
@@ -44,7 +44,7 @@ import process from 'node:process';
 import { describe, expect, it } from 'vitest';
 
 const FRONT_ROOT = path.resolve(import.meta.dirname, '..', '..'); // scripts/ci → apps/front
-const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.mts');
+const WRAPPER = path.join(FRONT_ROOT, 'scripts', 'run-guarded.ts');
 
 // The proof itself must not hang. A valid guard at 30s timeout takes ~3 s.
 const PROOF_TIMEOUT_MS = 15_000;
@@ -102,7 +102,7 @@ const makeInstantGuard = async (): Promise<string> => {
 	const { mkdtemp, writeFile } = await import('node:fs/promises');
 	const { tmpdir } = await import('node:os');
 	const dir = await mkdtemp(path.join(tmpdir(), 'proof-1944-env-'));
-	const guardPath = path.join(dir, 'instant-guard.mts');
+	const guardPath = path.join(dir, 'instant-guard.ts');
 	await writeFile(
 		guardPath,
 		"process.stdout.write('instant-guard-ok\\n'); process.exit(0);",
@@ -111,7 +111,7 @@ const makeInstantGuard = async (): Promise<string> => {
 	return guardPath;
 };
 
-describe('run-guarded.mts — GUARD_TIMEOUT_SECONDS env var validation', () => {
+describe('run-guarded.ts — GUARD_TIMEOUT_SECONDS env var validation', () => {
 	// Regression guard: bare Number(process.env without an isFinite guard was
 	// the root cause. If anyone reintroduces it, the test fails.
 	// We search for Number(process.env and verify that the immediately

@@ -18,11 +18,11 @@ const TRANSLATION_LABELS: TestLabelMap = {
 	'error-403-code': '403 — Forbidden',
 	'error-404-code': '404 — Not Found',
 	'error-500-code': '500 — Server Error',
-	'no-access-title': "You don't have access",
+	'no-access-title': 'Access denied',
 	'forbidden-description': 'The page is restricted.',
 	'page-not-found': 'Page not found',
 	'not-found-sentence': 'The page could not be found.',
-	'error-500-title': 'Internal Server Error',
+	'error-500-title': 'Unable to load',
 	'error-500-description': 'Something went wrong on our end.',
 };
 
@@ -79,13 +79,19 @@ describe('QueryDisplay', () => {
 	test('routes the default error fallback text through t()', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		expect(screen.getByText('boom')).toBeTruthy();
+		expect(
+			screen.getByText(
+				"We couldn't determine what went wrong. Try again in a moment.",
+			),
+		).toBeTruthy();
+		// The raw cause is never a user-facing sentence.
+		expect(screen.queryByText(/boom/)).toBeNull();
 	});
 
 	test('renders the default error through the shared state surface path', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		const announcement = screen.getByRole('status');
+		const announcement = screen.getByRole('alert');
 		expect(announcement.className).toContain('publy-state-surface');
 		expect(
 			announcement.querySelector('.publy-state-icon-cluster'),
@@ -192,10 +198,8 @@ describe('QueryDisplay', () => {
 		expect(
 			screen.queryByText('An error occurred while loading data.'),
 		).toBeNull();
-		expect(screen.getByText("You don't have access")).toBeTruthy();
-		expect(
-			screen.getByText('Your profile no longer has access to this tenant.'),
-		).toBeTruthy();
+		expect(screen.getByText('Access denied')).toBeTruthy();
+		expect(screen.getByText('The page is restricted.')).toBeTruthy();
 	});
 
 	test('default error surfaces a 404 ServerFailure cause with the not-found copy', () => {
@@ -214,8 +218,11 @@ describe('QueryDisplay', () => {
 		expect(
 			screen.queryByText('An error occurred while loading data.'),
 		).toBeNull();
-		expect(screen.getByText('404 — Not Found')).toBeTruthy();
+		expect(screen.queryByText('404 — Not Found')).toBeNull();
 		expect(screen.getByText('Page not found')).toBeTruthy();
+		expect(screen.getByText('The page could not be found.')).toBeTruthy();
+		// ShopKart's not-found screen folds no raw cause.
+		expect(screen.queryByText(/HTTP 404/)).toBeNull();
 	});
 
 	test('default error surfaces a 500 ServerFailure cause with the server-error copy', () => {
@@ -231,8 +238,12 @@ describe('QueryDisplay', () => {
 
 		render(<QueryDisplay query={serverErrorQuery} />);
 
-		expect(screen.getByText('500 — Server Error')).toBeTruthy();
-		expect(screen.getByText('Internal Server Error')).toBeTruthy();
+		expect(screen.queryByText('500 — Server Error')).toBeNull();
+		expect(screen.getByText('Unable to load')).toBeTruthy();
+		expect(screen.getByText('Something went wrong on our end.')).toBeTruthy();
+		// No raw status, problem detail or request id reaches the UI.
+		expect(screen.queryByText(/HTTP 500/)).toBeNull();
+		expect(screen.queryByText(/Trace id: abc/)).toBeNull();
 	});
 
 	test('default error surfaces a 400 ServerFailure detail for an unhandled status', () => {
@@ -249,12 +260,12 @@ describe('QueryDisplay', () => {
 		render(<QueryDisplay query={badRequestQuery} />);
 
 		expect(
-			screen.getByText('The request could not be understood.'),
-		).toBeTruthy();
-		expect(
-			screen.queryByText(
+			screen.getByText(
 				"We couldn't determine what went wrong. Try again in a moment.",
 			),
+		).toBeTruthy();
+		expect(
+			screen.queryByText(/The request could not be understood\./),
 		).toBeNull();
 	});
 
@@ -271,12 +282,12 @@ describe('QueryDisplay', () => {
 
 		render(<QueryDisplay query={rateLimitedQuery} />);
 
-		expect(screen.getByText('Please wait before trying again.')).toBeTruthy();
 		expect(
-			screen.queryByText(
+			screen.getByText(
 				"We couldn't determine what went wrong. Try again in a moment.",
 			),
-		).toBeNull();
+		).toBeTruthy();
+		expect(screen.queryByText(/Please wait before trying again\./)).toBeNull();
 	});
 
 	test('default error surfaces the problem title when detail is absent', () => {
@@ -293,9 +304,11 @@ describe('QueryDisplay', () => {
 		render(<QueryDisplay query={badRequestQuery} />);
 
 		expect(
-			screen.getByText('An error occurred while loading data.'),
+			screen.getByText(
+				"We couldn't determine what went wrong. Try again in a moment.",
+			),
 		).toBeTruthy();
-		expect(screen.getByText('Bad Request')).toBeTruthy();
+		expect(screen.queryByText(/Bad Request/)).toBeNull();
 	});
 
 	// Secondary note in the issue: the loading branch carries `role="status"`
@@ -305,17 +318,22 @@ describe('QueryDisplay', () => {
 	test('default error branch announces itself to assistive tech', () => {
 		render(<QueryDisplay query={errorQuery} />);
 
-		const announcement = screen.getByRole('status');
-		expect(announcement.getAttribute('aria-live')).toBe('polite');
+		const announcement = screen.getByRole('alert');
+		expect(announcement.getAttribute('aria-live')).toBe('assertive');
 	});
 
 	// Unknown failures still carry a useful message. The resolver must surface
 	// it instead of discarding it behind the generic sentence.
-	test('default error surfaces an unknown failure message when the error carries no status', () => {
+	test('default error hides an unknown failure message behind the generic sentence', () => {
 		const bareErrorQuery = errorResultOf(new Error('boom'));
 
 		render(<QueryDisplay query={bareErrorQuery} />);
 
-		expect(screen.getByText('boom')).toBeTruthy();
+		expect(
+			screen.getByText(
+				"We couldn't determine what went wrong. Try again in a moment.",
+			),
+		).toBeTruthy();
+		expect(screen.queryByText(/boom/)).toBeNull();
 	});
 });

@@ -40,11 +40,10 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 		).toEqual({});
 	});
 
-	// users-auth-r6-F2: the variables type no longer has a `q` field at all —
-	// this pins that a caller cannot smuggle one through even via an `as`
-	// cast/spread, since the builder only ever reads the fields it knows.
-	test('drops an unsupported q field even if present on the input object', () => {
-		const inputWithQ: StaffInvitationsQueryVariables & { q?: string } = {
+	// Server-side search: `q` is part of the variables type and is forwarded
+	// to the endpoint, not silently dropped.
+	test('forwards the q search parameter', () => {
+		const inputWithQ: StaffInvitationsQueryVariables = {
 			cursor: 'cursor-123',
 			size: 50,
 			sortId: 'created_at',
@@ -55,6 +54,7 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 		expect(buildFindStaffInvitationsQueryParameters(inputWithQ)).toEqual({
 			cursor: 'cursor-123',
 			limit: '50',
+			q: 'staff-admin',
 			sortId: 'created_at',
 			sortOrder: 'desc',
 			status: 'pending,accepted',

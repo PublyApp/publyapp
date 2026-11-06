@@ -208,7 +208,7 @@ to look, and adds the one piece of guidance AGENTS.md does not carry:
 
 ### Local development
 
-Run the full stack with `just dev-db` (Aspire AppHost; Postgres on
+Run the full stack with `just dev` (Aspire AppHost; Postgres on
 `localhost:5454`, API on `localhost:5000`, worker, and the front dev server
 on `localhost:5050`). For the API or the front in isolation, see
 `AGENTS.md` §"## Development Commands".

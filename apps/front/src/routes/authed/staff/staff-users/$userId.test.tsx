@@ -40,6 +40,7 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
@@ -178,6 +179,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
+	useQueryErrorResetBoundary: () => ({ reset: vi.fn() }),
 	useQueryClient: () => mocks.queryClient,
 }));
 

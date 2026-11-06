@@ -182,6 +182,7 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 				queryState={{
 					isPending: companiesIsPending,
 					isError: companiesIsError,
+					error: query.error,
 					onRetry: () => void query.refetch(),
 					hasActiveSearch: Boolean(controller.search.committed),
 				}}

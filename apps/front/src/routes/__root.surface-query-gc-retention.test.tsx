@@ -144,9 +144,8 @@ describe('surface-redirect-code query retention past the default GC window', () 
 		expect(mocks.fetchCount).toBe(1);
 
 		// Client-side navigation to an unknown path under the same /staff
-		// prefix: exactness is lost, so the [..., 'staff', true] entry becomes
-		// inactive (its only observer moves to the disabled [..., 'staff',
-		// false] key).
+		// prefix: the entry is keyed per surface, so the unknown path reads the
+		// already-validated result and does NOT validate again (PR #997).
 		mocks.matches = unknownStaffMatches;
 		rerender(
 			<QueryClientProvider client={queryClient}>
@@ -156,6 +155,7 @@ describe('surface-redirect-code query retention past the default GC window', () 
 			</QueryClientProvider>,
 		);
 		await flushMicrotasks();
+		expect(mocks.fetchCount).toBe(1);
 
 		// Past the installed TanStack Query browser default gcTime (5 minutes).
 		await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1000);
@@ -171,6 +171,8 @@ describe('surface-redirect-code query retention past the default GC window', () 
 		);
 		await flushMicrotasks();
 
+		// The entry survived the detour: going back reads it from the cache
+		// instead of fetching again.
 		expect(mocks.fetchCount).toBe(1);
 	});
 });

@@ -91,7 +91,7 @@ public sealed class WorkerMigrationStartupGate : IHostedService {
 			if (shouldFailFast) {
 				throw new InvalidOperationException(
 					"Pending database migrations and nothing applies them in-process (since #885). "
-						+ "Run 'just db-migrate' (or start with 'just dev-api-migrated'), then restart."
+						+ "Run 'just db-migrate' (AppHost running) or start the stack with 'just dev', then restart."
 				);
 			}
 

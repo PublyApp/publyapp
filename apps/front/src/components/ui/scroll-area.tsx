@@ -23,7 +23,7 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
  * The simplebar-core stylesheet is imported from `node_modules` at build time
  * via `simplebar-core/dist/simplebar.css`. The Vite plugin
  * `publy:transform-simplebar-upstream-css` (see
- * apps/front/tools/vite/transform-simplebar-upstream-css.mts) reads the
+ * apps/front/tools/vite/transform-simplebar-upstream-css.ts) reads the
  * installed artifact, retokenizes the raw literals upstream ships (`black`,
  * `7px`, and the stock transition timing), removes the four known upstream
  * stacking declarations under the explicit DOM-order stacking decision, and
