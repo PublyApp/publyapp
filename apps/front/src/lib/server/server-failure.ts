@@ -1,4 +1,5 @@
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import type { JsonObject } from '@org/shared-ts/types/json.types';
 
 export type ServerFailurePayload = {
 	responseStatusCode: number;
@@ -7,6 +8,18 @@ export type ServerFailurePayload = {
 	detail: string;
 	errors?: Record<string, string[]>;
 	translationKey?: string;
+	/** The API problem's `traceId` extension, when the response carried one. */
+	traceId?: string;
+};
+
+const readTraceId = (
+	extensions: JsonObject | undefined,
+): string | undefined => {
+	const traceId = extensions?.traceId;
+	if (typeof traceId !== 'string' || !traceId.trim()) {
+		return undefined;
+	}
+	return traceId.trim();
 };
 
 const toServerFailurePayload = (error: unknown, fallbackMessage: string) => {
@@ -24,6 +37,7 @@ const toServerFailurePayload = (error: unknown, fallbackMessage: string) => {
 			detail: failure.detail ?? 'One or more input fields are invalid.',
 			errors: failure.fieldErrors,
 			translationKey: failure.translationKey,
+			traceId: readTraceId(failure.extensions),
 		};
 	}
 
@@ -36,6 +50,7 @@ const toServerFailurePayload = (error: unknown, fallbackMessage: string) => {
 			// i18n-guard-ignore: no-hardcoded-ui-literal — see title above.
 			detail: failure.detail ?? 'Request failed',
 			translationKey: failure.translationKey,
+			traceId: readTraceId(failure.extensions),
 		};
 	}
 
@@ -70,6 +85,7 @@ export class ServerFailure extends Error {
 	detail: string;
 	errors?: Record<string, string[]>;
 	translationKey?: string;
+	traceId?: string;
 
 	constructor(payload: ServerFailurePayload) {
 		super(payload.detail);
@@ -80,6 +96,7 @@ export class ServerFailure extends Error {
 		this.detail = payload.detail;
 		this.errors = payload.errors;
 		this.translationKey = payload.translationKey;
+		this.traceId = payload.traceId;
 	}
 }
 

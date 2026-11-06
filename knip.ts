@@ -63,9 +63,6 @@ const config: KnipConfig = {
 			// .lintstagedrc.js, so those stay covered.
 			ignoreDependencies: ['winston-transport-browserconsole', 'lint-staged'],
 		},
-		'apps/api': {
-			entry: 'run-dev.mjs',
-		},
 		'apps/front': {
 			entry: [
 				// Runtime-discovered files knip cannot trace. One line per file,
@@ -221,10 +218,6 @@ const config: KnipConfig = {
 				'src/*.ts',
 			],
 			project: ['src/**/*.ts'],
-			// review-front.ts launches the dev server through
-			// `pnpm exec vite` in apps/front (vite is front's own dependency);
-			// this package intentionally does not re-declare it.
-			ignoreBinaries: ['vite'],
 		},
 	},
 };

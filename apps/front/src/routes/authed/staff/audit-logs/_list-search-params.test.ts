@@ -1,42 +1,43 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+	auditLogPeriodStart,
 	buildAuditLogsCursorResetKey,
-	parseAuditLogsActionsFilter,
+	parseAuditLogCategories,
 	parseAuditLogsDateFilter,
 	parseAuditLogsListSearchParams,
-	serializeAuditLogsActionsFilter,
+	serializeAuditLogCategories,
 	serializeAuditLogsListSearchParams,
 } from './_list-search-params';
 
 describe('audit log list search params', () => {
-	describe('actions CSV filter', () => {
-		test('splits, trims and de-duplicates tokens', () => {
-			expect(
-				parseAuditLogsActionsFilter(
-					'user.created, auth.succeeded, user.created',
-				),
-			).toEqual(['user.created', 'auth.succeeded']);
+	describe('category CSV filter', () => {
+		test('splits, trims and de-duplicates known categories', () => {
+			expect(parseAuditLogCategories('auth, tenant, auth')).toEqual([
+				'auth',
+				'tenant',
+			]);
 		});
 
-		test('drops empty tokens but keeps unknown ones (backend owns the allowlist)', () => {
-			expect(
-				parseAuditLogsActionsFilter('user.created,,,bogus.action'),
-			).toEqual(['user.created', 'bogus.action']);
+		test('drops unknown ids and empty tokens (closed front vocabulary)', () => {
+			expect(parseAuditLogCategories('auth,,bogus,tenant')).toEqual([
+				'auth',
+				'tenant',
+			]);
 		});
 
 		test('returns an empty list for empty/null/non-string input', () => {
-			expect(parseAuditLogsActionsFilter(undefined)).toEqual([]);
-			expect(parseAuditLogsActionsFilter('')).toEqual([]);
-			expect(parseAuditLogsActionsFilter('   ')).toEqual([]);
-			expect(parseAuditLogsActionsFilter(42)).toEqual([]);
+			expect(parseAuditLogCategories(undefined)).toEqual([]);
+			expect(parseAuditLogCategories('')).toEqual([]);
+			expect(parseAuditLogCategories('   ')).toEqual([]);
+			expect(parseAuditLogCategories(42)).toEqual([]);
 		});
 
 		test('serializes back to a CSV string only when non-empty', () => {
-			expect(
-				serializeAuditLogsActionsFilter(['user.created', 'auth.succeeded']),
-			).toBe('user.created,auth.succeeded');
-			expect(serializeAuditLogsActionsFilter([])).toBeUndefined();
+			expect(serializeAuditLogCategories(['auth', 'tenant'])).toBe(
+				'auth,tenant',
+			);
+			expect(serializeAuditLogCategories([])).toBeUndefined();
 		});
 	});
 
@@ -55,75 +56,118 @@ describe('audit log list search params', () => {
 		});
 	});
 
+	describe('relative period', () => {
+		test('accepts only the three presets', () => {
+			expect(parseAuditLogsListSearchParams({ period: 'today' }).period).toBe(
+				'today',
+			);
+			expect(parseAuditLogsListSearchParams({ period: 'week' }).period).toBe(
+				'week',
+			);
+			expect(parseAuditLogsListSearchParams({ period: 'month' }).period).toBe(
+				'month',
+			);
+			expect(
+				parseAuditLogsListSearchParams({ period: 'year' }).period,
+			).toBeUndefined();
+		});
+
+		test('maps each preset to its inclusive start date', () => {
+			const now = new Date(2026, 9, 27, 15, 30);
+			expect(auditLogPeriodStart('today', now)).toBe('2026-10-27');
+			expect(auditLogPeriodStart('week', now)).toBe('2026-10-21');
+			expect(auditLogPeriodStart('month', now)).toBe('2026-09-28');
+		});
+	});
+
+	describe('sensitivity', () => {
+		test('only the sensitive value survives parsing', () => {
+			expect(
+				parseAuditLogsListSearchParams({ sensitivity: 'sensitive' })
+					.sensitivity,
+			).toBe('sensitive');
+			expect(
+				parseAuditLogsListSearchParams({ sensitivity: 'normal' }).sensitivity,
+			).toBeUndefined();
+		});
+	});
+
 	describe('full parse/serialize round trip', () => {
 		test('maps wire snake_case to camelCase and back', () => {
 			const parsed = parseAuditLogsListSearchParams({
-				actions: 'user.created,auth.succeeded',
-				start_date: '2026-01-01',
-				end_date: '2026-01-31',
+				category: 'auth,tenant',
+				period: 'week',
+				sensitivity: 'sensitive',
 				sort_id: 'created_at',
 				sort_order: 'desc',
 				size: 50,
 			});
 
 			expect(parsed).toEqual({
-				actions: 'user.created,auth.succeeded',
-				startDate: '2026-01-01',
-				endDate: '2026-01-31',
+				category: 'auth,tenant',
+				period: 'week',
+				sensitivity: 'sensitive',
+				startDate: undefined,
+				endDate: undefined,
 				sortId: 'created_at',
 				sortOrder: 'desc',
 				size: 50,
 			});
 
 			expect(serializeAuditLogsListSearchParams(parsed)).toEqual({
-				actions: 'user.created,auth.succeeded',
-				start_date: '2026-01-01',
-				end_date: '2026-01-31',
+				category: 'auth,tenant',
+				period: 'week',
+				sensitivity: 'sensitive',
 				sort_id: 'created_at',
 				sort_order: 'desc',
 				size: 50,
 			});
 		});
 
-		test('normalizes junk and drops empty filter keys from the wire', () => {
-			const serialized = serializeAuditLogsListSearchParams(
-				parseAuditLogsListSearchParams({
-					actions: 'user.created,,, ',
-					start_date: 'not-a-date',
-					end_date: '2026-01-31',
-				}),
-			);
-
-			expect(serialized).toEqual({
-				actions: 'user.created',
-				end_date: '2026-01-31',
+		test('keeps a deep-linked custom range when no preset is set', () => {
+			const parsed = parseAuditLogsListSearchParams({
+				start_date: '2026-10-01',
+				end_date: '2026-10-15',
 			});
+
+			expect(parsed.startDate).toBe('2026-10-01');
+			expect(parsed.endDate).toBe('2026-10-15');
+			expect(serializeAuditLogsListSearchParams(parsed).start_date).toBe(
+				'2026-10-01',
+			);
 		});
 	});
 
-	describe('cursor reset key', () => {
-		test('changes when any filter changes', () => {
-			const base = buildAuditLogsCursorResetKey({
-				actions: 'user.created',
-				startDate: '2026-01-01',
+	describe('cursor reset scope', () => {
+		test('changes on any filter change', () => {
+			const base = parseAuditLogsListSearchParams({
+				category: 'auth',
+				period: 'week',
 			});
+			const resetKey = buildAuditLogsCursorResetKey(base);
 
+			expect(buildAuditLogsCursorResetKey(base)).toBe(resetKey);
 			expect(
-				buildAuditLogsCursorResetKey({ actions: 'user.created' }),
-			).not.toBe(base);
+				buildAuditLogsCursorResetKey(
+					parseAuditLogsListSearchParams({
+						category: 'tenant',
+						period: 'week',
+					}),
+				),
+			).not.toBe(resetKey);
 			expect(
-				buildAuditLogsCursorResetKey({
-					actions: 'user.created',
-					startDate: '2026-01-01',
-					endDate: '2026-01-31',
-				}),
-			).not.toBe(base);
+				buildAuditLogsCursorResetKey(
+					parseAuditLogsListSearchParams({ category: 'auth', period: 'month' }),
+				),
+			).not.toBe(resetKey);
 			expect(
-				buildAuditLogsCursorResetKey({
-					actions: 'user.created',
-					startDate: '2026-01-01',
-				}),
-			).toBe(base);
+				buildAuditLogsCursorResetKey(
+					parseAuditLogsListSearchParams({
+						category: 'auth',
+						sensitivity: 'sensitive',
+					}),
+				),
+			).not.toBe(resetKey);
 		});
 	});
 });

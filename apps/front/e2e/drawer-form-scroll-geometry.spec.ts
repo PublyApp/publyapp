@@ -581,7 +581,15 @@ const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('tenant-posts-drafts-page')).toBeVisible({
 		timeout: 10_000,
 	});
-	await page.getByTestId('tenant-posts-new-post').click();
+	// Below `md` the header action is hidden and the page's actions live in the
+	// speed-dial (owner decision 04/11), so open the drawer the way a narrow
+	// user does instead of clicking a `display:none` link.
+	const headerAction = page.getByTestId('tenant-posts-new-post');
+	if (await headerAction.isVisible()) {
+		await headerAction.click();
+	} else {
+		await page.locator('button[data-speed-dial]').click();
+	}
 	await expect(page.getByTestId('tenant-posts-create-drawer')).toBeVisible({
 		timeout: 10_000,
 	});

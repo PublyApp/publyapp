@@ -32,7 +32,6 @@ import {
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
-	TenantRetryActions,
 } from './$tenantId/_tenant-details-shell';
 import { TenantDetailsStatRow } from './$tenantId/_tenant-details-stat-row';
 import {
@@ -97,7 +96,6 @@ const StaffTenantDetailsPage = () => {
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
 			embedded
-			actions={<TenantRetryActions onRetry={() => void query.refetch()} />}
 		/>
 	);
 

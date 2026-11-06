@@ -98,6 +98,7 @@ describe('toStaffUserRows', () => {
 				avatarUrl: 'https://example.com/alpha.png',
 				level: AccountLevelObject.Admin,
 				status: UserStatusObject.Active,
+				profileNames: [],
 				displayName: 'Alpha Admin',
 			},
 			{
@@ -108,6 +109,7 @@ describe('toStaffUserRows', () => {
 				avatarUrl: null,
 				level: null,
 				status: null,
+				profileNames: [],
 				displayName: 'beta@example.com',
 			},
 		]);

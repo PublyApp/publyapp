@@ -35,6 +35,7 @@ import {
  */
 
 export type StaffJobQueueQueryVariables = {
+	q?: string;
 	status?: string;
 	jobType?: string;
 	tenantId?: string;
@@ -45,6 +46,7 @@ export type StaffJobQueueQueryVariables = {
 };
 
 export type StaffDeadLettersQueryVariables = {
+	q?: string;
 	externalStateStatus?: string;
 	jobType?: string;
 	tenantId?: string;
@@ -55,6 +57,7 @@ export type StaffDeadLettersQueryVariables = {
 };
 
 export type StaffSystemJobDefinitionsQueryVariables = {
+	q?: string;
 	isEnabled?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
@@ -105,6 +108,7 @@ export type StaffJobQueueRow = {
 	lockedUntil: Date | null;
 	lastError: string | null;
 	tenantId: string | null;
+	tenantName?: string | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 };
@@ -121,6 +125,7 @@ export type StaffDeadLetterRow = {
 	requeuedAsJobId: string | null;
 	requeuedAt: Date | null;
 	tenantId: string | null;
+	tenantName?: string | null;
 };
 
 export type StaffSystemJobDefinitionRow = {
@@ -200,6 +205,7 @@ const normalizeLimit = (size: number | undefined): string | undefined =>
 	isPositiveSafeInteger(size) ? String(size) : undefined;
 
 type StaffJobQueueQueryParameters = {
+	q?: string;
 	status?: string;
 	jobType?: string;
 	tenantId?: string;
@@ -212,6 +218,7 @@ type StaffJobQueueQueryParameters = {
 export const buildFindStaffJobQueueQueryParameters = (
 	variables: StaffJobQueueQueryVariables,
 ): StaffJobQueueQueryParameters => ({
+	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
 	jobType: normalizeString(variables.jobType),
 	tenantId: normalizeString(variables.tenantId),
@@ -222,6 +229,7 @@ export const buildFindStaffJobQueueQueryParameters = (
 });
 
 type StaffDeadLettersQueryParameters = {
+	q?: string;
 	externalStateStatus?: string;
 	jobType?: string;
 	tenantId?: string;
@@ -234,6 +242,7 @@ type StaffDeadLettersQueryParameters = {
 export const buildFindStaffDeadLettersQueryParameters = (
 	variables: StaffDeadLettersQueryVariables,
 ): StaffDeadLettersQueryParameters => ({
+	q: normalizeString(variables.q),
 	externalStateStatus: normalizeString(variables.externalStateStatus),
 	jobType: normalizeString(variables.jobType),
 	tenantId: normalizeString(variables.tenantId),
@@ -244,6 +253,7 @@ export const buildFindStaffDeadLettersQueryParameters = (
 });
 
 type StaffSystemJobDefinitionsQueryParameters = {
+	q?: string;
 	isEnabled?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
@@ -254,6 +264,7 @@ type StaffSystemJobDefinitionsQueryParameters = {
 export const buildFindStaffSystemJobDefinitionsQueryParameters = (
 	variables: StaffSystemJobDefinitionsQueryVariables,
 ): StaffSystemJobDefinitionsQueryParameters => ({
+	q: normalizeString(variables.q),
 	isEnabled: normalizeString(variables.isEnabled),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
@@ -546,6 +557,7 @@ export const toStaffJobQueueRows = (
 			lockedUntil: normalizeNullableDate(item.lockedUntil),
 			lastError: normalizeNullableString(item.lastError),
 			tenantId: normalizeNullableString(item.tenantId),
+			tenantName: normalizeNullableString(item.tenantName),
 			createdAt: normalizeNullableDate(item.createdAt),
 			updatedAt: normalizeNullableDate(item.updatedAt),
 		});
@@ -577,6 +589,7 @@ export const toStaffDeadLetterRows = (
 			requeuedAsJobId: normalizeNullableString(item.requeuedAsJobId),
 			requeuedAt: normalizeNullableDate(item.requeuedAt),
 			tenantId: normalizeNullableString(item.tenantId),
+			tenantName: normalizeNullableString(item.tenantName),
 		});
 	}
 

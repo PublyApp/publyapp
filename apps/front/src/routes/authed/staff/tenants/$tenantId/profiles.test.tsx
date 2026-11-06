@@ -67,6 +67,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
+	useQueryErrorResetBoundary: () => ({ reset: vi.fn() }),
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,
 	}),
@@ -110,11 +111,16 @@ vi.mock('@tanstack/react-router', () => ({
 		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
 		return mocks.blockerResolver;
 	},
-	useRouter: () => ({ history: { back: mocks.historyBack } }),
+	useRouter: () => ({
+		history: { back: mocks.historyBack },
+		invalidate: vi.fn(),
+	}),
 }));
 
 const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
+	'common:default-profile-name': 'Default profile',
+	'common:default-profile-description': 'Default profile with no permissions',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
 	users: 'Users',
@@ -405,8 +411,12 @@ describe('staff tenant profiles route', () => {
 			screen.getByText('Profiles', { selector: 'span[aria-current="page"]' }),
 		).toBeTruthy();
 		expect(screen.getByTestId('staff-tenant-profiles-grid-rows')).toBeTruthy();
+		// A renamed default profile keeps its own name (display-profile.ts): only
+		// the untouched seeded copy is translated at render time.
 		expect(screen.getAllByText('Approvers').length).toBeGreaterThan(0);
-		expect(screen.getByText('Can review approvals')).toBeTruthy();
+		expect(screen.getAllByText('Can review approvals').length).toBeGreaterThan(
+			0,
+		);
 		expect(screen.getByText('System')).toBeTruthy();
 		expect(screen.getByText('Custom')).toBeTruthy();
 		expect(screen.getByText('7 members · 12 permissions')).toBeTruthy();

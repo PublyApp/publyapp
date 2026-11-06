@@ -7,7 +7,7 @@
 	"bad-request": "Mauvaise requête",
 	"unprocessable-entity": "Entité non traitable",
 	"too-many-requests": "Trop de requêtes",
-	"service-unavailable": "Service indisponible",
+	"service-unavailable": "Le service est momentanément indisponible.",
 	"gateway-timeout": "Délai d'attente de la passerelle",
 	"method-not-allowed": "Méthode non autorisée",
 	"invalid-email-or-password": "Email ou mot de passe invalide",

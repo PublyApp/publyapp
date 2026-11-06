@@ -114,7 +114,11 @@ describe('TenantPostsDraftsPage', () => {
 		render(<TenantPostsDraftsPage />);
 
 		expect(screen.getByRole('heading', { name: 'Drafts' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'New post' })).toBeTruthy();
+		// The desktop button and the mobile speed-dial share the action's
+		// name; each viewport shows exactly one (CSS-hidden, present in jsdom).
+		expect(
+			screen.getAllByRole('button', { name: 'New post' }).length,
+		).toBeGreaterThan(0);
 	});
 
 	test('shows the drafts table with test id', () => {

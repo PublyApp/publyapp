@@ -77,7 +77,7 @@ const SelectContent = ({
 					data-slot="select-content"
 					data-align-trigger={alignItemWithTrigger}
 					className={cn(
-						'relative isolate z-(--publy-z-select) max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) rounded-[var(--publy-radius-control)] border border-border/90 bg-popover/97 text-popover-foreground shadow-[var(--publy-shadow-menu)] backdrop-blur-sm duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+						'relative isolate z-(--publy-z-select) max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) rounded-[10px] bg-popover-surface text-popover-foreground shadow-[var(--effect-popover)] duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
 						className,
 					)}
 					{...props}

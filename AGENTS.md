@@ -16,24 +16,25 @@ PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10
 ### Starting Development Servers
 
 ```bash
-# Preferred: the full local stack in one command — the Aspire AppHost runs a
-# persistent Postgres (host port 5454, named data volume), the API (5000), the
-# worker, and the front dev server.
-just dev-db
+# The whole local stack (Aspire AppHost: Postgres 5454, migrations, API 5000, worker,
+# front 5050) for the current folder, or for a PR / issue / branch from anywhere in the repo.
+# A missing worktree is created under .worktrees/ (issue without a branch → feat|fix/<n>-<slug>).
+just dev
+just dev 2297
+just dev feat/2172-renditions-api
 
-# Alternative, without the AppHost (each in its own terminal):
-#   just db-migrate          # or: just dev-api-migrated (migrate + start API)
-#   just dev-api             # API with hot reload (5000)
-#   just dev-front           # frontend (TanStack Start dev server, 5050)
+# Single pieces, when you only need one:
+#   just dev-api             # API with hot reload (5000) — needs the AppHost database running
+#   just dev-front           # frontend only (5050)
 ```
 
-Do NOT run `just dev-api` (or `just dev-api-migrated`) alongside `just dev-db`: the
-AppHost already runs the API on port 5000, and a second API would fail to bind it.
+One app at a time: `just dev` stops the stack already running before starting the new one.
+Branches created before #2305 are refused — update them with develop first.
 
-Drive `apps/front` — the app that actually ships — with `just dev-front`, `just review-front <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate. See also the retired-app note below.
+Drive `apps/front` — the app that actually ships — with `just dev-front`, `just dev <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate. See also the retired-app note below.
 
-Since #885, the API waits for pending migrations but does not apply them. Run
-`just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
+`just dev` applies pending migrations before the API and the worker start; `just db-migrate`
+targets the AppHost database and needs `just dev` running.
 
 **Windows note:** the repo `justfile` uses PowerShell 7 (`pwsh`) on Windows (not Windows PowerShell 5.1).
 
@@ -66,7 +67,7 @@ checkout.
 ### Code Quality
 
 ```bash
-just check-write                       # Run oxlint + oxfmt (auto-fix)
+just lint && just format             # oxlint + oxfmt, both fixing by default
 pnpm --filter front typecheck          # TypeScript type checking (front)
 just knip                              # Check for unused dependencies
 ```

@@ -32,7 +32,7 @@
 	"showing-first-n-profiles": "Affichage des {{count}} premiers profils.",
 	"staff-user-identity-saved-profiles-failed": "Les modifications du nom et des accès ont été enregistrées, mais l’attribution des profils a échoué : {{reason}} Ajustez la sélection et réessayez.",
 	"staff-user-not-found-description": "Le membre du personnel que vous recherchez n’existe pas ou a peut-être été supprimé.",
-	"staff-user-not-found-title": "membre du personnel introuvable",
+	"staff-user-not-found-title": "Membre du personnel introuvable",
 	"staff-user-payload-empty": "Les données du membre du personnel étaient vides.",
 	"staff-user-updated-success": "Membre du personnel mis à jour avec succès.",
 	"staff-users-page-description": "Recherchez, consultez et gérez les accès du personnel dans l’ensemble de l’espace de travail.",

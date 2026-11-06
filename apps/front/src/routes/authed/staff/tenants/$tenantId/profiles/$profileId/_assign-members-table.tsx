@@ -73,6 +73,7 @@ export const AssignMembersTable = ({
 				queryState={{
 					isPending: usersQuery.isPending,
 					isError: usersQuery.isError,
+					error: usersQuery.error,
 					onRetry: () => void usersQuery.refetch(),
 					hasActiveSearch: Boolean(controller.search.committed),
 				}}

@@ -1,20 +1,51 @@
-import { IconCircleDashed, IconShieldLock } from '@tabler/icons-react';
+import {
+	IconCircleCheck,
+	IconCircleDashed,
+	IconCircleX,
+	IconClock,
+	IconShieldLock,
+} from '@tabler/icons-react';
+import type { ReactNode } from 'react';
 import type { ListFilter } from '~/components/list/list-types';
 import { StatusPill } from '~/components/ui/product-page';
-import { statusPillTone } from '~/components/ui/status-tone';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { formatShortDate } from '~/utils/format-time';
 
+import type { StaffInvitationListCounts } from '@org/client-ts/models/index';
+
 import { invitationColumns } from './_invitations-list-columns';
 import {
 	getInvitationStatusLabelKey,
+	invitationStatusTone,
 	type StaffInvitationRow,
 } from './list-helpers';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const DASH = '—';
+
+const STATUS_ICON_TONE = {
+	pending: { Icon: IconClock, tone: 'text-[var(--publy-chip-pending-text)]' },
+	accepted: {
+		Icon: IconCircleCheck,
+		tone: 'text-[var(--publy-chip-active-text)]',
+	},
+	expired: { Icon: IconClock, tone: 'text-muted-foreground' },
+	revoked: {
+		Icon: IconCircleX,
+		tone: 'text-[var(--publy-chip-suspended-text)]',
+	},
+} as const;
+
+const invitationStatusIcon = (status: string): ReactNode => {
+	const entry = STATUS_ICON_TONE[status as keyof typeof STATUS_ICON_TONE];
+	if (!entry) {
+		return null;
+	}
+	const Icon = entry.Icon;
+	return <Icon className={`size-4 shrink-0 ${entry.tone}`} />;
+};
 
 export const DEFAULT_INVITATION_COLUMNS = [
 	'email',
@@ -23,13 +54,13 @@ export const DEFAULT_INVITATION_COLUMNS = [
 	'invitedBy',
 	'createdAt',
 	'expiresAt',
-	'acceptedAt',
 ] as const;
 
 export const buildInvitationFilters = (
 	t: Translate,
 	rows: StaffInvitationRow[],
 	selectedProfiles: readonly string[] = [],
+	profileCounts: Record<string, number> | null = null,
 ): ListFilter<StaffInvitationRow>[] => {
 	const profileNames: string[] = [];
 	const seen = new Set<string>();
@@ -55,6 +86,7 @@ export const buildInvitationFilters = (
 			choices: ['pending', 'accepted', 'expired', 'revoked'].map((status) => ({
 				value: status,
 				label: t(`list-invitation-status-${status}`),
+				icon: invitationStatusIcon(status),
 			})),
 			valueOf: (row) => row.status,
 		},
@@ -68,6 +100,7 @@ export const buildInvitationFilters = (
 						choices: profileNames.map((name) => ({
 							value: name,
 							label: name,
+							count: profileCounts?.[name] ?? null,
 						})),
 						valueOf: (row: StaffInvitationRow) => row.profileName,
 					} satisfies ListFilter<StaffInvitationRow>,
@@ -76,23 +109,21 @@ export const buildInvitationFilters = (
 	];
 };
 
-const countStatus = (
-	rows: StaffInvitationRow[],
-	status: StaffInvitationRow['status'],
-): number => rows.filter((row) => row.status === status).length;
-
 export const buildInvitationTotals =
-	(t: Translate): ((rows: StaffInvitationRow[]) => Map<string, string>) =>
-	(rows) => {
+	(t: Translate, counts: StaffInvitationListCounts | null | undefined) =>
+	(): Map<string, string> => {
 		const totals = new Map<string, string>();
-		totals.set('email', t('list-total-invitations', { count: rows.length }));
+		totals.set(
+			'email',
+			t('list-total-invitations', { count: counts?.total ?? 0 }),
+		);
 		totals.set(
 			'status',
 			t('list-total-invitation-statuses', {
-				pending: countStatus(rows, 'pending'),
-				accepted: countStatus(rows, 'accepted'),
-				expired: countStatus(rows, 'expired'),
-				revoked: countStatus(rows, 'revoked'),
+				pending: counts?.pending ?? 0,
+				accepted: counts?.accepted ?? 0,
+				expired: counts?.expired ?? 0,
+				revoked: counts?.revoked ?? 0,
 			}),
 		);
 		for (const id of [
@@ -109,9 +140,8 @@ export const buildInvitationTotals =
 
 export const buildInvitationMobileCard =
 	(t: Translate, locale: string) => (row: StaffInvitationRow) => ({
-		code: row.email,
 		badges: (
-			<StatusPill tone={statusPillTone(row.status)}>
+			<StatusPill tone={invitationStatusTone(row.status)}>
 				{t(getInvitationStatusLabelKey(row.status))}
 			</StatusPill>
 		),

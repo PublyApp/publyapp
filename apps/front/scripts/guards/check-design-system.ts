@@ -878,6 +878,10 @@ const isRoundedRadiusAllowed = (
 	return (
 		selectorAppearsExactly(line, '.app-shell-topbar-action-btn') ||
 		hasNearbySelector(lines, lineIndex, '.app-shell-topbar-action-btn') ||
+		// #2292: the status pill is a pill by spec (the prototype's
+		// `[data-slot=badge]` computes a 999px radius) — a genuinely
+		// circular surface, not a rounded rectangle.
+		hasNearbySelector(lines, lineIndex, '.publy-status-pill') ||
 		// The remaining genuinely circular CSS surfaces (F4): the rail's
 		// account avatar/link and the form action bar's 7px status dot.
 		hasNearbySelector(lines, lineIndex, "[data-rail-item='account']") ||
@@ -937,16 +941,6 @@ const THEME_INVARIANT_TOKENS: ThemeInvariantTokenEntry[] = [
 		prefix: '--publy-auth-',
 		reason:
 			'Auth split-brand hero panel (handoff A1) is a fixed dark canvas by design, independent of the app theme.',
-	},
-	{
-		exact: '--publy-shadow-chrome',
-		reason:
-			'.btn-primary-chrome bevel is pinned to the handoff spec value (see check-design-system.test.mjs) and reads as a consistent metal highlight regardless of surface tone.',
-	},
-	{
-		exact: '--publy-chrome-border',
-		reason:
-			'.btn-primary-chrome border is the same fixed metal bevel as --publy-shadow-chrome above and must not swap in dark mode either.',
 	},
 ];
 
@@ -2205,8 +2199,9 @@ const rules: DesignSystemRule[] = [
 	{
 		id: 'no-rounded-full-or-999-radius',
 		message:
-			'Only avatar surfaces, 36px topbar icon buttons, and the profile ' +
-			'icon-picker pencil-pin corner badge may remain fully rounded.',
+			'Only avatar surfaces, 36px topbar icon buttons, the profile ' +
+			'icon-picker pencil-pin corner badge, and the status pill may ' +
+			'remain fully rounded.',
 		appliesTo: () => true,
 		patterns: [
 			/\brounded-full\b/,

@@ -18,7 +18,8 @@
 import { IconAlertCircle } from '@tabler/icons-react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Button } from '~/components/ui/button';
+import { ErrorActions } from '~/components/error-views/error-actions';
+import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
@@ -79,23 +80,13 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 		}
 
 		return (
-			<ErrorStateSurface
-				icon={IconAlertCircle}
-				eyebrow={resolved.code}
-				title={resolved.title}
-				description={resolved.description}
+			<ErrorKindState
+				scale="inline"
+				panel
+				kind={resolved.kind}
+				error={error}
+				onRetry={() => void retry()}
 				testId={testId}
-				actions={
-					resolved.supportsRetry ? (
-						<Button
-							variant="default"
-							type="button"
-							onClick={() => void retry()}
-						>
-							{t('common:retry')}
-						</Button>
-					) : undefined
-				}
 			/>
 		);
 	}
@@ -106,11 +97,7 @@ export const TenantReadOnlyCardError = <TData, TError = Error>({
 			title={t(titleKey)}
 			description={t(descriptionKey)}
 			testId={testId}
-			actions={
-				<Button variant="default" type="button" onClick={() => void retry()}>
-					{t('common:retry')}
-				</Button>
-			}
+			actions={<ErrorActions retry={() => void retry()} />}
 		/>
 	);
 };

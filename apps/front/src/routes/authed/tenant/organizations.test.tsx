@@ -36,6 +36,9 @@ vi.mock('@tanstack/react-router', () => ({
 		...options,
 		options,
 	}),
+	// No RouterProvider in this render: the home action falls back to a plain
+	// anchor (see BackHomeButton).
+	useRouter: () => undefined,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -64,6 +67,8 @@ const EN_LABELS: TestLabelMap = {
 	'common:members': 'Members',
 	'common:unnamed-tenant': 'Unnamed tenant',
 	'common:retry': 'Retry',
+	retry: 'Retry',
+	'go-to-home': 'Back to home',
 	'read-only': 'Read only',
 	'not-available-yet': 'Not available yet',
 	'organizations-list': 'Organizations in this workspace',

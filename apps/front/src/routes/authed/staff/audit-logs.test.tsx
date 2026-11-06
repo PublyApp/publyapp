@@ -1,84 +1,136 @@
-/** @vitest-environment jsdom */
-import type { ReactNode } from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
-vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => ({
-		...options,
-		options,
-	}),
-	Link: (props: { children?: ReactNode }) => props.children ?? null,
-}));
-
-import { render, screen } from '@testing-library/react';
-
-import { makeAuditLogColumns } from './audit-logs/_audit-log-columns';
+import {
+	buildAuditActionCatalog,
+	buildAuditLogFilters,
+	resolveAuditLogSelection,
+} from './audit-logs/_audit-log-history-filters';
 
 const t = (key: string): string => key;
 
-describe('staff audit logs column grid', () => {
-	test('applies the column grid across the contract-backed columns', () => {
-		const columns = makeAuditLogColumns(t, 'en');
-		const widthById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.width]),
-		);
+/** A slice of the backend action registry, enough to cover the categories and
+ * the sensitive subset. */
+const ACTIONS = [
+	'auth.login.succeeded',
+	'auth.login.failed',
+	'impersonation.started',
+	'job.dead_letter.requeued',
+	'tenant.created',
+	'tenant.suspended',
+	'tenant.user.suspended',
+];
 
-		expect(widthById).toEqual({
-			event: '240px',
-			user: '220px',
-			'target-id': '160px',
-			'ip-address': '140px',
-			created_at: '200px',
-			actions: '40px',
+const catalog = buildAuditActionCatalog(ACTIONS);
+
+describe('staff audit log history filters', () => {
+	test('lists only the categories the registry actually populates', () => {
+		const filters = buildAuditLogFilters({ t, catalog, search: {} });
+		const categories = filters.find((filter) => filter.key === 'category');
+
+		expect(categories?.panel).toBe(true);
+		expect(categories?.choices.map((choice) => choice.value)).toEqual([
+			'auth',
+			'tenant',
+			'member',
+			'impersonation',
+			'job',
+		]);
+	});
+
+	test('offers the period presets, and the custom range only when deep-linked', () => {
+		const withoutRange = buildAuditLogFilters({ t, catalog, search: {} });
+		expect(
+			withoutRange
+				.find((filter) => filter.key === 'period')
+				?.choices.map((choice) => choice.value),
+		).toEqual(['today', 'week', 'month']);
+
+		const withRange = buildAuditLogFilters({
+			t,
+			catalog,
+			search: { startDate: '2026-10-01', endDate: '2026-10-15' },
 		});
+		const custom = withRange
+			.find((filter) => filter.key === 'period')
+			?.choices.find((choice) => choice.value === 'custom');
+		expect(custom?.label).toBe('01/10/2026 – 15/10/2026');
 	});
 
-	test('only the created_at column is backend-sortable', () => {
-		const columns = makeAuditLogColumns(t, 'en');
+	test('a category the facets omit is a real 0, not an unknown count', () => {
+		const withFacets = buildAuditLogFilters({
+			t,
+			catalog,
+			search: {},
+			categoryCounts: { tenant: 4 },
+		});
+		const counts = withFacets
+			.find((filter) => filter.key === 'category')
+			?.choices.map((choice) => choice.count);
+		expect(counts).toEqual([0, 4, 0, 0, 0]);
 
-		for (const column of columns) {
-			if (column.id === 'created_at') {
-				expect(column.enableSorting).not.toBe(false);
-			} else {
-				expect(column.enableSorting).toBe(false);
-			}
-		}
+		const withoutFacets = buildAuditLogFilters({ t, catalog, search: {} });
+		expect(
+			withoutFacets
+				.find((filter) => filter.key === 'category')
+				?.choices.every((choice) => choice.count === null),
+		).toBe(true);
 	});
 
-	test('drops fluid-width columns on narrow viewports and keeps the event link', () => {
-		const columns = makeAuditLogColumns(t, 'en');
-		const hidden = columns
-			.filter((column) => column.meta?.hideBelow != null)
-			.map((column) => column.id);
-
-		expect(hidden.sort()).toEqual(['ip-address', 'target-id', 'user']);
+	test('offers the sensitive shortcut only when the registry has one', () => {
+		expect(
+			buildAuditLogFilters({ t, catalog, search: {} }).some(
+				(filter) => filter.key === 'sensitivity',
+			),
+		).toBe(true);
+		expect(
+			buildAuditLogFilters({
+				t,
+				catalog: buildAuditActionCatalog(['job.dead_letter.requeued']),
+				search: {},
+			}).some((filter) => filter.key === 'sensitivity'),
+		).toBe(false);
 	});
 
-	test('renders the translated action-category badge above the event link', () => {
-		const translate = (key: string): string =>
-			key === 'action-kind-user' ? 'User category' : key;
-		const columns = makeAuditLogColumns(translate, 'en');
-		const eventCell = columns[0].cell as
-			| ((context: { row: { original: Record<string, unknown> } }) => ReactNode)
-			| undefined;
+	test('turns the selected categories into the server action list', () => {
+		const selection = resolveAuditLogSelection({
+			catalog,
+			categories: ['tenant'],
+			sensitivity: false,
+		});
 
-		render(
-			eventCell?.({
-				row: {
-					original: {
-						id: 'log-1',
-						action: 'user.created',
-						userName: null,
-						userEmail: null,
-						ipAddress: null,
-						targetId: null,
-						createdAt: null,
-					},
-				},
-			}) ?? null,
-		);
+		expect(selection.actions).toBe('tenant.created,tenant.suspended');
+		expect(selection.impossible).toBe(false);
+	});
 
-		expect(screen.getByText('User category')).toBeTruthy();
-		expect(screen.getByText('user.created')).toBeTruthy();
+	test('intersects the category and sensitivity dimensions', () => {
+		const selection = resolveAuditLogSelection({
+			catalog,
+			categories: ['tenant'],
+			sensitivity: true,
+		});
+
+		expect(selection.actions).toBe('tenant.suspended');
+	});
+
+	test('flags an empty intersection instead of querying the whole history', () => {
+		const selection = resolveAuditLogSelection({
+			catalog,
+			categories: ['job'],
+			sensitivity: true,
+		});
+
+		expect(selection.impossible).toBe(true);
+		expect(selection.actions).toBeUndefined();
+	});
+
+	test('sends no action filter when nothing is selected', () => {
+		const selection = resolveAuditLogSelection({
+			catalog,
+			categories: [],
+			sensitivity: false,
+		});
+
+		expect(selection.actions).toBeUndefined();
+		expect(selection.impossible).toBe(false);
 	});
 });

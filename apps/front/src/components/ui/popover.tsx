@@ -38,7 +38,7 @@ const PopoverContent = ({
 			<PopoverPrimitive.Popup
 				data-slot="popover-content"
 				className={cn(
-					'z-(--publy-z-menu) max-h-(--available-height) origin-(--transform-origin) overflow-y-auto rounded-[var(--publy-radius-control)] border border-border/90 bg-popover/97 p-1 text-sm text-popover-foreground shadow-[var(--publy-shadow-menu)] backdrop-blur-sm outline-none duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
+					'z-(--publy-z-menu) max-h-(--available-height) origin-(--transform-origin) overflow-y-auto rounded-[10px] bg-popover-surface p-1 text-sm text-popover-foreground shadow-[var(--effect-popover)] outline-none duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
 					className,
 				)}
 				{...props}

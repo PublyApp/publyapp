@@ -9,8 +9,6 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
-import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	selectStaffAuditLogCrumbName,
@@ -77,14 +75,6 @@ const AuditLogDetailsEmpty = () => {
 			title={t('common:audit-log-not-found-title')}
 			description={t('common:audit-log-not-found-description')}
 			testId="staff-audit-log-details-not-found"
-			actions={
-				<Link
-					to={AUDIT_LOGS_LIST_PATH}
-					className={buttonVariants({ variant: 'outline' })}
-				>
-					{t('back-to-audit-logs')}
-				</Link>
-			}
 		/>
 	);
 };
@@ -117,19 +107,7 @@ const AuditLogDetailsError = ({
 			title={t('common:audit-log-details-error-title')}
 			description={t('common:audit-log-details-error-description')}
 			testId="staff-audit-log-details-error"
-			actions={
-				<>
-					<Button variant="default" onClick={onRetry} type="button">
-						{t('common:try-again')}
-					</Button>
-					<Link
-						to={AUDIT_LOGS_LIST_PATH}
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('back-to-audit-logs')}
-					</Link>
-				</>
-			}
+			onRetry={onRetry}
 		/>
 	);
 };
