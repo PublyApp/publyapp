@@ -32,7 +32,7 @@
  * EXEMPTIONS — long-running processes that must NOT be time-bounded (a 300s
  * wrapper would kill them mid-session). Each entry carries its reason.
  * `dev` (vite dev) does not invoke `node` by name, so it needs no entry;
- * `start` (node server.mjs) does, so it is exempted here.
+ * `start` (node server.ts) does, so it is exempted here.
  *
  * FAIL-CLOSED: an unreadable or unparseable `apps/front/package.json`, a
  * package.json without a `scripts` object, or an EMPTY guard family (every
@@ -66,7 +66,7 @@ export type GuardCoverageFinding = {
  */
 export const LONG_RUNNING_EXEMPTIONS = {
 	start:
-		'production server (`node server.mjs`): runs until stopped; a 300s bound would kill it mid-session',
+		'production server (`node server.ts`): runs until stopped; a 300s bound would kill it mid-session',
 } as const satisfies Readonly<Record<string, string>>;
 
 const FAMILY_PREFIXES = ['test:', 'check:', 'verify:'] as const;

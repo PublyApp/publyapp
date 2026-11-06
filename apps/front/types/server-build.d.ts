@@ -1,16 +1,12 @@
 /**
  * Type contract for the built server bundle (`dist/server/server.js`),
- * consumed by the production entry `server.mjs` through the `#server-build`
+ * consumed by the production entry `server.ts` through the `#server-build`
  * package-imports alias declared in `package.json`.
  *
- * Why this file exists (#1758). `server.mjs` is the production entry — it is
- * copied into the front image and launched with `node server.mjs` — yet nothing
- * typechecked it: with no `allowJs` the `include` entry was decorative
- * (measured ZERO times in `tsc --listFiles`, #1692), and enabling `allowJs` on
- * the main tsconfig drags the build output `dist/server/assets/*.js` into the
- * program and breaks the gate (#1749). The dedicated `tsconfig.server.json`
- * checks `server.mjs` with `allowJs`/`checkJs` while excluding `dist/`, and
- * this file supplies the only unresolved edge: the relative import
+ * Why this file exists (#1758). `server.ts` is the production entry — it is
+ * copied into the front image and launched with `node server.ts` — and is
+ * typechecked as plain TypeScript since #2306. This file supplies its only
+ * unresolved edge: the relative import
  * `./dist/server/server.js` cannot be declared by an ambient module, and
  * `dist/` is a gitignored build artifact (a committed `.d.ts` under it would
  * be wiped by every `vite build`). The `imports` map therefore aliases the

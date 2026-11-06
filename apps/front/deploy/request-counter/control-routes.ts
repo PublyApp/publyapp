@@ -1,23 +1,25 @@
+import type { ServerResponse } from 'node:http';
+
 const CONTROL_INDEX_PATH = '/__counter';
 const CONTROL_RESET_PATH = '/__counter/reset';
 
-/**
- * @typedef {object} ControlRequest
- * @property {string} [method]
- * @property {string} [url]
- */
+interface ControlRequest {
+	method?: string;
+	url?: string;
+}
 
-/**
- * @typedef {{ statusCode: number, headers: Record<string, string>, body: string }} ControlResponse
- */
+interface ControlResponse {
+	statusCode: number;
+	headers: Record<string, string>;
+	body: string;
+}
 
-/** @param {string} method @param {string} path @returns {string} */
-const getCountKey = (method, path) => `${method} ${path}`;
-/** @param {string | undefined} requestUrl @returns {string} */
-const getRawPath = (requestUrl) => (requestUrl ?? '/').split('?')[0] ?? '/';
+const getCountKey = (method: string, path: string): string =>
+	`${method} ${path}`;
+const getRawPath = (requestUrl: string | undefined): string =>
+	(requestUrl ?? '/').split('?')[0] ?? '/';
 
-/** @param {Map<string, number>} counts @param {string} path @returns {number} */
-const getPathTotal = (counts, path) => {
+const getPathTotal = (counts: Map<string, number>, path: string): number => {
 	let total = 0;
 
 	for (const [key, count] of counts) {
@@ -30,8 +32,7 @@ const getPathTotal = (counts, path) => {
 	return total;
 };
 
-/** @param {string} allow @returns {ControlResponse} */
-const methodNotAllowed = (allow) => ({
+const methodNotAllowed = (allow: string): ControlResponse => ({
 	statusCode: 405,
 	headers: {
 		allow,
@@ -40,7 +41,7 @@ const methodNotAllowed = (allow) => ({
 	body: 'Method Not Allowed',
 });
 
-const notFound = () => ({
+const notFound = (): ControlResponse => ({
 	statusCode: 404,
 	headers: {
 		'content-type': 'text/plain; charset=utf-8',
@@ -48,8 +49,7 @@ const notFound = () => ({
 	body: 'Not Found',
 });
 
-/** @param {unknown} body @returns {ControlResponse} */
-const json = (body) => ({
+const json = (body: unknown): ControlResponse => ({
 	statusCode: 200,
 	headers: {
 		'content-type': 'application/json',
@@ -57,12 +57,10 @@ const json = (body) => ({
 	body: JSON.stringify(body),
 });
 
-/**
- * @param {ControlRequest} request
- * @param {Map<string, number>} counts
- * @returns {ControlResponse | null}
- */
-export const getControlResponse = (request, counts) => {
+export const getControlResponse = (
+	request: ControlRequest,
+	counts: Map<string, number>,
+): ControlResponse | null => {
 	const method = request.method ?? 'GET';
 	const rawPath = getRawPath(request.url);
 	const url = new URL(request.url ?? '/', 'http://request-counter.local');
@@ -101,11 +99,10 @@ export const getControlResponse = (request, counts) => {
 	return null;
 };
 
-/**
- * @param {import('node:http').ServerResponse} res
- * @param {ControlResponse} response
- */
-export const writeControlResponse = (res, response) => {
+export const writeControlResponse = (
+	res: ServerResponse,
+	response: ControlResponse,
+): void => {
 	for (const [key, value] of Object.entries(response.headers)) {
 		res.setHeader(key, value);
 	}
