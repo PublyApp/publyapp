@@ -9,7 +9,7 @@ import { loginAsStaffAdmin } from './helpers/login';
 const COUNTER_BASE_URL = COUNTER_URL;
 const MAX_PREFLIGHT_COUNT = 1;
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
-/** Kept in sync with deploy/request-counter/control-routes.mjs. */
+/** Kept in sync with deploy/request-counter/control-routes.ts. */
 const COUNTER_MARKER_QUERY_KEY = '__e2e_counter';
 
 const isApiPath = (url: string, path: string): boolean => {
@@ -84,7 +84,7 @@ const getCounter = async (
 /**
  * Moved out of staff-invitations.spec.ts into its own playwright project (see
  * playwright.config.ts, project `chromium-hermetic-counter`). The
- * request-counter sidecar (deploy/request-counter/server.mjs) counts traffic
+ * request-counter sidecar (deploy/request-counter/server.ts) counts traffic
  * from EVERY worker and browser on the stack, so asserting an exact count used
  * to require the whole stack to be quiet — which was achieved by making this
  * project DEPEND on `chromium`/`chromium-faults` completing first. That had

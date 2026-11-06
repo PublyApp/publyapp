@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createServer, request as httpRequest } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import { tmpdir } from 'node:os';
@@ -10,18 +11,18 @@ import {
 	getControlResponse,
 	getCountKey,
 	writeControlResponse,
-} from './control-routes.mjs';
+} from './control-routes.ts';
 
 const parseUpstream = () => {
 	if (!process.env.API_UPSTREAM) {
 		throw new Error('API_UPSTREAM is required');
 	}
 
-	let upstream;
+	let upstream: URL;
 
 	try {
 		upstream = new URL(process.env.API_UPSTREAM);
-	} catch (/** @type {unknown} */ error) {
+	} catch (error: unknown) {
 		throw new Error(
 			`API_UPSTREAM must be a valid URL: ${
 				error instanceof Error ? error.message : String(error)
@@ -49,7 +50,7 @@ const parseUpstream = () => {
 };
 
 const UPSTREAM = parseUpstream();
-const counts = new Map();
+const counts = new Map<string, number>();
 
 const createTlsOptions = () => {
 	const dir = mkdtempSync(join(tmpdir(), 'request-counter-tls-'));
@@ -84,11 +85,7 @@ const createTlsOptions = () => {
 	};
 };
 
-/**
- * @param {import('node:http').IncomingMessage} req
- * @param {import('node:http').ServerResponse} res
- */
-const handleRequest = (req, res) => {
+const handleRequest = (req: IncomingMessage, res: ServerResponse): void => {
 	const controlResponse = getControlResponse(req, counts);
 	if (controlResponse) {
 		writeControlResponse(res, controlResponse);

@@ -5,7 +5,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+						"command": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.ts\"",
 						"timeout": 900
 					}
 				]

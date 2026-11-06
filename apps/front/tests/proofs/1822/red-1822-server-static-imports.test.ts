@@ -5,7 +5,7 @@
  *
  * ## Context
  *
- * `apps/front/server.mjs` is the entry the front Docker image runs in
+ * `apps/front/server.ts` is the entry the front Docker image runs in
  * production and the e2e stack boots in CI. It imports `srvx/static`
  * — the named-export surface of `srvx` that supplies the production
  * static-asset middleware. The exact line is, today (post-#1628):
@@ -23,16 +23,16 @@
  *
  * ## What this proof asserts
  *
- * The proof reads the REAL `apps/front/server.mjs` source on disk and
+ * The proof reads the REAL `apps/front/server.ts` source on disk and
  * asserts the bug is PRESENT:
  *
- * > `server.mjs` carries `import { serveStatic } from 'srvx/static'`
+ * > `server.ts` carries `import { serveStatic } from 'srvx/static'`
  * > (or any other `srvx/static` named import that the installed srvx
  * > does not export — see below).
  *
  * The matching guard, `apps/front/scripts/guards/check-server-static-imports.ts`,
  * loads the real installed `srvx/static` and asserts every name
- * `server.mjs` imports from it actually exists. This proof asserts the
+ * `server.ts` imports from it actually exists. This proof asserts the
  * BUG the guard exists to catch, by reading the source directly — an
  * independent runtime, an independent parsing path, an independent
  * signal. If the guard's check is ever silently weakened (e.g. someone
@@ -42,12 +42,12 @@
  *
  * ## Two-state discrimination
  *
- * - BUG ABSENT (correct code): `server.mjs` imports only `staticMiddleware`
+ * - BUG ABSENT (correct code): `server.ts` imports only `staticMiddleware`
  *   (and/or its alias), which IS a live `srvx/static` export.
  *   `expect(importsServeStatic).toBe(true)` FAILS with an AssertionError
  *   → the kept-red state.
  *
- * - BUG PRESENT (mutation): `server.mjs` carries `import { serveStatic }`,
+ * - BUG PRESENT (mutation): `server.ts` carries `import { serveStatic }`,
  *   either the bare form or via an alias, which is NOT a live `srvx/static`
  *   export. `expect(importsServeStatic).toBe(true)` PASSES → the proof
  *   is no longer red → CORRUPT PROOF → CI step reds.
@@ -60,7 +60,7 @@
  *
  * ## Mutation that re-introduces the red
  *
- * Restore the pre-#1628 line in `apps/front/server.mjs`:
+ * Restore the pre-#1628 line in `apps/front/server.ts`:
  *
  *     import { serveStatic } from 'srvx/static';
  *     const staticMiddleware = serveStatic({ dir: `${__dirname}/dist/client` });
@@ -83,12 +83,12 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
 
 const frontDir = fileURLToPath(new URL('../../..', import.meta.url));
-const serverPath = `${frontDir}/server.mjs`;
+const serverPath = `${frontDir}/server.ts`;
 
-test('server.mjs still imports the pre-#1628 `serveStatic` from srvx/static (#1822/#1872)', () => {
+test('server.ts still imports the pre-#1628 `serveStatic` from srvx/static (#1822/#1872)', () => {
 	if (!existsSync(serverPath)) {
 		throw new Error(
-			`MESURE IMPOSSIBLE: server.mjs not found at ${serverPath}. ` +
+			`MESURE IMPOSSIBLE: server.ts not found at ${serverPath}. ` +
 				`The proof cannot read the source.`,
 		);
 	}
@@ -111,7 +111,7 @@ test('server.mjs still imports the pre-#1628 `serveStatic` from srvx/static (#18
 	expect(importsServeStatic).toBe(true);
 });
 
-test('apps/front/server.mjs calls `serveStatic` from srvx/static (#1822/#1872 — call-site contract)', () => {
+test('apps/front/server.ts calls `serveStatic` from srvx/static (#1822/#1872 — call-site contract)', () => {
 	// Sister invariant of the import shape: the BUG includes not just
 	// the import but the CALL SITE. `import { serveStatic }` is inert
 	// without `serveStatic({...})` somewhere in the file, and a future
@@ -126,7 +126,7 @@ test('apps/front/server.mjs calls `serveStatic` from srvx/static (#1822/#1872 �
 	// the proof's import-shape test above is the primary tripwire.
 	if (!existsSync(serverPath)) {
 		throw new Error(
-			`MESURE IMPOSSIBLE: server.mjs not found at ${serverPath}. ` +
+			`MESURE IMPOSSIBLE: server.ts not found at ${serverPath}. ` +
 				`The proof cannot read the source.`,
 		);
 	}

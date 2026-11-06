@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Static-import contract guard for `apps/front/server.mjs` and the installed
+ * Static-import contract guard for `apps/front/server.ts` and the installed
  * `srvx` runtime (#1822 / #1872 paired red proof).
  *
  * WHAT THIS GUARD INSPECTS (AST + real module load, never just text).
@@ -11,15 +11,15 @@
  *      copied into this file. A guard that carried its own copy of the
  *      export names would be the very defect it is meant to catch: the
  *      list would drift from the module and the guard would go quiet.
- *   2. The named imports of `apps/front/server.mjs` from `srvx/static`,
+ *   2. The named imports of `apps/front/server.ts` from `srvx/static`,
  *      read by parsing the file with ts-morph into a TypeScript AST — same
  *      reason `check-e2e-shared-constants.ts` gives: under TS 7 a bare
  *      `import ts from 'typescript'` no longer exposes the AST, and a
  *      regex over source text reads the name out of comments and strings.
  *
- * THE RULE. Every named import `server.mjs` takes from `srvx/static` must
+ * THE RULE. Every named import `server.ts` takes from `srvx/static` must
  * exist as an export of the installed `srvx/static` module. A missing
- * export makes Node reject the named import while loading `server.mjs`,
+ * export makes Node reject the named import while loading `server.ts`,
  * so the process exits before server startup and its pages never render —
  * exactly the shape of the publish-now e2e regression that #1628 and
  * #1655 each surfaced with the same `element(s) not found` message.
@@ -33,7 +33,7 @@
  * the guard does not check yet knows exactly what to extend.
  *
  * FAIL-CLOSED. A run that finds zero imports from `srvx/static` is a
- * finding, not a skip. A `server.mjs` that imports nothing from
+ * finding, not a skip. A `server.ts` that imports nothing from
  * `srvx/static` is one that has been refactored past this guard's scope
  * and the guard is then protecting nothing — it must say so, not stay
  * silent. What enforces that rule is the unit suite next to this file:
@@ -42,7 +42,7 @@
  * handling, plus the #2018 declared-vs-installed version comparison
  * that pins the `pnpm install` vs source-edit advice split. The paired
  * red proof under `apps/front/tests/proofs/1822/` does NOT read this
- * file — it reads `server.mjs` source directly, an independent
+ * file — it reads `server.ts` source directly, an independent
  * parsing path, and stays red whether or not this guard exists. That
  * independence is the point (it survives a silent weakening of the
  * guard) but it also means the proof cannot vouch for the fail-closed
@@ -54,10 +54,10 @@
  * labelled — `tenant-posts-publish-now` link never appears because the
  * front server crashed at startup — was caused by `srvx@0.12.7`
  * replacing the `serveStatic` named export with `staticMiddleware` while
- * the pre-#1628 `server.mjs` still wrote
+ * the pre-#1628 `server.ts` still wrote
  *     import { serveStatic } from 'srvx/static';
  * `serveStatic` is not exported in 0.12.7, so Node rejects the named
- * import while loading `server.mjs`; the server never starts, Traefik
+ * import while loading `server.ts`; the server never starts, Traefik
  * returns nothing, and the e2e times out on `expect(locator).toBeVisible()`.
  * #1628 closed it by
  * migrating the import to `staticMiddleware as createStaticMiddleware`
@@ -68,7 +68,7 @@
  *
  * KNOWN LIMITS, stated rather than left to be discovered.
  *
- *   1. The guard inspects `server.mjs` only. A second top-level module
+ *   1. The guard inspects `server.ts` only. A second top-level module
  *      that imports from `srvx/static` would slip past. Today there is
  *      no such module; if one is added, the walker below must be
  *      widened in the same commit, or the guard must be replaced by one
@@ -89,10 +89,10 @@
  *      source defect if the installed module is the one the repo
  *      declares. `apps/front/package.json` pins `srvx@0.12.7`; a
  *      worktree whose `node_modules` still carries `0.11.16` would
- *      otherwise be told `Update server.mjs to use a name that does
+ *      otherwise be told `Update server.ts to use a name that does
  *      exist`, and following that advice is what reintroduces the
  *      original #1822 defect. The version check below fails fast with a
- *      `pnpm install` message and NEVER suggests editing `server.mjs`.
+ *      `pnpm install` message and NEVER suggests editing `server.ts`.
  *      Only an equal declared/installed pair may proceed to the
  *      export-shape check. CI installs with `--frozen-lockfile`, so this
  *      is a local-only trap — local-only traps are the ones that get
@@ -109,7 +109,7 @@ import { Project } from 'ts-morph';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FRONT_DIR = path.resolve(HERE, '..', '..');
 const REPO_ROOT = path.resolve(FRONT_DIR, '..', '..');
-const SERVER_MJS = path.join(FRONT_DIR, 'server.mjs');
+const SERVER_MJS = path.join(FRONT_DIR, 'server.ts');
 const SRVX_STATIC = 'srvx/static';
 const SRVX_PACKAGE = 'srvx';
 const GUARD_PREFIX = 'server-static-imports guard:';
@@ -128,7 +128,7 @@ type ServerImport = {
 	importAs: string;
 };
 
-/** Every named import `server.mjs` takes from `srvx/static`, mapped to the
+/** Every named import `server.ts` takes from `srvx/static`, mapped to the
  * line it appears on and the local name it is bound to. `importAs` is the
  * name used in the call site: for `import { staticMiddleware as foo }`, it
  * is `foo`, and that is the name the call site uses — which is what the
@@ -141,7 +141,7 @@ type ServerImport = {
  */
 export const findServerStaticImports = (serverPath: string): ServerImport[] => {
 	if (!existsSync(serverPath)) {
-		// Fail-closed on a missing server.mjs — the guard cannot say
+		// Fail-closed on a missing server.ts — the guard cannot say
 		// "OK" against a file it never read. Throwing here lets the
 		// CLI surface the real path; the unit test treats this as a
 		// finding, not as an unhandled exception.
@@ -314,7 +314,7 @@ export const defaultSrvxVersionSource = (
  * Compares the declared and installed srvx versions. On mismatch
  * (including the `installed = null` case), throws an error whose
  * message names both versions, suggests `pnpm install`, and — this is
- * the #2018 invariant — does NOT suggest editing `server.mjs`. On
+ * the #2018 invariant — does NOT suggest editing `server.ts`. On
  * agreement, returns the equal pair.
  */
 export const assertSrvxVersionsAgree = (source: VersionSource) => {
@@ -327,7 +327,7 @@ export const assertSrvxVersionsAgree = (source: VersionSource) => {
 				`'${declared}' but the installed package metadata is absent at ` +
 				`apps/front/node_modules/${SRVX_PACKAGE}/package.json. ` +
 				`Run 'pnpm install' to sync the install with the declared dependency, ` +
-				`then re-run this guard. Do not edit server.mjs until the installed ` +
+				`then re-run this guard. Do not edit server.ts until the installed ` +
 				`version matches the declared version; this guard cannot diagnose the ` +
 				`source while they disagree.`,
 		);
@@ -341,7 +341,7 @@ export const assertSrvxVersionsAgree = (source: VersionSource) => {
 				`'${declared}' in apps/front/package.json but the installed copy ` +
 				`reports '${installed}' (apps/front/node_modules/${SRVX_PACKAGE}/package.json). ` +
 				`Run 'pnpm install' to sync the install with the declared dependency, ` +
-				`then re-run this guard. Do not edit server.mjs until the installed ` +
+				`then re-run this guard. Do not edit server.ts until the installed ` +
 				`version matches the declared version; this guard cannot diagnose the ` +
 				`source while they disagree.`,
 		);
@@ -361,8 +361,8 @@ export const formatMissing = (
 				`[${[...entry.availableExports].sort(compareExports).join(', ')}].`,
 		);
 		lines.push(
-			`    Node rejects this named import while loading server.mjs, before any ` +
-				`call site runs, so the server exits before startup. Update server.mjs to ` +
+			`    Node rejects this named import while loading server.ts, before any ` +
+				`call site runs, so the server exits before startup. Update server.ts to ` +
 				`import a name that ` +
 				`does exist, or pin srvx to a version where \`${entry.name}\` still ships.`,
 		);
@@ -370,7 +370,7 @@ export const formatMissing = (
 	return lines;
 };
 
-/** Verify that every named import `server.mjs` takes from `srvx/static`
+/** Verify that every named import `server.ts` takes from `srvx/static`
  * exists as a real export of the installed `srvx/static` module.
  *
  * `loader` is an injection seam for the test suite: production code
@@ -388,7 +388,7 @@ export const formatMissing = (
  * tests pass a fixture `{ declared, installed }`. The check runs
  * FIRST: a stale install (declared ≠ installed) short-circuits the
  * source-shape check with a `pnpm install` message that never suggests
- * editing `server.mjs`. Only equal declared/installed versions may
+ * editing `server.ts`. Only equal declared/installed versions may
  * proceed to diagnose the source — that ordering is the #2018
  * invariant. */
 type ServerStaticImportCheck = {
@@ -407,13 +407,13 @@ export const checkServerStaticImports = async (
 
 	const imports = findServerStaticImports(serverPath);
 	if (imports.length === 0) {
-		// Fail-closed on a server.mjs that imports nothing from srvx/static:
+		// Fail-closed on a server.ts that imports nothing from srvx/static:
 		// the guard is protecting nothing, so its compliance is not a finding.
 		// The CLI surfaces this as a finding; the test asserts the rule.
 		throw new Error(
 			`server-static-imports guard: ${serverPath} imports ZERO named exports ` +
 				`from 'srvx/static'. Either the guard's scope is wrong (extend it), ` +
-				`or server.mjs has been refactored past the guard's reach. The guard ` +
+				`or server.ts has been refactored past the guard's reach. The guard ` +
 				`cannot report compliance against a contract it no longer sees.`,
 		);
 	}
@@ -451,9 +451,9 @@ const main = async (): Promise<void> => {
 
 	if (result.missing.length > 0) {
 		console.error(
-			`server-static-imports guard: server.mjs imports ${result.missing.length} ` +
+			`server-static-imports guard: server.ts imports ${result.missing.length} ` +
 				`name(s) from 'srvx/static' that the installed srvx does not export — ` +
-				`Node will reject the named import while loading server.mjs ` +
+				`Node will reject the named import while loading server.ts ` +
 				`(#1822 / #1872):`,
 		);
 		for (const line of formatMissing(result.missing)) {
@@ -465,7 +465,7 @@ const main = async (): Promise<void> => {
 	const imports = findServerStaticImports(SERVER_MJS);
 	console.log(
 		`server-static-imports guard: ${imports.length} named import(s) from ` +
-			`'srvx/static' in server.mjs all resolve to live srvx exports [OK] ` +
+			`'srvx/static' in server.ts all resolve to live srvx exports [OK] ` +
 			`(srvx ${result.versions.declared} ` +
 			`matches apps/front/package.json)`,
 	);

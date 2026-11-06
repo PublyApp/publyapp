@@ -60,8 +60,8 @@ export const SEARCH_CANCEL_MENTION_INVENTORY = [
  *    packages `apps/front/package.json` depends on, and both are listed in
  *    `ssr.noExternal`, so they are bundled into the client and server output
  *    rather than externalized.
- *  - `apps/front/server.mjs` — the production process entry: `"start": "node
- *    server.mjs"`, and `apps/front/Dockerfile` copies it into the runtime image
+ *  - `apps/front/server.ts` — the production process entry: `"start": "node
+ *    server.ts"`, and `apps/front/Dockerfile` copies it into the runtime image
  *    as the container `CMD`.
  *  - `apps/front/vite.config.ts` — not itself bundled, but it is the build
  *    configuration that decides what is, so a module injected from here reaches
@@ -83,7 +83,7 @@ export const SEARCH_CANCEL_MENTION_INVENTORY = [
 export const SHIPPED_SOURCE_ROOTS = [
 	'apps/front/scripts',
 	'apps/front/src',
-	'apps/front/server.mjs',
+	'apps/front/server.ts',
 	'apps/front/vite.config.ts',
 	'packages/shared-ts',
 	'packages/client-ts',

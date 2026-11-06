@@ -1,3 +1,5 @@
+import type { ServerResponse } from 'node:http';
+
 const CONTROL_INDEX_PATH = '/__counter';
 const CONTROL_RESET_PATH = '/__counter/reset';
 /**
@@ -17,32 +19,40 @@ const CONTROL_RESET_PATH = '/__counter/reset';
  */
 export const COUNTER_MARKER_QUERY_KEY = '__e2e_counter';
 
-/**
- * @typedef {object} ControlRequest
- * @property {string} [method]
- * @property {string} [url]
- */
+interface ControlRequest {
+	method?: string;
+	url?: string;
+}
 
-/**
- * @typedef {{ statusCode: number, headers: Record<string, string>, body: string }} ControlResponse
- */
+interface ControlResponse {
+	statusCode: number;
+	headers: Record<string, string>;
+	body: string;
+}
 
-/** @param {string} method @param {string} path @param {string | null} [marker] @returns {string} */
-export const getCountKey = (method, path, marker) =>
-	marker === null || marker === undefined || marker === ''
+interface ParsedCountKey {
+	method: string;
+	path: string;
+	marker: string | null;
+}
+
+export const getCountKey = (
+	method: string,
+	path: string,
+	marker?: string | null,
+): string =>
+	marker === undefined || marker === null || marker === ''
 		? `${method} ${path}`
 		: `${method} ${path}?${COUNTER_MARKER_QUERY_KEY}=${marker}`;
-/** @param {string | undefined} requestUrl @returns {string} */
-const getRawPath = (requestUrl) => (requestUrl ?? '/').split('?')[0] ?? '/';
+const getRawPath = (requestUrl: string | undefined): string =>
+	(requestUrl ?? '/').split('?')[0] ?? '/';
 
 /**
  * Splits a count key into its method, path and marker bucket (`null` for
  * unmarked traffic). Keys are `"<METHOD> <path>"` or
  * `"<METHOD> <path>?<markerKey>=<marker>"`.
- * @param {string} key
- * @returns {{ method: string, path: string, marker: string | null }}
  */
-const parseCountKey = (key) => {
+const parseCountKey = (key: string): ParsedCountKey => {
 	const separator = key.indexOf(' ');
 	const method = key.slice(0, separator);
 	const withoutMethod = key.slice(separator + 1);
@@ -62,13 +72,13 @@ const parseCountKey = (key) => {
  * Totals the path, optionally restricted to one marker bucket and/or one
  * method. With no marker it sums every bucket, which is the pre-#2260 global
  * behaviour the healthcheck and ad hoc probes rely on.
- * @param {Map<string, number>} counts
- * @param {string} path
- * @param {string | null} marker
- * @param {string | null} method
- * @returns {number}
  */
-const getPathTotal = (counts, path, marker = null, method = null) => {
+const getPathTotal = (
+	counts: Map<string, number>,
+	path: string,
+	marker: string | null = null,
+	method: string | null = null,
+): number => {
 	let total = 0;
 
 	for (const [key, count] of counts) {
@@ -88,8 +98,7 @@ const getPathTotal = (counts, path, marker = null, method = null) => {
 	return total;
 };
 
-/** @param {string} allow @returns {ControlResponse} */
-const methodNotAllowed = (allow) => ({
+const methodNotAllowed = (allow: string): ControlResponse => ({
 	statusCode: 405,
 	headers: {
 		allow,
@@ -98,7 +107,7 @@ const methodNotAllowed = (allow) => ({
 	body: 'Method Not Allowed',
 });
 
-const notFound = () => ({
+const notFound = (): ControlResponse => ({
 	statusCode: 404,
 	headers: {
 		'content-type': 'text/plain; charset=utf-8',
@@ -106,8 +115,7 @@ const notFound = () => ({
 	body: 'Not Found',
 });
 
-/** @param {unknown} body @returns {ControlResponse} */
-const json = (body) => ({
+const json = (body: unknown): ControlResponse => ({
 	statusCode: 200,
 	headers: {
 		'content-type': 'application/json',
@@ -115,12 +123,10 @@ const json = (body) => ({
 	body: JSON.stringify(body),
 });
 
-/**
- * @param {ControlRequest} request
- * @param {Map<string, number>} counts
- * @returns {ControlResponse | null}
- */
-export const getControlResponse = (request, counts) => {
+export const getControlResponse = (
+	request: ControlRequest,
+	counts: Map<string, number>,
+): ControlResponse | null => {
 	const method = request.method ?? 'GET';
 	const rawPath = getRawPath(request.url);
 	const url = new URL(request.url ?? '/', 'http://request-counter.local');
@@ -158,11 +164,10 @@ export const getControlResponse = (request, counts) => {
 	return null;
 };
 
-/**
- * @param {import('node:http').ServerResponse} res
- * @param {ControlResponse} response
- */
-export const writeControlResponse = (res, response) => {
+export const writeControlResponse = (
+	res: ServerResponse,
+	response: ControlResponse,
+): void => {
 	for (const [key, value] of Object.entries(response.headers)) {
 		res.setHeader(key, value);
 	}

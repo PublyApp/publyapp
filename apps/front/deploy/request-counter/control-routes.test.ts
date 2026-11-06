@@ -5,7 +5,7 @@ import {
 	COUNTER_MARKER_QUERY_KEY,
 	getControlResponse,
 	getCountKey,
-} from './control-routes.mjs';
+} from './control-routes.ts';
 
 const buildCounts = () =>
 	new Map([
@@ -14,7 +14,7 @@ const buildCounts = () =>
 		['GET /__counterish', 4],
 	]);
 
-test('GET /__counter returns a method-specific count when method is provided', () => {
+void test('GET /__counter returns a method-specific count when method is provided', () => {
 	const response = getControlResponse(
 		{
 			method: 'GET',
@@ -32,7 +32,7 @@ test('GET /__counter returns a method-specific count when method is provided', (
 	});
 });
 
-test('GET /__counter without a method returns the path total for health checks and ad hoc probes', () => {
+void test('GET /__counter without a method returns the path total for health checks and ad hoc probes', () => {
 	const response = getControlResponse(
 		{
 			method: 'GET',
@@ -45,7 +45,7 @@ test('GET /__counter without a method returns the path total for health checks a
 	assert.equal(response?.body, JSON.stringify({ count: 3 }));
 });
 
-test('POST /__counter/reset clears counts and returns ok', () => {
+void test('POST /__counter/reset clears counts and returns ok', () => {
 	const counts = buildCounts();
 
 	const response = getControlResponse(
@@ -61,15 +61,14 @@ test('POST /__counter/reset clears counts and returns ok', () => {
 	assert.equal(counts.size, 0);
 });
 
-await test('a marker-scoped read returns only that client, while the unmarked read still totals every bucket', () => {
+void test('a marker-scoped read returns only that client, while the unmarked read still totals every bucket', () => {
 	const counts = new Map([
 		[getCountKey('GET', '/staff/invitations', 'client-a'), 1],
 		[getCountKey('GET', '/staff/invitations', 'client-b'), 2],
 		['GET /staff/invitations', 4],
 	]);
 
-	/** @param {string} query @returns {string | undefined} */
-	const read = (query) =>
+	const read = (query: string): string | undefined =>
 		getControlResponse({ method: 'GET', url: `/__counter?${query}` }, counts)
 			?.body;
 
@@ -103,7 +102,7 @@ await test('a marker-scoped read returns only that client, while the unmarked re
 	);
 });
 
-test('unknown /__counter methods return 405', () => {
+void test('unknown /__counter methods return 405', () => {
 	const response = getControlResponse(
 		{
 			method: 'DELETE',
@@ -122,7 +121,7 @@ test('unknown /__counter methods return 405', () => {
 	});
 });
 
-test('known control subpaths reject unsupported methods with 405', () => {
+void test('known control subpaths reject unsupported methods with 405', () => {
 	const response = getControlResponse(
 		{
 			method: 'GET',
@@ -141,7 +140,7 @@ test('known control subpaths reject unsupported methods with 405', () => {
 	});
 });
 
-test('unknown /__counter/* paths return 404', () => {
+void test('unknown /__counter/* paths return 404', () => {
 	const response = getControlResponse(
 		{
 			method: 'GET',
@@ -159,7 +158,7 @@ test('unknown /__counter/* paths return 404', () => {
 	});
 });
 
-test('dot-segment escapes under /__counter/* still return 404', () => {
+void test('dot-segment escapes under /__counter/* still return 404', () => {
 	const counts = buildCounts();
 
 	for (const url of [
@@ -184,7 +183,7 @@ test('dot-segment escapes under /__counter/* still return 404', () => {
 	}
 });
 
-test('non-control app paths that only start with /__counter fall through', () => {
+void test('non-control app paths that only start with /__counter fall through', () => {
 	const response = getControlResponse(
 		{
 			method: 'GET',

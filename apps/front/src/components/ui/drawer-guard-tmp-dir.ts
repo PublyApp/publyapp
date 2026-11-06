@@ -14,32 +14,24 @@
 // the process terminates with the signal's own status (exit event with
 // code null, signal "SIGTERM").
 //
-// Plain CommonJS on purpose: the SIGTERM probe in the guard suite spawns a
-// bare `node -e` child that requires THIS module, so the child exercises
-// the exact wiring the guard uses instead of a copy.
-'use strict';
+// The SIGTERM probe in the guard suite spawns a bare `node -e` child that
+// require()s THIS module (Node 24 loads .ts through require), so the child
+// exercises the exact wiring the guard uses instead of a copy.
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
-const { mkdtempSync, rmSync } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
-
-/**
- * @param {string} prefix
- * @returns {{ dir: string, remove: () => void }}
- */
-const createGuardTempDir = (prefix) => {
+export const createGuardTempDir = (prefix: string) => {
 	const dir = mkdtempSync(path.join(tmpdir(), prefix));
 	const remove = () => rmSync(dir, { recursive: true, force: true });
 	process.on('exit', remove);
-	const handleSignal = (/** @type {NodeJS.Signals} */ signal) => {
+	const handleSignal = (signal: NodeJS.Signals): void => {
 		remove();
 		process.removeListener(signal, handleSignal);
 		process.kill(process.pid, signal);
 	};
-	for (const signal of ['SIGINT', 'SIGTERM']) {
+	for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 		process.on(signal, handleSignal);
 	}
 	return { dir, remove };
 };
-
-module.exports = { createGuardTempDir };

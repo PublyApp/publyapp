@@ -56,7 +56,7 @@ const createWorkspace = (
 	};
 
 	write('apps/front/src/styles/app.css', canonicalSourceCss);
-	write('apps/front/server.mjs', 'export default {};\n');
+	write('apps/front/server.ts', 'export default {};\n');
 	write('apps/front/vite.config.ts', 'export default {};\n');
 	write('apps/front/scripts/guards/placeholder.ts', 'export const noop = 0;\n');
 	write(
@@ -359,7 +359,7 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 	}
 });
 
-test('rejects an override in client-ts, server.mjs, vite.config.ts and a local Vite plugin under apps/front/scripts', () => {
+test('rejects an override in client-ts, server.ts, vite.config.ts and a local Vite plugin under apps/front/scripts', () => {
 	const override = `
 const css = \`
 	input[type='search']::-webkit-search-cancel-button {
@@ -370,7 +370,7 @@ const css = \`
 
 	for (const relativePath of [
 		'packages/client-ts/src/probe.ts',
-		'apps/front/server.mjs',
+		'apps/front/server.ts',
 		'apps/front/vite.config.ts',
 		// Round 11's route: a local Vite plugin imported by the scanned
 		// vite.config.ts, living in a directory the guard used to claim never
@@ -574,7 +574,7 @@ test('the shipped source roots stay pinned to what the build actually ships', ()
 	assert.deepEqual(SHIPPED_SOURCE_ROOTS, [
 		'apps/front/scripts',
 		'apps/front/src',
-		'apps/front/server.mjs',
+		'apps/front/server.ts',
 		'apps/front/vite.config.ts',
 		'packages/shared-ts',
 		'packages/client-ts',

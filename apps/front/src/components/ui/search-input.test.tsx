@@ -364,7 +364,7 @@ describe('SearchInput', () => {
 	//    test` and by both build paths above). It is second, not first: its
 	//    value is that it names a file and a line, which neither bundle scan
 	//    can. It covers exactly these roots (`SHIPPED_SOURCE_ROOTS`):
-	//    apps/front/scripts, apps/front/src, apps/front/server.mjs,
+	//    apps/front/scripts, apps/front/src, apps/front/server.ts,
 	//    apps/front/vite.config.ts, packages/shared-ts, packages/client-ts.
 	//    Files outside those roots — apps/front/e2e, apps/front/deploy,
 	//    anything else in the repo — are not scanned; no claim is made that
