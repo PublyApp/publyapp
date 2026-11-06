@@ -30,6 +30,12 @@ public abstract record UpdateStaffUserProfilesServiceResult {
 	public sealed record ProfilesNotStaffScope(
 		List<Guid> ProfileIds
 	) : UpdateStaffUserProfilesServiceResult;
+
+	/// <summary>
+	/// The update would strip the full-access system role from its last active holder.
+	/// Same invariant as the tenant last-admin guard: losing it locks every staff member out.
+	/// </summary>
+	public sealed record LastFullAccessRoleRemoval() : UpdateStaffUserProfilesServiceResult;
 }
 
 public abstract record SuspendStaffUserResult {

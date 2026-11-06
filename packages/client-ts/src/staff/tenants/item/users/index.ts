@@ -60,7 +60,6 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
  */
 export interface UsersRequestBuilderGetQueryParameters {
     cursor?: string;
-    level?: string;
     limit?: string;
     q?: string;
     sortId?: string;
@@ -70,7 +69,7 @@ export interface UsersRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users{?cursor*,level*,limit*,q*,sort_id*,sort_order*,status*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/users{?cursor*,limit*,q*,sort_id*,sort_order*,status*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */

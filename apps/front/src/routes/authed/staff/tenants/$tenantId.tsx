@@ -45,8 +45,6 @@ import { UsersPreviewCard } from './$tenantId/_tenant-users-preview-card';
 const TENANT_STATUS_ACTIVE = 'Active';
 const TENANT_STATUS_SUSPENDED = 'Suspended';
 
-const OWNER_LEVEL_FILTER = 'admin';
-
 type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 
 const StaffTenantDetailsPage = () => {
@@ -69,8 +67,7 @@ const StaffTenantDetailsPage = () => {
 	const ownersQuery = useStaffTenantUsersQuery(
 		{
 			tenantId,
-			level: OWNER_LEVEL_FILTER,
-			size: 5,
+			size: 50,
 			sortId: 'created_at',
 			sortOrder: 'desc',
 		},
@@ -209,12 +206,7 @@ const StaffTenantDetailsPage = () => {
 								<UsersPreviewCard tenant={tenant} t={t} />
 							</DetailMain>
 							<DetailAside>
-								<OwnersCard
-									tenant={tenant}
-									ownersQuery={ownersQuery}
-									t={t}
-									levelFilter={OWNER_LEVEL_FILTER}
-								/>
+								<OwnersCard tenant={tenant} ownersQuery={ownersQuery} t={t} />
 								<TenantDangerZone
 									lifecycleTitle={lifecycleTitle}
 									lifecycleDescription={lifecycleDescription}

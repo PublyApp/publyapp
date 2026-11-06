@@ -19,8 +19,10 @@ import { formatDateTime } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { formatAccountLevelLabel } from '../staff-users/status-labels';
-import { formatTenantStatusLabel } from '../tenants/$tenantId/_tenant-display';
+import {
+	formatTenantStatusLabel,
+	formatTenantUserAccessLabel,
+} from '../tenants/$tenantId/_tenant-display';
 
 type OrganizationRow = ReturnType<typeof toGlobalTenantUserCompanyRows>[number];
 
@@ -46,13 +48,13 @@ export const buildOrganizationColumns = (
 			),
 		},
 		{
-			id: 'level',
-			header: t('level'),
-			accessorKey: 'level',
-			meta: { width: '104px', hideBelow: 768 },
+			id: 'is_full_access',
+			header: t('role'),
+			accessorKey: 'isFullAccess',
+			meta: { width: '140px', hideBelow: 768 },
 			cell: ({ getValue }) => (
 				<span className="text-sm">
-					{formatAccountLevelLabel(getValue<string | null>(), t)}
+					{formatTenantUserAccessLabel(getValue<boolean>(), t)}
 				</span>
 			),
 		},

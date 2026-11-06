@@ -207,7 +207,8 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 					firstName: 'Alex',
 					lastName: 'User',
 					avatarUrl: null,
-					accountLevel: 'Admin',
+					isFullAccess: true,
+					roles: ['Staff Owner'],
 					status: 'Active',
 					createdAt: '2026-07-01T09:00:00Z',
 					updatedAt: '2026-07-02T10:00:00Z',
@@ -292,7 +293,7 @@ const openProfileEditDrawer = async (page: Page): Promise<void> => {
 	// checks a picker row first) without touching what the assertions measure.
 	await page
 		.getByTestId('profile-edit-details-drawer')
-		.getByRole('textbox', { name: 'Profile name' })
+		.getByRole('textbox', { name: 'Role name' })
 		.fill('Publishing (edited for geometry)');
 };
 
@@ -363,7 +364,7 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 	// tenant edit drawer above).
 	await page
 		.getByTestId('staff-profile-edit-details-drawer')
-		.getByRole('textbox', { name: 'Profile name' })
+		.getByRole('textbox', { name: 'Role name' })
 		.fill('Scroll-geometry fixture profile (edited)');
 };
 

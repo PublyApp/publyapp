@@ -64,7 +64,7 @@ public record TenantForPicker {
 }
 
 public interface IAccountService {
-	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, AccountLevel? accountLevel = null, CancellationToken cancellationToken = default);
+	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<UserAccount?> GetUserStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<UserAccount?> GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffUserAsync(Guid userId, CancellationToken cancellationToken = default);
@@ -90,7 +90,7 @@ public interface IAccountService {
 		int limit = 50,
 		CancellationToken cancellationToken = default
 	);
-	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, AccountLevel accountLevel, CancellationToken cancellationToken = default);
+	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
 
@@ -104,7 +104,6 @@ public class AccountService : IAccountService {
 
 	public async Task<CreateStaffAccountResult> CreateStaffAccountAsync(
 		Guid userId,
-		AccountLevel? accountLevel = null,
 		CancellationToken cancellationToken = default
 	) {
 		// Check if user already has a staff account (existence-based, not active-only)
@@ -120,7 +119,7 @@ public class AccountService : IAccountService {
 			return new CreateStaffAccountResult.UserHasTenantOrProjectAccounts();
 		}
 
-		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
+		var account = UserAccount.CreateStaffAccount(userId);
 
 		var addedAccount = await this._DbContext.UserAccount
 			.AddAsync(account, cancellationToken);
@@ -458,7 +457,6 @@ public class AccountService : IAccountService {
 	public async Task<CreateTenantAccountResult> CreateTenantAccountAsync(
 		Guid userId,
 		Guid tenantId,
-		AccountLevel accountLevel,
 		CancellationToken cancellationToken = default
 	) {
 		// Check if user already has a tenant account for this tenant (existence-based, not active-only)
@@ -474,7 +472,7 @@ public class AccountService : IAccountService {
 			return new CreateTenantAccountResult.UserHasStaffAccount();
 		}
 
-		var account = UserAccount.CreateTenantAccount(userId, tenantId, accountLevel);
+		var account = UserAccount.CreateTenantAccount(userId, tenantId);
 		account.ValidateAccountType();
 
 		var addedAccount = await this._DbContext.UserAccount

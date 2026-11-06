@@ -42,7 +42,8 @@ vi.mock('@tanstack/react-router', () => ({
 const LABELS: TestLabelMap = {
 	'no-tenant-members': 'No members yet.',
 	'tenant-users-preview-error': 'Unable to load members.',
-	admin: 'Admin',
+	'full-access': 'Full access',
+	'standard-access': 'No full access',
 	'status-active': 'Active',
 };
 
@@ -54,7 +55,7 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 			id: `row-${index}`,
 			displayName: row.displayName,
 			email: row.email,
-			level: row.level,
+			isFullAccess: row.isFullAccess,
 			status: row.status,
 			avatarUrl: row.avatarUrl ?? null,
 		})),
@@ -107,7 +108,7 @@ describe('tenant users preview card (moved out of the $tenantId route file)', ()
 		cleanup();
 	});
 
-	test('renders member rows with level and status labels when data has landed', () => {
+	test('renders member rows with access and status labels when data has landed', () => {
 		previewQuery.value = {
 			isPending: false,
 			isError: false,
@@ -116,7 +117,7 @@ describe('tenant users preview card (moved out of the $tenantId route file)', ()
 					{
 						displayName: 'Ada Lovelace',
 						email: 'ada@globex.test',
-						level: 'admin',
+						isFullAccess: true,
 						status: 'Active',
 					},
 				],
@@ -131,7 +132,7 @@ describe('tenant users preview card (moved out of the $tenantId route file)', ()
 
 		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
 		expect(screen.getByText('ada@globex.test')).toBeTruthy();
-		expect(screen.getByText('Admin')).toBeTruthy();
+		expect(screen.getByText('Full access')).toBeTruthy();
 		expect(screen.getByText('Active')).toBeTruthy();
 	});
 

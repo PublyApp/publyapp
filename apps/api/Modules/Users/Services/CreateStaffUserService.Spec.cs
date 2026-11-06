@@ -162,8 +162,7 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 
 		var account = UserAccount.CreateTenantAccount(
 			user.GetRequiredId(),
-			tenant.GetRequiredId(),
-			AccountLevel.User
+			tenant.GetRequiredId()
 		);
 		await dbContext.UserAccount.AddAsync(account);
 		await dbContext.SaveChangesAsync();

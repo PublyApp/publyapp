@@ -7,9 +7,9 @@ import type { StaffTenantProfileMemberRow } from '~/lib/query/staff-tenant-profi
 
 import {
 	formatMonthYear,
-	formatTenantUserLevelLabel,
+	formatTenantUserAccessLabel,
 	formatTenantUserStatusLabel,
-	tenantUserLevelChipClassName,
+	tenantUserAccessChipClassName,
 } from '../_tenant-details-shell';
 
 const VISIBLE_OTHER_PROFILE_CHIP_COUNT = 2;
@@ -51,15 +51,15 @@ export const makeProfileMemberColumns = (
 		),
 	},
 	{
-		id: 'level',
-		header: t('level'),
-		accessorKey: 'level',
+		id: 'is_full_access',
+		header: t('role'),
+		accessorKey: 'isFullAccess',
 		meta: { width: '150px', hideBelow: 768 },
 		cell: ({ getValue }) => {
-			const level = getValue<string | null>();
+			const isFullAccess = getValue<boolean>();
 			return (
-				<span className={tenantUserLevelChipClassName(level)}>
-					{formatTenantUserLevelLabel(level, t)}
+				<span className={tenantUserAccessChipClassName(isFullAccess)}>
+					{formatTenantUserAccessLabel(isFullAccess, t)}
 				</span>
 			);
 		},

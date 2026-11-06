@@ -77,10 +77,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			await this._DbContext.SaveChangesAsync(cancellationToken);
 
 			// Create staff account
-			var account = UserAccount.CreateStaffAccount(
-				user.GetRequiredId(),
-				AccountLevel.User
-			);
+			var account = UserAccount.CreateStaffAccount(user.GetRequiredId());
 			await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 			await this._DbContext.SaveChangesAsync(cancellationToken);
 
@@ -147,7 +144,6 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			}
 
 			var tenantId = invitation.TenantId.Value;
-			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;
 
 			// Create user
 			var user = new UserEntity {
@@ -162,11 +158,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			await this._DbContext.SaveChangesAsync(cancellationToken);
 
 			// Create tenant account
-			var account = UserAccount.CreateTenantAccount(
-				user.GetRequiredId(),
-				tenantId,
-				accountLevel
-			);
+			var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 			await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 			await this._DbContext.SaveChangesAsync(cancellationToken);
 
@@ -217,10 +209,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			if (this._Logger.IsEnabled(LogLevel.Information)) {
 				this._Logger.LogInformation(
-					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
+					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with {ProfileCount} profiles from invitation {InvitationId}",
 					user.GetRequiredId(),
 					tenantId,
-					accountLevel,
 					invitationProfiles.Count,
 					invitation.GetRequiredId()
 				);
@@ -248,7 +239,6 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			}
 
 			var tenantId = invitation.TenantId.Value;
-			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;
 
 			var user = await (
 				from u in this._DbContext.User
@@ -291,11 +281,7 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				);
 			}
 
-			var account = UserAccount.CreateTenantAccount(
-				userId,
-				tenantId,
-				accountLevel
-			);
+			var account = UserAccount.CreateTenantAccount(userId, tenantId);
 			var addedAccount = await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 
 			try {
@@ -354,10 +340,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			if (this._Logger.IsEnabled(LogLevel.Information)) {
 				this._Logger.LogInformation(
-					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
+					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with {ProfileCount} profiles from invitation {InvitationId}",
 					userId,
 					tenantId,
-					accountLevel,
 					invitationProfiles.Count,
 					invitation.GetRequiredId()
 				);

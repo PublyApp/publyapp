@@ -54,7 +54,7 @@ export const useStaffJobPermissions = (): StaffJobPermissions => {
 		queryFn: () => staffJobPermissionsQueryOptions.fetcher({}),
 	});
 
-	// Mirror the API-side PermissionFilter semantics: an Admin-level staff
+	// Mirror the API-side PermissionFilter semantics: a full-access staff
 	// account bypasses per-key checks entirely, so its (often empty) grants
 	// list must not produce a dead UI — every action stays available.
 	const data = query.data;

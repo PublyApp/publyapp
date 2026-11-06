@@ -14,7 +14,6 @@ public class UpdateUserDocument {
 	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> AvatarUrl { get; set; } = PatchField<string?>.Absent();
-	public string? AccountLevel { get; set; }
 }
 
 public abstract record UpdateUserByIdResult {
@@ -71,7 +70,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
-			select new StaffUserData { User = ua.User, AccountLevel = ua.Level };
+			select new StaffUserData { User = ua.User };
 
 		var userData = await query.FirstOrDefaultAsync(cancellationToken);
 		if (userData is null) {
@@ -153,21 +152,6 @@ public class StaffUserCoreService : IStaffUserCoreService {
 				return new UpdateUserByIdResult.UserNotFound();
 			}
 
-			if (document.AccountLevel is not null) {
-				var accountLevel = UserAccount.ParseLevel(document.AccountLevel);
-
-				if (accountLevel is null) {
-					await transaction.RollbackAsync(cancellationToken);
-					throw new ArgumentException($"Invalid account level: '{document.AccountLevel}'");
-				}
-
-				await this._DbContext.UserAccount
-					.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff && !ua.IsDeleted)
-					.ExecuteUpdateAsync(setters => setters
-						.SetProperty(ua => ua.Level, accountLevel)
-						.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow), cancellationToken);
-			}
-
 			// Release the replaced avatar's reference in the SAME transaction as the
 			// entity write; physical deletion stays exclusively the sweeper's.
 			if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
@@ -187,8 +171,7 @@ public class StaffUserCoreService : IStaffUserCoreService {
 					&& !ua.IsDeleted
 					&& !ua.User.IsDeleted
 				select new StaffUserData {
-					User = ua.User,
-					AccountLevel = ua.Level
+					User = ua.User
 				}
 			).FirstOrDefaultAsync(cancellationToken);
 

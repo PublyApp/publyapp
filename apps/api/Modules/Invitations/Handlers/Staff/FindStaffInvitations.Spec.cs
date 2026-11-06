@@ -1099,10 +1099,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.User.Add(user);
 		_ = await dbContext.SaveChangesAsync();
 
-		var staffAccount = UserAccount.CreateStaffAccount(
-			user.GetRequiredId(),
-			AccountLevel.User
-		);
+		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		staffAccount.ValidateAccountType();
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();

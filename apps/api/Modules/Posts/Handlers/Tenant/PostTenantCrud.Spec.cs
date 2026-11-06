@@ -697,7 +697,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(
-			user.GetRequiredId(), acmeId, AccountLevel.User
+			user.GetRequiredId(), acmeId
 		);
 		account.ValidateAccountType();
 		db.UserAccount.Add(account);

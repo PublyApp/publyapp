@@ -417,23 +417,26 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		await dbContext.Tenant.AddAsync(tenant);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.UserAccount.AddRangeAsync(
-			UserAccount.CreateTenantAccount(
-				user.GetRequiredId(),
-				tenant.GetRequiredId(),
-				AccountLevel.Admin
-			),
-			UserAccount.CreateTenantAccount(
-				suspendedPeer.GetRequiredId(),
-				tenant.GetRequiredId(),
-				AccountLevel.Admin
-			)
-		);
+		var tenantId = tenant.GetRequiredId();
+		var accounts = new[] {
+			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId),
+			UserAccount.CreateTenantAccount(suspendedPeer.GetRequiredId(), tenantId),
+		};
+
+		await dbContext.UserAccount.AddRangeAsync(accounts);
 		await dbContext.SaveChangesAsync();
+
+		foreach (var account in accounts) {
+			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				dbContext,
+				tenantId,
+				account.GetRequiredId()
+			);
+		}
 
 		return new SeededTenantAdminScenario(
 			user.GetRequiredId(),
-			tenant.GetRequiredId()
+			tenantId
 		);
 	}
 
@@ -451,7 +454,6 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		public string? FirstName { get; init; }
 		public string? LastName { get; init; }
 		public string? AvatarUrl { get; init; }
-		public string Level { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 	}
 

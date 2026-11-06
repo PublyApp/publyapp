@@ -170,7 +170,7 @@ const buildMembers = (count: number): StaffTenantProfileMemberRow[] =>
 		firstName: 'Member',
 		lastName: String(index),
 		avatarUrl: null,
-		level: 'User',
+		isFullAccess: false,
 		status: 'Active',
 		otherProfiles: [],
 		joinedAt: null,

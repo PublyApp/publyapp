@@ -5,11 +5,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';
 
-import {
-	formatTenantUserLevelLabel,
-	formatTenantUserStatusLabel,
-	tenantUserLevelChipClassName,
-} from './_tenant-details-shell';
+import { formatTenantUserStatusLabel } from './_tenant-details-shell';
 import { TenantUserRowActions } from './_users-row-actions';
 
 export const makeTenantUserColumns = (
@@ -49,18 +45,18 @@ export const makeTenantUserColumns = (
 		),
 	},
 	{
-		id: 'level',
-		header: t('level'),
-		accessorKey: 'level',
-		meta: { width: '150px', hideBelow: 768 },
-		cell: ({ getValue }) => {
-			const level = getValue<string | null>();
-			return (
-				<span className={tenantUserLevelChipClassName(level)}>
-					{formatTenantUserLevelLabel(level, t)}
+		id: 'is_full_access',
+		header: t('list-roles'),
+		accessorKey: 'isFullAccess',
+		meta: { width: '180px', hideBelow: 768 },
+		cell: ({ row }) =>
+			row.original.roles.length > 0 ? (
+				<span className="publy-detail-chip publy-detail-chip--outline">
+					{row.original.roles.join(', ')}
 				</span>
-			);
-		},
+			) : (
+				<span className="text-muted-foreground">—</span>
+			),
 	},
 	{
 		id: 'status',

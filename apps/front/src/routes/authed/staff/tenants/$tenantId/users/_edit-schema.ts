@@ -3,8 +3,6 @@ import type { StaffTenantUserUpdateInput } from '~/lib/query/staff-tenant-users'
 
 import { isAbsoluteHttpUrl } from '../../tenant-organization-profile-fields';
 
-export const EDIT_ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
-
 export const normalizeOptionalUpdateString = (
 	value: string | undefined,
 ): string | null => {
@@ -36,7 +34,6 @@ export const buildTenantUserEditSchema = (t: (key: string) => string) =>
 			.refine((value) => !value || isAbsoluteHttpUrl(value), {
 				message: t('avatar-url-invalid'),
 			}),
-		accountLevel: z.enum(EDIT_ACCOUNT_LEVEL_OPTIONS),
 	});
 
 export type TenantUserEditValues = z.infer<
@@ -46,15 +43,6 @@ export type TenantUserEditValues = z.infer<
 /** The form's update body IS the mutation's input shape — one declaration, in
  * `~/lib/query/staff-tenant-users`, so the two cannot drift apart. */
 export type TenantUserEditPayload = StaffTenantUserUpdateInput;
-
-export const normalizeAccountLevel = (
-	value: string | null,
-): TenantUserEditValues['accountLevel'] => {
-	if (value === 'Admin') {
-		return 'Admin';
-	}
-	return 'User';
-};
 
 export const buildTenantUserEditPayload = ({
 	tenantId,
@@ -79,10 +67,6 @@ export const buildTenantUserEditPayload = ({
 
 	if (dirtyFields.avatarUrl) {
 		payload.avatarUrl = normalizeOptionalUpdateString(values.avatarUrl);
-	}
-
-	if (dirtyFields.accountLevel) {
-		payload.accountLevel = values.accountLevel;
 	}
 
 	return payload;

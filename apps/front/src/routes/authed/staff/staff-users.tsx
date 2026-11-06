@@ -66,7 +66,7 @@ const StaffUsersPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: [
 			search.status.join(','),
-			search.level.join(','),
+			search.role.join(','),
 			search.sortId ?? DEFAULT_SORT.id,
 			search.sortOrder ?? DEFAULT_SORT.order,
 		].join('|'),
@@ -119,7 +119,7 @@ const StaffUsersPage = () => {
 
 	const filtersValue: ListFiltersValue = {
 		status: search.status,
-		level: search.level,
+		role: search.role,
 	};
 
 	const setFilters = (next: ListFiltersValue): void => {
@@ -128,7 +128,7 @@ const StaffUsersPage = () => {
 			search: serializeStaffUserListSearchParams({
 				...search,
 				status: (next.status ?? []) as StaffUserListSearchParams['status'],
-				level: (next.level ?? []) as StaffUserListSearchParams['level'],
+				role: (next.role ?? []) as StaffUserListSearchParams['role'],
 				cursor: undefined,
 			}),
 			replace: true,
@@ -172,7 +172,7 @@ const StaffUsersPage = () => {
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
 			filters={buildStaffUserFilters(t, {
-				includeLevels: countsKnown || search.level.length > 0,
+				includeRoles: countsKnown || search.role.length > 0,
 			})}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
@@ -180,10 +180,6 @@ const StaffUsersPage = () => {
 				status: {
 					active: team.staffCounts?.active ?? null,
 					suspended: team.staffCounts?.suspended ?? null,
-				},
-				level: {
-					admin: team.staffCounts?.admins ?? null,
-					user: team.staffCounts?.users ?? null,
 				},
 			}}
 			countsKnown={countsKnown}
@@ -195,7 +191,7 @@ const StaffUsersPage = () => {
 				...buildStaffTeamPanelGroups(t, 'staff', team.counts, navigateToTeam),
 				...buildStaffProfilesPanelGroup(t, team.profiles, navigateToProfile),
 			]}
-			panelOrder={['team', 'status', 'staff-profiles', 'level']}
+			panelOrder={['team', 'status', 'staff-profiles']}
 			onOpen={(row) =>
 				void navigate({
 					to: '/staff/staff-users/$userId',
@@ -280,8 +276,8 @@ const StaffUsersPage = () => {
 							{ header: t('name'), getValue: (row) => row.displayName },
 							{ header: t('email'), getValue: (row) => row.email },
 							{
-								header: t('level'),
-								getValue: (row) => row.level ?? '',
+								header: t('list-roles'),
+								getValue: (row) => row.roles.join(', '),
 							},
 							{
 								header: t('status'),

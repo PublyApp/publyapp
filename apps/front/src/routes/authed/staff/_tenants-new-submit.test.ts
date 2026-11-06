@@ -63,9 +63,9 @@ describe('buildCreateTenantInput', () => {
 		const input = buildCreateTenantInput({
 			values: values({
 				owners: [{ email: 'owner@example.com' }],
-				manualMembers: [{ email: 'manual@example.com', accountLevel: 'User' }],
+				manualMembers: [{ email: 'manual@example.com', role: 'member' }],
 			}),
-			parsedMembers: [{ email: 'csv@example.com', accountLevel: 'User' }],
+			parsedMembers: [{ email: 'csv@example.com', role: 'member' }],
 		});
 
 		expect(input.initialUsers.map((user) => user.email)).toEqual([
@@ -128,8 +128,8 @@ describe('buildPendingCreateSummary', () => {
 					code: ' acme ',
 					owners: [{ email: 'owner@example.com' }, { email: '  ' }],
 					manualMembers: [
-						{ email: 'manual@example.com', accountLevel: 'User' },
-						{ email: '', accountLevel: 'User' },
+						{ email: 'manual@example.com', role: 'member' },
+						{ email: '', role: 'member' },
 					],
 				}),
 				parsedMembersCount: 2,

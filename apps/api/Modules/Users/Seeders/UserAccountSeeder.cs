@@ -6,6 +6,7 @@ using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Seeders;
@@ -16,6 +17,8 @@ namespace PublyApp.Api.Modules.Users.Seeders;
 /// </summary>
 public class UserAccountSeeder : IEntitySeeder {
 	private readonly ILogger<UserAccountSeeder> _Logger;
+	private readonly HashSet<string> _FullAccessEmails = new(StringComparer.OrdinalIgnoreCase);
+	private readonly List<(Guid UserId, Guid TenantId)> _FullAccessTenants = [];
 
 	public UserAccountSeeder(ILogger<UserAccountSeeder>? logger = null) {
 		this._Logger = logger
@@ -59,6 +62,7 @@ public class UserAccountSeeder : IEntitySeeder {
 			try {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
+				await this._SeedFullAccessAssignmentsAsync(dbContext, cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
 				if (this._Logger.IsEnabled(LogLevel.Information)) {
 					this._Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
@@ -75,6 +79,7 @@ public class UserAccountSeeder : IEntitySeeder {
 			try {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
+				await this._SeedFullAccessAssignmentsAsync(dbContext, cancellationToken);
 				if (this._Logger.IsEnabled(LogLevel.Information)) {
 					this._Logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
 				}
@@ -85,12 +90,10 @@ public class UserAccountSeeder : IEntitySeeder {
 	}
 
 	private async Task<List<UserAccount>> _SeedStaffAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
-		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
-
-		staffAccountsData.AddRange([
-			(SeedConstants.Staff.AdminEmail, AccountLevel.Admin),
-			(SeedConstants.Staff.UserEmail, AccountLevel.User)
-		]);
+		var staffAccountsData = new List<(string Email, bool IsFullAccess)> {
+			(SeedConstants.Staff.AdminEmail, true),
+			(SeedConstants.Staff.UserEmail, false)
+		};
 
 		var staffEmails = staffAccountsData.Select(sa => sa.Email).ToList();
 		var users = await (
@@ -122,9 +125,12 @@ public class UserAccountSeeder : IEntitySeeder {
 		var newStaffAccounts = new List<UserAccount>();
 		foreach (var sa in staffAccountsData) {
 			if (emailToUserId.TryGetValue(sa.Email, out var userId) && !existingSet.Contains(userId)) {
-				var account = UserAccount.CreateStaffAccount(userId, sa.Level);
+				var account = UserAccount.CreateStaffAccount(userId);
 				account.ValidateAccountType();
 				newStaffAccounts.Add(account);
+				if (sa.IsFullAccess) {
+					this._FullAccessEmails.Add(sa.Email);
+				}
 			}
 		}
 
@@ -132,24 +138,24 @@ public class UserAccountSeeder : IEntitySeeder {
 	}
 
 	private async Task<List<UserAccount>> _SeedTenantAccountsAsync(AppDbContext dbContext, CancellationToken cancellationToken) {
-		// Define tenant accounts: (UserEmail, TenantCode, Level)
-		var tenantAccountsData = new List<(string Email, string TenantCode, AccountLevel Level)> {
+		// Define tenant accounts: (UserEmail, TenantCode, IsFullAccess)
+		var tenantAccountsData = new List<(string Email, string TenantCode, bool IsFullAccess)> {
 			// Acme Corporation users
-			(SeedConstants.Tenants.AcmeAdminEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.Admin),
-			(SeedConstants.Tenants.AcmeUserEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.User),
+			(SeedConstants.Tenants.AcmeAdminEmail, SeedConstants.Tenants.AcmeCode, true),
+			(SeedConstants.Tenants.AcmeUserEmail, SeedConstants.Tenants.AcmeCode, false),
 			// TechStart Inc users
-			(SeedConstants.Tenants.TechStartAdminEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.Admin),
-			(SeedConstants.Tenants.TechStartUserEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.User),
+			(SeedConstants.Tenants.TechStartAdminEmail, SeedConstants.Tenants.TechStartCode, true),
+			(SeedConstants.Tenants.TechStartUserEmail, SeedConstants.Tenants.TechStartCode, false),
 			// Global Solutions users
-			(SeedConstants.Tenants.GlobalAdminEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.Admin),
-			(SeedConstants.Tenants.GlobalUserEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.User),
+			(SeedConstants.Tenants.GlobalAdminEmail, SeedConstants.Tenants.GlobalCode, true),
+			(SeedConstants.Tenants.GlobalUserEmail, SeedConstants.Tenants.GlobalCode, false),
 			// Cross-tenant users (member of multiple tenants)
-			(SeedConstants.CrossTenant.AliceEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.User),
-			(SeedConstants.CrossTenant.AliceEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.User),
-			(SeedConstants.CrossTenant.BobEmail, SeedConstants.Tenants.TechStartCode, AccountLevel.User),
-			(SeedConstants.CrossTenant.BobEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.User),
-			(SeedConstants.CrossTenant.CharlieEmail, SeedConstants.Tenants.AcmeCode, AccountLevel.Admin),
-			(SeedConstants.CrossTenant.CharlieEmail, SeedConstants.Tenants.GlobalCode, AccountLevel.User),
+			(SeedConstants.CrossTenant.AliceEmail, SeedConstants.Tenants.AcmeCode, false),
+			(SeedConstants.CrossTenant.AliceEmail, SeedConstants.Tenants.TechStartCode, false),
+			(SeedConstants.CrossTenant.BobEmail, SeedConstants.Tenants.TechStartCode, false),
+			(SeedConstants.CrossTenant.BobEmail, SeedConstants.Tenants.GlobalCode, false),
+			(SeedConstants.CrossTenant.CharlieEmail, SeedConstants.Tenants.AcmeCode, true),
+			(SeedConstants.CrossTenant.CharlieEmail, SeedConstants.Tenants.GlobalCode, false),
 		};
 
 		// Get all relevant users
@@ -222,11 +228,115 @@ public class UserAccountSeeder : IEntitySeeder {
 				continue;
 			}
 
-			var account = UserAccount.CreateTenantAccount(userId, tenantId, ta.Level);
+			var account = UserAccount.CreateTenantAccount(userId, tenantId);
 			account.ValidateAccountType();
 			newTenantAccounts.Add(account);
+			if (ta.IsFullAccess) {
+				this._FullAccessTenants.Add((userId, tenantId));
+			}
 		}
 
 		return newTenantAccounts;
+	}
+
+	private async Task _SeedFullAccessAssignmentsAsync(
+		AppDbContext dbContext,
+		CancellationToken cancellationToken
+	) {
+		if (this._FullAccessEmails.Count == 0 && this._FullAccessTenants.Count == 0) {
+			return;
+		}
+
+		var staffProfile = await (
+			from p in dbContext.Profile
+			where p.Scope == ProfileScope.Staff
+				&& p.Name == SystemProfileNames.StaffFullAccess
+				&& !p.IsDeleted
+			select p
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (staffProfile is null) {
+			staffProfile = Profile.CreateStaffProfile(
+				SystemProfileNames.StaffFullAccess,
+				"Platform owner with full system access",
+				isFullAccess: true
+			);
+			await dbContext.Profile.AddAsync(staffProfile, cancellationToken);
+			await dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		if (staffProfile.Id is Guid staffProfileId) {
+			var staffAccountIds = await (
+				from ua in dbContext.UserAccount
+				join u in dbContext.User on ua.UserId equals u.Id
+				where ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted
+					&& this._FullAccessEmails.Contains(u.Email)
+				select ua.Id
+			).ToListAsync(cancellationToken);
+
+			foreach (var accountId in staffAccountIds.OfType<Guid>()) {
+				var exists = await dbContext.UserAccountProfile.AnyAsync(
+					uap => uap.UserAccountId == accountId && uap.ProfileId == staffProfileId,
+					cancellationToken);
+				if (!exists) {
+					await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+						UserAccountId = accountId,
+						ProfileId = staffProfileId
+					}, cancellationToken);
+				}
+			}
+		}
+
+		foreach (var (userId, tenantId) in this._FullAccessTenants) {
+			var tenantProfile = await (
+				from p in dbContext.Profile
+				where p.Scope == ProfileScope.Tenant
+					&& p.TenantId == tenantId
+					&& p.Name == SystemProfileNames.TenantFullAccess
+					&& !p.IsDeleted
+				select p
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (tenantProfile is null) {
+				tenantProfile = Profile.CreateTenantProfile(
+					tenantId,
+					SystemProfileNames.TenantFullAccess,
+					"Organization owner with full access",
+					isFullAccess: true
+				);
+				await dbContext.Profile.AddAsync(tenantProfile, cancellationToken);
+				await dbContext.SaveChangesAsync(cancellationToken);
+			}
+
+			if (tenantProfile.Id is not Guid tenantProfileId) {
+				continue;
+			}
+
+			var accountId = await (
+				from ua in dbContext.UserAccount
+				where ua.UserId == userId
+					&& ua.TenantId == tenantId
+					&& ua.Scope == AccountScope.Tenant
+					&& !ua.IsDeleted
+				select ua.Id
+			).FirstOrDefaultAsync(cancellationToken);
+
+			if (accountId is not Guid memberAccountId) {
+				continue;
+			}
+
+			var exists = await dbContext.UserAccountProfile.AnyAsync(
+				uap => uap.UserAccountId == memberAccountId && uap.ProfileId == tenantProfileId,
+				cancellationToken);
+			if (!exists) {
+				await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+					UserAccountId = memberAccountId,
+					ProfileId = tenantProfileId
+				}, cancellationToken);
+			}
+		}
+
+		await dbContext.SaveChangesAsync(cancellationToken);
 	}
 }

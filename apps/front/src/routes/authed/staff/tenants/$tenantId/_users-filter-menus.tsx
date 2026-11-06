@@ -11,35 +11,32 @@ import {
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 
+import { formatTenantUserStatusLabel } from './_tenant-details-shell';
 import {
-	formatTenantUserLevelLabel,
-	formatTenantUserStatusLabel,
-} from './_tenant-details-shell';
-import {
-	KNOWN_TENANT_USER_LEVELS,
+	KNOWN_TENANT_USER_ROLES,
 	KNOWN_TENANT_USER_STATUSES,
-	type KnownTenantUserLevel,
+	type KnownTenantUserRole,
 	type KnownTenantUserStatus,
 } from './_users-search-params';
 
 export const TenantUsersFilterMenus = ({
-	selectedLevels,
+	selectedRoles,
 	selectedStatuses,
-	levelFilterLabel,
+	roleFilterLabel,
 	statusFilterLabel,
 	isSelectionMode,
-	onSetLevels,
-	onToggleLevel,
+	onSetRoles,
+	onToggleRole,
 	onSetStatuses,
 	onToggleStatus,
 }: {
-	selectedLevels: KnownTenantUserLevel[];
+	selectedRoles: KnownTenantUserRole[];
 	selectedStatuses: KnownTenantUserStatus[];
-	levelFilterLabel: string;
+	roleFilterLabel: string;
 	statusFilterLabel: string;
 	isSelectionMode: boolean;
-	onSetLevels: (levels: KnownTenantUserLevel[]) => void;
-	onToggleLevel: (level: KnownTenantUserLevel) => void;
+	onSetRoles: (roles: KnownTenantUserRole[]) => void;
+	onToggleRole: (role: KnownTenantUserRole) => void;
 	onSetStatuses: (statuses: KnownTenantUserStatus[]) => void;
 	onToggleStatus: (status: KnownTenantUserStatus) => void;
 }) => {
@@ -54,7 +51,7 @@ export const TenantUsersFilterMenus = ({
 							type="button"
 							variant="outline"
 							className="publy-data-table-filter-button max-w-64 text-[13px]"
-							data-testid="staff-tenant-users-level-filter-trigger"
+							data-testid="staff-tenant-users-role-filter-trigger"
 							disabled={isSelectionMode}
 							title={
 								isSelectionMode ? t(SELECTION_LOCKED_TITLE_KEY) : undefined
@@ -66,32 +63,32 @@ export const TenantUsersFilterMenus = ({
 						aria-hidden="true"
 						className="size-[15px] text-[var(--publy-foreground-secondary)]"
 					/>
-					<span className="truncate">{levelFilterLabel}</span>
+					<span className="truncate">{roleFilterLabel}</span>
 					<IconChevronDown aria-hidden="true" className="size-3" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" sideOffset={6}>
 					<DropdownMenuCheckboxItem
-						checked={selectedLevels.length === 0}
+						checked={selectedRoles.length === 0}
 						closeOnClick
-						data-testid="staff-tenant-users-level-filter-all"
-						onCheckedChange={() => onSetLevels([])}
+						data-testid="staff-tenant-users-role-filter-all"
+						onCheckedChange={() => onSetRoles([])}
 					>
-						{t('all-levels')}
+						{t('all-roles')}
 					</DropdownMenuCheckboxItem>
-					{KNOWN_TENANT_USER_LEVELS.map((level) => (
+					{KNOWN_TENANT_USER_ROLES.map((role) => (
 						<DropdownMenuCheckboxItem
-							key={level}
-							checked={selectedLevels.includes(level)}
+							key={role}
+							checked={selectedRoles.includes(role)}
 							closeOnClick={false}
 							showCheckbox
-							data-testid={`staff-tenant-users-level-filter-${level}`}
-							onCheckedChange={() => onToggleLevel(level)}
+							data-testid={`staff-tenant-users-role-filter-${role}`}
+							onCheckedChange={() => onToggleRole(role)}
 						>
-							{formatTenantUserLevelLabel(level, t)}
+							{role === 'full_access' ? t('full-access') : t('standard-access')}
 						</DropdownMenuCheckboxItem>
 					))}
 					<DropdownMenuSeparator />
-					<DropdownMenuItem onClick={() => onSetLevels([])}>
+					<DropdownMenuItem onClick={() => onSetRoles([])}>
 						{t('clear')}
 					</DropdownMenuItem>
 				</DropdownMenuContent>

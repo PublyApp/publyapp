@@ -31,7 +31,7 @@ public class TenantAsStaffListItem {
 
 public record CreateTenantWithInitialUsersResult {
 	public required Tenant Tenant { get; init; }
-	public required List<(string Email, string Token, AccountLevel Level)> InvitationTokens { get; init; }
+	public required List<(string Email, string Token)> InvitationTokens { get; init; }
 }
 
 // Discriminated union for CreateTenantWithInitialUsersAsync. Code uniqueness is an expected,
@@ -126,7 +126,8 @@ public record FindTenantsAsStaffArgs(
 public record CreateTenantWithInitialUsersArgs(
 	string Name,
 	int MaxUsers,
-	List<(string Email, AccountLevel AccountLevel)> InitialUsers,
+	// true = the tenant's full-access « Owner » role, false = the default role.
+	List<(string Email, bool IsOwner)> InitialUsers,
 	Guid InvitedByUserId,
 	string? Code,
 	bool SeedDefaultProfile,
@@ -217,7 +218,7 @@ public interface ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	);
 
-	// Count tenant-scoped owners (Admin-level accounts; owner ≡ accountLevel Admin)
+	// Count tenant-scoped owners: members holding the tenant's full-access system role.
 	Task<int> CountTenantOwnersAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken = default
@@ -648,7 +649,21 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				await this._DbContext.SaveChangesAsync(cancellationToken);
 				var tenantId = savedTenant.Entity.GetRequiredId();
 
-				// 2. Create "Default profile" for non-admin users, unless disabled
+				// 2. Create the tenant's full-access system profile. It always exists (it is
+				// the role every former Admin is migrated to) and is not editable/deletable.
+				var fullAccessProfile = Profile.CreateTenantProfile(
+					tenantId,
+					SystemProfileNames.TenantFullAccess,
+					"Organization owner with full access",
+					isFullAccess: true
+				);
+				var savedFullAccessProfile = await this._DbContext.Profile.AddAsync(
+					fullAccessProfile, cancellationToken
+				);
+				await this._DbContext.SaveChangesAsync(cancellationToken);
+				var fullAccessProfileId = savedFullAccessProfile.Entity.GetRequiredId();
+
+				// 3. Create "Default profile" for members without an explicit role, unless disabled
 				Guid? defaultProfileId = null;
 				if (args.SeedDefaultProfile) {
 					var defaultProfile = Profile.CreateTenantProfile(
@@ -664,31 +679,20 @@ public class TenantAsStaffService : ITenantAsStaffService {
 					defaultProfileId = savedDefaultProfile.Entity.GetRequiredId();
 				}
 
-				// 3. Create invitations with appropriate profiles
+				// 4. Create invitations with the role each initial user was given.
 				// NOTE: No need to validate existing users/memberships for a BRAND NEW tenant!
-				// All validation is done in the validator (duplicates, admin requirement, etc.)
-				var invitationTokens = new List<(string Email, string Token, AccountLevel Level)>();
+				// All validation is done in the validator (duplicates, owner requirement, etc.)
+				var invitationTokens = new List<(string Email, string Token)>();
 				var expiresAt = DateTime.UtcNow.AddDays(7);
 
-				foreach (var (email, accountLevel) in args.InitialUsers) {
+				foreach (var (email, isOwner) in args.InitialUsers) {
 					var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
-					// Determine profile IDs based on account level
-					List<Guid> profileIds;
-					if (accountLevel == AccountLevel.Admin) {
-						// Admin users don't need profiles: TenantPermissionFilter short-circuits
-						// on AccountLevel.Admin (apps/api/Lib/Filters/TenantPermissionFilter.cs),
-						// granting full access regardless of profile-derived permissions. See #861.
-						profileIds = new List<Guid>();
-					} else if (defaultProfileId is { } profileId) {
-						// Non-admin users get the default profile when one was seeded.
-						profileIds = new List<Guid> { profileId };
-					} else {
-						// No default profile was seeded; the user starts with no profiles and can
-						// be assigned one post-hoc. The Admin bypass above is the only branch that
-						// doesn't need profiles — this branch is strictly for non-admin invitees.
-						profileIds = new List<Guid>();
-					}
+					var profileIds = isOwner
+						? new List<Guid> { fullAccessProfileId }
+						: defaultProfileId is { } profileId
+							? new List<Guid> { profileId }
+							: new List<Guid>();
 
 					var invitation = Invitation.CreateTenantInvitationWithProfiles(
 						email,
@@ -699,21 +703,18 @@ public class TenantAsStaffService : ITenantAsStaffService {
 						token
 					);
 
-					// Store the account level in the invitation
-					invitation.AccountLevel = accountLevel;
-
 					invitation.ValidateInvitationType();
 					this._DbContext.Invitation.Add(invitation);
 
 					// Durable delivery record in the same transaction as the
 					// invitation and the tenant itself (round-5 API F3).
 					var initialUserOutboxRow = InvitationEmailOutbox.CreateTenantInvitation(
-						email, args.Name, token, accountLevel
+						email, args.Name, token
 					);
 					initialUserOutboxRow.Invitation = invitation;
 					this._DbContext.InvitationEmailOutbox.Add(initialUserOutboxRow);
 
-					invitationTokens.Add((email, token, accountLevel));
+					invitationTokens.Add((email, token));
 				}
 
 				await this._DbContext.SaveChangesAsync(cancellationToken);
@@ -906,14 +907,17 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	) {
 		// Excludes soft-deleted users (same parity rationale as CountTenantUsersAsync).
-		// Suspended admins still count as owners here — this counts *assigned*
-		// Admin-level accounts, not the *active* admins tracked by the last-admin
-		// invariant in TenantUserMembershipOperations._BuildActiveTenantAdminAccountsQuery.
+		// Suspended owners still count here — this counts *assigned* full-access role
+		// holders, not the *active* owners tracked by the last-admin invariant in
+		// TenantUserMembershipOperations.
 		var count =
 			from ua in this._DbContext.UserAccount
+			join uap in this._DbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
+			join p in this._DbContext.Profile on uap.ProfileId equals p.Id
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
-				&& ua.Level == AccountLevel.Admin
+				&& p.IsFullAccess
+				&& !p.IsDeleted
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
 			select ua;

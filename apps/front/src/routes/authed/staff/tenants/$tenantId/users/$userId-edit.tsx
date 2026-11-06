@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import type { FieldSelectOption } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
@@ -27,7 +26,6 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
-	formatTenantUserLevelLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
@@ -45,8 +43,6 @@ import {
 import {
 	buildTenantUserEditPayload,
 	buildTenantUserEditSchema,
-	EDIT_ACCOUNT_LEVEL_OPTIONS,
-	normalizeAccountLevel,
 	type TenantUserEditValues,
 } from './_edit-schema';
 import { applyTenantUserUpdateFailure } from './_edit-submit-handler';
@@ -83,21 +79,12 @@ const StaffTenantUserEditPage = () => {
 		buildTenantUserEditSchema,
 		'common',
 	);
-	const accountLevelOptions: FieldSelectOption[] = useMemo(
-		() =>
-			EDIT_ACCOUNT_LEVEL_OPTIONS.map((option) => ({
-				value: option,
-				label: formatTenantUserLevelLabel(option, t),
-			})),
-		[t],
-	);
 	const methods = useForm<TenantUserEditValues>({
 		resolver,
 		defaultValues: {
 			firstName: '',
 			lastName: '',
 			avatarUrl: '',
-			accountLevel: 'User',
 		},
 	});
 	const { handleSubmit, reset, formState } = methods;
@@ -117,7 +104,6 @@ const StaffTenantUserEditPage = () => {
 						firstName: user.firstName ?? '',
 						lastName: user.lastName ?? '',
 						avatarUrl: user.avatarUrl ?? '',
-						accountLevel: normalizeAccountLevel(user.accountLevel),
 					},
 		[user],
 	);
@@ -241,7 +227,6 @@ const StaffTenantUserEditPage = () => {
 									<TenantUserEditFormCard
 										methods={methods}
 										onSubmit={onSubmit}
-										accountLevelOptions={accountLevelOptions}
 										isSubmittingForm={isSubmittingForm}
 										rootValidationError={rootValidationError}
 										saveDisabled={saveDisabled}

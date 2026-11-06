@@ -11,7 +11,8 @@ public sealed class AssignStaffProfilePermission {
 	public static async Task<Results<
 		NoContent,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string profileId,
 		[FromRoute] string permissionKey,
@@ -47,6 +48,13 @@ public sealed class AssignStaffProfilePermission {
 				ResponseKeys.NotFound
 			);
 		}
+		if (result is SetStaffProfilePermissionResult.SystemProfileProtected) {
+			return TypedProblems.Forbidden(
+				"The full-access system profile cannot be edited",
+				ResponseKeys.Forbidden
+			);
+		}
+
 
 		if (result is SetStaffProfilePermissionResult.PermissionNotFound) {
 			return TypedProblems.BadRequest(

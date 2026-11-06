@@ -38,6 +38,13 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	[Column("is_default")]
 	public bool IsDefault { get; set; }
 
+	// A system profile that grants every permission in its scope. There is exactly one
+	// per scope (staff, and one per tenant); it is seeded and cannot be edited or deleted.
+	// PermissionService materialises the effective `*` for its holders, so no parallel
+	// permission mechanism is needed.
+	[Column("is_full_access")]
+	public bool IsFullAccess { get; set; }
+
 	// Computed properties for easy identification
 	public bool IsStaffProfile {
 		get {
@@ -58,12 +65,17 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	}
 
 	// Factory methods for type-safe creation
-	public static Profile CreateStaffProfile(string name, string? description = null) {
+	public static Profile CreateStaffProfile(
+		string name,
+		string? description = null,
+		bool isFullAccess = false
+	) {
 		return new Profile {
 			Name = name,
 			Description = description,
 			Scope = ProfileScope.Staff,
 			IsDefault = false,
+			IsFullAccess = isFullAccess,
 			TenantId = null,
 			ProjectId = null
 		};
@@ -75,7 +87,8 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 		string? description = null,
 		bool isDefault = false,
 		string? icon = null,
-		string? tone = null
+		string? tone = null,
+		bool isFullAccess = false
 	) {
 		return new Profile {
 			Name = name,
@@ -84,17 +97,25 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 			Tone = tone,
 			Scope = ProfileScope.Tenant,
 			IsDefault = isDefault,
+			IsFullAccess = isFullAccess,
 			TenantId = tenantId,
 			ProjectId = null
 		};
 	}
 
-	public static Profile CreateProjectProfile(Guid tenantId, Guid projectId, string name, string? description = null) {
+	public static Profile CreateProjectProfile(
+		Guid tenantId,
+		Guid projectId,
+		string name,
+		string? description = null,
+		bool isFullAccess = false
+	) {
 		return new Profile {
 			Name = name,
 			Description = description,
 			Scope = ProfileScope.Project,
 			IsDefault = false,
+			IsFullAccess = isFullAccess,
 			TenantId = tenantId,
 			ProjectId = projectId
 		};
@@ -130,6 +151,10 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 					this.Scope,
 					$"Unhandled ProfileScope: {this.Scope}"
 				);
+		}
+
+		if (this.IsFullAccess && this.IsDefault) {
+			throw new InvalidOperationException("A full-access profile cannot be the default profile");
 		}
 	}
 

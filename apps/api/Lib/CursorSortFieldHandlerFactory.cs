@@ -178,6 +178,17 @@ public static class CursorSortFieldHandlerFactory {
 			);
 		}
 
+		// Booleans have a total order (false < true) but Postgres defines no ordering operator
+		// for them, so `key > cursor` would surface as an untranslatable tree. "Beyond the
+		// cursor" is a logical test instead: ascending leaves only (key=true, cursor=false),
+		// descending only (key=false, cursor=true). Equality stays `==`.
+		if (operand.Type == typeof(bool) && !isEquality) {
+			var isAscending = op == Expression.GreaterThan;
+			return isAscending
+				? Expression.AndAlso(operand, Expression.Not(cursorValue))
+				: Expression.AndAlso(Expression.Not(operand), cursorValue);
+		}
+
 		// Strings order through CompareTo (the form the inline handlers used, which Postgres
 		// renders as a plain ordering comparison) but stay on `==` for equality: routing equality
 		// through CompareTo(...) == 0 would emit a CASE expression instead of a simple equality.

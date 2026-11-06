@@ -63,6 +63,7 @@ public class ProfileService : IProfileService {
 			select new ProfileItem {
 				Id = p.GetRequiredId(),
 				Name = p.Name,
+				IsFullAccess = p.IsFullAccess,
 				Permissions = (
 					from pp in p.ProfilePermissions
 					where !pp.Permission.IsDeleted
@@ -71,7 +72,17 @@ public class ProfileService : IProfileService {
 				).ToList()
 			};
 
-		return await query.ToListAsync(cancellationToken);
+		var items = await query.ToListAsync(cancellationToken);
+		return items
+			.Select(item => item.IsFullAccess
+				? new ProfileItem {
+					Id = item.Id,
+					Name = item.Name,
+					IsFullAccess = true,
+					Permissions = ["*"],
+				}
+				: item)
+			.ToList();
 	}
 
 	/// <summary>
@@ -101,6 +112,7 @@ public class ProfileService : IProfileService {
 			select new ProfileItem {
 				Id = p.GetRequiredId(),
 				Name = p.Name,
+				IsFullAccess = p.IsFullAccess,
 				Permissions = (
 					from pp in p.ProfilePermissions
 					where !pp.Permission.IsDeleted
@@ -109,12 +121,23 @@ public class ProfileService : IProfileService {
 				).ToList()
 			};
 
-		return await query.ToListAsync(cancellationToken);
+		var items = await query.ToListAsync(cancellationToken);
+		return items
+			.Select(item => item.IsFullAccess
+				? new ProfileItem {
+					Id = item.Id,
+					Name = item.Name,
+					IsFullAccess = true,
+					Permissions = ["*"],
+				}
+				: item)
+			.ToList();
 	}
 }
 
 public class ProfileItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
+	public bool IsFullAccess { get; set; }
 	public List<string> Permissions { get; set; } = [];
 }

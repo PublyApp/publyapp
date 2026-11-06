@@ -8,7 +8,6 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -84,15 +83,14 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	}
 
 	[Fact]
-	public async Task ItShouldDeliverTenantInvitationWithTenantNameAndAccountLevel() {
+	public async Task ItShouldDeliverTenantInvitationWithTenantNameAndToken() {
 		var dispatcher = this._CreateDispatcher();
 		await using var dbContext = await this._CreateDbContextAsync();
 
 		var row = InvitationEmailOutbox.CreateTenantInvitation(
 			"tenant-invite@example.com",
 			"Acme Corp",
-			"tok-tenant",
-			AccountLevel.Admin
+			"tok-tenant"
 		);
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
 		await dbContext.SaveChangesAsync();
@@ -106,7 +104,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			e => e.Email == "tenant-invite@example.com"
 				&& e.TenantName == "Acme Corp"
 				&& e.Token == "tok-tenant"
-				&& e.Level == AccountLevel.Admin
 		);
 	}
 
@@ -265,7 +262,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		private readonly bool _ShouldThrow;
 
 		public List<(string Email, string Token)> StaffInvitationsSent { get; } = [];
-		public List<(string Email, string TenantName, string Token, AccountLevel Level)>
+		public List<(string Email, string TenantName, string Token)>
 			TenantInvitationsSent { get; } = [];
 
 		public StubEmailService(bool shouldThrow) {
@@ -319,14 +316,13 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		public Task<EmailSendReceipt> SendTenantInvitationEmailAsync(
 			string email,
 			string tenantName,
-			string token,
-			AccountLevel level
+			string token
 		) {
 			if (this._ShouldThrow) {
 				throw new EmailProviderPermanentException("StubEmailService: simulated send failure");
 			}
 
-			this.TenantInvitationsSent.Add((email, tenantName, token, level));
+			this.TenantInvitationsSent.Add((email, tenantName, token));
 			return InvitationEmailOutboxDispatcherSpec.StubEmailService._Receipt();
 		}
 	}

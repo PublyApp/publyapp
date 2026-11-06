@@ -142,6 +142,41 @@ public sealed class CursorSortFieldHandlerFactorySqlSpec : IClassFixture<ApiFixt
 	}
 
 	[Fact]
+	public async Task ItShouldTranslateTheKeysetFilterForABooleanKey() {
+		await using var db = await this._CreateDbContextAsync();
+		var live = await CursorSortFieldHandlerFactorySqlSpec._SeedAsync(db, "bool-live", TenantStatus.Active, new DateTime(2026, 6, 6, 0, 0, 0, DateTimeKind.Utc));
+		var deleted = await CursorSortFieldHandlerFactorySqlSpec._SeedAsync(db, "bool-deleted", TenantStatus.Active, new DateTime(2026, 6, 7, 0, 0, 0, DateTimeKind.Utc));
+		deleted.IsDeleted = true;
+		deleted.DeletedAt = DateTime.UtcNow;
+		await db.SaveChangesAsync(CancellationToken.None);
+
+		// is_full_access is the boolean sort field this factory must support (#2289): Postgres
+		// has no ordering operator for booleans, so a regression to a raw `>` trees fails here.
+		var handler = CursorSortFieldHandlerFactory.Create<Tenant, bool, Guid?>(
+			cursorLookupQuery: () => db.Tenant.IgnoreQueryFilters().AsQueryable(),
+			keySelector: t => t.IsDeleted,
+			idSelector: t => t.Id,
+			cancellationToken: CancellationToken.None
+		);
+
+		var ascendingCursor = await handler.GetCursorValue(live.GetRequiredId());
+		var ascendingRows = await handler
+			.ApplyFilter(db.Tenant.IgnoreQueryFilters().AsQueryable(), ascendingCursor, true)
+			.ToListAsync(CancellationToken.None);
+
+		ascendingRows.Should().Contain(r => r.Id == deleted.Id);
+		ascendingRows.Should().NotContain(r => r.Id == live.Id);
+
+		var descendingCursor = await handler.GetCursorValue(deleted.GetRequiredId());
+		var descendingRows = await handler
+			.ApplyFilter(db.Tenant.IgnoreQueryFilters().AsQueryable(), descendingCursor, false)
+			.ToListAsync(CancellationToken.None);
+
+		descendingRows.Should().Contain(r => r.Id == live.Id);
+		descendingRows.Should().NotContain(r => r.Id == deleted.Id);
+	}
+
+	[Fact]
 	public async Task ItShouldReturnNullForAGoneCursorRow() {
 		await using var db = await this._CreateDbContextAsync();
 		await CursorSortFieldHandlerFactorySqlSpec._SeedAsync(db, "gone", TenantStatus.Active, new DateTime(2026, 5, 5, 0, 0, 0, DateTimeKind.Utc));

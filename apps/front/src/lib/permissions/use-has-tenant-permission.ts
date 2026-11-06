@@ -81,8 +81,8 @@ export const useHasTenantPermission = (key: string): boolean => {
 			return false;
 		}
 
-		// "*" is the Admin sentinel materialised by the backend (C3 A4):
-		// AccountLevel.Admin holders pass every tenant-permission gate.
+		// "*" is the full-access sentinel materialised by the backend (C3 A4):
+		// holders of the tenant's full-access role pass every gate.
 		return rawKeys.includes(key) || rawKeys.includes(WILDCARD_SENTINEL);
 	}, [rawKeys, key]);
 };

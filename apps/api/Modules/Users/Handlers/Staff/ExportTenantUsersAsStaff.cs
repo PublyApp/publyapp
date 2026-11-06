@@ -22,9 +22,6 @@ public class ExportTenantUsersAsStaffQuery {
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
-	[FromQuery(Name = "level")]
-	public string? Level { get; set; }
-
 	[FromQuery(Name = "ids")]
 	public string? Ids { get; set; }
 
@@ -34,10 +31,6 @@ public class ExportTenantUsersAsStaffQuery {
 
 	public IReadOnlySet<TenantUserStatus>? GetStatusesOrNull() {
 		return TenantUserFilterQuery.ParseStatuses(this.Status);
-	}
-
-	public IReadOnlySet<AccountLevel>? GetLevelsOrNull() {
-		return TenantUserFilterQuery.ParseLevels(this.Level);
 	}
 
 	public IReadOnlySet<Guid>? GetIdsOrNull() {
@@ -90,18 +83,6 @@ public class ExportTenantUsersAsStaffQueryValidator
 			})
 			.WithMessage($"status must be one of: {TenantUserFilterQuery.AllowedStatusesDisplay}");
 
-		this.RuleFor(x => x.Level)
-			.Must(raw => {
-				if (string.IsNullOrWhiteSpace(raw)) {
-					return true;
-				}
-
-				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
-				return parts.Length > 0
-					&& parts.All(p => p.Length > 0 && TenantUserFilterQuery.AllowedLevelSet.Contains(p));
-			})
-			.WithMessage($"level must be one of: {TenantUserFilterQuery.AllowedLevelsDisplay}");
-
 		this.RuleFor(x => x.Ids)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
@@ -140,7 +121,6 @@ public sealed class ExportTenantUsersAsStaff {
 		var exportArgs = new ExportTenantUsersArgs(
 			Search: query.GetSearchNormalized(),
 			Status: query.GetStatusesOrNull(),
-			Level: query.GetLevelsOrNull(),
 			Ids: query.GetIdsOrNull(),
 			Limit: maxRows + 1
 		);
@@ -173,7 +153,6 @@ public sealed class ExportTenantUsersAsStaff {
 						TenantId = tenantIdGuid,
 						exportArgs.Search,
 						Status = exportArgs.Status,
-						Level = exportArgs.Level,
 						Ids = exportArgs.Ids,
 						RowCount = rowCount
 					}
@@ -211,7 +190,7 @@ public sealed class ExportTenantUsersAsStaff {
 		await using var writer = new StreamWriter(httpContext.Response.Body, Encoding.UTF8, leaveOpen: true);
 
 		try {
-			await writer.WriteLineAsync("Email,FirstName,LastName,Level,Status,CreatedAt");
+			await writer.WriteLineAsync("Email,FirstName,LastName,Roles,Status,CreatedAt");
 
 			foreach (var item in items) {
 				cancellationToken.ThrowIfCancellationRequested();
@@ -219,7 +198,7 @@ public sealed class ExportTenantUsersAsStaff {
 					ExportTenantUsersAsStaff._EscapeCsv(item.Email),
 					ExportTenantUsersAsStaff._EscapeCsv(item.FirstName ?? ""),
 					ExportTenantUsersAsStaff._EscapeCsv(item.LastName ?? ""),
-					ExportTenantUsersAsStaff._EscapeCsv(item.Level.ToString()),
+					ExportTenantUsersAsStaff._EscapeCsv(string.Join("; ", item.Roles)),
 					ExportTenantUsersAsStaff._EscapeCsv(item.Status.ToString()),
 					ExportTenantUsersAsStaff._EscapeCsv(item.CreatedAt.ToString("o"))
 				);

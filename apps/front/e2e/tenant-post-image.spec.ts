@@ -13,8 +13,8 @@ import {
 // tenant-posts-drafts.spec.ts).
 //
 // The image attach verbs are permissioned (`posts.create`/`posts.edit`), so
-// the flow runs as the seeded Acme ADMIN account; `user-acme` is a plain
-// AccountLevel.User and would be refused before ever reaching the picker.
+// the flow runs as the seeded Acme full-access account; `user-acme` holds no
+// full-access role and would be refused before ever reaching the picker.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 const POST_BODY = 'Draft with an attached image ';

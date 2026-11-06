@@ -14,7 +14,8 @@ public class GetStaffUserByIdResult {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public AccountLevel AccountLevel { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 	public UserStatus Status { get; set; }
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
@@ -72,7 +73,8 @@ public sealed class GetStaffUserById {
 			LastName = user.User.LastName,
 			FirstName = user.User.FirstName,
 			AvatarUrl = user.User.AvatarUrl,
-			AccountLevel = user.AccountLevel,
+			IsFullAccess = user.IsFullAccess,
+			Roles = user.Roles,
 			Status = user.User.Status,
 			CreatedAt = user.User.CreatedAt,
 			UpdatedAt = user.User.UpdatedAt,

@@ -9,13 +9,11 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Profiles.Entities;
-using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
 	public string? Search { get; init; }
 	public IReadOnlySet<InvitationEffectiveStatus>? Status { get; init; }
-	public IReadOnlySet<AccountLevel>? Level { get; init; }
 }
 public record FindTenantInvitationsArgs {
 	public Guid Cursor { get; init; }
@@ -45,7 +43,6 @@ public record CreateTenantInvitationArgs(
 	Guid TenantId,
 	string TenantName,
 	List<Guid> ProfileIds,
-	AccountLevel AccountLevel,
 	Guid InvitedByUserId
 );
 
@@ -159,7 +156,6 @@ public record StaffTenantInvitationListItem {
 	public DateTime? AcceptedAt { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public string? InvitedByName { get; init; }
-	public required AccountLevel AccountLevel { get; init; }
 }
 
 public sealed record StaffInvitationCounts(
@@ -292,18 +288,10 @@ public class InvitationService : IInvitationService {
 		var invitedByUserId = args.InvitedByUserId;
 		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
 
-		if (args.AccountLevel == AccountLevel.Admin
-			&& profileIds.Count > 0
-		) {
-			return new CreateTenantInvitationResult.InvalidProfileAssignment(
-				"Admin invitees cannot be assigned profiles",
-				ResponseKeys.AdminInviteeCannotHaveProfiles
-			);
-		}
-
-		if (args.AccountLevel == AccountLevel.User
-			&& profileIds.Count > maxProfilesPerUser
-		) {
+		// Every invitee is now described purely by the roles (profiles) they receive.
+		// There is no admin flag to exempt: the full-access system profile is one of the
+		// profiles and is protected by the caller-side escalation guard.
+		if (profileIds.Count > maxProfilesPerUser) {
 			return new CreateTenantInvitationResult.InvalidProfileAssignment(
 				$"Cannot assign more than {maxProfilesPerUser} profiles",
 				ResponseKeys.TooManyProfilesForInvitee
@@ -321,8 +309,6 @@ public class InvitationService : IInvitationService {
 			expiresAt,
 			token
 		);
-		invitation.AccountLevel = args.AccountLevel;
-
 		invitation.ValidateInvitationType();
 
 		// Fold (design §5.4): invitation + email job enqueued in ONE transaction; the

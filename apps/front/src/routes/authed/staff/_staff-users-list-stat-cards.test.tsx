@@ -20,8 +20,7 @@ describe('StaffUsersStatCards', () => {
 					total: 12,
 					active: 9,
 					suspended: 3,
-					admins: 4,
-					users: 8,
+					fullAccess: 4,
 				}}
 			/>,
 		);
@@ -59,8 +58,7 @@ describe('StaffUsersStatCards', () => {
 					total: 12,
 					active: 9,
 					suspended: 3,
-					admins: 4,
-					users: 8,
+					fullAccess: 4,
 					connectedToday: 5,
 					openSessions: 7,
 				}}

@@ -94,7 +94,8 @@ vi.mock('~/lib/query/staff-users', () => {
 				firstName: 'Alex',
 				lastName: 'User',
 				avatarUrl: '',
-				accountLevel: 'Admin',
+				isFullAccess: true,
+				roles: ['Staff Owner'],
 				status: 'Active',
 			})),
 		useStaffUserProfilesQuery: () =>
@@ -311,7 +312,8 @@ describe('#1314-r1 staff-user edit nav guard (real router)', () => {
 			firstName: 'Alex',
 			lastName: 'User',
 			avatarUrl: '',
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: 'Active',
 		}));
 		mocks.toAssignedStaffProfiles.mockImplementation(

@@ -69,7 +69,10 @@ public sealed class GetTenantUserAsStaffSpec
 		result.Id.ToString().Should().Be(userId);
 		result.TenantId.Should().Be(tenantId);
 		result.Email.Should().Be(TestConstants.AcmeUserEmail);
-		result.Level.Should().NotBeNullOrWhiteSpace();
+		result.IsFullAccess.Should().BeFalse(
+			"the seeded Acme member is not a full-access owner"
+		);
+		result.Roles.Should().NotBeNull();
 		result.Status.Should().NotBeNullOrWhiteSpace();
 		result.CreatedAt.Should().NotBe(default);
 		result.UpdatedAt.Should().NotBe(default);
@@ -237,7 +240,6 @@ public sealed class GetTenantUserAsStaffSpec
 	private sealed record TenantUserItem {
 		public string Id { get; init; } = string.Empty;
 		public string Email { get; init; } = string.Empty;
-		public string Level { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 	}
 
@@ -245,7 +247,8 @@ public sealed class GetTenantUserAsStaffSpec
 		public Guid Id { get; init; }
 		public Guid TenantId { get; init; }
 		public string Email { get; init; } = string.Empty;
-		public string Level { get; init; } = string.Empty;
+		public bool IsFullAccess { get; init; }
+		public List<string> Roles { get; init; } = [];
 		public string Status { get; init; } = string.Empty;
 		public DateTime CreatedAt { get; init; }
 		public DateTime UpdatedAt { get; init; }

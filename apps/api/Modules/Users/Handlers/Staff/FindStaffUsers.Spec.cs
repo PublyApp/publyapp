@@ -868,7 +868,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		// 3 staff users with distinct, deliberately NOT insertion-ordered Status
 		// (anti-correlated with insertion). The walk must visit each once in
 		// ascending Status order. A keySelector swap to another same-type field
-		// (e.g. Level) turns this assertion RED.
+		// (e.g. IsFullAccess) turns this assertion RED.
 		// UserStatus: Suspended = 30, Active = 40.
 		var statuses = new[] { UserStatus.Suspended, UserStatus.Active, UserStatus.Suspended };
 		var seededIds = new List<Guid>();
@@ -921,58 +921,47 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldWalkEveryLevelPageWithoutOverlapOrGap() {
+	public async Task ItShouldOrderStaffUsersByFullAccess() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		// 3 staff users with distinct, deliberately NOT insertion-ordered Level
-		// (anti-correlated with insertion). The walk must visit each once in
-		// ascending Level order. A keySelector swap to another same-type field
-		// (e.g. Status) turns this assertion RED.
-		// AccountLevel: User = 10, Admin = 50.
-		var levels = new[] { AccountLevel.Admin, AccountLevel.User, AccountLevel.Admin };
+		// 3 staff users with deliberately NOT insertion-ordered full-access state.
+		// Ascending is_full_access must put the role-less user first, then the two
+		// role holders ordered by Id, so a keySelector swap to another same-type
+		// field (e.g. Status) turns this assertion RED.
+		var fullAccessFlags = new[] { true, false, true };
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
-			var userId = await this._CreateStaffUserAsync(token, $"level-walk-{i}-{Guid.NewGuid():N}@example.com");
-			await this._SetStaffUserLevelAsync(userId, levels[i]);
+			var userId = await this._CreateStaffUserAsync(
+				token,
+				$"full-access-order-{i}-{Guid.NewGuid():N}@example.com"
+			);
+			await this._SetStaffUserFullAccessAsync(userId, fullAccessFlags[i]);
 			seededIds.Add(userId);
 		}
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "level",
-				sortOrder: "asc"
-			);
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
+		var url = FindStaffUserSpec._GetFindUrl(
+			limit: 100,
+			sortId: "is_full_access",
+			sortOrder: "asc"
+		);
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
 
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
-			pages++;
-			visitedIds.AddRange(page.Data.Select(u => u.Id));
-			cursor = page.NextCursor;
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
 
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
-
-		visitedIds.Should().OnlyHaveUniqueItems();
-		visitedIds.Should().Contain(seededIds);
-
-		var visitedOrder = visitedIds
+		var visitedOrder = result.Data
+			.Select(user => user.Id)
 			.Where(seededIds.Contains)
 			.ToList();
 		var expectedOrder = seededIds
-			.Zip(levels, (id, l) => (id, l))
-			.OrderBy(x => x.l)
+			.Zip(fullAccessFlags, (id, fullAccess) => (id, fullAccess))
+			.OrderBy(x => x.fullAccess)
 			.ThenBy(x => x.id)
 			.Select(x => x.id)
 			.ToList();
@@ -1002,10 +991,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		_ = await StaffUserTestHelper.SeedStaffUserAsync(
 			this._Fixture,
-			$"{marker}-admin@example.com",
+			$"{marker}-owner@example.com",
 			firstName: marker,
-			lastName: "Admin",
-			accountLevel: AccountLevel.Admin
+			lastName: "Owner",
+			fullAccess: true
 		);
 		_ = await StaffUserTestHelper.SeedStaffUserAsync(
 			this._Fixture,
@@ -1039,23 +1028,22 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		result.Counts.Total.Should().Be(3);
 		result.Counts.Active.Should().Be(2);
 		result.Counts.Suspended.Should().Be(1);
-		result.Counts.Admins.Should().Be(1);
-		result.Counts.Users.Should().Be(2);
+		result.Counts.FullAccess.Should().Be(1);
 	}
 
 	[Fact]
-	public async Task ItShouldReturnAssignedProfileNamesOnTheRow() {
+	public async Task ItShouldReturnAssignedRoleNamesOnTheRow() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var marker = $"profiled-{Guid.NewGuid():N}";
+		var marker = $"roled-{Guid.NewGuid():N}";
 
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
 			this._Fixture,
 			$"{marker}@example.com",
 			firstName: marker,
-			lastName: "Profiled"
+			lastName: "Roled"
 		);
-		var profileName = $"Support-{marker}";
-		await this._AttachStaffProfileAsync(userId, profileName);
+		var roleName = $"Support-{marker}";
+		await this._AttachStaffProfileAsync(userId, roleName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -1072,7 +1060,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var row = result.Data.Should()
 			.ContainSingle(user => user.Email == $"{marker}@example.com")
 			.Subject;
-		row.ProfileNames.Should().Equal(profileName);
+		row.Roles.Should().Equal(roleName);
 	}
 
 	[Fact]
@@ -1110,35 +1098,6 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		after.OpenSessions.Should().Be(before.OpenSessions);
 		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
-	}
-
-	[Fact]
-	public async Task ItShouldMatchTheRoleNamedByTheSearchPlaceholder() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var marker = $"role-{Guid.NewGuid():N}";
-
-		_ = await StaffUserTestHelper.SeedStaffUserAsync(
-			this._Fixture,
-			$"{marker}-admin@example.com",
-			firstName: marker,
-			lastName: "Admin",
-			accountLevel: AccountLevel.Admin
-		);
-
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 100, q: "admin")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
-		result.Data.Should().Contain(user =>
-			user.Email == $"{marker}-admin@example.com"
-		);
 	}
 
 	private static string _GetFindUrl(
@@ -1313,16 +1272,24 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _SetStaffUserLevelAsync(Guid userId, AccountLevel level) {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
+	private async Task _SetStaffUserFullAccessAsync(Guid userId, bool fullAccess) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var account = await dbContext.UserAccount.FirstAsync(ua =>
 			ua.UserId == userId && ua.Scope == AccountScope.Staff
 		);
-		account.Level = level;
 
-		await dbContext.SaveChangesAsync();
+		if (!fullAccess) {
+			return;
+		}
+
+		var profileId = await FullAccessProfileTestHelper.EnsureStaffProfileAsync(dbContext);
+		await FullAccessProfileTestHelper.AssignAsync(
+			dbContext,
+			account.GetRequiredId(),
+			profileId
+		);
 	}
 
 	private record FindResponse {
@@ -1336,8 +1303,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public int Total { get; init; }
 		public int Active { get; init; }
 		public int Suspended { get; init; }
-		public int Admins { get; init; }
-		public int Users { get; init; }
+		public int FullAccess { get; init; }
 		public int ConnectedToday { get; init; }
 		public int OpenSessions { get; init; }
 	}
@@ -1349,8 +1315,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string? FirstName { get; init; }
 		public string? AvatarUrl { get; init; }
 		public string Status { get; init; } = string.Empty;
-		public string Level { get; init; } = string.Empty;
-		public List<string> ProfileNames { get; init; } = [];
+		public bool IsFullAccess { get; init; }
+		public List<string> Roles { get; init; } = [];
 	}
 
 	private static async Task<AppProblemDetails?> _ReadProblemAsync(

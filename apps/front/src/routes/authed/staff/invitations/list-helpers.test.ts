@@ -2,9 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	getInvitationStatusLabelKey,
-	parseInvitationAccountLevelFilter,
 	parseInvitationListSearchParams,
-	serializeInvitationAccountLevelFilter,
 	serializeInvitationListSearchParams,
 } from './list-helpers';
 
@@ -75,21 +73,5 @@ describe('getInvitationStatusLabelKey', () => {
 			'staff-invitations:invitation-status-revoked',
 		);
 		expect(getInvitationStatusLabelKey('unknown')).toBe('unknown');
-	});
-});
-
-describe('invitation account-level filters', () => {
-	test('parses known comma-separated levels case-insensitively and dedupes', () => {
-		expect(
-			parseInvitationAccountLevelFilter(' Admin, bogus, user, ADMIN '),
-		).toEqual(['admin', 'user']);
-	});
-
-	test('serializes one or both levels and resets an empty selection', () => {
-		expect(serializeInvitationAccountLevelFilter(['admin'])).toBe('admin');
-		expect(serializeInvitationAccountLevelFilter(['admin', 'user'])).toBe(
-			'admin,user',
-		);
-		expect(serializeInvitationAccountLevelFilter([])).toBeUndefined();
 	});
 });

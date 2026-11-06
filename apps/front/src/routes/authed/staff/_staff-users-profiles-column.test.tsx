@@ -7,39 +7,39 @@ import { staffUserColumns } from './_staff-users-list-config';
 
 const t = (key: string): string => key;
 
-const rowWithProfiles = (profileNames: string[]): StaffUserRow => ({
+const rowWithRoles = (roles: string[]): StaffUserRow => ({
 	id: 'user-1',
 	email: 'user-1@example.com',
 	firstName: 'Sarah',
 	lastName: 'Rakoto',
 	avatarUrl: null,
-	level: null,
+	isFullAccess: false,
+	roles,
 	status: null,
 	displayName: 'Sarah Rakoto',
-	profileNames,
 });
 
-const profilesCell = (profileNames: string[]) => {
+const rolesCell = (roles: string[]) => {
 	const column = staffUserColumns(t).find(
-		(candidate) => candidate.id === 'profiles',
+		(candidate) => candidate.id === 'roles',
 	);
-	return column?.cell?.(rowWithProfiles(profileNames));
+	return column?.cell?.(rowWithRoles(roles));
 };
 
 afterEach(() => {
 	cleanup();
 });
 
-describe('staff users « Profils » column', () => {
-	test('renders one pill per profile assigned to the row', () => {
-		render(<>{profilesCell(['Super administrateurs', 'Support client'])}</>);
+describe('staff users « Rôles » column', () => {
+	test('renders one pill per role assigned to the row', () => {
+		render(<>{rolesCell(['Super administrateurs', 'Support client'])}</>);
 
 		expect(screen.getByText('Super administrateurs')).toBeTruthy();
 		expect(screen.getByText('Support client')).toBeTruthy();
 	});
 
-	test('renders « — » when the API returned no profile for the user', () => {
-		render(<>{profilesCell([])}</>);
+	test('renders « — » when the API returned no role for the user', () => {
+		render(<>{rolesCell([])}</>);
 
 		expect(screen.getByText('—')).toBeTruthy();
 	});

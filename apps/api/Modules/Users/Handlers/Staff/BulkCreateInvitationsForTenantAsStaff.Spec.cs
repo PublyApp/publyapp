@@ -89,12 +89,10 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 					invitations = new[] {
 						new {
 							email = conflictingInviteeEmail,
-							accountLevel = "User",
 							profileIds = Array.Empty<string>(),
 						},
 						new {
 							email = validInviteeEmail,
-							accountLevel = "User",
 							profileIds = new[] {
 								successProfileA.ToString(),
 								successProfileB.ToString(),
@@ -102,7 +100,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 						},
 						new {
 							email = invalidProfileInviteeEmail,
-							accountLevel = "User",
 							profileIds = new[] { foreignProfileId.ToString() },
 					},
 				},
@@ -172,7 +169,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email = $"tenant-bulk-unauth-{Guid.NewGuid():N}@example.com",
-						accountLevel = "User",
 					},
 				},
 			}
@@ -194,7 +190,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email = SeedConstants.Tenants.TechStartUserEmail,
-						accountLevel = "User",
 						profileIds = Array.Empty<string>(),
 					},
 				},
@@ -225,42 +220,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	}
 
 	[Fact]
-	public async Task ItShouldRejectAdminInviteeWithProfiles() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetAcmeTenantIdAsync();
-		var profileIds = await this._CreateTenantProfilesAsync(tenantId, count: 1);
-		var email = $"tenant-bulk-admin-profiles-{Guid.NewGuid():N}@example.com";
-
-		using var response = await this._SendBulkCreateAsync(
-			staffToken,
-			tenantId.ToString(),
-			new {
-				invitations = new[] {
-					new {
-						email,
-						accountLevel = "Admin",
-						profileIds = profileIds.Select(id => id.ToString()).ToArray(),
-					},
-				},
-			}
-		);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var payload = await response.Content
-			.ReadFromJsonAsync<BulkCreateTenantInvitationsResponse>();
-		payload.Should().NotBeNull();
-		Assert.NotNull(payload);
-		payload.SucceededCount.Should().Be(0);
-		payload.FailedCount.Should().Be(1);
-		payload.FailedItems.Should().ContainSingle(item =>
-			item.Email == email
-			&& item.TranslationKey == "admin-invitee-cannot-have-profiles"
-		);
-		(await this._TenantInvitationExistsAsync(tenantId, email)).Should().BeFalse();
-	}
-
-	[Fact]
-	public async Task ItShouldRejectUserInviteeWhenProfileCountExceedsConfiguredCap() {
+	public async Task ItShouldRejectMemberInviteeWhenProfileCountExceedsConfiguredCap() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetAcmeTenantIdAsync();
 		var profileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
@@ -274,7 +234,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email,
-						accountLevel = "User",
 						profileIds = profileIds.Select(id => id.ToString()).ToArray(),
 					},
 				},
@@ -296,7 +255,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	}
 
 	[Fact]
-	public async Task ItShouldCreateUserInviteeWithProfilesAtConfiguredCap() {
+	public async Task ItShouldCreateMemberInviteeWithProfilesAtConfiguredCap() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetAcmeTenantIdAsync();
 		var profileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
@@ -310,7 +269,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email,
-						accountLevel = "User",
 						profileIds = profileIds.Select(id => id.ToString()).ToArray(),
 					},
 				},

@@ -134,7 +134,8 @@ public sealed class UpdateTenantProfileAsStaff {
 	public static async Task<Results<
 		Ok<GetTenantProfileByIdResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+			AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
@@ -191,6 +192,13 @@ public sealed class UpdateTenantProfileAsStaff {
 				ResponseKeys.NotFound
 			);
 		}
+		if (result is UpdateTenantProfileResult.SystemProfileProtected) {
+			return TypedProblems.Forbidden(
+				"The full-access system profile cannot be edited",
+				ResponseKeys.Forbidden
+			);
+		}
+
 
 		if (result is UpdateTenantProfileResult.ProfileNameExists nameExists) {
 			return TypedProblems.BadRequest(

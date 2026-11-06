@@ -17,7 +17,6 @@ using PublyApp.Api.Modules.Auth.Services;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
 using UserEntity = PublyApp.Api.Modules.Users.Entities.User;
@@ -200,7 +199,7 @@ public sealed class AcceptInvitation {
 						Details: new {
 							Email = invitation.Email,
 							TenantId = invitation.TenantId,
-							AccountLevel = (string?)(invitation.AccountLevel ?? AccountLevel.User).ToString(),
+							ProfileIds = invitation.ProfileIds,
 							AcceptedWithExistingAccount = true
 						}
 					),
@@ -296,12 +295,12 @@ public sealed class AcceptInvitation {
 			? new {
 				Email = invitation.Email,
 				TenantId = (Guid?)null,
-				AccountLevel = (string?)null
+				ProfileIds = invitation.ProfileIds,
 			}
 			: new {
 				Email = invitation.Email,
 				TenantId = invitation.TenantId,
-				AccountLevel = (string?)(invitation.AccountLevel ?? AccountLevel.User).ToString()
+				ProfileIds = invitation.ProfileIds,
 			};
 
 		await auditLogService.LogAsync(

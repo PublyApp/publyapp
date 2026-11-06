@@ -11,13 +11,10 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
-using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Services;
-using PublyApp.Api.Modules.Users.Validation;
 
-using AccountLevelEnum = PublyApp.Api.Modules.Users.Entities.AccountLevel;
-using UserAccountEntity = PublyApp.Api.Modules.Users.Entities.UserAccount;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -31,7 +28,6 @@ public class CreateStaffUserBody {
 	public JsonElement LastName { get; set; }
 	public JsonElement? FirstName { get; set; }
 	public JsonElement? AvatarUrl { get; set; }
-	public JsonElement? AccountLevelValue { get; set; }
 	public JsonElement? SendNotification { get; set; }
 
 	public string GetEmail() {
@@ -54,35 +50,6 @@ public class CreateStaffUserBody {
 		return this.SendNotification.GetValueAsBoolean();
 	}
 
-	public AccountLevelEnum GetAccountLevel() {
-		switch (this.AccountLevelValue?.ValueKind) {
-			case null:
-			case JsonValueKind.Null:
-			case JsonValueKind.Undefined:
-				return AccountLevelEnum.User;
-			case JsonValueKind.String: {
-					var accountLevelString = this.AccountLevelValue.GetValueAsString();
-					var accountLevel = UserAccountEntity.ParseLevel(accountLevelString);
-					if (accountLevel is null) {
-						throw new InvalidOperationException("Invalid account level: " + accountLevelString);
-					}
-
-					return accountLevel.Value;
-				}
-			case JsonValueKind.Object:
-			case JsonValueKind.Array:
-			case JsonValueKind.Number:
-			case JsonValueKind.True:
-			case JsonValueKind.False:
-				throw new InvalidOperationException("AccountLevel must be a string or null");
-			default:
-				throw new ArgumentOutOfRangeException(
-					nameof(this.AccountLevelValue),
-					this.AccountLevelValue?.ValueKind,
-					$"Unhandled JsonValueKind: {this.AccountLevelValue?.ValueKind}"
-				);
-		}
-	}
 }
 
 public class CreateStaffUserBodyValidator
@@ -99,9 +66,6 @@ public class CreateStaffUserBodyValidator
 
 		this.RuleFor(x => x.AvatarUrl)
 			.MustBeNullableUrl("AvatarUrl");
-
-		this.RuleFor(x => x.AccountLevelValue)
-			.MustBeNullableAccountLevel();
 
 		this.RuleFor(x => x.SendNotification)
 			.MustBeNullableBoolean(
@@ -127,7 +91,6 @@ public sealed class CreateStaffUser {
 		var password = CryptoUtils.RandomString(env.PASSWORD_MIN_LENGTH);
 		password = PasswordUtils.HashPassword(password);
 
-		var accountLevel = body.GetAccountLevel();
 		var sendNotification = body.GetSendNotification();
 
 		var serviceResult = await createStaffUserService.CreateStaffUserAsync(
@@ -137,8 +100,7 @@ public sealed class CreateStaffUser {
 				FirstName: body.GetFirstName(),
 				AvatarUrl: body.GetAvatarUrl(),
 				Password: password,
-				SendNotification: sendNotification,
-				AccountLevel: accountLevel
+				SendNotification: sendNotification
 			),
 			cancellationToken
 		);

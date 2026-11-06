@@ -249,7 +249,6 @@ public sealed class OpenApiContractSpec {
 					nameof(UserStatus.Active),
 					nameof(UserStatus.Suspended),
 				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
 			},
 			["StaffUserReactivatedResult"] = new() {
 				["status"] = [
@@ -299,7 +298,6 @@ public sealed class OpenApiContractSpec {
 					nameof(TenantUserStatus.Suspended),
 					nameof(TenantUserStatus.GloballySuspended),
 				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
 			},
 			["SuspendTenantUserResult"] = new() {
 				["status"] = [
@@ -307,7 +305,6 @@ public sealed class OpenApiContractSpec {
 					nameof(TenantUserStatus.Suspended),
 					nameof(TenantUserStatus.GloballySuspended),
 				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
 			},
 			["TenantUserDetailsResult"] = new() {
 				["status"] = [
@@ -315,7 +312,6 @@ public sealed class OpenApiContractSpec {
 					nameof(TenantUserStatus.Suspended),
 					nameof(TenantUserStatus.GloballySuspended),
 				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
 			},
 			["TenantUserItem"] = new() {
 				["status"] = [
@@ -323,7 +319,6 @@ public sealed class OpenApiContractSpec {
 					nameof(TenantUserStatus.Suspended),
 					nameof(TenantUserStatus.GloballySuspended),
 				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
 			},
 			["TenantUserCompanyForStaffResult"] = new() {
 				["status"] = [
@@ -331,27 +326,12 @@ public sealed class OpenApiContractSpec {
 					nameof(TenantUserStatus.Suspended),
 					nameof(TenantUserStatus.GloballySuspended),
 				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
 			},
 			["TenantProfileUserItem"] = new() {
 				["status"] = [
 					nameof(TenantUserStatus.Active),
 					nameof(TenantUserStatus.Suspended),
 					nameof(TenantUserStatus.GloballySuspended),
-				],
-				["level"] = [nameof(AccountLevel.Admin), nameof(AccountLevel.User)],
-			},
-			// AccountLevel — auth bootstrap + invitation items.
-			["GetScopeAuthDataTenant"] = new() {
-				["accountLevel"] = [
-					nameof(AccountLevel.Admin),
-					nameof(AccountLevel.User),
-				],
-			},
-			["StaffTenantInvitationListItem"] = new() {
-				["accountLevel"] = [
-					nameof(AccountLevel.Admin),
-					nameof(AccountLevel.User),
 				],
 			},
 			// InvitationEffectiveStatus — derived pending/accepted/expired/revoked.
@@ -412,7 +392,7 @@ public sealed class OpenApiContractSpec {
 		}
 
 		offenders.Should().BeEmpty(
-			"every domain-backed status/level response field must publish a "
+			"every domain-backed status response field must publish a "
 			+ "real string enum schema so Kiota generates typed enums (#349)"
 		);
 	}

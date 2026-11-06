@@ -461,8 +461,7 @@ public sealed class GetUserTenantsForPickerSpec
 			await dbContext.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(
 					userId,
-					tenant.GetRequiredId(),
-					AccountLevel.User
+					tenant.GetRequiredId()
 				)
 			);
 			await dbContext.SaveChangesAsync();
@@ -581,8 +580,7 @@ public sealed class GetUserTenantsForPickerSpec
 			await dbContext.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(
 					user.GetRequiredId(),
-					acme.GetRequiredId(),
-					AccountLevel.User
+					acme.GetRequiredId()
 				)
 			);
 			await dbContext.SaveChangesAsync();

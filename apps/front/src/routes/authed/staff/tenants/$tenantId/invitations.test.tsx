@@ -126,7 +126,6 @@ const TRANSLATIONS: TestLabelMap = {
 	'staff-revoke': 'Revoke',
 	'revoke-invitation-success': 'Invitation revoked.',
 	'all-statuses': 'All statuses',
-	'all-account-levels': 'All account levels',
 	pending: 'Pending',
 	accepted: 'Accepted',
 	expired: 'Expired',
@@ -349,7 +348,6 @@ describe('staff tenant invitations route', () => {
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				q: undefined,
 				status: undefined,
-				level: undefined,
 				sortId: 'created_at',
 				sortOrder: 'desc',
 				cursor: undefined,
@@ -360,7 +358,7 @@ describe('staff tenant invitations route', () => {
 	});
 
 	test('invite people button opens the same-route drawer and keeps current invitation filters', () => {
-		mocks.search = { q: 'sam', status: 'pending', level: 'admin,user' };
+		mocks.search = { q: 'sam', status: 'pending' };
 		renderPage();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
@@ -371,7 +369,6 @@ describe('staff tenant invitations route', () => {
 					invite: 1,
 					q: 'sam',
 					status: 'pending',
-					level: 'admin,user',
 				}),
 				replace: true,
 			}),
@@ -383,29 +380,6 @@ describe('staff tenant invitations route', () => {
 
 		const title = screen.getByRole('heading', { name: /^Invitations/ });
 		expect(title.textContent).toContain('3 pending');
-	});
-
-	test('derives admin access from row account level with translation', () => {
-		currentLanguage = 'fr';
-		mocks.toStaffTenantInvitationRows.mockReturnValue([
-			{
-				id: 'invite-admin-mapped',
-				email: 'admin@example.com',
-				status: 'Pending',
-				scope: 'Tenant',
-				profileName: null,
-				accountLevel: 'Admin',
-				invitedByName: 'Taylor Smith',
-				acceptedAt: null,
-				createdAt: new Date('2026-07-01T09:00:00Z'),
-				expiresAt: new Date('2026-07-07T09:00:00Z'),
-			},
-		]);
-
-		renderPage();
-
-		expect(screen.getByText('Administrateur')).toBeTruthy();
-		expect(screen.queryByText('Admin')).toBeNull();
 	});
 
 	test('renders plural invitation profiles as chips with a +N overflow affordance', () => {
@@ -421,7 +395,6 @@ describe('staff tenant invitations route', () => {
 					{ id: 'profile-2', name: 'Reviewers' },
 					{ id: 'profile-3', name: 'Publishers' },
 				],
-				accountLevel: 'User',
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
 				createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -468,7 +441,6 @@ describe('staff tenant invitations route', () => {
 			invite: 1,
 			q: 'sam',
 			status: 'pending',
-			level: 'admin',
 		};
 		renderPage();
 
@@ -482,7 +454,6 @@ describe('staff tenant invitations route', () => {
 			invite: 1,
 			q: 'sam',
 			status: 'pending',
-			level: 'admin',
 		};
 		renderPage();
 
@@ -495,7 +466,6 @@ describe('staff tenant invitations route', () => {
 					invite: undefined,
 					q: 'sam',
 					status: 'pending',
-					level: 'admin',
 				}),
 				replace: true,
 			}),
@@ -861,238 +831,10 @@ describe('staff tenant invitations route', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	test('canonicalizes both account levels and forwards them to the list query', () => {
-		const validateSearch = (
-			Route.options as {
-				validateSearch: (
-					search: Record<string, unknown>,
-				) => Record<string, unknown>;
-			}
-		).validateSearch;
-		const canonicalSearch = validateSearch({
-			q: ' sam ',
-			status: 'pending',
-			level: ' Admin, user, bogus, ADMIN ',
-			sort_id: 'email',
-			sort_order: 'asc',
-			cursor: 'invite-cursor',
-			size: 25,
-			invite: 1,
-		});
-
-		expect(canonicalSearch).toMatchObject({
-			q: 'sam',
-			status: 'pending',
-			level: 'admin,user',
-			sort_id: 'email',
-			sort_order: 'asc',
-			cursor: 'invite-cursor',
-			size: 25,
-			invite: 1,
-		});
-
-		mocks.search = canonicalSearch;
-		renderPage();
-
-		expect(
-			screen.getByTestId('staff-tenant-invitations-level-filter-trigger')
-				.textContent,
-		).toContain('Admin, User');
-		expect(mocks.useStaffTenantInvitationsQuery).toHaveBeenCalledWith(
-			expect.objectContaining({
-				q: 'sam',
-				status: 'pending',
-				level: 'admin,user',
-				sortId: 'email',
-				sortOrder: 'asc',
-				size: 25,
-			}),
-			{ enabled: true },
-		);
-	});
-
-	test('renders square checkboxes for account levels and selects both without closing', async () => {
-		renderPage();
-
-		fireEvent.click(
-			screen.getByTestId('staff-tenant-invitations-level-filter-trigger'),
-		);
-		const resetItem = await screen.findByTestId(
-			'staff-tenant-invitations-level-filter-all',
-		);
-		const adminItem = screen.getByTestId(
-			'staff-tenant-invitations-level-filter-admin',
-		);
-		const userItem = screen.getByTestId(
-			'staff-tenant-invitations-level-filter-user',
-		);
-
-		expect(
-			resetItem.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
-		).toBeNull();
-		expect(
-			adminItem.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
-		).toBeTruthy();
-		expect(
-			userItem.querySelector('[data-slot="dropdown-menu-checkbox-item-box"]'),
-		).toBeTruthy();
-
-		fireEvent.click(adminItem);
-		const firstLevelNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search: Record<string, unknown>;
-			replace: boolean;
-		};
-		expect(firstLevelNavigation.replace).toBe(true);
-		expect(firstLevelNavigation.search.level).toBe('admin');
-		// URL-state only: the invitations query reads its cursor from
-		// useCursorPagination, never from the URL, so this asserts that the
-		// level-change navigation drops the stale `cursor` search param — NOT
-		// that the client-held page cursor reset. See "changing the account
-		// level filter resets the client-held cursor and page index" below for
-		// the real reset coverage.
-		expect(firstLevelNavigation.search.cursor).toBeUndefined();
-		expect(
-			screen.getByTestId('staff-tenant-invitations-level-filter-admin'),
-		).toBeTruthy();
-
-		mocks.search = { level: 'admin' };
-		const Component = getRouteComponent();
-		cleanup();
-		render(<Component />);
-		fireEvent.click(
-			screen.getByTestId('staff-tenant-invitations-level-filter-trigger'),
-		);
-		fireEvent.click(
-			await screen.findByTestId('staff-tenant-invitations-level-filter-user'),
-		);
-		const secondLevelNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search: Record<string, unknown>;
-			replace: boolean;
-		};
-		expect(secondLevelNavigation.replace).toBe(true);
-		expect(secondLevelNavigation.search.level).toBe('admin,user');
-		// URL-state only — see the note on the first navigation above.
-		expect(secondLevelNavigation.search.cursor).toBeUndefined();
-	});
-
-	test('account-level reset clears only level and preserves every other URL state', async () => {
-		mocks.search = {
-			q: 'sam',
-			status: 'pending,accepted',
-			level: 'admin,user',
-			sort_id: 'email',
-			sort_order: 'asc',
-			cursor: 'invite-cursor',
-			size: 25,
-			invite: 1,
-		};
-		renderPage();
-
-		fireEvent.click(
-			screen.getByTestId('staff-tenant-invitations-level-filter-trigger'),
-		);
-		const resetItem = await screen.findByTestId(
-			'staff-tenant-invitations-level-filter-all',
-		);
-		fireEvent.click(resetItem);
-
-		const resetNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search: Record<string, unknown>;
-			replace: boolean;
-		};
-		expect(resetNavigation.replace).toBe(true);
-		expect(resetNavigation.search).toMatchObject({
-			q: 'sam',
-			status: 'pending,accepted',
-			sort_id: 'email',
-			sort_order: 'asc',
-			size: 25,
-			invite: 1,
-		});
-		expect(resetNavigation.search.level).toBeUndefined();
-		// URL-state only — see the note on the level-toggle test above.
-		expect(resetNavigation.search.cursor).toBeUndefined();
-		await waitFor(() =>
-			expect(
-				screen.queryByTestId('staff-tenant-invitations-level-filter-all'),
-			).toBeNull(),
-		);
-	});
-
-	// Round-2 finding 3: the URL `cursor` assertions above cannot fail when the
-	// client-held cursor stack leaks across a filter change, because the list
-	// query never reads the URL cursor. This test drives the real thing: page
-	// forward so useCursorPagination holds a server cursor at page index 1, then
-	// change the level filter (which changes cursorResetKey) and assert the very
-	// next list query is issued with no cursor, back at page index 0.
-	test('changing the account level filter resets the client-held cursor and page index', () => {
-		mocks.useStaffTenantInvitationsQuery.mockReturnValue(
-			buildQueryResult({
-				data: {
-					data: [
-						{
-							id: 'invite-1',
-							email: 'alex@example.com',
-							status: 'Pending',
-						},
-					],
-					nextCursor: 'invite-cursor-2',
-				},
-			}),
-		);
-
-		const Component = getRouteComponent();
-		const renderResult = render(<Component />);
-
-		const currentPageLabel = (): string | undefined =>
-			document.querySelector('.publy-pager-current')?.textContent ?? undefined;
-		const lastQueryVariables = (): Record<string, unknown> =>
-			mocks.useStaffTenantInvitationsQuery.mock.calls.at(-1)?.[0] as Record<
-				string,
-				unknown
-			>;
-
-		expect(currentPageLabel()).toBe('1');
-		expect(lastQueryVariables()).toMatchObject({ cursor: undefined });
-		expect(lastQueryVariables().level).toBeUndefined();
-
-		fireEvent.click(
-			screen.getByTestId('staff-tenant-invitations-table-next-page'),
-		);
-
-		expect(currentPageLabel()).toBe('2');
-		expect(lastQueryVariables()).toMatchObject({
-			cursor: 'invite-cursor-2',
-		});
-		expect(
-			screen
-				.getByTestId('staff-tenant-invitations-table-prev-page')
-				.hasAttribute('disabled'),
-		).toBe(false);
-
-		// The URL now carries the level filter, exactly as the navigate() from
-		// setLevels() produces. Re-render with the new search props, the same way
-		// a real navigation would.
-		mocks.search = { level: 'admin' };
-		renderResult.rerender(<Component />);
-
-		expect(currentPageLabel()).toBe('1');
-		expect(lastQueryVariables()).toMatchObject({
-			cursor: undefined,
-			level: 'admin',
-		});
-		expect(
-			screen
-				.getByTestId('staff-tenant-invitations-table-prev-page')
-				.hasAttribute('disabled'),
-		).toBe(true);
-	});
-
-	test('debounced search preserves account level, status, sorting, size, and drawer state (deterministic timers)', async () => {
+	test('debounced search preserves status, sorting, size, and drawer state (deterministic timers)', async () => {
 		vi.useFakeTimers();
 		try {
 			mocks.search = {
-				level: 'admin,user',
 				status: 'pending',
 				sort_id: 'email',
 				sort_order: 'asc',
@@ -1114,7 +856,6 @@ describe('staff tenant invitations route', () => {
 			};
 			expect(searchNavigation.search).toMatchObject({
 				q: 'sam',
-				level: 'admin,user',
 				status: 'pending',
 				sort_id: 'email',
 				sort_order: 'asc',
@@ -1126,10 +867,9 @@ describe('staff tenant invitations route', () => {
 		}
 	});
 
-	test('status changes preserve account level and other URL state while resetting cursor', async () => {
+	test('status changes preserve other URL state while resetting cursor', async () => {
 		mocks.search = {
 			q: 'sam',
-			level: 'admin',
 			status: 'pending',
 			sort_id: 'email',
 			sort_order: 'asc',
@@ -1153,7 +893,6 @@ describe('staff tenant invitations route', () => {
 		};
 		expect(statusNavigation.search).toMatchObject({
 			q: 'sam',
-			level: 'admin',
 			status: 'pending,accepted',
 			sort_id: 'email',
 			sort_order: 'asc',
@@ -1188,7 +927,6 @@ describe('staff tenant invitations route', () => {
 				status: 'Pending',
 				scope: 'Tenant',
 				profileName: null,
-				accountLevel: 'User',
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
 				createdAt: new Date('2026-07-01T10:00:00Z'),
@@ -1298,7 +1036,7 @@ describe('staff tenant invitations route', () => {
 			expect(lines[1]).toBe(
 				[
 					'sam@example.com',
-					'User',
+					'',
 					'Taylor Smith',
 					'Pending',
 					'"' + mediumDateTime(twoInvitationRows()[1].createdAt) + '"',

@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
@@ -763,7 +764,7 @@ public sealed class TenantUsageServiceSpec
 		await dbContext.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
-		async Task<User> AddUserAsync(AccountLevel level, bool suspendAccount) {
+		async Task<User> AddUserAsync(bool fullAccess, bool suspendAccount) {
 			var user = new User {
 				Email = $"usage-rich-{Guid.NewGuid():N}@example.com",
 				Password = "unused",
@@ -774,7 +775,7 @@ public sealed class TenantUsageServiceSpec
 			await dbContext.SaveChangesAsync();
 
 			var account = UserAccount.CreateTenantAccount(
-				user.GetRequiredId(), tenantId, level
+				user.GetRequiredId(), tenantId
 			);
 			if (suspendAccount) {
 				account.Status = AccountStatus.Suspended;
@@ -782,12 +783,18 @@ public sealed class TenantUsageServiceSpec
 			await dbContext.UserAccount.AddAsync(account);
 			await dbContext.SaveChangesAsync();
 
+			if (fullAccess) {
+				await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+					dbContext, tenantId, account.GetRequiredId()
+				);
+			}
+
 			return user;
 		}
 
-		var owner = await AddUserAsync(AccountLevel.Admin, suspendAccount: false);
-		await AddUserAsync(AccountLevel.User, suspendAccount: false);
-		await AddUserAsync(AccountLevel.User, suspendAccount: true);
+		var owner = await AddUserAsync(fullAccess: true, suspendAccount: false);
+		await AddUserAsync(fullAccess: false, suspendAccount: false);
+		await AddUserAsync(fullAccess: false, suspendAccount: true);
 
 		var activeProject = new Project {
 			TenantId = tenantId,

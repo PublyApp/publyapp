@@ -1,41 +1,20 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
-
 using FluentValidation;
 
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
-using PublyApp.Api.Modules.Users.Validation;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class AssignTenantUserCompaniesForStaffBody
 	: TenantUserCompanyIdsForStaffBody {
-	[Required]
-	public JsonElement Level { get; init; }
-
-	public AccountLevel GetLevel() {
-		var accountLevel = UserAccount.ParseLevel(
-			this.Level.GetValueAsString()
-		);
-		if (accountLevel is null) {
-			throw new InvalidOperationException(
-				"Invalid account level after validation."
-			);
-		}
-
-		return accountLevel.Value;
-	}
 }
 
 public sealed class AssignTenantUserCompaniesForStaffBodyValidator
@@ -47,10 +26,6 @@ public sealed class AssignTenantUserCompaniesForStaffBodyValidator
 				itemName: "tenantId",
 				maxCount: 100
 			);
-
-		this.RuleFor(x => x.Level)
-			.MustBeRequiredString("level")
-			.MustBeRequiredAccountLevel();
 	}
 }
 
@@ -93,8 +68,7 @@ public sealed class AssignTenantUserCompaniesForStaff {
 		var result = await tenantUserCompanyMembershipService.AssignTenantUserCompaniesForStaffAsync(
 			new AssignTenantUserCompaniesArgs(
 				UserId: userIdGuid,
-				TenantIds: tenantIds,
-				Level: body.GetLevel()
+				TenantIds: tenantIds
 			),
 			cancellationToken
 		);

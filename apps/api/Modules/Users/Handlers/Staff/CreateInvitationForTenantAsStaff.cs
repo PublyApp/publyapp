@@ -13,8 +13,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 
@@ -24,7 +24,6 @@ public record CreateInvitationForTenantAsStaffBody {
 	// Do not mark JsonElement fields as C# required here: missing JSON properties must
 	// reach FluentValidation so clients receive the repo-standard 422 validation problem.
 	public JsonElement Email { get; init; }
-	public JsonElement AccountLevel { get; init; }
 	public JsonElement ProfileIds { get; init; }
 
 	public List<Guid> GetProfileIds() {
@@ -51,10 +50,6 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 	public CreateInvitationForTenantAsStaffBodyValidator() {
 		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
-
-		this.RuleFor(x => x.AccountLevel)
-			.MustBeRequiredString("AccountLevel")
-			.MustBeRequiredAccountLevel();
 
 		this.RuleFor(x => x.ProfileIds)
 			.SetValidator(new TenantInvitationProfileIdsValidator())
@@ -96,7 +91,8 @@ public sealed class CreateInvitationForTenantAsStaff {
 	public static async Task<Results<
 		Created<InvitationCreatedForTenant>,
 		AppBadRequestHttpResult,
-		AppValidationProblemHttpResult
+		AppValidationProblemHttpResult,
+		AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromBody] CreateInvitationForTenantAsStaffBody body,
@@ -104,6 +100,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		[FromServices] ITenantService tenantService,
 		CancellationToken cancellationToken = default
 	) {
@@ -117,15 +114,20 @@ public sealed class CreateInvitationForTenantAsStaff {
 
 		// Extract values after validation
 		var email = body.Email.GetValueAsString();
-		var accountLevelStr = body.AccountLevel.GetValueAsString();
-		var parsedAccountLevel = UserAccount.ParseLevel(accountLevelStr);
-		if (parsedAccountLevel is null) {
-			throw new InvalidOperationException(
-				$"AccountLevel '{accountLevelStr}' is invalid after validation"
+		var profileIds = body.GetProfileIds();
+
+		// Privilege escalation guard (#2289): inviting someone with the tenant's full-access
+		// role delivers that role on acceptance, so only a full-access actor may issue it.
+		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+			authContext.GetRequiredStaffAccount().UserId,
+			profileIds,
+			cancellationToken
+		)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can assign the full-access role",
+				ResponseKeys.Forbidden
 			);
 		}
-		var accountLevel = parsedAccountLevel.Value;
-		var profileIds = body.GetProfileIds();
 
 		if (profileIds.Count > 0) {
 			var validProfileIds = await invitationService.ValidateTenantProfilesAsync(
@@ -211,7 +213,6 @@ public sealed class CreateInvitationForTenantAsStaff {
 			TenantId: tenantIdGuid,
 			TenantName: tenant.Name,
 			ProfileIds: profileIds,
-			AccountLevel: accountLevel,
 			InvitedByUserId: account.UserId
 		);
 		var createResult = await invitationService.CreateTenantInvitationAsync(
@@ -245,7 +246,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 				Details: new {
 					Email = email,
 					TenantId = tenantIdGuid,
-					AccountLevel = accountLevelStr,
+					ProfileIds = profileIds,
 					Scope = "Tenant"
 				}
 			),

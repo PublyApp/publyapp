@@ -179,7 +179,7 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		).toBe(false);
 	});
 
-	test('tenant users: unrecognized status/level and a non-1 invite value are dropped from the URL', async () => {
+	test('tenant users: an unrecognized status/role and a non-1 invite value are dropped from the URL', async () => {
 		const { router, history } = buildHarness(
 			'/staff/tenants/$tenantId/users',
 			asValidateSearch(TenantUsersRoute),
@@ -189,18 +189,18 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 				);
 				return {
 					status: parsed.status ?? 'all',
-					level: parsed.level ?? 'all',
+					role: parsed.role ?? 'all',
 					invite: parsed.invite === 1 ? 'open' : 'closed',
 				};
 			},
-			'/staff/tenants/t1/users?status=bogus&level=owner&invite=2',
+			'/staff/tenants/t1/users?status=bogus&role=owner&invite=2',
 		);
 
 		render(<RouterProvider router={router} />);
 		await waitFor(() => screen.getByTestId('resolved-search'));
 
 		expect(screen.getByTestId('field-status').textContent).toBe('all');
-		expect(screen.getByTestId('field-level').textContent).toBe('all');
+		expect(screen.getByTestId('field-role').textContent).toBe('all');
 		expect(screen.getByTestId('field-invite').textContent).toBe('closed');
 		expect(history.location.href).not.toContain('bogus');
 		expect(history.location.href).not.toContain('owner');

@@ -94,7 +94,7 @@ export const TenantCreateForm = ({
 							onAddManualMember={() => {
 								form.appendManualMember({
 									email: '',
-									accountLevel: form.accountLevelUser,
+									role: 'member',
 								});
 							}}
 							onRemoveManualMember={form.removeManualMember}

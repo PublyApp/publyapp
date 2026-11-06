@@ -989,13 +989,9 @@ public sealed class TenantProfileUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		_ = dbContext.User.Add(user);
 		_ = await dbContext.SaveChangesAsync();
 
-		var account = new UserAccount {
-			UserId = user.GetRequiredId(),
-			TenantId = tenantId,
-			Scope = AccountScope.Tenant,
-			Level = AccountLevel.User,
-			Status = status,
-		};
+		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
+		account.ValidateAccountType();
+		account.Status = status;
 
 		_ = dbContext.UserAccount.Add(account);
 		_ = await dbContext.SaveChangesAsync();

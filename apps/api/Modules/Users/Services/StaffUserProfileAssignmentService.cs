@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -185,6 +186,42 @@ public sealed class StaffUserProfileAssignmentService : IStaffUserProfileAssignm
 		var linksToRemove = existingLinks
 			.Where(x => !desiredProfileIds.Contains(x.ProfileId))
 			.ToList();
+
+		// Staff last-admin invariant (#2289): the full-access system role is the source of
+		// every permission, so removing it from its last active holder would lock every
+		// staff member out. Non-full-access actors are already blocked from *assigning* it;
+		// this also blocks anyone from removing the last one.
+		if (linksToRemove.Count > 0) {
+			var removedProfileIds = linksToRemove
+				.Select(link => (Guid?)link.ProfileId)
+				.ToList();
+			var removesFullAccess = await this._DbContext.Profile.AnyAsync(
+				profile => removedProfileIds.Contains(profile.Id)
+					&& profile.IsFullAccess
+					&& !profile.IsDeleted,
+				cancellationToken
+			);
+
+			if (removesFullAccess) {
+				var targetIsActiveHolder = await FullAccessRoleQueries
+					.ActiveStaffFullAccessAccounts(this._DbContext)
+					.AnyAsync(
+						account => account.Id == lockedStaffAccountId,
+						cancellationToken
+					);
+				if (targetIsActiveHolder) {
+					var activeFullAccessCount =
+						await FullAccessRoleQueries.CountActiveStaffFullAccessAsync(
+							this._DbContext,
+							cancellationToken
+						);
+					if (activeFullAccessCount <= 1) {
+						await transaction.RollbackAsync(cancellationToken);
+						return new UpdateStaffUserProfilesServiceResult.LastFullAccessRoleRemoval();
+					}
+				}
+			}
+		}
 
 		if (linksToRemove.Count > 0) {
 			// RemoveRange is a hard delete because UserAccountProfile no longer inherits

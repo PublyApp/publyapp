@@ -405,8 +405,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				.WithSessionToken(staffToken);
 
 			request.Content = JsonContent.Create(new {
-				email,
-				accountLevel = "User"
+				email
 			});
 
 			using HttpResponseMessage response = await this._Http.SendAsync(request);

@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
-const ACCOUNT_LEVEL_OPTIONS = ['Admin', 'User'] as const;
 const STATUS_OPTIONS = ['Active', 'Suspended'] as const;
 const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
 
-export { ACCOUNT_LEVEL_OPTIONS, STATUS_OPTIONS };
+export { STATUS_OPTIONS };
 
 export const getStaffUserEditSchema = (t: (key: string) => string) =>
 	z.object({
@@ -26,7 +25,6 @@ export const getStaffUserEditSchema = (t: (key: string) => string) =>
 				}
 			}, t('staff-users:invalid-url')),
 		email: z.string().trim().pipe(z.email()).or(z.literal('')),
-		accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
 		status: z.enum(STATUS_OPTIONS),
 		profileIds: z.array(z.string()),
 	});
@@ -34,11 +32,6 @@ export const getStaffUserEditSchema = (t: (key: string) => string) =>
 export type StaffUserEditValues = z.infer<
 	ReturnType<typeof getStaffUserEditSchema>
 >;
-
-export const normalizeAccountLevel = (
-	value: string | null,
-): StaffUserEditValues['accountLevel'] =>
-	value === 'Admin' ? 'Admin' : 'User';
 
 export const normalizeStatus = (
 	value: string | null,

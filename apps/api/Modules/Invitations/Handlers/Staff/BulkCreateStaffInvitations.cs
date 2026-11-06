@@ -12,6 +12,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
@@ -236,10 +237,12 @@ public sealed class BulkCreateStaffInvitations {
 		Created<BulkStaffInvitationsCreated>,
 		AppValidationProblemHttpResult,
 		AppBadRequestHttpResult,
-		AppInternalServerErrorHttpResult
+		AppInternalServerErrorHttpResult,
+		AppForbiddenHttpResult
 	>> Handle(
 		[FromBody] BulkCreateStaffInvitationsBody body,
 		[FromServices] IRequestAuthContext authContext,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
@@ -319,6 +322,18 @@ public sealed class BulkCreateStaffInvitations {
 		}
 
 		// Batch validate all profiles (1 query total, not N queries)
+		var actor = authContext.GetRequiredStaffAccount();
+		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+			actor.UserId,
+			allProfileIds,
+			cancellationToken
+		)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can assign the full-access role",
+				ResponseKeys.Forbidden
+			);
+		}
+
 		var validProfileIds = await invitationService.ValidateStaffProfilesAsync(
 			allProfileIds,
 			cancellationToken

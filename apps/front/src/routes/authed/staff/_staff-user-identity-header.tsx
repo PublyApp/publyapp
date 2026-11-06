@@ -13,21 +13,18 @@ import {
 	type StaffUserSection,
 } from './_staff-user-section-tabs';
 import type { StaffUserOverviewContextValue } from './staff-users/$userId/_overview-context';
-import {
-	formatAccountLevelLabel,
-	formatStaffStatusLabel,
-} from './staff-users/status-labels';
+import { formatStaffStatusLabel } from './staff-users/status-labels';
 
 type HeaderUser = {
 	displayName: string;
 	email: string;
 	avatarUrl: string | null;
-	accountLevel: string | null;
+	roles: string[];
 	status: string | null;
 };
 
 /** Identity header of the staff user details page: back link, avatar,
- * name with status/level pills, edit link and the suspend/reactivate
+ * name with role/status pills, edit link and the suspend/reactivate
  * confirm dialog. Extracted so each render unit stays reviewable. */
 export const StaffUserIdentityHeader = ({
 	user,
@@ -80,11 +77,11 @@ export const StaffUserIdentityHeader = ({
 								<h1 className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground">
 									{user.displayName}
 								</h1>
-								{user.accountLevel ? (
-									<StatusPill tone="neutral">
-										{formatAccountLevelLabel(user.accountLevel, t)}
+								{user.roles.map((role) => (
+									<StatusPill key={role} tone="neutral">
+										{role}
 									</StatusPill>
-								) : null}
+								))}
 								{user.status ? (
 									<StatusPill tone={statusPillTone(user.status)}>
 										{formatStaffStatusLabel(user.status, t)}

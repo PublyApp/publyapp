@@ -283,7 +283,8 @@ describe('staff user details route shell', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: null,
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: 'Active',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -303,7 +304,8 @@ describe('staff user details route shell', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: null,
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: 'Active',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
@@ -322,7 +324,7 @@ describe('staff user details route shell', () => {
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
 
 		const page = within(screen.getByTestId('staff-user-details-page'));
-		expect(page.getAllByText('Admin')).toHaveLength(1);
+		expect(page.getAllByText('Staff Owner')).toHaveLength(1);
 		expect(page.getAllByText('Active')).toHaveLength(1);
 
 		expect(
@@ -588,7 +590,8 @@ describe('staff user details route shell', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: null,
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Staff Owner'],
 			status: 'Suspended',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 			updatedAt: new Date('2026-07-02T10:00:00Z'),

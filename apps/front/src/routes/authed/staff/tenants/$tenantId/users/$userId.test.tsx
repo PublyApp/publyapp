@@ -72,7 +72,7 @@ vi.mock('@tanstack/react-router', () => ({
 const TRANSLATIONS: TestLabelMap = {
 	'back-to-users': 'Back to users',
 	'edit-tenant-user': 'Edit tenant user',
-	'account-level': 'Account level',
+	role: 'Role',
 	'tenant-id': 'Tenant ID',
 	created: 'Created',
 	updated: 'Updated',
@@ -257,7 +257,8 @@ describe('staff tenant user details route', () => {
 			firstName: 'Alex',
 			lastName: 'User',
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: 'Active',
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -288,8 +289,8 @@ describe('staff tenant user details route', () => {
 			'/staff/tenants/11111111-1111-1111-1111-111111111111/users/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/edit',
 		);
 		expect(screen.getAllByText('alex@example.com').length).toBeGreaterThan(0);
-		expect(screen.getByText('Account level')).toBeTruthy();
-		expect(screen.getByText('Admin')).toBeTruthy();
+		expect(screen.getByText('Role')).toBeTruthy();
+		expect(screen.getByText('Owner')).toBeTruthy();
 		expect(screen.getByText('Tenant ID')).toBeTruthy();
 		expect(
 			screen.getByText('11111111-1111-1111-1111-111111111111'),
@@ -417,7 +418,8 @@ describe('staff tenant user details route', () => {
 			firstName: 'Alex',
 			lastName: 'User',
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: 'suspended',
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -452,7 +454,8 @@ describe('staff tenant user details route', () => {
 			firstName: 'Alex',
 			lastName: 'User',
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: 'pending-review',
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			createdAt: new Date('2026-07-01T09:00:00Z'),

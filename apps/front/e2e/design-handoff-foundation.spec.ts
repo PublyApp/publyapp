@@ -295,7 +295,7 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(
 			panel.getByRole('button', { name: /Invitations/ }),
 		).toBeVisible();
-		await expect(panel.getByRole('button', { name: /Profiles/ })).toBeVisible();
+		await expect(panel.getByRole('button', { name: /Roles/ })).toBeVisible();
 	});
 
 	test('asserts the no-match state renders a bare, un-boxed icon with no card, ring, or shadow (flat, owner-approved 2026-07-10 round 2)', async ({

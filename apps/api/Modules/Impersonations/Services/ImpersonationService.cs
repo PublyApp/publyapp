@@ -55,7 +55,11 @@ public class ImpersonationService : IImpersonationService {
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.Status != AccountStatus.Suspended
-			orderby ua.Level descending, ua.CreatedAt ascending
+			orderby this._DbContext.UserAccountProfile.Any(uap =>
+				uap.UserAccountId == ua.Id
+				&& !uap.Profile.IsDeleted
+				&& uap.Profile.IsFullAccess) descending,
+				ua.CreatedAt ascending
 			select ua;
 
 		var tenantUserAccount = await tenantAccountQuery.FirstOrDefaultAsync(cancellationToken);

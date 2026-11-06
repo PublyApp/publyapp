@@ -4,6 +4,7 @@ using FluentValidation;
 
 using PublyApp.Api.Modules.Users.Entities;
 
+
 namespace PublyApp.Api.Modules.Users.Validation;
 
 /// <summary>
@@ -16,61 +17,6 @@ public static class UserValidationRules {
 	public const int FirstNameMaxLength = 128;
 	public const int LastNameMaxLength = 128;
 	public const int AvatarUrlMaxLength = 1024;
-
-	/// <summary>
-	/// Validates a required JsonElement account level field:
-	/// must be a string and parse via UserAccount.ParseLevel().
-	/// </summary>
-	public static IRuleBuilderOptions<T, JsonElement>
-		MustBeRequiredAccountLevel<T>(
-			this IRuleBuilder<T, JsonElement> ruleBuilder
-		) {
-		return ruleBuilder
-			.Must(e => {
-				if (e.ValueKind != JsonValueKind.String) {
-					return false;
-				}
-				var str = e.GetString()
-					?? string.Empty;
-				return UserAccount
-					.ParseLevel(str) is not null;
-			})
-			.WithMessage(
-				"AccountLevel must be a valid "
-				+ "account level"
-			);
-	}
-
-	/// <summary>
-	/// Validates a nullable JsonElement? account level field:
-	/// null OK, otherwise must be valid account level string.
-	/// </summary>
-	public static IRuleBuilderOptions<T, JsonElement?>
-		MustBeNullableAccountLevel<T>(
-			this IRuleBuilder<T, JsonElement?> ruleBuilder
-		) {
-		return ruleBuilder
-			.Must(e => {
-				if (e is null) {
-					return true;
-				}
-				var kind = e.Value.ValueKind;
-				if (kind is JsonValueKind.Null) {
-					return true;
-				}
-				if (kind != JsonValueKind.String) {
-					return false;
-				}
-				var str = e.Value.GetString()
-					?? string.Empty;
-				return UserAccount
-					.ParseLevel(str) is not null;
-			})
-			.WithMessage(
-				"AccountLevel must be a valid "
-				+ "account level"
-			);
-	}
 
 	/// <summary>
 	/// Validates a nullable JsonElement? status field

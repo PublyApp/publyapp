@@ -118,7 +118,6 @@ public sealed class PermissionBasedNavFilterServerProof
 
 	private sealed record ScopeAuthDataResponse {
 		public string Code { get; init; } = string.Empty;
-		public string AccountLevel { get; init; } = string.Empty;
 		public bool IsAdmin { get; init; }
 		public List<string> Permissions { get; init; } = [];
 	}

@@ -40,7 +40,6 @@ export interface AccountItem extends AdditionalDataHolder, Parsable {
      */
     provider?: string | null;
 }
-export type AccountLevel = (typeof AccountLevelObject)[keyof typeof AccountLevelObject];
 export interface AccountProfileResult extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
@@ -128,10 +127,6 @@ export interface AppProblemDetails extends AdditionalDataHolder, ApiError, Parsa
     type?: string | null;
 }
 export interface AssignTenantUserCompaniesForStaffBody extends AdditionalDataHolder, Parsable {
-    /**
-     * The level property
-     */
-    level?: UntypedNode | null;
     /**
      * The tenantIds property
      */
@@ -1607,10 +1602,6 @@ export function createInvitationDetailsFromDiscriminatorValue(parseNode: ParseNo
     return deserializeIntoInvitationDetails;
 }
 export interface CreateInvitationForTenantAsStaffBody extends AdditionalDataHolder, Parsable {
-    /**
-     * The accountLevel property
-     */
-    accountLevel?: UntypedNode | null;
     /**
      * The email property
      */
@@ -3285,7 +3276,6 @@ export function deserializeIntoAppProblemDetails(appProblemDetails: Partial<AppP
 // @ts-ignore
 export function deserializeIntoAssignTenantUserCompaniesForStaffBody(assignTenantUserCompaniesForStaffBody: Partial<AssignTenantUserCompaniesForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "level": n => { assignTenantUserCompaniesForStaffBody.level = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "tenantIds": n => { assignTenantUserCompaniesForStaffBody.tenantIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -3818,7 +3808,6 @@ export function deserializeIntoConnectSocialAccountBody(connectSocialAccountBody
 // @ts-ignore
 export function deserializeIntoCreateInvitationForTenantAsStaffBody(createInvitationForTenantAsStaffBody: Partial<CreateInvitationForTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "accountLevel": n => { createInvitationForTenantAsStaffBody.accountLevel = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "email": n => { createInvitationForTenantAsStaffBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "profileIds": n => { createInvitationForTenantAsStaffBody.profileIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
@@ -4428,7 +4417,6 @@ export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Part
 // @ts-ignore
 export function deserializeIntoGetScopeAuthDataTenant(getScopeAuthDataTenant: Partial<GetScopeAuthDataTenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "accountLevel": n => { getScopeAuthDataTenant.accountLevel = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "code": n => { getScopeAuthDataTenant.code = n.getStringValue(); },
         "id": n => { getScopeAuthDataTenant.id = n.getGuidValue(); },
         "isAdmin": n => { getScopeAuthDataTenant.isAdmin = n.getBooleanValue(); },
@@ -4467,13 +4455,14 @@ export function deserializeIntoGetStaffProfileByIdResult(getStaffProfileByIdResu
 // @ts-ignore
 export function deserializeIntoGetStaffUserByIdResult(getStaffUserByIdResult: Partial<GetStaffUserByIdResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "accountLevel": n => { getStaffUserByIdResult.accountLevel = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "avatarUrl": n => { getStaffUserByIdResult.avatarUrl = n.getStringValue(); },
         "createdAt": n => { getStaffUserByIdResult.createdAt = n.getDateValue(); },
         "email": n => { getStaffUserByIdResult.email = n.getStringValue(); },
         "firstName": n => { getStaffUserByIdResult.firstName = n.getStringValue(); },
         "id": n => { getStaffUserByIdResult.id = n.getGuidValue(); },
+        "isFullAccess": n => { getStaffUserByIdResult.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { getStaffUserByIdResult.lastName = n.getStringValue(); },
+        "roles": n => { getStaffUserByIdResult.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { getStaffUserByIdResult.status = n.getEnumValue<UserStatus>(UserStatusObject); },
         "updatedAt": n => { getStaffUserByIdResult.updatedAt = n.getDateValue(); },
     }
@@ -4986,6 +4975,7 @@ export function deserializeIntoPostUpdated(postUpdated: Partial<PostUpdated> | u
 export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { profileItem.id = n.getGuidValue(); },
+        "isFullAccess": n => { profileItem.isFullAccess = n.getBooleanValue(); },
         "name": n => { profileItem.name = n.getStringValue(); },
         "permissions": n => { profileItem.permissions = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
@@ -5108,8 +5098,9 @@ export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserRe
         "email": n => { reactivateTenantUserResult.email = n.getStringValue(); },
         "firstName": n => { reactivateTenantUserResult.firstName = n.getStringValue(); },
         "id": n => { reactivateTenantUserResult.id = n.getGuidValue(); },
+        "isFullAccess": n => { reactivateTenantUserResult.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { reactivateTenantUserResult.lastName = n.getStringValue(); },
-        "level": n => { reactivateTenantUserResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "roles": n => { reactivateTenantUserResult.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { reactivateTenantUserResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { reactivateTenantUserResult.tenantId = n.getGuidValue(); },
     }
@@ -5637,7 +5628,6 @@ export function deserializeIntoStaffProfileUserItem(staffProfileUserItem: Partia
 export function deserializeIntoStaffTenantInvitationListItem(staffTenantInvitationListItem: Partial<StaffTenantInvitationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "acceptedAt": n => { staffTenantInvitationListItem.acceptedAt = n.getDateValue(); },
-        "accountLevel": n => { staffTenantInvitationListItem.accountLevel = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "createdAt": n => { staffTenantInvitationListItem.createdAt = n.getDateValue(); },
         "email": n => { staffTenantInvitationListItem.email = n.getStringValue(); },
         "expiresAt": n => { staffTenantInvitationListItem.expiresAt = n.getDateValue(); },
@@ -5675,9 +5665,9 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
         "email": n => { staffUserItem.email = n.getStringValue(); },
         "firstName": n => { staffUserItem.firstName = n.getStringValue(); },
         "id": n => { staffUserItem.id = n.getGuidValue(); },
+        "isFullAccess": n => { staffUserItem.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { staffUserItem.lastName = n.getStringValue(); },
-        "level": n => { staffUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
-        "profileNames": n => { staffUserItem.profileNames = n.getCollectionOfPrimitiveValues<string>("string"); },
+        "roles": n => { staffUserItem.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { staffUserItem.status = n.getEnumValue<UserStatus>(UserStatusObject); },
     }
 }
@@ -5690,12 +5680,11 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
 export function deserializeIntoStaffUserListCounts(staffUserListCounts: Partial<StaffUserListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "active": n => { staffUserListCounts.active = n.getNumberValue(); },
-        "admins": n => { staffUserListCounts.admins = n.getNumberValue(); },
         "connectedToday": n => { staffUserListCounts.connectedToday = n.getNumberValue(); },
+        "fullAccess": n => { staffUserListCounts.fullAccess = n.getNumberValue(); },
         "openSessions": n => { staffUserListCounts.openSessions = n.getNumberValue(); },
         "suspended": n => { staffUserListCounts.suspended = n.getNumberValue(); },
         "total": n => { staffUserListCounts.total = n.getNumberValue(); },
-        "users": n => { staffUserListCounts.users = n.getNumberValue(); },
     }
 }
 /**
@@ -5770,8 +5759,9 @@ export function deserializeIntoSuspendTenantUserResult(suspendTenantUserResult: 
         "email": n => { suspendTenantUserResult.email = n.getStringValue(); },
         "firstName": n => { suspendTenantUserResult.firstName = n.getStringValue(); },
         "id": n => { suspendTenantUserResult.id = n.getGuidValue(); },
+        "isFullAccess": n => { suspendTenantUserResult.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { suspendTenantUserResult.lastName = n.getStringValue(); },
-        "level": n => { suspendTenantUserResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "roles": n => { suspendTenantUserResult.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { suspendTenantUserResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { suspendTenantUserResult.tenantId = n.getGuidValue(); },
     }
@@ -6066,9 +6056,9 @@ export function deserializeIntoTenantProfileUserItem(tenantProfileUserItem: Part
         "email": n => { tenantProfileUserItem.email = n.getStringValue(); },
         "firstName": n => { tenantProfileUserItem.firstName = n.getStringValue(); },
         "id": n => { tenantProfileUserItem.id = n.getGuidValue(); },
+        "isFullAccess": n => { tenantProfileUserItem.isFullAccess = n.getBooleanValue(); },
         "joinedAt": n => { tenantProfileUserItem.joinedAt = n.getDateValue(); },
         "lastName": n => { tenantProfileUserItem.lastName = n.getStringValue(); },
-        "level": n => { tenantProfileUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "otherProfiles": n => { tenantProfileUserItem.otherProfiles = n.getCollectionOfObjectValues<TenantProfileUserProfileItem>(createTenantProfileUserProfileItemFromDiscriminatorValue); },
         "status": n => { tenantProfileUserItem.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "userId": n => { tenantProfileUserItem.userId = n.getGuidValue(); },
@@ -6167,7 +6157,7 @@ export function deserializeIntoTenantUserCompanyBulkActionResult(tenantUserCompa
 export function deserializeIntoTenantUserCompanyForStaffResult(tenantUserCompanyForStaffResult: Partial<TenantUserCompanyForStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { tenantUserCompanyForStaffResult.createdAt = n.getDateValue(); },
-        "level": n => { tenantUserCompanyForStaffResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "isFullAccess": n => { tenantUserCompanyForStaffResult.isFullAccess = n.getBooleanValue(); },
         "status": n => { tenantUserCompanyForStaffResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { tenantUserCompanyForStaffResult.tenantId = n.getGuidValue(); },
         "tenantLogoUrl": n => { tenantUserCompanyForStaffResult.tenantLogoUrl = n.getStringValue(); },
@@ -6218,8 +6208,9 @@ export function deserializeIntoTenantUserDetailsResult(tenantUserDetailsResult: 
         "email": n => { tenantUserDetailsResult.email = n.getStringValue(); },
         "firstName": n => { tenantUserDetailsResult.firstName = n.getStringValue(); },
         "id": n => { tenantUserDetailsResult.id = n.getGuidValue(); },
+        "isFullAccess": n => { tenantUserDetailsResult.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { tenantUserDetailsResult.lastName = n.getStringValue(); },
-        "level": n => { tenantUserDetailsResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "roles": n => { tenantUserDetailsResult.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { tenantUserDetailsResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { tenantUserDetailsResult.tenantId = n.getGuidValue(); },
         "updatedAt": n => { tenantUserDetailsResult.updatedAt = n.getDateValue(); },
@@ -6237,8 +6228,9 @@ export function deserializeIntoTenantUserItem(tenantUserItem: Partial<TenantUser
         "email": n => { tenantUserItem.email = n.getStringValue(); },
         "firstName": n => { tenantUserItem.firstName = n.getStringValue(); },
         "id": n => { tenantUserItem.id = n.getGuidValue(); },
+        "isFullAccess": n => { tenantUserItem.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { tenantUserItem.lastName = n.getStringValue(); },
-        "level": n => { tenantUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "roles": n => { tenantUserItem.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { tenantUserItem.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "userAccountId": n => { tenantUserItem.userAccountId = n.getGuidValue(); },
     }
@@ -6314,7 +6306,6 @@ export function deserializeIntoUpdateStaffProfileBody(updateStaffProfileBody: Pa
 // @ts-ignore
 export function deserializeIntoUpdateStaffUserBody(updateStaffUserBody: Partial<UpdateStaffUserBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "accountLevel": n => { updateStaffUserBody.accountLevel = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "avatarUrl": n => { updateStaffUserBody.avatarUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "firstName": n => { updateStaffUserBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { updateStaffUserBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
@@ -6455,7 +6446,6 @@ export function deserializeIntoUpdateTenantUserAsStaffBody(updateTenantUserAsSta
         "avatarUrl": n => { updateTenantUserAsStaffBody.avatarUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "firstName": n => { updateTenantUserAsStaffBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { updateTenantUserAsStaffBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
-        "level": n => { updateTenantUserAsStaffBody.level = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6880,10 +6870,6 @@ export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
 }
 export interface GetScopeAuthDataTenant extends AdditionalDataHolder, Parsable {
     /**
-     * The accountLevel property
-     */
-    accountLevel?: AccountLevel | null;
-    /**
      * The code property
      */
     code?: string | null;
@@ -6922,10 +6908,6 @@ export interface GetStaffProfileByIdResult extends AdditionalDataHolder, Parsabl
 }
 export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
     /**
-     * The accountLevel property
-     */
-    accountLevel?: AccountLevel | null;
-    /**
      * The avatarUrl property
      */
     avatarUrl?: string | null;
@@ -6946,9 +6928,17 @@ export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The roles property
+     */
+    roles?: string[] | null;
     /**
      * The status property
      */
@@ -7116,7 +7106,7 @@ export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
      */
     lastName?: string | null;
     /**
-     * The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:["*"] when the resolved account is a tenant Admin (the #861AccountLevel.Admin short-circuit TenantPermissionFilter applies), otherwisethe profile-derived keys. Empty array — never null — whenever there isno usable scope (missing/malformed tenant_id, unknown or suspendedaccount), gating everything closed.
+     * The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:["*"] when the account holds the tenant's full-access system profile (the#861 bypass TenantPermissionFilter applies), otherwise the profile-derivedkeys. Empty array — never null — whenever there is no usable scope(missing/malformed tenant_id, unknown or suspended account), gatingeverything closed.
      */
     tenantPermissionKeys?: string[] | null;
 }
@@ -7743,6 +7733,10 @@ export interface ProfileItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The name property
      */
     name?: string | null;
@@ -7945,13 +7939,17 @@ export interface ReactivateTenantUserResult extends AdditionalDataHolder, Parsab
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The lastName property
      */
     lastName?: string | null;
     /**
-     * The level property
+     * The roles property
      */
-    level?: AccountLevel | null;
+    roles?: string[] | null;
     /**
      * The status property
      */
@@ -8383,7 +8381,6 @@ export function serializeAppProblemDetails(writer: SerializationWriter, appProbl
 // @ts-ignore
 export function serializeAssignTenantUserCompaniesForStaffBody(writer: SerializationWriter, assignTenantUserCompaniesForStaffBody: Partial<AssignTenantUserCompaniesForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!assignTenantUserCompaniesForStaffBody || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("level", assignTenantUserCompaniesForStaffBody.level);
     writer.writeObjectValue("tenantIds", assignTenantUserCompaniesForStaffBody.tenantIds);
     writer.writeAdditionalData(assignTenantUserCompaniesForStaffBody.additionalData);
 }
@@ -8959,7 +8956,6 @@ export function serializeConnectSocialAccountBody(writer: SerializationWriter, c
 // @ts-ignore
 export function serializeCreateInvitationForTenantAsStaffBody(writer: SerializationWriter, createInvitationForTenantAsStaffBody: Partial<CreateInvitationForTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createInvitationForTenantAsStaffBody || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("accountLevel", createInvitationForTenantAsStaffBody.accountLevel);
     writer.writeObjectValue("email", createInvitationForTenantAsStaffBody.email);
     writer.writeObjectValue("profileIds", createInvitationForTenantAsStaffBody.profileIds);
     writer.writeAdditionalData(createInvitationForTenantAsStaffBody.additionalData);
@@ -9613,7 +9609,6 @@ export function serializeGetRedirectCodeResult(writer: SerializationWriter, getR
 // @ts-ignore
 export function serializeGetScopeAuthDataTenant(writer: SerializationWriter, getScopeAuthDataTenant: Partial<GetScopeAuthDataTenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getScopeAuthDataTenant || isSerializingDerivedType) { return; }
-    writer.writeEnumValue<AccountLevel>("accountLevel", getScopeAuthDataTenant.accountLevel);
     writer.writeStringValue("code", getScopeAuthDataTenant.code);
     writer.writeGuidValue("id", getScopeAuthDataTenant.id);
     writer.writeBooleanValue("isAdmin", getScopeAuthDataTenant.isAdmin);
@@ -9655,13 +9650,14 @@ export function serializeGetStaffProfileByIdResult(writer: SerializationWriter, 
 // @ts-ignore
 export function serializeGetStaffUserByIdResult(writer: SerializationWriter, getStaffUserByIdResult: Partial<GetStaffUserByIdResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getStaffUserByIdResult || isSerializingDerivedType) { return; }
-    writer.writeEnumValue<AccountLevel>("accountLevel", getStaffUserByIdResult.accountLevel);
     writer.writeStringValue("avatarUrl", getStaffUserByIdResult.avatarUrl);
     writer.writeDateValue("createdAt", getStaffUserByIdResult.createdAt);
     writer.writeStringValue("email", getStaffUserByIdResult.email);
     writer.writeStringValue("firstName", getStaffUserByIdResult.firstName);
     writer.writeGuidValue("id", getStaffUserByIdResult.id);
+    writer.writeBooleanValue("isFullAccess", getStaffUserByIdResult.isFullAccess);
     writer.writeStringValue("lastName", getStaffUserByIdResult.lastName);
+    writer.writeCollectionOfPrimitiveValues<string>("roles", getStaffUserByIdResult.roles);
     writer.writeEnumValue<UserStatus>("status", getStaffUserByIdResult.status);
     writer.writeDateValue("updatedAt", getStaffUserByIdResult.updatedAt);
     writer.writeAdditionalData(getStaffUserByIdResult.additionalData);
@@ -10205,6 +10201,7 @@ export function serializePostUpdated(writer: SerializationWriter, postUpdated: P
 export function serializeProfileItem(writer: SerializationWriter, profileItem: Partial<ProfileItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!profileItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", profileItem.id);
+    writer.writeBooleanValue("isFullAccess", profileItem.isFullAccess);
     writer.writeStringValue("name", profileItem.name);
     writer.writeCollectionOfPrimitiveValues<string>("permissions", profileItem.permissions);
     writer.writeAdditionalData(profileItem.additionalData);
@@ -10335,8 +10332,9 @@ export function serializeReactivateTenantUserResult(writer: SerializationWriter,
     writer.writeStringValue("email", reactivateTenantUserResult.email);
     writer.writeStringValue("firstName", reactivateTenantUserResult.firstName);
     writer.writeGuidValue("id", reactivateTenantUserResult.id);
+    writer.writeBooleanValue("isFullAccess", reactivateTenantUserResult.isFullAccess);
     writer.writeStringValue("lastName", reactivateTenantUserResult.lastName);
-    writer.writeEnumValue<AccountLevel>("level", reactivateTenantUserResult.level);
+    writer.writeCollectionOfPrimitiveValues<string>("roles", reactivateTenantUserResult.roles);
     writer.writeEnumValue<TenantUserStatus>("status", reactivateTenantUserResult.status);
     writer.writeGuidValue("tenantId", reactivateTenantUserResult.tenantId);
     writer.writeAdditionalData(reactivateTenantUserResult.additionalData);
@@ -10903,7 +10901,6 @@ export function serializeStaffProfileUserItem(writer: SerializationWriter, staff
 export function serializeStaffTenantInvitationListItem(writer: SerializationWriter, staffTenantInvitationListItem: Partial<StaffTenantInvitationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffTenantInvitationListItem || isSerializingDerivedType) { return; }
     writer.writeDateValue("acceptedAt", staffTenantInvitationListItem.acceptedAt);
-    writer.writeEnumValue<AccountLevel>("accountLevel", staffTenantInvitationListItem.accountLevel);
     writer.writeDateValue("createdAt", staffTenantInvitationListItem.createdAt);
     writer.writeStringValue("email", staffTenantInvitationListItem.email);
     writer.writeDateValue("expiresAt", staffTenantInvitationListItem.expiresAt);
@@ -10943,9 +10940,9 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
     writer.writeStringValue("email", staffUserItem.email);
     writer.writeStringValue("firstName", staffUserItem.firstName);
     writer.writeGuidValue("id", staffUserItem.id);
+    writer.writeBooleanValue("isFullAccess", staffUserItem.isFullAccess);
     writer.writeStringValue("lastName", staffUserItem.lastName);
-    writer.writeEnumValue<AccountLevel>("level", staffUserItem.level);
-    writer.writeCollectionOfPrimitiveValues<string>("profileNames", staffUserItem.profileNames);
+    writer.writeCollectionOfPrimitiveValues<string>("roles", staffUserItem.roles);
     writer.writeEnumValue<UserStatus>("status", staffUserItem.status);
     writer.writeAdditionalData(staffUserItem.additionalData);
 }
@@ -10959,12 +10956,11 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
 export function serializeStaffUserListCounts(writer: SerializationWriter, staffUserListCounts: Partial<StaffUserListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffUserListCounts || isSerializingDerivedType) { return; }
     writer.writeNumberValue("active", staffUserListCounts.active);
-    writer.writeNumberValue("admins", staffUserListCounts.admins);
     writer.writeNumberValue("connectedToday", staffUserListCounts.connectedToday);
+    writer.writeNumberValue("fullAccess", staffUserListCounts.fullAccess);
     writer.writeNumberValue("openSessions", staffUserListCounts.openSessions);
     writer.writeNumberValue("suspended", staffUserListCounts.suspended);
     writer.writeNumberValue("total", staffUserListCounts.total);
-    writer.writeNumberValue("users", staffUserListCounts.users);
     writer.writeAdditionalData(staffUserListCounts.additionalData);
 }
 /**
@@ -11045,8 +11041,9 @@ export function serializeSuspendTenantUserResult(writer: SerializationWriter, su
     writer.writeStringValue("email", suspendTenantUserResult.email);
     writer.writeStringValue("firstName", suspendTenantUserResult.firstName);
     writer.writeGuidValue("id", suspendTenantUserResult.id);
+    writer.writeBooleanValue("isFullAccess", suspendTenantUserResult.isFullAccess);
     writer.writeStringValue("lastName", suspendTenantUserResult.lastName);
-    writer.writeEnumValue<AccountLevel>("level", suspendTenantUserResult.level);
+    writer.writeCollectionOfPrimitiveValues<string>("roles", suspendTenantUserResult.roles);
     writer.writeEnumValue<TenantUserStatus>("status", suspendTenantUserResult.status);
     writer.writeGuidValue("tenantId", suspendTenantUserResult.tenantId);
     writer.writeAdditionalData(suspendTenantUserResult.additionalData);
@@ -11359,9 +11356,9 @@ export function serializeTenantProfileUserItem(writer: SerializationWriter, tena
     writer.writeStringValue("email", tenantProfileUserItem.email);
     writer.writeStringValue("firstName", tenantProfileUserItem.firstName);
     writer.writeGuidValue("id", tenantProfileUserItem.id);
+    writer.writeBooleanValue("isFullAccess", tenantProfileUserItem.isFullAccess);
     writer.writeDateValue("joinedAt", tenantProfileUserItem.joinedAt);
     writer.writeStringValue("lastName", tenantProfileUserItem.lastName);
-    writer.writeEnumValue<AccountLevel>("level", tenantProfileUserItem.level);
     writer.writeCollectionOfObjectValues<TenantProfileUserProfileItem>("otherProfiles", tenantProfileUserItem.otherProfiles, serializeTenantProfileUserProfileItem);
     writer.writeEnumValue<TenantUserStatus>("status", tenantProfileUserItem.status);
     writer.writeGuidValue("userId", tenantProfileUserItem.userId);
@@ -11467,7 +11464,7 @@ export function serializeTenantUserCompanyBulkActionResult(writer: Serialization
 export function serializeTenantUserCompanyForStaffResult(writer: SerializationWriter, tenantUserCompanyForStaffResult: Partial<TenantUserCompanyForStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantUserCompanyForStaffResult || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", tenantUserCompanyForStaffResult.createdAt);
-    writer.writeEnumValue<AccountLevel>("level", tenantUserCompanyForStaffResult.level);
+    writer.writeBooleanValue("isFullAccess", tenantUserCompanyForStaffResult.isFullAccess);
     writer.writeEnumValue<TenantUserStatus>("status", tenantUserCompanyForStaffResult.status);
     writer.writeGuidValue("tenantId", tenantUserCompanyForStaffResult.tenantId);
     writer.writeStringValue("tenantLogoUrl", tenantUserCompanyForStaffResult.tenantLogoUrl);
@@ -11521,8 +11518,9 @@ export function serializeTenantUserDetailsResult(writer: SerializationWriter, te
     writer.writeStringValue("email", tenantUserDetailsResult.email);
     writer.writeStringValue("firstName", tenantUserDetailsResult.firstName);
     writer.writeGuidValue("id", tenantUserDetailsResult.id);
+    writer.writeBooleanValue("isFullAccess", tenantUserDetailsResult.isFullAccess);
     writer.writeStringValue("lastName", tenantUserDetailsResult.lastName);
-    writer.writeEnumValue<AccountLevel>("level", tenantUserDetailsResult.level);
+    writer.writeCollectionOfPrimitiveValues<string>("roles", tenantUserDetailsResult.roles);
     writer.writeEnumValue<TenantUserStatus>("status", tenantUserDetailsResult.status);
     writer.writeGuidValue("tenantId", tenantUserDetailsResult.tenantId);
     writer.writeDateValue("updatedAt", tenantUserDetailsResult.updatedAt);
@@ -11541,8 +11539,9 @@ export function serializeTenantUserItem(writer: SerializationWriter, tenantUserI
     writer.writeStringValue("email", tenantUserItem.email);
     writer.writeStringValue("firstName", tenantUserItem.firstName);
     writer.writeGuidValue("id", tenantUserItem.id);
+    writer.writeBooleanValue("isFullAccess", tenantUserItem.isFullAccess);
     writer.writeStringValue("lastName", tenantUserItem.lastName);
-    writer.writeEnumValue<AccountLevel>("level", tenantUserItem.level);
+    writer.writeCollectionOfPrimitiveValues<string>("roles", tenantUserItem.roles);
     writer.writeEnumValue<TenantUserStatus>("status", tenantUserItem.status);
     writer.writeGuidValue("userAccountId", tenantUserItem.userAccountId);
     writer.writeAdditionalData(tenantUserItem.additionalData);
@@ -11624,7 +11623,6 @@ export function serializeUpdateStaffProfileBody(writer: SerializationWriter, upd
 // @ts-ignore
 export function serializeUpdateStaffUserBody(writer: SerializationWriter, updateStaffUserBody: Partial<UpdateStaffUserBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateStaffUserBody || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("accountLevel", updateStaffUserBody.accountLevel);
     writer.writeObjectValue("avatarUrl", updateStaffUserBody.avatarUrl);
     writer.writeObjectValue("firstName", updateStaffUserBody.firstName);
     writer.writeObjectValue("lastName", updateStaffUserBody.lastName);
@@ -11775,7 +11773,6 @@ export function serializeUpdateTenantUserAsStaffBody(writer: SerializationWriter
     writer.writeObjectValue("avatarUrl", updateTenantUserAsStaffBody.avatarUrl);
     writer.writeObjectValue("firstName", updateTenantUserAsStaffBody.firstName);
     writer.writeObjectValue("lastName", updateTenantUserAsStaffBody.lastName);
-    writer.writeObjectValue("level", updateTenantUserAsStaffBody.level);
     writer.writeAdditionalData(updateTenantUserAsStaffBody.additionalData);
 }
 /**
@@ -12124,10 +12121,6 @@ export interface StaffTenantInvitationListItem extends AdditionalDataHolder, Par
      */
     acceptedAt?: Date | null;
     /**
-     * The accountLevel property
-     */
-    accountLevel?: AccountLevel | null;
-    /**
      * The createdAt property
      */
     createdAt?: Date | null;
@@ -12200,17 +12193,17 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The lastName property
      */
     lastName?: string | null;
     /**
-     * The level property
+     * The roles property
      */
-    level?: AccountLevel | null;
-    /**
-     * The profileNames property
-     */
-    profileNames?: string[] | null;
+    roles?: string[] | null;
     /**
      * The status property
      */
@@ -12222,13 +12215,13 @@ export interface StaffUserListCounts extends AdditionalDataHolder, Parsable {
      */
     active?: number | null;
     /**
-     * The admins property
-     */
-    admins?: number | null;
-    /**
      * The connectedToday property
      */
     connectedToday?: number | null;
+    /**
+     * The fullAccess property
+     */
+    fullAccess?: number | null;
     /**
      * The openSessions property
      */
@@ -12241,10 +12234,6 @@ export interface StaffUserListCounts extends AdditionalDataHolder, Parsable {
      * The total property
      */
     total?: number | null;
-    /**
-     * The users property
-     */
-    users?: number | null;
 }
 export interface StaffUserProfileItem extends AdditionalDataHolder, Parsable {
     /**
@@ -12317,13 +12306,17 @@ export interface SuspendTenantUserResult extends AdditionalDataHolder, Parsable 
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The lastName property
      */
     lastName?: string | null;
     /**
-     * The level property
+     * The roles property
      */
-    level?: AccountLevel | null;
+    roles?: string[] | null;
     /**
      * The status property
      */
@@ -12817,6 +12810,10 @@ export interface TenantProfileUserItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The joinedAt property
      */
     joinedAt?: Date | null;
@@ -12824,10 +12821,6 @@ export interface TenantProfileUserItem extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
-    /**
-     * The level property
-     */
-    level?: AccountLevel | null;
     /**
      * The otherProfiles property
      */
@@ -12956,9 +12949,9 @@ export interface TenantUserCompanyForStaffResult extends AdditionalDataHolder, P
      */
     createdAt?: Date | null;
     /**
-     * The level property
+     * The isFullAccess property
      */
-    level?: AccountLevel | null;
+    isFullAccess?: boolean | null;
     /**
      * The status property
      */
@@ -13049,13 +13042,17 @@ export interface TenantUserDetailsResult extends AdditionalDataHolder, Parsable 
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The lastName property
      */
     lastName?: string | null;
     /**
-     * The level property
+     * The roles property
      */
-    level?: AccountLevel | null;
+    roles?: string[] | null;
     /**
      * The status property
      */
@@ -13087,13 +13084,17 @@ export interface TenantUserItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The lastName property
      */
     lastName?: string | null;
     /**
-     * The level property
+     * The roles property
      */
-    level?: AccountLevel | null;
+    roles?: string[] | null;
     /**
      * The status property
      */
@@ -13167,10 +13168,6 @@ export interface UpdateStaffProfileBody extends AdditionalDataHolder, Parsable {
     tone?: UntypedNode | null;
 }
 export interface UpdateStaffUserBody extends AdditionalDataHolder, Parsable {
-    /**
-     * The accountLevel property
-     */
-    accountLevel?: UntypedNode | null;
     /**
      * The avatarUrl property
      */
@@ -13339,7 +13336,7 @@ export interface UpdateTenantSettingsGeneralBody extends AdditionalDataHolder, P
     websiteUrl?: UntypedNode | null;
 }
 /**
- * Updates a tenant user's profile and/or account level.
+ * Updates a tenant user's name, avatar and/or profile assignments.
  */
 export interface UpdateTenantUserAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
@@ -13354,10 +13351,6 @@ export interface UpdateTenantUserAsStaffBody extends AdditionalDataHolder, Parsa
      * The lastName property
      */
     lastName?: UntypedNode | null;
-    /**
-     * The level property
-     */
-    level?: UntypedNode | null;
 }
 export interface UpdateTenantUserEmailForStaffBody extends AdditionalDataHolder, Parsable {
     /**
@@ -13430,10 +13423,6 @@ export interface VerifyEmailRequestResult extends AdditionalDataHolder, Parsable
      */
     status?: string | null;
 }
-export const AccountLevelObject = {
-    User: "User",
-    Admin: "Admin",
-} as const;
 export const InvitationEffectiveStatusObject = {
     Pending: "Pending",
     Accepted: "Accepted",

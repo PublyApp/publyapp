@@ -6,8 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useCreateStaffTenantMutation } from '~/lib/query/staff-tenants';
 
-import { AccountLevelObject } from '@org/client-ts/models/index';
-
 import {
 	useTenantLocaleOptions,
 	useTenantTimezoneOptions,
@@ -270,6 +268,5 @@ export const useTenantCreateFormState = (navigate: Navigate) => {
 		},
 		goToTenants,
 		websiteHostname: getWebsiteHostname(websiteUrl),
-		accountLevelUser: AccountLevelObject.User,
 	};
 };

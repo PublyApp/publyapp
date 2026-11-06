@@ -39,28 +39,6 @@ public sealed class TenantUserFilterQuerySpec {
 	}
 
 	[Fact]
-	public void ItShouldAcceptTheSameLevelTokensOnFindAndExportValidators() {
-		var findValidator = new FindTenantUsersAsStaffQueryValidator();
-		var exportValidator = new ExportTenantUsersAsStaffQueryValidator();
-
-		foreach (var level in TenantUserFilterQuery.AllowedLevelSet) {
-			var findResult = findValidator.Validate(
-				new FindTenantUsersAsStaffQuery { Level = level }
-			);
-			var exportResult = exportValidator.Validate(
-				new ExportTenantUsersAsStaffQuery { Level = level }
-			);
-
-			findResult.IsValid.Should().BeTrue(
-				$"'{level}' is in the shared allowlist and Find should accept it"
-			);
-			exportResult.IsValid.Should().BeTrue(
-				$"'{level}' is in the shared allowlist and Export should accept it"
-			);
-		}
-	}
-
-	[Fact]
 	public void ItShouldRejectAnUnknownStatusTokenOnBothValidators() {
 		var findValidator = new FindTenantUsersAsStaffQueryValidator();
 		var exportValidator = new ExportTenantUsersAsStaffQueryValidator();

@@ -3,7 +3,6 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Services;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Lib.Filters;
 
@@ -46,69 +45,62 @@ public class TenantPermissionFilter : IEndpointFilter {
 			throw new InvalidOperationException("TenantPermissionFilter requires a tenant-scoped account with a TenantId.");
 		}
 
-		// SECURITY (#861): a tenant Admin genuinely bypasses the per-permission check —
-		// this mirrors the staff Admin bypass in PermissionFilter.cs:41-46. It is a
-		// control-flow short-circuit, not a permission-string dump: Admin's
-		// profile-derived Permissions list (see GetScopeAuthData) can legitimately stay
-		// empty (no profiles assigned), because AccountLevel.Admin on the tenant account
-		// is itself the source of truth for "has all rights" in this scope. The bypass is
-		// scoped to THIS tenant account only (accountTenant.TenantId), so an Admin in one
-		// tenant never gains rights when the same user is a non-admin member elsewhere.
-		if (accountTenant.Level != AccountLevel.Admin) {
-			// Check if any permissions need to be validated
-			if (
-				(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
-				|| this._CustomPermissionChecker is not null
-			) {
-				// Get user's effective tenant permissions using the profile-derived system.
-				var userPermissions = await permissionService.GetTenantPermissionsAsync(accountTenant.UserId, tenantId);
+		// SECURITY (#861): a holder of this tenant's full-access system profile genuinely
+		// bypasses the per-permission check. PermissionService materialises that profile as
+		// the wildcard sentinel, and the check is scoped to THIS tenant account, so a
+		// full-access holder in one tenant never gains rights when the same user is a
+		// non-full-access member elsewhere. Everybody else is checked against profiles.
+		if (
+			(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
+			|| this._CustomPermissionChecker is not null
+		) {
+			var userPermissions = await permissionService.GetTenantPermissionsAsync(accountTenant.UserId, tenantId);
 
-				// early clause guard to avoid unnecessary permission checks
-				if (userPermissions.Count == 0) {
-					if (logger.IsEnabled(LogLevel.Debug)) {
-						logger.LogDebug("Tenant user has no permissions: {@AccountTenant}", new {
-							accountId = accountTenant.Id,
-							userId = accountTenant.UserId,
-							tenantId
-						});
-					}
+			if (userPermissions.Contains(PermissionService.WildcardPermission)) {
+				return await next(context);
+			}
 
-					return TypedProblems.Forbidden(
-						"User has no permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-					);
+			if (userPermissions.Count == 0) {
+				if (logger.IsEnabled(LogLevel.Debug)) {
+					logger.LogDebug("Tenant user has no permissions: {@AccountTenant}", new {
+						accountId = accountTenant.Id,
+						userId = accountTenant.UserId,
+						tenantId
+					});
 				}
 
-				bool hasRequiredPermissions;
+				return TypedProblems.Forbidden(
+					"User has no permissions",
+					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+				);
+			}
 
-				if (this._CustomPermissionChecker is not null) {
-					// Use custom permission checker
-					hasRequiredPermissions = this._CustomPermissionChecker(userPermissions);
-				} else if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
-					// Use default logic: user must have ALL required permissions
-					var requiredPermissionKeys = this._RequiredPermissions.Select(p => p.Key);
-					hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
-				} else {
-					// No permissions required
-					hasRequiredPermissions = true;
+			bool hasRequiredPermissions;
+
+			if (this._CustomPermissionChecker is not null) {
+				hasRequiredPermissions = this._CustomPermissionChecker(userPermissions);
+			} else if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
+				var requiredPermissionKeys = this._RequiredPermissions.Select(p => p.Key);
+				hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
+			} else {
+				hasRequiredPermissions = true;
+			}
+
+			if (!hasRequiredPermissions) {
+				if (logger.IsEnabled(LogLevel.Debug)) {
+					logger.LogDebug("Tenant user failed permission check: {@PermissionCheck}", new {
+						accountId = accountTenant.Id,
+						userId = accountTenant.UserId,
+						tenantId,
+						userPermissionsCount = userPermissions.Count,
+						hasCustomChecker = this._CustomPermissionChecker is not null
+					});
 				}
 
-				if (!hasRequiredPermissions) {
-					if (logger.IsEnabled(LogLevel.Debug)) {
-						logger.LogDebug("Tenant user failed permission check: {@PermissionCheck}", new {
-							accountId = accountTenant.Id,
-							userId = accountTenant.UserId,
-							tenantId,
-							userPermissionsCount = userPermissions.Count,
-							hasCustomChecker = this._CustomPermissionChecker is not null
-						});
-					}
-
-					return TypedProblems.Forbidden(
-						"User does not have the necessary permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-					);
-				}
+				return TypedProblems.Forbidden(
+					"User does not have the necessary permissions",
+					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+				);
 			}
 		}
 

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildTenantUserEditPayload,
 	buildTenantUserEditSchema,
-	normalizeAccountLevel,
 	normalizeOptionalUpdateString,
 	type TenantUserEditValues,
 } from './_edit-schema';
@@ -14,7 +13,6 @@ const values: TenantUserEditValues = {
 	firstName: '  Ada  ',
 	lastName: '',
 	avatarUrl: 'https://cdn.example.com/a.png',
-	accountLevel: 'Admin',
 };
 
 describe('normalizeOptionalUpdateString', () => {
@@ -28,15 +26,6 @@ describe('normalizeOptionalUpdateString', () => {
 	});
 });
 
-describe('normalizeAccountLevel', () => {
-	it('keeps Admin and falls back to User', () => {
-		expect(normalizeAccountLevel('Admin')).toBe('Admin');
-		expect(normalizeAccountLevel('User')).toBe('User');
-		expect(normalizeAccountLevel('owner')).toBe('User');
-		expect(normalizeAccountLevel(null)).toBe('User');
-	});
-});
-
 describe('buildTenantUserEditSchema', () => {
 	const schema = buildTenantUserEditSchema(t);
 
@@ -44,7 +33,6 @@ describe('buildTenantUserEditSchema', () => {
 		expect(
 			schema.safeParse({
 				avatarUrl: 'https://cdn.example.com/a.png',
-				accountLevel: 'User',
 			}).success,
 		).toBe(true);
 	});
@@ -52,7 +40,6 @@ describe('buildTenantUserEditSchema', () => {
 	it('rejects a non-absolute avatar url', () => {
 		const result = schema.safeParse({
 			avatarUrl: 'not-a-url',
-			accountLevel: 'User',
 		});
 
 		expect(result.success).toBe(false);
@@ -62,13 +49,8 @@ describe('buildTenantUserEditSchema', () => {
 		expect(
 			schema.safeParse({
 				firstName: 'a'.repeat(129),
-				accountLevel: 'User',
 			}).success,
 		).toBe(false);
-	});
-
-	it('rejects an unknown account level', () => {
-		expect(schema.safeParse({ accountLevel: 'Owner' }).success).toBe(false);
 	});
 });
 
@@ -99,15 +81,14 @@ describe('buildTenantUserEditPayload', () => {
 		expect(payload.lastName).toBe(null);
 	});
 
-	it('sends the raw account level when it is dirty', () => {
+	it('sends a dirty avatar url', () => {
 		const payload = buildTenantUserEditPayload({
 			tenantId: 'tenant-1',
 			userId: 'user-1',
 			values,
-			dirtyFields: { accountLevel: true, avatarUrl: true },
+			dirtyFields: { avatarUrl: true },
 		});
 
-		expect(payload.accountLevel).toBe('Admin');
 		expect(payload.avatarUrl).toBe('https://cdn.example.com/a.png');
 	});
 

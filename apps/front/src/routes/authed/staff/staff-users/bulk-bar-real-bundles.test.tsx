@@ -33,10 +33,7 @@ import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 /**
  * @vitest-environment jsdom
  */
-import {
-	AccountLevelObject,
-	UserStatusObject,
-} from '@org/client-ts/models/index';
+import { UserStatusObject } from '@org/client-ts/models/index';
 import {
 	type I18nResources,
 	type SupportedLanguage,
@@ -114,7 +111,8 @@ const staffUserRow = {
 	firstName: 'Alex',
 	lastName: 'User',
 	avatarUrl: null,
-	level: AccountLevelObject.Admin,
+	isFullAccess: true,
+	roles: ['Staff Owner'],
 	status: UserStatusObject.Active,
 	displayName: 'Alex User',
 	profileNames: [],

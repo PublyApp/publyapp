@@ -6,7 +6,6 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Messaging.Jobs;
 using PublyApp.Api.Modules.Messaging.Services;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Jobs;
 
@@ -67,9 +66,8 @@ public sealed class TenantInvitationEmailJobHandler
 			);
 		}
 
-		var level = invitation.AccountLevel ?? AccountLevel.User;
 		var envelope = EmailTemplates.TenantInvitation(
-			invitation.Email, invitation.Tenant.Name, invitation.Token, level
+			invitation.Email, invitation.Tenant.Name, invitation.Token
 		);
 
 		return new EmailJobPreparation.Ready(

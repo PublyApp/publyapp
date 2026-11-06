@@ -9,15 +9,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
-using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -117,7 +114,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = invitation.Scope.Should().Be("Tenant");
 			_ = invitation.ProfileName.Should().BeNull();
 			_ = invitation.Profiles.Should().BeEmpty();
-			_ = invitation.AccountLevel.Should().Be("User");
 			_ = invitation.Status.Should().Be("Pending");
 			_ = invitation.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
 			_ = invitation.CreatedAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(1));
@@ -162,7 +158,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					tenantId.ToString(),
 					new {
 						email = inviteeEmail,
-						accountLevel = "User",
 						profileIds = new[] {
 							profileA.GetRequiredId().ToString(),
 							profileB.GetRequiredId().ToString(),
@@ -195,52 +190,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = invitation.Should().NotBeNull();
 			Assert.NotNull(invitation);
 			_ = invitation.Profiles.Should().HaveCount(2);
-		}
-
-		[Fact]
-		public async Task
-		ItShouldReturnAccountLevelForTenantAdminInviteWithoutProfiles() {
-			string staffToken =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId =
-				await TenantTestHelper
-					.GetTenantIdByNameAsync(
-						this._Http,
-						staffToken,
-						SeedConstants.Tenants.AcmeName
-					);
-
-			string inviteeEmail =
-				$"admin-no-profile-{Guid.NewGuid():N}@example.com";
-			_ = await this._CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				inviteeEmail,
-				"Admin"
-			);
-
-			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
-			InvitationListItemDto? invitation = result.Data
-				.FirstOrDefault(i =>
-					i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase)
-				);
-			_ = invitation.Should().NotBeNull();
-			Assert.NotNull(invitation);
-			_ = invitation.ProfileName.Should().BeNull();
-			_ = invitation.AccountLevel.Should().Be("Admin");
 		}
 
 		#endregion
@@ -719,11 +668,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 		#endregion
 
-		#region Account Level Filter Tests
-
 		[Fact]
 		public async Task
-		ItShouldFilterByAdminAccountLevelCaseInsensitively() {
+		ItShouldCombineSearchStatusAndSorting() {
 			string staffToken =
 				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
@@ -734,164 +681,32 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string prefix = $"level-admin-{Guid.NewGuid():N}";
-			string adminEmail = $"{prefix}-admin@example.com";
-			string userEmail = $"{prefix}-user@example.com";
+			string prefix = $"combined-filter-{Guid.NewGuid():N}";
+			string firstEmail = $"{prefix}-a@example.com";
+			string secondEmail = $"{prefix}-c@example.com";
 			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
-				adminEmail,
-				"Admin"
+				firstEmail
+			);
+			Guid revokedId = await this._CreateTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				$"{prefix}-b@example.com"
 			);
 			_ = await this._CreateTenantInvitationAsync(
 				staffToken,
 				tenantId,
-				userEmail,
-				"User"
+				secondEmail
+			);
+			await this._RevokeTenantInvitationAsync(
+				staffToken,
+				tenantId,
+				revokedId
 			);
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId,
-				level: "aDmIn",
-				q: prefix,
-				limit: 50
-			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
-			_ = result.Data.Should().ContainSingle(
-				invitation =>
-					invitation.Email.Equals(
-						adminEmail,
-						StringComparison.OrdinalIgnoreCase
-					)
-					&& invitation.AccountLevel == "Admin"
-					&& invitation.Profiles.Count == 0
-			);
-			_ = result.Data.Should().NotContain(
-				invitation => invitation.Email.Equals(
-					userEmail,
-					StringComparison.OrdinalIgnoreCase
-				)
-			);
-		}
-
-		[Fact]
-		public async Task
-		ItShouldTreatLegacyNullAccountLevelAsUserWhenFiltering() {
-			string staffToken =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId =
-				await TenantTestHelper
-					.GetTenantIdByNameAsync(
-						this._Http,
-						staffToken,
-						SeedConstants.Tenants.AcmeName
-					);
-
-			string legacyEmail =
-				$"legacy-null-level-{Guid.NewGuid():N}@example.com";
-			await this._CreateLegacyTenantInvitationWithNullLevelAsync(
-				tenantId,
-				legacyEmail
-			);
-
-			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				level: "User",
-				q: legacyEmail,
-				limit: 50
-			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
-			_ = result.Data.Should().ContainSingle(
-				invitation =>
-					invitation.Email.Equals(
-						legacyEmail,
-						StringComparison.OrdinalIgnoreCase
-					)
-					&& invitation.AccountLevel == "User"
-			);
-
-			string adminUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				level: "Admin",
-				q: legacyEmail,
-				limit: 50
-			);
-			HttpRequestMessage adminRequest = new HttpRequestMessage(
-				HttpMethod.Get, adminUrl
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage adminResponse =
-				await this._Http.SendAsync(adminRequest);
-
-			_ = adminResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? adminResult = await adminResponse.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = adminResult.Should().NotBeNull();
-			Assert.NotNull(adminResult);
-			_ = adminResult.Data.Should().BeEmpty();
-		}
-
-		[Fact]
-		public async Task
-		ItShouldCombineAccountLevelWithSearchStatusAndSorting() {
-			string staffToken =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId =
-				await TenantTestHelper
-					.GetTenantIdByNameAsync(
-						this._Http,
-						staffToken,
-						SeedConstants.Tenants.AcmeName
-					);
-
-			string prefix = $"level-combined-{Guid.NewGuid():N}";
-			string firstAdminEmail = $"{prefix}-a-admin@example.com";
-			string excludedUserEmail = $"{prefix}-b-user@example.com";
-			string secondAdminEmail = $"{prefix}-c-admin@example.com";
-			_ = await this._CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				firstAdminEmail,
-				"Admin"
-			);
-			_ = await this._CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				excludedUserEmail,
-				"User"
-			);
-			_ = await this._CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				secondAdminEmail,
-				"Admin"
-			);
-
-			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				level: "AdMiN",
 				status: "pending",
 				q: prefix,
 				sortId: "email",
@@ -912,245 +727,8 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			Assert.NotNull(result);
 			_ = result.Data.Select(invitation => invitation.Email)
 				.Should()
-				.Equal(firstAdminEmail, secondAdminEmail);
+				.Equal(firstEmail, secondEmail);
 		}
-
-		[Theory]
-		[InlineData("")]
-		[InlineData(" ")]
-		public async Task
-		ItShouldTreatEmptyOrWhitespaceAccountLevelAsNoFilter(
-			string level
-		) {
-			string staffToken =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId =
-				await TenantTestHelper
-					.GetTenantIdByNameAsync(
-						this._Http,
-						staffToken,
-						SeedConstants.Tenants.AcmeName
-					);
-
-			string prefix = $"level-empty-{Guid.NewGuid():N}";
-			string adminEmail = $"{prefix}-admin@example.com";
-			string userEmail = $"{prefix}-user@example.com";
-			string legacyEmail = $"{prefix}-legacy@example.com";
-			_ = await this._CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				adminEmail,
-				"Admin"
-			);
-			_ = await this._CreateTenantInvitationAsync(
-				staffToken,
-				tenantId,
-				userEmail,
-				"User"
-			);
-			await this._CreateLegacyTenantInvitationWithNullLevelAsync(
-				tenantId,
-				legacyEmail
-			);
-
-			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				level: level,
-				q: prefix,
-				sortId: "email",
-				sortOrder: "asc",
-				limit: 50
-			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
-			_ = result.Data.Select(invitation => (
-				invitation.Email,
-				invitation.AccountLevel
-			)).Should().Equal(
-				(adminEmail, "Admin"),
-				(legacyEmail, "User"),
-				(userEmail, "User")
-			);
-		}
-
-		[Theory]
-		[InlineData(",")]
-		[InlineData("User,,Admin")]
-		[InlineData("Owner")]
-		public async Task
-		ItShouldReturnUnprocessableEntityWhenAccountLevelIsInvalid(
-			string level
-		) {
-			string staffToken =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId =
-				await TenantTestHelper
-					.GetTenantIdByNameAsync(
-						this._Http,
-						staffToken,
-						SeedConstants.Tenants.AcmeName
-					);
-
-			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, level: level);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.UnprocessableEntity);
-			_ = response.Content.Headers.ContentType?.MediaType
-				.Should().Be("application/problem+json");
-
-			ValidationProblemDetails? problem = await response.Content
-				.ReadFromJsonAsync<ValidationProblemDetails>();
-			_ = problem.Should().NotBeNull();
-			Assert.NotNull(problem);
-			_ = problem.Status.Should()
-				.Be((int)HttpStatusCode.UnprocessableEntity);
-			_ = problem.Detail.Should()
-				.Be("Query parameters validation failed");
-			_ = problem.TranslationKey.Should()
-				.Be(ResponseKeys.QueryParametersValidationFailed);
-			_ = problem.Errors.Should().ContainKey("level");
-			_ = problem.Errors["level"].Should()
-				.ContainSingle()
-				.Which.Should()
-				.Be("level must be one of: admin, user");
-		}
-
-		[Fact]
-		public async Task
-		ItShouldKeepAccountLevelFilterAcrossCursorPagination() {
-			string staffToken =
-				await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId =
-				await TenantTestHelper
-					.GetTenantIdByNameAsync(
-						this._Http,
-						staffToken,
-						SeedConstants.Tenants.AcmeName
-					);
-
-			string prefix = $"level-page-{Guid.NewGuid():N}";
-			string[] adminEmails = [
-				$"{prefix}-a-admin@example.com",
-				$"{prefix}-c-admin@example.com",
-				$"{prefix}-e-admin@example.com",
-			];
-			(string Email, string Level)[] invitations = [
-				(adminEmails[0], "Admin"),
-				($"{prefix}-b-user@example.com", "User"),
-				(adminEmails[1], "Admin"),
-				($"{prefix}-d-user@example.com", "User"),
-				(adminEmails[2], "Admin"),
-			];
-			foreach (var invitation in invitations) {
-				_ = await this._CreateTenantInvitationAsync(
-					staffToken,
-					tenantId,
-					invitation.Email,
-					invitation.Level
-				);
-			}
-
-			string firstUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				level: "Admin",
-				q: prefix,
-				sortId: "email",
-				sortOrder: "asc",
-				limit: 1
-			);
-			HttpRequestMessage firstRequest = new HttpRequestMessage(
-				HttpMethod.Get, firstUrl
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage firstResponse =
-				await this._Http.SendAsync(firstRequest);
-
-			_ = firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? firstPage = await firstResponse.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = firstPage.Should().NotBeNull();
-			Assert.NotNull(firstPage);
-			_ = firstPage.Data.Should().ContainSingle();
-			_ = firstPage.Data.Should().OnlyContain(
-				invitation => invitation.AccountLevel == "Admin"
-			);
-			_ = firstPage.Data[0].Email.Should().Be(adminEmails[0]);
-			_ = firstPage.NextCursor.Should().NotBeNullOrEmpty();
-
-			string secondUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: firstPage.NextCursor,
-				level: "Admin",
-				q: prefix,
-				sortId: "email",
-				sortOrder: "asc",
-				limit: 1
-			);
-			HttpRequestMessage secondRequest = new HttpRequestMessage(
-				HttpMethod.Get, secondUrl
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage secondResponse =
-				await this._Http.SendAsync(secondRequest);
-
-			_ = secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? secondPage = await secondResponse.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = secondPage.Should().NotBeNull();
-			Assert.NotNull(secondPage);
-			_ = secondPage.Data.Should().ContainSingle();
-			_ = secondPage.Data.Should().OnlyContain(
-				invitation => invitation.AccountLevel == "Admin"
-			);
-			_ = secondPage.Data[0].Email.Should().Be(adminEmails[1]);
-			_ = secondPage.NextCursor.Should().NotBeNullOrEmpty();
-
-			string thirdUrl = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: secondPage.NextCursor,
-				level: "Admin",
-				q: prefix,
-				sortId: "email",
-				sortOrder: "asc",
-				limit: 1
-			);
-			HttpRequestMessage thirdRequest = new HttpRequestMessage(
-				HttpMethod.Get, thirdUrl
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage thirdResponse =
-				await this._Http.SendAsync(thirdRequest);
-
-			_ = thirdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? thirdPage = await thirdResponse.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = thirdPage.Should().NotBeNull();
-			Assert.NotNull(thirdPage);
-			_ = thirdPage.Data.Should().ContainSingle();
-			_ = thirdPage.Data.Should().OnlyContain(
-				invitation => invitation.AccountLevel == "Admin"
-			);
-			_ = thirdPage.Data[0].Email.Should().Be(adminEmails[2]);
-			_ = thirdPage.NextCursor.Should().BeNull();
-		}
-
-		#endregion
 
 		#region Status Filter Tests
 
@@ -1818,8 +1396,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			createRequest.Content = JsonContent.Create(
 				new {
-					email = inviteeEmail,
-					accountLevel = "User"
+					email = inviteeEmail
 				}
 			);
 
@@ -1885,7 +1462,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					Scope = InvitationScope.Tenant,
 					TenantId = tenantId,
 					Token = Guid.NewGuid().ToString("N")[..32],
-					AccountLevel = AccountLevel.User,
 					ExpiresAt = DateTime.UtcNow.AddDays(7),
 					InvitedByUserId = staffUser.GetRequiredId()
 				};
@@ -1918,7 +1494,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			Assert.NotNull(foundInvitation);
 			_ = foundInvitation.ProfileName.Should().BeNull();
 			_ = foundInvitation.Profiles.Should().BeEmpty();
-			_ = foundInvitation.AccountLevel.Should().Be("User");
 		}
 
 		[Fact]
@@ -1955,7 +1530,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					DateTime.UtcNow.AddDays(7),
 					Guid.NewGuid().ToString("N")[..32]
 				);
-				invitation.AccountLevel = AccountLevel.User;
 
 				_ = await dbContext.Invitation.AddAsync(invitation);
 				_ = await dbContext.SaveChangesAsync();
@@ -1984,7 +1558,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			Assert.NotNull(foundInvitation);
 			_ = foundInvitation.ProfileName.Should().NotBeEmpty();
 			_ = foundInvitation.Profiles.Should().NotBeEmpty();
-			_ = foundInvitation.AccountLevel.Should().Be("User");
 		}
 
 		[Fact]
@@ -2485,8 +2058,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		string? sortId = null,
 			string? sortOrder = null,
 			string? status = null,
-			string? q = null,
-			string? level = null
+			string? q = null
 		) {
 			return FindInvitationsForTenantAsStaffSpec._GetFindUrl(
 				tenantId.ToString(),
@@ -2495,8 +2067,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			sortId,
 				sortOrder,
 				status,
-				q,
-				level
+				q
 			);
 		}
 
@@ -2507,8 +2078,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string? sortId = null,
 				string? sortOrder = null,
 				string? status = null,
-				string? q = null,
-				string? level = null
+				string? q = null
 			) {
 			string basePath = PathUtils.Join(
 				Routes.Staff.Root,
@@ -2538,9 +2108,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			if (q is not null) {
 				queryParams.Add($"q={Uri.EscapeDataString(q)}");
 			}
-			if (level is not null) {
-				queryParams.Add($"level={Uri.EscapeDataString(level)}");
-			}
 
 			return queryParams.Count > 0 ? $"{basePath}?{string.Join("&", queryParams)}" : basePath;
 		}
@@ -2548,14 +2115,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		private async Task<Guid> _CreateTenantInvitationAsync(
 		string staffToken,
 		Guid tenantId,
-		string email,
-		string accountLevel = "User"
+		string email
 	) {
 			return await this._CreateTenantInvitationWithProfilesAsync(
 				staffToken,
 				tenantId,
 				email,
-				accountLevel,
 				Array.Empty<Guid>()
 			);
 		}
@@ -2564,7 +2129,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string staffToken,
 			Guid tenantId,
 			string email,
-			string accountLevel,
 			IReadOnlyCollection<Guid> profileIds
 		) {
 			string url = PathUtils.Join(
@@ -2580,7 +2144,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			var body = new {
 				email,
-				accountLevel,
 				profileIds = profileIds.Select(x => x.ToString()).ToArray()
 			};
 
@@ -2640,32 +2203,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		private async Task _CreateLegacyTenantInvitationWithNullLevelAsync(
-			Guid tenantId,
-			string email
-		) {
-			using IServiceScope scope =
-				this._Fixture.Factory.Services.CreateScope();
-			AppDbContext dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			Users.Entities.User staffUser = await dbContext.User
-				.FirstAsync(user =>
-					user.Email == SeedConstants.Staff.AdminEmail
-				);
-			Invitation invitation = new Invitation {
-				Email = email.ToLowerInvariant(),
-				Scope = InvitationScope.Tenant,
-				TenantId = tenantId,
-				Token = Guid.NewGuid().ToString("N")[..32],
-				AccountLevel = null,
-				ExpiresAt = DateTime.UtcNow.AddDays(7),
-				InvitedByUserId = staffUser.GetRequiredId()
-			};
-
-			_ = await dbContext.Invitation.AddAsync(invitation);
-			_ = await dbContext.SaveChangesAsync();
-		}
-
 		private static async Task<Profile> _GetOrCreateDefaultTenantProfileAsync(
 		AppDbContext dbContext,
 		Guid tenantId
@@ -2708,7 +2245,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			public string Scope { get; init; } = string.Empty;
 			public string ProfileName { get; init; } = string.Empty;
 			public List<InvitationProfileDto> Profiles { get; init; } = [];
-			public string AccountLevel { get; init; } = string.Empty;
 			public string Status { get; init; } = string.Empty;
 			public DateTime ExpiresAt { get; init; }
 			public DateTime? AcceptedAt { get; init; }

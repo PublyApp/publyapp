@@ -80,7 +80,6 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 					TenantId: tenantId,
 					TenantName: "Durability Test Co",
 					ProfileIds: [],
-					AccountLevel: AccountLevel.Admin,
 					InvitedByUserId: inviterId
 				)
 			);

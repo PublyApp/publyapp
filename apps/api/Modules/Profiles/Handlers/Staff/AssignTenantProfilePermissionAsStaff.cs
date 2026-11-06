@@ -14,7 +14,8 @@ public sealed class AssignTenantProfilePermissionAsStaff {
 	public static async Task<Results<
 		NoContent,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+			AppForbiddenHttpResult
 	>> Handle(
 		[FromRoute] string tenantId,
 		[FromRoute] string profileId,
@@ -62,6 +63,13 @@ public sealed class AssignTenantProfilePermissionAsStaff {
 				ResponseKeys.NotFound
 			);
 		}
+		if (result is SetTenantProfilePermissionResult.SystemProfileProtected) {
+			return TypedProblems.Forbidden(
+				"The full-access system profile cannot be edited",
+				ResponseKeys.Forbidden
+			);
+		}
+
 
 		if (result is SetTenantProfilePermissionResult.PermissionNotFound) {
 			return TypedProblems.BadRequest(

@@ -84,9 +84,8 @@ const LABELS: TestLabelMap = {
 		"We couldn't read that file. Check the format and try again.",
 	'or-add-manually': 'or add manually',
 	email: 'Email',
-	'account-level': 'Account level',
-	admin: 'Admin',
-	user: 'User',
+	role: 'Role',
+	'list-column-member': 'Member',
 	'add-member': 'Add member',
 	'remove-member': 'Remove member',
 	remove: 'Remove',
@@ -721,7 +720,7 @@ describe('staff tenant create route', () => {
 		).toBe(true);
 	});
 
-	test('a manual member set to the Admin role submits with accountLevel Admin', async () => {
+	test('a manual member set to the Owner role submits with role owner', async () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
 
 		renderPage();
@@ -734,8 +733,8 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[1]!, {
 			target: { value: 'member@acme.com' },
 		});
-		fireEvent.change(screen.getByRole('combobox', { name: 'Account level' }), {
-			target: { value: 'Admin' },
+		fireEvent.change(screen.getByRole('combobox', { name: 'Role' }), {
+			target: { value: 'owner' },
 		});
 
 		submitForm();
@@ -746,8 +745,8 @@ describe('staff tenant create route', () => {
 			expect(mocks.mutateAsync).toHaveBeenCalledWith(
 				expect.objectContaining({
 					initialUsers: [
-						{ email: 'owner@acme.com', accountLevel: 'Admin' },
-						{ email: 'member@acme.com', accountLevel: 'Admin' },
+						{ email: 'owner@acme.com', role: 'owner' },
+						{ email: 'member@acme.com', role: 'owner' },
 					],
 				}),
 			),
@@ -1061,8 +1060,8 @@ describe('staff tenant create route', () => {
 				code: 'acme-corp',
 				seedDefaultProfile: true,
 				initialUsers: [
-					{ email: 'owner@acme.com', accountLevel: 'Admin' },
-					{ email: 'member@acme.com', accountLevel: 'User' },
+					{ email: 'owner@acme.com', role: 'owner' },
+					{ email: 'member@acme.com', role: 'member' },
 				],
 			}),
 		);
@@ -1424,8 +1423,8 @@ describe('staff tenant create route', () => {
 			expect(mocks.mutateAsync).toHaveBeenCalledWith(
 				expect.objectContaining({
 					initialUsers: [
-						{ email: 'owner@acme.com', accountLevel: 'Admin' },
-						{ email: 'csv1@acme.com', accountLevel: 'User' },
+						{ email: 'owner@acme.com', role: 'owner' },
+						{ email: 'csv1@acme.com', role: 'member' },
 					],
 				}),
 			),

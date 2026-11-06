@@ -3,20 +3,22 @@ import { Card } from '~/components/ui/card';
 
 import {
 	DetailItem,
-	formatTenantUserLevelLabel,
+	formatTenantUserAccessLabel,
 	formatTenantUserStatusLabel,
 } from '../_tenant-details-shell';
 
 export const TenantUserInfoCard = ({
 	userEmail,
-	userAccountLevel,
+	userIsFullAccess,
+	userRoles,
 	userStatus,
 	userId,
 	tenantId,
 	avatarUrl,
 }: {
 	userEmail: string;
-	userAccountLevel: string | null;
+	userIsFullAccess: boolean;
+	userRoles: string[];
 	userStatus: string | null;
 	userId: string;
 	tenantId: string;
@@ -29,8 +31,12 @@ export const TenantUserInfoCard = ({
 			<div className="grid gap-4 md:grid-cols-2">
 				<DetailItem label={t('email')} value={userEmail} />
 				<DetailItem
-					label={t('account-level')}
-					value={formatTenantUserLevelLabel(userAccountLevel, t)}
+					label={t('role')}
+					value={
+						userRoles.length > 0
+							? userRoles.join(', ')
+							: formatTenantUserAccessLabel(userIsFullAccess, t)
+					}
 				/>
 				<DetailItem
 					label={t('status')}

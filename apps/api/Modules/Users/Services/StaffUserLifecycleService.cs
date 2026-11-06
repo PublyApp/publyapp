@@ -423,7 +423,17 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				&& !ua.User.IsDeleted
 			select new StaffUserData {
 				User = ua.User,
-				AccountLevel = ua.Level
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList()
 			};
 	}
 
@@ -461,7 +471,17 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				UserAccountId = ua.GetRequiredId(),
 				UserData = new StaffUserData {
 					User = ua.User,
-					AccountLevel = ua.Level
+					IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+						uap.UserAccountId == ua.Id
+						&& !uap.Profile.IsDeleted
+						&& uap.Profile.IsFullAccess),
+					Roles = (
+						from uap in this._DbContext.UserAccountProfile
+						join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+						where uap.UserAccountId == ua.Id && !p.IsDeleted
+						orderby p.Name
+						select p.Name
+					).ToList()
 				}
 			}
 		).FirstOrDefaultAsync(cancellationToken);

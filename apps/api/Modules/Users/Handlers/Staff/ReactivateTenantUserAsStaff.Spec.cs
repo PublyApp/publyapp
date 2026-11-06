@@ -230,7 +230,6 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			public string? FirstName { get; init; }
 			public string? LastName { get; init; }
 			public string? AvatarUrl { get; init; }
-			public string Level { get; init; } = string.Empty;
 			public string Status { get; init; } = string.Empty;
 		}
 	}

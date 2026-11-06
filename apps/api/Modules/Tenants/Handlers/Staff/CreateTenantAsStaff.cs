@@ -12,13 +12,13 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 
-public record CreateTenantAsStaffInitialUserItem(string Email, string AccountLevel);
+public record CreateTenantAsStaffInitialUserItem(string Email, string Role);
 
 public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
@@ -111,9 +111,9 @@ public class CreateTenantAsStaffBody {
 		var users = new List<CreateTenantAsStaffInitialUserItem>();
 		foreach (var item in this.InitialUsers.EnumerateArray()) {
 			var email = item.GetProperty("email").GetValueAsString();
-			var accountLevel = item.GetProperty("accountLevel").GetValueAsString();
+			var role = item.GetProperty("role").GetValueAsString();
 
-			users.Add(new CreateTenantAsStaffInitialUserItem(email, accountLevel));
+			users.Add(new CreateTenantAsStaffInitialUserItem(email, role));
 		}
 
 		return users;
@@ -270,7 +270,7 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 		}
 
 		var emailOccurrences = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-		var hasAdmin = false;
+		var hasOwner = false;
 
 		for (var i = 0; i < array.Count; i++) {
 			var item = array[i];
@@ -288,27 +288,21 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 				CreateTenantAsStaffBodyValidator._ValidateInitialUserEmail(context, emailOccurrences, i, emailElement);
 			}
 
-			if (!item.TryGetProperty("accountLevel", out var levelElement)) {
-				context.AddFailure($"initialUsers[{i}].accountLevel", "AccountLevel is required");
-			} else if (levelElement.ValueKind != JsonValueKind.String) {
-				context.AddFailure($"initialUsers[{i}].accountLevel", "Must be a string");
+			if (!item.TryGetProperty("role", out var roleElement)) {
+				context.AddFailure($"initialUsers[{i}].role", "Role is required");
+			} else if (roleElement.ValueKind != JsonValueKind.String) {
+				context.AddFailure($"initialUsers[{i}].role", "Must be a string");
 			} else {
-				var level = levelElement.GetString();
-				if (string.IsNullOrWhiteSpace(level)) {
+				var role = roleElement.GetString();
+				if (string.IsNullOrWhiteSpace(role)) {
+					context.AddFailure($"initialUsers[{i}].role", "Role is required");
+				} else if (string.Equals(role, "owner", StringComparison.OrdinalIgnoreCase)) {
+					hasOwner = true;
+				} else if (!string.Equals(role, "member", StringComparison.OrdinalIgnoreCase)) {
 					context.AddFailure(
-						$"initialUsers[{i}].accountLevel",
-						"AccountLevel is required"
+						$"initialUsers[{i}].role",
+						"Role must be 'owner' or 'member'"
 					);
-				} else {
-					var parsedLevel = UserAccount.ParseLevel(level);
-					if (parsedLevel is null) {
-						context.AddFailure(
-							$"initialUsers[{i}].accountLevel",
-							"AccountLevel must be 'admin' or 'user'"
-						);
-					} else if (parsedLevel is AccountLevel.Admin) {
-						hasAdmin = true;
-					}
 				}
 			}
 		}
@@ -321,10 +315,10 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 			context.AddFailure("InitialUsers", $"Duplicate emails: {string.Join(", ", duplicates)}");
 		}
 
-		if (!hasAdmin) {
+		if (!hasOwner) {
 			context.AddFailure(
 				"InitialUsers",
-				"At least one user with accountLevel 'admin' is required"
+				"At least one user with role 'owner' is required"
 			);
 		}
 	}
@@ -373,12 +367,14 @@ public sealed class CreateTenantAsStaff {
 	Created<CreateTenantAsStaffResult>,
 	AppBadRequestHttpResult,
 	AppValidationProblemHttpResult,
-	AppInternalServerErrorHttpResult
+	AppInternalServerErrorHttpResult,
+	AppForbiddenHttpResult
 	>>
 	Handle(
 		[FromBody] CreateTenantAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IRequestAuthContext authContext,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		[FromServices] ILogger<CreateTenantAsStaff> logger,
 		CancellationToken cancellationToken
 	) {
@@ -401,14 +397,22 @@ public sealed class CreateTenantAsStaff {
 
 		var effectiveMaxUsers = maxUsers ?? AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
 
+		if (initialUsersItems.Any(u => string.Equals(u.Role, "owner", StringComparison.OrdinalIgnoreCase))
+			&& !await profileAssignmentGuard.ActorHasFullAccessAsync(
+				staffAccount.UserId,
+				cancellationToken
+			)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can create a tenant owner",
+				ResponseKeys.Forbidden
+			);
+		}
+
 		var initialUsers = initialUsersItems
-			.Select(u => {
-				var level = UserAccount.ParseLevel(u.AccountLevel);
-				if (level is null) {
-					throw new InvalidOperationException($"Invalid account level: {u.AccountLevel}");
-				}
-				return (u.Email, level.Value);
-			})
+			.Select(u => (
+				u.Email,
+				IsOwner: string.Equals(u.Role, "owner", StringComparison.OrdinalIgnoreCase)
+			))
 			.ToList();
 
 		try {

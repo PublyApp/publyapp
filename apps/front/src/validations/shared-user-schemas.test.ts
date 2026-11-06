@@ -1,13 +1,14 @@
 /**
- * Guards the email-format and account-level constraints on the shared
+ * Guards the email-format and role-assignment constraints on the shared
  * user-creation schemas.
  *
  * `getNewStaffUserSchema` (packages/shared-ts/src/validations/staff-user.validations.ts)
  * and `getNewTenantSchemaServerSide`
  * (packages/shared-ts/src/validations/tenant/tenant.validations.ts) are the
  * canonical schema definitions for creating staff users and tenants. The tests
- * pin that the constraints they carry — email format, account-level enum,
- * minimum name length, at-least-one-admin refine and unique-email refine —
+ * pin that the constraints they carry — email format, profile-assignment
+ * shape, minimum name length, at-least-one-owner refine and unique-email
+ * refine —
  * still accept valid payloads and still reject invalid ones.
  *
  * A constraint that was silently dropped would make these assertions pass for
@@ -26,7 +27,7 @@ const makeZ = () =>
 		i18n: { getFixedT: () => (key: string) => key },
 	});
 
-describe('getNewStaffUserSchema — email format and account-level constraints', () => {
+describe('getNewStaffUserSchema — email format and profile-assignment constraints', () => {
 	const z = makeZ();
 	const schema = getNewStaffUserSchema(z);
 
@@ -35,7 +36,7 @@ describe('getNewStaffUserSchema — email format and account-level constraints',
 			firstName: 'Jane',
 			lastName: 'Doe',
 			email: 'jane@example.com',
-			accountLevel: 'Admin',
+			profileIds: ['profile-1'],
 			sendNotification: false,
 			avatar: 'https://example.com/a.png',
 		});
@@ -46,7 +47,6 @@ describe('getNewStaffUserSchema — email format and account-level constraints',
 		const result = schema.safeParse({
 			lastName: 'Doe',
 			email: 'not-an-email',
-			accountLevel: 'User',
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
@@ -55,23 +55,22 @@ describe('getNewStaffUserSchema — email format and account-level constraints',
 		}
 	});
 
-	it('rejects an unknown account level (enum constraint)', () => {
+	it('rejects profileIds that are not an array of strings', () => {
 		const result = schema.safeParse({
 			lastName: 'Doe',
 			email: 'jane@example.com',
-			accountLevel: 'Superuser',
+			profileIds: 'not-an-array',
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			const paths = result.error.issues.map((i) => i.path.join('.'));
-			expect(paths).toContain('accountLevel');
+			expect(paths).toContain('profileIds');
 		}
 	});
 
 	it('rejects a missing lastName key (presence constraint)', () => {
 		const result = schema.safeParse({
 			email: 'jane@example.com',
-			accountLevel: 'User',
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
@@ -87,7 +86,6 @@ describe('getNewStaffUserSchema — email format and account-level constraints',
 		const result = schema.safeParse({
 			lastName: '',
 			email: 'jane@example.com',
-			accountLevel: 'User',
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
@@ -105,8 +103,8 @@ describe('getNewTenantSchemaServerSide — tenant user constraints', () => {
 		name: 'Acme Corp',
 		maxUsers: 3,
 		initialUsers: [
-			{ email: 'admin@acme.com', accountLevel: 'Admin' },
-			{ email: 'user@acme.com', accountLevel: 'User' },
+			{ email: 'admin@acme.com', role: 'owner' },
+			{ email: 'user@acme.com', role: 'member' },
 		],
 	};
 
@@ -128,8 +126,8 @@ describe('getNewTenantSchemaServerSide — tenant user constraints', () => {
 		const result = schema.safeParse({
 			...validPayload,
 			initialUsers: [
-				{ email: 'admin@acme.com', accountLevel: 'Admin' },
-				{ email: 'not-an-email', accountLevel: 'User' },
+				{ email: 'admin@acme.com', role: 'owner' },
+				{ email: 'not-an-email', role: 'member' },
 			],
 		});
 		expect(result.success).toBe(false);
@@ -139,10 +137,10 @@ describe('getNewTenantSchemaServerSide — tenant user constraints', () => {
 		}
 	});
 
-	it('rejects a tenant with no admin (at-least-one-admin refine)', () => {
+	it('rejects a tenant with no owner (at-least-one-owner refine)', () => {
 		const result = schema.safeParse({
 			...validPayload,
-			initialUsers: [{ email: 'user@acme.com', accountLevel: 'User' }],
+			initialUsers: [{ email: 'user@acme.com', role: 'member' }],
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
@@ -155,8 +153,8 @@ describe('getNewTenantSchemaServerSide — tenant user constraints', () => {
 		const result = schema.safeParse({
 			...validPayload,
 			initialUsers: [
-				{ email: 'dup@acme.com', accountLevel: 'Admin' },
-				{ email: 'dup@acme.com', accountLevel: 'User' },
+				{ email: 'dup@acme.com', role: 'owner' },
+				{ email: 'dup@acme.com', role: 'member' },
 			],
 		});
 		expect(result.success).toBe(false);

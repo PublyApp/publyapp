@@ -10,19 +10,19 @@ namespace PublyApp.Api.Modules.Users.Services;
 
 public class StaffUserData {
 	public required User User { get; set; }
-	public required AccountLevel AccountLevel { get; set; }
+	// Full access is carried by a protected system role, never a level.
+	public bool IsFullAccess { get; set; }
 
-	// Assigned staff profile names, loaded in one batched query per page (no
-	// N+1): the « Profils » column reads them as pills.
-	public List<string> ProfileNames { get; set; } = [];
+	// Assigned role names, loaded in one batched query per page (no N+1): the
+	// « Rôles » column reads them as pills.
+	public List<string> Roles { get; set; } = [];
 }
 
 public sealed record StaffUserCounts(
 	int Total,
 	int Active,
 	int Suspended,
-	int Admins,
-	int Users,
+	int FullAccess,
 	int ConnectedToday,
 	int OpenSessions
 );
@@ -87,7 +87,17 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				&& !ua.User.IsDeleted
 			select new StaffUserData {
 				User = ua.User,
-				AccountLevel = ua.Level
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList()
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 	}
@@ -178,13 +188,16 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		idSelector: ua => ua.UserId,
 		cancellationToken
 	),
-			["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
+			["is_full_access"] = CursorSortFieldHandlerFactory.Create<UserAccount, bool, Guid>(
 		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted),
-		keySelector: ua => ua.Level,
+		keySelector: ua => this._DbContext.UserAccountProfile.Any(uap =>
+			uap.UserAccountId == ua.Id
+			&& !uap.Profile.IsDeleted
+			&& uap.Profile.IsFullAccess),
 		idSelector: ua => ua.UserId,
 		cancellationToken
 	),
@@ -216,19 +229,11 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				// Search is intentionally substring-based so staff can quickly find
 				// records by partial email or name fragments.
 				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
-				// The search box names the role too: "admin" / "user" match the
-				// account level, not only a name fragment.
-				var wantsAdmin = string.Equals(trimmed, "admin", StringComparison.OrdinalIgnoreCase)
-					|| string.Equals(trimmed, nameof(AccountLevel.Admin), StringComparison.OrdinalIgnoreCase);
-				var wantsUser = string.Equals(trimmed, "user", StringComparison.OrdinalIgnoreCase)
-					|| string.Equals(trimmed, nameof(AccountLevel.User), StringComparison.OrdinalIgnoreCase);
 				query =
 					from ua in query
 					where (ua.User.FirstName != null && EF.Functions.ILike(ua.User.FirstName, pattern, LikePatternUtils.LikeEscapeChar))
 						|| (ua.User.LastName != null && EF.Functions.ILike(ua.User.LastName, pattern, LikePatternUtils.LikeEscapeChar))
 						|| EF.Functions.ILike(ua.User.Email, pattern, LikePatternUtils.LikeEscapeChar)
-						|| (wantsAdmin && ua.Level == AccountLevel.Admin)
-						|| (wantsUser && ua.Level == AccountLevel.User)
 					select ua;
 			}
 		}
@@ -244,14 +249,13 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		// pagination only, never a filter).
 		var facetRows = await (
 			from ua in query
-			group ua by new { ua.User.Status, ua.Level } into g
-			select new { g.Key.Status, g.Key.Level, Count = g.Count() }
+			group ua by ua.User.Status into g
+			select new { Status = g.Key, Count = g.Count() }
 		).ToListAsync(cancellationToken);
 
 		var total = 0;
 		var active = 0;
 		var suspended = 0;
-		var admins = 0;
 		foreach (var facet in facetRows) {
 			total += facet.Count;
 			if (facet.Status == UserStatus.Active) {
@@ -259,10 +263,17 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			} else if (facet.Status == UserStatus.Suspended) {
 				suspended += facet.Count;
 			}
-			if (facet.Level == AccountLevel.Admin) {
-				admins += facet.Count;
-			}
 		}
+
+		// Full access is a protected system role, not a level: count the accounts
+		// holding it over the same filtered collection.
+		var fullAccess = await query.CountAsync(
+			ua => this._DbContext.UserAccountProfile.Any(uap =>
+				uap.UserAccountId == ua.Id
+				&& !uap.Profile.IsDeleted
+				&& uap.Profile.IsFullAccess),
+			cancellationToken
+		);
 
 		// Sessions are the only activity the database records (created_at /
 		// expires_at); there is no last-activity or MFA column. « Connectés
@@ -288,8 +299,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			Total: total,
 			Active: active,
 			Suspended: suspended,
-			Admins: admins,
-			Users: total - admins,
+			FullAccess: fullAccess,
 			ConnectedToday: connectedToday,
 			OpenSessions: openSessions
 		);
@@ -310,7 +320,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			from ua in orderedQuery
 			select new StaffUserData {
 				User = ua.User,
-				AccountLevel = ua.Level
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
 			}
 		)
 			.Take(effectiveLimit + 1)
@@ -327,7 +340,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		var pageUserIds = results
 			.Select(staffUser => staffUser.User.GetRequiredId())
 			.ToList();
-		var profileRows = await (
+		var roleRows = await (
 			from accountProfile in this._DbContext.UserAccountProfile.AsNoTracking()
 			join account in this._DbContext.UserAccount.AsNoTracking()
 				on (Guid?)accountProfile.UserAccountId equals account.Id
@@ -342,22 +355,22 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			}
 		).ToListAsync(cancellationToken);
 
-		var profileNamesByUser = new Dictionary<Guid, List<string>>();
-		foreach (var row in profileRows) {
-			if (!profileNamesByUser.TryGetValue(row.UserId, out var names)) {
+		var roleNamesByUser = new Dictionary<Guid, List<string>>();
+		foreach (var row in roleRows) {
+			if (!roleNamesByUser.TryGetValue(row.UserId, out var names)) {
 				names = [];
-				profileNamesByUser[row.UserId] = names;
+				roleNamesByUser[row.UserId] = names;
 			}
 			names.Add(row.Name);
 		}
 
 		foreach (var staffUser in results) {
-			if (profileNamesByUser.TryGetValue(
+			if (roleNamesByUser.TryGetValue(
 				staffUser.User.GetRequiredId(),
 				out var names
 			)) {
 				names.Sort(StringComparer.OrdinalIgnoreCase);
-				staffUser.ProfileNames = names;
+				staffUser.Roles = names;
 			}
 		}
 

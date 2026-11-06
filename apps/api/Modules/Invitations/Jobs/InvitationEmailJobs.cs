@@ -4,7 +4,7 @@ namespace PublyApp.Api.Modules.Invitations.Jobs;
 
 /// <summary>
 /// Payload for <c>email.tenant-invitation.v1</c> (design §5.4, F2). IDs only — the
-/// handler reloads the invitation (email, token, account level, tenant name) fresh at
+/// handler reloads the invitation (email, token, profile list, tenant name) fresh at
 /// send time, which is both the eligibility recheck (#811) and staleness-proof. The
 /// member is <c>required</c> so <see cref="JobJson"/> throws on a missing field instead
 /// of materializing <c>Guid.Empty</c>; the enqueuer additionally rejects empty IDs. The

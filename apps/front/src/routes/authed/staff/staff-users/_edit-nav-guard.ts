@@ -27,7 +27,6 @@ const staffUserEditValuesMatch = (
 	left.lastName === right.lastName &&
 	left.avatarUrl === right.avatarUrl &&
 	left.email === right.email &&
-	left.accountLevel === right.accountLevel &&
 	left.status === right.status &&
 	left.profileIds.length === right.profileIds.length &&
 	left.profileIds.every(

@@ -25,13 +25,10 @@ import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
 import { StaffUserNameCell } from './_staff-user-name-cell';
 import {
-	deriveStaffUserLevelKey,
+	deriveStaffUserRoleKey,
 	deriveStaffUserStatusKey,
 } from './staff-users/list-helpers';
-import {
-	formatAccountLevelLabel,
-	formatStaffStatusLabel,
-} from './staff-users/status-labels';
+import { formatStaffStatusLabel } from './staff-users/status-labels';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -41,9 +38,8 @@ const Dash = () => <span className="text-muted-foreground">{DASH}</span>;
 export const DEFAULT_STAFF_USER_COLUMNS = [
 	'name',
 	'email',
-	'level',
 	'status',
-	'profiles',
+	'roles',
 	'twoFactor',
 	'sessions',
 	'locale',
@@ -81,24 +77,6 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		),
 	},
 	{
-		id: 'level',
-		header: t('level'),
-		icon: IconCrown,
-		width: 160,
-		value: (row) => row.level,
-		cell: (row) =>
-			deriveStaffUserLevelKey(row.level) === 'admin' ? (
-				<StatusPill tone="info">
-					<IconCrown aria-hidden="true" className="size-3" />
-					{formatAccountLevelLabel(row.level, t)}
-				</StatusPill>
-			) : (
-				<StatusPill tone="neutral">
-					{formatAccountLevelLabel(row.level, t)}
-				</StatusPill>
-			),
-	},
-	{
 		id: 'status',
 		header: t('status'),
 		icon: IconCircleDashed,
@@ -111,17 +89,17 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		),
 	},
 	{
-		id: 'profiles',
-		header: t('profiles'),
+		id: 'roles',
+		header: t('list-roles'),
 		icon: IconShieldLock,
 		width: 280,
-		value: (row) => row.profileNames.join(', '),
+		value: (row) => row.roles.join(', '),
 		cell: (row) =>
-			row.profileNames.length === 0 ? (
+			row.roles.length === 0 ? (
 				<Dash />
 			) : (
 				<span className="flex min-w-0 flex-wrap items-center gap-1">
-					{row.profileNames.map((name) => (
+					{row.roles.map((name) => (
 						<span
 							key={name}
 							className="inline-flex h-5 items-center rounded-[var(--publy-radius-chip)] border bg-background px-2 text-xs"
@@ -183,14 +161,15 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 	},
 ];
 
-/** Statuses reach the API; levels are filtered on the loaded collection only
- * and are offered only when the list page knows it holds the whole collection.
- * Double authentification is omitted (no field at all) rather than rendering an
- * always-empty filter — #2281 API gap. Profiles are now on each row but have no
- * whole-collection facet, so they are not offered as a filter yet. */
+/** Statuses reach the API; the role filter is applied to the loaded
+ * collection only and is offered only when the list page knows it holds the
+ * whole collection. Double authentification is omitted (no field at all) rather
+ * than rendering an always-empty filter — #2281 API gap. The full-access role is
+ * the only role distinction the list DTO carries, plus the role names it
+ * renders. */
 export const buildStaffUserFilters = (
 	t: Translate,
-	options: { includeLevels: boolean },
+	options: { includeRoles: boolean },
 ): ListFilter<StaffUserRow>[] => {
 	const filters: ListFilter<StaffUserRow>[] = [
 		{
@@ -218,25 +197,25 @@ export const buildStaffUserFilters = (
 		},
 	];
 
-	if (options.includeLevels) {
+	if (options.includeRoles) {
 		filters.push({
-			key: 'level',
-			label: t('list-levels'),
+			key: 'role',
+			label: t('list-roles'),
 			icon: IconCrown,
 			panel: true,
 			choices: [
 				{
-					value: 'admin',
-					label: t('admin'),
+					value: 'full_access',
+					label: t('full-access'),
 					icon: <IconCrown className="size-4 shrink-0 text-muted-foreground" />,
 				},
 				{
-					value: 'user',
-					label: t('user'),
+					value: 'standard',
+					label: t('standard-access'),
 					icon: <IconUser className="size-4 shrink-0 text-muted-foreground" />,
 				},
 			],
-			valueOf: (row) => deriveStaffUserLevelKey(row.level) ?? [],
+			valueOf: (row) => deriveStaffUserRoleKey(row.isFullAccess),
 		});
 	}
 
@@ -252,8 +231,8 @@ export const buildStaffUserTotals = (
 ): Map<string, string> => {
 	const active = counts?.active ?? 0;
 	const suspended = counts?.suspended ?? 0;
-	const admins = counts?.admins ?? 0;
-	const users = counts?.users ?? 0;
+	const fullAccess = counts?.fullAccess ?? 0;
+	const standard = (counts?.total ?? 0) - fullAccess;
 
 	const totals = new Map<string, string>();
 	totals.set(
@@ -261,13 +240,9 @@ export const buildStaffUserTotals = (
 		t('list-total-staff-members', { count: counts?.total ?? 0 }),
 	);
 	totals.set('email', DASH);
-	totals.set(
-		'level',
-		t('list-total-staff-levels', { admin: admins, user: users }),
-	);
+	totals.set('roles', t('list-total-staff-roles', { fullAccess, standard }));
 	totals.set('status', t('list-total-staff-statuses', { active, suspended }));
 	for (const id of [
-		'profiles',
 		'twoFactor',
 		'sessions',
 		'locale',
@@ -287,13 +262,10 @@ export const buildStaffUserMobileCard =
 				{formatStaffStatusLabel(row.status, t)}
 			</StatusPill>
 		),
-		end: formatAccountLevelLabel(row.level, t),
+		end: row.roles.join(', '),
 		title: row.displayName,
 		sub: row.email,
-		foot: [t('level'), formatAccountLevelLabel(row.level, t)] as [
-			string,
-			string,
-		],
+		foot: [t('list-roles'), row.roles.join(', ')] as [string, string],
 	});
 
 export const exportStaffUserRows = (

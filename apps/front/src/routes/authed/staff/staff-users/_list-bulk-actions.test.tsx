@@ -133,7 +133,6 @@ import type { UseRowSelectionResult } from '~/components/table/use-row-selection
 import type { StaffUserRow } from '~/lib/query/staff-users';
 
 import type { UserStatus } from '@org/client-ts/models/index';
-import { AccountLevelObject } from '@org/client-ts/models/index';
 
 import { StaffUsersListBulkActions } from './_list-bulk-actions';
 
@@ -147,10 +146,10 @@ const row = (
 	firstName: displayName.split(' ')[0] ?? null,
 	lastName: displayName.split(' ')[1] ?? null,
 	avatarUrl: null,
-	level: AccountLevelObject.User,
+	isFullAccess: false,
+	roles: [],
 	status,
 	displayName,
-	profileNames: [],
 });
 
 const buildSelection = (selectedIds: string[]): UseRowSelectionResult => ({

@@ -20,10 +20,7 @@ import {
 	type InvitationDisplayStatus,
 	normalizeInvitationStatus,
 } from '../../invitations/list-helpers';
-import {
-	formatDateTime,
-	formatTenantUserLevelLabel,
-} from './_tenant-details-shell';
+import { formatDateTime } from './_tenant-details-shell';
 
 /**
  * Column definitions and label/expiry helpers for the staff tenant
@@ -145,7 +142,11 @@ export const createTenantInvitationColumns = ({
 			const profileName = row.original.profileName;
 			const access = profileName?.trim().length
 				? profileName
-				: formatTenantUserLevelLabel(row.original.accountLevel, t);
+				: (row.original.roles ?? []).join(', ');
+
+			if (access.length === 0) {
+				return <span className="text-muted-foreground">—</span>;
+			}
 
 			return (
 				<span className="publy-detail-chip publy-detail-chip--outline">

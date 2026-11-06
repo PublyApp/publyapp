@@ -11,7 +11,7 @@ namespace PublyApp.Api.Lib.Testing.Helpers;
 
 /// <summary>
 /// Seeds tenant members for permission specs. A member created here holds ONLY the
-/// permission keys it is given — no seeded profile, no account-level privilege — so a
+/// permission keys it is given — no seeded profile, no full-access role — so a
 /// 403 assertion proves the route's permission list rather than the seed data.
 /// </summary>
 internal static class TenantMemberTestHelper {
@@ -27,8 +27,8 @@ internal static class TenantMemberTestHelper {
 	}
 
 	/// <summary>
-	/// Creates an active, verified member of <paramref name="tenantId"/> at
-	/// <see cref="AccountLevel.User"/> and, when permission keys are given, grants them
+	/// Creates an active, verified member of <paramref name="tenantId"/> with no
+	/// full-access role and, when permission keys are given, grants them
 	/// through a fresh tenant profile (the same profile machinery production uses).
 	/// Returns the email to log in with.
 	/// </summary>
@@ -53,8 +53,7 @@ internal static class TenantMemberTestHelper {
 
 		var account = UserAccount.CreateTenantAccount(
 			user.GetRequiredId(),
-			tenantId,
-			AccountLevel.User
+			tenantId
 		);
 		account.ValidateAccountType();
 		await db.UserAccount.AddAsync(account);

@@ -300,7 +300,7 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		await expect(
 			panel.getByRole('button', { name: /Invitations/ }),
 		).toBeVisible();
-		await expect(panel.getByRole('button', { name: /Profiles/ })).toBeVisible();
+		await expect(panel.getByRole('button', { name: /Roles/ })).toBeVisible();
 	});
 
 	test('secondary panel follows persisted preference on detail routes', async ({

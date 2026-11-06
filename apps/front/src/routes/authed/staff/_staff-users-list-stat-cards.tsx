@@ -17,6 +17,9 @@ const Dash = () => <span className="text-muted-foreground">—</span>;
  * `counts` (issue #2301). « Connectés aujourd'hui » counts the users with a
  * session opened since midnight UTC and the still-open sessions behind it.
  *
+ * Full access is a protected system role, never a level: the « Accès complet »
+ * card counts the accounts holding it and its footer the rest.
+ *
  * « Double authentification » stays « — » with « Bientôt disponible »: no
  * 2FA source exists yet, and the honest-numbers rule forbids inventing a
  * percentage. The card is never hidden: the product announces it instead.
@@ -40,7 +43,7 @@ export const StaffUsersStatCards = ({
 				/>
 				<StatCard
 					testId="staff-user-stat-admins"
-					label={t('administrators')}
+					label={t('staff-owner')}
 					icon={<IconCrown />}
 					value={<Dash />}
 					footer={<Dash />}
@@ -63,6 +66,9 @@ export const StaffUsersStatCards = ({
 		);
 	}
 
+	const fullAccess = counts.fullAccess ?? 0;
+	const standard = (counts.total ?? 0) - fullAccess;
+
 	return (
 		<>
 			<StatCard
@@ -81,10 +87,10 @@ export const StaffUsersStatCards = ({
 			/>
 			<StatCard
 				testId="staff-user-stat-admins"
-				label={t('administrators')}
+				label={t('staff-owner')}
 				icon={<IconCrown />}
-				value={counts.admins ?? 0}
-				footer={t('list-staff-stat-users', { count: counts.users ?? 0 })}
+				value={fullAccess}
+				footer={t('list-staff-stat-users', { count: standard })}
 			/>
 			<StatCard
 				testId="staff-user-stat-two-factor"

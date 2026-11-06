@@ -37,6 +37,7 @@ public class BulkSeedDataGenerator {
 	private List<UserAccount> _AllUserAccounts = [];
 	private List<Project> _Projects = [];
 	private List<Invitation> _Invitations = [];
+	private readonly List<UserAccount> _FullAccessStaffAccounts = [];
 
 	public BulkSeedDataGenerator(
 		int? tenantCount = null,
@@ -108,6 +109,13 @@ public class BulkSeedDataGenerator {
 	public IReadOnlyList<UserAccount> StaffUserAccounts {
 		get {
 			return this._StaffUserAccounts;
+		}
+	}
+
+	/// <summary>Staff accounts that must receive the full-access system profile.</summary>
+	public IReadOnlyList<UserAccount> FullAccessStaffAccounts {
+		get {
+			return this._FullAccessStaffAccounts;
 		}
 	}
 
@@ -242,7 +250,7 @@ public class BulkSeedDataGenerator {
 
 			foreach (var tenantIndex in assignedTenants) {
 				var tenantId = tenantIds[tenantIndex];
-				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
+				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 				account.ValidateAccountType();
 				this._TenantUserAccounts.Add(account);
 			}
@@ -261,7 +269,7 @@ public class BulkSeedDataGenerator {
 
 			foreach (var tenantIdx in assignedTenants) {
 				var tenantId = tenantIds[tenantIdx];
-				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
+				var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 				account.ValidateAccountType();
 				this._TenantUserAccounts.Add(account);
 			}
@@ -274,7 +282,7 @@ public class BulkSeedDataGenerator {
 		for (int i = 0; i < singleTenantUsers.Count; i++) {
 			var user = singleTenantUsers[i];
 			var tenantId = tenantIds[this._Random.Next(tenantIds.Count)];
-			var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId, AccountLevel.User);
+			var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 			account.ValidateAccountType();
 			this._TenantUserAccounts.Add(account);
 		}
@@ -285,9 +293,12 @@ public class BulkSeedDataGenerator {
 
 		foreach (var user in this._StaffUsers) {
 			var roll = this._Faker.Random.Double();
-			var level = roll < BulkSeedConstants.StaffAdminRatio ? AccountLevel.Admin : AccountLevel.User;
+			var isFullAccess = roll < BulkSeedConstants.StaffAdminRatio;
 
-			var account = UserAccount.CreateStaffAccount(userId: user.GetRequiredId(), accountLevel: level);
+			var account = UserAccount.CreateStaffAccount(userId: user.GetRequiredId());
+			if (isFullAccess) {
+				this._FullAccessStaffAccounts.Add(account);
+			}
 			account.ValidateAccountType();
 			this._StaffUserAccounts.Add(account);
 		}

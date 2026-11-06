@@ -6,6 +6,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -258,26 +259,26 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			);
 
 			// Global suspension disables this user in every tenant. The last-admin
-			// guard must therefore scan all active admin memberships atomically.
+			// guard must therefore scan all active full-access role memberships atomically.
+			var fullAccessAssignments = FullAccessRoleQueries.FullAccessAssignments(this._DbContext);
 			var hasTenantWithoutAnotherActiveAdmin = await (
 				from ua in this._DbContext.UserAccount
 				join u in this._DbContext.User on ua.UserId equals u.Id
+				join uap in fullAccessAssignments on ua.Id equals uap.UserAccountId
 				where ua.UserId == userId
 					&& ua.Scope == AccountScope.Tenant
 					&& ua.TenantId != null
-					&& ua.Level == AccountLevel.Admin
 					&& ua.Status != AccountStatus.Suspended
 					&& !ua.IsDeleted
 					&& !u.IsDeleted
 					&& u.Status != UserStatus.Suspended
 				where !(
 					from otherUa in this._DbContext.UserAccount
-					join otherUser in this._DbContext.User
-						on otherUa.UserId equals otherUser.Id
+					join otherUser in this._DbContext.User on otherUa.UserId equals otherUser.Id
+					join otherUap in fullAccessAssignments on otherUa.Id equals otherUap.UserAccountId
 					where otherUa.TenantId == ua.TenantId
 						&& otherUa.UserId != userId
 						&& otherUa.Scope == AccountScope.Tenant
-						&& otherUa.Level == AccountLevel.Admin
 						&& otherUa.Status != AccountStatus.Suspended
 						&& !otherUa.IsDeleted
 						&& !otherUser.IsDeleted

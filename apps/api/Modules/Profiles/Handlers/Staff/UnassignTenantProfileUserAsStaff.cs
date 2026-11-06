@@ -69,6 +69,13 @@ public sealed class UnassignTenantProfileUserAsStaff {
 			);
 		}
 
+		if (result is SetTenantProfileUserResult.LastFullAccessRoleAssignment) {
+			return TypedProblems.BadRequest(
+				"Cannot remove the last full-access owner from the tenant",
+				ResponseKeys.CannotRemoveLastAdmin
+			);
+		}
+
 		if (result is not SetTenantProfileUserResult.Success) {
 			throw new InvalidOperationException("Unhandled result type");
 		}

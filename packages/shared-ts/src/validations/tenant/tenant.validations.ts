@@ -15,7 +15,7 @@ export const getNewTenantSchemaServerSide = (
 			.array(
 				z.object({
 					email: z.email(),
-					accountLevel: z.enum(['Admin', 'User']),
+					role: z.enum(['owner', 'member']),
 				}),
 			)
 			.min(1)
@@ -30,10 +30,10 @@ export const getNewTenantSchemaServerSide = (
 					message: z.t('each-user-must-have-a-unique-email'),
 				},
 			)
-			// at least one admin
+			// at least one owner (the full-access role)
 			.refine(
 				(users) => {
-					return users.some((user) => user.accountLevel === 'Admin');
+					return users.some((user) => user.role === 'owner');
 				},
 				{
 					message: z.t('tenant-should-have-at-least-one-admin'),

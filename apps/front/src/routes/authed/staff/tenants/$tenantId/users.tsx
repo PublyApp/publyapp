@@ -23,7 +23,6 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 
 import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
 import {
-	formatTenantUserLevelLabel,
 	formatTenantUserStatusLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
@@ -34,12 +33,13 @@ import { makeTenantUserColumns } from './_users-columns';
 import { TenantUsersFilterMenus } from './_users-filter-menus';
 import { TenantUsersPageHeader } from './_users-page-header';
 import {
-	type KnownTenantUserLevel,
+	deriveTenantUserRoleKey,
+	type KnownTenantUserRole,
 	type KnownTenantUserStatus,
-	parseTenantUserLevelFilter,
+	parseTenantUserRoleFilter,
 	parseTenantUserStatusFilter,
 	parseTenantUsersListSearchParams,
-	serializeTenantUserLevelFilter,
+	serializeTenantUserRoleFilter,
 	serializeTenantUserStatusFilter,
 	serializeTenantUsersListSearchParams,
 	type TenantUsersListSearchParamInput,
@@ -50,7 +50,7 @@ import { TenantUsersTable } from './_users-table';
 // Re-exported for the route's test file (the search-params helpers live in
 // `_users-search-params.tsx` so this route stays a single-component file).
 export {
-	parseTenantUserLevelFilter,
+	parseTenantUserRoleFilter,
 	parseTenantUserStatusFilter,
 } from './_users-search-params';
 
@@ -69,7 +69,7 @@ const StaffTenantUsersPage = () => {
 	const inviteButtonRef = useRef<HTMLButtonElement>(null);
 
 	const selectedStatuses = parseTenantUserStatusFilter(search.status);
-	const selectedLevels = parseTenantUserLevelFilter(search.level);
+	const selectedRoles = parseTenantUserRoleFilter(search.role);
 	const isInviteDrawerOpen = search.invite === 1;
 
 	const onSearchChange = (next: TenantUsersListSearchParams): void => {
@@ -94,7 +94,7 @@ const StaffTenantUsersPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: `${tenantId}:${search.status ?? ''}:${search.level ?? ''}`,
+		cursorResetKey: `${tenantId}:${search.status ?? ''}:${search.role ?? ''}`,
 	});
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -105,7 +105,6 @@ const StaffTenantUsersPage = () => {
 			tenantId,
 			q: controller.apiVariables.q,
 			status: search.status,
-			level: search.level,
 			sortId: controller.apiVariables.sortId,
 			sortOrder: controller.apiVariables.sortOrder,
 			cursor: controller.apiVariables.cursor,
@@ -116,12 +115,21 @@ const StaffTenantUsersPage = () => {
 		},
 	);
 
-	const rows = toStaffTenantUserRows(usersQuery.data?.data);
+	const allRows = toStaffTenantUserRows(usersQuery.data?.data);
+	// ponytail: no server-side role filter — narrow the loaded page only, same
+	// trade-off as the staff-users list filters.
+	const selectedRoleKeys = new Set(selectedRoles);
+	const rows =
+		selectedRoleKeys.size === 0
+			? allRows
+			: allRows.filter((row) =>
+					selectedRoleKeys.has(deriveTenantUserRoleKey(row.isFullAccess)),
+				);
 	const selection = useRowSelection(rows.map((row) => row.id));
 
 	// tenants-r6-F2: freeze the destructive selection target set — cancel a
 	// pending search commit the moment selection mode starts (mirrors
-	// invitations/index.tsx, staff-users.tsx, profiles.tsx); the level/status
+	// invitations/index.tsx, staff-users.tsx, profiles.tsx); the role/status
 	// filter triggers above are disabled for the same reason.
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {
@@ -206,31 +214,35 @@ const StaffTenantUsersPage = () => {
 								.map((status) => formatTenantUserStatusLabel(status, t))
 								.join(', ');
 
-				const setLevels = (nextLevels: KnownTenantUserLevel[]): void => {
+				const setRoles = (nextRoles: KnownTenantUserRole[]): void => {
 					void navigate({
 						search: serializeTenantUsersListSearchParams({
 							...search,
-							level: serializeTenantUserLevelFilter(nextLevels),
+							role: serializeTenantUserRoleFilter(nextRoles),
 							cursor: undefined,
 						}),
 						replace: true,
 					});
 				};
 
-				const toggleLevel = (level: KnownTenantUserLevel): void => {
-					if (selectedLevels.includes(level)) {
-						setLevels(selectedLevels.filter((value) => value !== level));
+				const toggleRole = (role: KnownTenantUserRole): void => {
+					if (selectedRoles.includes(role)) {
+						setRoles(selectedRoles.filter((value) => value !== role));
 						return;
 					}
 
-					setLevels([...selectedLevels, level]);
+					setRoles([...selectedRoles, role]);
 				};
 
-				const levelFilterLabel =
-					selectedLevels.length === 0
-						? t('all-levels')
-						: selectedLevels
-								.map((level) => formatTenantUserLevelLabel(level, t))
+				const roleFilterLabel =
+					selectedRoles.length === 0
+						? t('all-roles')
+						: selectedRoles
+								.map((role) =>
+									role === 'full_access'
+										? t('full-access')
+										: t('standard-access'),
+								)
 								.join(', ');
 
 				return (
@@ -252,7 +264,7 @@ const StaffTenantUsersPage = () => {
 							controller={controller}
 							selection={selection}
 							hasActiveFilters={Boolean(
-								controller.search.committed || search.status || search.level,
+								controller.search.committed || search.status || search.role,
 							)}
 							queryState={{
 								isPending: usersQuery.isPending,
@@ -266,13 +278,13 @@ const StaffTenantUsersPage = () => {
 							onInvite={() => setInviteDrawerOpen(true)}
 							toolbarEnd={
 								<TenantUsersFilterMenus
-									selectedLevels={selectedLevels}
+									selectedRoles={selectedRoles}
 									selectedStatuses={selectedStatuses}
-									levelFilterLabel={levelFilterLabel}
+									roleFilterLabel={roleFilterLabel}
 									statusFilterLabel={statusFilterLabel}
 									isSelectionMode={selection.isSelectionMode}
-									onSetLevels={setLevels}
-									onToggleLevel={toggleLevel}
+									onSetRoles={setRoles}
+									onToggleRole={toggleRole}
 									onSetStatuses={setStatuses}
 									onToggleStatus={toggleStatus}
 								/>

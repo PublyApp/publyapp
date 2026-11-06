@@ -18,8 +18,7 @@ public sealed record CreateStaffUserArgs(
 	string? FirstName,
 	string? AvatarUrl,
 	string Password,
-	bool SendNotification,
-	AccountLevel? AccountLevel = null
+	bool SendNotification
 );
 
 public abstract record CreateStaffUserServiceResult {
@@ -82,7 +81,6 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 
 		var accountResult = await this._CreateStaffAccountAsync(
 			userResultEntity.GetRequiredId(),
-			args.AccountLevel,
 			cancellationToken
 		);
 
@@ -140,7 +138,6 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 
 	private async Task<CreateStaffAccountResult> _CreateStaffAccountAsync(
 		Guid userId,
-		AccountLevel? accountLevel,
 		CancellationToken cancellationToken
 	) {
 		var hasStaffAccount = await this._HasStaffAccountAsync(userId, cancellationToken);
@@ -153,7 +150,7 @@ public sealed class CreateStaffUserService : ICreateStaffUserService {
 			return new CreateStaffAccountResult.UserHasTenantOrProjectAccounts();
 		}
 
-		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
+		var account = UserAccount.CreateStaffAccount(userId);
 		var addedAccount = await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 
 		try {

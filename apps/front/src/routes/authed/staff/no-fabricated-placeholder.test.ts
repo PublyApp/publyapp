@@ -35,7 +35,7 @@ const staffDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 // fallback was dead defensive code and has been removed — so the exemption
 // is gone and this check now runs repeat-wide, same as the other two.
 // `tenants/**`'s remaining `'—'`/`??` fallbacks are for genuinely OPTIONAL
-// fields (tenant code/legalName/avatarUrl, an enum `level`, and date
+// fields (tenant code/legalName/avatarUrl, a role enum, and date
 // formatters' "no value" case) and are not this rule's target.
 type PlaceholderCheck = {
 	name: string;

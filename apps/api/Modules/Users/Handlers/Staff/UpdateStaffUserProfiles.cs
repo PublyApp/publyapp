@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
@@ -110,12 +111,15 @@ public sealed class UpdateStaffUserProfiles {
 			Ok<UpdateStaffUserProfilesResult>,
 			AppBadRequestHttpResult,
 			AppNotFoundHttpResult,
-			AppValidationProblemHttpResult
+			AppValidationProblemHttpResult,
+			AppForbiddenHttpResult
 		>
 	> Handle(
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffUserProfilesBody body,
 		[FromServices] IStaffUserProfileAssignmentService userService,
+		[FromServices] IRequestAuthContext authContext,
+		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
 		ILogger<UpdateStaffUserProfiles> logger,
 		CancellationToken cancellationToken
 	) {
@@ -150,6 +154,18 @@ public sealed class UpdateStaffUserProfiles {
 				"Max profiles per user exceeded",
 				ResponseKeys.MaxProfilesPerUserExceeded,
 				errors
+			);
+		}
+
+		var actor = authContext.GetRequiredStaffAccount();
+		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+			actor.UserId,
+			profileIds,
+			cancellationToken
+		)) {
+			return TypedProblems.Forbidden(
+				"Only a full-access staff member can assign the full-access role",
+				ResponseKeys.Forbidden
 			);
 		}
 
@@ -189,6 +205,13 @@ public sealed class UpdateStaffUserProfiles {
 				"One or more profiles are not staff profiles",
 				ResponseKeys.ProfileNotStaffScope,
 				errors
+			);
+		}
+
+		if (updateResult is UpdateStaffUserProfilesServiceResult.LastFullAccessRoleRemoval) {
+			return TypedProblems.BadRequest(
+				"Cannot remove the last full-access staff role holder",
+				ResponseKeys.CannotRemoveLastAdmin
 			);
 		}
 

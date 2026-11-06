@@ -17,7 +17,7 @@ namespace PublyApp.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -178,10 +178,6 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("accepted_at");
 
-                    b.Property<int?>("AccountLevel")
-                        .HasColumnType("integer")
-                        .HasColumnName("account_level");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -270,10 +266,6 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<int?>("AccountLevel")
-                        .HasColumnType("integer")
-                        .HasColumnName("account_level");
 
                     b.Property<int>("AttemptCount")
                         .HasColumnType("integer")
@@ -1302,6 +1294,10 @@ namespace PublyApp.Api.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsFullAccess")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_full_access");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -2425,10 +2421,6 @@ namespace PublyApp.Api.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
-
-                    b.Property<int>("Level")
-                        .HasColumnType("integer")
-                        .HasColumnName("level");
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid")

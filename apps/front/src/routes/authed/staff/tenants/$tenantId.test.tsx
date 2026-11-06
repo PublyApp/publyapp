@@ -382,14 +382,11 @@ describe('staff tenant details route', () => {
 		expect(invitesCard.textContent).toContain('No invites expiring soon');
 	});
 
-	test('renders up to 5 owners in the Owners card, with a See all link filtered to admins', () => {
-		mocks.useStaffTenantUsersQuery.mockImplementation(
-			(variables: { level?: string }) =>
-				variables.level === 'admin'
-					? buildQueryResult({
-							data: { data: ['owner-item'], nextCursor: null },
-						})
-					: buildQueryResult({ data: { data: [], nextCursor: null } }),
+	test('renders up to 5 owners in the Owners card, with a See all link filtered to full access', () => {
+		mocks.useStaffTenantUsersQuery.mockImplementation(() =>
+			buildQueryResult({
+				data: { data: ['owner-item', 'member-item'], nextCursor: null },
+			}),
 		);
 		mocks.toStaffTenantUserRows.mockImplementation((items: unknown[]) =>
 			items?.[0] === 'owner-item'
@@ -398,7 +395,14 @@ describe('staff tenant details route', () => {
 							id: 'owner-1',
 							displayName: 'Maya Chen',
 							email: 'maya.chen@example.com',
-							level: 'Admin',
+							isFullAccess: true,
+							status: 'Active',
+						},
+						{
+							id: 'member-1',
+							displayName: 'Sam Lee',
+							email: 'sam.lee@example.com',
+							isFullAccess: false,
 							status: 'Active',
 						},
 					]
@@ -415,7 +419,7 @@ describe('staff tenant details route', () => {
 		expect(
 			screen.getByRole('link', { name: 'See all' }).getAttribute('href'),
 		).toBe(
-			'/staff/tenants/11111111-1111-1111-1111-111111111111/users?level=admin',
+			'/staff/tenants/11111111-1111-1111-1111-111111111111/users?role=full_access',
 		);
 	});
 

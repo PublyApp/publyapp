@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
@@ -15,6 +16,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -245,6 +247,61 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		result.AssignedProfiles.Should().ContainSingle(p => p.Id == Guid.Parse(profileId));
 	}
 
+	[Fact]
+	public async Task ItShouldRefuseToRemoveTheLastStaffFullAccessRoleHolder() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var adminUserId = await UpdateStaffUserProfilesSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
+			token,
+			TestConstants.StaffAdminEmail
+		);
+
+		// The seed can leave more than one full-access holder (owner bootstrap). Demote every
+		// other holder first — each removal is legitimate while a holder remains — so the
+		// final call is provably the last-holder case. The seeded admin is kept full-access
+		// for the rest of this class.
+		var adminUserGuid = Guid.Parse(adminUserId);
+		var holderIds = await this._GetActiveStaffFullAccessUserIdsAsync();
+		foreach (var holderId in holderIds.Where(id => id != adminUserGuid)) {
+			using var demoteRequest = new HttpRequestMessage(
+				HttpMethod.Put,
+				UpdateStaffUserProfilesSpec._GetUrl(holderId.ToString())
+			).WithSessionToken(token);
+			demoteRequest.Content = JsonContent.Create(
+				new { profileIds = Array.Empty<string>() }
+			);
+
+			using var demoteResponse = await this._Http.SendAsync(demoteRequest);
+			demoteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		(await this._GetActiveStaffFullAccessUserIdsAsync()).Should().ContainSingle(
+			"only the seeded admin must remain full-access"
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Put,
+			UpdateStaffUserProfilesSpec._GetUrl(adminUserId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { profileIds = Array.Empty<string>() });
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.CannotRemoveLastAdmin);
+	}
+
+	private async Task<List<Guid>> _GetActiveStaffFullAccessUserIdsAsync() {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await FullAccessRoleQueries.ActiveStaffFullAccessAccounts(dbContext)
+			.Select(account => account.UserId)
+			.ToListAsync();
+	}
+
 	// -- Helpers --
 
 	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
@@ -371,7 +428,7 @@ public sealed class UpdateStaffUserProfilesSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId, AccountLevel.User);
+		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
 		_ = dbContext.UserAccount.Add(staffAccount);
 		_ = await dbContext.SaveChangesAsync();

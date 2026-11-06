@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router';
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field, Form } from '~/components/field';
-import type { FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 
@@ -41,14 +40,12 @@ export const TenantUserEditHeader = ({
 export const TenantUserEditFormCard = ({
 	methods,
 	onSubmit,
-	accountLevelOptions,
 	isSubmittingForm,
 	rootValidationError,
 	saveDisabled,
 }: {
 	methods: UseFormReturn<TenantUserEditValues>;
 	onSubmit: (event?: React.BaseSyntheticEvent) => Promise<void>;
-	accountLevelOptions: FieldSelectOption[];
 	isSubmittingForm: boolean;
 	rootValidationError: string;
 	saveDisabled: boolean;
@@ -76,13 +73,6 @@ export const TenantUserEditFormCard = ({
 					fullWidth
 					isDisabled={isSubmittingForm}
 				/>
-				<Field.Select
-					name="accountLevel"
-					label={t('account-level')}
-					options={accountLevelOptions}
-					isDisabled={isSubmittingForm}
-				/>
-
 				{rootValidationError ? (
 					<p className="text-sm text-destructive" role="alert">
 						{rootValidationError}

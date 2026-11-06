@@ -5,7 +5,6 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
-	AccountLevel,
 	ApiResponse,
 	FindInvitationsForTenantAsStaffResult,
 	InvitationEffectiveStatus,
@@ -21,7 +20,6 @@ export type StaffTenantInvitationsQueryVariables = {
 	tenantId: string;
 	q?: string;
 	status?: string;
-	level?: string;
 	sortId?: string;
 	sortOrder?: SortOrder;
 	cursor?: string;
@@ -35,7 +33,7 @@ export type StaffTenantInvitationRow = {
 	scope: string | null;
 	profileName: string | null;
 	profiles: Array<{ id: string; name: string }>;
-	accountLevel: AccountLevel | null;
+	roles: string[];
 	invitedByName: string;
 	acceptedAt: Date | null;
 	createdAt: Date | null;
@@ -114,7 +112,6 @@ export const buildFindStaffTenantInvitationsQueryParameters = (
 ) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
-	level: normalizeString(variables.level),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
 	cursor: normalizeString(variables.cursor),
@@ -136,7 +133,6 @@ export const toStaffTenantInvitationRows = (
 		const id = normalizeString(item.id?.toString());
 		const email = normalizeString(item.email);
 		const profileName = normalizeNullableString(item.profileName);
-		const accountLevel = item.accountLevel ?? null;
 		const invitedByName = normalizeString(item.invitedByName);
 		if (!id || !email || !invitedByName) {
 			continue;
@@ -149,7 +145,9 @@ export const toStaffTenantInvitationRows = (
 			scope: normalizeNullableString(item.scope),
 			profileName,
 			profiles: normalizeProfiles(item.profiles),
-			accountLevel: accountLevel ?? null,
+			roles: (item.profiles ?? [])
+				.map((profile) => normalizeString(profile.name))
+				.filter((name): name is string => Boolean(name)),
 			invitedByName,
 			acceptedAt: item.acceptedAt ?? null,
 			createdAt: item.createdAt ?? null,

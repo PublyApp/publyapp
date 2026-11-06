@@ -51,7 +51,7 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(
-			user.GetRequiredId(), tenantId, AccountLevel.User
+			user.GetRequiredId(), tenantId
 		);
 		account.ValidateAccountType();
 		db.UserAccount.Add(account);

@@ -291,8 +291,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldKeepOneActiveAdminWhenTwoAdminRemovalsRaceForTheLastPair() {
 		var tenantId = await this._CreateTenantAsync();
-		var (firstAdminUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		var (secondAdminUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
+		var (firstAdminUserId, _) = await this._SeedMemberAsync(tenantId, fullAccess: true);
+		var (secondAdminUserId, _) = await this._SeedMemberAsync(tenantId, fullAccess: true);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -348,9 +348,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var tenantId = await this._CreateTenantAsync();
 		var (suspendedAdminUserId, _) = await this._SeedMemberAsync(
 			tenantId,
-			AccountLevel.Admin
+			fullAccess: true
 		);
-		var (removedAdminUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
+		var (removedAdminUserId, _) = await this._SeedMemberAsync(tenantId, fullAccess: true);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -408,93 +408,24 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
-	/// The suspension guard must derive admin status after acquiring the tenant lock, not from the
-	/// account loaded before the transaction. Removal queues first, suspension queues second while
-	/// the target is still a User, then promotion commits without taking the tenant lock. When the
-	/// barrier releases, removal consumes the original admin and suspension must re-read the
-	/// promoted target as the final active admin and refuse.
-	/// </summary>
-	[Fact]
-	public async Task ItShouldRecheckPromotedAdminAfterSuspensionWaitsForTenantLock() {
-		var tenantId = await this._CreateTenantAsync();
-		var (removedAdminUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		var (suspendedUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.User);
-
-		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
-
-		_ = await barrierDb.Database.ExecuteSqlAsync(
-			$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE"
-		);
-		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
-
-		var removalTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.RemoveUserFromTenantAsync(tenantId, removedAdminUserId);
-		});
-
-		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			this._Fixture.Factory.Services,
-			1,
-			barrierPid
-		);
-
-		var suspensionTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.SuspendTenantUserAsync(tenantId, suspendedUserId);
-		});
-
-		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			this._Fixture.Factory.Services,
-			2,
-			barrierPid
-		);
-
-		await using (var promotionScope = this._Fixture.Factory.Services.CreateAsyncScope()) {
-			var service = promotionScope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			var promotionResult = await service.UpdateTenantUserAsync(
-				tenantId,
-				suspendedUserId,
-				new UpdateTenantUserDocument {
-					Level = UserAccount.GetLevelDescription(AccountLevel.Admin)
-				}
-			);
-
-			promotionResult.Should().BeOfType<UpdateTenantUserResult.Success>();
-		}
-
-		await barrierTx.RollbackAsync();
-
-		var removalResult = await removalTask;
-		var suspensionResult = await suspensionTask;
-
-		removalResult.Should().BeOfType<RemoveUserFromTenantResult.Success>();
-		suspensionResult.Should().BeOfType<SuspendTenantUserResult.CannotSuspendLastAdmin>();
-
-		(await this._CountActiveAdminsAsync(tenantId)).Should().Be(
-			1,
-			"the promoted final admin must remain active after the suspension re-check"
-		);
-	}
-
-	/// <summary>
-	/// The cross-path half of the same invariant: removing one admin while demoting the other.
-	/// These are different code paths (<c>RemoveUserFromTenantAsync</c> versus
-	/// <c>UpdateTenantUserAsync</c>) touching disjoint account rows, so nothing collides — this
-	/// is the write skew SSI used to catch, and the shared tenant lock is now what catches it.
-	/// A path that skipped the lock would let both through and strand the tenant at zero admins.
+	/// The cross-path half of the same invariant: removing one full-access holder while the
+	/// other is demoted by unassigning the tenant's full-access role. Removal goes through
+	/// <c>TenantUserMembershipOperations</c>; demotion goes through
+	/// <c>SetTenantProfileUserAsync</c>, which now carries the last-holder guard. Both take the
+	/// tenant row lock and then count, so exactly one may win and the tenant keeps a holder.
 	/// </summary>
 	[Fact]
 	public async Task ItShouldKeepOneActiveAdminWhenAdminRemovalRacesAdminDemotion() {
 		var tenantId = await this._CreateTenantAsync();
-		var (removedAdminUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		var (demotedAdminUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
+		var (removedAdminUserId, _) = await this._SeedMemberAsync(tenantId, fullAccess: true);
+		var (demotedAdminUserId, demotedAdminAccountId) =
+			await this._SeedMemberAsync(tenantId, fullAccess: true);
+
+		var ownerProfileId = await this._GetTenantFullAccessProfileIdAsync(tenantId);
+		var actorUserId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"lock-order-actor-{Guid.NewGuid():N}@example.com"
+		);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -515,14 +446,14 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var demotionTask = Task.Run(async () => {
 			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.UpdateTenantUserAsync(
+				.GetRequiredService<ITenantProfileAsStaffService>();
+			return await service.SetTenantProfileUserAsync(new SetTenantProfileUserArgs(
 				tenantId,
-				demotedAdminUserId,
-				new UpdateTenantUserDocument {
-					Level = UserAccount.GetLevelDescription(AccountLevel.User)
-				}
-			);
+				ownerProfileId,
+				demotedAdminAccountId,
+				IsAssigned: false,
+				ActorUserId: actorUserId
+			));
 		});
 
 		await PostgresLockBarrier.WaitUntilBlockedAsync(
@@ -537,20 +468,27 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var demotionResult = await demotionTask;
 
 		var removalWon = removalResult is RemoveUserFromTenantResult.Success;
-		var demotionWon = demotionResult is UpdateTenantUserResult.Success;
+		var demotionWon = demotionResult is SetTenantProfileUserResult.Success;
+		var demotionRefused =
+			demotionResult is SetTenantProfileUserResult.LastFullAccessRoleAssignment;
 
-		// Exactly one may win; the loser must be refused by the last-admin guard.
+		// Exactly one may win; the loser must be refused by the last-holder guard.
 		(removalWon && demotionWon).Should().BeFalse(
-			"removal and demotion must not both strip the tenant's last admins"
+			"removal and role unassignment must not both strip the tenant's last full-access holder"
 		);
+		(removalWon || demotionWon).Should().BeTrue(
+			"one of the two paths must be able to run"
+		);
+		if (removalWon) {
+			demotionRefused.Should().BeTrue();
+		}
 
 		(await this._CountActiveAdminsAsync(tenantId)).Should().Be(
 			1,
-			"the tenant must never be left without an active admin"
+			"the tenant must never be left without an active full-access holder"
 		);
 	}
 
-	/// <summary>
 	/// The identity mutex: a lock set discovered before it is frozen is not a lock set.
 	/// Reproduces the exact reviewed three-request schedule.
 	/// </summary>
@@ -612,11 +550,11 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var targetTenantId = await this._CreateTenantAsync();
 
 		// U: active, non-admin identity in S only.
-		var (suspendedUserId, _) = await this._SeedMemberAsync(sourceTenantId, AccountLevel.User);
+		var (suspendedUserId, _) = await this._SeedMemberAsync(sourceTenantId);
 		// S keeps its own admin so U's membership there is incidental.
-		_ = await this._SeedMemberAsync(sourceTenantId, AccountLevel.Admin);
+		_ = await this._SeedMemberAsync(sourceTenantId, fullAccess: true);
 		// T: exactly one active Admin, X.
-		var (adminUserId, _) = await this._SeedMemberAsync(targetTenantId, AccountLevel.Admin);
+		var (adminUserId, _) = await this._SeedMemberAsync(targetTenantId, fullAccess: true);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -650,8 +588,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			return await service.AssignTenantUserCompaniesForStaffAsync(
 				new AssignTenantUserCompaniesArgs(
 					suspendedUserId,
-					[targetTenantId],
-					AccountLevel.Admin
+					[targetTenantId]
 				)
 			);
 		});
@@ -724,10 +661,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldParkCompanyRestoreBehindTheIdentityMutex() {
 		var tenantId = await this._CreateTenantAsync();
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
+		_ = await this._SeedMemberAsync(tenantId, fullAccess: true);
 		var (userId, userAccountId) = await this._SeedMemberAsync(
 			tenantId,
-			AccountLevel.User,
 			isDeleted: true
 		);
 
@@ -747,7 +683,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			var service = scope.ServiceProvider
 				.GetRequiredService<ITenantUserCompanyMembershipService>();
 			return await service.AssignTenantUserCompaniesForStaffAsync(
-				new AssignTenantUserCompaniesArgs(userId, [tenantId], AccountLevel.Admin)
+				new AssignTenantUserCompaniesArgs(userId, [tenantId])
 			);
 		});
 
@@ -770,131 +706,6 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
-	/// Demotion always writes the users row (<c>user.UpdatedAt</c>), so its <c>SaveChanges</c>
-	/// needs a lock on <c>users(U)</c>. It must therefore hold that lock <i>before</i> the tenant
-	/// mutex, or it forms the <c>tenants → users</c> edge the canonical order forbids and
-	/// deadlocks against global suspension going the other way.
-	/// <para>
-	/// The NOWAIT probe is what makes this deterministic: while demotion is parked on the
-	/// identity mutex, the tenant row must still be lockable by anyone else — proving demotion
-	/// has not taken it yet. With the tenant lock taken first, demotion instead parks on its
-	/// users write while holding the tenant row, and the probe fails.
-	/// </para>
-	/// </summary>
-	[Fact]
-	public async Task ItShouldTakeTheIdentityMutexBeforeTheTenantMutexWhenDemoting() {
-		var tenantId = await this._CreateTenantAsync();
-		var (demotedUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-
-		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
-
-		_ = await barrierDb.Database.ExecuteSqlAsync(
-			$"SELECT 1 FROM users WHERE id = {demotedUserId} FOR NO KEY UPDATE"
-		);
-		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
-
-		var demotionTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.UpdateTenantUserAsync(
-				tenantId,
-				demotedUserId,
-				new UpdateTenantUserDocument {
-					Level = UserAccount.GetLevelDescription(AccountLevel.User)
-				}
-			);
-		});
-
-		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			this._Fixture.Factory.Services,
-			1,
-			barrierPid
-		);
-
-		(await this._IsTenantRowLockableAsync(tenantId)).Should().BeTrue(
-			"demotion must park on the identity mutex before it takes the tenant mutex; if it "
-			+ "holds the tenant row while waiting for users(U), it deadlocks against global "
-			+ "suspension, which takes those two locks in the opposite order"
-		);
-
-		await barrierTx.RollbackAsync();
-
-		(await demotionTask).Should().BeOfType<UpdateTenantUserResult.Success>();
-	}
-
-	/// <summary>
-	/// The cross-class pairing the corrected order exists for: global suspension holds
-	/// <c>users(U)</c> and wants <c>tenants(T)</c>; demotion must want them the same way round.
-	/// Both must terminate — no <c>40P01</c> — and T must keep an active admin.
-	/// <para>
-	/// Honest note on strength: under the inverted order this schedule deadlocks only when
-	/// demotion happens to win the tenant row after release, so its red is probabilistic. The
-	/// deterministic control for the ordering is the NOWAIT probe spec above; this one is the
-	/// end-to-end regression guard.
-	/// </para>
-	/// </summary>
-	[Fact]
-	public async Task ItShouldNotDeadlockWhenGlobalSuspensionRacesDemotion() {
-		var tenantId = await this._CreateTenantAsync();
-		var (suspendedUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-
-		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
-
-		// Park both on the tenant row: global suspension gets there holding users(U).
-		_ = await barrierDb.Database.ExecuteSqlAsync(
-			$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE"
-		);
-		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
-
-		var suspendTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserIdentityService>();
-			return await service.SuspendTenantUserIdentityForStaffAsync(suspendedUserId);
-		});
-
-		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			this._Fixture.Factory.Services,
-			1,
-			barrierPid
-		);
-
-		var demotionTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.UpdateTenantUserAsync(
-				tenantId,
-				suspendedUserId,
-				new UpdateTenantUserDocument {
-					Level = UserAccount.GetLevelDescription(AccountLevel.User)
-				}
-			);
-		});
-
-		await PostgresLockBarrier.WaitUntilSettledAsync(
-			this._Fixture.Factory.Services,
-			demotionTask,
-			barrierPid,
-			2
-		);
-
-		await barrierTx.RollbackAsync();
-
-		// Task.WhenAll rethrows a PostgresException 40P01 if the pair deadlocked.
-		await Task.WhenAll(suspendTask, demotionTask);
-
-		(await this._CountActiveAdminsAsync(tenantId)).Should().BeGreaterThan(0);
-	}
-
-	/// <summary>
 	/// A non-demoting PATCH always writes both <c>user_accounts</c> and <c>users</c>
 	/// (their <c>UpdatedAt</c>). EF Core 10 finds no FK edge between those updates and orders
 	/// them <c>user_accounts</c> before <c>users</c> by table name. So the non-demoting path
@@ -912,8 +723,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldTakeTheIdentityMutexBeforeWritingWhenUpdatingNonDemoting() {
 		var tenantId = await this._CreateTenantAsync();
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		var (memberUserId, memberAccountId) = await this._SeedMemberAsync(tenantId, AccountLevel.User);
+		_ = await this._SeedMemberAsync(tenantId, fullAccess: true);
+		var (memberUserId, memberAccountId) = await this._SeedMemberAsync(tenantId);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -957,93 +768,6 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
-	/// The end-to-end pairing the identity mutex on the non-demoting path exists for: an ordinary
-	/// PATCH of a member races a demotion of the <i>same</i> member. Both must terminate — no
-	/// <c>40P01</c> — and the tenant must keep an active admin.
-	/// <para>
-	/// This red is deterministic, not probabilistic. The demotion is parked on the tenant row
-	/// while holding <c>users(U)</c>; the non-demoting PATCH then locks <c>user_accounts</c>
-	/// (nothing else holds it) and blocks on <c>users(U)</c>. On release the demotion's
-	/// <c>SaveChanges</c> wants <c>user_accounts</c>, forming the cycle. With the fix the PATCH
-	/// takes <c>users(U)</c> first, so it queues behind the demotion instead of grabbing
-	/// <c>user_accounts</c>.
-	/// </para>
-	/// </summary>
-	[Fact]
-	public async Task ItShouldNotDeadlockWhenNonDemotingUpdateRacesDemotion() {
-		var tenantId = await this._CreateTenantAsync();
-		var (memberUserId, _) = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		// A second admin so the demotion is permitted to succeed.
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-
-		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var barrierTx = await barrierDb.Database.BeginTransactionAsync();
-
-		// Park the demotion on the tenant row: it reaches this point holding users(U).
-		_ = await barrierDb.Database.ExecuteSqlAsync(
-			$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE"
-		);
-		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
-
-		// B — demotion. Takes users(U), then parks on the tenant row the barrier holds.
-		var demotionTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.UpdateTenantUserAsync(
-				tenantId,
-				memberUserId,
-				new UpdateTenantUserDocument {
-					Level = UserAccount.GetLevelDescription(AccountLevel.User)
-				}
-			);
-		});
-
-		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			this._Fixture.Factory.Services,
-			1,
-			barrierPid
-		);
-
-		// A — an ordinary non-demoting PATCH of the SAME member.
-		var updateTask = Task.Run(async () => {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantUserMembershipService>();
-			return await service.UpdateTenantUserAsync(
-				tenantId,
-				memberUserId,
-				new UpdateTenantUserDocument {
-					FirstName = PatchField<string?>.Set("Renamed")
-				}
-			);
-		});
-
-		// A is now blocked on users(U) — transitively behind the barrier through the demotion.
-		await PostgresLockBarrier.WaitUntilBlockedAsync(
-			this._Fixture.Factory.Services,
-			2,
-			barrierPid
-		);
-
-		await barrierTx.RollbackAsync();
-
-		// Task.WhenAll rethrows PostgresException 40P01 if the two SaveChanges deadlocked. With
-		// the identity mutex on both paths they serialize on users(U) and both terminate.
-		var demotionResult = await demotionTask;
-		var updateResult = await updateTask;
-
-		demotionResult.Should().BeOfType<UpdateTenantUserResult.Success>();
-		updateResult.Should().BeOfType<UpdateTenantUserResult.Success>();
-
-		(await this._CountActiveAdminsAsync(tenantId)).Should().BeGreaterThan(
-			0,
-			"the tenant keeps its second admin, and neither request may 40P01 into a 500"
-		);
-	}
-
-	/// <summary>
 	/// Bulk versus single removal for an overlapping account set. Both take
 	/// <c>tenants → user_accounts → user_account_profiles</c>, all id-ordered, so they serialize
 	/// on the tenant row and neither can hold a row the other needs earlier.
@@ -1051,9 +775,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldNotDeadlockWhenBulkRemovalRacesSingleRemoval() {
 		var tenantId = await this._CreateTenantAsync();
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
-		var (firstUserId, firstAccountId) = await this._SeedMemberAsync(tenantId, AccountLevel.User);
-		var (secondUserId, secondAccountId) = await this._SeedMemberAsync(tenantId, AccountLevel.User);
+		_ = await this._SeedMemberAsync(tenantId, fullAccess: true);
+		var (firstUserId, firstAccountId) = await this._SeedMemberAsync(tenantId);
+		var (secondUserId, secondAccountId) = await this._SeedMemberAsync(tenantId);
 
 		var profileId = await this._CreateTenantProfileAsync(tenantId);
 		await this._InsertLinkAsync(firstAccountId, profileId);
@@ -1107,29 +831,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	// ---------------------------------------------------------------------------------------
 
 	/// <summary>
-	/// NOWAIT probe: is the tenant row currently free? Deterministic — PostgreSQL raises 55P03
-	/// immediately rather than blocking, so this reports lock state without a timing guess.
-	/// </summary>
-	private async Task<bool> _IsTenantRowLockableAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var transaction = await dbContext.Database.BeginTransactionAsync();
-
-		try {
-			_ = await dbContext.Database.ExecuteSqlAsync(
-				$"SELECT 1 FROM tenants WHERE id = {tenantId} FOR UPDATE NOWAIT"
-			);
-			return true;
-		} catch (Npgsql.PostgresException ex) when (ex.SqlState == "55P03") {
-			return false;
-		} finally {
-			await transaction.RollbackAsync();
-		}
-	}
-
-	/// <summary>
-	/// NOWAIT probe for a <c>user_accounts</c> row: same deterministic 55P03 semantics as
-	/// <see cref="_IsTenantRowLockableAsync"/>. Reports whether the row is currently unlocked.
+	/// NOWAIT probe for a <c>user_accounts</c> row: deterministic 55P03 semantics. Reports
+	/// whether the row is currently unlocked.
 	/// </summary>
 	private async Task<bool> _IsUserAccountRowLockableAsync(Guid userAccountId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
@@ -1185,7 +888,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid UserId, Guid UserAccountId)> _SeedMemberAsync(
 		Guid tenantId,
-		AccountLevel level,
+		bool fullAccess = false,
 		bool isDeleted = false
 	) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
@@ -1208,12 +911,19 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			UserId = user.GetRequiredId(),
 			TenantId = tenantId,
 			Scope = AccountScope.Tenant,
-			Level = level,
 			Status = AccountStatus.Active,
 		};
 
 		_ = dbContext.UserAccount.Add(account);
 		_ = await dbContext.SaveChangesAsync();
+
+		if (fullAccess) {
+			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				dbContext,
+				tenantId,
+				account.GetRequiredId()
+			);
+		}
 
 		if (isDeleted) {
 			account.IsDeleted = true;
@@ -1229,9 +939,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var tenantId = await this._CreateTenantAsync();
 
 		// A live admin so removing the member under test never trips the last-admin guard.
-		_ = await this._SeedMemberAsync(tenantId, AccountLevel.Admin);
+		_ = await this._SeedMemberAsync(tenantId, fullAccess: true);
 
-		var (userId, userAccountId) = await this._SeedMemberAsync(tenantId, AccountLevel.User);
+		var (userId, userAccountId) = await this._SeedMemberAsync(tenantId);
 		return (tenantId, userId, userAccountId);
 	}
 
@@ -1272,22 +982,20 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			.CountAsync();
 	}
 
+	private async Task<Guid> _GetTenantFullAccessProfileIdAsync(Guid tenantId) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		return await FullAccessProfileTestHelper.EnsureTenantProfileAsync(dbContext, tenantId);
+	}
+
 	private async Task<int> _CountActiveAdminsAsync(Guid tenantId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		return await (
-			from ua in dbContext.UserAccount
-			from u in dbContext.User
-			where u.Id == ua.UserId
-				&& ua.TenantId == tenantId
-				&& ua.Scope == AccountScope.Tenant
-				&& ua.Level == AccountLevel.Admin
-				&& ua.Status != AccountStatus.Suspended
-				&& !ua.IsDeleted
-				&& !u.IsDeleted
-				&& u.Status != UserStatus.Suspended
-			select ua.Id
-		).CountAsync();
+		return await FullAccessRoleQueries.CountActiveTenantFullAccessAsync(
+			dbContext,
+			tenantId
+		);
 	}
 }

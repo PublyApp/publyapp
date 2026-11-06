@@ -37,7 +37,6 @@ public class UpdateTenantUserDocument {
 	public PatchField<string?> FirstName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> LastName { get; set; } = PatchField<string?>.Absent();
 	public PatchField<string?> AvatarUrl { get; set; } = PatchField<string?>.Absent();
-	public string? Level { get; set; }
 }
 
 public abstract record UpdateTenantUserResult {
@@ -45,7 +44,6 @@ public abstract record UpdateTenantUserResult {
 		TenantUserData UserData
 	) : UpdateTenantUserResult;
 	public sealed record NotFound() : UpdateTenantUserResult;
-	public sealed record CannotDemoteLastAdmin() : UpdateTenantUserResult;
 }
 
 public abstract record SuspendTenantUserResult {
@@ -155,15 +153,6 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 		var user = userAccount.User;
 		var account = userAccount.Account;
 
-		// Determine new level if provided
-		AccountLevel? newLevel = null;
-		if (document.Level is not null) {
-			newLevel = UserAccount.ParseLevel(document.Level);
-			if (newLevel is null) {
-				return new UpdateTenantUserResult.NotFound();
-			}
-		}
-
 		// This method ALWAYS writes BOTH user_accounts and users (their UpdatedAt below), so it
 		// always participates in the canonical lock order — not only on demotions. EF Core 10
 		// finds no FK dependency edge between those two independent updates (neither a principal
@@ -192,10 +181,7 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 
 			// Revalidate the tracked target after the mutex wait. While we blocked on users(U),
 			// a concurrent holder of it (another PATCH, company create/restore, global
-			// suspension) may have soft-deleted the account/user or changed the account level.
-			// The demotion decision below MUST be made from this fresh post-lock state: a
-			// concurrent promotion to Admin would otherwise turn our "set to User" into an
-			// unguarded demotion and could strand the tenant at zero admins.
+			// suspension) may have soft-deleted the account/user.
 			await this._DbContext.Entry(account).ReloadAsync(cancellationToken);
 			await this._DbContext.Entry(user).ReloadAsync(cancellationToken);
 
@@ -204,56 +190,10 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 				return new UpdateTenantUserResult.NotFound();
 			}
 
-			// A real demotion (Admin -> non-Admin) is the only branch that can reduce a
-			// tenant's active-admin count, so it is the only one that needs the tenant mutex
-			// and the last-admin guard.
-			var isDemotion =
-				newLevel is not null
-				&& account.Level == AccountLevel.Admin
-				&& newLevel != AccountLevel.Admin;
-
-			if (isDemotion) {
-				// Step 2: the tenant's active-admin mutex, taken before the counts below so
-				// they include concurrent admin removals. Both guard reads run after both
-				// locks, so they are fresh under READ COMMITTED — nothing read before this
-				// point is trusted for the invariant decision.
-				await TenantMembershipLockOrder.LockTenantRowsAsync(
-					this._DbContext,
-					[tenantId],
-					cancellationToken
-				);
-
-				var isDemotingActiveAdmin = await TenantUserMembershipOperations
-					.IsActiveTenantAdminAsync(
-					this._DbContext,
-					tenantId,
-					userId,
-					cancellationToken
-				);
-				var hasAnotherActiveAdmin = isDemotingActiveAdmin
-					&& await TenantUserMembershipOperations
-						.TenantHasAnotherActiveAdminAsync(
-						this._DbContext,
-						tenantId,
-						userId,
-						cancellationToken
-					);
-
-				if (isDemotingActiveAdmin && !hasAnotherActiveAdmin) {
-					// Explicit rollback: this exit holds users(U) and tenants(T).
-					await transaction.RollbackAsync(cancellationToken);
-					return new UpdateTenantUserResult.CannotDemoteLastAdmin();
-				}
-			}
-
 			// Captured before mutation: the replaced avatar's reference is released
 			// in the same transaction as the entity write (#807 F5).
 			var previousAvatarUrl = user.AvatarUrl;
 
-			// Apply all changes: account level + user profile fields
-			if (newLevel is not null) {
-				account.Level = newLevel.Value;
-			}
 			if (document.FirstName.IsPresent) {
 				user.FirstName = document.FirstName.Value;
 			}
@@ -290,7 +230,15 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			new TenantUserData {
 				User = user,
 				Account = account,
-				AccountLevel = account.Level
+				IsFullAccess = await PublyApp.Api.Modules.Profiles.Services.FullAccessRoleQueries
+					.IsFullAccessAccountAsync(this._DbContext, account.GetRequiredId(), cancellationToken),
+				Roles = await (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == account.GetRequiredId() && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToListAsync(cancellationToken)
 			}
 		);
 	}

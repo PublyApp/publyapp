@@ -24,8 +24,7 @@ public abstract record FindTenantUsersResult {
 
 public record FindTenantUsersAsStaffFilters(
 	string? Search,
-	IReadOnlySet<TenantUserStatus>? Status,
-	IReadOnlySet<AccountLevel>? Level
+	IReadOnlySet<TenantUserStatus>? Status
 );
 
 public record FindTenantUsersAsStaffArgs(
@@ -39,7 +38,8 @@ public record FindTenantUsersAsStaffArgs(
 public class TenantUserData {
 	public required User User { get; set; }
 	public required UserAccount Account { get; set; }
-	public required AccountLevel AccountLevel { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 }
 
 public class TenantUserDetailsData {
@@ -50,7 +50,6 @@ public class TenantUserDetailsData {
 public record ExportTenantUsersArgs(
 	string? Search,
 	IReadOnlySet<TenantUserStatus>? Status,
-	IReadOnlySet<AccountLevel>? Level,
 	IReadOnlySet<Guid>? Ids,
 	int Limit
 );
@@ -59,7 +58,8 @@ public record TenantUserExportItem {
 	public required string Email { get; init; }
 	public string? FirstName { get; init; }
 	public string? LastName { get; init; }
-	public required AccountLevel Level { get; init; }
+	public required List<string> Roles { get; init; }
+	public required bool IsFullAccess { get; init; }
 	public required TenantUserStatus Status { get; init; }
 	public required DateTime CreatedAt { get; init; }
 }
@@ -137,12 +137,15 @@ public class TenantUserQueryService : ITenantUserQueryService {
 		idSelector: x => x.UserId,
 		cancellationToken
 	),
-		["level"] = CursorSortFieldHandlerFactory.Create<UserAccount, AccountLevel, Guid>(
+		["is_full_access"] = CursorSortFieldHandlerFactory.Create<UserAccount, bool, Guid>(
 		cursorLookupQuery: () => this._DbContext.UserAccount
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
-		keySelector: x => x.Level,
+		keySelector: x => this._DbContext.UserAccountProfile.Any(uap =>
+			uap.UserAccountId == x.Id
+			&& !uap.Profile.IsDeleted
+			&& uap.Profile.IsFullAccess),
 		idSelector: x => x.UserId,
 		cancellationToken
 	),
@@ -213,11 +216,6 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			);
 		}
 
-		// Apply level filter
-		if (args.Filters?.Level is { } levels && levels.Count > 0) {
-			query = query.Where(ua => levels.Contains(ua.Level));
-		}
-
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue =
 				await handler.GetCursorValue(args.Cursor);
@@ -243,7 +241,17 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			.Select(ua => new TenantUserData {
 				User = ua.User,
 				Account = ua,
-				AccountLevel = ua.Level,
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList()
 			})
 			.Take(effectiveLimit + 1)
 			.ToListAsync(cancellationToken);
@@ -278,7 +286,17 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			select new TenantUserData {
 				User = ua.User,
 				Account = ua,
-				AccountLevel = ua.Level,
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList()
 			}
 		).FirstOrDefaultAsync(cancellationToken);
 	}
@@ -308,7 +326,17 @@ public class TenantUserQueryService : ITenantUserQueryService {
 				Email = ua.User.Email,
 				FirstName = ua.User.FirstName,
 				LastName = ua.User.LastName,
-				Level = ua.Level,
+				Roles = (
+					from uap in this._DbContext.UserAccountProfile
+					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					where uap.UserAccountId == ua.Id && !p.IsDeleted
+					orderby p.Name
+					select p.Name
+				).ToList(),
+				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Profile.IsDeleted
+					&& uap.Profile.IsFullAccess),
 				Status = UserAccount.GetTenantStatus(ua.User.Status, ua.Status),
 				CreatedAt = ua.User.CreatedAt,
 			}
@@ -354,10 +382,6 @@ public class TenantUserQueryService : ITenantUserQueryService {
 					&& ua.User.Status != UserStatus.Suspended
 					&& ua.Status != AccountStatus.Suspended)
 			);
-		}
-
-		if (args.Level is { Count: > 0 } levels) {
-			query = query.Where(ua => levels.Contains(ua.Level));
 		}
 
 		if (args.Ids is { Count: > 0 } ids) {

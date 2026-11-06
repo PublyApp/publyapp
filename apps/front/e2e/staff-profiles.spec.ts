@@ -86,7 +86,7 @@ test.describe(
 
 			await expect(page.getByTestId(TABLE)).toBeVisible();
 			await expect(
-				page.getByRole('columnheader', { name: 'Profile' }),
+				page.getByRole('columnheader', { name: 'Role' }),
 			).toBeVisible();
 			await expect(
 				page.getByRole('columnheader', { name: 'Type' }),
@@ -130,7 +130,7 @@ test.describe(
 
 			const panel = page.getByTestId('app-shell-secondary-panel');
 			await expect(
-				panel.getByRole('button', { name: /Profiles\s+\d+/ }),
+				panel.getByRole('button', { name: /Roles\s+\d+/ }),
 			).toBeVisible();
 			// The prototype's list moved member presence from the Team panel
 			// shortcuts into the generic filter menu (Types stays a panel filter).

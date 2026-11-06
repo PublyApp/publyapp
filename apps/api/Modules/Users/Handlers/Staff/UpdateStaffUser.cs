@@ -23,7 +23,6 @@ public class UpdateStaffUserBody {
 	public JsonElement LastName { get; init; }
 	public JsonElement FirstName { get; init; }
 	public JsonElement AvatarUrl { get; init; }
-	public JsonElement? AccountLevel { get; set; }
 
 	public PatchField<string?> GetFirstName() {
 		return this.FirstName.ValueKind switch {
@@ -85,9 +84,6 @@ public class UpdateStaffUserBody {
 		};
 	}
 
-	public string? GetAccountLevel() {
-		return this.AccountLevel?.GetValueAsStringOrNull();
-	}
 }
 
 public class UpdateStaffUserBodyValidator
@@ -111,8 +107,6 @@ public class UpdateStaffUserBodyValidator
 				UserValidationRules.AvatarUrlMaxLength
 			);
 
-		this.RuleFor(x => x.AccountLevel)
-			.MustBeNullableAccountLevel();
 	}
 }
 
@@ -148,12 +142,9 @@ public sealed class UpdateStaffUser {
 		var firstName = body.GetFirstName();
 		var lastName = body.GetLastName();
 		var avatarUrl = body.GetAvatarUrl();
-		var accountLevel = body.GetAccountLevel();
-
 		if (!firstName.IsPresent
 			&& !lastName.IsPresent
-			&& !avatarUrl.IsPresent
-			&& accountLevel is null) {
+			&& !avatarUrl.IsPresent) {
 			// PATCH-like endpoint: an empty request means the client sent no work.
 			return TypedProblems.BadRequest(
 				"No fields to update",
@@ -165,7 +156,6 @@ public sealed class UpdateStaffUser {
 			LastName = lastName,
 			FirstName = firstName,
 			AvatarUrl = avatarUrl,
-			AccountLevel = accountLevel,
 		};
 
 		var result =
@@ -237,7 +227,8 @@ public sealed class UpdateStaffUser {
 				LastName = userData.User.LastName,
 				FirstName = userData.User.FirstName,
 				AvatarUrl = userData.User.AvatarUrl,
-				AccountLevel = userData.AccountLevel,
+				IsFullAccess = userData.IsFullAccess,
+				Roles = userData.Roles,
 				Status = userData.User.Status,
 			}
 		);

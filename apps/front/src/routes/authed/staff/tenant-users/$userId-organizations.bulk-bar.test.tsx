@@ -146,7 +146,7 @@ const companyRows = [
 		id: TENANT_ID,
 		name: 'Acme Corp',
 		logoUrl: null,
-		level: null,
+		isFullAccess: false,
 		status: 'Active',
 		createdAt: new Date('2026-07-01T09:00:00Z'),
 		updatedAt: new Date('2026-07-02T10:00:00Z'),

@@ -34,7 +34,6 @@ import { rememberPristineStaffUserEditValues } from './_edit-nav-guard';
 import {
 	PROFILE_PAGE_SIZE,
 	getStaffUserEditSchema,
-	normalizeAccountLevel,
 	normalizeStatus,
 	type StaffUserEditValues,
 } from './_edit-schema';
@@ -116,7 +115,6 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 			lastName: '',
 			avatarUrl: '',
 			email: '',
-			accountLevel: 'User',
 			status: 'Active',
 			profileIds: [],
 		},
@@ -170,7 +168,6 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 			lastName: user.lastName ?? '',
 			avatarUrl: user.avatarUrl ?? '',
 			email: user.email,
-			accountLevel: normalizeAccountLevel(user.accountLevel),
 			status: normalizeStatus(user.status),
 			profileIds: assignedProfiles.map((profile) => profile.id),
 		};

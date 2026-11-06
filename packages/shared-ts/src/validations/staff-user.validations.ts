@@ -7,7 +7,7 @@ export const getNewStaffUserSchema = (z: ZodI18n) => {
 		firstName: z.string().min(1).optional(),
 		lastName: z.string().min(1),
 		email: z.email(),
-		accountLevel: z.enum(['Admin', 'User'] as const),
+		profileIds: z.array(z.string()).optional(),
 		sendNotification: z.boolean().optional(),
 		avatar: getFileSchemaClientSide(z).or(z.string()).optional(),
 	});

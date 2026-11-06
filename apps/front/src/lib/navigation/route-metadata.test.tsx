@@ -482,11 +482,12 @@ describe('front route metadata', () => {
 		});
 
 		test('the "*" admin sentinel keeps the whole rail visible without listing keys', () => {
-			// Tenant admins pass every TenantPermissionFilter gate via the
-			// backend's "*" sentinel (user-auth-data materialises it for
-			// AccountLevel.Admin); scope-auth-data carries IsAdmin alongside
-			// profile keys, so the filter honours the same sentinel instead
-			// of hiding modules from an admin whose profile lists no keys.
+			// Full-access holders pass every TenantPermissionFilter gate via
+			// the backend's "*" sentinel (user-auth-data materialises it for
+			// the full-access role); scope-auth-data carries IsAdmin alongside
+			// role keys, so the filter honours the same sentinel instead of
+			// hiding modules from a full-access holder whose role lists no
+			// keys.
 			const items = getRailItems('tenant');
 			const filtered = filterRailItemsByPermissions(items, new Set(['*']));
 			expect(filtered).toEqual(items);

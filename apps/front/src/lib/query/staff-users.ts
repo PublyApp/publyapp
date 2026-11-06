@@ -14,7 +14,6 @@ import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
-	AccountLevel,
 	ApiResponse,
 	BulkStaffUserActionResult,
 	FindStaffUsersResponse,
@@ -54,11 +53,10 @@ export type StaffUserRow = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	level: AccountLevel | null;
+	isFullAccess: boolean;
+	roles: string[];
 	status: UserStatus | null;
 	displayName: string;
-	/** Staff profile names assigned to the account, from the list row. */
-	profileNames: string[];
 };
 
 export type AssignedStaffProfile = {
@@ -73,7 +71,8 @@ export type StaffUserDetails = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	accountLevel: string | null;
+	isFullAccess: boolean;
+	roles: string[];
 	status: string | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
@@ -85,7 +84,6 @@ export type StaffUserUpdateInput = {
 	firstName?: string | null;
 	lastName?: string | null;
 	avatarUrl?: string | null;
-	accountLevel?: string | null;
 };
 
 export type StaffUserEmailUpdateInput = {
@@ -215,13 +213,12 @@ export const toStaffUserRows = (
 			firstName,
 			lastName,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
-			level: item.level ?? null,
+			isFullAccess: item.isFullAccess === true,
+			roles: (item.roles ?? []).filter(
+				(role): role is string => typeof role === 'string',
+			),
 			status: item.status ?? null,
 			displayName: getDisplayName({ firstName, lastName, email }),
-			profileNames: (item.profileNames ?? []).flatMap((name) => {
-				const normalized = normalizeString(name ?? undefined);
-				return normalized ? [normalized] : [];
-			}),
 		});
 	}
 
@@ -250,7 +247,10 @@ export const toStaffUserDetails = (
 		firstName,
 		lastName,
 		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
-		accountLevel: result?.accountLevel ?? null,
+		isFullAccess: result?.isFullAccess === true,
+		roles: (result?.roles ?? []).filter(
+			(role): role is string => typeof role === 'string',
+		),
 		status: result?.status ?? null,
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
@@ -307,7 +307,6 @@ const buildUpdateStaffUserBody = (
 	const firstName = normalizeUpdateStringField(input.firstName);
 	const lastName = normalizeUpdateStringField(input.lastName);
 	const avatarUrl = normalizeUpdateStringField(input.avatarUrl);
-	const accountLevel = normalizeUpdateStringField(input.accountLevel);
 
 	if (firstName !== undefined) {
 		body.firstName = firstName === null ? null : createUntypedString(firstName);
@@ -322,15 +321,6 @@ const buildUpdateStaffUserBody = (
 			avatarUrl === null
 				? null
 				: createUntypedString(toRootRelativeApiFileUrl(avatarUrl));
-	}
-
-	if (accountLevel !== undefined) {
-		body.accountLevel =
-			accountLevel === null
-				? null
-				: (createUntypedString(
-						accountLevel,
-					) as UpdateStaffUserBody['accountLevel']);
 	}
 
 	return body;

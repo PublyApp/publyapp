@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data;
-using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Invitations.Entities;
 
@@ -50,10 +49,6 @@ public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 	[Column("token")]
 	public required string Token { get; set; }
 
-	// Only present for InvitationEmailKind.TenantInvitation.
-	[Column("account_level")]
-	public AccountLevel? AccountLevel { get; set; }
-
 	// Links this row back to the invitation it delivers a link for, so revoke/accept
 	// can cancel a still-pending send and the dispatcher can recheck eligibility
 	// right before sending (round-6 API F3). Nullable only because it is populated
@@ -96,15 +91,13 @@ public class InvitationEmailOutbox : BaseAttributes, INoTenantEntity {
 	public static InvitationEmailOutbox CreateTenantInvitation(
 		string email,
 		string tenantName,
-		string token,
-		AccountLevel accountLevel
+		string token
 	) {
 		return new InvitationEmailOutbox {
 			Email = email,
 			Kind = InvitationEmailKind.TenantInvitation,
 			TenantName = tenantName,
 			Token = token,
-			AccountLevel = accountLevel
 		};
 	}
 

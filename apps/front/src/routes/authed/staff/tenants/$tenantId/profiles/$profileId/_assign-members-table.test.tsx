@@ -112,7 +112,8 @@ const ROW: StaffTenantUserRow = {
 	lastName: 'Lovelace',
 	avatarUrl: null,
 	status: TenantUserStatusObject.Active,
-	level: null,
+	isFullAccess: false,
+	roles: [],
 	displayName: 'Ada Lovelace',
 };
 

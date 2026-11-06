@@ -47,25 +47,17 @@ export const formatTenantUserStatusLabel = (
 	return status ?? t('status-unknown');
 };
 
-export const tenantUserLevelChipClassName = (level: string | null): string =>
-	(level ?? '').trim().toLowerCase() === 'admin'
+/** Access is now binary: either the tenant's full-access role or not. The
+ * role names themselves live on the row, so this only names the distinction. */
+export const tenantUserAccessChipClassName = (isFullAccess: boolean): string =>
+	isFullAccess
 		? 'publy-detail-chip publy-detail-chip--amber'
 		: 'publy-detail-chip publy-detail-chip--outline';
 
-export const formatTenantUserLevelLabel = (
-	level: string | null,
+export const formatTenantUserAccessLabel = (
+	isFullAccess: boolean,
 	t: (key: string) => string,
-): string => {
-	const normalized = level?.trim().toLowerCase() ?? '';
-	if (normalized === 'admin') {
-		return t('admin');
-	}
-	if (normalized === 'user') {
-		return t('user');
-	}
-	// data-honesty-ignore: an unrecognized/absent account level is a genuine "no value" formatter case, not fabricated identity data
-	return level ?? '—';
-};
+): string => (isFullAccess ? t('full-access') : t('standard-access'));
 
 export {
 	formatDateTime,

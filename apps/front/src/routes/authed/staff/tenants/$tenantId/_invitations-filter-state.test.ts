@@ -21,18 +21,16 @@ const build = (search: Partial<InvitationRouteSearchParams> = {}) => {
 };
 
 describe('buildInvitationsFilterState', () => {
-	test('parses the selected statuses and levels out of the search params', () => {
-		const { state } = build({ status: 'pending,expired', level: 'admin' });
+	test('parses the selected statuses out of the search params', () => {
+		const { state } = build({ status: 'pending,expired' });
 
 		expect(state.selectedStatuses).toEqual(['pending', 'expired']);
-		expect(state.selectedLevels).toEqual(['admin']);
 	});
 
 	test('labels an empty selection with the all-values copy', () => {
 		const { state } = build();
 
 		expect(state.statusFilterLabel).toBe('all-statuses');
-		expect(state.levelFilterLabel).toBe('all-account-levels');
 	});
 
 	test('joins the selected status labels', () => {
@@ -64,28 +62,6 @@ describe('buildInvitationsFilterState', () => {
 
 		expect(applySearch).toHaveBeenCalledWith({
 			status: 'expired',
-			cursor: undefined,
-		});
-	});
-
-	test('adds an unselected level and resets the cursor', () => {
-		const { applySearch, state } = build({ level: 'admin', cursor: 'abc' });
-
-		state.toggleLevel('user');
-
-		expect(applySearch).toHaveBeenCalledWith({
-			level: 'admin,user',
-			cursor: undefined,
-		});
-	});
-
-	test('clears every level when set to an empty selection', () => {
-		const { applySearch, state } = build({ level: 'admin' });
-
-		state.setLevels([]);
-
-		expect(applySearch).toHaveBeenCalledWith({
-			level: undefined,
 			cursor: undefined,
 		});
 	});

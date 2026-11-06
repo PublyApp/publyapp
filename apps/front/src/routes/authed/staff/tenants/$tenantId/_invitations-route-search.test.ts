@@ -15,11 +15,10 @@ const BASE = {
 };
 
 describe('parseInvitationRouteSearchParams', () => {
-	test('parses list params, the level filter and the invite flag together', () => {
+	test('parses list params and the invite flag together', () => {
 		expect(
 			parseInvitationRouteSearchParams({
 				...BASE,
-				level: 'admin,user',
 				invite: '1',
 			}),
 		).toEqual({
@@ -29,17 +28,15 @@ describe('parseInvitationRouteSearchParams', () => {
 			sortOrder: 'desc',
 			cursor: 'c1',
 			size: 100,
-			level: 'admin,user',
 			invite: 1,
 		});
 	});
 
-	test('drops unknown status and level tokens instead of passing them through', () => {
+	test('drops unknown status tokens instead of passing them through', () => {
 		expect(
 			parseInvitationRouteSearchParams({
 				...BASE,
 				status: 'bogus',
-				level: 'x',
 			}),
 		).toEqual({
 			q: 'sam',
@@ -48,15 +45,8 @@ describe('parseInvitationRouteSearchParams', () => {
 			sortOrder: 'desc',
 			cursor: 'c1',
 			size: 100,
-			level: undefined,
 			invite: undefined,
 		});
-	});
-
-	test('treats a blank level as no filter', () => {
-		expect(
-			parseInvitationRouteSearchParams({ ...BASE, level: '  ' }).level,
-		).toBeUndefined();
 	});
 });
 
@@ -64,7 +54,6 @@ describe('serializeInvitationRouteSearchParams', () => {
 	test('round-trips parsed params back to snake_case URL values', () => {
 		const params = parseInvitationRouteSearchParams({
 			...BASE,
-			level: 'admin',
 			invite: '1',
 		});
 
@@ -75,7 +64,6 @@ describe('serializeInvitationRouteSearchParams', () => {
 			sort_order: 'desc',
 			cursor: 'c1',
 			size: 100,
-			level: 'admin',
 			invite: 1,
 		});
 	});
@@ -87,7 +75,6 @@ describe('serializeInvitationRouteSearchParams', () => {
 			serializeInvitationRouteSearchParams({
 				...params,
 				status: undefined,
-				level: undefined,
 				invite: undefined,
 			}),
 		).toEqual({
@@ -97,7 +84,6 @@ describe('serializeInvitationRouteSearchParams', () => {
 			sort_order: 'desc',
 			cursor: 'c1',
 			size: 100,
-			level: undefined,
 			invite: undefined,
 		});
 	});

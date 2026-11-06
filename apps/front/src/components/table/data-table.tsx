@@ -404,7 +404,7 @@ export const DataTable = <TData extends { id: string }>({
 	// clear or pagination move only DataTable itself re-rendered while its
 	// extracted children kept showing the PREVIOUS page's rows. The CI e2e
 	// failures on 2026-08-24 across five specs (search-clear restore, status-
-	// filter reset, level-filter disabled state, pager Previous) were one
+	// filter reset, role-filter disabled state, pager Previous) were one
 	// root cause. Opting these three components out restores pre-split
 	// semantics: children re-render whenever the parent does. Keep any
 	// component that reads `table.*` during render out of the compiler.

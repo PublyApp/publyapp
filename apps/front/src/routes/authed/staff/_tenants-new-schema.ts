@@ -4,7 +4,7 @@ import {
 	SEAT_OPTIONS,
 	SEATS_FROM_VALUE,
 	USER_ROLE_OPTIONS,
-	type NewTenantAccountLevel,
+	type NewTenantRole,
 } from './_tenants-new-types';
 import { isValidTenantCode } from './tenants-new-helpers';
 import {
@@ -12,9 +12,7 @@ import {
 	isValidEmailAddress,
 } from './tenants/tenant-organization-profile-fields';
 
-export const getUserLevel = (
-	value: string | undefined,
-): NewTenantAccountLevel =>
+export const getUserRole = (value: string | undefined): NewTenantRole =>
 	value === USER_ROLE_OPTIONS[1] ? USER_ROLE_OPTIONS[1] : USER_ROLE_OPTIONS[0];
 
 /**
@@ -63,7 +61,7 @@ export const buildCreateTenantSchema = (
 						.string()
 						.trim()
 						.pipe(z.email({ message: t('invalid-email-address') })),
-					accountLevel: z.enum(USER_ROLE_OPTIONS),
+					role: z.enum(USER_ROLE_OPTIONS),
 				}),
 			),
 			seedDefaultProfile: z.boolean(),

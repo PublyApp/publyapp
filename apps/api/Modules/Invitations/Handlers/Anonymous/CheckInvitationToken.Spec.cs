@@ -130,7 +130,7 @@ public sealed class CheckInvitationTokenSpec
 				"initialUsers": [
 					{
 						"email": "{{inviteEmail}}",
-						"accountLevel": "Admin"
+						"role": "owner"
 					}
 				]
 			}

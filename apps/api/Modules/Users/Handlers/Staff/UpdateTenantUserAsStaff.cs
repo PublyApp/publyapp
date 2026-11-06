@@ -27,7 +27,8 @@ public class TenantUserDetailsResult {
 	public string? FirstName { get; set; }
 	public string? LastName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public AccountLevel Level { get; set; }
+	public bool IsFullAccess { get; set; }
+	public List<string> Roles { get; set; } = [];
 	public TenantUserStatus Status { get; set; }
 	public Guid? TenantId { get; set; }
 	public DateTime CreatedAt { get; set; }
@@ -35,16 +36,13 @@ public class TenantUserDetailsResult {
 }
 
 /// <summary>
-/// Updates a tenant user's profile and/or account level.
+/// Updates a tenant user's name, avatar and/or profile assignments.
 /// </summary>
 public class UpdateTenantUserAsStaffBody {
 	// User profile fields
 	public JsonElement FirstName { get; init; }
 	public JsonElement LastName { get; init; }
 	public JsonElement AvatarUrl { get; init; }
-
-	// UserAccount fields
-	public JsonElement? Level { get; set; }
 
 	// Helper methods
 	public PatchField<string?> GetFirstName() {
@@ -107,9 +105,6 @@ public class UpdateTenantUserAsStaffBody {
 		};
 	}
 
-	public string? GetLevel() {
-		return this.Level?.GetValueAsStringOrNull();
-	}
 }
 
 public class UpdateTenantUserAsStaffBodyValidator
@@ -132,20 +127,6 @@ public class UpdateTenantUserAsStaffBodyValidator
 				"AvatarUrl",
 				UserValidationRules.AvatarUrlMaxLength
 			);
-
-		this.RuleFor(x => x.Level).Custom((element, context) => {
-			if (element is null) {
-				return;
-			}
-			var kind = element.Value.ValueKind;
-			if (kind == JsonValueKind.Null) {
-				return;
-			}
-			if (kind != JsonValueKind.String
-				|| element.Value.GetString() is not ("Admin" or "User")) {
-				context.AddFailure("Level must be 'Admin' or 'User'");
-			}
-		});
 	}
 }
 
@@ -183,13 +164,11 @@ public sealed class UpdateTenantUserAsStaff {
 		var firstName = body.GetFirstName();
 		var lastName = body.GetLastName();
 		var avatarUrl = body.GetAvatarUrl();
-		var level = body.GetLevel();
 
 		// Check if there's anything to update
 		if (!firstName.IsPresent
 			&& !lastName.IsPresent
-			&& !avatarUrl.IsPresent
-			&& level is null) {
+			&& !avatarUrl.IsPresent) {
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -200,7 +179,6 @@ public sealed class UpdateTenantUserAsStaff {
 			FirstName = firstName,
 			LastName = lastName,
 			AvatarUrl = avatarUrl,
-			Level = level,
 		};
 
 		var result = await tenantUserMembershipService.UpdateTenantUserAsync(
@@ -234,7 +212,6 @@ public sealed class UpdateTenantUserAsStaff {
 							FirstName = firstName.IsPresent,
 							LastName = lastName.IsPresent,
 							AvatarUrl = avatarUrl.IsPresent,
-							Level = level is not null,
 						}
 					}
 				),
@@ -249,7 +226,8 @@ public sealed class UpdateTenantUserAsStaff {
 					FirstName = userData.User.FirstName,
 					LastName = userData.User.LastName,
 					AvatarUrl = userData.User.AvatarUrl,
-					Level = userData.AccountLevel,
+					IsFullAccess = userData.IsFullAccess,
+					Roles = userData.Roles,
 					Status = UserAccount.GetTenantStatus(
 						userData.User.Status,
 						userData.Account.Status
@@ -265,13 +243,6 @@ public sealed class UpdateTenantUserAsStaff {
 			return TypedProblems.NotFound(
 				"User not found in tenant",
 				ResponseKeys.NotFound
-			);
-		}
-
-		if (result is UpdateTenantUserResult.CannotDemoteLastAdmin) {
-			return TypedProblems.BadRequest(
-				"Cannot demote the last admin from the tenant",
-				ResponseKeys.CannotDemoteLastAdmin
 			);
 		}
 

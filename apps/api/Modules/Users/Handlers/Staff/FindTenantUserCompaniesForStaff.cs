@@ -16,7 +16,7 @@ public class TenantUserCompanyForStaffResult {
 	public Guid TenantId { get; set; }
 	public string TenantName { get; set; } = string.Empty;
 	public string? TenantLogoUrl { get; set; }
-	public AccountLevel Level { get; set; }
+	public bool IsFullAccess { get; set; }
 	public TenantUserStatus Status { get; set; }
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
@@ -56,7 +56,7 @@ public static class TenantUserCompanyForStaffMapper {
 			TenantId = companyData.Tenant.GetRequiredId(),
 			TenantName = companyData.Tenant.Name,
 			TenantLogoUrl = companyData.Tenant.LogoUrl,
-			Level = companyData.AccountLevel,
+			IsFullAccess = companyData.IsFullAccess,
 			// Expose effective row status: global User suspension overrides an
 			// otherwise active tenant membership.
 			Status = UserAccount.GetTenantStatus(

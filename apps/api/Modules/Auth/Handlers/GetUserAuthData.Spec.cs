@@ -21,9 +21,10 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 /// <summary>
 /// Proves GET /auth/user-auth-data carries `tenantPermissionKeys` — the
-/// EFFECTIVE tenant permission set (C3 A4): `"*"` for a seeded tenant Admin
-/// (the #861 AccountLevel.Admin short-circuit, whose raw profile-derived set
-/// is empty), and exactly the assigned profile keys for a non-Admin holder.
+/// EFFECTIVE tenant permission set (C3 A4): `"*"` for a tenant member holding
+/// the full-access `Owner` profile (the #861 full-access bypass, whose raw
+/// profile-derived set is empty), and exactly the assigned profile keys for a
+/// member without that profile.
 ///
 /// The private profile helpers are copied verbatim from
 /// TenantPermissionFilter.Spec.cs — they are private there, so this spec
@@ -44,9 +45,9 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExposeWildcardSentinelForSeededTenantAdmin() {
-		// Seeded Acme admin holds no profiles by default (the #861 scenario proven
-		// in TenantPermissionFilter.Spec.cs): the effective set comes from the
-		// AccountLevel.Admin short-circuit, which this endpoint materialises as "*".
+		// Seeded Acme admin holds the tenant `Owner` full-access profile (the #861
+		// scenario proven in TenantPermissionFilter.Spec.cs): the effective set comes
+		// from the full-access profile, which this endpoint materialises as "*".
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
 			this._Http,

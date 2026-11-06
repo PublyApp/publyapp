@@ -20,10 +20,7 @@ import {
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
 
-import {
-	AccountLevelObject,
-	TenantUserStatusObject,
-} from '@org/client-ts/models/index';
+import { TenantUserStatusObject } from '@org/client-ts/models/index';
 import type {
 	BulkCreateTenantInvitationsForTenantAsStaffCreated,
 	BulkRemoveTenantUsersResult,
@@ -57,14 +54,14 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 		expect(
 			buildFindStaffTenantUsersQueryParameters({
 				q: ' alex ',
-				sortId: ' level ',
+				sortId: ' email ',
 				sortOrder: 'asc',
 				cursor: ' user-123 ',
 				size: 50,
 			}),
 		).toEqual({
 			q: 'alex',
-			sortId: 'level',
+			sortId: 'email',
 			sortOrder: 'asc',
 			cursor: 'user-123',
 			limit: '50',
@@ -79,24 +76,6 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 				sortOrder: undefined,
 				cursor: ' ',
 				size: 0,
-			}),
-		).toEqual({});
-	});
-
-	test('trims and forwards the level filter', () => {
-		expect(
-			buildFindStaffTenantUsersQueryParameters({
-				level: ' admin ',
-			}),
-		).toEqual({
-			level: 'admin',
-		});
-	});
-
-	test('omits a blank level filter', () => {
-		expect(
-			buildFindStaffTenantUsersQueryParameters({
-				level: '   ',
 			}),
 		).toEqual({});
 	});
@@ -116,15 +95,15 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 		});
 	});
 
-	test('trims email and account level and wraps them for the API contract', () => {
+	test('trims email and wraps it with the assigned role ids for the API contract', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '  alice@example.com  ',
-				accountLevel: 'User',
+				profileIds: ['profile-1'],
 			}),
 		).toMatchObject({
 			email: { value: 'alice@example.com' },
-			accountLevel: { value: 'User' },
+			profileIds: { value: [{ value: 'profile-1' }] },
 		});
 	});
 
@@ -132,6 +111,7 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '   ',
+				profileIds: [],
 			}),
 		).toEqual({});
 	});
@@ -142,7 +122,6 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 				firstName: ' Alex ',
 				lastName: '   ',
 				avatarUrl: ' https://example.com/avatar.png ',
-				accountLevel: 'Admin',
 			}),
 		).toMatchObject({
 			firstName: { value: 'Alex' },
@@ -152,19 +131,9 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 
 		expect(
 			buildUpdateStaffTenantUserBody({
-				firstName: ' Alex ',
-				lastName: '   ',
-				avatarUrl: ' https://example.com/avatar.png ',
-				accountLevel: 'Admin',
-			}).level,
-		).toMatchObject({ value: 'Admin' });
-
-		expect(
-			buildUpdateStaffTenantUserBody({
 				firstName: undefined,
 				lastName: undefined,
 				avatarUrl: undefined,
-				accountLevel: undefined,
 			}),
 		).toEqual({});
 	});
@@ -181,17 +150,15 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 });
 
 describe('buildBulkCreateStaffTenantInvitationsBody', () => {
-	test('wraps every invitee email, account level, and profile id for Kiota', () => {
+	test('wraps every invitee email and profile id for Kiota', () => {
 		expect(
 			buildBulkCreateStaffTenantInvitationsBody([
 				{
 					email: '  alice@example.com  ',
-					accountLevel: 'Admin',
 					profileIds: ['profile-1', 'profile-2'],
 				},
 				{
 					email: 'bob@example.com',
-					accountLevel: 'User',
 					profileIds: [],
 				},
 			]),
@@ -201,7 +168,6 @@ describe('buildBulkCreateStaffTenantInvitationsBody', () => {
 					{
 						value: {
 							email: { value: 'alice@example.com' },
-							accountLevel: { value: 'Admin' },
 							profileIds: {
 								value: [{ value: 'profile-1' }, { value: 'profile-2' }],
 							},
@@ -210,7 +176,6 @@ describe('buildBulkCreateStaffTenantInvitationsBody', () => {
 					{
 						value: {
 							email: { value: 'bob@example.com' },
-							accountLevel: { value: 'User' },
 							profileIds: { value: [] },
 						},
 					},
@@ -269,7 +234,6 @@ describe('bulkCreateStaffTenantInvitationsMutationOptions', () => {
 				invitations: [
 					{
 						email: 'alice@example.com',
-						accountLevel: 'User',
 						profileIds: ['profile-1'],
 					},
 				],
@@ -295,7 +259,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: ' Alex ',
 				lastName: ' Johnson ',
 				email: ' alex@example.com ',
-				level: AccountLevelObject.Admin,
+				isFullAccess: true,
+				roles: ['Owner'],
 				status: TenantUserStatusObject.Active,
 				avatarUrl: ' https://example.com/alex.png ',
 			},
@@ -305,7 +270,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Skip',
 				lastName: 'Me',
 				email: 'skip@example.com',
-				level: AccountLevelObject.User,
+				isFullAccess: false,
+				roles: [],
 				status: TenantUserStatusObject.Active,
 			},
 			{
@@ -314,7 +280,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: ' ',
 				lastName: null,
 				email: ' second@example.com ',
-				level: null,
+				isFullAccess: false,
+				roles: [],
 				status: null,
 				avatarUrl: null,
 			},
@@ -327,7 +294,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Alex',
 				lastName: 'Johnson',
 				email: 'alex@example.com',
-				level: AccountLevelObject.Admin,
+				isFullAccess: true,
+				roles: ['Owner'],
 				status: TenantUserStatusObject.Active,
 				avatarUrl: 'https://example.com/alex.png',
 				displayName: 'Alex Johnson',
@@ -338,7 +306,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: null,
 				lastName: null,
 				email: 'second@example.com',
-				level: null,
+				isFullAccess: false,
+				roles: [],
 				status: null,
 				avatarUrl: null,
 				displayName: 'second@example.com',
@@ -357,7 +326,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
-				level: AccountLevelObject.User,
+				isFullAccess: false,
+				roles: [],
 				status: TenantUserStatusObject.Active,
 			},
 		]);
@@ -378,7 +348,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'No',
 				lastName: 'Account',
 				email: 'no-account@example.com',
-				level: 'User',
+				isFullAccess: false,
+				roles: [],
 				status: 'Active',
 			},
 			{
@@ -387,7 +358,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Also',
 				lastName: 'Missing',
 				email: 'also-missing@example.com',
-				level: 'User',
+				isFullAccess: false,
+				roles: [],
 				status: 'Active',
 			},
 		];
@@ -403,7 +375,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
-				level: AccountLevelObject.User,
+				isFullAccess: false,
+				roles: [],
 				status: TenantUserStatusObject.Active,
 				avatarUrl: '/files/uploads/2026/07/alex.png',
 			},
@@ -426,7 +399,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Nobody',
 				lastName: 'Home',
 				email: '   ',
-				level: AccountLevelObject.User,
+				isFullAccess: false,
+				roles: [],
 				status: TenantUserStatusObject.Active,
 			},
 			{
@@ -448,7 +422,8 @@ describe('toStaffTenantUserDetails', () => {
 			firstName: ' Owner ',
 			lastName: ' User ',
 			avatarUrl: ' https://example.com/avatar.png ',
-			level: AccountLevelObject.Admin,
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: TenantUserStatusObject.Active,
 			tenantId: ' 11111111-1111-1111-1111-111111111111 ',
 			createdAt: new Date('invalid'),
@@ -460,7 +435,8 @@ describe('toStaffTenantUserDetails', () => {
 			firstName: 'Owner',
 			lastName: 'User',
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Admin',
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: 'Active',
 			tenantId: '11111111-1111-1111-1111-111111111111',
 			createdAt: null,
@@ -473,7 +449,8 @@ describe('toStaffTenantUserDetails', () => {
 		const result = toStaffTenantUserDetails({
 			id: ' user-9 ',
 			email: ' owner@publyapp.local ',
-			level: AccountLevelObject.Admin,
+			isFullAccess: true,
+			roles: ['Owner'],
 			status: TenantUserStatusObject.Suspended,
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 		} as TenantUserDetailsResult);
@@ -566,13 +543,11 @@ describe('buildExportStaffTenantUsersQueryParameters', () => {
 			buildExportStaffTenantUsersQueryParameters({
 				q: ' alex ',
 				status: ' active ',
-				level: ' admin ',
 				ids: ['user-1', 'user-2'],
 			}),
 		).toEqual({
 			q: 'alex',
 			status: 'active',
-			level: 'admin',
 			ids: 'user-1,user-2',
 		});
 	});
@@ -582,7 +557,6 @@ describe('buildExportStaffTenantUsersQueryParameters', () => {
 			buildExportStaffTenantUsersQueryParameters({
 				q: '   ',
 				status: undefined,
-				level: undefined,
 				ids: [],
 			}),
 		).toEqual({});

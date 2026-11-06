@@ -12,7 +12,7 @@ import {
 	downloadTemplateCsv,
 	type useTenantMemberImport,
 } from './_tenants-new-import';
-import { getUserLevel } from './_tenants-new-schema';
+import { getUserRole } from './_tenants-new-schema';
 import { type TenantCreateFormValues } from './_tenants-new-types';
 import { type buildMemberImportOutcome } from './tenants-new-helpers';
 
@@ -38,7 +38,7 @@ const parsedFileMeta = (t: TranslateFn, outcome: ImportOutcome): string => {
 };
 
 /** The `Membres initiaux` row of the people group: the CSV drop zone (or the
- * chosen file with its counts), the manual rows with their admin/user level,
+ * chosen file with its counts), the manual rows with their owner/member role,
  * and the add button. */
 export const TenantCreateMembersRow = ({
 	t,
@@ -141,15 +141,15 @@ export const TenantCreateMembersRow = ({
 							/>
 							<Controller
 								control={control}
-								name={`manualMembers.${index}.accountLevel`}
-								render={({ field: levelField }) => (
+								name={`manualMembers.${index}.role`}
+								render={({ field: roleField }) => (
 									<MemberLevelSelect
-										name={`manualMembers.${index}.accountLevel`}
-										value={getUserLevel(levelField.value)}
-										onChange={levelField.onChange}
-										onBlur={levelField.onBlur}
+										name={`manualMembers.${index}.role`}
+										value={getUserRole(roleField.value)}
+										onChange={roleField.onChange}
+										onBlur={roleField.onBlur}
 										disabled={isFormLocked}
-										ariaLabel={t('account-level')}
+										ariaLabel={t('role')}
 										t={t}
 									/>
 								)}

@@ -19,18 +19,18 @@ public class StaffUserItem {
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
 	public UserStatus Status { get; set; }
-	public AccountLevel Level { get; set; }
+	// Full access is carried by a protected system role (never a level).
+	public bool IsFullAccess { get; set; }
 
-	// Staff profile names, assigned to the account (batched read, never N+1).
-	public List<string> ProfileNames { get; set; } = [];
+	// Assigned role names, loaded in one batched query per page (no N+1).
+	public List<string> Roles { get; set; } = [];
 }
 
 public class StaffUserListCounts {
 	public int Total { get; set; }
 	public int Active { get; set; }
 	public int Suspended { get; set; }
-	public int Admins { get; set; }
-	public int Users { get; set; }
+	public int FullAccess { get; set; }
 	public int ConnectedToday { get; set; }
 	public int OpenSessions { get; set; }
 }
@@ -179,8 +179,8 @@ public sealed class FindStaffUsers {
 							FirstName = staffUser.User.FirstName,
 							AvatarUrl = staffUser.User.AvatarUrl,
 							Status = staffUser.User.Status,
-							Level = staffUser.AccountLevel,
-							ProfileNames = staffUser.ProfileNames,
+							IsFullAccess = staffUser.IsFullAccess,
+							Roles = staffUser.Roles,
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,
@@ -189,8 +189,7 @@ public sealed class FindStaffUsers {
 						Total = success.Counts.Total,
 						Active = success.Counts.Active,
 						Suspended = success.Counts.Suspended,
-						Admins = success.Counts.Admins,
-						Users = success.Counts.Users,
+						FullAccess = success.Counts.FullAccess,
 						ConnectedToday = success.Counts.ConnectedToday,
 						OpenSessions = success.Counts.OpenSessions,
 					},

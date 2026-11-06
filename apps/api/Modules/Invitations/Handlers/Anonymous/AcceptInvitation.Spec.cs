@@ -47,7 +47,7 @@ public sealed class AcceptInvitationSpec
 				"initialUsers": [
 					{
 						"email": "{{inviteEmail}}",
-						"accountLevel": "Admin"
+						"role": "owner"
 					}
 				]
 			}
@@ -144,7 +144,7 @@ public sealed class AcceptInvitationSpec
 				"initialUsers": [
 					{
 						"email": "{{inviteEmail}}",
-						"accountLevel": "Admin"
+						"role": "owner"
 					}
 				]
 			}
@@ -236,7 +236,7 @@ public sealed class AcceptInvitationSpec
 				"initialUsers": [
 					{
 						"email": "{{TestConstants.AliceEmail}}",
-						"accountLevel": "Admin"
+						"role": "owner"
 					}
 				]
 			}

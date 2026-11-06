@@ -8,12 +8,16 @@ using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class StaffUserTestHelper {
+	/// <param name="fullAccess">
+	/// When true the account is granted the staff full-access system profile — the
+	/// replacement for the removed per-account admin level.
+	/// </param>
 	public static async Task<Guid> SeedStaffUserAsync(
 		ApiFixture fixture,
 		string email,
 		string firstName = "Staff",
 		string lastName = "User",
-		AccountLevel accountLevel = AccountLevel.User,
+		bool fullAccess = false,
 		UserStatus status = UserStatus.Active
 	) {
 		using var scope = fixture.Factory.Services.CreateScope();
@@ -32,12 +36,18 @@ internal static class StaffUserTestHelper {
 		await dbContext.SaveChangesAsync();
 
 		// Direct seeding replaces the now-unmapped create endpoint in integration tests.
-		var staffAccount = UserAccount.CreateStaffAccount(
-			user.GetRequiredId(),
-			accountLevel
-		);
+		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		_ = await dbContext.UserAccount.AddAsync(staffAccount);
 		await dbContext.SaveChangesAsync();
+
+		if (fullAccess) {
+			var profileId = await FullAccessProfileTestHelper.EnsureStaffProfileAsync(dbContext);
+			await FullAccessProfileTestHelper.AssignAsync(
+				dbContext,
+				staffAccount.GetRequiredId(),
+				profileId
+			);
+		}
 
 		return user.GetRequiredId();
 	}
