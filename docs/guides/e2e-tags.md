@@ -20,6 +20,7 @@ describe is missing a domain tag, uses a domain outside the vocabulary, or lacks
 | `@shell` | App shell chrome, table system, row-action centering, breadcrumb truncation, search input, scroll ownership, grey-UI screenshots |
 | `@staff-audit` | Staff audit logs |
 | `@staff-invitations` | Staff invitations list and details |
+| `@staff-jobs` | Staff jobs dashboard: queue, dead letter, system jobs |
 | `@staff-profiles` | Staff profiles list and details |
 | `@staff-tenants` | Staff tenants list, create, edit, details, status panel, tenant-portal picker |
 | `@staff-users` | Staff users list and details, table system |
@@ -75,40 +76,61 @@ The Vitest guard at `apps/front/e2e/__tests__/e2e-tag-guard.test.ts` reads every
 The guard runs as part of `pnpm --filter front test` and CI. Adding a new spec without tags
 breaks the gate.
 
+## Which lane a spec runs in
+
+Tags do **not** decide lanes. Since #2260 the suite is split by an explicit file list
+(`apps/front/e2e/smoke-specs.ts`) read by `playwright.config.ts` through `E2E_LANE`:
+
+- `smoke` — the twelve specs listed there, on every pull request, one stack, ≤ 3 min.
+- `full` — everything else, in the merge queue, two stacks.
+- unset (the default) — every spec, which is what a local `pnpm --filter front exec playwright
+  test` and `just ci-e2e-front` do.
+
+A `--grep`-based split was deliberately rejected: six tests live outside any tagged
+`describe` (`auth-screens.spec.ts`'s five auth-layout tests, `tab-sync.spec.ts`'s cross-tab
+theme test), so they carry no domain tag at all and a grep for any tag would drop them from
+both lanes without anyone noticing. `just e2e-smoke` runs the smoke lane locally.
+
 ## Spec inventory
+
+Every spec under `apps/front/e2e/`, with the tags it carries today. Keep this table in sync
+when you add, delete or re-tag a spec.
 
 | Spec | Domain tag(s) | Ticket(s) |
 |---|---|---|
-| `auth-error.spec.ts` | `@auth @security` | `@713` |
+| `auth-error.spec.ts` | `@auth` `@security` | `@713` |
 | `auth-redirect-guard.spec.ts` | `@auth` | `@untracked` handoff parity guard |
 | `auth-screens.spec.ts` | `@auth` | `@806` |
 | `breadcrumb-entity-name-truncation.spec.ts` | `@shell` | `@973` |
 | `cold-boot-stability.spec.ts` | `@auth` | `@untracked` handoff stability guard |
 | `csp.spec.ts` | `@public` | `@713` |
+| `data-table-icon-visibility-guard.spec.ts` | `@design` | `@1799` |
 | `design-chrome-fixes.spec.ts` | `@design` | `@806` |
 | `design-handoff-foundation.spec.ts` | `@design` | `@806` |
-| `design-handoff-staff-profiles.spec.ts` | `@design @staff-profiles` | `@806` |
+| `design-handoff-staff-profiles.spec.ts` | `@design` `@staff-profiles` | `@806` |
 | `drawer-description-contrast.spec.ts` | `@design` | `@1043` |
 | `drawer-form-scroll-geometry.spec.ts` | `@design` | `@990` |
 | `field-validation.spec.ts` | `@design` | `@721` |
+| `focus-ring-cascade.spec.ts` | `@design` | `@823` |
 | `form-action-bar-clearance.spec.ts` | `@design` | `@806` |
-| `gray-ui-screenshot-capture.spec.ts` | `@design @shell` | `@untracked` handoff visual capture |
 | `i18n-namespaces.spec.ts` | `@i18n` | `@909` |
 | `i18n.spec.ts` | `@i18n` | `@713` |
 | `locale-switch.spec.ts` | `@i18n` | `@806` |
 | `log-leak.spec.ts` | `@security` | `@733` |
 | `logout.spec.ts` | `@auth` | `@806` |
-| `parity-happy-path.spec.ts` | `@staff-dashboard` | `@723` |
-| `profile-icon-picker-pin-contrast.spec.ts` | `@design @staff-profiles` | `@992` |
-| `profile-icon-picker-pin-geometry.spec.ts` | `@design @staff-profiles` | `@992` |
+| `profile-icon-picker-pin-contrast.spec.ts` | `@design` `@staff-profiles` | `@992` |
+| `profile-icon-picker-pin-geometry.spec.ts` | `@design` `@staff-profiles` | `@992` |
 | `request-counter.spec.ts` | `@security` | `@806` |
 | `row-actions-centering.spec.ts` | `@shell` | `@806` |
-| `search-input-native-cancel-suppression.spec.ts` | `@shell` | `@975` |
 | `seo.spec.ts` | `@public` | `@713` |
 | `shell.spec.ts` | `@shell` | `@713` |
 | `smoke.spec.ts` | `@public` | `@733` |
+| `social-accounts-integrations.spec.ts` | `@tenant-workspace` | `@642` |
 | `ssr-auth-shell.spec.ts` | `@security` | `@997` |
+| `staff-dashboard-activity.spec.ts` | `@staff-dashboard` | `@818` |
+| `staff-dashboard-reports.spec.ts` | `@staff-dashboard` | `@818` |
 | `staff-invitations.spec.ts` | `@staff-invitations` | `@742` |
+| `staff-jobs.spec.ts` | `@staff-jobs` | `@1454` |
 | `staff-profile-edit-flow.spec.ts` | `@staff-profiles` | `@819` |
 | `staff-profiles.spec.ts` | `@staff-profiles` | `@744` |
 | `staff-tenant-create.spec.ts` | `@staff-tenants` | `@806` |
@@ -116,9 +138,11 @@ breaks the gate.
 | `staff-tenant-edit.spec.ts` | `@staff-tenants` | `@806` |
 | `staff-tenants.spec.ts` | `@staff-tenants` | `@806` |
 | `staff-user-details.spec.ts` | `@staff-users` | `@806` |
-| `table-scroll-ownership.spec.ts` | `@shell` | `@806` |
-| `table.spec.ts` | `@shell @staff-users` | `@720` |
 | `tab-refocus-stability.spec.ts` | `@auth` | `@806` |
 | `tab-sync.spec.ts` | `@auth` | `@806` |
-| `tenant-portal-picker.spec.ts` | `@staff-tenants` | `@806` |
+| `table-scroll-ownership.spec.ts` | `@shell` | `@806` |
+| `table.spec.ts` | `@shell` `@staff-users` | `@720` |
+| `tenant-portal-picker.spec.ts` | `@staff-tenants` | `@1611` `@806` |
+| `tenant-post-image.spec.ts` | `@uploads` | `@639` |
+| `tenant-posts-publish-now.spec.ts` | `@tenant-workspace` | `@645` |
 | `toast-contrast.spec.ts` | `@design` | `@1078` |

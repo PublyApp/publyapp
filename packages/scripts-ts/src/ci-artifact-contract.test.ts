@@ -42,7 +42,9 @@ const completeStepOutcome = (step: string): 'success' | 'skipped' => {
 		step.endsWith('.not-applicable') ||
 		step === 'e2e-build.upload_images' ||
 		step === 'e2e-test.download_images' ||
-		step === 'e2e-test.load_images'
+		step === 'e2e-test.load_images' ||
+		step === 'e2e-smoke.download_images' ||
+		step === 'e2e-smoke.load_images'
 	) {
 		return 'skipped';
 	}
@@ -68,26 +70,55 @@ const makeRecord = () =>
 		},
 	});
 
-const makeCompleteRecords = (runAttempt: number = context.runAttempt) =>
+/**
+ * #2267: the full e2e lane belongs to the merge queue and the smoke lane to pull
+ * requests, so a complete run reports the off-event lane as not applicable.
+ */
+const laneModeFor = (
+	jobKey: string,
+	eventName: string,
+): 'relevant' | 'not_applicable' => {
+	const offEvent =
+		eventName === 'merge_group'
+			? jobKey.startsWith('e2e-smoke')
+			: jobKey.startsWith('e2e-test');
+	return offEvent ? 'not_applicable' : 'relevant';
+};
+
+const stepOutcomeFor = (
+	step: string,
+	mode: 'relevant' | 'not_applicable',
+): 'success' | 'skipped' => {
+	if (mode === 'relevant') {
+		return completeStepOutcome(step);
+	}
+	return step.endsWith('.not-applicable') ? 'success' : 'skipped';
+};
+
+const makeCompleteRecords = (
+	runAttempt: number = context.runAttempt,
+	eventName: string = context.eventName,
+) =>
 	EXPECTED_UPSTREAM_JOB_KEYS.map((jobKey) => {
 		const contracts = getExpectedJobLanes(jobKey);
 		assert.ok(contracts);
-		const makeLane = (lane: (typeof contracts)[number]) =>
-			createCiLaneResult({
+		const makeLane = (lane: (typeof contracts)[number]) => {
+			const mode = laneModeFor(jobKey, eventName);
+			return createCiLaneResult({
 				jobKey,
 				lane: lane.lane,
 				expectedSteps: lane.expectedSteps,
-				mode: 'relevant',
+				mode,
 				runId: context.runId,
 				runAttempt,
 				eventSha: context.eventSha,
 				workflowPath: context.workflowPath,
 				workflowRef: context.workflowRef,
-				workflowEvent: context.workflowEvent,
+				workflowEvent: eventName,
 				stepResults: Object.fromEntries(
 					lane.expectedSteps.map((step) => [
 						step,
-						{ outcome: completeStepOutcome(step) },
+						{ outcome: stepOutcomeFor(step, mode) },
 					]),
 				),
 				report:
@@ -107,6 +138,7 @@ const makeCompleteRecords = (runAttempt: number = context.runAttempt) =>
 							}
 						: undefined,
 			});
+		};
 		const result = makeLane(contracts[0]);
 		for (const lane of contracts.slice(1)) {
 			result.job.lanes[lane.lane] = makeLane(lane).job.lanes[lane.lane];
@@ -129,13 +161,13 @@ const makeCompleteRecords = (runAttempt: number = context.runAttempt) =>
 		return result;
 	});
 
-const completeAggregateInput = () => {
-	const records = makeCompleteRecords();
+const completeAggregateInput = (eventName: string = context.eventName) => {
+	const records = makeCompleteRecords(context.runAttempt, eventName);
 	return {
 		run_id: context.runId,
 		run_attempt: context.runAttempt,
 		event_sha: context.eventSha,
-		event_name: context.eventName,
+		event_name: eventName,
 		workflow_path: context.workflowPath,
 		workflow_ref: context.workflowRef,
 		classifier: {
@@ -162,6 +194,7 @@ const completeAggregateInput = () => {
 				'api',
 				'front-vitest',
 				'e2e-build',
+				'e2e-smoke',
 				'e2e-test',
 				'e2e-cleanup',
 			].map((job) => [job, 'success']),
@@ -471,7 +504,7 @@ test('aggregation rejects an e2e-build record with both transports executed', ()
 });
 
 test('aggregation rejects an e2e-test record with an invalid transport profile', () => {
-	const input = completeAggregateInput();
+	const input = completeAggregateInput('merge_group');
 	const record = input.records.find(
 		(candidate) => candidate.job.key === 'e2e-test/1',
 	);
@@ -496,6 +529,86 @@ test('aggregation rejects an e2e-test record with an invalid transport profile',
 
 	assert.equal(result.ok, false);
 	assert.match(result.failures.join('\n'), /transport profile/);
+});
+
+test('aggregation accepts a pull_request run with the full e2e lane not applicable and the smoke lane relevant', () => {
+	const input = completeAggregateInput('pull_request');
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, true, result.failures.join('\n'));
+	assert.equal(
+		input.records.find((record) => record.job.key === 'e2e-test/1')?.job.lanes
+			.e2e.mode,
+		'not_applicable',
+	);
+	assert.equal(
+		input.records.find((record) => record.job.key === 'e2e-smoke')?.job.lanes
+			.e2e.mode,
+		'relevant',
+	);
+});
+
+test('aggregation accepts a merge_group run with the full e2e lane relevant and the smoke lane not applicable', () => {
+	const input = completeAggregateInput('merge_group');
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, true, result.failures.join('\n'));
+	assert.equal(
+		input.records.find((record) => record.job.key === 'e2e-test/1')?.job.lanes
+			.e2e.mode,
+		'relevant',
+	);
+	assert.equal(
+		input.records.find((record) => record.job.key === 'e2e-smoke')?.job.lanes
+			.e2e.mode,
+		'not_applicable',
+	);
+});
+
+test('aggregation rejects a pull_request run that reports the full e2e lane as relevant', () => {
+	const input = completeAggregateInput('pull_request');
+	const record = input.records.find(
+		(candidate) => candidate.job.key === 'e2e-test/1',
+	);
+	assert.ok(record);
+	record.job.lanes.e2e.mode = 'relevant';
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(
+		result.failures.join('\n'),
+		/lane mode does not match classifier output/,
+	);
+});
+
+test('aggregation rejects a merge_group run that reports the full e2e lane as not applicable', () => {
+	const input = completeAggregateInput('merge_group');
+	const record = input.records.find(
+		(candidate) => candidate.job.key === 'e2e-test/1',
+	);
+	assert.ok(record);
+	record.job.lanes.e2e.mode = 'not_applicable';
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(
+		result.failures.join('\n'),
+		/lane mode does not match classifier output/,
+	);
 });
 
 test('aggregation rejects an observed record from the wrong container', () => {

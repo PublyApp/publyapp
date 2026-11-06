@@ -46,6 +46,17 @@ const FIELD_VALIDATION_SCHEMA = z.object({
 });
 const FIELD_VALIDATION_RESOLVER = zodResolver(FIELD_VALIDATION_SCHEMA);
 
+/**
+ * The toast-contrast guard (#1078) measures four targets per toast with a
+ * screenshot decode each. Sonner's 4 s default auto-dismiss used to be the
+ * binding constraint on that work: a batch that outran the window lost its
+ * toast mid-measurement, and the next assertion red-ed for reasons unrelated
+ * to contrast (#2260 FIX-FLAKY). This fixture — the guard's only entry point —
+ * therefore asks for a duration far beyond any run. Product toasts are
+ * unaffected: they omit `duration` and keep Sonner's default.
+ */
+const TOAST_CONTRAST_FIXTURE_DURATION_MS = 10 * 60 * 1000;
+
 const FieldValidationRoute = () => {
 	const { t } = useTranslation('common');
 	const isHydrated = useHydrated();
@@ -61,7 +72,11 @@ const FieldValidationRoute = () => {
 	const showToastContrastFixture = (
 		type: (typeof toastContrastFixtures)[number],
 	): void => {
-		toastLocalMutationResult[type](t('active'), t('description'));
+		toastLocalMutationResult[type](
+			t('active'),
+			t('description'),
+			TOAST_CONTRAST_FIXTURE_DURATION_MS,
+		);
 	};
 
 	const onSubmit: SubmitHandler<FieldValidationValues> = (values) => {
