@@ -230,9 +230,7 @@ export const useTenantPublicationsQuery = (
 /** Wire body for `POST /posts/{postId}/publish-now` (#2172): one
  * `destinations[]` item per selected account, `overrides` only on the ones
  * that customize something. Kiota types the open field as an `UntypedNode`. */
-const buildPublishNowBody = (
-	destinations: WireDestination[],
-): PublishNowBody =>
+const buildPublishNowBody = (destinations: WireDestination[]): PublishNowBody =>
 	destinations.length === 0
 		? {}
 		: { destinations: toUntypedDestinations(destinations) };
