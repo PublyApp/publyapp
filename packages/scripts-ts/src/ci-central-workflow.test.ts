@@ -1504,7 +1504,7 @@ test('central structure rejects provenance, dataflow, and collector mutations', 
 			'front report runner is replaced',
 			(value) =>
 				value.replace(
-					'run: node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts',
+					'run: node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts',
 					'run: pnpm test:ci-non-vitest',
 				),
 			/report-all runner/i,

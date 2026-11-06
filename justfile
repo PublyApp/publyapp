@@ -361,7 +361,7 @@ ci-dockerignore-shadow:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front/scripts/run-guarded.mts apps/front/scripts/guards/assert-pinned.mts
+  node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
@@ -553,7 +553,7 @@ ci-api-shard-partition:
 # can run independent stacks simultaneously. CI sets COMPOSE_PROJECT_NAME
 # explicitly (via E2E_IMAGE_TAG, unique per run) so CI stacks never collide.
 ci-e2e-front:
-  @node apps/front/scripts/run-e2e-front.mts
+  @node apps/front/scripts/run-e2e-front.ts
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.

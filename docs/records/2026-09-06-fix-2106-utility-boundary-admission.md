@@ -95,8 +95,8 @@ trap cleanup EXIT
 git worktree add --detach "$pre" d479da8df780472f13005d09b1b3fe6ad7578fe2 >/dev/null
 mkdir -p "$pre/apps/front"
 ln -s "$repo/apps/front/node_modules" "$pre/apps/front/node_modules"
-cp "$repo/apps/front/scripts/guards/check-utility-boundaries.test.mts" \
-  "$pre/apps/front/scripts/guards/check-utility-boundaries.test.mts"
+cp "$repo/apps/front/scripts/guards/check-utility-boundaries.test.ts" \
+  "$pre/apps/front/scripts/guards/check-utility-boundaries.test.ts"
 set +e
 pnpm --dir "$pre" --filter front test:utility-boundaries
 status=$?

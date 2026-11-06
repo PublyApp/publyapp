@@ -146,7 +146,7 @@ interface Scope {
 
 /** ts-morph's SourceFile type omits parseDiagnostics, but its vendored
  * compiler always populates it (same widening as
- * apps/front/scripts/guards/check-design-system.mts). */
+ * apps/front/scripts/guards/check-design-system.ts). */
 interface SourceFileWithParseDiagnostics extends ts.SourceFile {
 	parseDiagnostics: readonly ts.Diagnostic[];
 }
