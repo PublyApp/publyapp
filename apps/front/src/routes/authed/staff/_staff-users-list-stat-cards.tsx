@@ -43,7 +43,7 @@ export const StaffUsersStatCards = ({
 				/>
 				<StatCard
 					testId="staff-user-stat-admins"
-					label={t('full-access')}
+					label={t('staff-owner')}
 					icon={<IconCrown />}
 					value={<Dash />}
 					footer={<Dash />}
@@ -87,7 +87,7 @@ export const StaffUsersStatCards = ({
 			/>
 			<StatCard
 				testId="staff-user-stat-admins"
-				label={t('full-access')}
+				label={t('staff-owner')}
 				icon={<IconCrown />}
 				value={fullAccess}
 				footer={t('list-staff-stat-users', { count: standard })}

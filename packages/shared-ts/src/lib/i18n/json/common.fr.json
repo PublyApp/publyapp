@@ -1857,6 +1857,7 @@
 	"list-roles": "Rôles",
 	"list-total-staff-roles": "{{fullAccess}} accès complet · {{standard}} standard",
 	"full-access": "Accès complet",
+	"staff-owner": "Staff Owner",
 	"standard-access": "Sans accès complet",
 	"invite-import-no-role-column": "Ce fichier n'a pas de colonne « roles »."
 }

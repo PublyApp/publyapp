@@ -1857,6 +1857,7 @@
 	"list-roles": "Roles",
 	"list-total-staff-roles": "{{fullAccess}} full access · {{standard}} standard",
 	"full-access": "Full access",
+	"staff-owner": "Staff Owner",
 	"standard-access": "No full access",
 	"invite-import-no-role-column": "That file has no \"roles\" column."
 }
