@@ -14,7 +14,6 @@ import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
@@ -94,14 +93,6 @@ const InvitationDetailsEmpty = () => {
 			title={t('invitation-not-found')}
 			description={t('invitation-not-found-description')}
 			testId="staff-invitation-details-not-found"
-			actions={
-				<Link
-					to={STAFF_INVITATIONS_LIST_PATH}
-					className={buttonVariants({ variant: 'outline' })}
-				>
-					{t('common:staff-invitations')}
-				</Link>
-			}
 		/>
 	);
 };
@@ -135,23 +126,7 @@ const InvitationDetailsError = ({
 			title={t('invitation-details-error-title')}
 			description={t('invitation-details-error-description')}
 			testId="staff-invitation-details-error"
-			actions={
-				<>
-					<Button
-						variant="default"
-						onClick={() => void query.refetch()}
-						type="button"
-					>
-						{t('common:try-again')}
-					</Button>
-					<Link
-						to={STAFF_INVITATIONS_LIST_PATH}
-						className={buttonVariants({ variant: 'outline' })}
-					>
-						{t('common:staff-invitations')}
-					</Link>
-				</>
-			}
+			onRetry={() => void query.refetch()}
 		/>
 	);
 };

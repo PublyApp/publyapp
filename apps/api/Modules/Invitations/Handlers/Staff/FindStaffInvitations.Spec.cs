@@ -12,6 +12,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -774,15 +775,94 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnWholeFilteredCollectionCountsWithMixedData() {
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"counts-{Guid.NewGuid():N}";
+
+		_ = await this._CreateStaffInvitationAsync(
+			staffToken,
+			$"{marker}-pending@example.com"
+		);
+		var revokedId = await this._CreateStaffInvitationAsync(
+			staffToken,
+			$"{marker}-revoked@example.com"
+		);
+		var acceptedId = await this._CreateStaffInvitationAsync(
+			staffToken,
+			$"{marker}-accepted@example.com"
+		);
+		await this._RevokeStaffInvitationAsync(staffToken, revokedId);
+		await this._MarkStaffInvitationAcceptedAsync(acceptedId);
+
+		using var response = await this._Http.SendAsync(
+			FindStaffInvitationsSpec._CreateFindRequest(staffToken, limit: 1, q: marker)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		_ = result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		// limit=1 proves the counters are not the page length.
+		_ = result.Data.Should().HaveCount(1);
+		_ = result.TotalCount.Should().Be(3);
+		_ = result.Counts.Total.Should().Be(3);
+		_ = result.Counts.Pending.Should().Be(1);
+		_ = result.Counts.Accepted.Should().Be(1);
+		_ = result.Counts.Revoked.Should().Be(1);
+		_ = result.Counts.Expired.Should().Be(0);
+	}
+
+	[Fact]
+	public async Task ItShouldSearchByEmailOnTheServer() {
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"search-{Guid.NewGuid():N}";
+
+		_ = await this._CreateStaffInvitationAsync(
+			staffToken,
+			$"{marker}-match@example.com"
+		);
+		_ = await this._CreateStaffInvitationAsync(
+			staffToken,
+			$"other-{Guid.NewGuid():N}@example.com"
+		);
+
+		using var response = await this._Http.SendAsync(
+			FindStaffInvitationsSpec._CreateFindRequest(staffToken, limit: 100, q: marker)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		_ = result.Should().NotBeNull();
+		Assert.NotNull(result);
+		_ = result.Data.Should().Contain(item =>
+			item.Email == $"{marker}-match@example.com"
+		);
+		_ = result.Data.Should().OnlyContain(item => item.Email.Contains(marker));
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
+		var token = await this._CreateUnprivilegedStaffTokenAsync();
+
+		using var response = await this._Http.SendAsync(
+			FindStaffInvitationsSpec._CreateFindRequest(token)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
 	private static HttpRequestMessage _CreateFindRequest(
 		string staffToken,
 		string? status = null,
 		int? limit = null,
 		string? sortId = null,
 		string? sortOrder = null,
-		string? cursor = null
+		string? cursor = null,
+		string? q = null
 	) {
-		string url = FindStaffInvitationsSpec._GetFindUrl(status, limit, sortId, sortOrder, cursor);
+		string url = FindStaffInvitationsSpec._GetFindUrl(status, limit, sortId, sortOrder, cursor, q);
 		return new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(staffToken);
 	}
@@ -792,7 +872,8 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		int? limit = null,
 		string? sortId = null,
 		string? sortOrder = null,
-		string? cursor = null
+		string? cursor = null,
+		string? q = null
 	) {
 		var queryParams = new List<string>();
 
@@ -814,6 +895,9 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 		if (cursor is not null) {
 			queryParams.Add($"cursor={Uri.EscapeDataString(cursor)}");
+		}
+		if (q is not null) {
+			queryParams.Add($"q={Uri.EscapeDataString(q)}");
 		}
 
 		string url = PathUtils.Join(
@@ -998,9 +1082,45 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		return profile.GetRequiredId();
 	}
 
+	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
+		var email = $"no-perms-invitations-{Guid.NewGuid():N}@example.com";
+
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "NoPerm",
+			LastName = "Invitations",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+		_ = dbContext.User.Add(user);
+		_ = await dbContext.SaveChangesAsync();
+
+		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
+		staffAccount.ValidateAccountType();
+		_ = dbContext.UserAccount.Add(staffAccount);
+		_ = await dbContext.SaveChangesAsync();
+
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+	}
+
 	private sealed record FindResponse {
 		public List<InvitationListItemDto> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+		public int TotalCount { get; init; }
+		public StaffInvitationCountsDto Counts { get; init; } = new();
+	}
+
+	private sealed record StaffInvitationCountsDto {
+		public int Total { get; init; }
+		public int Pending { get; init; }
+		public int Accepted { get; init; }
+		public int Expired { get; init; }
+		public int Revoked { get; init; }
+		public int ExpiringSoon { get; init; }
 	}
 
 	private sealed record InvitationListItemDto {

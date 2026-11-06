@@ -5,13 +5,15 @@ import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataTableStates } from '~/components/table/data-table-states';
 import { Collapse } from '~/components/ui/collapse';
+import type { PageAction } from '~/components/ui/product-page';
 import {
 	NoMatchStateSurface,
 	StateSurface,
 } from '~/components/ui/state-surface';
+import { resolveQueryError } from '~/lib/server/query-error-resolver';
 
 import { ColumnsPicker } from './columns-picker';
-import { FilterChips, FilterMenu } from './filter-menu';
+import { type FilterCounts, FilterChips, FilterMenu } from './filter-menu';
 import { ListFilterPanel, type ListPanelGroup } from './filter-panel';
 import { HomeTabs } from './home-tabs';
 import { CardFoot, ListCard, ListCards } from './list-card';
@@ -36,12 +38,15 @@ export type ListPageProps<T extends { id: string }> = {
 	testId?: string;
 	ariaLabel: string;
 	title: string;
-	description?: string;
 	/** Omit when the API has no search parameter: the toolbar then has no
 	 * text field rather than one that silently filters nothing. */
 	searchPlaceholder?: string;
 	/** Page-owned navigation groups, before the filter-shortcut groups. */
 	panelGroups?: ListPanelGroup[];
+	/** Explicit side-panel group order (keys), so a page's group can sit
+	 * between two filter groups as the prototype's does. Unlisted groups keep
+	 * their default order after the listed ones. */
+	panelOrder?: readonly string[];
 	/** The row's accessible name for its selection checkbox. */
 	rowLabel?: (row: T) => string;
 	/** An exact total for the inset count badge, when the API provides one. */
@@ -60,6 +65,9 @@ export type ListPageProps<T extends { id: string }> = {
 	filters: ListFilter<T>[];
 	filtersValue: ListFiltersValue;
 	onFiltersChange: (next: ListFiltersValue) => void;
+	/** API facet counts for the filter menu and panel shortcuts. Keys are
+	 * filter ids and choice values; a missing/null entry renders « — ». */
+	counts?: FilterCounts;
 	/**
 	 * Whether the counters (panel groups, filter-menu badges, tabs) describe the
 	 * whole collection. Pass `false` when the counter source is not fully loaded
@@ -95,16 +103,21 @@ export type ListPageProps<T extends { id: string }> = {
 	selection?: ListSelection;
 	renderActions?: (row: T) => ReactNode;
 	onExport?: () => void;
-	/** The primary action element (a link to the create page, or a button). */
-	newAction?: ReactNode;
+	/** The primary action as data: the desktop button and the mobile
+	 * speed-dial action. */
+	newAction?: PageAction;
 	inset?: { description?: string };
 	queryState: {
 		isPending: boolean;
 		isError: boolean;
+		/** The query's error, when the consumer has it. Resolves the ONE error
+		 * state (#2291): 5xx paints « Impossible de charger » + Réessayer, 403
+		 * paints « Accès refusé » with no retry action. */
+		error?: unknown;
 		onRetry: () => void;
 	};
 	/** Extra content in the error state (e.g. a 403 explanation); falls back to
-	 * the generic description when omitted. */
+	 * the resolved description when omitted. */
 	errorContent?: ReactNode;
 	/** Extra content under the table (a cursor pager). */
 	footer?: ReactNode;
@@ -112,6 +125,8 @@ export type ListPageProps<T extends { id: string }> = {
 	after?: ReactNode;
 	/** Rendered between the chips and the table (a floating selection bar). */
 	bulkBar?: ReactNode;
+	/** Extra pinned-toolbar controls (e.g. a locale-formatted date range). */
+	toolbarExtra?: ReactNode;
 };
 
 // createElement, not <Icon />: the drawer-description guard cannot attribute a JSX tag bound to a parameter.
@@ -135,6 +150,16 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	const page = useListPage(props);
 	const { filters, filtersValue } = props;
 	const countsKnown = props.countsKnown ?? true;
+	// #2291: one error state. The shared resolver owns the 5xx/4xx copy and
+	// whether a Retry action belongs on the surface (403 and 404 do not).
+	const resolvedError =
+		props.queryState.error === undefined
+			? undefined
+			: resolveQueryError(props.queryState.error, t);
+	// A forbidden body has no create/export chrome: acting on a page the user
+	// cannot read is a lie (the 403 screenshot showed both on /staff/profiles).
+	// The shared list header owns that rule for every ListPage.
+	const forbidden = resolvedError?.kind === 'forbidden';
 
 	const filterPanelGroups: ListPanelGroup[] = [];
 	for (const filter of filters) {
@@ -156,6 +181,16 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	}
 
 	const panelGroups = [...(props.panelGroups ?? []), ...filterPanelGroups];
+	if (props.panelOrder) {
+		const rank = new Map(
+			props.panelOrder.map((key, index) => [key, index] as const),
+		);
+		panelGroups.sort(
+			(a, b) =>
+				(rank.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+				(rank.get(b.key) ?? Number.MAX_SAFE_INTEGER),
+		);
+	}
 
 	// The table keeps its shell and shows the same flat state family the old
 	// DataTable rendered (owner decision R3-4b): a search miss gets the
@@ -197,21 +232,20 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 		>
 			<ListPageHeader
 				title={props.title}
-				description={props.description}
 				inset={props.inset}
 				count={
 					props.count ??
 					(countsKnown ? (props.countRows ?? props.rows).length : null)
 				}
-				onExport={props.onExport}
-				newAction={props.newAction}
+				onExport={forbidden ? undefined : props.onExport}
+				newAction={forbidden ? undefined : props.newAction}
 				cards={props.cards}
 				statsOpen={page.statsOpen}
 				onToggleStats={page.toggleStats}
 			/>
 			{props.cards ? (
 				<Collapse open={page.statsOpen} axis="y">
-					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-3">
+					<div className="grid grid-cols-[repeat(auto-fit,minmax(min(230px,50%-8px),1fr))] gap-4">
 						{props.cards}
 					</div>
 				</Collapse>
@@ -250,6 +284,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					) : null
 				}
 			>
+				{props.toolbarExtra}
 				<SortMenu
 					sort={
 						page.sort && page.specs.has(page.sort.id) ? page.sort : undefined
@@ -301,8 +336,14 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 					bodyState={page.bodyState}
 					resolvedRowHeight={48}
 					onRetry={props.queryState.onRetry}
+					errorKind={resolvedError?.kind}
+					error={props.queryState.error}
+					errorTitle={resolvedError?.title}
+					errorRetryable={resolvedError?.supportsRetry}
 					errorContent={
-						props.errorContent ?? t('list-error-default-description')
+						props.errorContent ??
+						resolvedError?.description ??
+						t('list-error-default-description')
 					}
 					emptyContent={page.emptyContent}
 					noMatchContent={t('list-no-match-default-description')}

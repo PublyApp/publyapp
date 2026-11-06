@@ -315,9 +315,12 @@ describe('staff tenant user details route', () => {
 
 		renderPage();
 
-		expect(
-			screen.getByTestId('staff-tenant-user-details-not-found'),
-		).toBeTruthy();
+		const view = screen.getByTestId('staff-tenant-user-details-not-found');
+		expect(view).toBeTruthy();
+		expect(view.textContent).toContain(
+			'This tenant user does not exist, or you no longer have access to this tenant-user identity.',
+		);
+		expect(view.textContent).not.toContain('Invalid userId');
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
@@ -354,7 +357,7 @@ describe('staff tenant user details route', () => {
 		},
 	])(
 		'renders a local non-auth failure for $name without logging out',
-		({ error, errorViewTestId }) => {
+		({ name, error, errorViewTestId }) => {
 			mocks.useStaffTenantUserDetailsQuery.mockReturnValue(
 				buildQueryResult({
 					error,
@@ -365,7 +368,16 @@ describe('staff tenant user details route', () => {
 			renderPage();
 
 			expect(screen.queryByTestId('logout-redirect')).toBeNull();
-			expect(screen.getByTestId(errorViewTestId)).toBeTruthy();
+			const view = screen.getByTestId(errorViewTestId);
+			expect(view).toBeTruthy();
+			if (name === '404') {
+				// The French UI shows its translated sentence, never the API's
+				// English `detail`.
+				expect(view.textContent).toContain(
+					'This tenant user does not exist, or you no longer have access to this tenant-user identity.',
+				);
+				expect(view.textContent).not.toContain('Missing user');
+			}
 		},
 	);
 

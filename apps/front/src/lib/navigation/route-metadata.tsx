@@ -175,18 +175,18 @@ const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
 		Icon: IconBuilding,
 	},
 	{
-		id: 'tenants-pending',
-		labelKey: 'nav-tenants-pending',
-		path: '/staff/tenants',
-		search: { status: 'pending' },
-		Icon: IconClock,
-	},
-	{
 		id: 'tenants-active',
 		labelKey: 'nav-tenants-active',
 		path: '/staff/tenants',
 		search: { status: 'active' },
 		Icon: IconShieldCheck,
+	},
+	{
+		id: 'tenants-pending',
+		labelKey: 'nav-tenants-pending',
+		path: '/staff/tenants',
+		search: { status: 'pending' },
+		Icon: IconClock,
 	},
 	{
 		id: 'tenants-suspended',

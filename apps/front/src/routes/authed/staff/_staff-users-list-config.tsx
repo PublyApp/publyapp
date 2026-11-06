@@ -1,7 +1,9 @@
 import {
 	IconActivity,
 	IconCalendar,
+	IconCircleCheck,
 	IconCircleDashed,
+	IconCircleX,
 	IconCrown,
 	IconDeviceDesktop,
 	IconLanguage,
@@ -18,6 +20,8 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
+
+import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
 import { StaffUserNameCell } from './_staff-user-name-cell';
 import {
@@ -44,14 +48,17 @@ export const DEFAULT_STAFF_USER_COLUMNS = [
 	'createdAt',
 ] as const;
 
-/** The eleven columns of §4.6. Seven have no list-API field: they render the
- * missing-value dash and are not sortable, never a fabricated value. */
+/** The eleven columns of §4.6. The ones with no list-API field (2FA, sessions,
+ * locale, last login, invited by, member since) render the missing-value dash
+ * and are not sortable, never a fabricated value. */
 export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 	{
 		id: 'name',
 		header: t('list-column-member'),
 		icon: IconUserCircle,
-		width: 260,
+		// Wide enough for a full « Prénom Nom » at the staff shell's width: the
+		// prototype shows whole names, never an ellipsised one.
+		width: 330,
 		value: (row) => row.displayName,
 		cell: (row) => <StaffUserNameCell row={row} />,
 		// `name` is not a backend sort id (first_name/last_name are).
@@ -88,19 +95,19 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		width: 280,
 		value: (row) => row.roles.join(', '),
 		cell: (row) =>
-			row.roles.length > 0 ? (
-				<div className="flex flex-wrap gap-1">
-					{row.roles.map((role) => (
-						<StatusPill
-							key={role}
-							tone={role === 'Staff Owner' ? 'info' : 'neutral'}
-						>
-							{role}
-						</StatusPill>
-					))}
-				</div>
-			) : (
+			row.roles.length === 0 ? (
 				<Dash />
+			) : (
+				<span className="flex min-w-0 flex-wrap items-center gap-1">
+					{row.roles.map((name) => (
+						<span
+							key={name}
+							className="inline-flex h-5 items-center rounded-[var(--publy-radius-chip)] border bg-background px-2 text-xs"
+						>
+							{name}
+						</span>
+					))}
+				</span>
 			),
 		sortable: false,
 	},
@@ -156,8 +163,10 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 
 /** Statuses reach the API; the role filter is applied to the loaded
  * collection only and is offered only when the list page knows it holds the
- * whole collection. The full-access role is the only role distinction the list
- * DTO carries (plus the role names it renders). */
+ * whole collection. Double authentification is omitted (no field at all) rather
+ * than rendering an always-empty filter — #2281 API gap. The full-access role is
+ * the only role distinction the list DTO carries, plus the role names it
+ * renders. */
 export const buildStaffUserFilters = (
 	t: Translate,
 	options: { includeRoles: boolean },
@@ -173,14 +182,14 @@ export const buildStaffUserFilters = (
 					value: 'active',
 					label: t('list-staff-status-active'),
 					icon: (
-						<IconCircleDashed className="size-4 shrink-0 text-[var(--status-resolved-foreground)]" />
+						<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
 					),
 				},
 				{
 					value: 'suspended',
 					label: t('list-staff-status-suspended'),
 					icon: (
-						<IconCircleDashed className="size-4 shrink-0 text-[var(--status-breached-foreground)]" />
+						<IconCircleX className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
 					),
 				},
 			],
@@ -218,32 +227,22 @@ export const buildStaffUserFilters = (
  * collection is not fully known. */
 export const buildStaffUserTotals = (
 	t: Translate,
-	rows: StaffUserRow[],
+	counts: StaffUserListCounts | null | undefined,
 ): Map<string, string> => {
-	let fullAccess = 0;
-	let standard = 0;
-	let active = 0;
-	let suspended = 0;
-	for (const row of rows) {
-		if (row.isFullAccess) {
-			fullAccess += 1;
-		} else {
-			standard += 1;
-		}
-		if (deriveStaffUserStatusKey(row.status) === 'active') {
-			active += 1;
-		} else if (deriveStaffUserStatusKey(row.status) === 'suspended') {
-			suspended += 1;
-		}
-	}
+	const active = counts?.active ?? 0;
+	const suspended = counts?.suspended ?? 0;
+	const fullAccess = counts?.fullAccess ?? 0;
+	const standard = (counts?.total ?? 0) - fullAccess;
 
 	const totals = new Map<string, string>();
-	totals.set('name', t('list-total-staff-members', { count: rows.length }));
+	totals.set(
+		'name',
+		t('list-total-staff-members', { count: counts?.total ?? 0 }),
+	);
 	totals.set('email', DASH);
 	totals.set('roles', t('list-total-staff-roles', { fullAccess, standard }));
 	totals.set('status', t('list-total-staff-statuses', { active, suspended }));
 	for (const id of [
-		'roles',
 		'twoFactor',
 		'sessions',
 		'locale',
@@ -258,7 +257,6 @@ export const buildStaffUserTotals = (
 
 export const buildStaffUserMobileCard =
 	(t: Translate) => (row: StaffUserRow) => ({
-		code: row.email,
 		badges: (
 			<StatusPill tone={statusPillTone(row.status)}>
 				{formatStaffStatusLabel(row.status, t)}

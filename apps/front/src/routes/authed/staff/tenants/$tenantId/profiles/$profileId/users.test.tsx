@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
@@ -532,7 +533,7 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 			screen.getByTestId('staff-tenant-profile-members-table-error'),
 		).toBeTruthy();
 
-		fireEvent.click(screen.getByText('Retry'));
+		fireEvent.click(screen.getByText(/retry/i));
 		expect(refetch).toHaveBeenCalledTimes(1);
 	});
 

@@ -50,6 +50,10 @@ export type StaffTenantsQueryVariables = {
 export type StaffTenantRow = {
 	id: string;
 	name: string;
+	/** The organisation's slug, shown in « Identifiant ». */
+	code: string | null;
+	/** The organisation's default language ('fr' | 'en'), the « Langues » key. */
+	defaultLocale: string | null;
 	logoUrl: string | null;
 	status: TenantStatus | null;
 	usersCount: number;
@@ -126,8 +130,9 @@ export type CreateStaffTenantInput = {
 	name: string;
 	maxUsers: number;
 	code?: string;
-	seedDefaultProfile?: boolean;
 	initialUsers: StaffTenantInitialUserInput[];
+	/** Seed the empty "default" profile for non-admin invitees. */
+	seedDefaultProfile?: boolean;
 	logoUrl?: string;
 	legalName?: string;
 	description?: string;
@@ -248,6 +253,8 @@ export const toStaffTenantRows = (
 		rows.push({
 			id,
 			name,
+			code: normalizeString(item.code ?? undefined) ?? null,
+			defaultLocale: normalizeString(item.defaultLocale ?? undefined) ?? null,
 			logoUrl: normalizeNullableFileUrl(item.logoUrl),
 			status: item.status ?? null,
 			usersCount: item.usersCount ?? 0,
@@ -340,12 +347,6 @@ export const buildCreateStaffTenantBody = (
 		body.code = createUntypedString(code) as typeof body.code;
 	}
 
-	if (typeof input.seedDefaultProfile === 'boolean') {
-		body.seedDefaultProfile = createUntypedBoolean(
-			input.seedDefaultProfile,
-		) as typeof body.seedDefaultProfile;
-	}
-
 	const legalName = normalizeString(input.legalName);
 	if (legalName) {
 		body.legalName = createUntypedString(legalName) as typeof body.legalName;
@@ -399,6 +400,12 @@ export const buildCreateStaffTenantBody = (
 	const notes = normalizeString(input.notes);
 	if (notes) {
 		body.notes = createUntypedString(notes) as typeof body.notes;
+	}
+
+	if (typeof input.seedDefaultProfile === 'boolean') {
+		body.seedDefaultProfile = createUntypedBoolean(
+			input.seedDefaultProfile,
+		) as typeof body.seedDefaultProfile;
 	}
 
 	return body;

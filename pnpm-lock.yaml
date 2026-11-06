@@ -65,9 +65,6 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
-      chokidar:
-        specifier: ^5.0.0
-        version: 5.0.0
       knip:
         specifier: 6.43.0
         version: 6.43.0

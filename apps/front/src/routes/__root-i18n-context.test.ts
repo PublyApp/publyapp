@@ -88,7 +88,7 @@ describe('root i18n context on the client', () => {
 
 	test('returns globals plus a serializable error when a feature import fails', async () => {
 		mocks.loadI18nContext.mockResolvedValueOnce({
-			namespaces: ['common', 'zod', 'response-message'],
+			namespaces: ['common', 'response-message'],
 			resources: {
 				fr: {
 					common: { retry: 'Réessayer' },
@@ -115,7 +115,7 @@ describe('root i18n context on the client', () => {
 		expect(mocks.loadI18nContext).toHaveBeenCalledWith(
 			expect.anything(),
 			'fr',
-			['common', 'zod', 'response-message', 'auth'],
+			['common', 'response-message', 'auth'],
 		);
 		expect(mocks.loadI18nForRequest).not.toHaveBeenCalled();
 	});
@@ -126,7 +126,7 @@ describe('root i18n context on the client', () => {
 		await runRootBeforeLoad(authMatches);
 
 		expect(mocks.loadI18nForRequest).toHaveBeenCalledWith({
-			data: { namespaces: ['common', 'zod', 'response-message', 'auth'] },
+			data: { namespaces: ['common', 'response-message', 'auth'] },
 		});
 	});
 

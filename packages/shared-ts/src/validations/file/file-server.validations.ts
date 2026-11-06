@@ -2,7 +2,7 @@ import type { Readable } from 'node:stream';
 
 import type zod from 'zod';
 
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import type { ZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 
 import { getFolderNameSchema } from './file.validations';
 
@@ -23,7 +23,7 @@ export type MulterMemoryFile = BaseMulterFile;
 export type MulterDiskFile = BaseMulterFile;
 
 export const getMulterMemoryFileSchema = (
-	z: InterZod,
+	z: ZodI18n,
 ): zod.ZodType<MulterMemoryFile> => {
 	return z.object({
 		fieldname: z.string(),
@@ -41,11 +41,11 @@ export const getMulterMemoryFileSchema = (
 	//  as zod.ZodType<Express.Multer.File>;
 };
 
-export const getMulterMemoryFilesArraySchema = (z: InterZod) => {
+export const getMulterMemoryFilesArraySchema = (z: ZodI18n) => {
 	return z.array(getMulterMemoryFileSchema(z)).min(1);
 };
 
-export const getMulterUploadManyFilesSchema = (z: InterZod) => {
+export const getMulterUploadManyFilesSchema = (z: ZodI18n) => {
 	return z.object({
 		files: getMulterMemoryFilesArraySchema(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),
@@ -56,7 +56,7 @@ export type MulterUploadManyFilesInput = zod.infer<
 	ReturnType<typeof getMulterUploadManyFilesSchema>
 >;
 
-export const getMulterCreateFolderSchema = (z: InterZod) => {
+export const getMulterCreateFolderSchema = (z: ZodI18n) => {
 	return z.object({
 		folderName: getFolderNameSchema(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),

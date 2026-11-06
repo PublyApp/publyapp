@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -9,7 +9,6 @@ import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 import { formatDateTime } from '~/utils/format-time';
@@ -43,11 +42,23 @@ import {
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
+	type StaffInvitationRow,
 } from './list-helpers';
 import { InvitationRowActions } from './table-columns';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+const countInvitationProfiles = (rows: StaffInvitationRow[]) => {
+	const counts: Record<string, number> = {};
+	for (const row of rows) {
+		if (row.profileName.length === 0) {
+			continue;
+		}
+		counts[row.profileName] = (counts[row.profileName] ?? 0) + 1;
+	}
+	return counts;
+};
 
 const StaffInvitationsPage = () => {
 	const { t, i18n } = useTranslation('common');
@@ -77,13 +88,15 @@ const StaffInvitationsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: search.status ?? '',
 	});
-	// users-auth-r6-F2: FindStaffInvitations has no search parameter, so the
-	// generic page renders no search field rather than one that does nothing.
-	const query = useStaffInvitationsQuery({
+	const listVariables = {
 		...controller.apiVariables,
+		q: search.q,
 		status: search.status,
-	});
-	const team = useStaffTeamOverview();
+	};
+	const query = useStaffInvitationsQuery(listVariables);
+	// The overview publishes these variables as the counter only while they
+	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
+	const team = useStaffTeamOverview({ invitations: listVariables });
 
 	const rows = toStaffInvitationRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
@@ -94,15 +107,14 @@ const StaffInvitationsPage = () => {
 	);
 	const selectedIds = selectedListIds(rows, selection);
 
-	// No total count on the cursor endpoint: the three cards and the panel
-	// counters use the team overview query (whole collection), while the table
-	// page is narrowed by the server-side status filter. Totals sum the
-	// displayed filtered rows, exact once the page is the whole filtered set.
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = team.counts.invitations !== null;
+	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
+	const countsKnown = query.data !== undefined;
+	// A profile facet exists nowhere in the API: its counts are exact only when
+	// the loaded page is the whole collection.
+	const profileCounts: Record<string, number> | null =
+		query.data !== undefined && rows.length === query.data.totalCount
+			? countInvitationProfiles(rows)
+			: null;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -152,7 +164,6 @@ const StaffInvitationsPage = () => {
 			testId="staff-invitations-table"
 			ariaLabel={t('staff-invitations')}
 			title={t('invitations')}
-			description={tInvitations('invite-staff-users-to-the-platform')}
 			rows={rows}
 			columns={invitationColumns(t, i18n.language)}
 			defaultColumns={[...DEFAULT_INVITATION_COLUMNS]}
@@ -167,28 +178,30 @@ const StaffInvitationsPage = () => {
 						: undefined,
 				)
 			}
+			searchPlaceholder={t('common:search-invitations')}
 			q={search.q ?? ''}
-			onSearch={() => undefined}
-			filters={buildInvitationFilters(
-				t,
-				team.invitations ?? rows,
-				selectedProfiles,
-			)}
+			onSearch={(next) => {
+				if (selection.selectedCount > 0) {
+					return;
+				}
+				onSearchChange({ ...search, q: next, cursor: undefined });
+			}}
+			filters={buildInvitationFilters(t, rows, selectedProfiles, profileCounts)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={{
+				status: {
+					pending: team.invitationCounts?.pending ?? null,
+					accepted: team.invitationCounts?.accepted ?? null,
+					expired: team.invitationCounts?.expired ?? null,
+					revoked: team.invitationCounts?.revoked ?? null,
+				},
+			}}
 			countsKnown={countsKnown}
-			countRows={team.invitations ?? []}
-			totalsKnown={collectionComplete}
 			emptyText={tInvitations('no-invitations-found')}
 			locale={i18n.language}
-			cards={
-				<InvitationsStatCards
-					rows={team.invitations}
-					t={t}
-					known={team.counts.invitations !== null}
-				/>
-			}
-			totals={buildInvitationTotals(t)}
+			cards={<InvitationsStatCards counts={team.invitationCounts} t={t} />}
+			totals={buildInvitationTotals(t, query.data?.counts)}
 			panelGroups={buildStaffTeamPanelGroups(
 				t,
 				'invitations',
@@ -211,15 +224,15 @@ const StaffInvitationsPage = () => {
 			selection={listSelection}
 			renderActions={(row) => <InvitationRowActions row={row} />}
 			onExport={() => exportInvitationRows(rows, t, i18n.language)}
-			newAction={
-				<Link to="/staff/invitations/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('invite-member')}
-				</Link>
-			}
+			newAction={{
+				label: t('invite-member'),
+				icon: IconPlus,
+				to: '/staff/invitations/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={

@@ -54,7 +54,7 @@
  * guard's fail-loud exit code 1 was observed, the fixture's shadow path is
  * named in stderr, the guard's ordinary header is present) — any gap there
  * throws a plain `Error` carrying the `MESURE IMPOSSIBLE` marker so
- * `classifyProof()` (`apps/front/scripts/ci/classify-proof.mts`) reports
+ * `classifyProof()` (`apps/front/scripts/ci/classify-proof.ts`) reports
  * CORRUPT PROOF rather than a false "kept red". Only once every
  * precondition holds does the test assert that stderr contains the false
  * diagnosis text "NOT mirrored by the root .dockerignore" — the ONE
@@ -109,7 +109,7 @@
  *   review: this test is declared in
  *   `red-1977-undecidable-negation-false-not-mirrored.test.ts.expected-red.json`
  *   as a test that MUST fail on correct code. `classifyProofWithManifest()`
- *   (`apps/front/scripts/ci/classify-proof.mts`) reads that declaration and
+ *   (`apps/front/scripts/ci/classify-proof.ts`) reads that declaration and
  *   reports `DECLARED RED PASSED` — a stale/corrupt proof — the moment the
  *   declared test passes, independent of any other test in the file. The
  *   same unconditional string also prints the same false diagnosis for the
@@ -208,7 +208,7 @@ test('RED #1977: a git-ignored candidate mirrored by a later decidable line is f
 	// before the kept-red assertion runs. A failure here is a broken
 	// measurement, not a "defect absent" result, so it throws a plain
 	// `Error` carrying the `MESURE IMPOSSIBLE` marker — `classifyProof()` in
-	// `apps/front/scripts/ci/classify-proof.mts` reads the first token of
+	// `apps/front/scripts/ci/classify-proof.ts` reads the first token of
 	// the failure message to tell an `AssertionError` (kept-red, OK) apart
 	// from a thrown `Error` (measurement impossible, CORRUPT PROOF). Only
 	// the FINAL check below is allowed to be an `expect(...)` assertion.

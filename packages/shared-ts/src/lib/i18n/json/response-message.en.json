@@ -7,7 +7,7 @@
 	"bad-request": "Bad request",
 	"unprocessable-entity": "Unprocessable entity",
 	"too-many-requests": "Too many requests",
-	"service-unavailable": "Service unavailable",
+	"service-unavailable": "The service is temporarily unavailable.",
 	"gateway-timeout": "Gateway timeout",
 	"method-not-allowed": "Method not allowed",
 	"invalid-email-or-password": "Invalid email or password",

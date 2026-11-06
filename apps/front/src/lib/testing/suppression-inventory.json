@@ -1,68 +1,8 @@
 [
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/audit-logs/_audit-log-columns.tsx",
-		"reason": "a legacy audit row's missing action key renders as a no-value dash, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/audit-logs/_audit-log-columns.tsx",
-		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/audit-logs/_audit-log-columns.tsx",
-		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/audit-logs/_audit-log-columns.tsx",
-		"reason": "target id is a documented OPTIONAL field — an event without a target has none, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/jobs/_columns.tsx",
-		"reason": "a legacy row's missing job type renders as a no-value dash, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/jobs/_columns.tsx",
-		"reason": "a purged tenant reference renders as a no-value dash"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/audit-logs/_audit-log-columns.tsx",
-		"reason": "ip address is a documented OPTIONAL field — a server-side event has none, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "a tenant activity row's missing action key renders as a no-value dash, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "target id is a documented OPTIONAL field — an event without a target has none, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
-		"reason": "ip address is a documented OPTIONAL field — a server-side event has none, not fabricated identity data"
-	},
-	{
-		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/audit-logs/_audit-log-detail-parts.tsx",
-		"reason": "a legacy audit row's missing action key renders as a no-value dash, not fabricated identity data"
+		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
 	},
 	{
 		"convention": "data-honesty-ignore",
@@ -72,7 +12,7 @@
 	{
 		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/audit-logs/_audit-log-detail-parts.tsx",
-		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
+		"reason": "a legacy audit row's missing action key renders as a no-value dash, not fabricated identity data"
 	},
 	{
 		"convention": "data-honesty-ignore",
@@ -88,6 +28,31 @@
 		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/tenants/$tenantId-edit.tsx",
 		"reason": "tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "a hard-deleted user has no surviving row (orphaned FK), so the no-value dash is not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "a tenant activity row's missing action key renders as a no-value dash, not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "ip address is a documented OPTIONAL field — a server-side event has none, not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "target id is a documented OPTIONAL field — an event without a target has none, not fabricated identity data"
 	},
 	{
 		"convention": "data-honesty-ignore",
@@ -118,6 +83,11 @@
 		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/tenants/$tenantId/users/_details-info-card.tsx",
 		"reason": "avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data"
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/components/ui/scroll-area.tsx",
+		"reason": "no-hardcoded-ui-literal — SimpleBar engine's internal CSS-class token for a geometry probe node; never rendered as UI copy."
 	},
 	{
 		"convention": "i18n-guard-ignore",
@@ -153,10 +123,5 @@
 		"convention": "i18n-guard-ignore",
 		"file": "src/routes/__root.tsx",
 		"reason": "no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy."
-	},
-	{
-		"convention": "i18n-guard-ignore",
-		"file": "src/components/ui/scroll-area.tsx",
-		"reason": "no-hardcoded-ui-literal — SimpleBar engine's internal CSS-class token for a geometry probe node; never rendered as UI copy."
 	}
 ]

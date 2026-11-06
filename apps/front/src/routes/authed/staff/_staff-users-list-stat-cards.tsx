@@ -1,30 +1,37 @@
-import { IconCrown, IconUsers } from '@tabler/icons-react';
+import {
+	IconCrown,
+	IconDeviceDesktop,
+	IconLock,
+	IconUsers,
+} from '@tabler/icons-react';
 import { StatCard } from '~/components/ui/stat-card';
-import type { StaffUserRow } from '~/lib/query/staff-users';
 
-import { deriveStaffUserStatusKey } from './staff-users/list-helpers';
+import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 const Dash = () => <span className="text-muted-foreground">—</span>;
 
 /**
- * The two staff-member StatCards backed by the list API: « Membres » and
- * « Administrateurs ». The design's « Double authentification » and
- * « Connectés aujourd'hui » cards are omitted: `StaffUserItem` carries no MFA,
- * session or last-login field, and the honest-numbers rule forbids inventing
- * them (#2281 API gap).
+ * The four staff-member StatCards, from the list API's whole-collection
+ * `counts` (issue #2301). « Connectés aujourd'hui » counts the users with a
+ * session opened since midnight UTC and the still-open sessions behind it.
+ *
+ * Full access is a protected system role, never a level: the « Accès complet »
+ * card counts the accounts holding it and its footer the rest.
+ *
+ * « Double authentification » stays « — » with « Bientôt disponible »: no
+ * 2FA source exists yet, and the honest-numbers rule forbids inventing a
+ * percentage. The card is never hidden: the product announces it instead.
  */
 export const StaffUsersStatCards = ({
-	rows,
+	counts,
 	t,
-	known,
 }: {
-	rows: StaffUserRow[] | null;
+	counts: StaffUserListCounts | null | undefined;
 	t: Translate;
-	known: boolean;
 }) => {
-	if (!known || rows === null) {
+	if (!counts) {
 		return (
 			<>
 				<StatCard
@@ -36,8 +43,22 @@ export const StaffUsersStatCards = ({
 				/>
 				<StatCard
 					testId="staff-user-stat-admins"
-					label={t('administrators')}
+					label={t('full-access')}
 					icon={<IconCrown />}
+					value={<Dash />}
+					footer={<Dash />}
+				/>
+				<StatCard
+					testId="staff-user-stat-two-factor"
+					label={t('list-staff-stat-two-factor')}
+					icon={<IconLock />}
+					value={<Dash />}
+					footer={t('list-staff-stat-two-factor-coming-soon')}
+				/>
+				<StatCard
+					testId="staff-user-stat-connected-today"
+					label={t('list-staff-stat-connected-today')}
+					icon={<IconDeviceDesktop />}
 					value={<Dash />}
 					footer={<Dash />}
 				/>
@@ -45,20 +66,8 @@ export const StaffUsersStatCards = ({
 		);
 	}
 
-	let active = 0;
-	let suspended = 0;
-	let admins = 0;
-	for (const row of rows) {
-		if (deriveStaffUserStatusKey(row.status) === 'active') {
-			active += 1;
-		} else if (deriveStaffUserStatusKey(row.status) === 'suspended') {
-			suspended += 1;
-		}
-		if (row.isFullAccess) {
-			admins += 1;
-		}
-	}
-	const users = rows.length - admins;
+	const fullAccess = counts.fullAccess ?? 0;
+	const standard = (counts.total ?? 0) - fullAccess;
 
 	return (
 		<>
@@ -66,22 +75,38 @@ export const StaffUsersStatCards = ({
 				testId="staff-user-stat-total"
 				label={t('members')}
 				icon={<IconUsers />}
-				value={rows.length}
+				value={counts.total ?? 0}
 				footer={
 					<>
 						<span className="font-medium text-foreground">
-							{t('list-staff-stat-active', { count: active })}
+							{t('list-staff-stat-active', { count: counts.active ?? 0 })}
 						</span>{' '}
-						· {t('list-staff-stat-suspended', { count: suspended })}
+						· {t('list-staff-stat-suspended', { count: counts.suspended ?? 0 })}
 					</>
 				}
 			/>
 			<StatCard
 				testId="staff-user-stat-admins"
-				label={t('administrators')}
+				label={t('full-access')}
 				icon={<IconCrown />}
-				value={admins}
-				footer={t('list-staff-stat-users', { count: users })}
+				value={fullAccess}
+				footer={t('list-staff-stat-users', { count: standard })}
+			/>
+			<StatCard
+				testId="staff-user-stat-two-factor"
+				label={t('list-staff-stat-two-factor')}
+				icon={<IconLock />}
+				value={<Dash />}
+				footer={t('list-staff-stat-two-factor-coming-soon')}
+			/>
+			<StatCard
+				testId="staff-user-stat-connected-today"
+				label={t('list-staff-stat-connected-today')}
+				icon={<IconDeviceDesktop />}
+				value={counts.connectedToday ?? 0}
+				footer={t('list-staff-stat-open-sessions', {
+					count: counts.openSessions ?? 0,
+				})}
 			/>
 		</>
 	);

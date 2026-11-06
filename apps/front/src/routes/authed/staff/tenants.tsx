@@ -1,5 +1,5 @@
 import { IconPlus } from '@tabler/icons-react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -9,7 +9,6 @@ import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button.variants';
 import {
 	toStaffTenantRows,
 	useStaffTenantsQuery,
@@ -100,11 +99,9 @@ const StaffTenantsPage = () => {
 	// loaded page is the whole collection (first page, no next cursor) and no
 	// server-side status filter narrows it; otherwise they show « — », never a
 	// page-scoped number presented as the total (issue #2275).
-	const collectionComplete =
-		query.data !== undefined &&
-		query.data.nextCursor == null &&
-		!controller.cursor.hasPreviousPage;
-	const countsKnown = collectionComplete && search.status.length === 0;
+	// `totalCount`/`counts` describe the whole filtered collection (#2301).
+	const countsKnown = query.data !== undefined;
+	const counts = query.data?.counts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 
@@ -146,7 +143,6 @@ const StaffTenantsPage = () => {
 			testId="staff-tenants-table"
 			ariaLabel={t('list-aria')}
 			title={t('tenants')}
-			description={t('tenants-list-description')}
 			searchPlaceholder={t('list-search-placeholder')}
 			rows={rows}
 			columns={tenantColumns(t, locale)}
@@ -175,15 +171,39 @@ const StaffTenantsPage = () => {
 			filters={buildTenantFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={{
+				status: {
+					active: counts?.active ?? null,
+					pending: counts?.pending ?? null,
+					suspended: counts?.suspended ?? null,
+				},
+				occupancy: {
+					full: counts?.full ?? null,
+					high:
+						counts == null
+							? null
+							: (counts.almostFull ?? 0) - (counts.full ?? 0),
+					available:
+						counts == null
+							? null
+							: (counts.total ?? 0) - (counts.almostFull ?? 0),
+				},
+				locale: {
+					fr:
+						counts?.byLocale?.find((row) => row.locale === 'fr')?.count ?? null,
+					en:
+						counts?.byLocale?.find((row) => row.locale === 'en')?.count ?? null,
+				},
+			}}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty')}
 			locale={locale}
 			cards={
 				query.isPending ? undefined : (
-					<TenantStatCards rows={rows} t={t} known={countsKnown} />
+					<TenantStatCards counts={counts ?? null} t={t} />
 				)
 			}
-			totals={buildTenantTotals(t, countsKnown)}
+			totals={buildTenantTotals(t, counts ?? null)}
 			onOpen={(row) =>
 				void navigate({
 					to: '/staff/tenants/$tenantId',
@@ -204,15 +224,15 @@ const StaffTenantsPage = () => {
 				/>
 			)}
 			onExport={() => exportTenantRows(rows, t, locale)}
-			newAction={
-				<Link to="/staff/tenants/new" className={buttonVariants()}>
-					<IconPlus aria-hidden="true" data-icon="inline-start" />
-					{t('new-organization')}
-				</Link>
-			}
+			newAction={{
+				label: t('new-organization'),
+				icon: IconPlus,
+				to: '/staff/tenants/new',
+			}}
 			queryState={{
 				isPending: query.isPending,
 				isError: query.isError,
+				error: query.error,
 				onRetry: () => void query.refetch(),
 			}}
 			footer={
@@ -260,6 +280,10 @@ const StaffTenantsPage = () => {
 export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 	staticData: {
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-tenants' }],
+		// The list page owns the whole side panel (its filter-shortcut groups,
+		// #2274 §4.1): the shell must not stack its static section nav above
+		// them, as the prototype's Organisations list does not (PROMPT §4.2).
+		pageOwnsSecondaryPanel: true,
 	},
 	validateSearch: (search) =>
 		serializeTenantListSearchParams(

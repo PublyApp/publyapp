@@ -5,9 +5,9 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
-import { contextChunkIsolationPlugin } from './tools/vite/check-context-chunk-isolation.mts';
-import { contextChunkIsolationInventory } from './tools/vite/context-chunk-isolation.inventory.mts';
-import { transformSimplebarUpstreamCssPlugin } from './tools/vite/transform-simplebar-upstream-css.mts';
+import { contextChunkIsolationPlugin } from './tools/vite/check-context-chunk-isolation.ts';
+import { contextChunkIsolationInventory } from './tools/vite/context-chunk-isolation.inventory.ts';
+import { transformSimplebarUpstreamCssPlugin } from './tools/vite/transform-simplebar-upstream-css.ts';
 
 const workspaceRootDir = fileURLToPath(new URL('../..', import.meta.url));
 const frontDirectory = fileURLToPath(new URL('.', import.meta.url));

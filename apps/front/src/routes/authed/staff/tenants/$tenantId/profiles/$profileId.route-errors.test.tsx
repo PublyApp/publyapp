@@ -400,7 +400,7 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		expect(mocks.logout).not.toHaveBeenCalled();
 
 		failProfileFetch = false;
-		fireEvent.click(screen.getByRole('button', { name: 'try-again' }));
+		fireEvent.click(screen.getByRole('button', { name: /retry/i }));
 
 		await waitFor(() => {
 			expect(

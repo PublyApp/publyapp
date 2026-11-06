@@ -261,6 +261,20 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			.AsNoTracking()
 			.Where(inv => inv.Scope == InvitationScope.Staff && inv.Id != null);
 
+		if (args.Search is { } search) {
+			var trimmed = search.Trim();
+			if (trimmed.Length > 0) {
+				var pattern = $"%{LikePatternUtils.EscapeLikePattern(trimmed)}%";
+				query = query.Where(inv =>
+					EF.Functions.ILike(inv.Email, pattern, LikePatternUtils.LikeEscapeChar)
+					|| this._DbContext.User.Any(inviter =>
+						inviter.Id == inv.InvitedByUserId
+						&& ((inviter.FirstName != null && EF.Functions.ILike(inviter.FirstName, pattern, LikePatternUtils.LikeEscapeChar))
+							|| (inviter.LastName != null && EF.Functions.ILike(inviter.LastName, pattern, LikePatternUtils.LikeEscapeChar))))
+				);
+			}
+		}
+
 		if (statuses is { Count: > 0 } activeStatuses) {
 			var now = DateTime.UtcNow;
 			query = query.Where(inv =>
@@ -271,6 +285,47 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				(activeStatuses.Contains(InvitationEffectiveStatus.Expired) && inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= now)
 			);
 		}
+
+		// Facets over the whole filtered collection (cursor and limit excluded).
+		var facetNow = DateTime.UtcNow;
+		var expiringSoonLimit = facetNow.AddDays(3);
+		var facetRows = await (
+			from inv in query
+			group inv by inv.Status into g
+			select new {
+				Status = g.Key,
+				Count = g.Count(),
+				Expired = g.Count(inv => inv.ExpiresAt <= facetNow),
+				ExpiringSoon = g.Count(inv =>
+					inv.ExpiresAt > facetNow && inv.ExpiresAt <= expiringSoonLimit),
+			}
+		).ToListAsync(cancellationToken);
+
+		var pending = 0;
+		var accepted = 0;
+		var expired = 0;
+		var revoked = 0;
+		var expiringSoon = 0;
+		foreach (var facet in facetRows) {
+			if (facet.Status == InvitationStatus.Pending) {
+				pending += facet.Count - facet.Expired;
+				expired += facet.Expired;
+				expiringSoon += facet.ExpiringSoon;
+			} else if (facet.Status == InvitationStatus.Accepted) {
+				accepted += facet.Count;
+			} else if (facet.Status == InvitationStatus.Revoked) {
+				revoked += facet.Count;
+			}
+		}
+
+		var counts = new StaffInvitationCounts(
+			Total: pending + accepted + expired + revoked,
+			Pending: pending,
+			Accepted: accepted,
+			Expired: expired,
+			Revoked: revoked,
+			ExpiringSoon: expiringSoon
+		);
 
 		if (cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(cursor);
@@ -357,7 +412,8 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			new CursorPaginatedResult<InvitationListItem> {
 				Data = invitationItems,
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 

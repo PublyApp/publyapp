@@ -5,8 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
@@ -91,7 +89,6 @@ export const TenantUserDetailsShell = ({
 						fallback: t('tenant-user-not-found-description'),
 					})}
 					testId="tenant-user-details-not-found"
-					actions={<BackToStaffLink />}
 				/>
 			);
 		}
@@ -109,15 +106,7 @@ export const TenantUserDetailsShell = ({
 					fallback: t('tenant-user-not-found-description'),
 				})}
 				testId="tenant-user-details-error"
-				actions={
-					<Button
-						variant="default"
-						onClick={() => void detailsQuery.refetch()}
-						type="button"
-					>
-						{t('try-again')}
-					</Button>
-				}
+				onRetry={() => void detailsQuery.refetch()}
 			/>
 		);
 	}
@@ -132,7 +121,6 @@ export const TenantUserDetailsShell = ({
 				title={t('tenant-user-not-found-title')}
 				description={t('tenant-user-payload-empty')}
 				testId="tenant-user-details-empty"
-				actions={<BackToStaffLink />}
 			/>
 		);
 	}
@@ -198,18 +186,5 @@ export const TenantUserDetailsShell = ({
 
 			{children}
 		</div>
-	);
-};
-
-const BackToStaffLink = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<Link
-			to="/staff/dashboard"
-			className={buttonVariants({ variant: 'outline' })}
-		>
-			{t('back')}
-		</Link>
 	);
 };

@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-query', () => ({
+	useQueryErrorResetBoundary: () => ({ reset: vi.fn() }),
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,
 		removeQueries: mocks.removeQueries,
@@ -39,6 +40,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,

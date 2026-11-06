@@ -71,6 +71,11 @@ vi.mock('react-i18next', () => ({
 				'logo-upload-failed': "Couldn't upload the image. Please try again.",
 				'image-uploaded-success': 'Image uploaded successfully.',
 				'clear-logo': 'Clear logo',
+				optional: 'optional',
+				'organization-logo-title': 'Organization logo',
+				'or-drag-here': 'or drag it here',
+				'drop-file-here': 'Drop the file here',
+				'choose-image': 'Choose an image',
 			};
 
 			return labels[key] ?? key;

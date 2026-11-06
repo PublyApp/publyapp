@@ -18,12 +18,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { createZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 import { getNewStaffUserSchema } from '@org/shared-ts/validations/staff-user.validations';
 import { getNewTenantSchemaServerSide } from '@org/shared-ts/validations/tenant/tenant.validations';
 
 const makeZ = () =>
-	new InterZod({
+	createZodI18n({
 		i18n: { getFixedT: () => (key: string) => key },
 	});
 

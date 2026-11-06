@@ -1,15 +1,13 @@
-import {
-	IconFileCheck,
-	IconFileSpreadsheet,
-	IconPlus,
-	IconX,
-} from '@tabler/icons-react';
+import { IconDownload, IconPlus, IconX } from '@tabler/icons-react';
+import { useId } from 'react';
 import { Controller, type Control } from 'react-hook-form';
-import { Field } from '~/components/field';
+import { FieldDropZone } from '~/components/field/field-drop-zone';
+import { GroupRow } from '~/components/field/field-group';
 import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
 
 import { type TranslateFn } from './_tenant-form-shared';
-import { MemberLevelSelect } from './_tenants-new-fields';
+import { MemberLevelSelect, ROW_CONTROL } from './_tenants-new-fields';
 import {
 	downloadTemplateCsv,
 	type useTenantMemberImport,
@@ -21,113 +19,28 @@ import { type buildMemberImportOutcome } from './tenants-new-helpers';
 type ImportOutcome = ReturnType<typeof buildMemberImportOutcome>;
 type MemberImport = ReturnType<typeof useTenantMemberImport>;
 
-const MemberImportDropzone = ({
-	t,
-	fileInputRef,
-	onFiles,
-}: {
-	t: TranslateFn;
-	fileInputRef: MemberImport['fileInputRef'];
-	onFiles: (files: FileList | null) => void;
-}) => (
-	<div
-		className="flex flex-col items-center gap-1.5 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-6 text-center"
-		data-testid="tenant-member-dropzone"
-		onDragOver={(event) => {
-			event.preventDefault();
-		}}
-		onDrop={(event) => {
-			event.preventDefault();
-			onFiles(event.dataTransfer.files);
-		}}
-	>
-		<IconFileSpreadsheet
-			aria-hidden="true"
-			className="size-6 text-muted-foreground"
-		/>
-		<label
-			htmlFor="tenant-member-file-input"
-			className="cursor-pointer text-[13px] font-medium text-foreground"
-		>
-			{t('drag-csv-file')}
-		</label>
-		<p className="publy-type-helper">
-			{t('csv-columns-hint')}
-			{' · '}
-			<Button
-				type="button"
-				variant="link"
-				size="xs"
-				className="h-auto p-0 align-baseline"
-				onClick={downloadTemplateCsv}
-			>
-				{t('download-template')}
-			</Button>
-		</p>
-		<input
-			ref={fileInputRef}
-			id="tenant-member-file-input"
-			type="file"
-			accept=".csv"
-			aria-label={t('drag-csv-file')}
-			className="sr-only"
-			onChange={(event) => {
-				onFiles(event.target.files);
-				event.target.value = '';
-			}}
-		/>
-	</div>
-);
+const parsedFileMeta = (t: TranslateFn, outcome: ImportOutcome): string => {
+	const parts = [
+		t('parsed-file-summary', {
+			detected: outcome.detectedCount,
+			valid: outcome.valid.length,
+		}),
+	];
+	if (outcome.invalidCount > 0) {
+		parts.push(t('parsed-file-invalid-rows', { count: outcome.invalidCount }));
+	}
+	if (outcome.duplicateCount > 0) {
+		parts.push(
+			t('parsed-file-duplicate-rows', { count: outcome.duplicateCount }),
+		);
+	}
+	return parts.join(' · ');
+};
 
-const MemberImportSummary = ({
-	t,
-	fileName,
-	outcome,
-	onRemove,
-}: {
-	t: TranslateFn;
-	fileName: string;
-	outcome: ImportOutcome;
-	onRemove: () => void;
-}) => (
-	<div
-		className="flex items-center justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border border-(--publy-chip-active-border) bg-(--publy-chip-active-bg) px-3.5 py-2.5"
-		data-testid="tenant-member-parsed-summary"
-	>
-		<div className="flex min-w-0 items-center gap-2">
-			<IconFileCheck
-				aria-hidden="true"
-				className="size-4 shrink-0 text-(--publy-chip-active-text)"
-			/>
-			<div className="min-w-0 text-[13px]">
-				<p className="truncate font-medium text-foreground">{fileName}</p>
-				<p className="publy-type-helper">
-					{t('parsed-file-summary', {
-						detected: outcome.detectedCount,
-						valid: outcome.valid.length,
-					})}
-				</p>
-				{outcome.invalidCount > 0 ? (
-					<p className="publy-type-helper text-(--publy-danger)">
-						{t('parsed-file-invalid-rows', { count: outcome.invalidCount })}
-					</p>
-				) : null}
-				{outcome.duplicateCount > 0 ? (
-					<p className="publy-type-helper">
-						{t('parsed-file-duplicate-rows', {
-							count: outcome.duplicateCount,
-						})}
-					</p>
-				) : null}
-			</div>
-		</div>
-		<Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-			{t('remove')}
-		</Button>
-	</div>
-);
-
-export const TenantCreateMembersSection = ({
+/** The `Membres initiaux` row of the people group: the CSV drop zone (or the
+ * chosen file with its counts), the manual rows with their owner/member role,
+ * and the add button. */
+export const TenantCreateMembersRow = ({
 	t,
 	control,
 	isFormLocked,
@@ -145,90 +58,131 @@ export const TenantCreateMembersSection = ({
 	canAddManualMember: boolean;
 	onAddManualMember: () => void;
 	onRemoveManualMember: (index: number) => void;
-}) => (
-	<section className="flex flex-col gap-4">
-		<p className="publy-type-eyebrow">{t('initial-members-optional')}</p>
+}) => {
+	const csvInputId = useId();
 
-		<MemberImportDropzone
-			t={t}
-			fileInputRef={memberImport.fileInputRef}
-			onFiles={(files) => {
-				void memberImport.handleFiles(files);
-			}}
-		/>
-
-		{memberImport.importError ? (
-			<p className="publy-field-error">{memberImport.importError}</p>
-		) : null}
-
-		{memberImport.parsedFile && memberImport.parsedOutcome ? (
-			<MemberImportSummary
-				t={t}
-				fileName={memberImport.parsedFile.fileName}
-				outcome={memberImport.parsedOutcome}
-				onRemove={memberImport.clearParsedFile}
-			/>
-		) : null}
-
-		<div className="flex items-center gap-3">
-			<span className="h-px flex-1 bg-(--publy-row-border)" />
-			<span className="publy-type-helper shrink-0">{t('or-add-manually')}</span>
-			<span className="h-px flex-1 bg-(--publy-row-border)" />
-		</div>
-
-		<div className="flex flex-col gap-3">
-			{manualMemberFields.map((field, index) => (
-				<div
-					key={field.id}
-					className="grid grid-cols-[1fr_96px_32px] items-center gap-2"
-				>
-					<Field.Email
-						name={`manualMembers.${index}.email`}
-						label={t('email')}
-						placeholder="user@example.com"
-						isDisabled={isFormLocked}
-					/>
-					<Controller
-						control={control}
-						name={`manualMembers.${index}.role`}
-						render={({ field: levelField }) => (
-							<MemberLevelSelect
-								name={`manualMembers.${index}.role`}
-								value={getUserRole(levelField.value)}
-								onChange={levelField.onChange}
-								onBlur={levelField.onBlur}
-								disabled={isFormLocked}
-								ariaLabel={t('role')}
-								t={t}
-							/>
-						)}
-					/>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						disabled={isFormLocked}
-						onClick={() => {
-							onRemoveManualMember(index);
-						}}
-						aria-label={t('remove-member')}
-					>
-						<IconX aria-hidden="true" className="size-4" />
-					</Button>
-				</div>
-			))}
-		</div>
-
-		<Button
-			type="button"
-			variant="outline"
-			size="sm"
-			disabled={isFormLocked || !canAddManualMember}
-			onClick={onAddManualMember}
-			className="w-fit border-dashed border-(--publy-border-strong) bg-transparent"
+	return (
+		<GroupRow
+			label={t('initial-members')}
+			badge={
+				<span className="text-xs text-muted-foreground">{t('optional')}</span>
+			}
 		>
-			<IconPlus aria-hidden="true" className="size-3.5" />
-			{t('add-member')}
-		</Button>
-	</section>
-);
+			<FieldDropZone
+				kind="csv"
+				title={t('import-members-title')}
+				dropLabel={t('drop-file-here')}
+				action={t('choose-csv-file')}
+				hint={
+					<span>
+						{t('or-drag-here')} · {t('csv-drop-hint')}
+					</span>
+				}
+				inputId={csvInputId}
+				inputRef={memberImport.fileInputRef}
+				accept=".csv"
+				file={
+					memberImport.parsedFile && memberImport.parsedOutcome
+						? {
+								name: memberImport.parsedFile.fileName,
+								meta: parsedFileMeta(t, memberImport.parsedOutcome),
+							}
+						: undefined
+				}
+				isDisabled={isFormLocked}
+				clearLabel={t('remove')}
+				testId="tenant-member-dropzone"
+				template={
+					<button
+						type="button"
+						className="inline-flex shrink-0 items-center gap-1 rounded-sm text-xs font-medium whitespace-nowrap text-foreground underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+						onClick={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+							downloadTemplateCsv();
+						}}
+					>
+						<IconDownload aria-hidden="true" className="size-3.5" />
+						{t('download-template')}
+					</button>
+				}
+				onFiles={(files) => {
+					void memberImport.handleFiles(files);
+				}}
+				onClear={memberImport.clearParsedFile}
+			/>
+
+			{memberImport.importError ? (
+				<p className="text-xs text-destructive">{memberImport.importError}</p>
+			) : null}
+
+			{manualMemberFields.length > 0 ? (
+				<div className="flex flex-col gap-2">
+					{manualMemberFields.map((field, index) => (
+						<div key={field.id} className="flex items-center gap-2">
+							<Controller
+								control={control}
+								name={`manualMembers.${index}.email`}
+								render={({ field: emailField }) => (
+									<Input
+										type="email"
+										name={`manualMembers.${index}.email`}
+										value={emailField.value}
+										placeholder={t('member-email-placeholder')}
+										disabled={isFormLocked}
+										onBlur={emailField.onBlur}
+										onChange={(event) => {
+											emailField.onChange(event.target.value);
+										}}
+										aria-label={t('email')}
+										className={ROW_CONTROL}
+									/>
+								)}
+							/>
+							<Controller
+								control={control}
+								name={`manualMembers.${index}.role`}
+								render={({ field: roleField }) => (
+									<MemberLevelSelect
+										name={`manualMembers.${index}.role`}
+										value={getUserRole(roleField.value)}
+										onChange={roleField.onChange}
+										onBlur={roleField.onBlur}
+										disabled={isFormLocked}
+										ariaLabel={t('role')}
+										t={t}
+									/>
+								)}
+							/>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								className="rounded-[var(--publy-radius-control)]"
+								disabled={isFormLocked}
+								onClick={() => {
+									onRemoveManualMember(index);
+								}}
+								aria-label={t('remove-member')}
+							>
+								<IconX aria-hidden="true" />
+							</Button>
+						</div>
+					))}
+				</div>
+			) : null}
+
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				disabled={isFormLocked || !canAddManualMember}
+				onClick={onAddManualMember}
+				className="w-fit rounded-[var(--publy-radius-control)] border-transparent shadow-[var(--publy-shadow-ring)]"
+			>
+				<IconPlus data-icon="inline-start" />
+				{t('add-member')}
+			</Button>
+		</GroupRow>
+	);
+};

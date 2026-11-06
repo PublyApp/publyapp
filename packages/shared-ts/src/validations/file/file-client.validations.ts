@@ -1,10 +1,10 @@
 import type zod from 'zod';
 
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import type { ZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 
 import { getFolderNameSchema } from './file.validations';
 
-export const getFileSchemaClientSide = (z: InterZod) => {
+export const getFileSchemaClientSide = (z: ZodI18n) => {
 	const field = z.t('field');
 	const type = z.t('file');
 
@@ -23,18 +23,18 @@ export const getFileSchemaClientSide = (z: InterZod) => {
 	);
 };
 
-export const getFilesArraySchemaClientSide = (z: InterZod) => {
+export const getFilesArraySchemaClientSide = (z: ZodI18n) => {
 	return z.array(getFileSchemaClientSide(z)).min(1);
 };
 
-export const getUploadManyFilesSchemaClientSide = (z: InterZod) => {
+export const getUploadManyFilesSchemaClientSide = (z: ZodI18n) => {
 	return z.object({
 		files: getFilesArraySchemaClientSide(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),
 	});
 };
 
-export const getCreateFolderSchemaClientSide = (z: InterZod) => {
+export const getCreateFolderSchemaClientSide = (z: ZodI18n) => {
 	return z.object({
 		folderName: getFolderNameSchema(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),

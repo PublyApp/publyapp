@@ -199,6 +199,8 @@ vi.mock('react-i18next', () => ({
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description':
 					'You have unsaved changes that will be lost if you leave this page.',
+				'tenant-user-not-found-description':
+					'This tenant user does not exist, or you no longer have access to this tenant-user identity.',
 			};
 
 			return labels[key] ?? key;
@@ -727,7 +729,12 @@ describe('staff tenant user edit route', () => {
 		);
 
 		renderPage();
-		expect(screen.getByTestId('staff-tenant-user-edit-not-found')).toBeTruthy();
+		const view = screen.getByTestId('staff-tenant-user-edit-not-found');
+		expect(view).toBeTruthy();
+		expect(view.textContent).toContain(
+			'This tenant user does not exist, or you no longer have access to this tenant-user identity.',
+		);
+		expect(view.textContent).not.toContain('Malformed userId');
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 

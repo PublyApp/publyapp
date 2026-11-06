@@ -163,10 +163,12 @@ test.describe(
 			const firstCell = firstRow.locator('[data-slot="table-cell"]').nth(1);
 			await expect(firstCell).toHaveCSS('height', '48px');
 
+			// The prototype's profile cell is the 24px uniform shield tile
+			// (`IconTile size="sm"`, radius 7px), not the old 32px per-row icon.
 			const iconTile = firstRow.locator('.publy-profile-icon-tile');
-			await expect(iconTile).toHaveCSS('width', '32px');
-			await expect(iconTile).toHaveCSS('height', '32px');
-			await expect(iconTile).toHaveCSS('border-radius', '9px');
+			await expect(iconTile).toHaveCSS('width', '24px');
+			await expect(iconTile).toHaveCSS('height', '24px');
+			await expect(iconTile).toHaveCSS('border-radius', '7px');
 
 			const iconTileSvg = iconTile.locator('svg');
 			await expect(iconTileSvg).toBeVisible();

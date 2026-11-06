@@ -241,7 +241,7 @@ test.describe(
 					request.method() === 'POST' &&
 					isApiPath(request.url(), '/staff/uploads'),
 			);
-			await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+			await page.getByLabel('Choose an image').setInputFiles(LOGO_FIXTURE_PATH);
 			await uploadRequest;
 
 			// The uploaded url is root-relative (BE-4); the form resolves it against
@@ -299,7 +299,7 @@ test.describe(
 			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
 			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-			await page.getByLabel('Logo').setInputFiles({
+			await page.getByLabel('Choose an image').setInputFiles({
 				name: 'too-big.png',
 				mimeType: 'image/png',
 				buffer: Buffer.alloc(2_000_001),
@@ -308,7 +308,10 @@ test.describe(
 			await expect(
 				page.getByText('Image must be 2 MB or smaller'),
 			).toBeVisible();
-			await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
+			await expect(page.getByTestId('logo-upload-url')).toHaveText('');
+			await expect(page.getByTestId('logo-upload-dropzone-chosen')).toHaveCount(
+				0,
+			);
 		});
 
 		test('a disallowed file type shows an inline error and does not set the logo', async ({
@@ -321,7 +324,7 @@ test.describe(
 			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
 			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-			await page.getByLabel('Logo').setInputFiles({
+			await page.getByLabel('Choose an image').setInputFiles({
 				name: 'logo.svg',
 				mimeType: 'image/svg+xml',
 				buffer: Buffer.from('<svg></svg>'),
@@ -330,7 +333,10 @@ test.describe(
 			await expect(
 				page.getByText('Image must be PNG, JPEG, WEBP, or GIF'),
 			).toBeVisible();
-			await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
+			await expect(page.getByTestId('logo-upload-url')).toHaveText('');
+			await expect(page.getByTestId('logo-upload-dropzone-chosen')).toHaveCount(
+				0,
+			);
 		});
 	},
 );
@@ -351,19 +357,19 @@ test.describe(
 
 			const uniqueSuffix = Math.random().toString(36).slice(2, 10);
 			await page
-				.getByRole('textbox', { name: /organization/i })
+				.getByRole('textbox', { name: 'Name', exact: true })
 				.fill(`Real Upload Tenant ${uniqueSuffix}`);
 			await page
 				.locator('input[name="owners.0.email"]')
 				.fill(`owner-${uniqueSuffix}@acme.com`);
 
 			await page
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 			const createDialog = page.getByRole('alertdialog');
 			await expect(createDialog).toBeVisible();
 			await createDialog
-				.getByRole('button', { name: /^(create organization)$/i })
+				.getByRole('button', { name: /^(create the organization)$/i })
 				.click();
 
 			// A UUID-shaped final segment, not a bare `[^/]+` — the latter also
@@ -385,7 +391,7 @@ test.describe(
 					isApiPath(response.url(), '/staff/uploads') &&
 					response.status() === 201,
 			);
-			await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+			await page.getByLabel('Choose an image').setInputFiles(LOGO_FIXTURE_PATH);
 			const uploadResponse = await uploadResponsePromise;
 			const uploadBody = (await uploadResponse.json()) as { url: string };
 			expect(uploadBody.url.startsWith('/files/')).toBe(true);

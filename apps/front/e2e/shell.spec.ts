@@ -284,7 +284,16 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 
 		const panel = page.getByTestId('app-shell-secondary-panel');
 		await expect(panel).toBeVisible();
-		await expect(panel.getByRole('heading', { name: 'Staff' })).toBeVisible();
+		// The list page owns the whole panel, as in the prototype: its own
+		// « Staff » group title is the first row, with no shell header stacked
+		// above it (the heading still exists for assistive tech, hidden).
+		await expect(panel.locator('.app-shell-secondary-header')).toHaveCount(0);
+		const heading = panel.getByRole('heading', { name: 'Staff' });
+		await expect(heading).toBeVisible();
+		await expect(heading).toHaveClass(/sr-only/);
+		const teamGroup = panel.locator('[data-list-panel-group="team"]');
+		await expect(teamGroup).toBeVisible();
+		await expect(teamGroup.getByText('Staff', { exact: true })).toBeVisible();
 		await expect(
 			panel.getByRole('button', { name: /Staff members/ }),
 		).toBeVisible();
@@ -307,37 +316,33 @@ test.describe('shell', { tag: ['@shell', '@713'] }, () => {
 		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
 	});
 
-	test('tenants route shows tenants panel destinations', async ({ page }) => {
+	test('tenants list panel is its filter groups, not the static section nav', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff/tenants');
 
-		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+		const panel = page.getByTestId('app-shell-secondary-panel');
+		await expect(panel).toBeVisible();
+		// PROMPT §4.2 / the prototype: the Organisations list panel is the
+		// filter-shortcut column (Statuts, Places, Langues), not the shell's
+		// Toutes / Actives / En attente / Suspendues section nav. The page owns
+		// the whole panel, so no shell header is stacked above it either.
+		await expect(panel.locator('.app-shell-secondary-header')).toHaveCount(0);
 		await expect(
-			page
-				.getByTestId('app-shell-secondary-panel')
-				.getByRole('heading', { name: 'Organizations' }),
+			panel.getByRole('heading', { name: 'Organizations' }),
+		).toBeVisible();
+		await expect(panel.getByText('Statuses', { exact: true })).toBeVisible();
+		await expect(panel.getByText('Seats', { exact: true })).toBeVisible();
+		await expect(panel.getByRole('button', { name: /Active/ })).toBeVisible();
+		await expect(
+			panel.getByRole('button', { name: /Suspended/ }),
 		).toBeVisible();
 		await expect(
-			page
-				.getByTestId('app-shell-secondary-panel')
-				.getByRole('link', { name: 'All organizations' }),
-		).toBeVisible();
-		await expect(
-			page
-				.getByTestId('app-shell-secondary-panel')
-				.getByRole('link', { name: 'Active' }),
-		).toBeVisible();
-		await expect(
-			page
-				.getByTestId('app-shell-secondary-panel')
-				.getByRole('link', { name: 'Suspended' }),
-		).toBeVisible();
-		await expect(
-			page
-				.getByTestId('app-shell-secondary-panel')
-				.getByRole('link', { name: 'Calendar' }),
+			panel.getByRole('link', { name: 'All organizations' }),
 		).toHaveCount(0);
+		await expect(panel.getByRole('link', { name: 'Calendar' })).toHaveCount(0);
 	});
 
 	test('collapses secondary panel when below 1024px', async ({ page }) => {

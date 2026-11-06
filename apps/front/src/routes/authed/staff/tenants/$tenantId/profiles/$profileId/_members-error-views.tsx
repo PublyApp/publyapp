@@ -6,11 +6,7 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-import {
-	BackToTenantsLink,
-	MALFORMED_ID_TRANSLATION_KEY,
-	TenantRetryActions,
-} from '../../_tenant-details-shell';
+import { MALFORMED_ID_TRANSLATION_KEY } from '../../_tenant-details-shell';
 
 const isProblemStatus = (
 	error: unknown,
@@ -26,16 +22,6 @@ const isProblemStatus = (
 	return (
 		translationKey === undefined || failure.translationKey === translationKey
 	);
-};
-
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
 };
 
 export const ProfileMembersLoading = () => {
@@ -54,7 +40,7 @@ export const ProfileMembersLoading = () => {
 	);
 };
 
-const MissingTenantProfileView = ({ error }: { error: unknown }) => {
+const MissingTenantProfileView = () => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -62,12 +48,8 @@ const MissingTenantProfileView = ({ error }: { error: unknown }) => {
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code={t('error-404-code')}
 			title={t('tenant-profile-not-found-title')}
-			description={getFailureDescription(
-				error,
-				t('tenant-profile-not-found-description'),
-			)}
+			description={t('tenant-profile-not-found-description')}
 			testId="staff-tenant-profile-members-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -85,7 +67,7 @@ export const TenantProfileMembersError = ({
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
 	) {
-		return <MissingTenantProfileView error={error} />;
+		return <MissingTenantProfileView />;
 	}
 
 	if (isProblemStatus(error, 403)) {
@@ -99,7 +81,7 @@ export const TenantProfileMembersError = ({
 			title={t('unable-to-load-tenant-profile')}
 			description={t('tenant-profile-load-error-description')}
 			testId="staff-tenant-profile-members-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -114,7 +96,7 @@ export const TenantMissingSlot = ({ onRetry }: { onRetry: () => void }) => {
 			title={t('tenant-details-error-title')}
 			description={t('tenant-response-incomplete')}
 			testId="staff-tenant-details-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };
@@ -129,7 +111,6 @@ export const ProfileMissingSlot = () => {
 			title={t('tenant-profile-not-found-title')}
 			description={t('tenant-profile-payload-empty')}
 			testId="staff-tenant-profile-members-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };

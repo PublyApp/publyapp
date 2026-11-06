@@ -8,16 +8,14 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
-// PR #997 finding 2: flipping `enabled` from true to false does NOT cancel an
-// in-flight TanStack Query fetch while the observer and query key stay the
-// same. Navigating client-side from a known /staff/* route to an unknown one
-// keeps `getSessionSurface(pathname)` at 'staff' for both, so without the
-// fix below the surface-redirect-code request from the *old* (exact-match)
-// route keeps running and can settle into the cache after the route stopped
-// matching. This test proves the fixed __root.tsx produces a real abort
-// signal for that transition — not just that `withSessionValidationTimeout`
-// forwards a signal it is handed (that is already covered by
-// session-validation.test.ts).
+// Owner decision 04/11 (404 inside the shell) changed the older PR #997
+// contract here: the surface-redirect-code entry is keyed per SURFACE, not
+// per route exactness, because an unknown authed-prefix path must be able to
+// READ the session a previous exact route already validated. Consequently the
+// in-flight validation is deliberately NOT aborted when exactness is lost (its
+// result is exactly what the in-shell 404 needs), and the unknown path must
+// never start a second validation — that is what keeps a stale cookie from
+// being checked on an unknown URL (PR #997: the 404 stays genuine).
 
 type MockMatch = {
 	_notFound?: boolean;
@@ -42,7 +40,7 @@ const unknownStaffMatches: MockMatch[] = [
 ];
 
 const mocks = vi.hoisted(() => ({
-	capturedSignal: undefined as AbortSignal | undefined,
+	capturedSignals: [] as AbortSignal[],
 	isHydrated: true,
 	matches: [] as MockMatch[],
 	tokens: { staffToken: 'staff-tok' } satisfies ParsedSessionTokens,
@@ -75,7 +73,9 @@ vi.mock('~/lib/hooks/use-hydrated', () => ({
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	createClient: ({ signal }: { signal?: AbortSignal }) => {
-		mocks.capturedSignal = signal;
+		if (signal) {
+			mocks.capturedSignals.push(signal);
+		}
 		return {
 			auth: {
 				redirectCode: {
@@ -103,20 +103,26 @@ vi.mock('~/layouts/authed-layout', () => ({
 	),
 }));
 
+const flushMicrotasks = async () => {
+	for (let i = 0; i < 10; i += 1) {
+		await Promise.resolve();
+	}
+};
+
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { RoutedShell } from './__root';
 
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	mocks.capturedSignal = undefined;
+	mocks.capturedSignals = [];
 	mocks.isHydrated = true;
 	mocks.matches = [];
 	mocks.tokens = { staffToken: 'staff-tok' };
 });
 
-describe('surface-redirect-code query cancellation on route-exactness loss', () => {
-	test('aborts the in-flight validation request once the route stops being an exact authed match', async () => {
+describe('surface-redirect-code query on route-exactness loss', () => {
+	test('keeps the in-flight validation alive and never starts a second one on the unknown path', async () => {
 		const queryClient = new QueryClient();
 		mocks.matches = exactStaffMatches;
 
@@ -129,9 +135,9 @@ describe('surface-redirect-code query cancellation on route-exactness loss', () 
 		);
 
 		await vi.waitFor(() => {
-			expect(mocks.capturedSignal).toBeDefined();
+			expect(mocks.capturedSignals.length).toBeGreaterThan(0);
 		});
-		expect(mocks.capturedSignal?.aborted).toBe(false);
+		expect(mocks.capturedSignals[0]?.aborted).toBe(false);
 
 		// Client-side navigation to an unknown path under the same /staff
 		// prefix: `getSessionSurface` still resolves to 'staff' for both, so
@@ -145,8 +151,11 @@ describe('surface-redirect-code query cancellation on route-exactness loss', () 
 			</QueryClientProvider>,
 		);
 
-		await vi.waitFor(() => {
-			expect(mocks.capturedSignal?.aborted).toBe(true);
-		});
+		await flushMicrotasks();
+		// Not aborted: the same-surface result is what the in-shell 404 reads.
+		expect(mocks.capturedSignals[0]?.aborted).toBe(false);
+		// And no second validation request: an unknown path never validates a
+		// cookie by itself (PR #997).
+		expect(mocks.capturedSignals).toHaveLength(1);
 	});
 });

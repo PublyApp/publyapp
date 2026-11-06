@@ -115,6 +115,7 @@ const staffUserRow = {
 	roles: ['Staff Owner'],
 	status: UserStatusObject.Active,
 	displayName: 'Alex User',
+	profileNames: [],
 };
 
 const staffSelection = {

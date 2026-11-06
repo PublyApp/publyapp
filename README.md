@@ -81,16 +81,14 @@ On Windows, the `justfile` requires PowerShell 7 (`pwsh`).
 
 ```bash
 cp .env.example .env.development
-just install
-just dev-db
+just dev
 ```
 
-`just dev-db` stays attached and starts persistent PostgreSQL, the API, the
-worker, and the frontend. In a second terminal, apply migrations:
-
-```bash
-just db-migrate
-```
+`just dev` stays attached and runs the whole stack: it applies pending
+migrations, then starts persistent PostgreSQL (host port 5454), the API
+(5000), the worker, and the frontend (5050). `just dev <pr|issue|branch>` runs
+the same stack from the matching worktree, creating it when missing. Branches
+created before #2305 must be updated with develop first.
 
 | Service | Local address |
 | --- | --- |
@@ -99,8 +97,8 @@ just db-migrate
 | API reference (Scalar) | <http://localhost:5000/scalar/v1> |
 | PostgreSQL | `localhost:5454` |
 
-Do not start `just dev-api` alongside `just dev-db`; the AppHost already owns
-port 5000. For the split-terminal alternative and environment rules, read the
+Do not start `just dev-api` alongside `just dev`; the AppHost already owns
+port 5000. For the single-piece recipes and environment rules, read the
 [development commands in `AGENTS.md`](AGENTS.md#development-commands).
 
 ## Architecture at a glance
@@ -168,12 +166,12 @@ full command reference; these are the common entry points:
 
 | Command | Purpose |
 | --- | --- |
-| `just dev-db` | Run the complete local stack. |
+| `just dev` | Run the complete local stack. |
 | `just build-api` | Build the API and emit OpenAPI. |
 | `pnpm --filter front build` | Build the shipped frontend. |
 | `just test-api` | Run API integration tests with Testcontainers. |
 | `pnpm --filter front test` | Run frontend tests and their existing guards. |
-| `just check-write` | Apply lint and formatting fixes. |
+| `just lint && just format` | Apply lint and formatting fixes. |
 | `just ci` | Run the local pre-push gate, including the API suite. |
 | `just ci-full` | Add both end-to-end suites to the pre-push gate. |
 

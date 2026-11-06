@@ -50,12 +50,14 @@ const translationsByLanguage: TestLocaleLabelMap = {
 };
 
 vi.mock('@tanstack/react-query', () => ({
+	useQueryErrorResetBoundary: () => ({ reset: vi.fn() }),
 	useQueryClient: () => ({
 		invalidateQueries: mocks.invalidateQueries,
 	}),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,

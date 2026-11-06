@@ -51,6 +51,15 @@ describe('toInitials', () => {
 	test('does not expand uppercase conversion into a multi-symbol output', () => {
 		expect(toInitials('ß ß')).toBe('SS');
 	});
+
+	test('takes the two local-part words of an e-mail address', () => {
+		expect(toInitials('lucas.bertin@example.com')).toBe('LB');
+		expect(toInitials('zo.razafy@example.com')).toBe('ZR');
+	});
+
+	test('takes the first two letters of a single-word e-mail local part', () => {
+		expect(toInitials('tiana@example.com')).toBe('TI');
+	});
 });
 
 describe('paletteIndex', () => {

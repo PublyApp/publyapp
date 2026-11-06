@@ -1,33 +1,21 @@
-import { IconActivity } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { DataTable } from '~/components/table/data-table';
+import { ListPage } from '~/components/list/list-page';
+import type { ListFiltersValue } from '~/components/list/list-types';
+import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import {
-	Drawer,
-	DrawerBody,
-	DrawerContent,
-	DrawerDescription,
-	DrawerHeader,
-	DrawerTitle,
-} from '~/components/ui/drawer';
-import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
-import { DetailRow, PageHeader } from '~/components/ui/product-page';
 import {
 	invalidateStaffJobsQueries,
 	staffDeadLetterDetailsQueryOptions,
 	toStaffDeadLetterRows,
 	useStaffDeadLettersQuery,
+	useStaffRequeueDeadLetterMutation,
 	type StaffDeadLetterRow,
 } from '~/lib/query/staff-jobs';
-import { useStaffRequeueDeadLetterMutation } from '~/lib/query/staff-jobs';
-import { formatDateTime } from '~/utils/format-time';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import {
 	getFailureMessage,
@@ -35,21 +23,37 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { makeDeadLetterColumns } from './_columns-dead-letter';
-import { formatFailureCause } from './_jobs-helpers';
+import { DeadLetterDrawer } from './_dead-letter-drawer';
+import { DeadLetterRequeueDialog } from './_dead-letter-requeue-dialog';
+import { jobLabel } from './_job-catalogue';
+import {
+	deadLetterColumns,
+	deadLetterFilters,
+	deadLetterMobileCard,
+	deadLetterTotals,
+	exportJobRows,
+} from './_jobs-list-config';
+import { buildJobFamilyCounts, useJobsOverview } from './_jobs-overview';
+import {
+	buildJobsPanelGroups,
+	jobsSectionPath,
+	type JobsSection,
+} from './_jobs-panel';
+import { DeadLetterRowActions } from './_jobs-row-actions';
+import { JobsStatCards } from './_jobs-stat-cards';
 import {
 	buildStaffJobsCursorResetKey,
-	type StaffJobsListSearchParams,
 	parseStaffJobsListSearchParams,
 	serializeStaffJobsListSearchParams,
 	type StaffJobsListSearchParamInput,
 } from './_list-search-params';
 import { useStaffJobPermissions } from './_permissions';
-import { isPayloadRedacted, RedactionBanner } from './_redaction-banner';
 
 const DEFAULT_SORT = { id: 'failed_at', order: 'desc' as const };
-const DEFAULT_SIZE = 50;
-const MAX_NOTE_LENGTH = 500;
+const DEFAULT_SIZE = 100;
+
+const splitFilter = (value: string | undefined): string[] =>
+	value ? value.split(',') : [];
 
 const StaffJobsDeadLetterPage = () => {
 	const { t, i18n } = useTranslation(['staff-jobs', 'common']);
@@ -68,9 +72,9 @@ const StaffJobsDeadLetterPage = () => {
 		Route.useSearch() as StaffJobsListSearchParamInput,
 	);
 	const navigate = Route.useNavigate();
-	const onSearchChange = (next: StaffJobsListSearchParams): void => {
+	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
-			search: serializeStaffJobsListSearchParams(next),
+			search: serializeStaffJobsListSearchParams({ ...search, ...next }),
 			replace: true,
 		});
 	};
@@ -84,19 +88,64 @@ const StaffJobsDeadLetterPage = () => {
 	});
 
 	const query = useStaffDeadLettersQuery({
+		q: search.q,
 		externalStateStatus: search.externalStateStatus,
 		jobType: search.jobType,
 		tenantId: search.tenantId,
-		sortId: controller.apiVariables.sortId,
-		sortOrder: controller.apiVariables.sortOrder,
 		cursor: controller.apiVariables.cursor,
 		size: controller.apiVariables.size,
 	});
 	const rows = toStaffDeadLetterRows(query.data?.data);
+	const overview = useJobsOverview();
+	const counts = query.data?.counts;
+	const globalCounts = overview.deadLetterCounts;
+	const filterCounts = {
+		state: {
+			open: globalCounts?.open ?? null,
+			triaged: globalCounts?.triaged ?? null,
+			requeued: globalCounts?.requeued ?? null,
+		},
+		family: buildJobFamilyCounts(
+			globalCounts?.byJobType?.map((row) => ({
+				key: row.jobType,
+				count: row.count ?? 0,
+			})),
+		),
+	};
 
 	const detailQuery = useStaffDeadLetterDetailQuery(inspected?.id);
-
+	const detail = detailQuery.data;
 	const requeueMutation = useStaffRequeueDeadLetterMutation();
+
+	const filtersValue: ListFiltersValue = {
+		state: splitFilter(search.state),
+		family: splitFilter(search.family),
+	};
+	const columns = deadLetterColumns(t, locale);
+
+	const setFilters = (next: ListFiltersValue): void => {
+		void navigate({
+			search: serializeStaffJobsListSearchParams({
+				...search,
+				state: (next.state ?? []).join(',') || undefined,
+				family: (next.family ?? []).join(',') || undefined,
+				cursor: undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	const onShortcut = (key: string, value: string): void => {
+		const next: ListFiltersValue = { state: [], family: [] };
+		if (!(filtersValue[key] ?? []).includes(value)) {
+			next[key] = [value];
+		}
+		setFilters(next);
+	};
+
+	const onSection = (section: JobsSection): void => {
+		void navigate({ to: jobsSectionPath(section) });
+	};
 
 	const closeRequeueDialog = (): void => {
 		setRequeueTarget(null);
@@ -106,9 +155,7 @@ const StaffJobsDeadLetterPage = () => {
 
 	const confirmRequeue = async (): Promise<void> => {
 		// An in-flight permission request (or a failed one) leaves the real
-		// grant unknown: a click must not silently vanish. Gate on the same
-		// flag the column uses so the button is never clickable while the
-		// grant is unresolved.
+		// grant unknown: a click must not silently vanish.
 		if (!requeueTarget || !permissions.canRequeue) {
 			closeRequeueDialog();
 			return;
@@ -136,44 +183,8 @@ const StaffJobsDeadLetterPage = () => {
 		closeRequeueDialog();
 	};
 
-	const columns = useMemo(
-		() =>
-			makeDeadLetterColumns(
-				t,
-				locale,
-				(row) => setInspected(row),
-				(row) => setRequeueTarget(row),
-				{
-					permissionsPending: permissions.isPending,
-					permissionsDenied: permissions.loadError || !permissions.canRequeue,
-					title: permissions.isPending
-						? t('action-permission-checking')
-						: t('action-permission-denied'),
-				},
-			),
-		[
-			t,
-			locale,
-			permissions.isPending,
-			permissions.loadError,
-			permissions.canRequeue,
-		],
-	);
-	const renderPayloadSection = (): ReactNode => {
-		if (!detail?.payload) {
-			return null;
-		}
-
-		if (isPayloadRedacted(detail.payload)) {
-			return <RedactionBanner label={t('redaction-banner')} />;
-		}
-
-		return (
-			<pre className="max-h-48 overflow-auto rounded-[var(--publy-radius-sm)] bg-muted p-3 font-mono text-xs">
-				{detail.payload}
-			</pre>
-		);
-	};
+	// `totalCount`/`counts` describe the whole filtered collection (#2301).
+	const countsKnown = query.data !== undefined;
 
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
@@ -184,132 +195,136 @@ const StaffJobsDeadLetterPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const hasActiveFilters = Boolean(
-		search.externalStateStatus || search.jobType || search.tenantId,
-	);
-
-	const detail = detailQuery.data;
+	const permissionsDenied = permissions.loadError || !permissions.canRequeue;
 
 	return (
-		<div className="publy-page-fill">
-			<PageHeader
-				title={t('dl-page-title')}
-				description={t('dl-page-description')}
-			/>
-			<DataTable<StaffDeadLetterRow>
-				testId="staff-jobs-dead-letter-table"
-				ariaLabel={t('dl-page-title')}
-				columns={columns}
-				rows={rows}
-				queryState={{
-					isPending: query.isPending,
-					isError: query.isError,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: hasActiveFilters,
-				}}
-				pagination={{
-					pageIndex: controller.cursor.pageIndex,
-					hasPreviousPage: controller.cursor.hasPreviousPage,
-					hasNextPage: query.data?.nextCursor != null,
-					isPaginationPending: query.isFetching,
-					onNextPage: () =>
-						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
-					onPreviousPage: controller.cursor.onPreviousPage,
-				}}
-				emptyIcon={IconActivity}
-				emptyTitle={t('dl-empty-title')}
-				emptyContent={t('dl-empty-description')}
-				noMatchTitle={t('no-rows-match-title')}
-				noMatchContent={t('no-rows-match-description')}
-				sort={controller.sort}
-				onSortChange={controller.onSortChange}
-				size={controller.size}
-				onSizeChange={controller.onSizeChange}
-			/>
-
-			<ConfirmDialog
-				isOpen={requeueTarget !== null}
-				title={t('requeue-confirm-title')}
-				description={
-					requeueTarget?.jobType
-						? t('requeue-confirm-description', {
-								jobType: requeueTarget.jobType,
-							})
-						: t('requeue-confirm-description-generic')
-				}
-				confirmLabel={t('common:action-requeue')}
-				isPending={requeueMutation.isPending}
-				tone="primary"
-				onConfirm={() => void confirmRequeue()}
-				onOpenChange={(open) => {
-					if (!open) {
-						closeRequeueDialog();
+		<ListPage
+			testId="staff-jobs-dead-letter-table"
+			ariaLabel={t('dl-page-title')}
+			title={t('dl-page-title')}
+			searchPlaceholder={t('jobs-search-placeholder')}
+			rows={rows}
+			columns={columns}
+			defaultColumns={[
+				'type',
+				'what',
+				'state',
+				'org',
+				'attempts',
+				'error',
+				'failedAt',
+			]}
+			lockedColumn="type"
+			sorting={[
+				{ id: controller.sort.id, desc: controller.sort.order === 'desc' },
+			]}
+			onSortingChange={(next) =>
+				controller.onSortChange(
+					next[0]
+						? { id: next[0].id, order: next[0].desc ? 'desc' : 'asc' }
+						: undefined,
+				)
+			}
+			q={search.q ?? ''}
+			onSearch={(next) =>
+				onSearchChange({ ...search, q: next, cursor: undefined })
+			}
+			filters={deadLetterFilters(t)}
+			filtersValue={filtersValue}
+			onFiltersChange={setFilters}
+			countsKnown={countsKnown}
+			emptyText={t('dl-empty-description')}
+			locale={locale}
+			cards={<JobsStatCards overview={overview} t={t} />}
+			totals={deadLetterTotals(t, counts)}
+			panelGroups={buildJobsPanelGroups({
+				t,
+				current: 'dead',
+				overview,
+				filterCounts,
+				filters: deadLetterFilters(t),
+				filtersValue,
+				onSection,
+				onShortcut,
+			})}
+			onOpen={(row) => setInspected(row)}
+			openLabel={(row) =>
+				t('common:list-open-row', { name: jobLabel(t, row.jobType) })
+			}
+			rowLabel={(row) => jobLabel(t, row.jobType)}
+			mobileCard={deadLetterMobileCard(t)}
+			renderActions={(row) => (
+				<DeadLetterRowActions
+					row={row}
+					t={t}
+					onInspect={setInspected}
+					onRequeue={setRequeueTarget}
+					permissionsPending={permissions.isPending}
+					permissionsDenied={permissionsDenied}
+					explanation={
+						permissions.isPending
+							? t('action-permission-checking')
+							: t('action-permission-denied')
 					}
-				}}
-			>
-				<div className="space-y-1.5">
-					<Label htmlFor="requeue-note">{t('requeue-note-label')}</Label>
-					<Input
-						id="requeue-note"
-						value={requeueNote}
-						maxLength={MAX_NOTE_LENGTH}
-						onChange={(event) => setRequeueNote(event.target.value)}
+				/>
+			)}
+			onExport={() => exportJobRows(rows, columns, t, 'jobs-export-dead')}
+			queryState={{
+				isPending: query.isPending,
+				isError: query.isError,
+				error: query.error,
+				onRetry: () => void query.refetch(),
+			}}
+			footer={
+				rows.length > 0 ? (
+					<DataTableCursorFooter
+						testId="staff-jobs-dead-letter-table"
+						pageIndex={controller.cursor.pageIndex}
+						size={controller.size}
+						onSizeChange={controller.onSizeChange}
+						pageRowCount={rows.length}
+						hasPreviousPage={controller.cursor.hasPreviousPage}
+						hasNextPage={query.data?.nextCursor != null}
+						isPaginationPending={query.isFetching}
+						onNextPage={() =>
+							controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
+						}
+						onPreviousPage={controller.cursor.onPreviousPage}
+						variant="flat"
 					/>
-					{requeueError ? (
-						<p role="alert" className="text-[13px] text-destructive">
-							{requeueError}
-						</p>
-					) : null}
-				</div>
-			</ConfirmDialog>
-
-			<Drawer
-				open={inspected !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setInspected(null);
-					}
-				}}
-			>
-				<DrawerContent data-testid="staff-jobs-dead-letter-drawer">
-					<DrawerHeader>
-						<DrawerTitle>{t('dl-drawer-title')}</DrawerTitle>
-						<DrawerDescription>{inspected?.jobType ?? ''}</DrawerDescription>
-					</DrawerHeader>
-					<DrawerBody>
-						{inspected ? (
-							<>
-								{renderPayloadSection()}
-								<DetailRow
-									label={t('common:column-attempts')}
-									value={detail?.attempts ?? inspected.attempts}
-								/>
-								<DetailRow
-									label={t('detail-last-error')}
-									value={formatFailureCause(
-										detail?.lastError ?? inspected.lastError,
-										t,
-									)}
-								/>
-								<DetailRow
-									label={t('common:column-failed-at')}
-									value={formatDateTime(
-										detail?.failedAt ?? inspected.failedAt,
-										locale,
-									)}
-								/>
-							</>
-						) : null}
-					</DrawerBody>
-				</DrawerContent>
-			</Drawer>
-		</div>
+				) : null
+			}
+			after={
+				<>
+					<DeadLetterRequeueDialog
+						target={requeueTarget}
+						note={requeueNote}
+						error={requeueError}
+						isPending={requeueMutation.isPending}
+						onNoteChange={setRequeueNote}
+						onConfirm={() => void confirmRequeue()}
+						onOpenChange={(open) => {
+							if (!open) {
+								closeRequeueDialog();
+							}
+						}}
+						t={t}
+					/>
+					<DeadLetterDrawer
+						row={inspected}
+						detail={detail}
+						locale={locale}
+						onClose={() => setInspected(null)}
+						t={t}
+					/>
+				</>
+			}
+		/>
 	);
 };
 
 /** Detail fetch is only meaningful while a row is open — keep it disabled
- * otherwise so opening the dashboard never fans out one request per row.
- * Hooks stay top-level imports; this wrapper just pins the `enabled` flag. */
+ * otherwise so opening the dashboard never fans out one request per row. */
 const useStaffDeadLetterDetailQuery = (deadLetterId: string | undefined) => {
 	return useQuery({
 		queryKey: staffDeadLetterDetailsQueryOptions.queryKey({
@@ -326,6 +341,7 @@ const useStaffDeadLetterDetailQuery = (deadLetterId: string | undefined) => {
 export const Route = createFileRoute('/_authed-layout/staff/jobs/dead-letter')({
 	staticData: {
 		i18nNamespaces: ['staff-jobs'],
+		pageOwnsSecondaryPanel: true,
 		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-jobs' }],
 	},
 	validateSearch: (search) =>

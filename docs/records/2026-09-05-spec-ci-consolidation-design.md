@@ -92,13 +92,13 @@ The first failing command does not erase later evidence: every independent workf
 
 ### Front non-Vitest report-all contract (#1699)
 
-The pre-PR-A `apps/front/package.json` `test:ci-non-vitest` value was a 32-command `&&` chain. Its first failure prevents commands 2–32 from running, so merely moving that string into `verification` would violate the artifact contract above. PR A therefore changes the script to the exact wrapper `node scripts/run-guarded.mts scripts/ci/run-non-vitest-report-all.mts`, preserving the script name while replacing the fail-fast implementation with `apps/front/scripts/ci/run-non-vitest-report-all.mts`, and adds `run-non-vitest-report-all.test.mts`.
+The pre-PR-A `apps/front/package.json` `test:ci-non-vitest` value was a 32-command `&&` chain. Its first failure prevents commands 2–32 from running, so merely moving that string into `verification` would violate the artifact contract above. PR A therefore changes the script to the exact wrapper `node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts`, preserving the script name while replacing the fail-fast implementation with `apps/front/scripts/ci/run-non-vitest-report-all.ts`, and adds `run-non-vitest-report-all.test.ts`.
 
 The durable runner owns one ordered, explicit command manifest equal to the current chain, in this exact order:
 
 ```text
 1  pnpm check:guard-coverage
-2  node scripts/run-guarded.mts --test scripts/ci/compose-startup.test.mts
+2  node scripts/run-guarded.ts --test scripts/ci/compose-startup.test.ts
 3  pnpm test:e2e-compose-env
 4  pnpm test:route-tree-guard
 5  pnpm test:design-guards
@@ -369,9 +369,9 @@ The PR A file set includes these concrete groups:
 - **Classifier:** `packages/scripts-ts/src/ci-changed-paths.ts` and `packages/scripts-ts/src/ci-changed-paths.test.ts` for one file fetch and lane outputs.
 - **Structure:** `packages/scripts-ts/src/check-ci-gate-structure.ts` and `packages/scripts-ts/src/check-ci-gate-structure.test.ts` from a seven-workflow gate table to one central graph, retaining whole-repository collision scanning, trigger allowlisting, direct self-check, matrix pins, pinned test files, and gate self-test pins.
 - **Aggregation/bootstrap:** add `packages/scripts-ts/src/check-ci-gate-aggregation.ts`; update `packages/scripts-ts/src/ci-gate-aggregation.test.ts` and `packages/scripts-ts/src/ci-gate-bootstrap.test.ts` to parse `ci.yml`, exercise every lane output, download/validate exact upstream result artifacts, and reject missing/failed/skipped/unknown shapes.
-- **Front report-all:** add `apps/front/scripts/ci/run-non-vitest-report-all.mts` and `apps/front/scripts/ci/run-non-vitest-report-all.test.mts`; change `apps/front/package.json` `test:ci-non-vitest` to invoke the runner while preserving the exact 32-command ordered manifest and nested step report.
+- **Front report-all:** add `apps/front/scripts/ci/run-non-vitest-report-all.ts` and `apps/front/scripts/ci/run-non-vitest-report-all.test.ts`; change `apps/front/package.json` `test:ci-non-vitest` to invoke the runner while preserving the exact 32-command ordered manifest and nested step report.
 - **API path coverage behavior:** `packages/scripts-ts/src/check-api-tests-path-coverage.ts` and its test inspect the API barrier workflow path filters and representative fixtures; hosted reachability is owned by the workflow and required-context mechanism.
-- **Shard/artifact contracts:** `apps/front/scripts/ci/vitest-shard-coverage.test.mts`, `packages/scripts-ts/src/artifact-version-compat.test.ts`, `packages/scripts-ts/src/ci-e2e-cleanup.ts`, and the new exact job→lanes→expected-steps `ci-lane-result`/`ci-pr-snapshot` artifact contracts where workflow paths are executable contracts.
+- **Shard/artifact contracts:** `apps/front/scripts/ci/vitest-shard-coverage.test.ts`, `packages/scripts-ts/src/artifact-version-compat.test.ts`, `packages/scripts-ts/src/ci-e2e-cleanup.ts`, and the new exact job→lanes→expected-steps `ci-lane-result`/`ci-pr-snapshot` artifact contracts where workflow paths are executable contracts.
 - **Closure target:** `.ai/project-closure-v1.json`, `.ai/orchestration-adapter.md`, and `packages/scripts-ts/src/project-closure-adapter.test.ts` use the six old contexts plus `ci-final-gate` in PR A, with `ci_live_pr_checks: ["ci-final-gate"]`, explicit candidate-tip/event-tip source mapping, and live base/merge/workflow provenance; PR B changes required checks to the single central gate only in the candidate-tip config.
 - **Drift/local/docs:** `packages/scripts-ts/src/ci-gate-manifest.json`, `packages/scripts-ts/src/reason-guard-ref.json`, `justfile`, the listed local/quality guides, and `AGENTS.md`.
 
@@ -400,7 +400,7 @@ The implementation must add or update focused tests before changing the workflow
 - Vitest shard-coverage tests against the central workflow's actual matrix and command;
 - API path-coverage tests against the API barrier workflow path filters and representative fixtures;
 - deterministic audit fixture tests that never call the npm registry;
-- front report-all tests in `apps/front/scripts/ci/run-non-vitest-report-all.test.mts` for the exact 32-command order, first-command failure with all following records present, preserved exit/signal diagnostics, and manifest set equality;
+- front report-all tests in `apps/front/scripts/ci/run-non-vitest-report-all.test.ts` for the exact 32-command order, first-command failure with all following records present, preserved exit/signal diagnostics, and manifest set equality;
 - shared closure-source tests in `/home/radan/ai-orchestration-playbook/tools/tests/test_sources.py` for candidate-tip config fetch/ref binding, `filter=all` pagination, exact-head check-run reads, base/merge/event/workflow provenance parsing, homonymous app/provenance rejection, old/new same-name selection, and live snapshot validation;
 - shared closure-CLI tests in `/home/radan/ai-orchestration-playbook/tools/tests/test_cli.py` for candidate-tip-vs-develop config resolution, live PR body/head/base/merge/draft reads, event `GITHUB_SHA`, workflow path/ID/action checks, comment/label non-triggering changes, stale-payload reruns, base advance/ref change, and the invalid→edited→valid, valid→edited→invalid, `ready_for_review`, and head-change sequences;
 - shared schema tests in `/home/radan/ai-orchestration-playbook/tools/tests/test_schema_agreement.py` for `ci_live_pr_checks` subset validation, explicit candidate-tip/event-tip source mapping, fixed central workflow identity, and rejection of default-branch-only overrides;

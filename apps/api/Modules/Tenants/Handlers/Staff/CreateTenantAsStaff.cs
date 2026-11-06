@@ -95,7 +95,6 @@ public class CreateTenantAsStaffBody {
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
-	// Defaults to true to preserve current behavior when the field is omitted.
 	public bool GetSeedDefaultProfile() {
 		var kind = this.SeedDefaultProfile?.ValueKind;
 		if (kind is null or JsonValueKind.Null or JsonValueKind.Undefined) {

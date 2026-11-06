@@ -700,8 +700,8 @@ const openStaffJobsQueueDrawer = async (page: Page): Promise<void> => {
 	// The row-actions menu button carries the job type as its aria-label;
 	// click it to open the dropdown, then click the Inspect menu item.
 	await page
-		.locator('[data-testid="staff-jobs-queue-table"] button[aria-label]')
-		.first()
+		.getByTestId('staff-jobs-queue-table')
+		.getByRole('button', { name: 'SendWelcomeEmail', exact: true })
 		.click();
 	await page.getByRole('menuitem', { name: 'Inspect' }).click();
 	await expect(page.getByTestId('staff-jobs-queue-drawer')).toBeVisible({
@@ -717,8 +717,8 @@ const openStaffJobsDeadLetterDrawer = async (page: Page): Promise<void> => {
 		timeout: 10_000,
 	});
 	await page
-		.locator('[data-testid="staff-jobs-dead-letter-table"] button[aria-label]')
-		.first()
+		.getByTestId('staff-jobs-dead-letter-table')
+		.getByRole('button', { name: 'SendWelcomeEmail', exact: true })
 		.click();
 	await page.getByRole('menuitem', { name: 'Inspect' }).click();
 	await expect(page.getByTestId('staff-jobs-dead-letter-drawer')).toBeVisible({

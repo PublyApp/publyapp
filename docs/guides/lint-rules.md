@@ -193,7 +193,7 @@ superpowers plan at 25, this rule's own spec and implementation at 10).
 The 177 casts sit in 49 files — 29 test/spec files and 20 source files;
 heaviest:
 `staff-tenant-profiles.test.ts` 26, `staff-tenant-users.test.ts` 21,
-`staff-tenant-invitations.test.ts` 14, `InterZod.ts` 8,
+`staff-tenant-invitations.test.ts` 14, the zod i18n wrapper 8,
 `query-display.test.tsx` 6, `drafts.tsx` 6. The `packages/lint-ts` 8 are
 genuine lib sites (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1,
 `no-package-src-import.ts` 1), not spec fixtures.
@@ -209,7 +209,7 @@ proves the guard red on a reintroduced single `x satisfies never` cast
 | A | `apps/front/src/lib/query/**` (validator-stub tests: staff-tenant-profiles 26, staff-tenant-users 21, staff-tenant-invitations 14, …) | 70 | front lane |
 | B | `apps/front/src/**` remaining test/spec files | 64 | front lane |
 | C | `apps/front/src/**` non-test sources (heaviest: `drafts.tsx` 6) | 20 | front lane |
-| D | `packages/shared-ts/src/**` (heaviest: `InterZod.ts` 8) | 15 | shared lane |
+| D | `packages/shared-ts/src/**` (heaviest: the zod i18n wrapper 8) | 15 | shared lane |
 | E | `packages/lint-ts/src/**` (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1, `no-package-src-import.ts` 1) | 8 | lint-ts lane |
 | | **Total** | **177** | |
 

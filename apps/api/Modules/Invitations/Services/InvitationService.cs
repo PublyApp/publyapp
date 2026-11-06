@@ -29,6 +29,7 @@ public record FindStaffInvitationsArgs {
 	public string? SortId { get; init; }
 	public SortOrder? SortOrder { get; init; }
 	public IReadOnlySet<InvitationEffectiveStatus>? Statuses { get; init; }
+	public string? Search { get; init; }
 }
 
 public record CreateStaffInvitationArgs(
@@ -157,9 +158,19 @@ public record StaffTenantInvitationListItem {
 	public string? InvitedByName { get; init; }
 }
 
+public sealed record StaffInvitationCounts(
+	int Total,
+	int Pending,
+	int Accepted,
+	int Expired,
+	int Revoked,
+	int ExpiringSoon
+);
+
 public abstract record FindStaffInvitationsResult {
 	public sealed record Success(
-		CursorPaginatedResult<InvitationListItem> Data
+		CursorPaginatedResult<InvitationListItem> Data,
+		StaffInvitationCounts Counts
 	) : FindStaffInvitationsResult;
 
 	public sealed record CursorNotFound(string Cursor) : FindStaffInvitationsResult;

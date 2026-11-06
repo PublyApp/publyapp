@@ -35,9 +35,10 @@ public sealed class SystemJobDefinitionQueryServiceSpec : IClassFixture<ApiFixtu
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindSystemJobDefinitionsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 100,
-				IsEnabled: null
+				IsEnabled: null,
+				Search: null
 			));
 
 			var page = result.Should()
@@ -63,9 +64,10 @@ public sealed class SystemJobDefinitionQueryServiceSpec : IClassFixture<ApiFixtu
 			var service = await this._CreateServiceAsync();
 
 			var enabledOnly = await service.FindAsync(new FindSystemJobDefinitionsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 100,
-				IsEnabled: true
+				IsEnabled: true,
+				Search: null
 			));
 			enabledOnly.Should().BeOfType<FindSystemJobDefinitionsResult.Success>()
 				.Subject.Data.Data.Select(row => row.JobKey)
@@ -73,9 +75,10 @@ public sealed class SystemJobDefinitionQueryServiceSpec : IClassFixture<ApiFixtu
 				.And.NotContain(disabledKey);
 
 			var disabledOnly = await service.FindAsync(new FindSystemJobDefinitionsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 100,
-				IsEnabled: false
+				IsEnabled: false,
+				Search: null
 			));
 			disabledOnly.Should().BeOfType<FindSystemJobDefinitionsResult.Success>()
 				.Subject.Data.Data.Select(row => row.JobKey)

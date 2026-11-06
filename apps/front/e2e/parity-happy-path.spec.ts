@@ -182,7 +182,7 @@ const assertColumnHeaders = (page: Page) =>
 		).toBeVisible(),
 		expect(
 			page.getByRole('columnheader', {
-				name: /^Level$/,
+				name: /^Roles$/,
 			}),
 		).toBeVisible(),
 		expect(
@@ -225,8 +225,11 @@ test.describe(
 			await assertSeededRowsVisible(page);
 
 			const search = searchInput(page);
-			await search.fill('admin');
-			await expect(page).toHaveURL(/[?&]q=admin/);
+			// Server-side search (#2301) matches first name, last name AND email,
+			// so the query must be one only the intended row can match — the
+			// seeded owner's name also contains « admin ».
+			await search.fill('staff-admin');
+			await expect(page).toHaveURL(/[?&]q=staff-admin/);
 			await expect(staffUserRow(page, 'staff-admin@example.com')).toBeVisible();
 			await expect(staffUserRow(page, 'staff-user@example.com')).toHaveCount(0);
 			await expect(staffUserRow(page, 'owner@publyapp.local')).toHaveCount(0);

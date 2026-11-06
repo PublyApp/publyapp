@@ -312,6 +312,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 					roles: item.roles,
 					status: item.status,
 					displayName: `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim(),
+					profileNames: [],
 				})),
 		);
 		mocks.useStaffUsersQuery.mockImplementation(() =>

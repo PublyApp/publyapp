@@ -1,5 +1,5 @@
 import { useBlocker } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 
@@ -11,12 +11,14 @@ export const InviteTenantUserDrawerHost = ({
 	onOpenChange,
 	onInvited,
 	onSessionExpired,
+	finalFocusRef,
 }: {
 	tenantId: string;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 	onInvited?: () => void;
 	onSessionExpired: () => void;
+	finalFocusRef?: RefObject<HTMLButtonElement | null>;
 }) => {
 	const { t } = useTranslation('common');
 	const [isInviteFormDirty, setIsInviteFormDirty] = useState(false);
@@ -54,6 +56,7 @@ export const InviteTenantUserDrawerHost = ({
 				onInvited={handleInvited}
 				onSessionExpired={onSessionExpired}
 				onDirtyChange={setIsInviteFormDirty}
+				finalFocusRef={finalFocusRef}
 			/>
 			<ConfirmDialog
 				isOpen={inviteDrawerBlocker.status === 'blocked'}

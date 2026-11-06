@@ -77,6 +77,7 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
@@ -102,6 +103,9 @@ const EN_LABELS: TestLabelMap = {
 	'pending-invitations': 'Pending invitations',
 	'view-all': 'View all',
 	retry: 'Retry',
+	'common:retry': 'Retry',
+	'go-to-home': 'Back to home',
+	'common:go-to-home': 'Back to home',
 	'overview-empty-tenants': 'No tenants yet',
 	'overview-empty-staff': 'No staff members yet',
 	'overview-empty-invitations': 'No pending invitations',
@@ -163,7 +167,8 @@ describe('StaffDashboardOverviewTab', () => {
 					firstName: 'Grace',
 					lastName: 'Hopper',
 					avatarUrl: null,
-					level: 'admin',
+					isFullAccess: false,
+					roles: [],
 					status: 'active',
 				},
 			],

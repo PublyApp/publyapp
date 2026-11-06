@@ -33,11 +33,12 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindDeadLetterItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: null,
 				ExternalStateStatusCsv: null,
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 
 			var page = result.Should().BeOfType<FindDeadLetterItemsResult.Success>()
@@ -66,11 +67,12 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindDeadLetterItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: null,
 				ExternalStateStatusCsv: "6",
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 
 			var page = result.Should().BeOfType<FindDeadLetterItemsResult.Success>()
@@ -80,11 +82,12 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			);
 
 			var rejected = await service.FindAsync(new FindDeadLetterItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: null,
 				ExternalStateStatusCsv: "99",
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 			rejected.Should()
 				.BeOfType<FindDeadLetterItemsResult.InvalidStatusCsv>();
@@ -106,11 +109,12 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 
 			var service = await this._CreateServiceAsync();
 			var result = await service.FindAsync(new FindDeadLetterItemsArgs(
-				Cursor: Guid.Empty,
+Cursor: Guid.Empty,
 				Limit: 10,
 				TenantId: tenantId,
 				ExternalStateStatusCsv: null,
-				JobType: jobType
+				JobType: jobType,
+				Search: null
 			));
 
 			var page = result.Should().BeOfType<FindDeadLetterItemsResult.Success>()
@@ -141,11 +145,12 @@ public sealed class DeadLetterQueryServiceSpec : IClassFixture<ApiFixture> {
 			while (true) {
 				var service = await this._CreateServiceAsync();
 				var result = await service.FindAsync(new FindDeadLetterItemsArgs(
-					Cursor: cursor,
+Cursor: cursor,
 					Limit: 2,
 					TenantId: null,
 					ExternalStateStatusCsv: null,
-					JobType: jobType
+					JobType: jobType,
+					Search: null
 				));
 				var page = result.Should()
 					.BeOfType<FindDeadLetterItemsResult.Success>().Subject.Data;

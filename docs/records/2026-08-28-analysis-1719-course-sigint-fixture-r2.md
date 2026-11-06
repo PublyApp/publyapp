@@ -2,7 +2,7 @@
 
 ## Context
 
-Commit `5c044a936` fixed a SIGINT race in the "r2" fixture of `apps/front/scripts/guards/check-design-system.test.mts`. The fix is a **two-line swap** in the child process script:
+Commit `5c044a936` fixed a SIGINT race in the "r2" fixture of `apps/front/scripts/guards/check-design-system.test.ts`. The fix is a **two-line swap** in the child process script:
 
 - **BUGGY** (before): handshake write (`process.stdout.write`) BEFORE handler install (`process.on('SIGINT')`)
 - **FIXED** (after): handler install BEFORE handshake write
@@ -40,7 +40,7 @@ adversarial mutation search.
 ## Solution: strengthened static guard
 
 The r2 proof is a **two-axis static guard** that:
-1. Reads the **real file** `check-design-system.test.mts`
+1. Reads the **real file** `check-design-system.test.ts`
 2. Extracts the r2 fixture's line array (extraction by anchoring, not copy)
 3. Verifies **two properties**:
    - **Axis 1 — Order**: the handler (`process.on('SIGINT')`) must appear BEFORE

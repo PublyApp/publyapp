@@ -4,23 +4,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-
-import {
-	BackToTenantsLink,
-	TenantRetryActions,
-} from '../../_tenant-details-shell';
 import { classifyProfileDetailsFailure } from './_profile-details-error-classifier';
-
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
-};
 
 export const ProfileDetailsLoading = () => {
 	const { t } = useTranslation('staff-tenant-profiles');
@@ -38,7 +22,7 @@ export const ProfileDetailsLoading = () => {
 	);
 };
 
-export const MissingTenantProfileView = ({ error }: { error: unknown }) => {
+export const MissingTenantProfileView = () => {
 	const { t } = useTranslation('staff-tenant-profiles');
 
 	return (
@@ -46,12 +30,8 @@ export const MissingTenantProfileView = ({ error }: { error: unknown }) => {
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
 			code={t('common:error-404-code')}
 			title={t('common:tenant-profile-not-found-title')}
-			description={getFailureDescription(
-				error,
-				t('common:tenant-profile-not-found-description'),
-			)}
+			description={t('common:tenant-profile-not-found-description')}
 			testId="staff-tenant-profile-details-not-found"
-			actions={<BackToTenantsLink />}
 		/>
 	);
 };
@@ -71,7 +51,7 @@ export const TenantProfileDetailsError = ({
 	const surface = classifyProfileDetailsFailure(error);
 
 	if (surface === 'not-found') {
-		return <MissingTenantProfileView error={error} />;
+		return <MissingTenantProfileView />;
 	}
 
 	if (surface === 'forbidden') {
@@ -85,7 +65,7 @@ export const TenantProfileDetailsError = ({
 			title={t('common:unable-to-load-tenant-profile')}
 			description={t('common:tenant-profile-load-error-description')}
 			testId="staff-tenant-profile-details-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
+			onRetry={onRetry}
 		/>
 	);
 };

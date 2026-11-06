@@ -10,13 +10,27 @@ namespace PublyApp.Api.Modules.Users.Services;
 
 public class StaffUserData {
 	public required User User { get; set; }
+	// Full access is carried by a protected system role, never a level.
 	public bool IsFullAccess { get; set; }
+
+	// Assigned role names, loaded in one batched query per page (no N+1): the
+	// « Rôles » column reads them as pills.
 	public List<string> Roles { get; set; } = [];
 }
 
+public sealed record StaffUserCounts(
+	int Total,
+	int Active,
+	int Suspended,
+	int FullAccess,
+	int ConnectedToday,
+	int OpenSessions
+);
+
 public abstract record FindStaffUsersResult {
 	public sealed record Success(
-		CursorPaginatedResult<StaffUserData> Data
+		CursorPaginatedResult<StaffUserData> Data,
+		StaffUserCounts Counts
 	) : FindStaffUsersResult;
 
 	public sealed record CursorNotFound(
@@ -231,6 +245,65 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				select ua;
 		}
 
+		// Facets cover the whole filtered collection (cursor and page size are
+		// pagination only, never a filter).
+		var facetRows = await (
+			from ua in query
+			group ua by ua.User.Status into g
+			select new { Status = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var total = 0;
+		var active = 0;
+		var suspended = 0;
+		foreach (var facet in facetRows) {
+			total += facet.Count;
+			if (facet.Status == UserStatus.Active) {
+				active += facet.Count;
+			} else if (facet.Status == UserStatus.Suspended) {
+				suspended += facet.Count;
+			}
+		}
+
+		// Full access is a protected system role, not a level: count the accounts
+		// holding it over the same filtered collection.
+		var fullAccess = await query.CountAsync(
+			ua => this._DbContext.UserAccountProfile.Any(uap =>
+				uap.UserAccountId == ua.Id
+				&& !uap.Profile.IsDeleted
+				&& uap.Profile.IsFullAccess),
+			cancellationToken
+		);
+
+		// Sessions are the only activity the database records (created_at /
+		// expires_at); there is no last-activity or MFA column. « Connectés
+		// aujourd'hui » is therefore the users with a session opened since
+		// midnight UTC, and the open-session figure the still-valid ones.
+		var now = DateTime.UtcNow;
+		var todayStart = now.Date;
+		var filteredUserIds = query.Select(ua => ua.UserId);
+		var openSessions = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where session.ExpiresAt > now
+				&& filteredUserIds.Contains(session.UserId)
+			select session
+		).CountAsync(cancellationToken);
+		var connectedToday = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where session.CreatedAt >= todayStart
+				&& filteredUserIds.Contains(session.UserId)
+			select session.UserId
+		).Distinct().CountAsync(cancellationToken);
+
+		var counts = new StaffUserCounts(
+			Total: total,
+			Active: active,
+			Suspended: suspended,
+			FullAccess: fullAccess,
+			ConnectedToday: connectedToday,
+			OpenSessions: openSessions
+		);
+
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue = await handler.GetCursorValue(args.Cursor);
 			if (cursorValue is null) {
@@ -251,13 +324,6 @@ public class StaffUserQueryService : IStaffUserQueryService {
 					uap.UserAccountId == ua.Id
 					&& !uap.Profile.IsDeleted
 					&& uap.Profile.IsFullAccess),
-				Roles = (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
-					where uap.UserAccountId == ua.Id && !p.IsDeleted
-					orderby p.Name
-					select p.Name
-				).ToList()
 			}
 		)
 			.Take(effectiveLimit + 1)
@@ -270,11 +336,50 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			nextCursor = results.Last().User.GetRequiredId().ToString();
 		}
 
+		// One batched profile query for the whole page, never one per row.
+		var pageUserIds = results
+			.Select(staffUser => staffUser.User.GetRequiredId())
+			.ToList();
+		var roleRows = await (
+			from accountProfile in this._DbContext.UserAccountProfile.AsNoTracking()
+			join account in this._DbContext.UserAccount.AsNoTracking()
+				on (Guid?)accountProfile.UserAccountId equals account.Id
+			join profile in this._DbContext.Profile.AsNoTracking()
+				on (Guid?)accountProfile.ProfileId equals profile.Id
+			where account.Scope == AccountScope.Staff
+				&& pageUserIds.Contains(account.UserId)
+				&& !profile.IsDeleted
+			select new {
+				account.UserId,
+				profile.Name,
+			}
+		).ToListAsync(cancellationToken);
+
+		var roleNamesByUser = new Dictionary<Guid, List<string>>();
+		foreach (var row in roleRows) {
+			if (!roleNamesByUser.TryGetValue(row.UserId, out var names)) {
+				names = [];
+				roleNamesByUser[row.UserId] = names;
+			}
+			names.Add(row.Name);
+		}
+
+		foreach (var staffUser in results) {
+			if (roleNamesByUser.TryGetValue(
+				staffUser.User.GetRequiredId(),
+				out var names
+			)) {
+				names.Sort(StringComparer.OrdinalIgnoreCase);
+				staffUser.Roles = names;
+			}
+		}
+
 		return new FindStaffUsersResult.Success(
 			new CursorPaginatedResult<StaffUserData> {
 				Data = results,
 				NextCursor = nextCursor,
-			}
+			},
+			counts
 		);
 	}
 }

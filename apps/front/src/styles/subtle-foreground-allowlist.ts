@@ -38,11 +38,6 @@ export const SUBTLE_FOREGROUND_ALLOWLIST: readonly SubtleAllowlistEntry[] = [
 		reason: '11px count badge in the secondary nav — small label, not body.',
 	},
 	{
-		selector: '.publy-type-helper',
-		kind: 'helper',
-		reason: '12px helper text pinned to subtle intentionally (conventions.md).',
-	},
-	{
 		selector: '.publy-form-action-bar-status',
 		kind: 'helper',
 		reason: '12px form action bar status line — helper, not body.',

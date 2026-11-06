@@ -85,7 +85,7 @@ test.describe(
 			).toBeVisible();
 		});
 
-		test('shows the eleven columns, staff StatCards and the Team panel', async ({
+		test('shows the ten columns, staff StatCards and the Team panel', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -127,10 +127,11 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-			await expect(headerOf(page, 'Member')).toHaveCSS('width', '260px');
+			// The prototype's list grid widens « Member » to 330px (#2301).
+			await expect(headerOf(page, 'Member')).toHaveCSS('width', '330px');
 			await expect(headerOf(page, 'Status')).toHaveCSS('width', '130px');
 
-			// The 11-column default grid is wider than the card at 1280px, so
+			// The 10-column default grid is wider than the card at 1280px, so
 			// the horizontal scroll belongs to the rows scroller inside the card,
 			// never to the page (the same contract as the tenants grid, #2280).
 			const scroller = rowsOf(page);

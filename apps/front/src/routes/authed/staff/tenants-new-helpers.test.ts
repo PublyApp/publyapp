@@ -7,6 +7,7 @@ import {
 	mapImportedRoleToTenantRole,
 	mergeInitialUsers,
 	parseCsv,
+	slugifyTenantCode,
 	slugifyTenantNamePlaceholder,
 } from './tenants-new-helpers';
 
@@ -38,6 +39,21 @@ describe('isValidTenantCode', () => {
 		expect(isValidTenantCode('acme_corp')).toBe(false);
 		expect(isValidTenantCode('acme corp')).toBe(false);
 		expect(isValidTenantCode('acme.corp')).toBe(false);
+	});
+});
+
+describe('slugifyTenantCode', () => {
+	test('transliterates accented Latin letters instead of dropping them', () => {
+		expect(slugifyTenantCode('Maison Lumière')).toBe('maison-lumiere');
+		expect(slugifyTenantCode('Café Crème')).toBe('cafe-creme');
+	});
+
+	test('transliterates ligatures', () => {
+		expect(slugifyTenantCode('Œuvre & Cie')).toBe('oeuvre-cie');
+	});
+
+	test('transliterates a name made only of accented letters', () => {
+		expect(slugifyTenantCode('ÉÈÊË ÀÂÇ ÔÙÛÜ ÎÏ')).toBe('eeee-aac-ouuu-ii');
 	});
 });
 

@@ -47,12 +47,12 @@ COPY --from=prune /workspace/out/full/ ./
 # Vite inlines VITE_* vars at build time, so this must be set before the
 # build step. Defaults to false so a production build with no build arg
 # keeps the /field-validation demo route gated off; the e2e test image
-# turns it on via docker-compose.test.yml to cover InterZod's localized
+# turns it on via docker-compose.test.yml to cover the zod locale's localized
 # built-in validation messages.
 ARG VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED=false
 ENV VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED=$VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED
 
-RUN node apps/front/scripts/guards/assert-pinned.mts
+RUN node apps/front/scripts/guards/assert-pinned.ts
 RUN pnpm --filter @org/shared-ts run postinstall
 RUN pnpm --filter front build
 # `deploy` is the pnpm workspace deploy subcommand, not a package script.

@@ -10,7 +10,7 @@
 	"danger-zone-description": "Déplacer ce post dans la corbeille. Il restera récupérable.",
 	"danger-zone-title": "Zone de danger",
 	"drafts": "Brouillons",
-	"drafts-coming-later-description": "Vos brouillons de publications apparaîtront dès que l’API des publications sera disponible.",
+	"drafts-coming-later-description": "Vos brouillons de publications apparaîtront dès que la publication sera disponible.",
 	"drafts-coming-later-title": "Les brouillons arrivent plus tard",
 	"drafts-description": "Vos publications non publiées. Cherchez, ouvrez et continuez la rédaction.",
 	"edit-post": "Modifier la publication",
