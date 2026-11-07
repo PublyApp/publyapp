@@ -296,7 +296,7 @@ export const MARKETING_FOOTER_COLUMNS: readonly MarketingFooterColumn[] = [
 				hash: MARKETING_SECTION_IDS.pricing,
 			},
 			{ id: 'tenants', labelKey: 'marketing-nav-tenants' },
-			{ id: 'profiles', labelKey: 'marketing-nav-profiles' },
+			{ id: 'roles', labelKey: 'marketing-nav-profiles' },
 			{ id: 'permissions', labelKey: 'marketing-nav-permissions' },
 			{ id: 'security', labelKey: 'marketing-nav-security' },
 		],

@@ -13,7 +13,7 @@ export const Route = createFileRoute(
 	staticData: { crumbs: 'shell' },
 	beforeLoad: ({ location }) => {
 		throw redirect({
-			href: legacyProfileRedirectHref(location.pathname),
+			href: legacyProfileRedirectHref(location.pathname, location.searchStr),
 			statusCode: 301,
 		});
 	},

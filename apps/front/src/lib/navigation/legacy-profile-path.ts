@@ -3,13 +3,18 @@
  * `…/roles`). Old bookmarks must still land on the renamed page, so the frozen stub
  * routes feed their pathname through this pure mapping.
  *
- * `undefined` means "not a legacy profile URL" — the caller then has nothing to redirect.
+ * `searchStr` (the raw query string, leading `?` included) rides along so a bookmarked
+ * filtered list keeps its filters. The fallback is unreachable from the frozen stubs —
+ * it only exists so the redirect href is always a `string`.
  */
 const LEGACY_PROFILE_PATH = /^\/staff\/(?:tenants\/[^/]+\/)?profiles(?=\/|$)/;
 
 export const legacyProfileRedirectHref = (
 	pathname: string,
-): string | undefined =>
-	LEGACY_PROFILE_PATH.test(pathname)
+	searchStr = '',
+): string => {
+	const href = LEGACY_PROFILE_PATH.test(pathname)
 		? pathname.replace('/profiles', '/roles')
-		: undefined;
+		: '/staff/roles';
+	return `${href}${searchStr}`;
+};

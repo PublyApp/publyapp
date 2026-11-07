@@ -11,7 +11,7 @@ export const Route = createFileRoute('/_authed-layout/staff/profiles')({
 	staticData: { crumbs: 'shell' },
 	beforeLoad: ({ location }) => {
 		throw redirect({
-			href: legacyProfileRedirectHref(location.pathname),
+			href: legacyProfileRedirectHref(location.pathname, location.searchStr),
 			statusCode: 301,
 		});
 	},

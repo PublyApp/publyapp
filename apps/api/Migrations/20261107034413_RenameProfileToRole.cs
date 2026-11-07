@@ -162,21 +162,25 @@ namespace PublyApp.Api.Migrations
                 DROP CONSTRAINT "FK_role_permissions_permissions_permission_key";
 
                 UPDATE role_permissions
-                SET permission_key = replace(
-                    replace(permission_key, '.profiles.', '.roles.'),
-                    '_profile',
-                    '_role'
-                )
+                SET permission_key = CASE permission_key
+                    WHEN 'staff.profiles.list_users_for_staff_profile'
+                        THEN 'staff.roles.list_users_for_staff_role'
+                    WHEN 'tenant.profiles.list_users_for_tenant_profile'
+                        THEN 'tenant.roles.list_users_for_tenant_role'
+                    ELSE replace(permission_key, '.profiles.', '.roles.')
+                END
                 WHERE permission_key LIKE 'staff.profiles.%'
                    OR permission_key LIKE 'tenant.profiles.%'
                    OR permission_key LIKE 'project.profiles.%';
 
                 UPDATE permissions
-                SET key = replace(
-                    replace(key, '.profiles.', '.roles.'),
-                    '_profile',
-                    '_role'
-                )
+                SET key = CASE key
+                    WHEN 'staff.profiles.list_users_for_staff_profile'
+                        THEN 'staff.roles.list_users_for_staff_role'
+                    WHEN 'tenant.profiles.list_users_for_tenant_profile'
+                        THEN 'tenant.roles.list_users_for_tenant_role'
+                    ELSE replace(key, '.profiles.', '.roles.')
+                END
                 WHERE key LIKE 'staff.profiles.%'
                    OR key LIKE 'tenant.profiles.%'
                    OR key LIKE 'project.profiles.%';
@@ -198,21 +202,25 @@ namespace PublyApp.Api.Migrations
                 DROP CONSTRAINT "FK_role_permissions_permissions_permission_key";
 
                 UPDATE role_permissions
-                SET permission_key = replace(
-                    replace(permission_key, '.roles.', '.profiles.'),
-                    '_role',
-                    '_profile'
-                )
+                SET permission_key = CASE permission_key
+                    WHEN 'staff.roles.list_users_for_staff_role'
+                        THEN 'staff.profiles.list_users_for_staff_profile'
+                    WHEN 'tenant.roles.list_users_for_tenant_role'
+                        THEN 'tenant.profiles.list_users_for_tenant_profile'
+                    ELSE replace(permission_key, '.roles.', '.profiles.')
+                END
                 WHERE permission_key LIKE 'staff.roles.%'
                    OR permission_key LIKE 'tenant.roles.%'
                    OR permission_key LIKE 'project.roles.%';
 
                 UPDATE permissions
-                SET key = replace(
-                    replace(key, '.roles.', '.profiles.'),
-                    '_role',
-                    '_profile'
-                )
+                SET key = CASE key
+                    WHEN 'staff.roles.list_users_for_staff_role'
+                        THEN 'staff.profiles.list_users_for_staff_profile'
+                    WHEN 'tenant.roles.list_users_for_tenant_role'
+                        THEN 'tenant.profiles.list_users_for_tenant_profile'
+                    ELSE replace(key, '.roles.', '.profiles.')
+                END
                 WHERE key LIKE 'staff.roles.%'
                    OR key LIKE 'tenant.roles.%'
                    OR key LIKE 'project.roles.%';

@@ -336,7 +336,7 @@ public class Program {
 		staffGroup.MapJobVisibilityEndpointsForStaff();
 
 		// First real tenant-scoped surface (root `/`): the signed-in user's
-		// own account role. Posts shipped as the first real permission-gated
+		// own account profile. Posts shipped as the first real permission-gated
 		// tenant CRUD surface (B1 #637) and replaces the former Testing-only
 		// /test-permission scaffold as the permission-filter probe.
 		tenantGroup.MapAccountEndpointsForTenant();
