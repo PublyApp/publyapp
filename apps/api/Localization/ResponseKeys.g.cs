@@ -237,7 +237,7 @@ public static partial class ResponseKeys {
 	/// <summary>
 	/// Max roles per user exceeded
 	/// </summary>
-	public static readonly TranslationKey MaxProfilesPerUserExceeded = new("max-profiles-per-user-exceeded");
+	public static readonly TranslationKey MaxRolesPerUserExceeded = new("max-roles-per-user-exceeded");
 
 	/// <summary>
 	/// Method not allowed
@@ -353,26 +353,6 @@ public static partial class ResponseKeys {
 	/// Segments that are already published cannot be changed or removed
 	/// </summary>
 	public static readonly TranslationKey PostSegmentsLocked = new("post-segments-locked");
-
-	/// <summary>
-	/// role
-	/// </summary>
-	public static readonly TranslationKey Profile = new("profile");
-
-	/// <summary>
-	/// Role name already exists
-	/// </summary>
-	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
-
-	/// <summary>
-	/// Role must be a staff role
-	/// </summary>
-	public static readonly TranslationKey ProfileNotStaffScope = new("profile-not-staff-scope");
-
-	/// <summary>
-	/// roles
-	/// </summary>
-	public static readonly TranslationKey Profiles = new("profiles");
 
 	/// <summary>
 	/// Project not found in this organization
@@ -515,7 +495,27 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey RequestBodyValidationFailed = new("request-body-validation-failed");
 
 	/// <summary>
-	/// Service unavailable
+	/// role
+	/// </summary>
+	public static readonly TranslationKey Role = new("role");
+
+	/// <summary>
+	/// Role name already exists
+	/// </summary>
+	public static readonly TranslationKey RoleNameAlreadyExists = new("role-name-already-exists");
+
+	/// <summary>
+	/// Role must be a staff role
+	/// </summary>
+	public static readonly TranslationKey RoleNotStaffScope = new("role-not-staff-scope");
+
+	/// <summary>
+	/// roles
+	/// </summary>
+	public static readonly TranslationKey Roles = new("roles");
+
+	/// <summary>
+	/// The service is temporarily unavailable.
 	/// </summary>
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
@@ -567,27 +567,27 @@ public static partial class ResponseKeys {
 	/// <summary>
 	/// Staff role created successfully
 	/// </summary>
-	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
+	public static readonly TranslationKey StaffRoleCreatedSuccessfully = new("staff-role-created-successfully");
 
 	/// <summary>
 	/// Staff role deleted successfully
 	/// </summary>
-	public static readonly TranslationKey StaffProfileDeletedSuccess = new("staff-profile-deleted-success");
+	public static readonly TranslationKey StaffRoleDeletedSuccess = new("staff-role-deleted-success");
 
 	/// <summary>
 	/// Staff role updated successfully
 	/// </summary>
-	public static readonly TranslationKey StaffProfileUpdatedSuccessfully = new("staff-profile-updated-successfully");
+	public static readonly TranslationKey StaffRoleUpdatedSuccessfully = new("staff-role-updated-successfully");
 
 	/// <summary>
 	/// Users unassigned from role successfully
 	/// </summary>
-	public static readonly TranslationKey StaffProfileUsersUnassignedSuccess = new("staff-profile-users-unassigned-success");
+	public static readonly TranslationKey StaffRoleUsersUnassignedSuccess = new("staff-role-users-unassigned-success");
 
 	/// <summary>
 	/// staff roles
 	/// </summary>
-	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+	public static readonly TranslationKey StaffRoles = new("staff-roles");
 
 	/// <summary>
 	/// Staff user is already suspended
@@ -715,19 +715,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");
 
 	/// <summary>
+	/// Organization reactivated successfully
+	/// </summary>
+	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");
+
+	/// <summary>
 	/// The default organization role cannot be deleted
 	/// </summary>
-	public static readonly TranslationKey TenantProfileDefaultDeleteNotAllowed = new("tenant-profile-default-delete-not-allowed");
+	public static readonly TranslationKey TenantRoleDefaultDeleteNotAllowed = new("tenant-role-default-delete-not-allowed");
 
 	/// <summary>
 	/// Organization role deleted successfully
 	/// </summary>
-	public static readonly TranslationKey TenantProfileDeletedSuccess = new("tenant-profile-deleted-success");
-
-	/// <summary>
-	/// Organization reactivated successfully
-	/// </summary>
-	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");
+	public static readonly TranslationKey TenantRoleDeletedSuccess = new("tenant-role-deleted-success");
 
 	/// <summary>
 	/// This organization has been suspended
@@ -745,14 +745,14 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey TenantUpdatedSuccess = new("tenant-updated-success");
 
 	/// <summary>
-	/// This invitee has too many roles
-	/// </summary>
-	public static readonly TranslationKey TooManyProfilesForInvitee = new("too-many-profiles-for-invitee");
-
-	/// <summary>
 	/// Too many requests
 	/// </summary>
 	public static readonly TranslationKey TooManyRequests = new("too-many-requests");
+
+	/// <summary>
+	/// This invitee has too many roles
+	/// </summary>
+	public static readonly TranslationKey TooManyRolesForInvitee = new("too-many-roles-for-invitee");
 
 	/// <summary>
 	/// Unauthorized

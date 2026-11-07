@@ -105,12 +105,12 @@ const runCases = (rule: typeof noPackageSrcImport, label: string) => {
 				},
 				{
 					code: "import { StaffGetResponse } from '@org/client-ts/src/staff/permissions/scopes/staff/index.js';",
-					filename: 'apps/front/src/lib/query/staff-profiles.ts',
+					filename: 'apps/front/src/lib/query/staff-roles.ts',
 					errors: [{ messageId: 'banned' }],
 				},
 				{
 					code: "import { TenantGetResponse } from '@org/client-ts/src/staff/permissions/scopes/tenant/index.js';",
-					filename: 'apps/front/src/lib/query/staff-tenant-profiles.ts',
+					filename: 'apps/front/src/lib/query/staff-tenant-roles.ts',
 					errors: [{ messageId: 'banned' }],
 				},
 				{

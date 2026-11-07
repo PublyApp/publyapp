@@ -33,10 +33,10 @@ import { InvitationsListBulkActions } from './_list-bulk-actions';
 import {
 	getInvitationStatusLabelKey,
 	parseInvitationListSearchParams,
-	parseInvitationProfileFilter,
+	parseInvitationRoleFilter,
 	parseInvitationStatusFilter,
 	serializeInvitationListSearchParams,
-	serializeInvitationProfileFilter,
+	serializeInvitationRoleFilter,
 	serializeInvitationStatusFilter,
 	toStaffInvitationRows,
 	type InvitationListSearchParamInput,
@@ -49,13 +49,13 @@ import { InvitationRowActions } from './table-columns';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-const countInvitationProfiles = (rows: StaffInvitationRow[]) => {
+const countInvitationRoles = (rows: StaffInvitationRow[]) => {
 	const counts: Record<string, number> = {};
 	for (const row of rows) {
-		if (row.profileName.length === 0) {
+		if (row.roleName.length === 0) {
 			continue;
 		}
-		counts[row.profileName] = (counts[row.profileName] ?? 0) + 1;
+		counts[row.roleName] = (counts[row.roleName] ?? 0) + 1;
 	}
 	return counts;
 };
@@ -67,7 +67,7 @@ const StaffInvitationsPage = () => {
 	const search = Route.useSearch() as InvitationListSearchParams;
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
-	const selectedProfiles = parseInvitationProfileFilter(search.profile);
+	const selectedRoles = parseInvitationRoleFilter(search.role);
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
@@ -75,7 +75,7 @@ const StaffInvitationsPage = () => {
 				...search,
 				...next,
 				status: search.status,
-				profile: search.profile,
+				role: search.role,
 			}) as InvitationListSearchParams,
 			replace: true,
 		});
@@ -109,11 +109,11 @@ const StaffInvitationsPage = () => {
 
 	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
 	const countsKnown = query.data !== undefined;
-	// A profile facet exists nowhere in the API: its counts are exact only when
+	// A role facet exists nowhere in the API: its counts are exact only when
 	// the loaded page is the whole collection.
-	const profileCounts: Record<string, number> | null =
+	const roleCounts: Record<string, number> | null =
 		query.data !== undefined && rows.length === query.data.totalCount
-			? countInvitationProfiles(rows)
+			? countInvitationRoles(rows)
 			: null;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
@@ -122,7 +122,7 @@ const StaffInvitationsPage = () => {
 			toBe:
 				| '/staff/staff-users'
 				| '/staff/invitations'
-				| '/staff/profiles'
+				| '/staff/roles'
 				| '/staff/audit-logs',
 		) => {
 			void navigate({ to: toBe });
@@ -132,7 +132,7 @@ const StaffInvitationsPage = () => {
 
 	const filtersValue: ListFiltersValue = {
 		status: selectedStatuses,
-		profile: selectedProfiles,
+		role: selectedRoles,
 	};
 
 	const setFilters = (next: ListFiltersValue): void => {
@@ -143,7 +143,7 @@ const StaffInvitationsPage = () => {
 				status: serializeInvitationStatusFilter(
 					(next.status ?? []) as KnownInvitationStatus[],
 				),
-				profile: serializeInvitationProfileFilter(next.profile ?? []),
+				role: serializeInvitationRoleFilter(next.role ?? []),
 				cursor: undefined,
 			}) as InvitationListSearchParams,
 			replace: true,
@@ -186,7 +186,7 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, rows, selectedProfiles, profileCounts)}
+			filters={buildInvitationFilters(t, rows, selectedRoles, roleCounts)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			counts={{
@@ -277,7 +277,7 @@ const StaffInvitationsPage = () => {
 						fileNamePrefix="staff-invitations"
 						columns={[
 							{ header: t('invitee'), getValue: (row) => row.email },
-							{ header: t('profiles'), getValue: (row) => row.profileName },
+							{ header: t('roles'), getValue: (row) => row.roleName },
 							{
 								header: t('invited-by'),
 								getValue: (row) => row.invitedByName,

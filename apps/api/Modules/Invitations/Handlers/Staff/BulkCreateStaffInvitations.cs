@@ -12,7 +12,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
@@ -35,25 +35,25 @@ public record BulkCreateStaffInvitationsBody {
 				);
 			}
 
-			var profileIds = new List<Guid>();
+			var roleIds = new List<Guid>();
 			foreach (
 				var e in item
-					.GetProperty("profileIds")
+					.GetProperty("roleIds")
 					.EnumerateArray()
 			) {
-				var profileIdStr = e.GetString();
-				if (profileIdStr is null) {
+				var roleIdStr = e.GetString();
+				if (roleIdStr is null) {
 					throw new InvalidOperationException(
-						"ProfileId is null after "
+						"RoleId is null after "
 						+ "validation"
 					);
 				}
-				profileIds.Add(Guid.Parse(profileIdStr));
+				roleIds.Add(Guid.Parse(roleIdStr));
 			}
 
 			invitations.Add(new BulkStaffInvitationItem {
 				Email = email,
-				ProfileIds = profileIds
+				RoleIds = roleIds
 			});
 		}
 
@@ -161,39 +161,39 @@ public class BulkCreateStaffInvitationsBodyValidator
 						}
 					}
 
-					// Validate profileIds
-					if (!item.TryGetProperty("profileIds", out var profileIdsElement)) {
+					// Validate roleIds
+					if (!item.TryGetProperty("roleIds", out var roleIdsElement)) {
 						context.AddFailure(
-							$"invitations[{index}].profileIds",
-							"ProfileIds is required"
+							$"invitations[{index}].roleIds",
+							"RoleIds is required"
 						);
 					} else {
-						if (profileIdsElement.ValueKind != JsonValueKind.Array) {
+						if (roleIdsElement.ValueKind != JsonValueKind.Array) {
 							context.AddFailure(
-								$"invitations[{index}].profileIds",
-								"ProfileIds must be an array"
+								$"invitations[{index}].roleIds",
+								"RoleIds must be an array"
 							);
 						} else {
-							var profileIdsArray = profileIdsElement.EnumerateArray().ToList();
-							if (profileIdsArray.Count == 0) {
+							var roleIdsArray = roleIdsElement.EnumerateArray().ToList();
+							if (roleIdsArray.Count == 0) {
 								context.AddFailure(
-									$"invitations[{index}].profileIds",
-									"At least one profile ID is required"
+									$"invitations[{index}].roleIds",
+									"At least one role ID is required"
 								);
 							} else {
-								for (var j = 0; j < profileIdsArray.Count; j++) {
-									var profileIdElement = profileIdsArray[j];
-									if (profileIdElement.ValueKind != JsonValueKind.String) {
+								for (var j = 0; j < roleIdsArray.Count; j++) {
+									var roleIdElement = roleIdsArray[j];
+									if (roleIdElement.ValueKind != JsonValueKind.String) {
 										context.AddFailure(
-											$"invitations[{index}].profileIds[{j}]",
-											"ProfileId must be a string"
+											$"invitations[{index}].roleIds[{j}]",
+											"RoleId must be a string"
 										);
 									} else {
-										var profileIdStr = profileIdElement.GetString();
-										if (!Guid.TryParse(profileIdStr, out _)) {
+										var roleIdStr = roleIdElement.GetString();
+										if (!Guid.TryParse(roleIdStr, out _)) {
 											context.AddFailure(
-												$"invitations[{index}].profileIds[{j}]",
-												"ProfileId must be a valid GUID"
+												$"invitations[{index}].roleIds[{j}]",
+												"RoleId must be a valid GUID"
 											);
 										}
 									}
@@ -242,7 +242,7 @@ public sealed class BulkCreateStaffInvitations {
 	>> Handle(
 		[FromBody] BulkCreateStaffInvitationsBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
+		[FromServices] IRoleAssignmentGuard roleAssignmentGuard,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
@@ -261,9 +261,9 @@ public sealed class BulkCreateStaffInvitations {
 		// Parse JsonElement into typed list
 		var invitations = body.GetInvitations();
 
-		// Extract all unique emails and profile IDs for batch validation
+		// Extract all unique emails and role IDs for batch validation
 		var uniqueEmails = invitations.Select(i => i.Email).Distinct().ToList();
-		var allProfileIds = invitations.SelectMany(i => i.ProfileIds).Distinct().ToList();
+		var allRoleIds = invitations.SelectMany(i => i.RoleIds).Distinct().ToList();
 
 		// Check for scope conflicts - staff invitations can't target users with tenant/project accounts
 		var conflictingEmails = await accountService.GetEmailsWithTenantOrProjectAccountsAsync(
@@ -321,11 +321,11 @@ public sealed class BulkCreateStaffInvitations {
 			);
 		}
 
-		// Batch validate all profiles (1 query total, not N queries)
+		// Batch validate all roles (1 query total, not N queries)
 		var actor = authContext.GetRequiredStaffAccount();
-		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+		if (!await roleAssignmentGuard.CanAssignRolesAsync(
 			actor.UserId,
-			allProfileIds,
+			allRoleIds,
 			cancellationToken
 		)) {
 			return TypedProblems.Forbidden(
@@ -334,20 +334,20 @@ public sealed class BulkCreateStaffInvitations {
 			);
 		}
 
-		var validProfileIds = await invitationService.ValidateStaffProfilesAsync(
-			allProfileIds,
+		var validRoleIds = await invitationService.ValidateStaffRolesAsync(
+			allRoleIds,
 			cancellationToken
 		);
 
-		var missingProfileIds = allProfileIds.Except(validProfileIds).ToList();
+		var missingRoleIds = allRoleIds.Except(validRoleIds).ToList();
 
-		if (missingProfileIds.Count > 0) {
-			var errors = missingProfileIds.ToDictionary(
+		if (missingRoleIds.Count > 0) {
+			var errors = missingRoleIds.ToDictionary(
 				id => id.ToString(),
-				id => new[] { $"{id}: Profile not found" }
+				id => new[] { $"{id}: Role not found" }
 			);
 			return TypedProblems.ValidationProblem(
-				"One or more profiles not found",
+				"One or more roles not found",
 				ResponseKeys.NotFound,
 				errors
 			);

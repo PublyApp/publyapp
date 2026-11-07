@@ -192,7 +192,7 @@ literal `\bas never\b` greps: 222 matching lines repo-wide (`git grep -w`)
 superpowers plan at 25, this rule's own spec and implementation at 10).
 The 177 casts sit in 49 files — 29 test/spec files and 20 source files;
 heaviest:
-`staff-tenant-profiles.test.ts` 26, `staff-tenant-users.test.ts` 21,
+`staff-tenant-roles.test.ts` 26, `staff-tenant-users.test.ts` 21,
 `staff-tenant-invitations.test.ts` 14, the zod i18n wrapper 8,
 `query-display.test.tsx` 6, `drafts.tsx` 6. The `packages/lint-ts` 8 are
 genuine lib sites (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1,
@@ -204,14 +204,14 @@ final PR flips `.oxlintrc.json` to `"error"` once the scan reports 0 and
 proves the guard red on a reintroduced single `x satisfies never` cast
 (then removes it). Measured slice sizes at the same tip:
 
-| Slice | Scope | Sites | Owner |
-| ----- | ----- | ----- | ----- |
-| A | `apps/front/src/lib/query/**` (validator-stub tests: staff-tenant-profiles 26, staff-tenant-users 21, staff-tenant-invitations 14, …) | 70 | front lane |
-| B | `apps/front/src/**` remaining test/spec files | 64 | front lane |
-| C | `apps/front/src/**` non-test sources (heaviest: `drafts.tsx` 6) | 20 | front lane |
-| D | `packages/shared-ts/src/**` (heaviest: the zod i18n wrapper 8) | 15 | shared lane |
-| E | `packages/lint-ts/src/**` (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1, `no-package-src-import.ts` 1) | 8 | lint-ts lane |
-| | **Total** | **177** | |
+| Slice | Scope                                                                                                                              | Sites   | Owner        |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------ |
+| A     | `apps/front/src/lib/query/**` (validator-stub tests: staff-tenant-roles 26, staff-tenant-users 21, staff-tenant-invitations 14, …) | 70      | front lane   |
+| B     | `apps/front/src/**` remaining test/spec files                                                                                      | 64      | front lane   |
+| C     | `apps/front/src/**` non-test sources (heaviest: `drafts.tsx` 6)                                                                    | 20      | front lane   |
+| D     | `packages/shared-ts/src/**` (heaviest: the zod i18n wrapper 8)                                                                     | 15      | shared lane  |
+| E     | `packages/lint-ts/src/**` (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1, `no-package-src-import.ts` 1)                                | 8       | lint-ts lane |
+|       | **Total**                                                                                                                          | **177** |              |
 
 Slice owners were the dispatching captain's lane assignments at execution
 time (see `~/ai-orchestration-playbook/PLAYBOOK.md`); a slice may be split

@@ -164,12 +164,12 @@ const config: KnipConfig = {
 				// .../$postId/edit.tsx); the `useSavePostMutation` wrapper is exported
 				// but never wired by a component. Reported identically on develop.
 				'src/lib/query/tenant-posts.ts': ['exports'],
-				// staff-profile-users.ts — `BulkUnassignStaffProfileUsersInput` is
+				// staff-role-users.ts — `BulkUnassignStaffRoleUsersInput` is
 				// only ever fed as a generic argument to
-				// `bulkUnassignStaffProfileUsersMutationOptions`; knip cannot trace
+				// `bulkUnassignStaffRoleUsersMutationOptions`; knip cannot trace
 				// the type through the build*() generic, so it reports the export
 				// unused. Reported identically on develop.
-				'src/lib/query/staff-profile-users.ts': ['types'],
+				'src/lib/query/staff-role-users.ts': ['types'],
 				// Pre-existing develop export knip gaps surfaced by the #1554 merge
 				// only because it mechanically updated these route files' imports
 				// (EntityAvatar→PersonAvatar, @org/shared-ts→~/lib

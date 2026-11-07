@@ -44,7 +44,7 @@ import { describe, expect, test, vi } from 'vitest';
  * invalidation reaches the exact array the app caches for the detail.
  *
  * Three list-family modules (`staff-tenant-invitations`, `social-accounts`,
- * `staff-profile-users`) own NO distinct detail factory: the entity's detail
+ * `staff-role-users`) own NO distinct detail factory: the entity's detail
  * view IS the list row itself (the unassigned user is a ROW of the cursor
  * list; social accounts have no per-account detail). For them the list-family
  * assertion above already proves the line, so no separate `expectLineCovered`
@@ -473,79 +473,66 @@ const REGISTRY = {
 			// expectLineCovered.) Hence no separate expectLineCovered here.
 		},
 	},
-	'staff-profiles.ts': {
+	'staff-roles.ts': {
 		kind: 'list-family',
-		helperName: 'invalidateStaffProfiles',
+		helperName: 'invalidateStaffRoles',
 		run: async () => {
 			const {
-				invalidateStaffProfiles,
-				STAFF_PROFILES_QUERY_KEY,
-				staffProfileDetailsQueryOptions,
-			} = await import('./staff-profiles');
+				invalidateStaffRoles,
+				STAFF_ROLES_QUERY_KEY,
+				staffRoleDetailsQueryOptions,
+			} = await import('./staff-roles');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
-				invalidateStaffProfiles(client),
+				invalidateStaffRoles(client),
 			);
-			expectListCovered(
-				'staff-profiles',
-				'invalidateStaffProfiles',
-				invalidated,
-				[
-					[
-						'list family root',
-						scopedKey('staff', [...STAFF_PROFILES_QUERY_KEY]),
-					],
-				],
-			);
+			expectListCovered('staff-roles', 'invalidateStaffRoles', invalidated, [
+				['list family root', scopedKey('staff', [...STAFF_ROLES_QUERY_KEY])],
+			]);
 			// LINE: asserted from the REAL detail factory.
-			expectLineCovered(
-				'staff-profiles',
-				'invalidateStaffProfiles',
-				invalidated,
+			expectLineCovered('staff-roles', 'invalidateStaffRoles', invalidated, [
 				[
-					[
-						'profile detail (the line)',
-						staffProfileDetailsQueryOptions.queryKey({ profileId: 'p1' }),
-					],
+					'role detail (the line)',
+					staffRoleDetailsQueryOptions.queryKey({ roleId: 'p1' }),
 				],
-			);
+			]);
 		},
 	},
-	'staff-tenant-profiles.ts': {
+	'staff-tenant-roles.ts': {
 		kind: 'list-family',
-		helperName: 'invalidateStaffTenantProfiles',
+		helperName: 'invalidateStaffTenantRoles',
 		run: async () => {
 			const {
-				invalidateStaffTenantProfiles,
-				STAFF_TENANT_PROFILES_QUERY_KEY,
-				staffTenantProfileDetailsQueryOptions,
-			} = await import('./staff-tenant-profiles');
+				invalidateStaffTenantRoles,
+				STAFF_TENANT_ROLES_QUERY_KEY,
+				staffTenantRoleDetailsQueryOptions,
+			} = await import('./staff-tenant-roles');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
-				invalidateStaffTenantProfiles(client),
+				invalidateStaffTenantRoles(client),
 			);
 			expectListCovered(
-				'staff-tenant-profiles',
-				'invalidateStaffTenantProfiles',
+				'staff-tenant-roles',
+				'invalidateStaffTenantRoles',
 				invalidated,
 				[
 					[
 						'list family root',
-						scopedKey('staff', [...STAFF_TENANT_PROFILES_QUERY_KEY]),
+						scopedKey('staff', [...STAFF_TENANT_ROLES_QUERY_KEY]),
 					],
 				],
 			);
 			// LINE: asserted from the REAL detail factory.
 			expectLineCovered(
-				'staff-tenant-profiles',
-				'invalidateStaffTenantProfiles',
+				'staff-tenant-roles',
+				'invalidateStaffTenantRoles',
 				invalidated,
 				[
 					[
-						'tenant-profile detail (the line)',
-						staffTenantProfileDetailsQueryOptions.queryKey({
+						'tenant-role detail (the line)',
+						staffTenantRoleDetailsQueryOptions.queryKey({
 							tenantId: TENANT_ID,
-							profileId: 'p1',
+							roleId: 'p1',
 						}),
 					],
 				],
@@ -734,35 +721,34 @@ const REGISTRY = {
 			);
 		},
 	},
-	'staff-profile-users.ts': {
+	'staff-role-users.ts': {
 		kind: 'list-family',
-		helperName: 'invalidateStaffProfileUsers',
+		helperName: 'invalidateStaffRoleUsers',
 		run: async () => {
-			// Unassigning users from a profile is a list-membership mutation: it
-			// changes which rows appear in the profile's nested users list
-			// ['staff', 'staff-profiles', 'users', …]. The helper MUST cover that
+			// Unassigning users from a role is a list-membership mutation: it
+			// changes which rows appear in the role's nested users list
+			// ['staff', 'staff-roles', 'users', …]. The helper MUST cover that
 			// list family (and, through the same prefix, the nested row's line).
 			//
-			// LINE note: there is NO separate sibling detail key for a profile user
+			// LINE note: there is NO separate sibling detail key for a role user
 			// in this module — the unassigned user is a ROW of the cursor list
-			// ['staff','staff-profiles','users',{profileId}], so the
+			// ['staff','staff-roles','users',{roleId}], so the
 			// list-family prefix above already reaches the line. (Contrast
 			// tenant-posts, where the detail is a SIBLING key requiring
 			// expectLineCovered.) Hence no distinct expectLineCovered here.
-			const { invalidateStaffProfileUsers } =
-				await import('./staff-profile-users');
+			const { invalidateStaffRoleUsers } = await import('./staff-role-users');
 			const { scopedKey } = await loadScopedKey();
 			const invalidated = await capturedInvalidationKeys((client) =>
-				invalidateStaffProfileUsers(client),
+				invalidateStaffRoleUsers(client),
 			);
 			expectListCovered(
-				'staff-profile-users',
-				'invalidateStaffProfileUsers',
+				'staff-role-users',
+				'invalidateStaffRoleUsers',
 				invalidated,
 				[
 					[
 						'users list family root',
-						scopedKey('staff', ['staff-profiles', 'users']),
+						scopedKey('staff', ['staff-roles', 'users']),
 					],
 				],
 			);

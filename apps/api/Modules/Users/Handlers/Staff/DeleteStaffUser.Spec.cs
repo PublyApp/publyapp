@@ -55,11 +55,11 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string _GetProfilesUrl(string userId) {
+	private static string _GetRolesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Profiles.GetFn(userId)
+			Routes.Users.ForStaff.Roles.GetFn(userId)
 		);
 	}
 
@@ -71,19 +71,19 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string _GetUpdateProfilesUrl(string userId) {
+	private static string _GetUpdateRolesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Profiles.UpdateFn(userId)
+			Routes.Users.ForStaff.Roles.UpdateFn(userId)
 		);
 	}
 
-	private static string _GetCreateProfileUrl() {
+	private static string _GetCreateRoleUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
-			Routes.Profiles.ForStaff.Root,
-			Routes.Profiles.ForStaff.Create
+			Routes.Roles.ForStaff.Root,
+			Routes.Roles.ForStaff.Create
 		);
 	}
 
@@ -101,14 +101,14 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var email = $"delete-{Guid.NewGuid():N}@example.com";
 		var userId = await this._CreateStaffUserAsync(staffToken, email);
-		var firstProfileId = await this._CreateStaffProfileAsync(staffToken);
-		var secondProfileId = await this._CreateStaffProfileAsync(staffToken);
+		var firstRoleId = await this._CreateStaffRoleAsync(staffToken);
+		var secondRoleId = await this._CreateStaffRoleAsync(staffToken);
 
-		await this._AssignProfilesAsync(
+		await this._AssignRolesAsync(
 			staffToken,
 			userId,
-			firstProfileId,
-			secondProfileId
+			firstRoleId,
+			secondRoleId
 		);
 		await this._SuspendStaffUserAsync(staffToken, userId);
 
@@ -118,10 +118,10 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		var body = await DeleteStaffUserSpec._ReadRequiredJsonAsync<ApiResponse>(response.Content);
 		body.Key.Should().Be(ResponseKeys.StaffUserDeletedSuccess);
 
-		await this._AssertSoftDeletedRowsAsync(userId, expectedProfileLinkCount: 0);
+		await this._AssertSoftDeletedRowsAsync(userId, expectedRoleLinkCount: 0);
 		await this._AssertFindStaffUsersDoesNotContainAsync(staffToken, userId);
 		await this._AssertGetStaffUserReturnsNotFoundAsync(staffToken, userId);
-		await this._AssertGetStaffUserProfilesReturnsNotFoundAsync(staffToken, userId);
+		await this._AssertGetStaffUserRolesReturnsNotFoundAsync(staffToken, userId);
 	}
 
 	[Fact]
@@ -166,7 +166,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 
 	private async Task _AssertSoftDeletedRowsAsync(
 		string userId,
-		int expectedProfileLinkCount
+		int expectedRoleLinkCount
 	) {
 		var userIdGuid = Guid.Parse(userId);
 
@@ -192,13 +192,13 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		staffAccount.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
 
-		var userAccountProfiles = await dbContext.UserAccountProfile
+		var userAccountRoles = await dbContext.UserAccountRole
 			.IgnoreQueryFilters()
 			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
 			.ToListAsync();
 
-		// Profile links are active-state rows; deleting the staff account removes them.
-		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount);
+		// Role links are active-state rows; deleting the staff account removes them.
+		userAccountRoles.Should().HaveCount(expectedRoleLinkCount);
 	}
 
 	private async Task<string> _CreateStaffUserAsync(string staffToken, string email) {
@@ -213,16 +213,16 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		return userId.ToString();
 	}
 
-	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
+	private async Task<string> _CreateStaffRoleAsync(string staffToken) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			DeleteStaffUserSpec._GetCreateProfileUrl()
+			DeleteStaffUserSpec._GetCreateRoleUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
 			new {
 				name = "Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
-				description = "Profile used by DeleteStaffUserSpec",
+				description = "Role used by DeleteStaffUserSpec",
 				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
 				emails = Array.Empty<string>(),
 			}
@@ -231,23 +231,23 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
+		var created = await response.Content.ReadFromJsonAsync<StaffRoleCreatedResponse>();
 		created.Should().NotBeNull();
 		Assert.NotNull(created);
-		return created.ProfileId.ToString();
+		return created.RoleId.ToString();
 	}
 
-	private async Task _AssignProfilesAsync(
+	private async Task _AssignRolesAsync(
 		string staffToken,
 		string userId,
-		params string[] profileIds
+		params string[] roleIds
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
-			DeleteStaffUserSpec._GetUpdateProfilesUrl(userId)
+			DeleteStaffUserSpec._GetUpdateRolesUrl(userId)
 		).WithSessionToken(staffToken);
 
-		request.Content = JsonContent.Create(new { profileIds });
+		request.Content = JsonContent.Create(new { roleIds });
 
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -297,13 +297,13 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
-	private async Task _AssertGetStaffUserProfilesReturnsNotFoundAsync(
+	private async Task _AssertGetStaffUserRolesReturnsNotFoundAsync(
 		string staffToken,
 		string userId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			DeleteStaffUserSpec._GetProfilesUrl(userId)
+			DeleteStaffUserSpec._GetRolesUrl(userId)
 		).WithSessionToken(staffToken);
 
 		using var response = await this._Http.SendAsync(request);
@@ -316,7 +316,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		public Guid Id { get; init; }
 	}
 
-	private sealed record StaffProfileCreatedResponse {
-		public Guid ProfileId { get; init; }
+	private sealed record StaffRoleCreatedResponse {
+		public Guid RoleId { get; init; }
 	}
 }

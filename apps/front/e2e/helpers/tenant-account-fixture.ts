@@ -83,7 +83,7 @@ WHERE invitation_id IN (
   WHERE tenant_id = ${tenant}::uuid OR lower(email) = lower(${invitedEmail})
 )
 OR lower(email) = lower(${invitedEmail});
-DELETE FROM invitation_profiles
+DELETE FROM invitation_roles
 WHERE invitation_id IN (
   SELECT id FROM invitations
   WHERE tenant_id = ${tenant}::uuid OR lower(email) = lower(${invitedEmail})
@@ -94,7 +94,7 @@ DELETE FROM sessions
 WHERE user_id IN (
   SELECT id FROM users WHERE lower(email) = lower(${invitedEmail})
 );
-DELETE FROM user_account_profiles
+DELETE FROM user_account_roles
 WHERE user_account_id IN (
   SELECT id FROM user_accounts
   WHERE tenant_id = ${tenant}::uuid
@@ -429,7 +429,7 @@ export const createTenantAccountFixture = async (
 				data: {
 					name: `#1611 deleted picker ${randomUUID()}`,
 					maxUsers: 2,
-					seedDefaultProfile: false,
+					seedDefaultRole: false,
 					initialUsers: [{ email, role: 'owner' }],
 				},
 			},

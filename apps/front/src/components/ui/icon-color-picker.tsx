@@ -23,11 +23,11 @@ type IconColorPickerProps = {
 	'aria-label'?: string;
 };
 
-const PROFILE_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
-const DEFAULT_TONE = PROFILE_TONES[0];
+const ROLE_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
+const DEFAULT_TONE = ROLE_TONES[0];
 
 const getIconColorPickerTone = (tone?: string): string | undefined =>
-	PROFILE_TONES.find((option) => option === tone);
+	ROLE_TONES.find((option) => option === tone);
 
 const IconColorPicker = ({
 	value,
@@ -35,7 +35,7 @@ const IconColorPicker = ({
 	disabled = false,
 	'aria-label': ariaLabel,
 }: IconColorPickerProps) => {
-	const { t } = useTranslation('staff-tenant-profiles');
+	const { t } = useTranslation('staff-tenant-roles');
 	const [search, setSearch] = useState('');
 	const activeIconOption =
 		getIconColorPickerOption(value.icon) ?? DEFAULT_ICON_COLOR_PICKER_OPTION;
@@ -58,7 +58,7 @@ const IconColorPicker = ({
 				type="button"
 				disabled={disabled}
 				aria-label={ariaLabel ?? t('choose-icon-and-color')}
-				className="publy-profile-detail-tile cursor-pointer transition-[filter,box-shadow] hover:brightness-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+				className="publy-role-detail-tile cursor-pointer transition-[filter,box-shadow] hover:brightness-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
 				data-tone={activeTone}
 			>
 				<activeIconOption.Icon aria-hidden="true" className="size-6" />
@@ -68,8 +68,8 @@ const IconColorPicker = ({
 				button, and it follows the trigger's own disabled:opacity-50. */}
 				<span
 					aria-hidden="true"
-					data-testid="profile-icon-picker-pin"
-					className="publy-profile-detail-tile-pin pointer-events-none ring-2 ring-background"
+					data-testid="role-icon-picker-pin"
+					className="publy-role-detail-tile-pin pointer-events-none ring-2 ring-background"
 				>
 					<IconPencil aria-hidden="true" className="size-3.5" />
 				</span>
@@ -90,17 +90,17 @@ const IconColorPicker = ({
 								{t('choose-color')}
 							</h2>
 							<div className="mt-2 flex flex-wrap gap-2">
-								{PROFILE_TONES.map((tone) => {
-									const color = t(`profile-tone-${tone}`);
+								{ROLE_TONES.map((tone) => {
+									const color = t(`role-tone-${tone}`);
 
 									return (
 										<button
 											key={tone}
 											type="button"
-											aria-label={t('choose-profile-tone', { color })}
+											aria-label={t('choose-role-tone', { color })}
 											aria-pressed={activeTone === tone}
 											className={cn(
-												'publy-profile-icon-tile transition-[box-shadow,filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
+												'publy-role-icon-tile transition-[box-shadow,filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
 												activeTone === tone && 'ring-2 ring-ring',
 											)}
 											data-tone={tone}
@@ -131,9 +131,9 @@ const IconColorPicker = ({
 							<SearchInput
 								value={search}
 								onValueChange={setSearch}
-								aria-label={t('profile-icon-search')}
-								placeholder={t('profile-icon-search-placeholder')}
-								clearLabel={t('clear-profile-icon-search')}
+								aria-label={t('role-icon-search')}
+								placeholder={t('role-icon-search-placeholder')}
+								clearLabel={t('clear-role-icon-search')}
 								size="compact"
 								className="mt-2"
 							/>

@@ -19,8 +19,8 @@ public class GetUserAuthDataResult {
 
 	/// <summary>
 	/// The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:
-	/// ["*"] when the account holds the tenant's full-access system profile (the
-	/// #861 bypass TenantPermissionFilter applies), otherwise the profile-derived
+	/// ["*"] when the account holds the tenant's full-access system role (the
+	/// #861 bypass TenantPermissionFilter applies), otherwise the role-derived
 	/// keys. Empty array — never null — whenever there is no usable scope
 	/// (missing/malformed tenant_id, unknown or suspended account), gating
 	/// everything closed.
@@ -102,7 +102,7 @@ public sealed class GetUserAuthData {
 				result.TenantPermissionKeys = [];
 			} else {
 				// Effective set: PermissionService materialises the tenant's full-access
-				// system profile as "*", mirroring TenantPermissionFilter's #861 bypass.
+				// system role as "*", mirroring TenantPermissionFilter's #861 bypass.
 				// Two-parameter signature — GetTenantPermissionsAsync takes NO cancellation
 				// token (matches TenantPermissionFilter's call).
 				var permissionKeys = await permissionService.GetTenantPermissionsAsync(

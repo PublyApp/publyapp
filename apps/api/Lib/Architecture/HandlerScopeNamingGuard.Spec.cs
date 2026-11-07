@@ -17,9 +17,9 @@ namespace PublyApp.Api.Lib.Architecture;
 ///     <c>Handlers/Staff/</c> (namespace ends with <c>.Handlers.Staff</c>):
 ///     class name must contain <c>Staff</c> OR <c>Tenant</c>. Both fragments cover
 ///     the two resource families a Staff handler may target — staff-only resources
-///     (e.g. <c>CreateStaffUser</c>, <c>FindStaffProfiles</c>) and tenant resources
+///     (e.g. <c>CreateStaffUser</c>, <c>FindStaffRoles</c>) and tenant resources
 ///     operated by staff (e.g. <c>FindTenantsAsStaff</c>, <c>FindTenantPermissions</c>,
-///     <c>AssignTenantProfilePermissionAsStaff</c>). The accepted naming styles are
+///     <c>AssignTenantRolePermissionAsStaff</c>). The accepted naming styles are
 ///     the canonical <c>*ForStaff</c> / <c>*ForTenantAsStaff</c> (target for new code)
 ///     as well as the established <c>*AsStaff</c> / <c>*Staff&lt;Domain&gt;</c> forms
 ///     that pre-date this guard.
@@ -118,7 +118,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 	//
 	// Accepted naming styles:
 	//   Canonical (new code):    *ForStaff, *ForTenantAsStaff
-	//   Established (pre-guard): *AsStaff, *StaffUser, *StaffProfile,
+	//   Established (pre-guard): *AsStaff, *StaffUser, *StaffRole,
 	//                            *TenantsAsStaff, *TenantPermissions, ...
 	//
 	// An allowlist covers the small set of correctly placed handlers whose domain
@@ -283,7 +283,7 @@ public sealed class HandlerScopeNamingGuardSpec {
 
 	private static bool _HasStaffScopeMarker(string className) {
 		// Accepts both the canonical new-code forms (*ForStaff, *ForTenantAsStaff)
-		// and the established alternate forms (*AsStaff, *StaffUser, *StaffProfile,
+		// and the established alternate forms (*AsStaff, *StaffUser, *StaffRole,
 		// *TenantsAsStaff, *TenantPermissions, …).
 		return className.Contains("Staff", StringComparison.Ordinal)
 			|| className.Contains("Tenant", StringComparison.Ordinal);

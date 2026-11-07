@@ -13,7 +13,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -60,7 +60,7 @@ public sealed class GetStaffUserByIdSpec
 		details.Id.Should().Be(userId);
 		details.Email.Should().Be(TestConstants.StaffAdminEmail);
 		details.IsFullAccess.Should().BeTrue();
-		details.Roles.Should().Contain(SystemProfileNames.StaffFullAccess);
+		details.Roles.Should().Contain(SystemRoleNames.StaffFullAccess);
 		details.Status.Should().Be(UserStatus.Active);
 		details.CreatedAt.Should().BeBefore(DateTime.UtcNow);
 		details.UpdatedAt.Should().BeOnOrAfter(details.CreatedAt);

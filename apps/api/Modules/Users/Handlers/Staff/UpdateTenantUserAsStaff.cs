@@ -36,10 +36,10 @@ public class TenantUserDetailsResult {
 }
 
 /// <summary>
-/// Updates a tenant user's name, avatar and/or profile assignments.
+/// Updates a tenant user's name, avatar and/or role assignments.
 /// </summary>
 public class UpdateTenantUserAsStaffBody {
-	// User profile fields
+	// User role fields
 	public JsonElement FirstName { get; init; }
 	public JsonElement LastName { get; init; }
 	public JsonElement AvatarUrl { get; init; }

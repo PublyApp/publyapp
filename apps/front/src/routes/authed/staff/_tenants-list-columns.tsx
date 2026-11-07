@@ -92,7 +92,7 @@ type TenantColumnLabels = {
 	postsMonth: string;
 	invitations: string;
 	owners: string;
-	profiles: string;
+	roles: string;
 	language: string;
 	timezone: string;
 	website: string;
@@ -114,7 +114,7 @@ const tenantColumnLabels = (
 	postsMonth: t('list-column-posts-month'),
 	invitations: t('list-column-invitations'),
 	owners: t('list-column-owners'),
-	profiles: t('list-column-profiles'),
+	roles: t('list-column-roles'),
 	language: t('list-column-language'),
 	timezone: t('list-column-timezone'),
 	website: t('list-column-website'),
@@ -258,8 +258,8 @@ export const tenantColumns = (
 			() => null,
 		),
 		column(
-			'profiles',
-			'profiles',
+			'roles',
+			'roles',
 			120,
 			IconShieldLock,
 			() => dash,

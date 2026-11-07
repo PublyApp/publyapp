@@ -34,7 +34,7 @@ describe('SpeedDial', () => {
 				actions={[
 					{
 						id: 'create',
-						label: 'Create profile',
+						label: 'Create role',
 						icon: IconPlus,
 						onSelect,
 					},
@@ -42,7 +42,7 @@ describe('SpeedDial', () => {
 			/>,
 		);
 
-		const fab = screen.getByRole('button', { name: 'Create profile' });
+		const fab = screen.getByRole('button', { name: 'Create role' });
 		expect(fab.getAttribute('aria-expanded')).toBeNull();
 		fireEvent.click(fab);
 		expect(onSelect).toHaveBeenCalledTimes(1);

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Services;
 
@@ -44,14 +44,14 @@ public class GetScopeAuthDataTenant {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
-	public List<ProfileItem> Profiles { get; set; } = [];
+	public List<RoleItem> Roles { get; set; } = [];
 	public bool IsAdmin { get; set; } = false;
 	public List<string> Permissions { get; set; } = [];
 }
 
 public class GetScopeAuthDataStaff {
 	public string Code { get; set; } = "staff";
-	public List<ProfileItem> Profiles { get; set; } = [];
+	public List<RoleItem> Roles { get; set; } = [];
 	public bool IsAdmin { get; set; } = false;
 	public List<string> Permissions { get; set; } = [];
 }
@@ -69,7 +69,7 @@ public sealed class GetScopeAuthData {
 		[AsParameters] GetScopeAuthDataQuery query,
 		[FromServices] ITenantService tenantService,
 		[FromServices] IAccountService accountService,
-		[FromServices] IProfileService profileService,
+		[FromServices] IRoleService roleService,
 		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
@@ -104,14 +104,14 @@ public sealed class GetScopeAuthData {
 				return TypedProblems.Forbidden("User is not a staff member", ResponseKeys.NotAStaffUser);
 			}
 
-			// Get the user's profiles and permissions for the staff scope
-			var staffProfileItems = await profileService.GetStaffProfilesWithPermissionsAsync(
+			// Get the user's roles and permissions for the staff scope
+			var staffRoleItems = await roleService.GetStaffRolesWithPermissionsAsync(
 				userId,
 				cancellationToken: cancellationToken
 			);
 
-			// Flatten permissions from all profiles
-			var staffPermissions = staffProfileItems
+			// Flatten permissions from all roles
+			var staffPermissions = staffRoleItems
 				.SelectMany(p => p.Permissions)
 				.Distinct()
 				.ToList();
@@ -119,8 +119,8 @@ public sealed class GetScopeAuthData {
 			return TypedResults.Ok(
 				new GetScopeAuthDataStaff {
 					Code = "staff",
-					Profiles = staffProfileItems,
-					IsAdmin = staffProfileItems.Any(profile => profile.IsFullAccess),
+					Roles = staffRoleItems,
+					IsAdmin = staffRoleItems.Any(role => role.IsFullAccess),
 					Permissions = staffPermissions
 				}
 			);
@@ -193,16 +193,16 @@ public sealed class GetScopeAuthData {
 			);
 		}
 
-		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
+		var tenantRoleItems = await roleService.GetUserRolesWithPermissionsForTenantAsync(
 			userId,
 			tenantId,
 			cancellationToken
 		);
 
 		// This read must reflect the full effective permission set. Do not apply the write-side
-		// max-profiles cap here or auth data can silently omit valid permissions.
-		var tenantPermissions = tenantProfileItems
-			.SelectMany(profile => profile.Permissions)
+		// max-roles cap here or auth data can silently omit valid permissions.
+		var tenantPermissions = tenantRoleItems
+			.SelectMany(role => role.Permissions)
 			.Distinct()
 			.ToList();
 
@@ -211,8 +211,8 @@ public sealed class GetScopeAuthData {
 				Id = tenantId,
 				Name = tenant.Name,
 				Code = tenant.Code,
-				Profiles = tenantProfileItems,
-				IsAdmin = tenantProfileItems.Any(profile => profile.IsFullAccess),
+				Roles = tenantRoleItems,
+				IsAdmin = tenantRoleItems.Any(role => role.IsFullAccess),
 				Permissions = tenantPermissions
 			}
 		);

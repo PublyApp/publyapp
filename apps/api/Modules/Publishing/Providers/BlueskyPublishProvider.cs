@@ -551,7 +551,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		var marker = $"{BlueskyPublishProvider._Collection}/";
 		var index = recordId.IndexOf(marker, StringComparison.Ordinal);
 		var suffix = index < 0 ? rkey : recordId[(index + marker.Length)..];
-		return $"https://bsky.app/profile/{did}/post/{suffix}";
+		return $"https://bsky.app/role/{did}/post/{suffix}";
 	}
 
 	private static async Task<(string Error, string Message)> _ReadErrorAsync(

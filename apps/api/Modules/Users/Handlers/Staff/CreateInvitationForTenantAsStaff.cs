@@ -13,7 +13,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
@@ -24,19 +24,19 @@ public record CreateInvitationForTenantAsStaffBody {
 	// Do not mark JsonElement fields as C# required here: missing JSON properties must
 	// reach FluentValidation so clients receive the repo-standard 422 validation problem.
 	public JsonElement Email { get; init; }
-	public JsonElement ProfileIds { get; init; }
+	public JsonElement RoleIds { get; init; }
 
-	public List<Guid> GetProfileIds() {
-		if (this.ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
+	public List<Guid> GetRoleIds() {
+		if (this.RoleIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
 			return [];
 		}
 
-		var profileIds = new List<Guid>();
-		foreach (var profileId in this.ProfileIds.EnumerateArray()) {
-			profileIds.Add(profileId.GetGuid());
+		var roleIds = new List<Guid>();
+		foreach (var roleId in this.RoleIds.EnumerateArray()) {
+			roleIds.Add(roleId.GetGuid());
 		}
 
-		return profileIds;
+		return roleIds;
 	}
 }
 
@@ -51,35 +51,35 @@ public class CreateInvitationForTenantAsStaffBodyValidator
 		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		this.RuleFor(x => x.ProfileIds)
-			.SetValidator(new TenantInvitationProfileIdsValidator())
+		this.RuleFor(x => x.RoleIds)
+			.SetValidator(new TenantInvitationRoleIdsValidator())
 			.When(x =>
-				x.ProfileIds.ValueKind
+				x.RoleIds.ValueKind
 					is not JsonValueKind.Undefined
 					and not JsonValueKind.Null
 			);
 
-		this.RuleFor(x => x.ProfileIds)
+		this.RuleFor(x => x.RoleIds)
 			.Custom((element, context) => {
 				if (element.ValueKind != JsonValueKind.Array) {
 					return;
 				}
 
-				var profileIds = element.EnumerateArray().ToList();
-				var seenProfileIds = new HashSet<Guid>();
-				for (var i = 0; i < profileIds.Count; i++) {
-					var profileIdElement = profileIds[i];
+				var roleIds = element.EnumerateArray().ToList();
+				var seenRoleIds = new HashSet<Guid>();
+				for (var i = 0; i < roleIds.Count; i++) {
+					var roleIdElement = roleIds[i];
 
-					if (profileIdElement.ValueKind != JsonValueKind.String
-						|| !profileIdElement.TryGetGuid(out var profileId)
+					if (roleIdElement.ValueKind != JsonValueKind.String
+						|| !roleIdElement.TryGetGuid(out var roleId)
 					) {
 						continue;
 					}
 
-					if (!seenProfileIds.Add(profileId)) {
+					if (!seenRoleIds.Add(roleId)) {
 						context.AddFailure(
-							$"ProfileIds[{i}]",
-							"Duplicate profileId is not allowed"
+							$"RoleIds[{i}]",
+							"Duplicate roleId is not allowed"
 						);
 					}
 				}
@@ -100,7 +100,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
+		[FromServices] IRoleAssignmentGuard roleAssignmentGuard,
 		[FromServices] ITenantService tenantService,
 		CancellationToken cancellationToken = default
 	) {
@@ -114,13 +114,13 @@ public sealed class CreateInvitationForTenantAsStaff {
 
 		// Extract values after validation
 		var email = body.Email.GetValueAsString();
-		var profileIds = body.GetProfileIds();
+		var roleIds = body.GetRoleIds();
 
 		// Privilege escalation guard (#2289): inviting someone with the tenant's full-access
 		// role delivers that role on acceptance, so only a full-access actor may issue it.
-		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+		if (!await roleAssignmentGuard.CanAssignRolesAsync(
 			authContext.GetRequiredStaffAccount().UserId,
-			profileIds,
+			roleIds,
 			cancellationToken
 		)) {
 			return TypedProblems.Forbidden(
@@ -129,26 +129,26 @@ public sealed class CreateInvitationForTenantAsStaff {
 			);
 		}
 
-		if (profileIds.Count > 0) {
-			var validProfileIds = await invitationService.ValidateTenantProfilesAsync(
+		if (roleIds.Count > 0) {
+			var validRoleIds = await invitationService.ValidateTenantRolesAsync(
 				tenantIdGuid,
-				profileIds,
+				roleIds,
 				cancellationToken
 			);
 
-			var missingProfileIds = profileIds
+			var missingRoleIds = roleIds
 				.Distinct()
-				.Where(profileId => !validProfileIds.Contains(profileId))
+				.Where(roleId => !validRoleIds.Contains(roleId))
 				.ToList();
 
-			if (missingProfileIds.Count > 0) {
-				var missing = missingProfileIds.ToDictionary(
-					missingProfileId => missingProfileId.ToString(),
-					missingProfileId => new[] { $"{missingProfileId} is not a valid tenant profile id" }
+			if (missingRoleIds.Count > 0) {
+				var missing = missingRoleIds.ToDictionary(
+					missingRoleId => missingRoleId.ToString(),
+					missingRoleId => new[] { $"{missingRoleId} is not a valid tenant role id" }
 				);
 
 				return TypedProblems.ValidationProblem(
-					"One or more profileIds are invalid for this tenant",
+					"One or more roleIds are invalid for this tenant",
 					ResponseKeys.NotFound,
 					missing
 				);
@@ -212,7 +212,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 			Email: email,
 			TenantId: tenantIdGuid,
 			TenantName: tenant.Name,
-			ProfileIds: profileIds,
+			RoleIds: roleIds,
 			InvitedByUserId: account.UserId
 		);
 		var createResult = await invitationService.CreateTenantInvitationAsync(
@@ -220,13 +220,13 @@ public sealed class CreateInvitationForTenantAsStaff {
 			cancellationToken
 		);
 		if (createResult
-			is CreateTenantInvitationResult.InvalidProfileAssignment invalidAssignment
+			is CreateTenantInvitationResult.InvalidRoleAssignment invalidAssignment
 		) {
 			return TypedProblems.ValidationProblem(
 				invalidAssignment.Reason,
 				invalidAssignment.TranslationKey,
 				new Dictionary<string, string[]> {
-					["profileIds"] = [invalidAssignment.Reason],
+					["roleIds"] = [invalidAssignment.Reason],
 				}
 			);
 		}
@@ -246,7 +246,7 @@ public sealed class CreateInvitationForTenantAsStaff {
 				Details: new {
 					Email = email,
 					TenantId = tenantIdGuid,
-					ProfileIds = profileIds,
+					RoleIds = roleIds,
 					Scope = "Tenant"
 				}
 			),

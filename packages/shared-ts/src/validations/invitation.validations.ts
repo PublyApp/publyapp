@@ -1,14 +1,14 @@
-import { MAX_PROFILES_PER_ACCOUNT } from '../lib/constants';
+import { MAX_ROLES_PER_ACCOUNT } from '../lib/constants';
 import type { ZodI18n } from '../lib/zod/zod-i18n';
 import { getEmailFieldSchema } from './auth.validations';
 
 export const getCreateInvitationSchema = (z: ZodI18n) => {
 	return z.object({
 		email: getEmailFieldSchema(z),
-		profileIds: z
-			.array(z.uuid(z.t('invalid-item', { item: z.t('profile') })))
+		roleIds: z
+			.array(z.uuid(z.t('invalid-item', { item: z.t('role') })))
 			.min(1)
-			.max(MAX_PROFILES_PER_ACCOUNT),
+			.max(MAX_ROLES_PER_ACCOUNT),
 	});
 };
 
@@ -20,10 +20,10 @@ export const getBulkCreateInvitationsSchema = (z: ZodI18n) => {
 					z.object({
 						// Trim whitespace from email to normalize before validation
 						email: getEmailFieldSchema(z).trim(),
-						profileIds: z
-							.array(z.uuid(z.t('invalid-item', { item: z.t('profile') })))
-							.min(1, z.t('at-least-one-profile-required'))
-							.max(MAX_PROFILES_PER_ACCOUNT),
+						roleIds: z
+							.array(z.uuid(z.t('invalid-item', { item: z.t('role') })))
+							.min(1, z.t('at-least-one-role-required'))
+							.max(MAX_ROLES_PER_ACCOUNT),
 					}),
 				)
 				.min(1, z.t('at-least-one-invitation-required')),
@@ -58,17 +58,17 @@ export const getBulkCreateInvitationsSchema = (z: ZodI18n) => {
 				});
 			}
 
-			// Check for duplicate profile IDs within each invitation
+			// Check for duplicate role IDs within each invitation
 			for (let i = 0; i < data.invitations.length; i++) {
-				const profileIds = data.invitations[i].profileIds;
-				const uniqueIds = new Set(profileIds);
-				if (uniqueIds.size !== profileIds.length) {
+				const roleIds = data.invitations[i].roleIds;
+				const uniqueIds = new Set(roleIds);
+				if (uniqueIds.size !== roleIds.length) {
 					ctx.addIssue({
 						code: 'custom',
-						message: z.t('duplicate-profile', {
-							defaultValue: 'Duplicate profile selected',
+						message: z.t('duplicate-role', {
+							defaultValue: 'Duplicate role selected',
 						}),
-						path: ['invitations', i, 'profileIds'],
+						path: ['invitations', i, 'roleIds'],
 					});
 				}
 			}

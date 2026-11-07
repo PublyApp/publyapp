@@ -371,7 +371,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		);
 		var postId = await this._CreatePostAsync(tenantId, adminToken);
 
-		// AcmeUser has no profiles assigned, so the permission filter refuses.
+		// AcmeUser has no roles assigned, so the permission filter refuses.
 		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword

@@ -4,7 +4,7 @@ import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
 const STAFF_INVITATIONS_PATH = '/staff/invitations';
-const STAFF_PROFILES_PATH = '/staff/profiles';
+const STAFF_ROLES_PATH = '/staff/roles';
 const TABLE = 'staff-invitations-table';
 const PENDING_INVITATION_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -13,7 +13,7 @@ const seededInvitationsPayload = {
 		{
 			id: PENDING_INVITATION_ID,
 			email: 'pending-staff@example.com',
-			profileName: 'Admins',
+			roleName: 'Admins',
 			status: 'Pending',
 			expiresAt: '2026-07-10T12:00:00Z',
 			acceptedAt: null,
@@ -23,7 +23,7 @@ const seededInvitationsPayload = {
 		{
 			id: '22222222-2222-2222-2222-222222222222',
 			email: 'accepted-staff@example.com',
-			profileName: 'Editors',
+			roleName: 'Editors',
 			status: 'Accepted',
 			expiresAt: '2026-07-11T12:00:00Z',
 			acceptedAt: '2026-07-02T14:30:00Z',
@@ -37,7 +37,7 @@ const seededInvitationsPayload = {
 	totalCount: 2,
 } as const;
 
-const profilesPayload = {
+const rolesPayload = {
 	data: [
 		{
 			id: '33333333-3333-3333-3333-333333333333',
@@ -73,11 +73,11 @@ const mockStaffInvitations = async (
 	});
 };
 
-const mockStaffProfiles = async (page: Page) => {
-	await page.route('**/staff/profiles**', async (route) => {
+const mockStaffRoles = async (page: Page) => {
+	await page.route('**/staff/roles**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
-			!isApiPath(route.request().url(), STAFF_PROFILES_PATH)
+			!isApiPath(route.request().url(), STAFF_ROLES_PATH)
 		) {
 			await route.fallback();
 			return;
@@ -86,7 +86,7 @@ const mockStaffProfiles = async (page: Page) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify(profilesPayload),
+			body: JSON.stringify(rolesPayload),
 		});
 	});
 };
@@ -237,7 +237,7 @@ test.describe(
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockStaffInvitations(page, seededInvitationsPayload);
-			await mockStaffProfiles(page);
+			await mockStaffRoles(page);
 
 			await page.goto('/staff/invitations');
 

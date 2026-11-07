@@ -154,9 +154,9 @@ const STAFF_MODULE_ITEMS: SecondaryPanelItem[] = [
 		Icon: IconMail,
 	},
 	{
-		id: 'staff-profiles',
-		labelKey: 'nav-staff-profiles',
-		path: '/staff/profiles',
+		id: 'staff-roles',
+		labelKey: 'nav-staff-roles',
+		path: '/staff/roles',
 		Icon: IconClipboardList,
 	},
 	{
@@ -261,7 +261,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		matchPrefixes: [
 			'/staff/staff-users',
 			'/staff/invitations',
-			'/staff/profiles',
+			'/staff/roles',
 			'/staff/audit-logs',
 		],
 		secondaryItems: STAFF_MODULE_ITEMS,

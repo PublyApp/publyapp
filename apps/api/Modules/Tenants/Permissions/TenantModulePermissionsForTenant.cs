@@ -13,7 +13,7 @@ public class TenantModulePermissionsForTenant : ISlicePermissions {
 
 	public TenantModulePermissionsForTenant() {
 		// These keys are the canonical tenant-module gates consumed end to end:
-		// seeding, staff tenant-profile management, tenant auth data, and tenant UI gating.
+		// seeding, staff tenant-role management, tenant auth data, and tenant UI gating.
 		this.ACCESS_DASHBOARD = Permission
 			.CreateTenantPermission(
 				string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "access_dashboard" })

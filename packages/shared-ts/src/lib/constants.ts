@@ -77,7 +77,7 @@ const RESOURCE = {
 	shortUrl: 'short-url',
 	tenantUsers: 'tenant-users',
 	staffUsers: 'staff-users',
-	profiles: 'profiles',
+	roles: 'roles',
 	invitations: 'invitations',
 	auditLogs: 'audit-logs',
 } as const;
@@ -159,24 +159,24 @@ export const FRONT_PATH_NAMES = {
 			security: makePath(ROOTS.STAFF, 'account', 'security'),
 			notifications: makePath(ROOTS.STAFF, 'account', 'notifications'),
 		},
-		profiles: {
-			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
-			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
-			details: (profileId = '') => {
+		roles: {
+			root: makePath(ROOTS.STAFF, RESOURCE.roles),
+			new: makePath(ROOTS.STAFF, RESOURCE.roles, 'new'),
+			details: (roleId = '') => {
 				return {
-					root: makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId),
+					root: makePath(ROOTS.STAFF, RESOURCE.roles, 'details', roleId),
 					tabs: {
 						basicsAndPermissions: makePath(
 							ROOTS.STAFF,
-							RESOURCE.profiles,
+							RESOURCE.roles,
 							'details',
-							profileId,
+							roleId,
 						),
 						users: makePath(
 							ROOTS.STAFF,
-							RESOURCE.profiles,
+							RESOURCE.roles,
 							'details',
-							profileId,
+							roleId,
 							'users',
 						),
 					},
@@ -231,12 +231,12 @@ export const FRONT_PATH_NAMES = {
 							tenantId,
 							'billing',
 						),
-						profiles: makePath(
+						roles: makePath(
 							ROOTS.STAFF,
 							RESOURCE.tenants,
 							'details',
 							tenantId,
-							'profiles',
+							'roles',
 						),
 					},
 					users: {
@@ -268,7 +268,7 @@ export const FRONT_PATH_NAMES = {
 			// URL shape: /staff/tenant-users/details/{userId}
 			// The `details/` segment is intentional and matches the pattern used
 			// by every other staff detail resource (tenants, staff-users,
-			// profiles). Don't drop it — staff-tenant-users.routes.ts expects
+			// roles). Don't drop it — staff-tenant-users.routes.ts expects
 			// `getLastPath(..., 2)` so the route registration breaks if the
 			// segment count here changes.
 			root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers),
@@ -428,11 +428,11 @@ export const I18N_NAMESPACES = {
 	RESPONSE_MESSAGE: 'response-message',
 } as const satisfies Record<string, NameSpace>;
 
-export const MAX_PROFILES_PER_ACCOUNT = 5;
+export const MAX_ROLES_PER_ACCOUNT = 5;
 
 /**
  * Max items per staff/tenant bulk action (revoke / suspend / reactivate /
- * delete invitations, users, profiles, tenant-user company associations).
+ * delete invitations, users, roles, tenant-user company associations).
  * Mirrors the C# validator `MustBeRequiredGuidArray(maxCount: 100)` used in
  * every Bulk*StaffInvitations / BulkSuspend / BulkReactivate / BulkDelete /
  * TenantUserCompanyActionsForStaff handler. Keep the two values in sync.

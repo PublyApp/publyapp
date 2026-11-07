@@ -8,7 +8,7 @@ using PublyApp.Api.Modules.Invitations.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
-public record StaffInvitationProfile {
+public record StaffInvitationRole {
 	public required Guid Id { get; init; }
 	public required string Name { get; init; }
 }
@@ -23,7 +23,7 @@ public record StaffInvitationDetails {
 	public required DateTime CreatedAt { get; init; }
 	public required string InvitedByName { get; init; }
 	public required Guid InvitedByUserId { get; init; }
-	public required List<StaffInvitationProfile> Profiles { get; init; }
+	public required List<StaffInvitationRole> Roles { get; init; }
 }
 
 public sealed class GetStaffInvitation {
@@ -66,7 +66,7 @@ public sealed class GetStaffInvitation {
 			CreatedAt = result.CreatedAt,
 			InvitedByName = result.InvitedByName,
 			InvitedByUserId = result.InvitedByUserId,
-			Profiles = result.Profiles.Select(p => new StaffInvitationProfile {
+			Roles = result.Roles.Select(p => new StaffInvitationRole {
 				Id = p.Id,
 				Name = p.Name
 			}).ToList()

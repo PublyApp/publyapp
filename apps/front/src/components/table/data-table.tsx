@@ -47,7 +47,7 @@ export type { TableRowHeight };
 /**
  * Shared i18n key for the "disabled while rows are selected" tooltip title —
  * export it so route-level tables don't hand-roll their own duplicate
- * literal (see tenants/$tenantId/profiles.tsx's now-removed local copy).
+ * literal (see tenants/$tenantId/roles.tsx's now-removed local copy).
  */
 export const SELECTION_LOCKED_TITLE_KEY = 'selection-locked-while-selecting';
 

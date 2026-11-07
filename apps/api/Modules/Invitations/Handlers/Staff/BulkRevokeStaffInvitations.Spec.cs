@@ -16,7 +16,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -381,20 +381,20 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		Profile staffProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.Scope == ProfileScope.Staff
-				&& !profile.IsDeleted
+		Role staffRole = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
 			)
-			.OrderBy(profile => profile.Name)
+			.OrderBy(role => role.Name)
 			.FirstAsync();
 		User staffUser = await dbContext.User
 			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
 			.FirstAsync();
 
-		Invitation invitation = Invitation.CreateStaffInvitationWithProfiles(
+		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
 			email,
-			[staffProfile.GetRequiredId()],
+			[staffRole.GetRequiredId()],
 			staffUser.GetRequiredId(),
 			DateTime.UtcNow.AddDays(7),
 			Guid.NewGuid().ToString("N")[..32]
@@ -449,20 +449,20 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		Profile staffProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.Scope == ProfileScope.Staff
-				&& !profile.IsDeleted
+		Role staffRole = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
 			)
-			.OrderBy(profile => profile.Name)
+			.OrderBy(role => role.Name)
 			.FirstAsync();
 		User staffUser = await dbContext.User
 			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
 			.FirstAsync();
 
-		Invitation invitation = Invitation.CreateStaffInvitationWithProfiles(
+		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
 			email,
-			[staffProfile.GetRequiredId()],
+			[staffRole.GetRequiredId()],
 			staffUser.GetRequiredId(),
 			DateTime.UtcNow.AddDays(-1),
 			Guid.NewGuid().ToString("N")[..32]

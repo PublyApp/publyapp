@@ -129,7 +129,7 @@ const StaffTenantUsersPage = () => {
 
 	// tenants-r6-F2: freeze the destructive selection target set — cancel a
 	// pending search commit the moment selection mode starts (mirrors
-	// invitations/index.tsx, staff-users.tsx, profiles.tsx); the role/status
+	// invitations/index.tsx, staff-users.tsx, roles.tsx); the role/status
 	// filter triggers above are disabled for the same reason.
 	const { resetDraftToCommitted } = controller.search;
 	useEffect(() => {

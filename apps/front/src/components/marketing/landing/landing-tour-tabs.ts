@@ -27,7 +27,7 @@ export type TourTabId =
 	| 'calendar'
 	| 'composer'
 	| 'approvals'
-	| 'profiles'
+	| 'roles'
 	| 'dashboards';
 
 export type TourTab = {
@@ -49,7 +49,7 @@ export const TOUR_TABS: readonly TourTab[] = [
 		titleKey: 'landing:landing-tour-tab-calendar-title',
 		descriptionKey: 'landing:landing-tour-tab-calendar-description',
 		slot: 'tour-calendar',
-		slotSubject: 'One week across several brand profiles, one timeline',
+		slotSubject: 'One week across several brand roles, one timeline',
 		altKey: 'landing:landing-slot-alt-tour-calendar',
 	},
 	{
@@ -73,13 +73,13 @@ export const TOUR_TABS: readonly TourTab[] = [
 		altKey: 'landing:landing-slot-alt-tour-approvals',
 	},
 	{
-		id: 'profiles',
+		id: 'roles',
 		Icon: IconUsersGroup,
 		labelKey: 'landing:landing-tour-tab-profiles-label',
 		titleKey: 'landing:landing-tour-tab-profiles-title',
 		descriptionKey: 'landing:landing-tour-tab-profiles-description',
-		slot: 'tour-profiles',
-		slotSubject: 'A profile list with membership and per-profile permissions',
+		slot: 'tour-roles',
+		slotSubject: 'A role list with membership and per-role permissions',
 		altKey: 'landing:landing-slot-alt-tour-profiles',
 	},
 	{
@@ -89,7 +89,7 @@ export const TOUR_TABS: readonly TourTab[] = [
 		titleKey: 'landing:landing-tour-tab-dashboards-title',
 		descriptionKey: 'landing:landing-tour-tab-dashboards-description',
 		slot: 'tour-dashboards',
-		slotSubject: 'The weekly cross-profile summary',
+		slotSubject: 'The weekly cross-role summary',
 		altKey: 'landing:landing-slot-alt-tour-dashboards',
 	},
 ] as const;

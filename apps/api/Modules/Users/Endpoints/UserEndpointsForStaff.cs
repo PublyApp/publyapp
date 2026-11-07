@@ -15,7 +15,7 @@ public static class UserEndpointsForStaff {
 			.WithTags("Staff Users");
 
 		// Direct staff-user creation is intentionally not mapped: onboarding must flow
-		// through invitations so expiry, revocation, acceptance metadata, and profile
+		// through invitations so expiry, revocation, acceptance metadata, and role
 		// assignment intent remain owned by the invitation lifecycle. Keep the handler
 		// code for now while we confirm no internal/bootstrap path still needs it.
 		// group.MapPost(
@@ -129,21 +129,21 @@ public static class UserEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Users.DELETE_FOR_STAFF]);
 
 		group.MapGet(
-				Routes.Users.ForStaff.Profiles.Get,
-				GetStaffUserProfiles.Handle
+				Routes.Users.ForStaff.Roles.Get,
+				GetStaffUserRoles.Handle
 			)
-			.WithName("GetStaffUserProfiles")
-			.WithSummary("Get profiles assigned to a staff user")
-			.WithPermission([AppPermissions.Staff.Users.GET_PROFILES_FOR_STAFF]);
+			.WithName("GetStaffUserRoles")
+			.WithSummary("Get roles assigned to a staff user")
+			.WithPermission([AppPermissions.Staff.Users.GET_ROLES_FOR_STAFF]);
 
 		group.MapPut(
-				Routes.Users.ForStaff.Profiles.Update,
-				UpdateStaffUserProfiles.Handle
+				Routes.Users.ForStaff.Roles.Update,
+				UpdateStaffUserRoles.Handle
 			)
-			.WithName("UpdateStaffUserProfiles")
-			.WithSummary("Update profiles assigned to a staff user")
-			.WithReqBodyValidation<UpdateStaffUserProfilesBody>()
-			.WithPermission([AppPermissions.Staff.Users.UPDATE_PROFILES_FOR_STAFF]);
+			.WithName("UpdateStaffUserRoles")
+			.WithSummary("Update roles assigned to a staff user")
+			.WithReqBodyValidation<UpdateStaffUserRolesBody>()
+			.WithPermission([AppPermissions.Staff.Users.UPDATE_ROLES_FOR_STAFF]);
 
 		return routes;
 	}

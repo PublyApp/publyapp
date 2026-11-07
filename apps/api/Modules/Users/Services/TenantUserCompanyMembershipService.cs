@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -161,11 +161,11 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 
 				await this._DbContext.SaveChangesAsync(cancellationToken);
 				if (isRestoringRemovedAccount) {
-					// Removed memberships may still have old profile links. Purge
-					// them before adding the tenant default profile so reassignment
+					// Removed memberships may still have old role links. Purge
+					// them before adding the tenant default role so reassignment
 					// cannot resurrect stale permissions.
 					await TenantUserMembershipOperations
-						.RemoveUserAccountProfileLinksAsync(
+						.RemoveUserAccountRoleLinksAsync(
 						this._DbContext,
 						tenantAccount.GetRequiredId(),
 						cancellationToken
@@ -173,7 +173,7 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 					await this._DbContext.SaveChangesAsync(cancellationToken);
 				}
 
-				await this._AssignDefaultProfileToTenantAccountAsync(
+				await this._AssignDefaultRoleToTenantAccountAsync(
 					tenantAccount,
 					tenantId,
 					cancellationToken
@@ -362,22 +362,22 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 		);
 	}
 
-	private async Task _AssignDefaultProfileToTenantAccountAsync(
+	private async Task _AssignDefaultRoleToTenantAccountAsync(
 		UserAccount account,
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
 		var accountId = account.GetRequiredId();
-		var defaultProfile = await this._GetOrCreateDefaultTenantProfileAsync(
+		var defaultRole = await this._GetOrCreateDefaultTenantRoleAsync(
 			tenantId,
 			cancellationToken
 		);
-		var profileId = defaultProfile.GetRequiredId();
+		var roleId = defaultRole.GetRequiredId();
 
 		var linkExists = await (
-			from link in this._DbContext.UserAccountProfile
+			from link in this._DbContext.UserAccountRole
 			where link.UserAccountId == accountId
-				&& link.ProfileId == profileId
+				&& link.RoleId == roleId
 			select link
 		).AnyAsync(cancellationToken);
 
@@ -385,47 +385,47 @@ public class TenantUserCompanyMembershipService : ITenantUserCompanyMembershipSe
 			return;
 		}
 
-		await this._DbContext.UserAccountProfile.AddAsync(
-			new UserAccountProfile {
+		await this._DbContext.UserAccountRole.AddAsync(
+			new UserAccountRole {
 				UserAccountId = accountId,
-				ProfileId = profileId,
+				RoleId = roleId,
 			},
 			cancellationToken
 		);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 	}
 
-	private async Task<Profile> _GetOrCreateDefaultTenantProfileAsync(
+	private async Task<Role> _GetOrCreateDefaultTenantRoleAsync(
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
-		var defaultProfile = await (
-			from profile in this._DbContext.Profile
-			where profile.Scope == ProfileScope.Tenant
-				&& profile.TenantId == tenantId
-				&& profile.IsDefault
-				&& !profile.IsDeleted
-			select profile
+		var defaultRole = await (
+			from role in this._DbContext.Role
+			where role.Scope == RoleScope.Tenant
+				&& role.TenantId == tenantId
+				&& role.IsDefault
+				&& !role.IsDeleted
+			select role
 		).FirstOrDefaultAsync(cancellationToken);
 
-		if (defaultProfile is not null) {
-			return defaultProfile;
+		if (defaultRole is not null) {
+			return defaultRole;
 		}
 
-		defaultProfile = Profile.CreateTenantProfile(
+		defaultRole = Role.CreateTenantRole(
 			tenantId,
-			name: "Default profile",
-			description: "Default profile with no permissions",
+			name: "Default role",
+			description: "Default role with no permissions",
 			isDefault: true
 		);
 
-		var savedProfile = await this._DbContext.Profile.AddAsync(
-			defaultProfile,
+		var savedRole = await this._DbContext.Role.AddAsync(
+			defaultRole,
 			cancellationToken
 		);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 
-		return savedProfile.Entity;
+		return savedRole.Entity;
 	}
 
 	private static string _GetRemoveTenantUserCompanyError(

@@ -21,7 +21,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useBulkCreateStaffInvitationsMutation: vi.fn(),
-	useStaffProfilesQuery: vi.fn(),
+	useStaffRolesQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateStaffInvitations: vi.fn().mockResolvedValue(undefined),
 	queryClient: { fake: 'query-client' },
@@ -60,16 +60,16 @@ vi.mock('react-i18next', () => ({
 			const labels: TestLabelMap = {
 				'staff-invitations': 'Staff invitations',
 				'invite-users': 'Invite users',
-				profiles: 'Profiles',
+				roles: 'Roles',
 				search: 'Search',
-				'select-at-least-one-profile': 'Select at least one profile.',
+				'select-at-least-one-role': 'Select at least one role.',
 				'email-address': 'Email address',
-				'select-profiles': 'Select profiles',
+				'select-roles': 'Select roles',
 				'no-results-found': 'No results found.',
 				'send-invitations': 'Send invitations',
 				'add-invitation': 'Add invitation',
 				invitation: 'Invitation',
-				'enter-email-and-select-profiles': 'Enter email and select profiles.',
+				'enter-email-and-select-roles': 'Enter email and select roles.',
 				'invitations-sent-successfully': `Sent ${options?.count ?? 0}`,
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description':
@@ -193,8 +193,8 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
 }));
 
-vi.mock('~/lib/query/staff-profiles', () => ({
-	useStaffProfilesQuery: mocks.useStaffProfilesQuery,
+vi.mock('~/lib/query/staff-roles', () => ({
+	useStaffRolesQuery: mocks.useStaffRolesQuery,
 }));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
@@ -205,16 +205,16 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 
-import { buildStaffProfileOptions } from '../_staff-profile-options';
+import { buildStaffRoleOptions } from '../_staff-role-options';
 import { Route } from './new';
 
-const ADMIN_PROFILE_ID = '11111111-1111-1111-8111-111111111111';
+const ADMIN_ROLE_ID = '11111111-1111-1111-8111-111111111111';
 
-const buildProfilesQuery = (overrides: Record<string, unknown> = {}) => ({
+const buildRolesQuery = (overrides: Record<string, unknown> = {}) => ({
 	data: {
 		data: [
 			{
-				id: ADMIN_PROFILE_ID,
+				id: ADMIN_ROLE_ID,
 				name: 'Admin',
 			},
 		],
@@ -242,7 +242,7 @@ describe('staff invitation create route', () => {
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
 
-		mocks.useStaffProfilesQuery.mockReturnValue(buildProfilesQuery());
+		mocks.useStaffRolesQuery.mockReturnValue(buildRolesQuery());
 		mocks.useBulkCreateStaffInvitationsMutation.mockReturnValue({
 			mutateAsync: vi.fn().mockResolvedValue({ created: 1 }),
 			isPending: false,
@@ -255,22 +255,22 @@ describe('staff invitation create route', () => {
 		vi.useRealTimers();
 	});
 
-	test('keeps selected profile ids visible when the current search result omits them', () => {
-		const options = buildStaffProfileOptions({
-			profiles: [
+	test('keeps selected role ids visible when the current search result omits them', () => {
+		const options = buildStaffRoleOptions({
+			roles: [
 				{
-					id: 'profile-admin',
+					id: 'role-admin',
 					name: 'Admin',
 					description: 'Full access',
 				},
 			],
-			selectedProfileIds: ['profile-admin', 'profile-editor'],
-			knownProfileNames: new Map([['profile-editor', 'Editor']]),
+			selectedRoleIds: ['role-admin', 'role-editor'],
+			knownRoleNames: new Map([['role-editor', 'Editor']]),
 		});
 
 		expect(options).toEqual([
-			{ value: 'profile-admin', label: 'Admin' },
-			{ value: 'profile-editor', label: 'Editor' },
+			{ value: 'role-admin', label: 'Admin' },
+			{ value: 'role-editor', label: 'Editor' },
 		]);
 	});
 
@@ -307,7 +307,7 @@ describe('staff invitation create route', () => {
 				invitations: [
 					{
 						email: 'new-staff@example.com',
-						profileIds: [ADMIN_PROFILE_ID],
+						roleIds: [ADMIN_ROLE_ID],
 					},
 				],
 			}),

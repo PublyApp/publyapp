@@ -21,7 +21,7 @@ export const InvitationsPageHeader = ({
 				<h2 className="publy-type-page-title">
 					{t('invitations')}
 					{tenant.pendingInvitationsCount != null ? (
-						<span className="ml-2 publy-profile-count-badge align-middle">
+						<span className="ml-2 publy-role-count-badge align-middle">
 							{t('invitations-pending-count-chip', {
 								count: tenant.pendingInvitationsCount,
 							})}

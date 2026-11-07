@@ -59,10 +59,10 @@ describe('toStaffTenantInvitationRows', () => {
 				email: ' invitee@example.com ',
 				status: InvitationEffectiveStatusObject.Pending,
 				scope: ' Tenant ',
-				profileName: ' Owners ',
-				profiles: [
-					{ id: 'profile-1', name: ' Owners ' },
-					{ id: 'profile-2', name: ' Reviewers ' },
+				roleName: ' Owners ',
+				roles: [
+					{ id: 'role-1', name: ' Owners ' },
+					{ id: 'role-2', name: ' Reviewers ' },
 				],
 				invitedByName: ' Alex Johnson ',
 				acceptedAt,
@@ -82,12 +82,12 @@ describe('toStaffTenantInvitationRows', () => {
 				email: 'invitee@example.com',
 				status: InvitationEffectiveStatusObject.Pending,
 				scope: 'Tenant',
-				profileName: 'Owners',
-				profiles: [
-					{ id: 'profile-1', name: 'Owners' },
-					{ id: 'profile-2', name: 'Reviewers' },
+				roleName: 'Owners',
+				roles: [
+					{ id: 'role-1', name: 'Owners' },
+					{ id: 'role-2', name: 'Reviewers' },
 				],
-				roles: ['Owners', 'Reviewers'],
+				roleNames: ['Owners', 'Reviewers'],
 				invitedByName: 'Alex Johnson',
 				acceptedAt,
 				createdAt,
@@ -112,7 +112,7 @@ describe('toStaffTenantInvitationRows', () => {
 					email: 'invitee@example.com',
 					status: InvitationEffectiveStatusObject.Pending,
 					scope: 'Tenant',
-					profileName: 'Owners',
+					roleName: 'Owners',
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -125,12 +125,12 @@ describe('toStaffTenantInvitationRows', () => {
 		},
 	);
 
-	test('keeps a profile-less invite with null profileName', () => {
+	test('keeps a role-less invite with null roleName', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
-					id: 'invite-user-no-profile',
-					email: 'user-no-profile@example.com',
+					id: 'invite-user-no-role',
+					email: 'user-no-role@example.com',
 					status: InvitationEffectiveStatusObject.Pending,
 					scope: ' Tenant ',
 					invitedByName: 'Alex Johnson',
@@ -141,13 +141,13 @@ describe('toStaffTenantInvitationRows', () => {
 			]),
 		).toEqual([
 			{
-				id: 'invite-user-no-profile',
-				email: 'user-no-profile@example.com',
+				id: 'invite-user-no-role',
+				email: 'user-no-role@example.com',
 				status: InvitationEffectiveStatusObject.Pending,
 				scope: 'Tenant',
-				profileName: null,
-				profiles: [],
+				roleName: null,
 				roles: [],
+				roleNames: [],
 				invitedByName: 'Alex Johnson',
 				acceptedAt: null,
 				createdAt: null,
@@ -156,12 +156,12 @@ describe('toStaffTenantInvitationRows', () => {
 		]);
 	});
 
-	test('keeps a second profile-less invite with null profileName', () => {
+	test('keeps a second role-less invite with null roleName', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
-					id: 'invite-admin-no-profile',
-					email: 'admin-no-profile@example.com',
+					id: 'invite-admin-no-role',
+					email: 'admin-no-role@example.com',
 					status: InvitationEffectiveStatusObject.Pending,
 					scope: ' Tenant ',
 					invitedByName: 'Alex Johnson',
@@ -172,13 +172,13 @@ describe('toStaffTenantInvitationRows', () => {
 			]),
 		).toEqual([
 			{
-				id: 'invite-admin-no-profile',
-				email: 'admin-no-profile@example.com',
+				id: 'invite-admin-no-role',
+				email: 'admin-no-role@example.com',
 				status: InvitationEffectiveStatusObject.Pending,
 				scope: 'Tenant',
-				profileName: null,
-				profiles: [],
+				roleName: null,
 				roles: [],
+				roleNames: [],
 				acceptedAt: null,
 				invitedByName: 'Alex Johnson',
 				createdAt: null,
@@ -187,15 +187,15 @@ describe('toStaffTenantInvitationRows', () => {
 		]);
 	});
 
-	test('keeps profile-based invites unchanged', () => {
+	test('keeps role-based invites unchanged', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
-					id: 'invite-profile-based',
-					email: 'profile-based@example.com',
+					id: 'invite-role-based',
+					email: 'role-based@example.com',
 					status: InvitationEffectiveStatusObject.Accepted,
 					scope: 'Tenant',
-					profileName: 'Owners',
+					roleName: 'Owners',
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -204,13 +204,13 @@ describe('toStaffTenantInvitationRows', () => {
 			]),
 		).toEqual([
 			{
-				id: 'invite-profile-based',
-				email: 'profile-based@example.com',
+				id: 'invite-role-based',
+				email: 'role-based@example.com',
 				status: InvitationEffectiveStatusObject.Accepted,
 				scope: 'Tenant',
-				profileName: 'Owners',
-				profiles: [],
+				roleName: 'Owners',
 				roles: [],
+				roleNames: [],
 				invitedByName: 'Alex Johnson',
 				acceptedAt: null,
 				createdAt: null,

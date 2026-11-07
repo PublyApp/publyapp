@@ -7,7 +7,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Uploads.Services;
@@ -130,7 +130,7 @@ public record CreateTenantWithInitialUsersArgs(
 	List<(string Email, bool IsOwner)> InitialUsers,
 	Guid InvitedByUserId,
 	string? Code,
-	bool SeedDefaultProfile,
+	bool SeedDefaultRole,
 	string? LogoUrl,
 	string? LegalName,
 	string? Description,
@@ -649,34 +649,34 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				await this._DbContext.SaveChangesAsync(cancellationToken);
 				var tenantId = savedTenant.Entity.GetRequiredId();
 
-				// 2. Create the tenant's full-access system profile. It always exists (it is
+				// 2. Create the tenant's full-access system role. It always exists (it is
 				// the role every former Admin is migrated to) and is not editable/deletable.
-				var fullAccessProfile = Profile.CreateTenantProfile(
+				var fullAccessRole = Role.CreateTenantRole(
 					tenantId,
-					SystemProfileNames.TenantFullAccess,
+					SystemRoleNames.TenantFullAccess,
 					"Organization owner with full access",
 					isFullAccess: true
 				);
-				var savedFullAccessProfile = await this._DbContext.Profile.AddAsync(
-					fullAccessProfile, cancellationToken
+				var savedFullAccessRole = await this._DbContext.Role.AddAsync(
+					fullAccessRole, cancellationToken
 				);
 				await this._DbContext.SaveChangesAsync(cancellationToken);
-				var fullAccessProfileId = savedFullAccessProfile.Entity.GetRequiredId();
+				var fullAccessRoleId = savedFullAccessRole.Entity.GetRequiredId();
 
-				// 3. Create "Default profile" for members without an explicit role, unless disabled
-				Guid? defaultProfileId = null;
-				if (args.SeedDefaultProfile) {
-					var defaultProfile = Profile.CreateTenantProfile(
+				// 3. Create "Default role" for members without an explicit role, unless disabled
+				Guid? defaultRoleId = null;
+				if (args.SeedDefaultRole) {
+					var defaultRole = Role.CreateTenantRole(
 						tenantId,
-						name: "Default profile",
-						description: "Default profile with no permissions",
+						name: "Default role",
+						description: "Default role with no permissions",
 						isDefault: true
 					);
-					var savedDefaultProfile = await this._DbContext.Profile.AddAsync(
-						defaultProfile, cancellationToken
+					var savedDefaultRole = await this._DbContext.Role.AddAsync(
+						defaultRole, cancellationToken
 					);
 					await this._DbContext.SaveChangesAsync(cancellationToken);
-					defaultProfileId = savedDefaultProfile.Entity.GetRequiredId();
+					defaultRoleId = savedDefaultRole.Entity.GetRequiredId();
 				}
 
 				// 4. Create invitations with the role each initial user was given.
@@ -688,16 +688,16 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				foreach (var (email, isOwner) in args.InitialUsers) {
 					var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
-					var profileIds = isOwner
-						? new List<Guid> { fullAccessProfileId }
-						: defaultProfileId is { } profileId
-							? new List<Guid> { profileId }
+					var roleIds = isOwner
+						? new List<Guid> { fullAccessRoleId }
+						: defaultRoleId is { } roleId
+							? new List<Guid> { roleId }
 							: new List<Guid>();
 
-					var invitation = Invitation.CreateTenantInvitationWithProfiles(
+					var invitation = Invitation.CreateTenantInvitationWithRoles(
 						email,
 						tenantId,
-						profileIds,
+						roleIds,
 						args.InvitedByUserId,
 						expiresAt,
 						token
@@ -912,8 +912,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		// TenantUserMembershipOperations.
 		var count =
 			from ua in this._DbContext.UserAccount
-			join uap in this._DbContext.UserAccountProfile on ua.Id equals uap.UserAccountId
-			join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+			join uap in this._DbContext.UserAccountRole on ua.Id equals uap.UserAccountId
+			join p in this._DbContext.Role on uap.RoleId equals p.Id
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& p.IsFullAccess

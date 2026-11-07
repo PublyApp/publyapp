@@ -55,10 +55,10 @@ public class ImpersonationService : IImpersonationService {
 			where ua.TenantId == tenantId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.Status != AccountStatus.Suspended
-			orderby this._DbContext.UserAccountProfile.Any(uap =>
+			orderby this._DbContext.UserAccountRole.Any(uap =>
 				uap.UserAccountId == ua.Id
-				&& !uap.Profile.IsDeleted
-				&& uap.Profile.IsFullAccess) descending,
+				&& !uap.Role.IsDeleted
+				&& uap.Role.IsFullAccess) descending,
 				ua.CreatedAt ascending
 			select ua;
 

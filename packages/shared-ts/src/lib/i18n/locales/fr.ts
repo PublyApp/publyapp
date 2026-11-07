@@ -11,7 +11,7 @@ import staffAuditLogs from '../json/staff-audit-logs.fr.json' with { type: 'json
 import staffInvitations from '../json/staff-invitations.fr.json' with { type: 'json' };
 import staffJobs from '../json/staff-jobs.fr.json' with { type: 'json' };
 import staffTenantActivity from '../json/staff-tenant-activity.fr.json' with { type: 'json' };
-import staffTenantProfiles from '../json/staff-tenant-profiles.fr.json' with { type: 'json' };
+import staffTenantRoles from '../json/staff-tenant-roles.fr.json' with { type: 'json' };
 import staffUsers from '../json/staff-users.fr.json' with { type: 'json' };
 import type { LooseResource } from './en';
 
@@ -26,7 +26,7 @@ const resourceFR = {
 	organizations,
 	posts,
 	'social-accounts': socialAccounts,
-	'staff-tenant-profiles': staffTenantProfiles,
+	'staff-tenant-roles': staffTenantRoles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
 	'staff-audit-logs': staffAuditLogs,

@@ -60,15 +60,15 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 		set { this._InvitedByUser = value; }
 	}
 
-	// Multiple profiles via junction table
+	// Multiple roles via junction table
 	[JsonIgnore]
-	public ICollection<InvitationProfile> InvitationProfiles { get; set; } = new List<InvitationProfile>();
+	public ICollection<InvitationRole> InvitationRoles { get; set; } = new List<InvitationRole>();
 
 	// Helper property for easy access
 	[NotMapped]
-	public List<Guid> ProfileIds {
+	public List<Guid> RoleIds {
 		get {
-			return this.InvitationProfiles.Select(ip => ip.ProfileId).ToList();
+			return this.InvitationRoles.Select(ip => ip.RoleId).ToList();
 		}
 	}
 
@@ -90,9 +90,9 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 		}
 	}
 
-	public static Invitation CreateStaffInvitationWithProfiles(
+	public static Invitation CreateStaffInvitationWithRoles(
 		string email,
-		List<Guid> profileIds,
+		List<Guid> roleIds,
 		Guid invitedByUserId,
 		DateTime expiresAt,
 		string token
@@ -107,22 +107,22 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			Token = token,
 		};
 
-		// Add profiles via junction table
+		// Add roles via junction table
 		// InvitationId will be set by EF Core when invitation is saved
-		foreach (var profileId in profileIds) {
-			invitation.InvitationProfiles.Add(new InvitationProfile {
+		foreach (var roleId in roleIds) {
+			invitation.InvitationRoles.Add(new InvitationRole {
 				InvitationId = default, // Will be set by EF Core when invitation is saved
-				ProfileId = profileId
+				RoleId = roleId
 			});
 		}
 
 		return invitation;
 	}
 
-	public static Invitation CreateTenantInvitationWithProfiles(
+	public static Invitation CreateTenantInvitationWithRoles(
 		string email,
 		Guid tenantId,
-		List<Guid> profileIds,
+		List<Guid> roleIds,
 		Guid invitedByUserId,
 		DateTime expiresAt,
 		string token
@@ -137,23 +137,23 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			Token = token,
 		};
 
-		// Add profiles via junction table
+		// Add roles via junction table
 		// InvitationId will be set by EF Core when invitation is saved
-		foreach (var profileId in profileIds) {
-			invitation.InvitationProfiles.Add(new InvitationProfile {
+		foreach (var roleId in roleIds) {
+			invitation.InvitationRoles.Add(new InvitationRole {
 				InvitationId = default, // Will be set by EF Core when invitation is saved
-				ProfileId = profileId
+				RoleId = roleId
 			});
 		}
 
 		return invitation;
 	}
 
-	public static Invitation CreateProjectInvitationWithProfiles(
+	public static Invitation CreateProjectInvitationWithRoles(
 		string email,
 		Guid tenantId,
 		Guid projectId,
-		List<Guid> profileIds,
+		List<Guid> roleIds,
 		Guid invitedByUserId,
 		DateTime expiresAt,
 		string token
@@ -168,12 +168,12 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			Token = token,
 		};
 
-		// Add profiles via junction table
+		// Add roles via junction table
 		// InvitationId will be set by EF Core when invitation is saved
-		foreach (var profileId in profileIds) {
-			invitation.InvitationProfiles.Add(new InvitationProfile {
+		foreach (var roleId in roleIds) {
+			invitation.InvitationRoles.Add(new InvitationRole {
 				InvitationId = default, // Will be set by EF Core when invitation is saved
-				ProfileId = profileId
+				RoleId = roleId
 			});
 		}
 

@@ -8,8 +8,8 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
-using PublyApp.Api.Modules.Profiles.Entities;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Entities;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -47,7 +47,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldDeleteLinkCommittedWhileSingleRemovalWaitedForTheAccountLock() {
 		var (tenantId, userId, userAccountId) = await this._SeedTenantWithMemberAsync();
-		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var roleId = await this._CreateTenantRoleAsync(tenantId);
 
 		await using var assignScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var assignDb = assignScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -60,8 +60,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		);
 		_ = await assignDb.Database.ExecuteSqlAsync(
 			$"""
-			INSERT INTO user_account_profiles (user_account_id, profile_id, created_at, updated_at)
-			VALUES ({userAccountId}, {profileId}, NOW(), NOW())
+			INSERT INTO user_account_roles (user_account_id, role_id, created_at, updated_at)
+			VALUES ({userAccountId}, {roleId}, NOW(), NOW())
 			"""
 		);
 		var assignPid = await PostgresLockBarrier.GetBackendPidAsync(assignDb);
@@ -96,7 +96,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldDeleteLinkCommittedWhileBulkRemovalWaitedForTheAccountLock() {
 		var (tenantId, userId, userAccountId) = await this._SeedTenantWithMemberAsync();
-		var profileId = await this._CreateTenantProfileAsync(tenantId);
+		var roleId = await this._CreateTenantRoleAsync(tenantId);
 
 		await using var assignScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var assignDb = assignScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -107,8 +107,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		);
 		_ = await assignDb.Database.ExecuteSqlAsync(
 			$"""
-			INSERT INTO user_account_profiles (user_account_id, profile_id, created_at, updated_at)
-			VALUES ({userAccountId}, {profileId}, NOW(), NOW())
+			INSERT INTO user_account_roles (user_account_id, role_id, created_at, updated_at)
+			VALUES ({userAccountId}, {roleId}, NOW(), NOW())
 			"""
 		);
 		var assignPid = await PostgresLockBarrier.GetBackendPidAsync(assignDb);
@@ -144,17 +144,17 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	// ---------------------------------------------------------------------------------------
 
 	/// <summary>
-	/// Profile deletion and member removal race for the same link. Both REAL paths park on the
+	/// Role deletion and member removal race for the same link. Both REAL paths park on the
 	/// junction row, then run one after the other; the loser must observe the winner's delete and
 	/// succeed on the survivors instead of issuing a tracked delete for a row that is already
 	/// gone (which EF reports as <c>DbUpdateConcurrencyException</c>, rolling the loser's
 	/// transaction back into a 500).
 	/// </summary>
 	[Fact]
-	public async Task ItShouldLetProfileDeleteAndMemberRemovalBothSucceedForTheSameLink() {
+	public async Task ItShouldLetRoleDeleteAndMemberRemovalBothSucceedForTheSameLink() {
 		var (tenantId, userId, userAccountId) = await this._SeedTenantWithMemberAsync();
-		var profileId = await this._CreateTenantProfileAsync(tenantId);
-		await this._InsertLinkAsync(userAccountId, profileId);
+		var roleId = await this._CreateTenantRoleAsync(tenantId);
+		await this._InsertLinkAsync(userAccountId, roleId);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -163,19 +163,19 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		// Park both cleanups on the shared junction row.
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"""
-			SELECT 1 FROM user_account_profiles
-			WHERE user_account_id = {userAccountId} AND profile_id = {profileId}
+			SELECT 1 FROM user_account_roles
+			WHERE user_account_id = {userAccountId} AND role_id = {roleId}
 			FOR UPDATE
 			"""
 		);
 		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
-		var profileDeleteTask = Task.Run(async () => {
+		var roleDeleteTask = Task.Run(async () => {
 			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantProfileAsStaffService>();
-			return await service.DeleteTenantProfileAsync(
-				new DeleteTenantProfileArgs(tenantId, profileId)
+				.GetRequiredService<ITenantRoleAsStaffService>();
+			return await service.DeleteTenantRoleAsync(
+				new DeleteTenantRoleArgs(tenantId, roleId)
 			);
 		});
 
@@ -195,31 +195,31 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		// Release without changing anything: the two real paths now serialize against each other.
 		await barrierTx.RollbackAsync();
 
-		var deleteResult = await profileDeleteTask;
+		var deleteResult = await roleDeleteTask;
 		var removalResult = await removalTask;
 
-		deleteResult.Should().BeOfType<DeleteTenantProfileResult.Success>(
-			"the profile delete must not lose to the concurrent member removal"
+		deleteResult.Should().BeOfType<DeleteTenantRoleResult.Success>(
+			"the role delete must not lose to the concurrent member removal"
 		);
 		removalResult.Should().BeOfType<RemoveUserFromTenantResult.Success>(
-			"the member removal must not lose to the concurrent profile delete"
+			"the member removal must not lose to the concurrent role delete"
 		);
 
 		(await this._CountLinksAsync(userAccountId)).Should().Be(0);
 	}
 
 	/// <summary>
-	/// The batched equivalent: bulk profile delete versus bulk member removal over the same link.
-	/// Both axes lock the junction by the same <c>(user_account_id, profile_id)</c> key, so they
+	/// The batched equivalent: bulk role delete versus bulk member removal over the same link.
+	/// Both axes lock the junction by the same <c>(user_account_id, role_id)</c> key, so they
 	/// serialize rather than deadlock.
 	/// </summary>
 	[Fact]
-	public async Task ItShouldLetBulkProfileDeleteAndBulkRemovalBothSucceedForTheSameLinks() {
+	public async Task ItShouldLetBulkRoleDeleteAndBulkRemovalBothSucceedForTheSameLinks() {
 		var (tenantId, userId, userAccountId) = await this._SeedTenantWithMemberAsync();
-		var firstProfileId = await this._CreateTenantProfileAsync(tenantId);
-		var secondProfileId = await this._CreateTenantProfileAsync(tenantId);
-		await this._InsertLinkAsync(userAccountId, firstProfileId);
-		await this._InsertLinkAsync(userAccountId, secondProfileId);
+		var firstRoleId = await this._CreateTenantRoleAsync(tenantId);
+		var secondRoleId = await this._CreateTenantRoleAsync(tenantId);
+		await this._InsertLinkAsync(userAccountId, firstRoleId);
+		await this._InsertLinkAsync(userAccountId, secondRoleId);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -227,22 +227,22 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 
 		_ = await barrierDb.Database.ExecuteSqlAsync(
 			$"""
-			SELECT 1 FROM user_account_profiles
+			SELECT 1 FROM user_account_roles
 			WHERE user_account_id = {userAccountId}
-			ORDER BY user_account_id, profile_id
+			ORDER BY user_account_id, role_id
 			FOR UPDATE
 			"""
 		);
 		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
-		var profileDeleteTask = Task.Run(async () => {
+		var roleDeleteTask = Task.Run(async () => {
 			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantProfileAsStaffService>();
-			return await service.BulkDeleteTenantProfilesAsync(
-				new BulkDeleteTenantProfilesArgs(
+				.GetRequiredService<ITenantRoleAsStaffService>();
+			return await service.BulkDeleteTenantRolesAsync(
+				new BulkDeleteTenantRolesArgs(
 					tenantId,
-					[firstProfileId, secondProfileId]
+					[firstRoleId, secondRoleId]
 				)
 			);
 		});
@@ -264,7 +264,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 
 		await barrierTx.RollbackAsync();
 
-		var deleteResult = await profileDeleteTask;
+		var deleteResult = await roleDeleteTask;
 		var removalResult = await removalTask;
 
 		deleteResult.SucceededCount.Should().Be(2);
@@ -411,7 +411,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	/// The cross-path half of the same invariant: removing one full-access holder while the
 	/// other is demoted by unassigning the tenant's full-access role. Removal goes through
 	/// <c>TenantUserMembershipOperations</c>; demotion goes through
-	/// <c>SetTenantProfileUserAsync</c>, which now carries the last-holder guard. Both take the
+	/// <c>SetTenantRoleUserAsync</c>, which now carries the last-holder guard. Both take the
 	/// tenant row lock and then count, so exactly one may win and the tenant keeps a holder.
 	/// </summary>
 	[Fact]
@@ -421,7 +421,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var (demotedAdminUserId, demotedAdminAccountId) =
 			await this._SeedMemberAsync(tenantId, fullAccess: true);
 
-		var ownerProfileId = await this._GetTenantFullAccessProfileIdAsync(tenantId);
+		var ownerRoleId = await this._GetTenantFullAccessRoleIdAsync(tenantId);
 		var actorUserId = await StaffUserTestHelper.SeedStaffUserAsync(
 			this._Fixture,
 			$"lock-order-actor-{Guid.NewGuid():N}@example.com"
@@ -446,10 +446,10 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var demotionTask = Task.Run(async () => {
 			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var service = scope.ServiceProvider
-				.GetRequiredService<ITenantProfileAsStaffService>();
-			return await service.SetTenantProfileUserAsync(new SetTenantProfileUserArgs(
+				.GetRequiredService<ITenantRoleAsStaffService>();
+			return await service.SetTenantRoleUserAsync(new SetTenantRoleUserArgs(
 				tenantId,
-				ownerProfileId,
+				ownerRoleId,
 				demotedAdminAccountId,
 				IsAssigned: false,
 				ActorUserId: actorUserId
@@ -468,9 +468,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var demotionResult = await demotionTask;
 
 		var removalWon = removalResult is RemoveUserFromTenantResult.Success;
-		var demotionWon = demotionResult is SetTenantProfileUserResult.Success;
+		var demotionWon = demotionResult is SetTenantRoleUserResult.Success;
 		var demotionRefused =
-			demotionResult is SetTenantProfileUserResult.LastFullAccessRoleAssignment;
+			demotionResult is SetTenantRoleUserResult.LastFullAccessRoleAssignment;
 
 		// Exactly one may win; the loser must be refused by the last-holder guard.
 		(removalWon && demotionWon).Should().BeFalse(
@@ -769,7 +769,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 
 	/// <summary>
 	/// Bulk versus single removal for an overlapping account set. Both take
-	/// <c>tenants → user_accounts → user_account_profiles</c>, all id-ordered, so they serialize
+	/// <c>tenants → user_accounts → user_account_roles</c>, all id-ordered, so they serialize
 	/// on the tenant row and neither can hold a row the other needs earlier.
 	/// </summary>
 	[Fact]
@@ -779,9 +779,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		var (firstUserId, firstAccountId) = await this._SeedMemberAsync(tenantId);
 		var (secondUserId, secondAccountId) = await this._SeedMemberAsync(tenantId);
 
-		var profileId = await this._CreateTenantProfileAsync(tenantId);
-		await this._InsertLinkAsync(firstAccountId, profileId);
-		await this._InsertLinkAsync(secondAccountId, profileId);
+		var roleId = await this._CreateTenantRoleAsync(tenantId);
+		await this._InsertLinkAsync(firstAccountId, roleId);
+		await this._InsertLinkAsync(secondAccountId, roleId);
 
 		await using var barrierScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var barrierDb = barrierScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -918,7 +918,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 
 		if (fullAccess) {
-			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 				dbContext,
 				tenantId,
 				account.GetRequiredId()
@@ -945,30 +945,30 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		return (tenantId, userId, userAccountId);
 	}
 
-	private async Task<Guid> _CreateTenantProfileAsync(Guid tenantId) {
+	private async Task<Guid> _CreateTenantRoleAsync(Guid tenantId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			tenantId,
-			name: "Lock Order Profile " + Guid.NewGuid().ToString("N")[..8],
-			description: "Profile created for lock order specs"
+			name: "Lock Order Role " + Guid.NewGuid().ToString("N")[..8],
+			description: "Role created for lock order specs"
 		);
-		profile.ValidateProfileType();
+		role.ValidateRoleType();
 
-		_ = dbContext.Profile.Add(profile);
+		_ = dbContext.Role.Add(role);
 		_ = await dbContext.SaveChangesAsync();
 
-		return profile.GetRequiredId();
+		return role.GetRequiredId();
 	}
 
-	private async Task _InsertLinkAsync(Guid userAccountId, Guid profileId) {
+	private async Task _InsertLinkAsync(Guid userAccountId, Guid roleId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		_ = dbContext.UserAccountProfile.Add(new UserAccountProfile {
+		_ = dbContext.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = userAccountId,
-			ProfileId = profileId,
+			RoleId = roleId,
 		});
 		_ = await dbContext.SaveChangesAsync();
 	}
@@ -977,16 +977,16 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		return await dbContext.UserAccountProfile
+		return await dbContext.UserAccountRole
 			.Where(link => link.UserAccountId == userAccountId)
 			.CountAsync();
 	}
 
-	private async Task<Guid> _GetTenantFullAccessProfileIdAsync(Guid tenantId) {
+	private async Task<Guid> _GetTenantFullAccessRoleIdAsync(Guid tenantId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		return await FullAccessProfileTestHelper.EnsureTenantProfileAsync(dbContext, tenantId);
+		return await FullAccessRoleTestHelper.EnsureTenantRoleAsync(dbContext, tenantId);
 	}
 
 	private async Task<int> _CountActiveAdminsAsync(Guid tenantId) {

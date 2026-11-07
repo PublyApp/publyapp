@@ -14,7 +14,7 @@ import { NoticesRequestBuilderNavigationMetadata, NoticesRequestBuilderRequestsM
 // @ts-ignore
 import { PermissionsRequestBuilderNavigationMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
+import { RolesRequestBuilderNavigationMetadata, RolesRequestBuilderRequestsMetadata, type RolesRequestBuilder } from './roles/index.js';
 // @ts-ignore
 import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
 // @ts-ignore
@@ -55,9 +55,9 @@ export interface StaffRequestBuilder extends BaseRequestBuilder<StaffRequestBuil
      */
     get permissions(): PermissionsRequestBuilder;
     /**
-     * The profiles property
+     * The roles property
      */
-    get profiles(): ProfilesRequestBuilder;
+    get roles(): RolesRequestBuilder;
     /**
      * The tenants property
      */
@@ -104,9 +104,9 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     permissions: {
         navigationMetadata: PermissionsRequestBuilderNavigationMetadata,
     },
-    profiles: {
-        requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
-        navigationMetadata: ProfilesRequestBuilderNavigationMetadata,
+    roles: {
+        requestsMetadata: RolesRequestBuilderRequestsMetadata,
+        navigationMetadata: RolesRequestBuilderNavigationMetadata,
     },
     tenants: {
         requestsMetadata: TenantsRequestBuilderRequestsMetadata,

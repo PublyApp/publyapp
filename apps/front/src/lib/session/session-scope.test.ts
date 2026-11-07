@@ -66,7 +66,7 @@ describe('determineSessionToken', () => {
 
 	test('redirects a tenant-only session away from a /staff path', () => {
 		expect(
-			determineSessionToken({ tenantToken: 'tenant-tok' }, '/staff/profiles'),
+			determineSessionToken({ tenantToken: 'tenant-tok' }, '/staff/roles'),
 		).toEqual({ token: undefined, redirectPath: '/tenant' });
 	});
 
@@ -86,7 +86,7 @@ describe('determineSessionToken', () => {
 	});
 
 	test('leaves a tokenless scoped request for the caller to route to login', () => {
-		expect(determineSessionToken({}, '/staff/profiles')).toEqual({
+		expect(determineSessionToken({}, '/staff/roles')).toEqual({
 			token: undefined,
 		});
 		expect(determineSessionToken({}, '/tenant')).toEqual({ token: undefined });

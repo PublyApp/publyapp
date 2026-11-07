@@ -49,8 +49,8 @@ import { describe, expect, test } from 'vitest';
 //    string literal (`queryKey: ['staff','tenants']`).
 //
 // Scope of "the route's own components": the route file itself plus the
-// route folder named after the route file's stem (`.../$profileId.tsx` and
-// `.../$profileId/**`). The breadcrumb shell and other routes are exactly the
+// route folder named after the route file's stem (`.../$roleId.tsx` and
+// `.../$roleId/**`). The breadcrumb shell and other routes are exactly the
 // places a warmed key must NOT be hiding.
 
 const srcDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -221,7 +221,7 @@ const readSource = async (absolutePath: string): Promise<string> => {
 interface ParsedFile {
 	absolutePath: string;
 	/** Path relative to `srcDir`, posix-separated, e.g.
-	 * `routes/authed/.../$profileId.tsx`. */
+	 * `routes/authed/.../$roleId.tsx`. */
 	relativePath: string;
 	sourceFile: ts.SourceFile;
 	bindings: Map<string, { module: string; exportedName: string }>;

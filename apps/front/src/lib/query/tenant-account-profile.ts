@@ -72,7 +72,7 @@ const fetchAccountProfile = async (
 	const result = await client.account.profile.get();
 
 	if (!result) {
-		throw new Error('tenant account profile result was empty');
+		throw new Error('tenant account role result was empty');
 	}
 
 	return result;
@@ -87,7 +87,7 @@ const updateAccountProfile = async (
 	);
 
 	if (!result) {
-		throw new Error('updated tenant account profile result was empty');
+		throw new Error('updated tenant account role result was empty');
 	}
 
 	return result;
@@ -147,7 +147,7 @@ export const useAccountProfileQuery = (tenantId: string | null) =>
 		queryKey: ['tenant', ...ACCOUNT_PROFILE_QUERY_KEY, tenantId],
 		queryFn: () => {
 			if (!tenantId) {
-				throw new Error('tenantId is required for account profile query');
+				throw new Error('tenantId is required for account role query');
 			}
 
 			return fetchAccountProfile(tenantId);

@@ -49,17 +49,17 @@ import { AppShell } from '~/components/app-shell/app-shell';
 import { staffAuditLogCrumbQuery } from '~/lib/query/staff-audit-logs';
 import { globalTenantUserCrumbQuery } from '~/lib/query/staff-global-tenant-users';
 import { staffInvitationCrumbQuery } from '~/lib/query/staff-invitations';
-import { staffProfileCrumbQuery } from '~/lib/query/staff-profiles';
-import { staffTenantProfileCrumbQuery } from '~/lib/query/staff-tenant-profiles';
+import { staffRoleCrumbQuery } from '~/lib/query/staff-roles';
+import { staffTenantRoleCrumbQuery } from '~/lib/query/staff-tenant-roles';
 import { staffTenantUserCrumbQuery } from '~/lib/query/staff-tenant-users';
 import { staffTenantCrumbQuery } from '~/lib/query/staff-tenants';
 import { staffUserCrumbQuery } from '~/lib/query/staff-users';
 import { tenantPostCrumbQuery } from '~/lib/query/tenant-posts';
 import { Route as TenantDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId';
-import { Route as TenantProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
-import { Route as TenantProfileOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/index';
-import { Route as TenantProfileMembersRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/members';
-import { Route as TenantProfilePermissionsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/permissions';
+import { Route as TenantRoleDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId';
+import { Route as TenantRoleOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId/index';
+import { Route as TenantRoleMembersRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId/members';
+import { Route as TenantRolePermissionsRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId/permissions';
 
 import { routes } from '../../routes';
 import { routeTree } from '../../routeTree.gen';
@@ -135,9 +135,13 @@ const isEntitySpec = (
 const LEGACY_REDIRECT_STUB_PATHS = new Set([
 	'/staff/tenant-users/details/$userId',
 	'/staff/tenant-users/details/$userId/$tab',
-	'/staff/tenants/$tenantId/profiles/new',
-	'/staff/tenants/$tenantId/profiles/$profileId/edit',
+	'/staff/tenants/$tenantId/roles/new',
+	'/staff/tenants/$tenantId/roles/$roleId/edit',
 	'/staff/tenants/$tenantId/users/invite',
+	// #2290 legacy redirect stubs: the old `…/profiles` URLs.
+	'/staff/profiles/$',
+	'/staff/tenants/$tenantId/profiles',
+	'/staff/tenants/$tenantId/profiles/$',
 ]);
 
 const buildSyntheticParams = (segments: string[]) =>
@@ -173,9 +177,9 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 		buildPayload: (marker) => ({ tenantId: 'probe-tenant-id', name: marker }),
 	},
 	{
-		query: staffProfileCrumbQuery,
+		query: staffRoleCrumbQuery,
 		buildPayload: (marker) => ({
-			profile: { id: 'probe-profile-id', name: marker },
+			role: { id: 'probe-role-id', name: marker },
 		}),
 	},
 	{
@@ -210,9 +214,9 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 		}),
 	},
 	{
-		query: staffTenantProfileCrumbQuery,
+		query: staffTenantRoleCrumbQuery,
 		buildPayload: (marker) => ({
-			profile: { id: 'probe-tenant-profile-id', name: marker },
+			role: { id: 'probe-tenant-role-id', name: marker },
 		}),
 	},
 	{
@@ -395,7 +399,7 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
 	 * SOME vetted production query and that its `select` echoes THAT query's
 	 * own payload marker — it never proves the query is the one belonging to
 	 * THIS crumb's own `$param`. The reviewer rewired the real
-	 * `/staff/tenants/$tenantId/profiles/$profileId` route's profile crumb to
+	 * `/staff/tenants/$tenantId/roles/$roleId` route's role crumb to
 	 * `query: staffTenantCrumbQuery, select: selectStaffTenantCrumbName` (the
 	 * TENANT'S already-registered pair) and every gate above stayed green:
 	 * the query is registered, and the selector echoes ITS OWN payload's
@@ -415,15 +419,15 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
 	 * (a) Sensitivity — changing ONLY that crumb's own segment (holding every
 	 *     other segment fixed) MUST change the query's resolved `queryKey`.
 	 *     A crumb whose query ignores its own segment (the reviewer's exact
-	 *     mutation: the profile crumb's query only reads `tenantId`) fails
-	 *     here, because the profile crumb's cache key stays byte-identical
-	 *     whether `profileId` is `synthetic-profileId` or anything else.
+	 *     mutation: the role crumb's query only reads `tenantId`) fails
+	 *     here, because the role crumb's cache key stays byte-identical
+	 *     whether `roleId` is `synthetic-roleId` or anything else.
 	 * (b) Descendant independence — changing ONLY a DEEPER segment (one that
-	 *     belongs to a crumb further right, e.g. `profileId` relative to the
+	 *     belongs to a crumb further right, e.g. `roleId` relative to the
 	 *     shallower `tenantId` crumb) must NOT change an earlier crumb's
 	 *     `queryKey`. This is the mirror-image bug the reviewer didn't need
 	 *     to demonstrate to be real: a shallow crumb secretly resolving a
-	 *     deeper/more specific entity. Ancestor scoping (a profile crumb
+	 *     deeper/more specific entity. Ancestor scoping (a role crumb
 	 *     legitimately depending on its own tenant's `tenantId`) is NOT
 	 *     penalized — only forward/descendant leakage is.
 	 */
@@ -751,7 +755,7 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 	/**
 	 * #973 IMPORTANT remediation: production `EntityCrumb` used to render the
 	 * resolved name as a bare text fragment — no `truncate`, no `max-w-*`, no
-	 * `title`. A tenant/profile/user with a long real name (exactly what this
+	 * `title`. A tenant/role/user with a long real name (exactly what this
 	 * PR introduces — breadcrumbs now show real, user-supplied entity names)
 	 * had nothing stopping it from overflowing or widening the breadcrumb
 	 * row. This test drives the real `/staff/tenants/$tenantId` route's real
@@ -889,11 +893,11 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 	});
 
 	/**
-	 * #977: the tenant-profile detail sections became path segments, so each
+	 * #977: the tenant-role detail sections became path segments, so each
 	 * one is now its OWN route with its OWN declared trail. The risk this
 	 * guards is exactly the one the issue names — a new segment rendering as
 	 * raw path text, or falling back to the parent's generic trail, instead
-	 * of the section's name under the profile's real name.
+	 * of the section's name under the role's real name.
 	 *
 	 * Same shape as the tenant guard above: `staticData` is taken directly off
 	 * the production route modules (`Route.options.staticData`), never
@@ -903,9 +907,9 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 	 * Only `staticData` comes from those modules — the section components here
 	 * are marker divs, because a crumb trail is derived from `useMatches()`
 	 * and the route declarations alone and never reads what a body rendered.
-	 * The real bodies are exercised in `$profileId/section-routing.test.tsx`.
+	 * The real bodies are exercised in `$roleId/section-routing.test.tsx`.
 	 */
-	const buildProfileSectionRouter = (
+	const buildRoleSectionRouter = (
 		initialUrl: string,
 		queryClient: QueryClient,
 	) => {
@@ -915,26 +919,26 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		});
 		const layoutRoute = createRoute({
 			getParentRoute: () => rootRoute,
-			path: '/staff/tenants/$tenantId/profiles/$profileId',
-			staticData: TenantProfileDetailsRoute.options.staticData,
+			path: '/staff/tenants/$tenantId/roles/$roleId',
+			staticData: TenantRoleDetailsRoute.options.staticData,
 			component: () => <Outlet />,
 		});
 		const overviewRoute = createRoute({
 			getParentRoute: () => layoutRoute,
 			path: '/',
-			staticData: TenantProfileOverviewRoute.options.staticData,
+			staticData: TenantRoleOverviewRoute.options.staticData,
 			component: () => <div data-testid="section-body" />,
 		});
 		const permissionsRoute = createRoute({
 			getParentRoute: () => layoutRoute,
 			path: '/permissions',
-			staticData: TenantProfilePermissionsRoute.options.staticData,
+			staticData: TenantRolePermissionsRoute.options.staticData,
 			component: () => <div data-testid="section-body" />,
 		});
 		const membersRoute = createRoute({
 			getParentRoute: () => layoutRoute,
 			path: '/members',
-			staticData: TenantProfileMembersRoute.options.staticData,
+			staticData: TenantRoleMembersRoute.options.staticData,
 			component: () => <div data-testid="section-body" />,
 		});
 		const routeTreeForTest = rootRoute.addChildren([
@@ -950,10 +954,10 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		);
 	};
 
-	const renderProfileSectionCrumbs = async (initialUrl: string) => {
+	const renderRoleSectionCrumbs = async (initialUrl: string) => {
 		mocks.respond.mockImplementation((call) => {
-			if (pathEndsWith(call, 'byProfileId', 'get')) {
-				return { profile: { id: 'profile-1', name: 'Approvers' } };
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return { role: { id: 'role-1', name: 'Approvers' } };
 			}
 
 			if (pathEndsWith(call, 'byTenantId', 'get')) {
@@ -975,7 +979,7 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		render(
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider
-					router={buildProfileSectionRouter(initialUrl, queryClient)}
+					router={buildRoleSectionRouter(initialUrl, queryClient)}
 				/>
 			</QueryClientProvider>,
 		);
@@ -1003,14 +1007,14 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 			)
 			.map((node) => node.textContent);
 
-	test('#977: a profile section route renders the section name under the profile’s real name, not raw path text', async () => {
-		await renderProfileSectionCrumbs(
-			'/staff/tenants/tenant-1/profiles/profile-1/permissions',
+	test('#977: a role section route renders the section name under the role’s real name, not raw path text', async () => {
+		await renderRoleSectionCrumbs(
+			'/staff/tenants/tenant-1/roles/role-1/permissions',
 		);
 		const permissionsCrumbs = crumbTextsOf();
 
 		// The trail ends with the section, and the crumb before it is the
-		// profile's own resolved entity name — not a raw path segment, and not
+		// role's own resolved entity name — not a raw path segment, and not
 		// a generic parent fallback. i18next is uninitialised in this suite, so
 		// `t()` echoes the key: seeing `common:permissions` (the shared section
 		// label key) rather than the literal URL segment `permissions` is the
@@ -1033,8 +1037,8 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		cleanup();
 		mocks.respond.mockReset();
 
-		await renderProfileSectionCrumbs(
-			'/staff/tenants/tenant-1/profiles/profile-1/members',
+		await renderRoleSectionCrumbs(
+			'/staff/tenants/tenant-1/roles/role-1/members',
 		);
 		const membersCrumbs = crumbTextsOf();
 		expect(membersCrumbs.at(-1)).toBe('common:members');
@@ -1043,11 +1047,9 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 		cleanup();
 		mocks.respond.mockReset();
 
-		// Overview is the index child: it adds NO section crumb — the profile
+		// Overview is the index child: it adds NO section crumb — the role
 		// itself is the current page.
-		await renderProfileSectionCrumbs(
-			'/staff/tenants/tenant-1/profiles/profile-1',
-		);
+		await renderRoleSectionCrumbs('/staff/tenants/tenant-1/roles/role-1');
 		const overviewCrumbs = crumbTextsOf();
 		expect(overviewCrumbs.at(-1)).toBe('Approvers');
 		expect(overviewCrumbs).toHaveLength(permissionsCrumbs.length - 1);

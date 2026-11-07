@@ -73,7 +73,7 @@ export const submitStaffUserEdit = async ({
 	dirtyFields,
 	methods,
 	updateStaffUserAsync,
-	updateStaffUserProfilesAsync,
+	updateStaffUserRolesAsync,
 	queryClient,
 	setShouldLogout,
 	setServerError,
@@ -86,9 +86,9 @@ export const submitStaffUserEdit = async ({
 	updateStaffUserAsync: (
 		input: IdentityUpdateInput,
 	) => Promise<GetStaffUserByIdResult | undefined>;
-	updateStaffUserProfilesAsync: (input: {
+	updateStaffUserRolesAsync: (input: {
 		userId: string;
-		profileIds: string[];
+		roleIds: string[];
 	}) => Promise<GetStaffUserByIdResult | undefined>;
 	queryClient: QueryClient;
 	setShouldLogout: (v: boolean) => void;
@@ -97,7 +97,7 @@ export const submitStaffUserEdit = async ({
 }): Promise<SubmitStaffUserEditOutcome> => {
 	const updateInput = buildIdentityUpdateInput(userId, values, dirtyFields);
 	const hasIdentityChanges = Object.keys(updateInput).length > 1;
-	const hasProfileChanges = Boolean(dirtyFields.profileIds);
+	const hasRoleChanges = Boolean(dirtyFields.roleIds);
 
 	setServerError('');
 
@@ -118,11 +118,11 @@ export const submitStaffUserEdit = async ({
 		await invalidateStaffUsers(queryClient);
 	}
 
-	if (hasProfileChanges) {
+	if (hasRoleChanges) {
 		try {
-			await updateStaffUserProfilesAsync({
+			await updateStaffUserRolesAsync({
 				userId,
-				profileIds: values.profileIds,
+				roleIds: values.roleIds,
 			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -132,7 +132,7 @@ export const submitStaffUserEdit = async ({
 
 			if (hasIdentityChanges) {
 				const partialFailureMessage = t(
-					'staff-users:staff-user-identity-saved-profiles-failed',
+					'staff-users:staff-user-identity-saved-roles-failed',
 					{
 						reason: getFailureMessage(toApiFailure(error), {
 							fallback: t('staff-users:unknown-error'),

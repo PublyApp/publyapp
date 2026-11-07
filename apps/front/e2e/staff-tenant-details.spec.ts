@@ -102,7 +102,7 @@ const mockTenantDetails = async (page: Page) => {
 					ownersCount: 2,
 					pendingInvitationsCount: 4,
 					expiringSoonInvitationsCount: 2,
-					profilesCount: 6,
+					rolesCount: 6,
 					logoUrl: null,
 					legalName: 'Acme Corporation, Inc.',
 					websiteUrl: 'https://www.acme.example/',
@@ -156,10 +156,10 @@ const mockTenantDetails = async (page: Page) => {
 
 		if (
 			request.method() === 'GET' &&
-			isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)
+			isApiPath(url, `/staff/tenants/${TENANT_ID}/roles`)
 		) {
 			const isDefaultParam = new URL(url).searchParams.get('is_default');
-			const profiles = [
+			const roles = [
 				{
 					id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 					name: 'Approvers',
@@ -179,10 +179,8 @@ const mockTenantDetails = async (page: Page) => {
 			];
 			const filtered =
 				isDefaultParam === null
-					? profiles
-					: profiles.filter(
-							(profile) => String(profile.isDefault) === isDefaultParam,
-						);
+					? roles
+					: roles.filter((role) => String(role.isDefault) === isDefaultParam);
 
 			await route.fulfill({
 				status: 200,
@@ -204,8 +202,8 @@ const mockTenantDetails = async (page: Page) => {
 					id: PENDING_INVITATION_ID,
 					email: 'sam@example.com',
 					status: 'Pending',
-					profileName: 'Approvers',
-					profiles: [
+					roleName: 'Approvers',
+					roles: [
 						{ id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee', name: 'Approvers' },
 					],
 					invitedByName: 'Taylor Smith',
@@ -217,8 +215,8 @@ const mockTenantDetails = async (page: Page) => {
 					id: '0197b8f0-6666-7ccc-8ccc-eeeeeeeeeeee',
 					email: 'user@example.com',
 					status: 'Pending',
-					profileName: null,
-					profiles: [],
+					roleName: null,
+					roles: [],
 					invitedByName: 'Taylor Smith',
 					createdAt: '2026-07-01T10:00:00Z',
 					expiresAt: '2026-07-07T10:00:00Z',
@@ -316,7 +314,7 @@ test.describe(
 	'staff tenant details Basics stat cards and Owners card',
 	{ tag: ['@staff-tenants', '@806'] },
 	() => {
-		test('renders the Members, Owners, Pending invites, and Profiles stat cards, plus an Owners card whose See all link filters the Users tab', async ({
+		test('renders the Members, Owners, Pending invites, and Roles stat cards, plus an Owners card whose See all link filters the Users tab', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -328,7 +326,7 @@ test.describe(
 			await expect(page.getByTestId('tenant-stat-members')).toContainText('12');
 			await expect(page.getByTestId('tenant-stat-owners')).toContainText('2');
 			await expect(page.getByTestId('tenant-stat-invites')).toContainText('4');
-			await expect(page.getByTestId('tenant-stat-profiles')).toContainText('6');
+			await expect(page.getByTestId('tenant-stat-roles')).toContainText('6');
 
 			const ownersRows = page.getByTestId('tenant-owners-rows');
 			await expect(ownersRows).toBeVisible();
@@ -365,31 +363,29 @@ test.describe(
 );
 
 test.describe(
-	'staff tenant Profiles/Invitations/Users tab bodies',
+	'staff tenant Roles/Invitations/Users tab bodies',
 	{ tag: ['@staff-tenants', '@806'] },
 	() => {
-		test('Profiles tab renders the toolbar, the card grid, the cursor footer, and honest counts', async ({
+		test('Roles tab renders the toolbar, the card grid, the cursor footer, and honest counts', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
 
+			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
 			await expect(
-				page.getByTestId('staff-tenant-profiles-page'),
+				page.getByTestId('staff-tenant-roles-grid-toolbar'),
 			).toBeVisible();
 			await expect(
-				page.getByTestId('staff-tenant-profiles-grid-toolbar'),
+				page.getByTestId('staff-tenant-roles-grid-search'),
 			).toBeVisible();
 			await expect(
-				page.getByTestId('staff-tenant-profiles-grid-search'),
+				page.getByTestId('staff-tenant-roles-grid-rows'),
 			).toBeVisible();
 			await expect(
-				page.getByTestId('staff-tenant-profiles-grid-rows'),
-			).toBeVisible();
-			await expect(
-				page.getByTestId('staff-tenant-profiles-grid-footer'),
+				page.getByTestId('staff-tenant-roles-grid-footer'),
 			).toBeVisible();
 
 			// Honest tab-title count from the tenant-details query (BE-1/BE-2).
@@ -400,24 +396,22 @@ test.describe(
 			await expect(page.getByText('7 members · 3 permissions')).toBeVisible();
 		});
 
-		test('Profiles tab type filter narrows to System-only and Custom-only profiles via the is_default URL param', async ({
+		test('Roles tab type filter narrows to System-only and Custom-only roles via the is_default URL param', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
-			await expect(
-				page.getByTestId('staff-tenant-profiles-page'),
-			).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
+			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
 			await expect(page.getByText('Approvers')).toBeVisible();
 			await expect(page.getByText('Support')).toBeVisible();
 
 			await page
-				.getByTestId('staff-tenant-profiles-grid-type-filter-trigger')
+				.getByTestId('staff-tenant-roles-grid-type-filter-trigger')
 				.click();
 			await page
-				.getByTestId('staff-tenant-profiles-grid-type-filter-system')
+				.getByTestId('staff-tenant-roles-grid-type-filter-system')
 				.click();
 
 			await expect(page).toHaveURL(/is_default=true/);
@@ -425,10 +419,10 @@ test.describe(
 			await expect(page.getByText('Support')).not.toBeVisible();
 
 			await page
-				.getByTestId('staff-tenant-profiles-grid-type-filter-trigger')
+				.getByTestId('staff-tenant-roles-grid-type-filter-trigger')
 				.click();
 			await page
-				.getByTestId('staff-tenant-profiles-grid-type-filter-custom')
+				.getByTestId('staff-tenant-roles-grid-type-filter-custom')
 				.click();
 
 			await expect(page).toHaveURL(/is_default=false/);
@@ -436,24 +430,22 @@ test.describe(
 			await expect(page.getByText('Approvers')).not.toBeVisible();
 		});
 
-		test('Profiles tab card grid: the checkbox sits corner-positioned above/left of the icon tile, selecting a card shows an amber ring, and New profile is a primary button (FIX-4 #4/#8)', async ({
+		test('Roles tab card grid: the checkbox sits corner-positioned above/left of the icon tile, selecting a card shows an amber ring, and New role is a primary button (FIX-4 #4/#8)', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
-			await expect(
-				page.getByTestId('staff-tenant-profiles-page'),
-			).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
+			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
 
-			// #8 — "New profile" is primary (--publy-primary, #fecd00 since #2292), not outline,
+			// #8 — "New role" is primary (--publy-primary, #fecd00 since #2292), not outline,
 			// per the owner's cross-app consistency ruling (docs/guides/front/conventions.md).
-			const newProfileButton = page.getByRole('button', {
+			const newRoleButton = page.getByRole('button', {
 				name: 'New role',
 			});
-			await expect(newProfileButton).toBeVisible();
-			await expect(newProfileButton).toHaveCSS(
+			await expect(newRoleButton).toBeVisible();
+			await expect(newRoleButton).toHaveCSS(
 				'background-color',
 				'rgb(254, 205, 0)',
 			);
@@ -461,17 +453,17 @@ test.describe(
 			// #4 — checkbox is corner-positioned relative to the icon tile, not an
 			// in-flow flex item pushing the tile sideways.
 			const approversId = '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee';
-			const card = page.getByTestId(`staff-tenant-profile-card-${approversId}`);
+			const card = page.getByTestId(`staff-tenant-role-card-${approversId}`);
 			await expect(card).toBeVisible();
 			const checkbox = page.getByTestId(
-				`staff-tenant-profile-card-select-${approversId}`,
+				`staff-tenant-role-card-select-${approversId}`,
 			);
 			await card.hover();
 			await expect(checkbox).toBeVisible();
 
 			const checkboxBox = await checkbox.boundingBox();
 			const tileBox = await card
-				.locator('.publy-profile-icon-tile--lg')
+				.locator('.publy-role-icon-tile--lg')
 				.boundingBox();
 			expect(checkboxBox).not.toBeNull();
 			expect(tileBox).not.toBeNull();
@@ -487,29 +479,27 @@ test.describe(
 			// #4 — selecting the card renders an amber ring on the card surface
 			// itself, not just a checked checkbox.
 			await checkbox.click();
-			await expect(card).toHaveClass(/publy-profile-card--selected/);
+			await expect(card).toHaveClass(/publy-role-card--selected/);
 			await expect(card).toHaveCSS('box-shadow', /rgb\(254, 205, 0\)/);
 		});
 
-		test("the default (System) profile's Delete action is visible but disabled, with a tooltip explaining why", async ({
+		test("the default (System) role's Delete action is visible but disabled, with a tooltip explaining why", async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
-			await expect(
-				page.getByTestId('staff-tenant-profiles-page'),
-			).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
+			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
 
 			await page
 				.getByTestId(
-					'staff-tenant-profile-actions-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+					'staff-tenant-role-actions-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 				)
 				.click();
 
 			const deleteItem = page.getByTestId(
-				'staff-tenant-profile-delete-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+				'staff-tenant-role-delete-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 			);
 			await expect(deleteItem).toBeVisible();
 			await expect(deleteItem).toHaveAttribute('aria-disabled', 'true');
@@ -773,7 +763,7 @@ test.describe(
 		// surfaces — checkbox column, floating selection bar with a live
 		// count, and an export action scoped to the selected rows. The mock
 		// fixture seeds two pending invitations (sam@example.com admin,
-		// user@example.com with no profile).
+		// user@example.com with no role).
 		test('selecting one invitation reveals the selection bar with count and export; clearing hides it', async ({
 			page,
 		}) => {
@@ -1220,7 +1210,7 @@ test.describe(
 );
 
 test.describe(
-	'staff tenant profile create/edit drawers',
+	'staff tenant role create/edit drawers',
 	{ tag: ['@staff-tenants', '@806'] },
 	() => {
 		const mockPermissionCatalog = async (page: Page) => {
@@ -1251,20 +1241,18 @@ test.describe(
 			);
 		};
 
-		test('New profile opens a drawer with a grouped, populated permissions checklist', async ({
+		test('New role opens a drawer with a grouped, populated permissions checklist', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 			await mockPermissionCatalog(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
-			await expect(
-				page.getByTestId('staff-tenant-profiles-page'),
-			).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
+			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
 
 			await page.getByRole('button', { name: 'New role' }).click();
-			const drawer = page.getByTestId('profile-form-drawer');
+			const drawer = page.getByTestId('role-form-drawer');
 			await expect(drawer).toBeVisible();
 
 			await expect(drawer.getByText('Users', { exact: true })).toBeVisible();
@@ -1273,17 +1261,17 @@ test.describe(
 			await expect(drawer.getByText('Publish posts')).toBeVisible();
 		});
 
-		test('the profile color picker is operable from inside the create drawer', async ({
+		test('the role color picker is operable from inside the create drawer', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 			await mockPermissionCatalog(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
 			await page.getByRole('button', { name: 'New role' }).click();
 
-			const drawer = page.getByTestId('profile-form-drawer');
+			const drawer = page.getByTestId('role-form-drawer');
 			const pickerTrigger = drawer.getByRole('button', {
 				name: 'Choose icon and color',
 			});
@@ -1295,19 +1283,19 @@ test.describe(
 			await expect(pickerTrigger).toHaveAttribute('data-tone', '4');
 		});
 
-		test('the legacy profiles/new URL redirects to the profiles tab with the drawer open', async ({
+		test('the legacy roles/new URL redirects to the roles tab with the drawer open', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 			await mockPermissionCatalog(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles/new`);
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles/new`);
 
 			await expect(page).toHaveURL(
-				new RegExp(`/staff/tenants/${TENANT_ID}/profiles\\?new=1$`),
+				new RegExp(`/staff/tenants/${TENANT_ID}/roles\\?new=1$`),
 			);
-			await expect(page.getByTestId('profile-form-drawer')).toBeVisible();
+			await expect(page.getByTestId('role-form-drawer')).toBeVisible();
 		});
 	},
 );
@@ -1335,12 +1323,12 @@ for (const width of [768, 390]) {
 				await expectTableFitsCard(page, 'staff-tenant-invitations-table');
 			});
 
-			test('Profiles table view never overflows its card', async ({ page }) => {
+			test('Roles table view never overflows its card', async ({ page }) => {
 				await loginAsStaffAdmin(page);
 				await mockTenantDetails(page);
 
-				await page.goto(`/staff/tenants/${TENANT_ID}/profiles?view=table`);
-				await expectTableFitsCard(page, 'staff-tenant-profiles-grid');
+				await page.goto(`/staff/tenants/${TENANT_ID}/roles?view=table`);
+				await expectTableFitsCard(page, 'staff-tenant-roles-grid');
 			});
 		},
 	);

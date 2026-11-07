@@ -15,7 +15,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -456,21 +456,21 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				)
 				.FirstAsync();
 
-			Profile profile = Profile.CreateStaffProfile(
+			Role role = Role.CreateStaffRole(
 				$"invitation-permission-{Guid.NewGuid():N}",
-				"Test-only staff profile for invitation permissions"
+				"Test-only staff role for invitation permissions"
 			);
 
-			_ = await dbContext.Profile.AddAsync(profile);
+			_ = await dbContext.Role.AddAsync(role);
 			_ = await dbContext.SaveChangesAsync();
 
-			_ = await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
-				ProfileId = profile.GetRequiredId(),
+			_ = await dbContext.RolePermission.AddAsync(new RolePermission {
+				RoleId = role.GetRequiredId(),
 				PermissionKey = permissionKey
 			});
-			_ = await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+			_ = await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 				UserAccountId = staffAccount.GetRequiredId(),
-				ProfileId = profile.GetRequiredId()
+				RoleId = role.GetRequiredId()
 			});
 			_ = await dbContext.SaveChangesAsync();
 
@@ -502,12 +502,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			AppDbContext dbContext = scope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
-			Profile staffProfile = await dbContext.Profile
-				.Where(static profile =>
-					profile.Scope == ProfileScope.Staff
-					&& !profile.IsDeleted
+			Role staffRole = await dbContext.Role
+				.Where(static role =>
+					role.Scope == RoleScope.Staff
+					&& !role.IsDeleted
 				)
-				.OrderBy(static profile => profile.Name)
+				.OrderBy(static role => role.Name)
 				.FirstAsync();
 
 			string url = PathUtils.Join(
@@ -519,7 +519,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			request.Content = JsonContent.Create(new {
 				email,
-				profileId = staffProfile.GetRequiredId().ToString()
+				roleId = staffRole.GetRequiredId().ToString()
 			});
 
 			using HttpResponseMessage response = await this._Http.SendAsync(request);

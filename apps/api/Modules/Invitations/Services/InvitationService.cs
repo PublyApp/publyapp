@@ -8,7 +8,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 namespace PublyApp.Api.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
@@ -34,7 +34,7 @@ public record FindStaffInvitationsArgs {
 
 public record CreateStaffInvitationArgs(
 	string Email,
-	List<Guid> ProfileIds,
+	List<Guid> RoleIds,
 	Guid InvitedByUserId
 );
 
@@ -42,7 +42,7 @@ public record CreateTenantInvitationArgs(
 	string Email,
 	Guid TenantId,
 	string TenantName,
-	List<Guid> ProfileIds,
+	List<Guid> RoleIds,
 	Guid InvitedByUserId
 );
 
@@ -52,7 +52,7 @@ public abstract record CreateTenantInvitationResult {
 		string Token
 	) : CreateTenantInvitationResult;
 
-	public sealed record InvalidProfileAssignment(
+	public sealed record InvalidRoleAssignment(
 		string Reason,
 		TranslationKey TranslationKey
 	) : CreateTenantInvitationResult;
@@ -85,8 +85,8 @@ public interface IInvitationService {
 		CreateTenantInvitationArgs args,
 		CancellationToken cancellationToken = default);
 
-	Task<Profile?> GetStaffProfileAsync(
-		Guid profileId,
+	Task<Role?> GetStaffRoleAsync(
+		Guid roleId,
 		CancellationToken cancellationToken = default);
 
 	Task<bool> UserExistsAsync(
@@ -113,13 +113,13 @@ public interface IInvitationService {
 		InvitationScope scope,
 		CancellationToken cancellationToken = default);
 
-	Task<List<Guid>> ValidateStaffProfilesAsync(
-		List<Guid> profileIds,
+	Task<List<Guid>> ValidateStaffRolesAsync(
+		List<Guid> roleIds,
 		CancellationToken cancellationToken = default);
 
-	Task<List<Guid>> ValidateTenantProfilesAsync(
+	Task<List<Guid>> ValidateTenantRolesAsync(
 		Guid tenantId,
-		List<Guid> profileIds,
+		List<Guid> roleIds,
 		CancellationToken cancellationToken = default);
 
 	// Bulk creation method
@@ -137,7 +137,7 @@ public record InvitationListItem {
 	public required Guid Id { get; init; }
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
-	public required string ProfileName { get; init; }
+	public required string RoleName { get; init; }
 	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
@@ -149,8 +149,8 @@ public record StaffTenantInvitationListItem {
 	public required Guid Id { get; init; }
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
-	public string? ProfileName { get; init; }
-	public required List<StaffInvitationProfileInfo> Profiles { get; init; }
+	public string? RoleName { get; init; }
+	public required List<StaffInvitationRoleInfo> Roles { get; init; }
 	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
@@ -190,10 +190,10 @@ public abstract record FindTenantInvitationsResult {
 
 public record BulkStaffInvitationItem {
 	public required string Email { get; init; }
-	public required List<Guid> ProfileIds { get; init; }
+	public required List<Guid> RoleIds { get; init; }
 }
 
-public record StaffInvitationProfileInfo {
+public record StaffInvitationRoleInfo {
 	public required Guid Id { get; init; }
 	public required string Name { get; init; }
 }
@@ -208,7 +208,7 @@ public record StaffInvitationDetailsResult {
 	public required DateTime CreatedAt { get; init; }
 	public required string InvitedByName { get; init; }
 	public required Guid InvitedByUserId { get; init; }
-	public required List<StaffInvitationProfileInfo> Profiles { get; init; }
+	public required List<StaffInvitationRoleInfo> Roles { get; init; }
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -232,14 +232,14 @@ public class InvitationService : IInvitationService {
 		CancellationToken cancellationToken = default
 	) {
 		var email = args.Email;
-		var profileIds = args.ProfileIds;
+		var roleIds = args.RoleIds;
 		var invitedByUserId = args.InvitedByUserId;
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
-		var invitation = Invitation.CreateStaffInvitationWithProfiles(
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			email,
-			profileIds,
+			roleIds,
 			invitedByUserId,
 			expiresAt,
 			token
@@ -268,9 +268,9 @@ public class InvitationService : IInvitationService {
 
 		if (this._Logger.IsEnabled(LogLevel.Information)) {
 			this._Logger.LogInformation(
-				"Created staff invitation for {Email} with {ProfileCount} profiles by user {InvitedByUserId}",
+				"Created staff invitation for {Email} with {RoleCount} roles by user {InvitedByUserId}",
 				email,
-				profileIds.Count,
+				roleIds.Count,
 				invitedByUserId
 			);
 		}
@@ -284,27 +284,27 @@ public class InvitationService : IInvitationService {
 	) {
 		var email = args.Email;
 		var tenantId = args.TenantId;
-		var profileIds = args.ProfileIds;
+		var roleIds = args.RoleIds;
 		var invitedByUserId = args.InvitedByUserId;
-		var maxProfilesPerUser = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
+		var maxRolesPerUser = AppEnvironment.Instance.MAX_ROLES_PER_USER;
 
-		// Every invitee is now described purely by the roles (profiles) they receive.
-		// There is no admin flag to exempt: the full-access system profile is one of the
-		// profiles and is protected by the caller-side escalation guard.
-		if (profileIds.Count > maxProfilesPerUser) {
-			return new CreateTenantInvitationResult.InvalidProfileAssignment(
-				$"Cannot assign more than {maxProfilesPerUser} profiles",
-				ResponseKeys.TooManyProfilesForInvitee
+		// Every invitee is now described purely by the roles (roles) they receive.
+		// There is no admin flag to exempt: the full-access system role is one of the
+		// roles and is protected by the caller-side escalation guard.
+		if (roleIds.Count > maxRolesPerUser) {
+			return new CreateTenantInvitationResult.InvalidRoleAssignment(
+				$"Cannot assign more than {maxRolesPerUser} roles",
+				ResponseKeys.TooManyRolesForInvitee
 			);
 		}
 
 		var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
-		var invitation = Invitation.CreateTenantInvitationWithProfiles(
+		var invitation = Invitation.CreateTenantInvitationWithRoles(
 			email,
 			tenantId,
-			profileIds,
+			roleIds,
 			invitedByUserId,
 			expiresAt,
 			token
@@ -329,10 +329,10 @@ public class InvitationService : IInvitationService {
 
 		if (this._Logger.IsEnabled(LogLevel.Information)) {
 			this._Logger.LogInformation(
-				"Created tenant invitation for {Email} in tenant {TenantId} with {ProfileCount} profiles by user {InvitedByUserId}",
+				"Created tenant invitation for {Email} in tenant {TenantId} with {RoleCount} roles by user {InvitedByUserId}",
 				email,
 				tenantId,
-				profileIds.Count,
+				roleIds.Count,
 				invitedByUserId
 			);
 		}
@@ -340,16 +340,16 @@ public class InvitationService : IInvitationService {
 		return new CreateTenantInvitationResult.Success(invitation, token);
 	}
 
-	public async Task<Profile?> GetStaffProfileAsync(
-		Guid profileId,
+	public async Task<Role?> GetStaffRoleAsync(
+		Guid roleId,
 		CancellationToken cancellationToken = default
 	) {
-		var profileQuery =
-			from p in this._DbContext.Profile
-			where p.Id == profileId && p.Scope == ProfileScope.Staff
+		var roleQuery =
+			from p in this._DbContext.Role
+			where p.Id == roleId && p.Scope == RoleScope.Staff
 			select p;
 
-		return await profileQuery.FirstOrDefaultAsync(cancellationToken);
+		return await roleQuery.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<bool> UserExistsAsync(
@@ -434,39 +434,39 @@ public class InvitationService : IInvitationService {
 		return existingEmails;
 	}
 
-	public async Task<List<Guid>> ValidateStaffProfilesAsync(
-		List<Guid> profileIds,
+	public async Task<List<Guid>> ValidateStaffRolesAsync(
+		List<Guid> roleIds,
 		CancellationToken cancellationToken = default
 	) {
-		var validProfileIds = await (
-			from p in this._DbContext.Profile.AsNoTracking()
+		var validRoleIds = await (
+			from p in this._DbContext.Role.AsNoTracking()
 			where p.Id != null
-				&& profileIds.Contains(p.Id.Value)
-				&& p.Scope == ProfileScope.Staff
+				&& roleIds.Contains(p.Id.Value)
+				&& p.Scope == RoleScope.Staff
 			select p.Id ?? Guid.Empty
 		).ToListAsync(cancellationToken);
 
-		return validProfileIds;
+		return validRoleIds;
 	}
 
-	public async Task<List<Guid>> ValidateTenantProfilesAsync(
+	public async Task<List<Guid>> ValidateTenantRolesAsync(
 		Guid tenantId,
-		List<Guid> profileIds,
+		List<Guid> roleIds,
 		CancellationToken cancellationToken = default
 	) {
-		var normalizedProfileIds = profileIds.Distinct().ToList();
+		var normalizedRoleIds = roleIds.Distinct().ToList();
 
-		var validProfileIds = await (
-			from p in this._DbContext.Profile.AsNoTracking()
+		var validRoleIds = await (
+			from p in this._DbContext.Role.AsNoTracking()
 			where p.Id != null
-				&& normalizedProfileIds.Contains(p.Id.Value)
-				&& p.Scope == ProfileScope.Tenant
+				&& normalizedRoleIds.Contains(p.Id.Value)
+				&& p.Scope == RoleScope.Tenant
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 			select p.Id ?? Guid.Empty
 		).ToListAsync(cancellationToken);
 
-		return validProfileIds;
+		return validRoleIds;
 	}
 
 	public async Task<List<string>> GetPendingTenantInvitationEmailsAsync(
@@ -507,10 +507,10 @@ public class InvitationService : IInvitationService {
 				// Generate unique token per invitation (one per email)
 				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
 
-				// Use factory to create invitation with multiple profiles
-				var invitation = Invitation.CreateStaffInvitationWithProfiles(
+				// Use factory to create invitation with multiple roles
+				var invitation = Invitation.CreateStaffInvitationWithRoles(
 					item.Email,
-					item.ProfileIds,
+					item.RoleIds,
 					invitedByUserId,
 					expiresAt,
 					token
@@ -519,7 +519,7 @@ public class InvitationService : IInvitationService {
 				// Validate invitation type
 				invitation.ValidateInvitationType();
 
-				// Add invitation (EF Core will also track the InvitationProfile junction records)
+				// Add invitation (EF Core will also track the InvitationRole junction records)
 				this._DbContext.Invitation.Add(invitation);
 				newInvitations.Add(invitation);
 

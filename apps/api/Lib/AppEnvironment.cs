@@ -59,7 +59,7 @@ public class AppEnvironment {
 	public int INVITATION_TOKEN_LENGTH { get; }
 	public bool DI_MANIFEST_ENABLED { get; }
 	public int AUDIT_LOG_EXPORT_MAX_ROWS { get; }
-	public int MAX_PROFILES_PER_USER { get; }
+	public int MAX_ROLES_PER_USER { get; }
 	public int TENANT_USER_EXPORT_MAX_ROWS { get; }
 	public int TENANT_ACTIVITY_THROTTLE_MINUTES { get; }
 	public string FILE_STORAGE_ROOT { get; }
@@ -342,7 +342,7 @@ public class AppEnvironment {
 		int invitationTokenLength,
 		bool diManifestEnabled,
 		int auditLogExportMaxRows,
-		int maxProfilesPerUser,
+		int maxRolesPerUser,
 		int tenantUserExportMaxRows,
 		int tenantActivityThrottleMinutes,
 		string fileStorageRoot,
@@ -420,7 +420,7 @@ public class AppEnvironment {
 		this.INVITATION_TOKEN_LENGTH = invitationTokenLength;
 		this.DI_MANIFEST_ENABLED = diManifestEnabled;
 		this.AUDIT_LOG_EXPORT_MAX_ROWS = auditLogExportMaxRows;
-		this.MAX_PROFILES_PER_USER = maxProfilesPerUser;
+		this.MAX_ROLES_PER_USER = maxRolesPerUser;
 		this.TENANT_USER_EXPORT_MAX_ROWS = tenantUserExportMaxRows;
 		this.TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
 		this.FILE_STORAGE_ROOT = fileStorageRoot;
@@ -543,7 +543,7 @@ public class AppEnvironment {
 				invitationTokenLength: AppEnvironment._GetRequiredInt(nameof(AppEnvironment.INVITATION_TOKEN_LENGTH)),
 				diManifestEnabled: AppEnvironment._GetOptionalBool(nameof(AppEnvironment.DI_MANIFEST_ENABLED), false),
 				auditLogExportMaxRows: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.AUDIT_LOG_EXPORT_MAX_ROWS), 10000),
-				maxProfilesPerUser: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.MAX_PROFILES_PER_USER), 5),
+				maxRolesPerUser: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.MAX_ROLES_PER_USER), 5),
 				tenantUserExportMaxRows: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.TENANT_USER_EXPORT_MAX_ROWS), 10000),
 				tenantActivityThrottleMinutes: AppEnvironment._GetOptionalInt(nameof(AppEnvironment.TENANT_ACTIVITY_THROTTLE_MINUTES), 5),
 				// Relative to the process's current working directory — mirrors how
@@ -1127,9 +1127,9 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.InclusiveBetween(1, 1_000_000)
 			.WithMessage("AUDIT_LOG_EXPORT_MAX_ROWS must be between 1 and 1000000");
 
-		this.RuleFor(x => x.MAX_PROFILES_PER_USER)
+		this.RuleFor(x => x.MAX_ROLES_PER_USER)
 			.InclusiveBetween(1, 50)
-			.WithMessage("MAX_PROFILES_PER_USER must be between 1 and 50");
+			.WithMessage("MAX_ROLES_PER_USER must be between 1 and 50");
 
 		this.RuleFor(x => x.TENANT_USER_EXPORT_MAX_ROWS)
 			.InclusiveBetween(1, 1_000_000)

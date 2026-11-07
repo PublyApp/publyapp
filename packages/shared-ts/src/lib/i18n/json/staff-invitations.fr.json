@@ -3,9 +3,9 @@
 	"copy-link": "Copier le lien",
 	"add-invitation": "Ajouter une invitation",
 	"send-invitations": "Envoyer les invitations",
-	"enter-email-and-select-profiles": "Entrez l'adresse email et sélectionnez les rôles à inviter",
+	"enter-email-and-select-roles": "Entrez l'adresse email et sélectionnez les rôles à inviter",
 	"remove-invitation": "Supprimer l'invitation",
-	"select-at-least-one-profile": "Sélectionnez au moins un rôle",
+	"select-at-least-one-role": "Sélectionnez au moins un rôle",
 	"send-reminder": "Envoyer un rappel",
 	"invitation-details": "Détails de l'invitation",
 	"invitation-not-found-description": "Cette invitation n'existe plus, ou le lien est erroné.",
@@ -34,9 +34,9 @@
 	"invite-staff-users-to-the-platform": "Invitez des membres du staff à rejoindre la plateforme.",
 	"no-invitations-found": "Aucune invitation trouvée.",
 	"no-invitations-match-your-search": "Aucune invitation ne correspond à votre recherche.",
-	"send-email-invitations-and-assign-staff-profiles": "Envoyez des invitations par e-mail et assignez des rôles du staff.",
+	"send-email-invitations-and-assign-staff-roles": "Envoyez des invitations par e-mail et assignez des rôles du staff.",
 	"validation-failed": "Échec de la validation.",
 	"invitation-missing-email": "E-mail manquant",
-	"unknown-profile": "Rôle inconnu",
+	"unknown-role": "Rôle inconnu",
 	"unknown-inviter": "Invitant inconnu"
 }

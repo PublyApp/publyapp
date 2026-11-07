@@ -41,17 +41,18 @@ declare the external network's driver.
 
 ## Decisions
 
-| # | Decision | Choice |
-|---|----------|--------|
-| 1 | Process topology | **Split** — separate `api`, `worker`, and `front` services (not a combined `APP_ROLE=all`) |
-| 2 | Migration mechanism | **Apply directly** (automated), packaged as an **EF migration bundle** (no SDK/source in prod) |
-| 3 | Migration execution | **One-shot migrate service** plus API readiness and worker startup gates, each with a five-minute startup grace |
-| 4 | Seeding | **Split by intent** — essentials idempotent everywhere, demo gated OFF in Production, owner via bootstrap |
-| 5 | Deploy model | **Expand/contract** (backward-compatible) migration discipline. *Zero-downtime via Swarm rolling: **SUPERSEDED** — the observed instance uses plain Compose, so a deploy has a short recreate gap. Expand/contract still holds and is the half that mattered.* |
-| 6 | DB credentials | **Single** app credential (migrator + runtime share one role) |
-| 7 | Frontend target | **`apps/front`** (SSR), deployed under the generic service name `publyapp-front`. `apps/old-front` was retired 2026-08-22 (tag `old-front-final`) and is not built for release. |
+| #   | Decision            | Choice                                                                                                                                                                                                                                                         |
+| --- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Process topology    | **Split** — separate `api`, `worker`, and `front` services (not a combined `APP_ROLE=all`)                                                                                                                                                                     |
+| 2   | Migration mechanism | **Apply directly** (automated), packaged as an **EF migration bundle** (no SDK/source in prod)                                                                                                                                                                 |
+| 3   | Migration execution | **One-shot migrate service** plus API readiness and worker startup gates, each with a five-minute startup grace                                                                                                                                                |
+| 4   | Seeding             | **Split by intent** — essentials idempotent everywhere, demo gated OFF in Production, owner via bootstrap                                                                                                                                                      |
+| 5   | Deploy model        | **Expand/contract** (backward-compatible) migration discipline. _Zero-downtime via Swarm rolling: **SUPERSEDED** — the observed instance uses plain Compose, so a deploy has a short recreate gap. Expand/contract still holds and is the half that mattered._ |
+| 6   | DB credentials      | **Single** app credential (migrator + runtime share one role)                                                                                                                                                                                                  |
+| 7   | Frontend target     | **`apps/front`** (SSR), deployed under the generic service name `publyapp-front`. `apps/old-front` was retired 2026-08-22 (tag `old-front-final`) and is not built for release.                                                                                |
 
 ### Why these (rationale)
+
 - **Split (1):** builds the target topology from day one; `APP_ROLE=all` remains the Development/Testing default when the role is omitted. Split gives process/operational isolation. It is only worse than combined if the VPS OOMs/swaps or connection pools are uncapped — both mitigated below.
 - **Bundle (2):** same automated "apply-directly" behaviour as `dotnet ef database update`. The SDK-based `migrations` build stage creates `efbundle`; the final `migrate` stage uses the ASP.NET runtime image and copies only that bundle, not the SDK, EF tooling, or source tree. The bundle still runs `UseSeeding`.
 - **One-shot service (3):** the active Compose file has no `depends_on`; the immutable migrator runs as a one-shot service while API readiness and the worker startup gate block application work. A five-minute healthcheck startup grace matches the bounded wait. The migrate service carries **both** `deploy.restart_policy.condition: none` (the Compose-preferred control when present) and the equivalent `restart: "no"` fallback.
@@ -71,31 +72,35 @@ declared from them: API, worker, and front are long-running; the migrator is one
 remains exited after completion. The worker reuses the API image with a different `APP_ROLE`, so
 there is no fourth image.
 
-| Service | Image | `APP_ROLE` | Health check | Public (Traefik) |
-|---------|-------|-----------|--------------|------------------|
-| **publyapp-migrate** (EF bundle, one-shot service) | `migrate` | `api` | process exit code (container remains exited; inspect non-zero) | — |
-| **publyapp-api** | `api` | `api` | `GET /health/live` (liveness), `GET /health/ready` (readiness) | `api.publyapp.com` |
-| **publyapp-worker** | `api` (same image) | `worker` | `--worker-health` CLI (no HTTP surface) | — |
-| **publyapp-front** (front SSR) | `front` | — | `GET /health` | `publyapp.com`, `www.publyapp.com` |
+| Service                                            | Image              | `APP_ROLE` | Health check                                                   | Public (Traefik)                   |
+| -------------------------------------------------- | ------------------ | ---------- | -------------------------------------------------------------- | ---------------------------------- |
+| **publyapp-migrate** (EF bundle, one-shot service) | `migrate`          | `api`      | process exit code (container remains exited; inspect non-zero) | —                                  |
+| **publyapp-api**                                   | `api`              | `api`      | `GET /health/live` (liveness), `GET /health/ready` (readiness) | `api.publyapp.com`                 |
+| **publyapp-worker**                                | `api` (same image) | `worker`   | `--worker-health` CLI (no HTTP surface)                        | —                                  |
+| **publyapp-front** (front SSR)                     | `front`            | —          | `GET /health`                                                  | `publyapp.com`, `www.publyapp.com` |
 
 Deploy flow:
+
 1. The release publishers — `.github/workflows/deploy-images.yml` or local `just deploy-images` — build and push the same three immutable-tagged images (`…:<release>`), including the migrator-bundle image.
 2. Dokploy starts the one-shot migrator and application services concurrently. API readiness and the worker startup gate remain closed until the bundle applies migrations and production-safe seeds.
 3. API and worker healthchecks have a five-minute `start_period`, matching the worker gate budget. Under the plain-Compose mode recorded on the live server, the container is not killed for failing its healthcheck: it stays running and Traefik withholds routing until `/health/ready` passes. **SUPERSEDED (Swarm-only):** the original wording said Swarm keeps the task alive during the grace and a failure beyond the budget becomes a failed/rescheduled task. The observed mode does not reschedule it — a stuck migration simply leaves the app unrouted, which is why the migrate container's exit code must be watched during a deploy.
-4. **SUPERSEDED (Swarm-only):** the **worker's** brief two-instance overlap during a *rolling* update. Plain Compose recreates rather than rolls, so no overlap occurs today. The safety properties still hold and are what would make a future roll safe: 2B's fenced leases + advisory-lock scheduler leadership + ~45s graceful drain prevent double-execution.
+4. **SUPERSEDED (Swarm-only):** the **worker's** brief two-instance overlap during a _rolling_ update. Plain Compose recreates rather than rolls, so no overlap occurs today. The safety properties still hold and are what would make a future roll safe: 2B's fenced leases + advisory-lock scheduler leadership + ~45s graceful drain prevent double-execution.
 
 ## Migrations
+
 - **Bundle** built by the release publishers (`dotnet ef migrations bundle`, target the VPS runtime), shipped in a slim image; run by the one-shot migrate service. Runs `UseSeeding` (gated — see below).
 - **Expand/contract discipline:** no breaking schema change in a single release; destructive changes split across two releases (expand → deploy code using both → contract later). The automated guard from **#877 has shipped and #877 is closed**: `just ci-migration-expand-contract` (`packages/scripts-ts/src/check-migration-expand-contract.ts`, part of `just ci`) flags destructive migration operations and accepts a justified `// expand-contract-ok: <reason>` marker. It runs in the local pre-push gate, not as a GitHub workflow.
 - **Single DB credential** shared by migrator + runtime.
 - **Rollback:** prefer backward-compatible forward migrations + backups + forward fixes. Do **not** rely on automatic `Down()` in production (it can destroy newly-written data).
 
 ## Seeding
-- **Essential** (permission catalog, required system profiles, scheduler/system-job definitions): run in **every** environment, idempotent (stable-key upsert). May stay attached to the migrate step. Must be safely repeatable — `UseSeeding` runs even when no migration is pending.
+
+- **Essential** (permission catalog, required system roles, scheduler/system-job definitions): run in **every** environment, idempotent (stable-key upsert). May stay attached to the migrate step. Must be safely repeatable — `UseSeeding` runs even when no migration is pending.
 - **Demo fixtures** (Acme tenant; Alice/Charlie/Acme users; known-password accounts): **Development/Testing only**, with a **test that asserts they are excluded in Production**.
 - **Owner:** provisioned via the `STAFF_OWNER_*` bootstrap flow, **not** the demo seeder path. Confirmed: the bootstrap takes the password from `STAFF_OWNER_BOOTSTRAP_CODE`, not a committed value. Note the operational consequence — `OwnerBootstrapSeeder` is idempotent **by email** and never rewrites an existing owner's password, so changing `STAFF_OWNER_BOOTSTRAP_CODE` after the first successful migration has no effect.
 
 ## Config, secrets, resources
+
 - **Required `AppEnvironment` values** must be supplied to `api`, `worker`, and `migrate`; missing required strings/integers fail fast. Many tuning and storage settings use `GetOptional*` defaults and may be omitted. The active PaaS configuration/secrets service supplies deployed values — Dokploy's environment management in this deployment, or the equivalent service after a platform change. Secrets are never committed or supplied by an application-loaded `.env` file.
 - **Observed in this deployment:** a secret containing `#` was silently truncated during the first Dokploy deployment. Treat `#` as unsafe in this project's Environment values and keep secrets to alphanumerics plus `-_.`; this is an operational incident finding, not a claim from vendor documentation.
 - **`TRUSTED_PROXY_CIDRS` must be Traefik's exact address as `/32`** (or `/128` for IPv6), never the network CIDR — see the note in the [first-deploy runbook](./first-deploy-runbook.md) §5a. A missing value crash-loops the API on a Production `api` role.
@@ -105,7 +110,9 @@ Deploy flow:
 - Keep worker concurrency/batch sizes conservative so a queue burst cannot starve HTTP or Postgres on the shared host.
 
 ## First-deploy footguns — all fixed
+
 These would have broken deploy #1. They are resolved in the committed `dokploy.yml`:
+
 - Required env set declared (was 2 vars → instant fail-fast), with optional tuning values explicit where operations chose them.
 - Healthcheck `curl` vs Dockerfile `wget` mismatch corrected (the API healthcheck could never pass).
 - Fixed `container_name` removed.
@@ -114,11 +121,13 @@ These would have broken deploy #1. They are resolved in the committed `dokploy.y
 - The two stale `docs/misc/` deployment docs were removed by the #1357 docs prune.
 
 ## Sequencing & dependencies (historical — complete)
+
 - This design depended on 2B (`APP_ROLE` + the worker composition root); approving it unblocked merging 2B → 2C → P3, the work #876 was gating. All of that has landed.
 - Everything in the original implementation order shipped: deploy config, the CI **bundle** build (`apps/api/Dockerfile` stage `migrations` runs `dotnet ef migrations bundle`, stage `migrate` ships only the bundle), the one-shot migrate service, API/worker gates, the seeding gate + Production-exclusion test, the required env/secret set, pool caps, immutable tags, and the footgun fixes.
 - front-2 deployability: `/health` route added; its Dockerfile and production env set confirmed.
 
 ## Non-goals / still deferred
+
 - **Least-privilege DDL/DML credential split** — still deferred; the migrator and runtime share one credential (decision 6). Revisit if the threat model changes.
 - **True zero-downtime cutover** — not achieved on the observed instance; its recorded
   plain-Compose mode recreates containers. This would require Dokploy "Stack" (Swarm) or
@@ -148,14 +157,16 @@ These would have broken deploy #1. They are resolved in the committed `dokploy.y
   is a later Epic C task (the `ICredentialProtector` exposes the surface for it).
 
 ## Verification (all performed)
+
 - Local `docker compose` smoke: migrate (bundle) → api + worker come up healthy with the full env; API `/health/live` stays 200 while `/health/ready` changes from 503 to 200, and worker `--worker-health` stays fresh during the gate wait.
 - A spec asserts **demo seeders do not run under `ASPNETCORE_ENVIRONMENT=Production`** and essentials do.
 - The operator record says the first successful deploy on 2026-07-20 walked the whole flow on the
   instance. What was observed, and the five traps that cost real debugging time, are recorded in the
   [first-deploy runbook](./first-deploy-runbook.md) §8. **SUPERSEDED:** the planned "dry-run
-  *rolling* deploy" — the recorded live mode was plain Compose, not a rolling Swarm deployment.
+  _rolling_ deploy" — the recorded live mode was plain Compose, not a rolling Swarm deployment.
 
 ## References
+
 - Second opinion: GPT-5.6-sol advisory (topology pressure-test, bundle recommendation, seeding security finding, footgun list).
 - EF Core: [applying migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying), [data seeding](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
 - Docker: [Compose Deploy Specification](https://docs.docker.com/reference/compose-file/deploy/).

@@ -13,7 +13,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -1043,7 +1043,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			lastName: "Roled"
 		);
 		var roleName = $"Support-{marker}";
-		await this._AttachStaffProfileAsync(userId, roleName);
+		await this._AttachStaffRoleAsync(userId, roleName);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -1152,23 +1152,23 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	/// <summary>
-	/// Seeds a staff profile and assigns it to the user's staff account, the
-	/// same junction row the profile surfaces write.
+	/// Seeds a staff role and assigns it to the user's staff account, the
+	/// same junction row the role surfaces write.
 	/// </summary>
-	private async Task _AttachStaffProfileAsync(Guid userId, string profileName) {
+	private async Task _AttachStaffRoleAsync(Guid userId, string roleName) {
 		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
 		var account = await dbContext.UserAccount.FirstAsync(account =>
 			account.UserId == userId && account.Scope == AccountScope.Staff
 		);
-		var profile = Profile.CreateStaffProfile(profileName);
-		_ = await dbContext.Profile.AddAsync(profile);
+		var role = Role.CreateStaffRole(roleName);
+		_ = await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		_ = await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+		_ = await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = account.GetRequiredId(),
-			ProfileId = profile.GetRequiredId(),
+			RoleId = role.GetRequiredId(),
 		});
 		await dbContext.SaveChangesAsync();
 	}
@@ -1284,11 +1284,11 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			return;
 		}
 
-		var profileId = await FullAccessProfileTestHelper.EnsureStaffProfileAsync(dbContext);
-		await FullAccessProfileTestHelper.AssignAsync(
+		var roleId = await FullAccessRoleTestHelper.EnsureStaffRoleAsync(dbContext);
+		await FullAccessRoleTestHelper.AssignAsync(
 			dbContext,
 			account.GetRequiredId(),
-			profileId
+			roleId
 		);
 	}
 

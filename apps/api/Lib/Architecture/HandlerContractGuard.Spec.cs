@@ -32,7 +32,7 @@ namespace PublyApp.Api.Lib.Architecture;
 ///   legitimately declare multiple top-level handler/contract classes (e.g.
 ///   <c>TenantUserCompanyActionsForStaff.cs</c> with four handlers plus supporting
 ///   contract/validator types,
-///   <c>GetStaffUserProfiles.cs</c> with item/result/handler), and a few file names
+///   <c>GetStaffUserRoles.cs</c> with item/result/handler), and a few file names
 ///   match none of their declared classes by design (<c>PassWordLogin.cs</c> to
 ///   <c>PasswordLogin</c>). A robust
 ///   one-class-per-file rule would need a large, brittle allowlist; it belongs in

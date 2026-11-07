@@ -282,7 +282,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			"view-permission " + Guid.NewGuid().ToString("N")[..8]
 		);
 		// Round 2: the seeded Acme member now holds publishing permissions via the
-		// demo profile; this view-denial pin uses a dedicated profile-less member.
+		// demo role; this view-denial pin uses a dedicated role-less member.
 		var (acmeId, bareEmail) = await this._CreateBareAcmeMemberAsync();
 		var userToken = await this._AuthClient.LoginAsync(
 			bareEmail,
@@ -676,9 +676,9 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	// Creates a bare Acme tenant member with NO profiles at all. Round 2 granted
+	// Creates a bare Acme tenant member with NO roles at all. Round 2 granted
 	// the seeded AcmeUserEmail member publishing permissions through the
-	// demo-publishing-acme profile, so permission-denial pins must not lean on
+	// demo-publishing-acme role, so permission-denial pins must not lean on
 	// that member's (now non-empty) derived permission set.
 	private async Task<(Guid TenantId, string Email)> _CreateBareAcmeMemberAsync() {
 		var acmeId = await this._GetAcmeIdAsync();

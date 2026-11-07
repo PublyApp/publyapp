@@ -238,7 +238,7 @@ public sealed class OpenApiContractSpec {
 					nameof(UserStatus.Suspended),
 				],
 			},
-			["StaffProfileUserItem"] = new() {
+			["StaffRoleUserItem"] = new() {
 				["status"] = [
 					nameof(UserStatus.Active),
 					nameof(UserStatus.Suspended),
@@ -327,7 +327,7 @@ public sealed class OpenApiContractSpec {
 					nameof(TenantUserStatus.GloballySuspended),
 				],
 			},
-			["TenantProfileUserItem"] = new() {
+			["TenantRoleUserItem"] = new() {
 				["status"] = [
 					nameof(TenantUserStatus.Active),
 					nameof(TenantUserStatus.Suspended),

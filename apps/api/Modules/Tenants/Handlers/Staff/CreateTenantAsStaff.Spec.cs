@@ -20,8 +20,8 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Profiles.Entities;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Entities;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 using PublyApp.Api.Modules.Users.Entities;
@@ -42,7 +42,7 @@ public sealed class CreateTenantAsStaffSpec
 		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
-	// Email-observing coverage for tenant creation (pending state, default profile,
+	// Email-observing coverage for tenant creation (pending state, default role,
 	// invitations, and the outbox->dispatcher->FakeEmailSender path) lives in the sibling
 	// CreateTenantAsStaffEmailSpec, which owns an exclusive ApiFixture per test method —
 	// see that file's header comment for why.
@@ -169,23 +169,23 @@ public sealed class CreateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldSkipDefaultProfileWhenSeedDefaultProfileIsFalse() {
+	ItShouldSkipDefaultRoleWhenSeedDefaultRoleIsFalse() {
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantName =
-			$"Tenant No Default Profile {Guid.NewGuid():N}";
+			$"Tenant No Default Role {Guid.NewGuid():N}";
 		var userEmail =
-			$"tenant-no-profile-user-{Guid.NewGuid():N}@example.com";
+			$"tenant-no-role-user-{Guid.NewGuid():N}@example.com";
 
 		var created = await this._CreateTenantSuccessfullyAsync(
 			token,
 			new {
 				name = tenantName,
 				maxUsers = 3,
-				seedDefaultProfile = false,
+				seedDefaultRole = false,
 				initialUsers = new[] {
 					new {
-						email = $"tenant-no-profile-admin-{Guid.NewGuid():N}@example.com",
+						email = $"tenant-no-role-admin-{Guid.NewGuid():N}@example.com",
 						role = "owner",
 					},
 					new {
@@ -201,28 +201,28 @@ public sealed class CreateTenantAsStaffSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var nonFullAccessProfileCount = await dbContext.Profile
+		var nonFullAccessRoleCount = await dbContext.Role
 			.Where(p =>
 				p.TenantId == created.Id
-				&& p.Scope == ProfileScope.Tenant
+				&& p.Scope == RoleScope.Tenant
 				&& !p.IsFullAccess
 			)
 			.CountAsync();
-		nonFullAccessProfileCount.Should().Be(0);
+		nonFullAccessRoleCount.Should().Be(0);
 
-		var ownerProfileCount = await FullAccessRoleQueries
-			.FullAccessProfiles(dbContext)
+		var ownerRoleCount = await FullAccessRoleQueries
+			.FullAccessRoles(dbContext)
 			.CountAsync(p => p.TenantId == created.Id);
-		ownerProfileCount.Should().Be(1);
+		ownerRoleCount.Should().Be(1);
 
 		var userInvitation = await dbContext.Invitation
 			.Where(invitation =>
 				invitation.TenantId == created.Id
 				&& invitation.Email == userEmail
 			)
-			.Include(invitation => invitation.InvitationProfiles)
+			.Include(invitation => invitation.InvitationRoles)
 			.SingleAsync();
-		userInvitation.InvitationProfiles.Should().BeEmpty();
+		userInvitation.InvitationRoles.Should().BeEmpty();
 	}
 
 	[Fact]
@@ -1098,7 +1098,7 @@ public sealed class CreateTenantAsStaffSpec
 			body,
 			tenantService,
 			authContext,
-			new AlwaysFullAccessProfileAssignmentGuard(),
+			new AlwaysFullAccessRoleAssignmentGuard(),
 			NullLogger<CreateTenantAsStaff>.Instance,
 			CancellationToken.None
 		);
@@ -1181,21 +1181,21 @@ public sealed class CreateTenantAsStaffSpec
 			)
 			.FirstAsync();
 
-		var profile = Profile.CreateStaffProfile(
+		var role = Role.CreateStaffRole(
 			$"tenant-create-permission-{Guid.NewGuid():N}",
-			"Test-only staff profile for tenant creation permission"
+			"Test-only staff role for tenant creation permission"
 		);
 
-		await dbContext.Profile.AddAsync(profile);
+		await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
-			ProfileId = profile.GetRequiredId(),
+		await dbContext.RolePermission.AddAsync(new RolePermission {
+			RoleId = role.GetRequiredId(),
 			PermissionKey = permissionKey,
 		});
-		await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+		await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = staffAccount.GetRequiredId(),
-			ProfileId = profile.GetRequiredId(),
+			RoleId = role.GetRequiredId(),
 		});
 		await dbContext.SaveChangesAsync();
 
@@ -1223,8 +1223,8 @@ public sealed class CreateTenantAsStaffSpec
 			.Contain(fieldName);
 	}
 
-	private sealed class AlwaysFullAccessProfileAssignmentGuard
-		: IProfileAssignmentGuard {
+	private sealed class AlwaysFullAccessRoleAssignmentGuard
+		: IRoleAssignmentGuard {
 		public Task<bool> ActorHasFullAccessAsync(
 			Guid actorUserId,
 			CancellationToken cancellationToken = default
@@ -1232,9 +1232,9 @@ public sealed class CreateTenantAsStaffSpec
 			return Task.FromResult(true);
 		}
 
-		public Task<bool> CanAssignProfilesAsync(
+		public Task<bool> CanAssignRolesAsync(
 			Guid actorUserId,
-			IReadOnlyCollection<Guid> profileIds,
+			IReadOnlyCollection<Guid> roleIds,
 			CancellationToken cancellationToken = default
 		) {
 			return Task.FromResult(true);

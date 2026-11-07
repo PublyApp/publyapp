@@ -53,11 +53,11 @@ const detailUrl = (userId: string) => `/staff/staff-users/${userId}`;
 
 const mocks = vi.hoisted(() => ({
 	toStaffUserDetails: vi.fn(),
-	toAssignedStaffProfiles: vi.fn(),
+	toAssignedStaffRoles: vi.fn(),
 	useUpdateStaffUserMutation: vi.fn(),
-	useUpdateStaffUserProfilesMutation: vi.fn(),
+	useUpdateStaffUserRolesMutation: vi.fn(),
 	updateStaffUser: vi.fn(),
-	updateStaffUserProfiles: vi.fn(),
+	updateStaffUserRoles: vi.fn(),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
@@ -76,17 +76,17 @@ vi.mock('~/lib/query/staff-users', () => {
 	// between renders; fresh-per-render mocks would loop every effect/store
 	// subscribed to them.
 	let details: ReturnType<typeof settledQuery> | null = null;
-	let assignedProfiles: ReturnType<typeof settledQuery> | null = null;
+	let assignedRoles: ReturnType<typeof settledQuery> | null = null;
 
 	return {
 		STAFF_USERS_QUERY_KEY: ['staff-users'],
 		STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
-		STAFF_USER_PROFILES_QUERY_KEY: ['staff-users', 'detail', 'profiles'],
+		STAFF_USER_ROLES_QUERY_KEY: ['staff-users', 'detail', 'roles'],
 		invalidateStaffUsers: () => Promise.resolve(),
 		selectStaffUserCrumbName: () => undefined,
 		staffUserCrumbQuery: () => ({}),
 		toStaffUserDetails: mocks.toStaffUserDetails,
-		toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
+		toAssignedStaffRoles: mocks.toAssignedStaffRoles,
 		useStaffUserDetailsQuery: () =>
 			(details ??= settledQuery({
 				id: USER_A,
@@ -98,25 +98,24 @@ vi.mock('~/lib/query/staff-users', () => {
 				roles: ['Staff Owner'],
 				status: 'Active',
 			})),
-		useStaffUserProfilesQuery: () =>
-			(assignedProfiles ??= settledQuery({
-				assignedProfiles: [{ id: 'profile-1' }],
+		useStaffUserRolesQuery: () =>
+			(assignedRoles ??= settledQuery({
+				assignedRoles: [{ id: 'role-1' }],
 			})),
 		useUpdateStaffUserMutation: mocks.useUpdateStaffUserMutation,
-		useUpdateStaffUserProfilesMutation:
-			mocks.useUpdateStaffUserProfilesMutation,
+		useUpdateStaffUserRolesMutation: mocks.useUpdateStaffUserRolesMutation,
 	};
 });
 
-vi.mock('~/lib/query/staff-profiles', () => {
+vi.mock('~/lib/query/staff-roles', () => {
 	let catalogue: ReturnType<typeof settledQuery> | null = null;
 
 	return {
-		useStaffProfilesQuery: () =>
+		useStaffRolesQuery: () =>
 			(catalogue ??= settledQuery({
 				data: [
-					{ id: 'profile-1', name: 'Publishing', description: null },
-					{ id: 'profile-2', name: 'Billing', description: null },
+					{ id: 'role-1', name: 'Publishing', description: null },
+					{ id: 'role-2', name: 'Billing', description: null },
 				],
 				nextCursor: null,
 			})),
@@ -147,9 +146,9 @@ vi.mock('react-i18next', () => ({
 				'status-suspended': 'Suspended',
 				'status-managed-from-details':
 					'Status is managed from the details view.',
-				'search-profiles': 'Search profiles…',
-				'select-profiles': 'Select profiles',
-				profiles: 'Profiles',
+				'search-roles': 'Search roles…',
+				'select-roles': 'Select roles',
+				roles: 'Roles',
 				cancel: 'Cancel',
 				'save-changes': 'Save changes',
 				'unsaved-changes': 'Unsaved changes',
@@ -316,16 +315,11 @@ describe('#1314-r1 staff-user edit nav guard (real router)', () => {
 			roles: ['Staff Owner'],
 			status: 'Active',
 		}));
-		mocks.toAssignedStaffProfiles.mockImplementation(
-			(
-				payload:
-					| { assignedProfiles?: Array<{ id: string }> }
-					| undefined
-					| null,
-			) =>
-				(payload?.assignedProfiles ?? []).map((profile) => ({
-					id: profile.id,
-					name: profile.id === 'profile-1' ? 'Publishing' : 'Billing',
+		mocks.toAssignedStaffRoles.mockImplementation(
+			(payload: { assignedRoles?: Array<{ id: string }> } | undefined | null) =>
+				(payload?.assignedRoles ?? []).map((role) => ({
+					id: role.id,
+					name: role.id === 'role-1' ? 'Publishing' : 'Billing',
 					description: null,
 				})),
 		);
@@ -333,13 +327,13 @@ describe('#1314-r1 staff-user edit nav guard (real router)', () => {
 			mutateAsync: mocks.updateStaffUser,
 			isPending: false,
 		});
-		mocks.useUpdateStaffUserProfilesMutation.mockReturnValue({
-			mutateAsync: mocks.updateStaffUserProfiles,
+		mocks.useUpdateStaffUserRolesMutation.mockReturnValue({
+			mutateAsync: mocks.updateStaffUserRoles,
 			isPending: false,
 		});
 		mocks.updateStaffUser.mockResolvedValue({ id: USER_A });
-		mocks.updateStaffUserProfiles.mockResolvedValue({
-			assignedProfiles: [{ id: 'profile-1' }],
+		mocks.updateStaffUserRoles.mockResolvedValue({
+			assignedRoles: [{ id: 'role-1' }],
 		});
 	});
 
@@ -353,8 +347,8 @@ describe('#1314-r1 staff-user edit nav guard (real router)', () => {
 	// trip "Leave without saving?" because the stacked blocker closures read
 	// a render-frozen hasSaved/isDirty snapshot. The guard must decide from
 	// values readable live at navigation time, so the redirect lands cleanly
-	// even when identity AND profile assignments were both dirty.
-	test('a successful save redirects past the guard even when identity and profiles are both dirty', async () => {
+	// even when identity AND role assignments were both dirty.
+	test('a successful save redirects past the guard even when identity and roles are both dirty', async () => {
 		const { history } = await renderAtEdit();
 
 		fireEvent.change(screen.getByLabelText('First name'), {
@@ -369,9 +363,9 @@ describe('#1314-r1 staff-user edit nav guard (real router)', () => {
 			),
 		);
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledWith({
 				userId: USER_A,
-				profileIds: ['profile-1', 'profile-2'],
+				roleIds: ['role-1', 'role-2'],
 			}),
 		);
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());

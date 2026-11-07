@@ -6,9 +6,9 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { EmailRequestBuilderRequestsMetadata, type EmailRequestBuilder } from './email/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
-// @ts-ignore
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
+// @ts-ignore
+import { RolesRequestBuilderRequestsMetadata, type RolesRequestBuilder } from './roles/index.js';
 // @ts-ignore
 import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
 // @ts-ignore
@@ -23,13 +23,13 @@ export interface WithUserItemRequestBuilder extends BaseRequestBuilder<WithUserI
      */
     get email(): EmailRequestBuilder;
     /**
-     * The profiles property
-     */
-    get profiles(): ProfilesRequestBuilder;
-    /**
      * The reactivate property
      */
     get reactivate(): ReactivateRequestBuilder;
+    /**
+     * The roles property
+     */
+    get roles(): RolesRequestBuilder;
     /**
      * The suspend property
      */
@@ -103,11 +103,11 @@ export const WithUserItemRequestBuilderNavigationMetadata: Record<Exclude<keyof 
     email: {
         requestsMetadata: EmailRequestBuilderRequestsMetadata,
     },
-    profiles: {
-        requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
-    },
     reactivate: {
         requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    roles: {
+        requestsMetadata: RolesRequestBuilderRequestsMetadata,
     },
     suspend: {
         requestsMetadata: SuspendRequestBuilderRequestsMetadata,

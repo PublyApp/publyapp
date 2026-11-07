@@ -31,9 +31,9 @@ export type StaffTenantInvitationRow = {
 	email: string;
 	status: InvitationEffectiveStatus | null;
 	scope: string | null;
-	profileName: string | null;
-	profiles: Array<{ id: string; name: string }>;
-	roles: string[];
+	roleName: string | null;
+	roles: Array<{ id: string; name: string }>;
+	roleNames: string[];
 	invitedByName: string;
 	acceptedAt: Date | null;
 	createdAt: Date | null;
@@ -84,24 +84,24 @@ const normalizeStatusToken = (
 	return normalized?.toLowerCase();
 };
 
-const normalizeProfiles = (
-	profiles: StaffTenantInvitationListItem['profiles'],
+const normalizeRoles = (
+	roles: StaffTenantInvitationListItem['roles'],
 ): Array<{ id: string; name: string }> => {
-	const normalizedProfiles: Array<{ id: string; name: string }> = [];
+	const normalizedRoles: Array<{ id: string; name: string }> = [];
 	const seenIds = new Set<string>();
 
-	for (const profile of profiles ?? []) {
-		const id = normalizeString(profile.id?.toString());
-		const name = normalizeString(profile.name);
+	for (const role of roles ?? []) {
+		const id = normalizeString(role.id?.toString());
+		const name = normalizeString(role.name);
 		if (!id || !name || seenIds.has(id)) {
 			continue;
 		}
 
-		normalizedProfiles.push({ id, name });
+		normalizedRoles.push({ id, name });
 		seenIds.add(id);
 	}
 
-	return normalizedProfiles;
+	return normalizedRoles;
 };
 
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
@@ -132,7 +132,7 @@ export const toStaffTenantInvitationRows = (
 		// a legitimate value (shell-r5-F3).
 		const id = normalizeString(item.id?.toString());
 		const email = normalizeString(item.email);
-		const profileName = normalizeNullableString(item.profileName);
+		const roleName = normalizeNullableString(item.roleName);
 		const invitedByName = normalizeString(item.invitedByName);
 		if (!id || !email || !invitedByName) {
 			continue;
@@ -143,10 +143,10 @@ export const toStaffTenantInvitationRows = (
 			email,
 			status: item.status ?? null,
 			scope: normalizeNullableString(item.scope),
-			profileName,
-			profiles: normalizeProfiles(item.profiles),
-			roles: (item.profiles ?? [])
-				.map((profile) => normalizeString(profile.name))
+			roleName,
+			roles: normalizeRoles(item.roles),
+			roleNames: (item.roles ?? [])
+				.map((role) => normalizeString(role.name))
 				.filter((name): name is string => Boolean(name)),
 			invitedByName,
 			acceptedAt: item.acceptedAt ?? null,

@@ -34,14 +34,14 @@ type InvitationInfoResult =
 	| {
 			ok: true;
 			email: string;
-			profileName: string;
+			roleName: string;
 			userExists: boolean;
 	  }
 	| { ok: false; reason: 'invalid' | 'unavailable' };
 
 /**
  * Combines the pre-validation check (email/userExists) and the display
- * details (profileName) into one round trip for the accept-invitation
+ * details (roleName) into one round trip for the accept-invitation
  * loader — calls both endpoints and
  * collapses any failure (either call, or a missing email) to a single
  * invalid-link state.
@@ -68,7 +68,7 @@ export const loadInvitationInfo = createServerFn({ method: 'POST' })
 			return {
 				ok: true,
 				email: detailsResult.email,
-				profileName: detailsResult.profileName ?? '',
+				roleName: detailsResult.roleName ?? '',
 				userExists: checkResult?.userExists ?? false,
 			};
 		} catch (error) {

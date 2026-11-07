@@ -13,7 +13,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 const mocks = vi.hoisted(() => ({
 	onOpenSuspendDialog: vi.fn(),
 	onOpenDeleteDialog: vi.fn(),
-	onRetryProfiles: vi.fn(),
+	onRetryRoles: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -60,13 +60,13 @@ const I18N_LABELS: TestLabelMap = {
 	'status-unknown': 'Unknown',
 	created: 'Created',
 	updated: 'Updated',
-	'assigned-profiles-and-roles': 'Assigned profiles & roles',
-	'no-profiles-assigned': 'No profiles are currently assigned.',
+	'assigned-roles-and-roles': 'Assigned roles & roles',
+	'no-roles-assigned': 'No roles are currently assigned.',
 	'no-description-provided': 'No description provided.',
-	'profile-summary': 'Profile summary',
+	'role-summary': 'Role summary',
 	account: 'Account',
 	'user-id': 'User ID',
-	'unable-to-load-assigned-profiles': 'Unable to load assigned profiles.',
+	'unable-to-load-assigned-roles': 'Unable to load assigned roles.',
 	'danger-zone': 'Danger zone',
 	'suspend-or-reactivate': 'Suspend or reactivate',
 	'confirm-delete-staff-user-title': 'Delete staff member',
@@ -76,7 +76,7 @@ const I18N_LABELS: TestLabelMap = {
 	suspend: 'Suspend',
 	reactivate: 'Reactivate',
 	'common-loading': 'Loading...',
-	'loading-assigned-profiles': 'Loading assigned profiles…',
+	'loading-assigned-roles': 'Loading assigned roles…',
 	'try-again': 'Try again',
 };
 
@@ -136,14 +136,14 @@ const buildContextValue = (
 ): StaffUserOverviewContextValue => ({
 	user: baseUser,
 	locale: 'en',
-	profiles: [
-		{ id: 'profile-1', name: 'Platform admin', description: 'Full access' },
-		{ id: 'profile-2', name: 'Support staff', description: null },
+	roles: [
+		{ id: 'role-1', name: 'Platform admin', description: 'Full access' },
+		{ id: 'role-2', name: 'Support staff', description: null },
 	],
-	profilesIsPending: false,
-	profilesHasError: false,
-	onRetryProfiles: mocks.onRetryProfiles,
-	maxProfilesPerUser: 5,
+	rolesIsPending: false,
+	rolesHasError: false,
+	onRetryRoles: mocks.onRetryRoles,
+	maxRolesPerUser: 5,
 	canSuspend: true,
 	canReactivate: false,
 	suspendLabelKey: 'suspend' as const,
@@ -179,17 +179,17 @@ describe('staff user overview tab', () => {
 		cleanup();
 	});
 
-	test('renders contact details, assigned profiles, account, and danger zone cards', () => {
+	test('renders contact details, assigned roles, account, and danger zone cards', () => {
 		renderTab();
 
 		expect(screen.getByText('Contact details')).toBeTruthy();
-		expect(screen.getByText('Assigned profiles & roles')).toBeTruthy();
+		expect(screen.getByText('Assigned roles & roles')).toBeTruthy();
 		expect(screen.getByText('2 assigned')).toBeTruthy();
 		expect(screen.getByRole('link', { name: 'Platform admin' })).toBeTruthy();
 		expect(screen.getByRole('link', { name: 'Support staff' })).toBeTruthy();
 		expect(screen.getByText('Full access')).toBeTruthy();
 		expect(screen.getByText('No description provided.')).toBeTruthy();
-		expect(screen.getByText('Profile summary')).toBeTruthy();
+		expect(screen.getByText('Role summary')).toBeTruthy();
 
 		expect(screen.getByText('Account')).toBeTruthy();
 		expect(screen.getByText('Danger zone')).toBeTruthy();
@@ -203,51 +203,47 @@ describe('staff user overview tab', () => {
 		expect(screen.queryByText('Recent security activity')).toBeNull();
 	});
 
-	test('renders the assigned profiles empty state when none are assigned', () => {
-		renderTab(buildContextValue({ profiles: [] }));
+	test('renders the assigned roles empty state when none are assigned', () => {
+		renderTab(buildContextValue({ roles: [] }));
 
 		expect(screen.getByText('0 assigned')).toBeTruthy();
-		expect(
-			screen.getByText('No profiles are currently assigned.'),
-		).toBeTruthy();
+		expect(screen.getByText('No roles are currently assigned.')).toBeTruthy();
 	});
 
-	test('renders a local assigned profiles error instead of the list', () => {
-		renderTab(buildContextValue({ profilesHasError: true }));
+	test('renders a local assigned roles error instead of the list', () => {
+		renderTab(buildContextValue({ rolesHasError: true }));
 
-		expect(screen.getByTestId('staff-user-profiles-error')).toBeTruthy();
-		expect(screen.queryByText('Assigned profiles & roles')).toBeNull();
+		expect(screen.getByTestId('staff-user-roles-error')).toBeTruthy();
+		expect(screen.queryByText('Assigned roles & roles')).toBeNull();
 	});
 
-	test('clicking "Try again" on the profiles error retries the query (r5-F6)', () => {
-		renderTab(buildContextValue({ profilesHasError: true }));
+	test('clicking "Try again" on the roles error retries the query (r5-F6)', () => {
+		renderTab(buildContextValue({ rolesHasError: true }));
 
 		fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
-		expect(mocks.onRetryProfiles).toHaveBeenCalledTimes(1);
+		expect(mocks.onRetryRoles).toHaveBeenCalledTimes(1);
 	});
 
-	test('renders a profiles loading state instead of "no profiles assigned" while the profiles query is still pending (r5-F6)', () => {
-		renderTab(buildContextValue({ profilesIsPending: true, profiles: [] }));
+	test('renders a roles loading state instead of "no roles assigned" while the roles query is still pending (r5-F6)', () => {
+		renderTab(buildContextValue({ rolesIsPending: true, roles: [] }));
 
-		expect(screen.getByTestId('staff-user-profiles-loading')).toBeTruthy();
-		expect(
-			screen.queryByText('No profiles are currently assigned.'),
-		).toBeNull();
+		expect(screen.getByTestId('staff-user-roles-loading')).toBeTruthy();
+		expect(screen.queryByText('No roles are currently assigned.')).toBeNull();
 		expect(screen.queryByText('0 assigned')).toBeNull();
 	});
 
 	test('pending wins over both the error and empty-collection renders', () => {
 		renderTab(
 			buildContextValue({
-				profilesIsPending: true,
-				profilesHasError: true,
-				profiles: [],
+				rolesIsPending: true,
+				rolesHasError: true,
+				roles: [],
 			}),
 		);
 
-		expect(screen.getByTestId('staff-user-profiles-loading')).toBeTruthy();
-		expect(screen.queryByTestId('staff-user-profiles-error')).toBeNull();
+		expect(screen.getByTestId('staff-user-roles-loading')).toBeTruthy();
+		expect(screen.queryByTestId('staff-user-roles-error')).toBeNull();
 	});
 
 	test('clicking suspend/reactivate in the danger zone calls the context callback', () => {
@@ -341,7 +337,7 @@ describe('crossBoundaryImport regex', () => {
 		"import { StaffUserOverviewContext } from './_overview-context';",
 		"import type { StaffUserOverviewContextValue } from './_overview-context';",
 		"import { ActivityTab } from './$userId/activity';",
-		"import type { AssignedStaffProfile } from '~/lib/query/staff-users';",
+		"import type { AssignedStaffRole } from '~/lib/query/staff-users';",
 	])('leaves a legitimate import alone: %s', (line) => {
 		expect(line).not.toMatch(crossBoundaryImport);
 	});

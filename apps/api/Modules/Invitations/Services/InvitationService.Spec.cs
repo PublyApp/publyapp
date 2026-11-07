@@ -33,13 +33,13 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 
 		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var invitationService = scope.ServiceProvider.GetRequiredService<IInvitationService>();
-			var profileId = await InvitationServiceJobEnqueueDurabilitySpec._SeedStaffProfileAsync(scope.ServiceProvider);
+			var roleId = await InvitationServiceJobEnqueueDurabilitySpec._SeedStaffRoleAsync(scope.ServiceProvider);
 			var inviterId = await InvitationServiceJobEnqueueDurabilitySpec._SeedStaffUserAsync(scope.ServiceProvider);
 
 			var (invitation, _) = await invitationService.CreateStaffInvitationAsync(
 				new CreateStaffInvitationArgs(
 					Email: email,
-					ProfileIds: [profileId],
+					RoleIds: [roleId],
 					InvitedByUserId: inviterId
 				)
 			);
@@ -79,7 +79,7 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 					Email: email,
 					TenantId: tenantId,
 					TenantName: "Durability Test Co",
-					ProfileIds: [],
+					RoleIds: [],
 					InvitedByUserId: inviterId
 				)
 			);
@@ -141,15 +141,15 @@ public sealed class InvitationServiceJobEnqueueDurabilitySpec : IClassFixture<Ap
 		);
 	}
 
-	private static async Task<Guid> _SeedStaffProfileAsync(IServiceProvider services) {
+	private static async Task<Guid> _SeedStaffRoleAsync(IServiceProvider services) {
 		var dbContext = services.GetRequiredService<AppDbContext>();
-		var profile = Modules.Profiles.Entities.Profile.CreateStaffProfile(
-			name: $"Outbox test profile {Guid.NewGuid():N}",
+		var role = Modules.Roles.Entities.Role.CreateStaffRole(
+			name: $"Outbox test role {Guid.NewGuid():N}",
 			description: "seed"
 		);
-		await dbContext.Profile.AddAsync(profile);
+		await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
-		return profile.GetRequiredId();
+		return role.GetRequiredId();
 	}
 
 	private static async Task<Guid> _SeedStaffUserAsync(IServiceProvider services) {

@@ -10,7 +10,7 @@ import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	useUpdateStaffUserMutation,
-	useUpdateStaffUserProfilesMutation,
+	useUpdateStaffUserRolesMutation,
 } from '~/lib/query/staff-users';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
@@ -58,25 +58,25 @@ const StaffUserEditPage = () => {
 
 	const {
 		detailsQuery,
-		assignedProfilesQuery,
-		profilesQuery,
-		profilePagination,
+		assignedRolesQuery,
+		rolesQuery,
+		rolePagination,
 		user,
 		methods,
 		formState,
 		errors,
 		isSubmitting,
-		profileOptions,
-		hasNoServerProfileRows,
-		isProfileSearchSettled,
-		deferredProfileSearch,
-		profileSearch,
-		setProfileSearch,
-		hasLoadedProfiles,
+		roleOptions,
+		hasNoServerRoleRows,
+		isRoleSearchSettled,
+		deferredRoleSearch,
+		roleSearch,
+		setRoleSearch,
+		hasLoadedRoles,
 	} = useEditFormData(userId);
 
 	const updateStaffUser = useUpdateStaffUserMutation();
-	const updateStaffUserProfiles = useUpdateStaffUserProfilesMutation();
+	const updateStaffUserRoles = useUpdateStaffUserRolesMutation();
 
 	const blocker = useBlocker({
 		// Decides from the LIVE form values compared against the pristine
@@ -92,9 +92,9 @@ const StaffUserEditPage = () => {
 
 	if (
 		(detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) ||
-		(assignedProfilesQuery.isError &&
-			shouldLogoutForFailure(assignedProfilesQuery.error)) ||
-		(profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error))
+		(assignedRolesQuery.isError &&
+			shouldLogoutForFailure(assignedRolesQuery.error)) ||
+		(rolesQuery.isError && shouldLogoutForFailure(rolesQuery.error))
 	) {
 		return <LogoutRedirect />;
 	}
@@ -105,8 +105,8 @@ const StaffUserEditPage = () => {
 
 	if (
 		detailsQuery.isPending ||
-		assignedProfilesQuery.isPending ||
-		(profilesQuery.isPending && !hasLoadedProfiles)
+		assignedRolesQuery.isPending ||
+		(rolesQuery.isPending && !hasLoadedRoles)
 	) {
 		return <StaffUserEditLoading />;
 	}
@@ -120,20 +120,20 @@ const StaffUserEditPage = () => {
 		);
 	}
 
-	if (assignedProfilesQuery.isError) {
+	if (assignedRolesQuery.isError) {
 		return (
 			<StaffUserDetailsError
-				error={assignedProfilesQuery.error}
-				onRetry={() => void assignedProfilesQuery.refetch()}
+				error={assignedRolesQuery.error}
+				onRetry={() => void assignedRolesQuery.refetch()}
 			/>
 		);
 	}
 
-	if (profilesQuery.isError) {
+	if (rolesQuery.isError) {
 		return (
 			<StaffUserDetailsError
-				error={profilesQuery.error}
-				onRetry={() => void profilesQuery.refetch()}
+				error={rolesQuery.error}
+				onRetry={() => void rolesQuery.refetch()}
 			/>
 		);
 	}
@@ -157,7 +157,7 @@ const StaffUserEditPage = () => {
 			dirtyFields: formState.dirtyFields,
 			methods,
 			updateStaffUserAsync: updateStaffUser.mutateAsync,
-			updateStaffUserProfilesAsync: updateStaffUserProfiles.mutateAsync,
+			updateStaffUserRolesAsync: updateStaffUserRoles.mutateAsync,
 			queryClient,
 			setShouldLogout,
 			setServerError,
@@ -172,9 +172,7 @@ const StaffUserEditPage = () => {
 	});
 
 	const isSubmittingForm =
-		isSubmitting ||
-		updateStaffUser.isPending ||
-		updateStaffUserProfiles.isPending;
+		isSubmitting || updateStaffUser.isPending || updateStaffUserRoles.isPending;
 	const attentionCount = Object.keys(errors).length;
 	const status = computeActionBarStatus(formState.isDirty, attentionCount, t);
 
@@ -205,28 +203,26 @@ const StaffUserEditPage = () => {
 
 				<EditAccessSection
 					isSubmittingForm={isSubmittingForm}
-					profiles={{
-						isFetching: profilesQuery.isFetching,
-						isPending: profilesQuery.isPending,
-						hasNoServerRows: hasNoServerProfileRows,
-						isSearchSettled: isProfileSearchSettled,
+					roles={{
+						isFetching: rolesQuery.isFetching,
+						isPending: rolesQuery.isPending,
+						hasNoServerRows: hasNoServerRoleRows,
+						isSearchSettled: isRoleSearchSettled,
 					}}
-					profileOptions={profileOptions}
-					deferredProfileSearch={deferredProfileSearch}
-					profileSearch={profileSearch}
-					onProfileSearchChange={setProfileSearch}
+					roleOptions={roleOptions}
+					deferredRoleSearch={deferredRoleSearch}
+					roleSearch={roleSearch}
+					onRoleSearchChange={setRoleSearch}
 					pagination={{
 						hasPagination:
-							profilePagination.hasPreviousPage ||
-							Boolean(profilesQuery.data?.nextCursor),
-						pageIndex: profilePagination.pageIndex,
-						hasPreviousPage: profilePagination.hasPreviousPage,
-						hasNextCursor: Boolean(profilesQuery.data?.nextCursor),
-						onPreviousPage: profilePagination.retreat,
+							rolePagination.hasPreviousPage ||
+							Boolean(rolesQuery.data?.nextCursor),
+						pageIndex: rolePagination.pageIndex,
+						hasPreviousPage: rolePagination.hasPreviousPage,
+						hasNextCursor: Boolean(rolesQuery.data?.nextCursor),
+						onPreviousPage: rolePagination.retreat,
 						onNextPage: () =>
-							profilePagination.advance(
-								profilesQuery.data?.nextCursor ?? undefined,
-							),
+							rolePagination.advance(rolesQuery.data?.nextCursor ?? undefined),
 					}}
 				/>
 

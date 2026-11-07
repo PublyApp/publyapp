@@ -49,22 +49,22 @@ public static partial class Routes {
 				return $"/{userId}";
 			}
 
-			/// <summary>Staff user profile assignment routes</summary>
-			public static class Profiles {
-				public const string Root = "/{userId}/profiles";
+			/// <summary>Staff user role assignment routes</summary>
+			public static class Roles {
+				public const string Root = "/{userId}/roles";
 				public static string RootFn(string userId) {
-					return $"/{userId}/profiles";
+					return $"/{userId}/roles";
 				}
 
-				public const string Get = Routes.Users.ForStaff.Profiles.Root;
+				public const string Get = Routes.Users.ForStaff.Roles.Root;
 				public static string GetFn(string userId) {
-					return Routes.Users.ForStaff.Profiles.RootFn(userId);
+					return Routes.Users.ForStaff.Roles.RootFn(userId);
 				}
 
-				/// <summary>Replace the full assigned profile set for the staff user</summary>
-				public const string Update = Routes.Users.ForStaff.Profiles.Root;
+				/// <summary>Replace the full assigned role set for the staff user</summary>
+				public const string Update = Routes.Users.ForStaff.Roles.Root;
 				public static string UpdateFn(string userId) {
-					return Routes.Users.ForStaff.Profiles.RootFn(userId);
+					return Routes.Users.ForStaff.Roles.RootFn(userId);
 				}
 			}
 		}

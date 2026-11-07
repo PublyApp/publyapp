@@ -12,12 +12,12 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	invalidateStaffUsers,
 	removeStaffUserDetails,
-	toAssignedStaffProfiles,
+	toAssignedStaffRoles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
 	useReactivateStaffUserMutation,
 	useStaffUserDetailsQuery,
-	useStaffUserProfilesQuery,
+	useStaffUserRolesQuery,
 	useSuspendStaffUserMutation,
 } from '~/lib/query/staff-users';
 
@@ -64,20 +64,20 @@ const StaffUserDetailsPage = () => {
 		{ userId },
 		{ enabled: userId.length > 0 },
 	);
-	const profilesQuery = useStaffUserProfilesQuery(
+	const rolesQuery = useStaffUserRolesQuery(
 		{ userId },
 		{ enabled: userId.length > 0 },
 	);
 	const user = toStaffUserDetails(detailQuery.data);
-	const profiles = toAssignedStaffProfiles(profilesQuery.data);
+	const roles = toAssignedStaffRoles(rolesQuery.data);
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags —
 	// QueryDisplay owns the loading/error/data rendering below.
 	const detailError = detailQuery.error;
-	const profilesError = profilesQuery.error;
+	const rolesError = rolesQuery.error;
 	if (
 		(detailError !== null && shouldLogoutForFailure(detailError)) ||
-		(profilesError !== null && shouldLogoutForFailure(profilesError))
+		(rolesError !== null && shouldLogoutForFailure(rolesError))
 	) {
 		return <LogoutRedirect />;
 	}
@@ -173,10 +173,10 @@ const StaffUserDetailsPage = () => {
 
 				const isDeleteConfirmReady =
 					deleteConfirmText.trim().toLowerCase() === 'delete';
-				const maxProfilesPerUser = profilesQuery.data?.maxProfilesPerUser;
+				const maxRolesPerUser = rolesQuery.data?.maxRolesPerUser;
 				// Reads the hoisted fatal-error local, not raw query flags.
-				const profilesHasError =
-					profilesError !== null && !shouldLogoutForFailure(profilesError);
+				const rolesHasError =
+					rolesError !== null && !shouldLogoutForFailure(rolesError);
 
 				// Memoizing this literal would require hoisting it above the early returns,
 				// breaking conditional hook order on this page. The Provider re-renders only
@@ -185,16 +185,16 @@ const StaffUserDetailsPage = () => {
 				const overviewContextValue: StaffUserOverviewContextValue = {
 					user,
 					locale: i18n.language,
-					profiles,
+					roles,
 					// `detailQuery.isPending` alone gates the page's own loading screen —
-					// profiles is a separate query that can still be pending once details
+					// roles is a separate query that can still be pending once details
 					// resolve, so the overview tab must model this explicitly instead of
 					// treating "not yet loaded" the same as "loaded, zero assignments"
 					// (r5-F6).
-					profilesIsPending: profilesQuery.isPending,
-					profilesHasError,
-					onRetryProfiles: () => void profilesQuery.refetch(),
-					maxProfilesPerUser: maxProfilesPerUser ?? 0,
+					rolesIsPending: rolesQuery.isPending,
+					rolesHasError,
+					onRetryRoles: () => void rolesQuery.refetch(),
+					maxRolesPerUser: maxRolesPerUser ?? 0,
 					canSuspend,
 					canReactivate,
 					suspendLabelKey: getSuspendLabelKey(user.status),

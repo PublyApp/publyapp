@@ -16,7 +16,7 @@ using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Messaging.Services;
-using PublyApp.Api.Modules.Profiles.Jobs;
+using PublyApp.Api.Modules.Roles.Jobs;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -667,7 +667,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	private static JobContext _JoinedStaffContext(Guid jobId, Guid userId) {
 		return new JobContext {
 			JobId = jobId,
-			JobType = StaffProfileEmailJobs.StaffJoinedNotificationV1.JobType,
+			JobType = StaffRoleEmailJobs.StaffJoinedNotificationV1.JobType,
 			Payload = $"{{\"userId\":\"{userId}\"}}",
 			Attempts = 0,
 			MaxAttempts = 10
@@ -700,7 +700,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var token = $"tok-{Guid.NewGuid():N}";
 		await using var db = this._CreateDbContext();
 		var invitedBy = await EmailJobHandlersSpec._SeedUserInAsync(db);
-		var invitation = Invitation.CreateStaffInvitationWithProfiles(
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
 			invitedBy,

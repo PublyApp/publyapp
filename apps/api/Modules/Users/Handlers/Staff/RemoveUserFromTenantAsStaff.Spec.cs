@@ -427,7 +427,7 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		await dbContext.SaveChangesAsync();
 
 		foreach (var account in accounts) {
-			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 				dbContext,
 				tenantId,
 				account.GetRequiredId()

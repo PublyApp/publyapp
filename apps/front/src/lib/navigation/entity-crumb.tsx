@@ -53,7 +53,7 @@ export const EntityCrumb = ({
 		);
 	}
 
-	// Entity names are user-supplied and arbitrarily long (a tenant, profile,
+	// Entity names are user-supplied and arbitrarily long (a tenant, role,
 	// or user's real display name — see #973). Unlike the label crumbs
 	// (short, developer-controlled i18n strings), this is the one breadcrumb
 	// segment that must defend its own layout: `block truncate` + `title`

@@ -9,7 +9,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Anonymous;
 
 public record InvitationDetails {
 	public required string Email { get; init; }
-	public required string ProfileName { get; init; }
+	public required string RoleName { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 }
 
@@ -31,9 +31,9 @@ public sealed class GetInvitationDetails {
 			return TypedProblems.NotFound("Invitation not found", ResponseKeys.NotFound);
 		}
 
-		// Get profile names from junction table
-		var names = invitation.InvitationProfiles
-			.Select(ip => ip.Profile?.Name)
+		// Get role names from junction table
+		var names = invitation.InvitationRoles
+			.Select(ip => ip.Role?.Name)
 			.Where(n => !string.IsNullOrEmpty(n))
 			.ToList();
 
@@ -44,12 +44,12 @@ public sealed class GetInvitationDetails {
 		}
 
 		if (roleDisplayName is null) {
-			return TypedProblems.NotFound("Profile not found", ResponseKeys.NotFound);
+			return TypedProblems.NotFound("Role not found", ResponseKeys.NotFound);
 		}
 
 		return TypedResults.Ok(new InvitationDetails {
 			Email = invitation.Email,
-			ProfileName = roleDisplayName,
+			RoleName = roleDisplayName,
 			ExpiresAt = invitation.ExpiresAt
 		});
 	}

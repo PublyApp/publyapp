@@ -25,6 +25,9 @@ namespace PublyApp.Api.Migrations;
 // per-class template cannot be used.
 public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 	private const string _PreviousMigrationId = "20261021060140_AddRenditions";
+	// The migration under test. Historical specs must not run later migrations: a later
+	// rename (#2290 renamed profiles -> roles) changes the schema these assertions read.
+	private const string _MigrationUnderTestId = "20261102152047_RemoveAccountLevel";
 
 	private PostgresContainerFixture? _ContainerFixture;
 	private string? _DbName;
@@ -224,7 +227,7 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 		await using (var db = this._CreateDbContext()) {
 			var migrator = db.GetService<IMigrator>();
-			var up = async () => await migrator.MigrateAsync();
+			var up = async () => await migrator.MigrateAsync(RemoveAccountLevelSpec._MigrationUnderTestId);
 			await up.Should().NotThrowAsync("a rolled-back deployment must be re-appliable");
 		}
 
@@ -273,7 +276,7 @@ public sealed class RemoveAccountLevelSpec : IAsyncLifetime {
 
 	private async Task _MigrateUpAsync() {
 		await using var db = this._CreateDbContext();
-		await db.GetService<IMigrator>().MigrateAsync();
+		await db.GetService<IMigrator>().MigrateAsync(RemoveAccountLevelSpec._MigrationUnderTestId);
 	}
 
 	// Re-runs the two profile-creating SQL steps (A and B) of Up(), exactly as a retried

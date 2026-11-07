@@ -160,10 +160,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 				&& !ua.Account.IsDeleted
 				&& !ua.User.IsDeleted
 				&& !ua.Tenant.IsDeleted),
-		keySelector: ua => this._DbContext.UserAccountProfile.Any(uap =>
+		keySelector: ua => this._DbContext.UserAccountRole.Any(uap =>
 			uap.UserAccountId == ua.Account.Id
-			&& !uap.Profile.IsDeleted
-			&& uap.Profile.IsFullAccess),
+			&& !uap.Role.IsDeleted
+			&& uap.Role.IsFullAccess),
 		idSelector: ua => ua.Id,
 		cancellationToken
 	),
@@ -300,10 +300,10 @@ public class TenantUserCompanyQueryService : ITenantUserCompanyQueryService {
 				Data = results.Select(row => new TenantUserCompanyData {
 					Account = row.Account,
 					Tenant = row.Tenant,
-					IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 						uap.UserAccountId == row.Account.Id
-						&& !uap.Profile.IsDeleted
-						&& uap.Profile.IsFullAccess),
+						&& !uap.Role.IsDeleted
+						&& uap.Role.IsFullAccess),
 					UserStatus = row.User.Status,
 				}).ToList(),
 				NextCursor = nextCursor,

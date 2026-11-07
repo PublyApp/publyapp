@@ -157,7 +157,7 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 			? undefined
 			: resolveQueryError(props.queryState.error, t);
 	// A forbidden body has no create/export chrome: acting on a page the user
-	// cannot read is a lie (the 403 screenshot showed both on /staff/profiles).
+	// cannot read is a lie (the 403 screenshot showed both on /staff/roles).
 	// The shared list header owns that rule for every ListPage.
 	const forbidden = resolvedError?.kind === 'forbidden';
 

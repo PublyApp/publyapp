@@ -49,7 +49,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 		for (var position = 0; position < segmentCount; position++) {
 			var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
 			var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";
-			var url = $"https://bsky.app/profile/{did}/post/{rkey}";
+			var url = $"https://bsky.app/role/{did}/post/{rkey}";
 			if (position == 0) {
 				rootResult = new PublishResult.Published(recordId, url);
 			}

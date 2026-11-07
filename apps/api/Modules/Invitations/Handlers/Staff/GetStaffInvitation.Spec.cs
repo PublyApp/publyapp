@@ -54,8 +54,8 @@ public sealed class GetStaffInvitationSpec : IClassFixture<ApiFixture> {
 		details.InvitedByName.Should().NotBeNullOrWhiteSpace(
 			"the read model resolves the inviter for the staff detail panel"
 		);
-		details.Profiles.Should().ContainSingle(profile => profile.Id == seeded.ProfileId);
-		details.Profiles[0].Name.Should().Be(seeded.ProfileName);
+		details.Roles.Should().ContainSingle(role => role.Id == seeded.RoleId);
+		details.Roles[0].Name.Should().Be(seeded.RoleName);
 	}
 
 	// The persisted status is Pending/Accepted/Revoked; "Expired" is derived from

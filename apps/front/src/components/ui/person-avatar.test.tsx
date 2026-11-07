@@ -93,12 +93,12 @@ describe('PersonAvatar', () => {
 			<PersonAvatar
 				name="Ada Lovelace"
 				avatarUrl="https://example.com/ada.png"
-				accessibleLabel="Ada Lovelace profile photo"
+				accessibleLabel="Ada Lovelace role photo"
 			/>,
 		);
 
 		expect(
-			screen.getByRole('img', { name: 'Ada Lovelace profile photo' }),
+			screen.getByRole('img', { name: 'Ada Lovelace role photo' }),
 		).toBeTruthy();
 	});
 

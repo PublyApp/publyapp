@@ -8,7 +8,7 @@ using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 
 namespace PublyApp.Api.Lib.Diagnostics;
 
@@ -77,12 +77,12 @@ public static class SeederGateProbeCli {
 				.IgnoreQueryFilters()
 				.CountAsync();
 
-			var seededStaffOwnerProfileCount = await dbContext
-				.Profile
+			var seededStaffOwnerRoleCount = await dbContext
+				.Role
 				.IgnoreQueryFilters()
-				.Where(profile =>
-					profile.Scope == ProfileScope.Staff
-					&& profile.Name == "Staff Owner"
+				.Where(role =>
+					role.Scope == RoleScope.Staff
+					&& role.Name == "Staff Owner"
 				)
 				.CountAsync();
 
@@ -143,7 +143,7 @@ public static class SeederGateProbeCli {
 			var result = new {
 				DemoSeedersExcluded = !hasDemoTenants && !hasDemoUsers,
 				HasSeededPermissions = seededPermissionCount > 0,
-				HasStaffOwnerProfile = seededStaffOwnerProfileCount > 0,
+				HasStaffOwnerRole = seededStaffOwnerRoleCount > 0,
 				HasSystemJobDefinitions = missingJobKeys.Count == 0,
 				HasOwnerUser = hasOwnerUser,
 				HasOwnerAccount = hasOwnerAccount,
@@ -155,7 +155,7 @@ public static class SeederGateProbeCli {
 
 			Environment.ExitCode = result.DemoSeedersExcluded
 				&& result.HasSeededPermissions
-				&& result.HasStaffOwnerProfile
+				&& result.HasStaffOwnerRole
 				&& result.HasSystemJobDefinitions
 				&& result.HasOwnerUser
 				&& result.HasOwnerAccount

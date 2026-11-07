@@ -32,7 +32,7 @@ const mockTenantEdit = async (page: Page) => {
 					ownersCount: 2,
 					pendingInvitationsCount: 4,
 					expiringSoonInvitationsCount: 2,
-					profilesCount: 6,
+					rolesCount: 6,
 					logoUrl: null,
 					legalName: null,
 					description: null,
@@ -111,7 +111,7 @@ test.describe(
 
 			// The new-tenant page (prototype #2299) labels this « Default
 			// role » (#2295 renamed the account level out of the product); the
-			// old « Seed default profiles » copy is gone.
+			// old « Seed default roles » copy is gone.
 			const lastField = page.getByRole('switch', {
 				name: 'Default role',
 			});

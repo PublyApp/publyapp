@@ -27,7 +27,7 @@ public static class PermissionEndpointsForStaff {
 			)
 			.WithSummary("Find staff permissions")
 			.WithPermission([
-				AppPermissions.Staff.Profiles.GET_FOR_STAFF,
+				AppPermissions.Staff.Roles.GET_FOR_STAFF,
 				AppPermissions.Staff.Permissions.LIST_FOR_STAFF
 			])
 			.WithReqQueryValidation<FindStaffPermissionsQuery>();
@@ -42,7 +42,7 @@ public static class PermissionEndpointsForStaff {
 			)
 			.WithSummary("Find tenant permissions")
 			.WithPermission([
-				AppPermissions.Staff.Profiles.GET_FOR_TENANT,
+				AppPermissions.Staff.Roles.GET_FOR_TENANT,
 				AppPermissions.Staff.Permissions.LIST_FOR_TENANT
 			])
 			.WithReqQueryValidation<FindTenantPermissionsQuery>();

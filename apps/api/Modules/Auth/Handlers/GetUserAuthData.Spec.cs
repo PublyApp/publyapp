@@ -12,7 +12,7 @@ using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -22,11 +22,11 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 /// <summary>
 /// Proves GET /auth/user-auth-data carries `tenantPermissionKeys` — the
 /// EFFECTIVE tenant permission set (C3 A4): `"*"` for a tenant member holding
-/// the full-access `Owner` profile (the #861 full-access bypass, whose raw
-/// profile-derived set is empty), and exactly the assigned profile keys for a
-/// member without that profile.
+/// the full-access `Owner` role (the #861 full-access bypass, whose raw
+/// role-derived set is empty), and exactly the assigned role keys for a
+/// member without that role.
 ///
-/// The private profile helpers are copied verbatim from
+/// The private role helpers are copied verbatim from
 /// TenantPermissionFilter.Spec.cs — they are private there, so this spec
 /// cannot reuse them (issue #1447 follow-up).
 /// </summary>
@@ -45,9 +45,9 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExposeWildcardSentinelForSeededTenantAdmin() {
-		// Seeded Acme admin holds the tenant `Owner` full-access profile (the #861
+		// Seeded Acme admin holds the tenant `Owner` full-access role (the #861
 		// scenario proven in TenantPermissionFilter.Spec.cs): the effective set comes
-		// from the full-access profile, which this endpoint materialises as "*".
+		// from the full-access role, which this endpoint materialises as "*".
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
 			this._Http,
@@ -79,7 +79,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldExposeProfileDerivedKeysWithoutWildcardForNonAdminHolder() {
+	public async Task ItShouldExposeRoleDerivedKeysWithoutWildcardForNonAdminHolder() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
 			this._Http,
@@ -87,19 +87,19 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 			SeedConstants.Tenants.AcmeName
 		);
 
-		var createdProfileIds = new List<Guid>();
+		var createdRoleIds = new List<Guid>();
 
 		try {
-			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var roleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Posts.VIEW.Key]
 			);
-			createdProfileIds.Add(profileId);
+			createdRoleIds.Add(roleId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			var acmeUserToken = await this._AuthClient.LoginAsync(
@@ -124,7 +124,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 			keys.Should().BeEquivalentTo(["tenant.posts.view"]);
 		} finally {
-			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
 		}
 	}
 
@@ -150,7 +150,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		keys.GetArrayLength().Should().Be(0);
 	}
 
-	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantRoleWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
@@ -159,22 +159,22 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			tenantId,
 			"GetUserAuthData Spec " + Guid.NewGuid().ToString("N")[..8],
 			"Created for GetUserAuthData permission assertions"
 		);
-		profile.ValidateProfileType();
+		role.ValidateRoleType();
 
-		_ = await dbContext.Profile.AddAsync(profile);
+		_ = await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		var profileId = profile.GetRequiredId();
+		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.ProfilePermission.AddAsync(
-				new ProfilePermission {
-					ProfileId = profileId,
+			_ = await dbContext.RolePermission.AddAsync(
+				new RolePermission {
+					RoleId = roleId,
 					PermissionKey = permissionKey
 				}
 			);
@@ -182,13 +182,13 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 		await dbContext.SaveChangesAsync();
 
-		return profileId;
+		return roleId;
 	}
 
-	private async Task _AssignProfileToTenantUserAsync(
+	private async Task _AssignRoleToTenantUserAsync(
 		string email,
 		Guid tenantId,
-		IReadOnlyCollection<Guid> profileIds
+		IReadOnlyCollection<Guid> roleIds
 	) {
 		var trimmedEmail = email.Trim();
 
@@ -223,11 +223,11 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 			);
 		}
 
-		foreach (var profileId in profileIds) {
-			_ = await dbContext.UserAccountProfile.AddAsync(
-				new UserAccountProfile {
+		foreach (var roleId in roleIds) {
+			_ = await dbContext.UserAccountRole.AddAsync(
+				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
-					ProfileId = profileId
+					RoleId = roleId
 				}
 			);
 		}
@@ -235,10 +235,10 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _CleanupTenantProfileArtifactsAsync(
-		IReadOnlyCollection<Guid> profileIds
+	private async Task _CleanupTenantRoleArtifactsAsync(
+		IReadOnlyCollection<Guid> roleIds
 	) {
-		if (profileIds.Count == 0) {
+		if (roleIds.Count == 0) {
 			return;
 		}
 
@@ -247,11 +247,11 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profileIdList = profileIds.ToList();
+		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountProfile
-			where profileIdList.Contains(uap.ProfileId)
+			from uap in dbContext.UserAccountRole
+			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
@@ -260,8 +260,8 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.ProfilePermission
-			where profileIdList.Contains(pp.ProfileId)
+			from pp in dbContext.RolePermission
+			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
@@ -269,15 +269,15 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 			dbContext.ForceHardDeleteRange(permissionsToRemove);
 		}
 
-		var profilesToRemove = (await (
-			from p in dbContext.Profile
+		var rolesToRemove = (await (
+			from p in dbContext.Role
 			select p
 		).ToListAsync())
-			.Where(profile => profileIdList.Contains(profile.GetRequiredId()))
+			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
-		if (profilesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(profilesToRemove);
+		if (rolesToRemove.Count > 0) {
+			dbContext.ForceHardDeleteRange(rolesToRemove);
 			await dbContext.SaveChangesAsync();
 		}
 	}

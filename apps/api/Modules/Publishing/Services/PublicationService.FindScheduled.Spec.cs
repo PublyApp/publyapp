@@ -577,7 +577,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 				anchorRow.GetRequiredId(),
 				tenantId,
 				ExternalRecordId: "at://did:plc:test/app.bsky.feed.post/test",
-				ExternalUrl: "https://bsky.app/profile/test/post/test"
+				ExternalUrl: "https://bsky.app/role/test/post/test"
 			),
 			CancellationToken.None
 		);

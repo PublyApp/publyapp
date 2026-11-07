@@ -20,7 +20,7 @@ export type TenantCreateFormValues = {
 	maxUsers: number;
 	owners: OwnerSlotValues[];
 	manualMembers: ManualMemberSlotValues[];
-	seedDefaultProfile: boolean;
+	seedDefaultRole: boolean;
 	logoUrl: string;
 	legalName: string;
 	description: string;
@@ -60,7 +60,7 @@ export const DEFAULT_VALUES: TenantCreateFormValues = {
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	owners: [{ email: '' }],
 	manualMembers: [],
-	seedDefaultProfile: true,
+	seedDefaultRole: true,
 	logoUrl: '',
 	legalName: '',
 	description: '',
@@ -76,7 +76,7 @@ const CREATE_TENANT_API_FORM_FIELDS = new Set<keyof TenantCreateFormValues>([
 	'name',
 	'code',
 	'maxUsers',
-	'seedDefaultProfile',
+	'seedDefaultRole',
 	'logoUrl',
 	'legalName',
 	'description',

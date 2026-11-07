@@ -3,7 +3,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -78,7 +78,7 @@ internal static class TenantUserMembershipOperations {
 			// Soft delete the user account
 			userAccount.IsDeleted = true;
 			userAccount.DeletedAt = DateTime.UtcNow;
-			await TenantUserMembershipOperations.RemoveUserAccountProfileLinksAsync(
+			await TenantUserMembershipOperations.RemoveUserAccountRoleLinksAsync(
 				dbContext,
 				userAccount.GetRequiredId(),
 				cancellationToken
@@ -195,7 +195,7 @@ internal static class TenantUserMembershipOperations {
 			if (succeededAccountIds.Count > 0) {
 				// TenantMembershipLockOrder step 4, batched: pin every account being removed
 				// (in a deterministic id order) before touching their junction rows, so a
-				// concurrent tenant-profile assign cannot leave a link behind a removed
+				// concurrent tenant-role assign cannot leave a link behind a removed
 				// membership.
 				await TenantMembershipLockOrder.LockUserAccountRowsAsync(
 					dbContext,
@@ -205,7 +205,7 @@ internal static class TenantUserMembershipOperations {
 
 				// Step 5: lock and materialize in one statement. This is what makes the batch
 				// see links committed while it waited, and hands back only survivors so a
-				// concurrent profile-delete cleanup cannot turn this into a tracked delete of
+				// concurrent role-delete cleanup cannot turn this into a tracked delete of
 				// an already-deleted row.
 				var links = await TenantMembershipLockOrder
 					.LockAndMaterializeLinksForAccountsAsync(
@@ -213,7 +213,7 @@ internal static class TenantUserMembershipOperations {
 						succeededAccountIds,
 						cancellationToken
 					);
-				dbContext.UserAccountProfile.RemoveRange(links);
+				dbContext.UserAccountRole.RemoveRange(links);
 			}
 
 			await dbContext.SaveChangesAsync(cancellationToken);
@@ -449,13 +449,13 @@ internal static class TenantUserMembershipOperations {
 		).AnyAsync(cancellationToken);
 	}
 
-	internal static async Task RemoveUserAccountProfileLinksAsync(
+	internal static async Task RemoveUserAccountRoleLinksAsync(
 		AppDbContext dbContext,
 		Guid userAccountId,
 		CancellationToken cancellationToken
 	) {
 		// TenantMembershipLockOrder step 4: pin the account row before touching its junction
-		// rows. Without this, a concurrent tenant-profile assign could insert a link after this
+		// rows. Without this, a concurrent tenant-role assign could insert a link after this
 		// enumeration and leave a live link behind a removed membership.
 		await TenantMembershipLockOrder.LockUserAccountRowsAsync(
 			dbContext,
@@ -463,9 +463,9 @@ internal static class TenantUserMembershipOperations {
 			cancellationToken
 		);
 
-		// Step 5: lock and materialize in one statement. UserAccountProfile is current
+		// Step 5: lock and materialize in one statement. UserAccountRole is current
 		// membership state — hard-delete links when membership is removed or restored so stale
-		// permissions cannot return. Locking here also means a concurrent profile-delete cleanup
+		// permissions cannot return. Locking here also means a concurrent role-delete cleanup
 		// hands us only survivors instead of a row it already deleted.
 		var links = await TenantMembershipLockOrder.LockAndMaterializeLinksForAccountsAsync(
 			dbContext,
@@ -473,14 +473,14 @@ internal static class TenantUserMembershipOperations {
 			cancellationToken
 		);
 
-		dbContext.UserAccountProfile.RemoveRange(links);
+		dbContext.UserAccountRole.RemoveRange(links);
 	}
 
 	private static IQueryable<UserAccount> _BuildActiveTenantAdminAccountsQuery(
 		AppDbContext dbContext,
 		Guid tenantId
 	) {
-		// "Admin" is now exactly "holds the tenant's full-access system profile".
+		// "Admin" is now exactly "holds the tenant's full-access system role".
 		// A globally suspended User cannot satisfy tenant last-admin protection,
 		// even when the tenant membership row itself is still active.
 		return FullAccessRoleQueries.ActiveTenantFullAccessAccounts(dbContext, tenantId);
@@ -498,8 +498,8 @@ internal static class TenantUserMembershipOperations {
 			IsFullAccess = await FullAccessRoleQueries.IsFullAccessAccountAsync(
 				dbContext, account.GetRequiredId(), cancellationToken),
 			Roles = await (
-				from uap in dbContext.UserAccountProfile
-				join p in dbContext.Profile on uap.ProfileId equals p.Id
+				from uap in dbContext.UserAccountRole
+				join p in dbContext.Role on uap.RoleId equals p.Id
 				where uap.UserAccountId == account.GetRequiredId() && !p.IsDeleted
 				orderby p.Name
 				select p.Name

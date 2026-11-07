@@ -31,7 +31,7 @@ public sealed class GetInvitationDetailsSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturnOkForTenantOwnerInvitationWithFullAccessProfile() {
+	ItShouldReturnOkForTenantOwnerInvitationWithFullAccessRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var inviteEmail = $"tenant-owner-{Guid.NewGuid():N}@example.com";
 
@@ -79,11 +79,11 @@ public sealed class GetInvitationDetailsSpec
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 		result.Email.Should().Be(inviteEmail);
-		result.ProfileName.Should().Be("Owner");
+		result.RoleName.Should().Be("Owner");
 	}
 
 	private sealed record InvitationDetailsResponse {
 		public string Email { get; init; } = string.Empty;
-		public string ProfileName { get; init; } = string.Empty;
+		public string RoleName { get; init; } = string.Empty;
 	}
 }

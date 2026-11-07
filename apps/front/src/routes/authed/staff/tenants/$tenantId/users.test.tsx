@@ -97,7 +97,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
-	profiles: 'Profiles',
+	roles: 'Roles',
 	invitations: 'Invitations',
 	users: 'Users',
 	members: 'Members',
@@ -399,8 +399,8 @@ describe('staff tenant users route', () => {
 		expect(screen.getByText('Owner')).toBeTruthy();
 		expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
 		expect(
-			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
+			screen.getByRole('link', { name: 'Roles' }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/roles');
 		expect(screen.getByRole('button', { name: 'Invite people' })).toBeTruthy();
 		expect(mocks.useStaffTenantUsersQuery).toHaveBeenCalledWith(
 			{

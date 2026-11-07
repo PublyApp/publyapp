@@ -183,7 +183,7 @@ const DARK_DECLARATIONS = readDeclarations('html.dark');
 
 // Round 8 M5: tokens declared on a component rule rather than in
 // :root/html.dark (e.g. `--publy-toast-accent` on `.publy-toast`,
-// `--publy-icon-tile-fg` on `.publy-profile-icon-tile[data-tone='0']`) are
+// `--publy-icon-tile-fg` on `.publy-role-icon-tile[data-tone='0']`) are
 // legitimate app declarations, and the old resolver rejected them with a
 // misleading "not declared" message. When a token is missing from both theme
 // blocks and the Tailwind theme, fall back to its FIRST declaration in
@@ -3954,7 +3954,7 @@ describe('drawer description text contrast (#1043)', () => {
 	// through the REAL pipeline now, and each must resolve the colour it
 	// actually declares — not silently null. The four class-only rules below
 	// measure their own declared colour. The two CONTEXTUAL-token classes
-	// (`publy-toast-icon`, `publy-profile-icon-tile`) declare their token on
+	// (`publy-toast-icon`, `publy-role-icon-tile`) declare their token on
 	// a VARIANT (a toast tone, a `[data-tone]` attribute) — outside that
 	// context the browser drops the `var()` and inherits the app's base
 	// colour; the source model's CONTEXTUAL_DECLARATIONS convention
@@ -3973,7 +3973,7 @@ describe('drawer description text contrast (#1043)', () => {
 		},
 	);
 
-	test.each(['publy-toast-icon', 'publy-profile-icon-tile'] as const)(
+	test.each(['publy-toast-icon', 'publy-role-icon-tile'] as const)(
 		'resolves the round-8 M5 contextual-token class %s without fail-closing',
 		async (utility) => {
 			const { light } = await resolveClassPaint([utility]);

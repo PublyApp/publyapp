@@ -45,7 +45,7 @@ const mockTenantUsers = async (page: Page) => {
 					ownersCount: 2,
 					pendingInvitationsCount: 4,
 					expiringSoonInvitationsCount: 2,
-					profilesCount: 6,
+					rolesCount: 6,
 					logoUrl: null,
 					createdAt: '2026-07-01T09:00:00Z',
 					updatedAt: '2026-07-02T10:00:00Z',

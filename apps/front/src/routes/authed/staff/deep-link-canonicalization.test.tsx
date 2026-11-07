@@ -28,7 +28,7 @@ import {
 	parseInvitationListSearchParams,
 	type InvitationListSearchParamInput,
 } from '~/routes/authed/staff/invitations/list-helpers';
-import { Route as StaffProfilesRoute } from '~/routes/authed/staff/profiles';
+import { Route as StaffRolesRoute } from '~/routes/authed/staff/roles';
 import { Route as TenantsRoute } from '~/routes/authed/staff/tenants';
 import { parseTenantListSearchParams } from '~/routes/authed/staff/tenants-list-helpers';
 import {
@@ -37,18 +37,18 @@ import {
 } from '~/routes/authed/staff/tenants/$tenantId/_users-search-params';
 import { Route as TenantInvitationsRoute } from '~/routes/authed/staff/tenants/$tenantId/invitations';
 import {
-	parseStaffTenantProfilesSearchParams,
-	Route as TenantProfilesRoute,
-	type StaffTenantProfilesSearchParamInput,
-} from '~/routes/authed/staff/tenants/$tenantId/profiles';
-import { Route as TenantProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
-import { Route as TenantProfileOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/index';
+	parseStaffTenantRolesSearchParams,
+	Route as TenantRolesRoute,
+	type StaffTenantRolesSearchParamInput,
+} from '~/routes/authed/staff/tenants/$tenantId/roles';
+import { Route as TenantRoleDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId';
+import { Route as TenantRoleOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId/index';
 import {
-	parseProfileDetailsSearchParams,
-	parseProfileOverviewSearchParams,
-	type ProfileDetailsSearchParamInput,
-	type ProfileOverviewSearchParamInput,
-} from '~/routes/authed/staff/tenants/$tenantId/profiles/_profile-details-search';
+	parseRoleDetailsSearchParams,
+	parseRoleOverviewSearchParams,
+	type RoleDetailsSearchParamInput,
+	type RoleOverviewSearchParamInput,
+} from '~/routes/authed/staff/tenants/$tenantId/roles/_role-details-search';
 import { Route as TenantUsersRoute } from '~/routes/authed/staff/tenants/$tenantId/users';
 
 // Every harness below reuses the exact production `validateSearch` function
@@ -137,15 +137,15 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		).toBe('active,suspended');
 	});
 
-	test('staff profiles: table sorting remains snake_case after validation', async () => {
+	test('staff roles: table sorting remains snake_case after validation', async () => {
 		const { router, history } = buildHarness(
-			'/staff/profiles',
-			asValidateSearch(StaffProfilesRoute),
+			'/staff/roles',
+			asValidateSearch(StaffRolesRoute),
 			(search) => ({
 				sort_id: String(search.sort_id ?? ''),
 				sort_order: String(search.sort_order ?? ''),
 			}),
-			'/staff/profiles?size=25&sort_id=name&sort_order=asc',
+			'/staff/roles?size=25&sort_id=name&sort_order=asc',
 		);
 
 		render(<RouterProvider router={router} />);
@@ -207,13 +207,13 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('invite=2');
 	});
 
-	test('tenant profiles: unrecognized is_default/view/new values are dropped from the URL', async () => {
+	test('tenant roles: unrecognized is_default/view/new values are dropped from the URL', async () => {
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles',
-			asValidateSearch(TenantProfilesRoute),
+			'/staff/tenants/$tenantId/roles',
+			asValidateSearch(TenantRolesRoute),
 			(search) => {
-				const parsed = parseStaffTenantProfilesSearchParams(
-					search as StaffTenantProfilesSearchParamInput,
+				const parsed = parseStaffTenantRolesSearchParams(
+					search as StaffTenantRolesSearchParamInput,
 				);
 				return {
 					is_default:
@@ -222,7 +222,7 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 					new: parsed.new === 1 ? 'open' : 'closed',
 				};
 			},
-			'/staff/tenants/t1/profiles?is_default=maybe&view=list&new=yes',
+			'/staff/tenants/t1/roles?is_default=maybe&view=list&new=yes',
 		);
 
 		render(<RouterProvider router={router} />);
@@ -236,77 +236,77 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('new=yes');
 	});
 
-	// #972: the LIST's `edit` param carries a profile id, so it must survive as
+	// #972: the LIST's `edit` param carries a role id, so it must survive as
 	// a raw string. A value the router's parser turns into something other than
 	// a string (an unquoted number, a boolean) cannot be an id and cannot
 	// round-trip losslessly, so it is dropped rather than re-quoted.
-	test('tenant profiles list: a real profile id survives as a raw string, non-string edit values are dropped', async () => {
-		const profileId = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
+	test('tenant roles list: a real role id survives as a raw string, non-string edit values are dropped', async () => {
+		const roleId = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles',
-			asValidateSearch(TenantProfilesRoute),
+			'/staff/tenants/$tenantId/roles',
+			asValidateSearch(TenantRolesRoute),
 			(search) => ({
 				edit:
-					parseStaffTenantProfilesSearchParams(
-						search as StaffTenantProfilesSearchParamInput,
+					parseStaffTenantRolesSearchParams(
+						search as StaffTenantRolesSearchParamInput,
 					).edit ?? 'closed',
 			}),
-			`/staff/tenants/t1/profiles?edit=${profileId}`,
+			`/staff/tenants/t1/roles?edit=${roleId}`,
 		);
 
 		render(<RouterProvider router={router} />);
 		await waitFor(() => screen.getByTestId('resolved-search'));
 
-		expect(screen.getByTestId('field-edit').textContent).toBe(profileId);
+		expect(screen.getByTestId('field-edit').textContent).toBe(roleId);
 		expect(
 			new URL(history.location.href, 'http://localhost').searchParams.get(
 				'edit',
 			),
-		).toBe(profileId);
+		).toBe(roleId);
 	});
 
 	// The two drawer-open flags on this route are mutually exclusive. A URL
 	// carrying both is not a state the UI has a meaning for, so the boundary
 	// resolves it to the one that names a specific row and drops the other.
-	test('tenant profiles list: a URL carrying both drawer flags keeps edit and drops new', async () => {
-		const profileId = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
+	test('tenant roles list: a URL carrying both drawer flags keeps edit and drops new', async () => {
+		const roleId = '0198c0de-2222-7000-8000-bbbbbbbbbbbb';
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles',
-			asValidateSearch(TenantProfilesRoute),
+			'/staff/tenants/$tenantId/roles',
+			asValidateSearch(TenantRolesRoute),
 			(search) => {
-				const parsed = parseStaffTenantProfilesSearchParams(
-					search as StaffTenantProfilesSearchParamInput,
+				const parsed = parseStaffTenantRolesSearchParams(
+					search as StaffTenantRolesSearchParamInput,
 				);
 				return {
 					edit: parsed.edit ?? 'closed',
 					new: parsed.new === 1 ? 'open' : 'closed',
 				};
 			},
-			`/staff/tenants/t1/profiles?new=1&edit=${profileId}`,
+			`/staff/tenants/t1/roles?new=1&edit=${roleId}`,
 		);
 
 		render(<RouterProvider router={router} />);
 		await waitFor(() => screen.getByTestId('resolved-search'));
 
-		expect(screen.getByTestId('field-edit').textContent).toBe(profileId);
+		expect(screen.getByTestId('field-edit').textContent).toBe(roleId);
 		expect(screen.getByTestId('field-new').textContent).toBe('closed');
 		const params = new URL(history.location.href, 'http://localhost')
 			.searchParams;
-		expect(params.get('edit')).toBe(profileId);
+		expect(params.get('edit')).toBe(roleId);
 		expect(params.has('new')).toBe(false);
 	});
 
-	test('tenant profiles list: a numeric or boolean edit value is dropped from the URL', async () => {
+	test('tenant roles list: a numeric or boolean edit value is dropped from the URL', async () => {
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles',
-			asValidateSearch(TenantProfilesRoute),
+			'/staff/tenants/$tenantId/roles',
+			asValidateSearch(TenantRolesRoute),
 			(search) => ({
 				edit:
-					parseStaffTenantProfilesSearchParams(
-						search as StaffTenantProfilesSearchParamInput,
+					parseStaffTenantRolesSearchParams(
+						search as StaffTenantRolesSearchParamInput,
 					).edit ?? 'closed',
 			}),
-			'/staff/tenants/t1/profiles?edit=5',
+			'/staff/tenants/t1/roles?edit=5',
 		);
 
 		render(<RouterProvider router={router} />);
@@ -316,17 +316,17 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('edit=');
 	});
 
-	test('tenant profile details: a non-1 edit value is dropped from the URL', async () => {
+	test('tenant role details: a non-1 edit value is dropped from the URL', async () => {
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles/$profileId',
-			asValidateSearch(TenantProfileDetailsRoute),
+			'/staff/tenants/$tenantId/roles/$roleId',
+			asValidateSearch(TenantRoleDetailsRoute),
 			(search) => {
-				const parsed = parseProfileDetailsSearchParams(
-					search as ProfileDetailsSearchParamInput,
+				const parsed = parseRoleDetailsSearchParams(
+					search as RoleDetailsSearchParamInput,
 				);
 				return { edit: parsed.edit === 1 ? 'open' : 'closed' };
 			},
-			'/staff/tenants/t1/profiles/p1?edit=2',
+			'/staff/tenants/t1/roles/p1?edit=2',
 		);
 
 		render(<RouterProvider router={router} />);
@@ -336,17 +336,17 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('edit=2');
 	});
 
-	test('tenant profile details: a "yes" edit value is dropped from the URL', async () => {
+	test('tenant role details: a "yes" edit value is dropped from the URL', async () => {
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles/$profileId',
-			asValidateSearch(TenantProfileDetailsRoute),
+			'/staff/tenants/$tenantId/roles/$roleId',
+			asValidateSearch(TenantRoleDetailsRoute),
 			(search) => {
-				const parsed = parseProfileDetailsSearchParams(
-					search as ProfileDetailsSearchParamInput,
+				const parsed = parseRoleDetailsSearchParams(
+					search as RoleDetailsSearchParamInput,
 				);
 				return { edit: parsed.edit === 1 ? 'open' : 'closed' };
 			},
-			'/staff/tenants/t1/profiles/p1?edit=yes',
+			'/staff/tenants/t1/roles/p1?edit=yes',
 		);
 
 		render(<RouterProvider router={router} />);
@@ -359,17 +359,17 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 	// #977: sections are path segments now. `?tab=` survives only on the
 	// OVERVIEW (index) route, and only long enough for that route's
 	// `beforeLoad` to redirect — an unrecognized value never persists.
-	test('tenant profile overview: an invalid tab resolves to no tab without persisting a default', async () => {
+	test('tenant role overview: an invalid tab resolves to no tab without persisting a default', async () => {
 		const { router, history } = buildHarness(
-			'/staff/tenants/$tenantId/profiles/$profileId',
-			asValidateSearch(TenantProfileOverviewRoute),
+			'/staff/tenants/$tenantId/roles/$roleId',
+			asValidateSearch(TenantRoleOverviewRoute),
 			(search) => {
-				const parsed = parseProfileOverviewSearchParams(
-					search as ProfileOverviewSearchParamInput,
+				const parsed = parseRoleOverviewSearchParams(
+					search as RoleOverviewSearchParamInput,
 				);
 				return { tab: parsed.tab ?? 'overview' };
 			},
-			'/staff/tenants/t1/profiles/p1?tab=unsupported',
+			'/staff/tenants/t1/roles/p1?tab=unsupported',
 		);
 
 		render(<RouterProvider router={router} />);
@@ -397,29 +397,29 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 	 * `beforeLoad` + the destination path, none of which depend on nesting or
 	 * on what the destination renders. The real nesting, the real bodies and
 	 * the guard interactions are covered in
-	 * `$profileId/section-routing.test.tsx`.
+	 * `$roleId/section-routing.test.tsx`.
 	 */
 	const buildLegacyTabHarness = (initialUrl: string) => {
 		const overviewRoute = createRoute({
 			getParentRoute: () => rootRoute,
-			path: '/staff/tenants/$tenantId/profiles/$profileId',
+			path: '/staff/tenants/$tenantId/roles/$roleId',
 			staticData: { crumbs: 'shell' },
-			validateSearch: asValidateSearch(TenantProfileOverviewRoute),
-			beforeLoad: asBeforeLoad(TenantProfileOverviewRoute),
+			validateSearch: asValidateSearch(TenantRoleOverviewRoute),
+			beforeLoad: asBeforeLoad(TenantRoleOverviewRoute),
 			component: () => <div data-testid="section-overview" />,
 		});
 		const permissionsRoute = createRoute({
 			getParentRoute: () => rootRoute,
-			path: '/staff/tenants/$tenantId/profiles/$profileId/permissions',
+			path: '/staff/tenants/$tenantId/roles/$roleId/permissions',
 			staticData: { crumbs: 'shell' },
-			validateSearch: asValidateSearch(TenantProfileDetailsRoute),
+			validateSearch: asValidateSearch(TenantRoleDetailsRoute),
 			component: () => <div data-testid="section-permissions" />,
 		});
 		const membersRoute = createRoute({
 			getParentRoute: () => rootRoute,
-			path: '/staff/tenants/$tenantId/profiles/$profileId/members',
+			path: '/staff/tenants/$tenantId/roles/$roleId/members',
 			staticData: { crumbs: 'shell' },
-			validateSearch: asValidateSearch(TenantProfileDetailsRoute),
+			validateSearch: asValidateSearch(TenantRoleDetailsRoute),
 			component: () => <div data-testid="section-members" />,
 		});
 		const routeTree = rootRoute.addChildren([
@@ -432,31 +432,31 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		return { router: createRouter({ routeTree, history }), history };
 	};
 
-	test('tenant profile details: a legacy ?tab=permissions link redirects to the permissions path and drops the param', async () => {
+	test('tenant role details: a legacy ?tab=permissions link redirects to the permissions path and drops the param', async () => {
 		const { router, history } = buildLegacyTabHarness(
-			'/staff/tenants/t1/profiles/p1?tab=permissions',
+			'/staff/tenants/t1/roles/p1?tab=permissions',
 		);
 
 		render(<RouterProvider router={router} />);
 
 		await waitFor(() => screen.getByTestId('section-permissions'));
 		expect(history.location.pathname).toBe(
-			'/staff/tenants/t1/profiles/p1/permissions',
+			'/staff/tenants/t1/roles/p1/permissions',
 		);
 		expect(history.location.href).not.toContain('tab=');
 		expect(screen.queryByTestId('section-overview')).toBeNull();
 	});
 
-	test('tenant profile details: a legacy ?tab=members link redirects to the members path, keeping ?edit=1', async () => {
+	test('tenant role details: a legacy ?tab=members link redirects to the members path, keeping ?edit=1', async () => {
 		const { router, history } = buildLegacyTabHarness(
-			'/staff/tenants/t1/profiles/p1?tab=members&edit=1',
+			'/staff/tenants/t1/roles/p1?tab=members&edit=1',
 		);
 
 		render(<RouterProvider router={router} />);
 
 		await waitFor(() => screen.getByTestId('section-members'));
 		expect(history.location.pathname).toBe(
-			'/staff/tenants/t1/profiles/p1/members',
+			'/staff/tenants/t1/roles/p1/members',
 		);
 		const params = new URL(history.location.href, 'http://localhost')
 			.searchParams;
@@ -466,9 +466,9 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(params.get('edit')).toBe('1');
 	});
 
-	test('tenant profile details: the legacy redirect replaces its history entry, so Back does not bounce through it', async () => {
+	test('tenant role details: the legacy redirect replaces its history entry, so Back does not bounce through it', async () => {
 		const { router, history } = buildLegacyTabHarness(
-			'/staff/tenants/t1/profiles/p1?tab=permissions',
+			'/staff/tenants/t1/roles/p1?tab=permissions',
 		);
 
 		render(<RouterProvider router={router} />);

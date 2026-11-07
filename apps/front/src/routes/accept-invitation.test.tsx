@@ -18,7 +18,7 @@ type InvitationLoaderData =
 			view: 'valid';
 			token: string;
 			email: string;
-			profileName: string;
+			roleName: string;
 			userExists: boolean;
 	  };
 
@@ -26,7 +26,7 @@ const VALID_LOADER_DATA: InvitationLoaderData = {
 	view: 'valid',
 	token: 'tok',
 	email: 'jordan@latticecloud.com',
-	profileName: 'Editor',
+	roleName: 'Editor',
 	userExists: false,
 };
 /** Problem payload shape the suite feeds `currentUserQuery.error`; the
@@ -127,7 +127,7 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 
 const EN_LABELS: TestLabelMap = {
 	'invited-email': 'Invited email',
-	profile: 'Profile',
+	role: 'Role',
 	'common-loading': 'Loading...',
 	'create-your-account': 'Create your account',
 	'accept-invitation-new-user-description':
@@ -750,11 +750,11 @@ describe('accept-invitation loader', () => {
 		).resolves.toEqual({ view: 'invalid' });
 	});
 
-	test('returns the valid view with the token, email, profile, and userExists flag', async () => {
+	test('returns the valid view with the token, email, role, and userExists flag', async () => {
 		mocks.loadInvitationInfo.mockResolvedValue({
 			ok: true,
 			email: 'jordan@latticecloud.com',
-			profileName: 'Editor',
+			roleName: 'Editor',
 			userExists: true,
 		});
 
@@ -764,7 +764,7 @@ describe('accept-invitation loader', () => {
 			view: 'valid',
 			token: 'tok',
 			email: 'jordan@latticecloud.com',
-			profileName: 'Editor',
+			roleName: 'Editor',
 			userExists: true,
 		});
 	});

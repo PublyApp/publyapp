@@ -129,8 +129,8 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			select inv;
 
 		return await invitationQuery
-			.Include(inv => inv.InvitationProfiles)
-			.ThenInclude(ip => ip.Profile)
+			.Include(inv => inv.InvitationRoles)
+			.ThenInclude(ip => ip.Role)
 			.FirstOrDefaultAsync(cancellationToken);
 	}
 
@@ -167,12 +167,12 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 
 		var invitation = invitationWithInviter.Invitation;
 
-		// Load profiles for the invitation
-		var profiles = await (
-			from ip in this._DbContext.InvitationProfile.AsNoTracking()
+		// Load roles for the invitation
+		var roles = await (
+			from ip in this._DbContext.InvitationRole.AsNoTracking()
 			where ip.InvitationId == invitationId
-			join p in this._DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
-			select new StaffInvitationProfileInfo {
+			join p in this._DbContext.Role.AsNoTracking() on ip.RoleId equals p.Id
+			select new StaffInvitationRoleInfo {
 				Id = p.Id ?? Guid.Empty,
 				Name = p.Name
 			}
@@ -195,7 +195,7 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			CreatedAt = invitation.CreatedAt,
 			InvitedByName = inviterName,
 			InvitedByUserId = invitation.InvitedByUserId,
-			Profiles = profiles
+			Roles = roles
 		};
 	}
 
@@ -358,44 +358,44 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			nextCursor = results.Last().Invitation.GetRequiredId().ToString();
 		}
 
-		// Load profile names separately to avoid duplicating invitation rows.
+		// Load role names separately to avoid duplicating invitation rows.
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
-		var profileQuery =
-			from ip in this._DbContext.InvitationProfile.AsNoTracking()
+		var roleQuery =
+			from ip in this._DbContext.InvitationRole.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in this._DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
+			join p in this._DbContext.Role.AsNoTracking() on ip.RoleId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
-				Profile = new StaffInvitationProfileInfo {
+				Role = new StaffInvitationRoleInfo {
 					Id = p.Id ?? Guid.Empty,
 					Name = p.Name
 				}
 			};
 
-		var profileRows = await profileQuery.ToListAsync(cancellationToken);
-		var profilesByInvitation = profileRows
+		var roleRows = await roleQuery.ToListAsync(cancellationToken);
+		var rolesByInvitation = roleRows
 			.GroupBy(item => item.InvitationId)
 			.ToDictionary(
 				group => group.Key,
-				group => group.Select(item => item.Profile).ToList()
+				group => group.Select(item => item.Role).ToList()
 			);
 
-		var profileNamesByInvitation = profilesByInvitation
+		var roleNamesByInvitation = rolesByInvitation
 			.ToDictionary(
 				group => group.Key,
-				group => string.Join(", ", group.Value.Select(profile => profile.Name))
+				group => string.Join(", ", group.Value.Select(role => role.Name))
 			);
 
 		var invitationItems = results.Select(r => {
 			var invitationId = r.Invitation.GetRequiredId();
-			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
+			var roleName = roleNamesByInvitation.TryGetValue(invitationId, out var name)
 				? name
 				: string.Empty;
 			return new InvitationListItem {
 				Id = invitationId,
 				Email = r.Invitation.Email,
 				Scope = "Staff",
-				ProfileName = profileName,
+				RoleName = roleName,
 				Status = Invitation.GetEffectiveStatus(
 					r.Invitation.Status,
 					r.Invitation.ExpiresAt,
@@ -528,47 +528,47 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		}
 
 		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
-		var profileRowsQuery =
-			from ip in this._DbContext.InvitationProfile.AsNoTracking()
+		var roleRowsQuery =
+			from ip in this._DbContext.InvitationRole.AsNoTracking()
 			where invitationIds.Contains(ip.InvitationId)
-			join p in this._DbContext.Profile.AsNoTracking() on ip.ProfileId equals p.Id
+			join p in this._DbContext.Role.AsNoTracking() on ip.RoleId equals p.Id
 			select new {
 				InvitationId = ip.InvitationId,
-				Profile = new StaffInvitationProfileInfo {
+				Role = new StaffInvitationRoleInfo {
 					Id = p.Id ?? Guid.Empty,
 					Name = p.Name
 				}
 			};
 
-		var profileRows = await profileRowsQuery.ToListAsync(cancellationToken);
-		var profilesByInvitation = profileRows
+		var roleRows = await roleRowsQuery.ToListAsync(cancellationToken);
+		var rolesByInvitation = roleRows
 			.GroupBy(item => item.InvitationId)
 			.ToDictionary(
 				group => group.Key,
-				group => group.Select(item => item.Profile).ToList()
+				group => group.Select(item => item.Role).ToList()
 			);
 
-		var profileNamesByInvitation = profileRows
+		var roleNamesByInvitation = roleRows
 			.GroupBy(item => item.InvitationId)
 			.ToDictionary(
 				group => group.Key,
-				group => string.Join(", ", group.Select(item => item.Profile.Name))
+				group => string.Join(", ", group.Select(item => item.Role.Name))
 			);
 
 		var invitationItems = results.Select(r => {
 			var invitationId = r.Invitation.GetRequiredId();
-			var profiles = profilesByInvitation.TryGetValue(invitationId, out var foundProfiles)
-				? foundProfiles
+			var roles = rolesByInvitation.TryGetValue(invitationId, out var foundRoles)
+				? foundRoles
 				: [];
-			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name)
+			var roleName = roleNamesByInvitation.TryGetValue(invitationId, out var name)
 				? name
 				: null;
 			return new StaffTenantInvitationListItem {
 				Id = invitationId,
 				Email = r.Invitation.Email,
 				Scope = "Tenant",
-				ProfileName = profileName,
-				Profiles = profiles,
+				RoleName = roleName,
+				Roles = roles,
 				Status = Invitation.GetEffectiveStatus(
 					r.Invitation.Status,
 					r.Invitation.ExpiresAt,

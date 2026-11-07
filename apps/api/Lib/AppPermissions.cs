@@ -10,8 +10,8 @@ using PublyApp.Api.Modules.Media.Permissions;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Permissions;
 using PublyApp.Api.Modules.Posts.Permissions;
-using PublyApp.Api.Modules.Profiles.Permissions;
 using PublyApp.Api.Modules.Projects.Permissions;
+using PublyApp.Api.Modules.Roles.Permissions;
 using PublyApp.Api.Modules.Settings.Permissions;
 using PublyApp.Api.Modules.SocialAccounts.Permissions;
 using PublyApp.Api.Modules.SystemNotices.Permissions;
@@ -34,7 +34,7 @@ public class StaffScopePermissions : IScopePermissions {
 	public UserPermissionsForStaff Users { get; } = new UserPermissionsForStaff();
 	public InvitationPermissionsForStaff Invitations { get; } = new InvitationPermissionsForStaff();
 	public TenantPermissionsForStaff Tenants { get; } = new TenantPermissionsForStaff();
-	public ProfilePermissionsForStaff Profiles { get; } = new ProfilePermissionsForStaff();
+	public RolePermissionsForStaff Roles { get; } = new RolePermissionsForStaff();
 	public PermissionPermissionsForStaff Permissions { get; } = new PermissionPermissionsForStaff();
 	public SystemNoticePermissionsForStaff SystemNotices { get; } = new SystemNoticePermissionsForStaff();
 	public AuditLogPermissionsForStaff AuditLogs { get; } = new AuditLogPermissionsForStaff();
@@ -51,10 +51,10 @@ public class TenantScopePermissions : IScopePermissions {
 	public TenantModulePermissionsForTenant Modules { get; } = new TenantModulePermissionsForTenant();
 
 	// Fine-grained, domain-first tenant capability catalog. Seeded data only; the
-	// staff tenant-profile permission matrix renders one group per slice KeyPrefix.
+	// staff tenant-role permission matrix renders one group per slice KeyPrefix.
 	// Several slices live in permissions-only module folders whose feature code is
 	// not yet built (Posts, Media, Calendar, Channels, Approvals, Analytics,
-	// Settings, Billing) — the keys exist so profiles can be configured ahead of
+	// Settings, Billing) — the keys exist so roles can be configured ahead of
 	// the features shipping.
 	public PostPermissionsForTenant Posts { get; } = new PostPermissionsForTenant();
 	public ProjectPermissionsForTenant Projects { get; } = new ProjectPermissionsForTenant();
@@ -65,7 +65,7 @@ public class TenantScopePermissions : IScopePermissions {
 	public AnalyticsPermissionsForTenant Analytics { get; } = new AnalyticsPermissionsForTenant();
 	public MemberPermissionsForTenant Members { get; } = new MemberPermissionsForTenant();
 	public InvitationPermissionsForTenant Invitations { get; } = new InvitationPermissionsForTenant();
-	public ProfilePermissionsForTenant Profiles { get; } = new ProfilePermissionsForTenant();
+	public RolePermissionsForTenant Roles { get; } = new RolePermissionsForTenant();
 	public SettingsPermissionsForTenant Settings { get; } = new SettingsPermissionsForTenant();
 	public BillingPermissionsForTenant Billing { get; } = new BillingPermissionsForTenant();
 	public AuditLogPermissionsForTenant AuditLogs { get; } = new AuditLogPermissionsForTenant();

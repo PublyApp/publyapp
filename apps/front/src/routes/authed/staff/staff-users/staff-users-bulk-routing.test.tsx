@@ -90,10 +90,10 @@ vi.mock('../_staff-list-team', async (importOriginal) => {
 	return {
 		...actual,
 		useStaffTeamOverview: () => ({
-			counts: { staff: 10, invitations: 10, profiles: 7 },
+			counts: { staff: 10, invitations: 10, roles: 7 },
 			staff: [],
 			invitations: [],
-			profiles: [],
+			roles: [],
 		}),
 	};
 });
@@ -312,7 +312,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 					roles: item.roles,
 					status: item.status,
 					displayName: `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim(),
-					profileNames: [],
+					roleNames: [],
 				})),
 		);
 		mocks.useStaffUsersQuery.mockImplementation(() =>

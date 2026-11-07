@@ -1292,9 +1292,7 @@
 		transform: translateX(200%);
 	}
 
-	.publy-landing
-		[data-active-tab='profiles']
-		.publy-landing-tour-rail-indicator {
+	.publy-landing [data-active-tab='roles'] .publy-landing-tour-rail-indicator {
 		transform: translateX(300%);
 	}
 

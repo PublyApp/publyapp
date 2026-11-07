@@ -72,7 +72,7 @@ export const DetailItem = ({
 type TenantSectionTo =
 	| '/staff/tenants/$tenantId'
 	| '/staff/tenants/$tenantId/users'
-	| '/staff/tenants/$tenantId/profiles'
+	| '/staff/tenants/$tenantId/roles'
 	| '/staff/tenants/$tenantId/invitations'
 	| '/staff/tenants/$tenantId/usage'
 	| '/staff/tenants/$tenantId/activity';
@@ -186,7 +186,7 @@ export const TenantDetailsError = ({
 
 /** 500-style view for a tenant query that succeeded but returned a payload
  * `toStaffTenantDetails` cannot interpret (missing/incomplete response).
- * Shared by the Basics/Profiles/Users/Invitations tab routes so each route
+ * Shared by the Basics/Roles/Users/Invitations tab routes so each route
  * file stays under its size budget; identical markup and i18n keys to the
  * previous per-route copies. */
 export const TenantDetailsIncomplete = ({
@@ -221,7 +221,7 @@ export const TenantDetailsPageShell = ({
 	tenant: StaffTenantDetails;
 	activeSection:
 		| 'basics'
-		| 'profiles'
+		| 'roles'
 		| 'users'
 		| 'invitations'
 		| 'usage'
@@ -230,16 +230,16 @@ export const TenantDetailsPageShell = ({
 	children: ReactNode;
 	/**
 	 * Free-form description line rendered under the tabs. The redesigned
-	 * Basics/Profiles/Invitations/Users tab routes (handoff 2c/3b) get their
+	 * Basics/Roles/Invitations/Users tab routes (handoff 2c/3b) get their
 	 * description from the identity header's meta line and omit this prop;
-	 * out-of-scope create/invite/edit routes for profiles/invitations/users
+	 * out-of-scope create/invite/edit routes for roles/invitations/users
 	 * still pass it until their own packet restyles them.
 	 */
 	summary?: string;
 	/**
 	 * 'page' (default): the shell grows with its content and `.app-shell-main`
 	 * owns scrolling — correct for card grids and free-flowing content
-	 * (Basics, Profiles). 'contained': the shell is height-bound to
+	 * (Basics, Roles). 'contained': the shell is height-bound to
 	 * `.app-shell-main` and the tab body becomes a `min-h-0` flex column, so a
 	 * `DataTable` inside it owns its own scroll instead of the page (Users,
 	 * Invitations) — see docs/guides/front/conventions.md "tables own their
@@ -329,10 +329,10 @@ export const TenantDetailsPageShell = ({
 					isActive={activeSection === 'basics'}
 				/>
 				<SectionNavLink
-					label={t('profiles')}
-					to="/staff/tenants/$tenantId/profiles"
+					label={t('roles')}
+					to="/staff/tenants/$tenantId/roles"
 					tenantId={tenant.id}
-					isActive={activeSection === 'profiles'}
+					isActive={activeSection === 'roles'}
 				/>
 				<SectionNavLink
 					label={t('invitations')}

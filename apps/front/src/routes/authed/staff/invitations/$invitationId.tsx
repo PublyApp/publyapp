@@ -311,18 +311,18 @@ const InvitationDetailsCard = ({
 						value={invitation.email.trim()}
 					/>
 				) : null}
-				{invitation.profiles && invitation.profiles.length > 0 ? (
+				{invitation.roles && invitation.roles.length > 0 ? (
 					<DetailField
-						label={t('common:profiles')}
+						label={t('common:roles')}
 						value={
 							<div className="flex flex-wrap gap-2">
-								{invitation.profiles.map((profile) => (
+								{invitation.roles.map((role) => (
 									<Badge
 										variant="outline"
-										key={`${String(profile.id ?? '')}:${profile.name ?? ''}`}
+										key={`${String(role.id ?? '')}:${role.name ?? ''}`}
 										className="h-auto rounded-[var(--publy-radius-chip)] border-none bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
 									>
-										{profile.name?.trim() || t('common:unnamed-profile')}
+										{role.name?.trim() || t('common:unnamed-role')}
 									</Badge>
 								))}
 							</div>

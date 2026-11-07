@@ -14,7 +14,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
@@ -44,7 +44,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 
 	[Fact]
 	public async Task
-	ItShouldCreatePendingTenantDefaultProfileInvitationsAndEmails() {
+	ItShouldCreatePendingTenantDefaultRoleInvitationsAndEmails() {
 		var fakeEmailSender = this._Fixture.GetFakeEmailSender();
 
 		var token =
@@ -98,40 +98,40 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 		tenant.MaxUsers.Should().Be(3);
 		tenant.Status.Should().Be(TenantStatus.Pending);
 
-		var defaultProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.TenantId == created.Id
-				&& profile.Scope == ProfileScope.Tenant
-				&& profile.IsDefault
+		var defaultRole = await dbContext.Role
+			.Where(role =>
+				role.TenantId == created.Id
+				&& role.Scope == RoleScope.Tenant
+				&& role.IsDefault
 			)
 			.SingleAsync();
-		defaultProfile.Name.Should().Be("Default profile");
+		defaultRole.Name.Should().Be("Default role");
 
 		var invitations = await dbContext.Invitation
 			.Where(invitation =>
 				invitation.TenantId == created.Id
 				&& invitation.Scope == InvitationScope.Tenant
 			)
-			.Include(invitation => invitation.InvitationProfiles)
+			.Include(invitation => invitation.InvitationRoles)
 			.ToListAsync();
 
 		invitations.Should().HaveCount(2);
 
-		var ownerProfileId = await FullAccessProfileTestHelper.EnsureTenantProfileAsync(
+		var ownerRoleId = await FullAccessRoleTestHelper.EnsureTenantRoleAsync(
 			dbContext,
 			created.Id
 		);
 
 		var ownerInvitation = invitations.Single(inv => inv.Email == adminEmail);
 		ownerInvitation.Status.Should().Be(InvitationStatus.Pending);
-		ownerInvitation.InvitationProfiles.Should().ContainSingle(link =>
-			link.ProfileId == ownerProfileId
+		ownerInvitation.InvitationRoles.Should().ContainSingle(link =>
+			link.RoleId == ownerRoleId
 		);
 
 		var userInvitation = invitations.Single(inv => inv.Email == userEmail);
 		userInvitation.Status.Should().Be(InvitationStatus.Pending);
-		userInvitation.InvitationProfiles.Should().ContainSingle(link =>
-			link.ProfileId == defaultProfile.GetRequiredId()
+		userInvitation.InvitationRoles.Should().ContainSingle(link =>
+			link.RoleId == defaultRole.GetRequiredId()
 		);
 
 		var outboxRows = await dbContext.InvitationEmailOutbox

@@ -26,7 +26,7 @@ export const getStaffUserEditSchema = (t: (key: string) => string) =>
 			}, t('staff-users:invalid-url')),
 		email: z.string().trim().pipe(z.email()).or(z.literal('')),
 		status: z.enum(STATUS_OPTIONS),
-		profileIds: z.array(z.string()),
+		roleIds: z.array(z.string()),
 	});
 
 export type StaffUserEditValues = z.infer<
@@ -38,4 +38,4 @@ export const normalizeStatus = (
 ): StaffUserEditValues['status'] =>
 	value === 'Suspended' ? 'Suspended' : 'Active';
 
-export const PROFILE_PAGE_SIZE = 20;
+export const ROLE_PAGE_SIZE = 20;

@@ -45,9 +45,9 @@ public class PermissionFilter : IEndpointFilter {
 			(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
 			|| this._CustomPermissionChecker is not null
 		) {
-			// Full access is the seeded system profile, materialised by PermissionService as
+			// Full access is the seeded system role, materialised by PermissionService as
 			// the wildcard sentinel. It is the ONLY bypass: every other caller is checked
-			// against the permissions their profiles grant.
+			// against the permissions their roles grant.
 			var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
 
 			if (userPermissions.Contains(PermissionService.WildcardPermission)) {

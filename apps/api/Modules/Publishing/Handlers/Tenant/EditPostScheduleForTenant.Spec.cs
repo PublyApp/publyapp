@@ -122,7 +122,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 				)
 				.SetProperty(
 					p => p.ExternalUrl,
-					(string?)"https://bsky.app/profile/x/post/stale"
+					(string?)"https://bsky.app/role/x/post/stale"
 				));
 
 		using var request =

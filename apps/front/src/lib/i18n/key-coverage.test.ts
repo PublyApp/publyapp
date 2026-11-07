@@ -1667,7 +1667,7 @@ describe('i18n key coverage', () => {
 			[
 				'export type NavItem = { labelKey: string };',
 				"const name = 'x';",
-				'export const dynamic = { labelKey: `profile-icon-${name}` };',
+				'export const dynamic = { labelKey: `role-icon-${name}` };',
 			].join('\n'),
 			'canary.ts',
 			usagesByKey,

@@ -13,10 +13,10 @@ import {
 	type StaffInvitationsQueryVariables,
 } from '~/lib/query/staff-invitations';
 import {
-	STAFF_PROFILES_QUERY_KEY,
-	staffProfilesQueryOptions,
-	type StaffProfilesQueryVariables,
-} from '~/lib/query/staff-profiles';
+	STAFF_ROLES_QUERY_KEY,
+	staffRolesQueryOptions,
+	type StaffRolesQueryVariables,
+} from '~/lib/query/staff-roles';
 import {
 	STAFF_USERS_QUERY_KEY,
 	staffUsersQueryOptions,
@@ -30,12 +30,12 @@ import type {
 import { scopedKey } from '@org/shared-ts/lib/query/create-hooks';
 import type { QueryArgumentRecord } from '@org/shared-ts/lib/query/keys';
 
-export type StaffTeamSection = 'staff' | 'invitations' | 'profiles' | 'audit';
+export type StaffTeamSection = 'staff' | 'invitations' | 'roles' | 'audit';
 
 export type StaffTeamPath =
 	| '/staff/staff-users'
 	| '/staff/invitations'
-	| '/staff/profiles'
+	| '/staff/roles'
 	| '/staff/audit-logs';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -44,13 +44,13 @@ export type StaffTeamOverview = {
 	counts: {
 		staff: number | null;
 		invitations: number | null;
-		profiles: number | null;
+		roles: number | null;
 	};
 	/** Whole-collection facets behind the StatCards (never the page filters). */
 	staffCounts: StaffUserListCounts | null;
 	invitationCounts: StaffInvitationListCounts | null;
-	/** Every staff profile with its assignment count (the panel's Profils). */
-	profiles: { id: string; name: string; memberCount: number }[];
+	/** Every staff role with its assignment count (the panel's Profils). */
+	roles: { id: string; name: string; memberCount: number }[];
 };
 
 /**
@@ -69,7 +69,7 @@ export type StaffTeamOverview = {
 export type StaffTeamOverviewQueries = {
 	staff?: StaffUsersQueryVariables;
 	invitations?: StaffInvitationsQueryVariables;
-	profiles?: StaffProfilesQueryVariables;
+	roles?: StaffRolesQueryVariables;
 };
 
 /**
@@ -82,7 +82,7 @@ export type StaffTeamOverviewQueries = {
 export const STAFF_TEAM_COUNT_VARIABLES = {
 	staff: { size: 1 },
 	invitations: { size: 1 },
-	profiles: { limit: 100 },
+	roles: { limit: 100 },
 } as const satisfies Required<StaffTeamOverviewQueries>;
 
 /**
@@ -96,7 +96,7 @@ const STAFF_TEAM_COUNT_STALE_TIME = Infinity;
 const STAFF_TEAM_COUNT_QUERY_KEYS = {
 	staff: STAFF_USERS_QUERY_KEY,
 	invitations: STAFF_INVITATIONS_QUERY_KEY,
-	profiles: STAFF_PROFILES_QUERY_KEY,
+	roles: STAFF_ROLES_QUERY_KEY,
 } as const;
 
 /** The canonical counter entry, identical to the key the page list builds for
@@ -112,7 +112,7 @@ export const staffTeamCountQueryKey = (
 /**
  * The API facets the FILTERED collection before cursor, ordering and page size
  * (`InvitationQueryService` « Facets over the whole filtered collection »,
- * `StaffUserQueryService`, `StaffProfileQueryAsStaffService`), so only these
+ * `StaffUserQueryService`, `StaffRoleQueryAsStaffService`), so only these
  * variables leave `counts`/`totalCount` untouched. Anything else that carries
  * a value — `q`, `status`, `level`, … — is a filter or a search: that response
  * is a slice of the collection and must never be published as the counter.
@@ -198,7 +198,7 @@ const useStaffCounterSection = <TData, TVariables extends QueryArgumentRecord>(
 export const useStaffTeamOverview = ({
 	staff,
 	invitations,
-	profiles,
+	roles,
 }: StaffTeamOverviewQueries = {}): StaffTeamOverview => {
 	const staffData = useStaffCounterSection(
 		'staff',
@@ -212,28 +212,28 @@ export const useStaffTeamOverview = ({
 		invitations,
 		STAFF_TEAM_COUNT_VARIABLES.invitations,
 	);
-	const profilesData = useStaffCounterSection(
-		'profiles',
-		staffProfilesQueryOptions,
-		profiles,
-		STAFF_TEAM_COUNT_VARIABLES.profiles,
+	const rolesData = useStaffCounterSection(
+		'roles',
+		staffRolesQueryOptions,
+		roles,
+		STAFF_TEAM_COUNT_VARIABLES.roles,
 	);
 
 	return {
 		counts: {
 			staff: staffData?.totalCount ?? null,
 			invitations: invitationsData?.totalCount ?? null,
-			profiles: profilesData?.totalCount ?? null,
+			roles: rolesData?.totalCount ?? null,
 		},
 		staffCounts: staffData?.counts ?? null,
 		invitationCounts: invitationsData?.counts ?? null,
-		profiles: (profilesData?.data ?? []).flatMap((profile) =>
-			profile.id
+		roles: (rolesData?.data ?? []).flatMap((role) =>
+			role.id
 				? [
 						{
-							id: profile.id,
-							name: profile.name ?? '',
-							memberCount: profile.userAccountCount ?? 0,
+							id: role.id,
+							name: role.name ?? '',
+							memberCount: role.userAccountCount ?? 0,
 						},
 					]
 				: [],
@@ -271,12 +271,12 @@ export const buildStaffTeamPanelGroups = (
 				onClick: () => onSelect('/staff/invitations'),
 			},
 			{
-				key: 'profiles',
-				label: t('nav-staff-profiles'),
+				key: 'roles',
+				label: t('nav-staff-roles'),
 				icon: <IconShieldLock />,
-				count: counts.profiles,
-				active: current === 'profiles',
-				onClick: () => onSelect('/staff/profiles'),
+				count: counts.roles,
+				active: current === 'roles',
+				onClick: () => onSelect('/staff/roles'),
 			},
 			{
 				key: 'audit',
@@ -291,26 +291,26 @@ export const buildStaffTeamPanelGroups = (
 ];
 
 /**
- * The staff list's « Profils » shortcuts: every staff profile with its
+ * The staff list's « Profils » shortcuts: every staff role with its
  * assignment count, as the prototype's panel. The staff-list API exposes no
- * profile facet, so an entry opens the profile's own member list rather than
+ * role facet, so an entry opens the role's own member list rather than
  * pretending to filter rows it cannot see.
  */
-export const buildStaffProfilesPanelGroup = (
+export const buildStaffRolesPanelGroup = (
 	t: Translate,
-	profiles: StaffTeamOverview['profiles'],
-	onSelect: (profileId: string) => void,
+	roles: StaffTeamOverview['roles'],
+	onSelect: (roleId: string) => void,
 ): ListPanelGroup[] => [
 	{
-		key: 'staff-profiles',
-		title: t('profiles'),
-		entries: profiles.map((profile) => ({
-			key: `profile:${profile.id}`,
-			label: profile.name,
+		key: 'staff-roles',
+		title: t('roles'),
+		entries: roles.map((role) => ({
+			key: `role:${role.id}`,
+			label: role.name,
 			icon: <IconShieldLock />,
-			count: profile.memberCount,
+			count: role.memberCount,
 			active: false,
-			onClick: () => onSelect(profile.id),
+			onClick: () => onSelect(role.id),
 		})),
 	},
 ];

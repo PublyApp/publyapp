@@ -99,7 +99,7 @@ describe('useOffsetPageClamp — reset is detected on the FIRST render after a r
 		expect(consumer.renders[0]).toBe(5);
 
 		// The destination query is already warm (count 25, last index 1) and a
-		// resetKeys change lands (filter/tenant/profile navigation). The reset
+		// resetKeys change lands (filter/tenant/role navigation). The reset
 		// must win on this first change render: the hook returns 0, so the
 		// caller's setPageIndex(0) commits before paint.
 		const { firstRender } = consumer.rerender({

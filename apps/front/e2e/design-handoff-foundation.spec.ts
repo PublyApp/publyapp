@@ -164,7 +164,7 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 						{
 							id: '0197b8f0-1111-7aaa-8aaa-aaaaaaaaaaaa',
 							email: 'member@example.com',
-							profileName: 'Admin',
+							roleName: 'Admin',
 							status: 'Pending',
 							expiresAt: '2026-07-09T12:00:00Z',
 							acceptedAt: null,

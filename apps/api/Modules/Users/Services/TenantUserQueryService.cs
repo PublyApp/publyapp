@@ -142,10 +142,10 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			.AsNoTracking()
 			.Where(x => x.TenantId == tenantId
 				&& x.Scope == AccountScope.Tenant),
-		keySelector: x => this._DbContext.UserAccountProfile.Any(uap =>
+		keySelector: x => this._DbContext.UserAccountRole.Any(uap =>
 			uap.UserAccountId == x.Id
-			&& !uap.Profile.IsDeleted
-			&& uap.Profile.IsFullAccess),
+			&& !uap.Role.IsDeleted
+			&& uap.Role.IsFullAccess),
 		idSelector: x => x.UserId,
 		cancellationToken
 	),
@@ -241,13 +241,13 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			.Select(ua => new TenantUserData {
 				User = ua.User,
 				Account = ua,
-				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+				IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 					uap.UserAccountId == ua.Id
-					&& !uap.Profile.IsDeleted
-					&& uap.Profile.IsFullAccess),
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess),
 				Roles = (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					from uap in this._DbContext.UserAccountRole
+					join p in this._DbContext.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == ua.Id && !p.IsDeleted
 					orderby p.Name
 					select p.Name
@@ -286,13 +286,13 @@ public class TenantUserQueryService : ITenantUserQueryService {
 			select new TenantUserData {
 				User = ua.User,
 				Account = ua,
-				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+				IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 					uap.UserAccountId == ua.Id
-					&& !uap.Profile.IsDeleted
-					&& uap.Profile.IsFullAccess),
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess),
 				Roles = (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					from uap in this._DbContext.UserAccountRole
+					join p in this._DbContext.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == ua.Id && !p.IsDeleted
 					orderby p.Name
 					select p.Name
@@ -327,16 +327,16 @@ public class TenantUserQueryService : ITenantUserQueryService {
 				FirstName = ua.User.FirstName,
 				LastName = ua.User.LastName,
 				Roles = (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					from uap in this._DbContext.UserAccountRole
+					join p in this._DbContext.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == ua.Id && !p.IsDeleted
 					orderby p.Name
 					select p.Name
 				).ToList(),
-				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+				IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 					uap.UserAccountId == ua.Id
-					&& !uap.Profile.IsDeleted
-					&& uap.Profile.IsFullAccess),
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess),
 				Status = UserAccount.GetTenantStatus(ua.User.Status, ua.Status),
 				CreatedAt = ua.User.CreatedAt,
 			}

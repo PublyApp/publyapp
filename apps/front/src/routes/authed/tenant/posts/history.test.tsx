@@ -188,7 +188,7 @@ const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	accountLabel: '@team.publyapp.dev',
 	postExcerpt: 'Hello world',
 	status: 'published',
-	externalUrl: 'https://bsky.app/profile/team.publyapp.dev/post/1',
+	externalUrl: 'https://bsky.app/role/team.publyapp.dev/post/1',
 	lastError: null,
 	failureCategory: null,
 	attempts: 0,
@@ -286,7 +286,7 @@ describe('TenantPostsHistoryPage', () => {
 
 		const link = screen.getByTestId('tenant-posts-history-link');
 		expect(link.getAttribute('href')).toBe(
-			'https://bsky.app/profile/team.publyapp.dev/post/1',
+			'https://bsky.app/role/team.publyapp.dev/post/1',
 		);
 		expect(link.getAttribute('target')).toBe('_blank');
 		expect(link.getAttribute('rel')).toContain('noopener');
@@ -328,7 +328,7 @@ describe('TenantPostsHistoryPage', () => {
 				status: 'paused',
 				externalUrl: null,
 				failureCategory: 'needs_review',
-				lastError: 'Check your profile',
+				lastError: 'Check your role',
 			}),
 		];
 		render(<TenantPostsHistoryPage />);
@@ -354,7 +354,7 @@ describe('TenantPostsHistoryPage', () => {
 		});
 	});
 
-	test('Retry on a needs-review row asks first, warns about a duplicate and links the profile', () => {
+	test('Retry on a needs-review row asks first, warns about a duplicate and links the role', () => {
 		mocks.rows = [
 			row({
 				id: 'pub-8',
@@ -368,7 +368,7 @@ describe('TenantPostsHistoryPage', () => {
 
 		expect(
 			screen
-				.getByTestId('tenant-posts-publication-profile-link')
+				.getByTestId('tenant-posts-publication-role-link')
 				.getAttribute('href'),
 		).toBe('https://social.example/@me');
 		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -688,7 +688,7 @@ describe('TenantPostsHistoryPage', () => {
 		// the live post from the history row.
 		const link = screen.getByTestId('tenant-posts-history-link');
 		expect(link.getAttribute('href')).toBe(
-			'https://bsky.app/profile/team.publyapp.dev/post/1',
+			'https://bsky.app/role/team.publyapp.dev/post/1',
 		);
 		expect(link.getAttribute('target')).toBe('_blank');
 

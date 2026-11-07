@@ -7,8 +7,8 @@ using PublyApp.Api.Modules.Account.Services;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.SystemNotices.Services;
 
 using Xunit;
@@ -175,9 +175,9 @@ public sealed class ServiceArgsRecordConventionSpec {
 			"BulkCreateStaffInvitationsArgs",
 			nameof(CancellationToken)
 		);
-		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IStaffProfileAsStaffService>(
-			"CreateStaffProfileAsync",
-			"CreateStaffProfileArgs",
+		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<IStaffRoleAsStaffService>(
+			"CreateStaffRoleAsync",
+			"CreateStaffRoleArgs",
 			nameof(CancellationToken)
 		);
 		ServiceArgsRecordConventionSpec._AssertMethodParameterTypeNames<ISystemNoticeService>(

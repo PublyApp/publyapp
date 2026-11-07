@@ -9,7 +9,7 @@ namespace PublyApp.Api.Lib.Testing.Helpers;
 
 internal static class StaffUserTestHelper {
 	/// <param name="fullAccess">
-	/// When true the account is granted the staff full-access system profile — the
+	/// When true the account is granted the staff full-access system role — the
 	/// replacement for the removed per-account admin level.
 	/// </param>
 	public static async Task<Guid> SeedStaffUserAsync(
@@ -41,11 +41,11 @@ internal static class StaffUserTestHelper {
 		await dbContext.SaveChangesAsync();
 
 		if (fullAccess) {
-			var profileId = await FullAccessProfileTestHelper.EnsureStaffProfileAsync(dbContext);
-			await FullAccessProfileTestHelper.AssignAsync(
+			var roleId = await FullAccessRoleTestHelper.EnsureStaffRoleAsync(dbContext);
+			await FullAccessRoleTestHelper.AssignAsync(
 				dbContext,
 				staffAccount.GetRequiredId(),
-				profileId
+				roleId
 			);
 		}
 

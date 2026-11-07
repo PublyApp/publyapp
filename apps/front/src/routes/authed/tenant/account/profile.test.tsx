@@ -88,9 +88,9 @@ const EN_LABELS: TestLabelMap = {
 	'read-only': 'Read only',
 	'not-available-yet': 'Not available yet',
 	'un-named': 'Unnamed',
-	'failed-to-load-profile': 'Failed to load profile',
+	'failed-to-load-profile': 'Failed to load role',
 	'failed-to-load-profile-description':
-		'Your profile information could not be loaded. Try again.',
+		'Your role information could not be loaded. Try again.',
 	retry: 'Retry',
 	'save-changes': 'Save changes',
 	'profile-updated-success': 'Profile updated successfully',
@@ -110,7 +110,7 @@ import { Route } from './profile';
 
 const AccountProfilePage = Route.options.component as ComponentType;
 
-const profileData = {
+const roleData = {
 	id: 'user-1',
 	email: 'jason@studio.io',
 	firstName: 'Jason',
@@ -134,9 +134,9 @@ afterEach(() => {
 });
 
 describe('AccountProfilePage', () => {
-	test('renders an editable form pre-filled from the tenant-scoped profile', () => {
+	test('renders an editable form pre-filled from the tenant-scoped role', () => {
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,
@@ -163,14 +163,14 @@ describe('AccountProfilePage', () => {
 
 	test('submits only the dirty fields through the tenant-scoped PATCH', async () => {
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		mocks.mutation.mutateAsync.mockResolvedValue({
-			...profileData,
+			...roleData,
 			firstName: 'Jay',
 		});
 		renderPage();
@@ -198,14 +198,14 @@ describe('AccountProfilePage', () => {
 
 	test('clears a field by submitting null when the input is emptied', async () => {
 		mocks.profileQuery = {
-			data: { ...profileData, avatarUrl: 'https://cdn.example.test/a.png' },
+			data: { ...roleData, avatarUrl: 'https://cdn.example.test/a.png' },
 			isPending: false,
 			isError: false,
 			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		mocks.mutation.mutateAsync.mockResolvedValue({
-			...profileData,
+			...roleData,
 			avatarUrl: null,
 		});
 		renderPage();
@@ -225,7 +225,7 @@ describe('AccountProfilePage', () => {
 
 	test('does not submit when nothing changed', async () => {
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,
@@ -241,7 +241,7 @@ describe('AccountProfilePage', () => {
 
 	test('shows a local failure message when the PATCH fails', async () => {
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,
@@ -268,7 +268,7 @@ describe('AccountProfilePage', () => {
 
 	test('blocks an invalid avatar URL client-side without calling the PATCH', async () => {
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,
@@ -285,7 +285,7 @@ describe('AccountProfilePage', () => {
 		expect(mocks.mutation.mutateAsync).not.toHaveBeenCalled();
 	});
 
-	test('falls back to skeletons while the profile query is pending', () => {
+	test('falls back to skeletons while the role query is pending', () => {
 		mocks.profileQuery = {
 			data: undefined,
 			isPending: true,
@@ -316,7 +316,7 @@ describe('AccountProfilePage', () => {
 		// The query resolves; the form must now hydrate from the loaded data
 		// even though useForm captured its defaultValues at mount time.
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,
@@ -344,7 +344,7 @@ describe('AccountProfilePage', () => {
 		).toBe('jason@studio.io');
 	});
 
-	test('shows an error state with a retry action when the profile query fails', () => {
+	test('shows an error state with a retry action when the role query fails', () => {
 		mocks.profileQuery = {
 			data: undefined,
 			isPending: false,
@@ -355,7 +355,7 @@ describe('AccountProfilePage', () => {
 		renderPage();
 
 		expect(screen.getByTestId('tenant-account-profile-error')).toBeTruthy();
-		expect(screen.getByText('Failed to load profile')).toBeTruthy();
+		expect(screen.getByText('Failed to load role')).toBeTruthy();
 
 		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 		expect(mocks.profileQuery.refetch).toHaveBeenCalledTimes(1);
@@ -363,7 +363,7 @@ describe('AccountProfilePage', () => {
 
 	test('keeps the read-only affordance only for fields with no backend', () => {
 		mocks.profileQuery = {
-			data: profileData,
+			data: roleData,
 			isPending: false,
 			isError: false,
 			isSuccess: true,

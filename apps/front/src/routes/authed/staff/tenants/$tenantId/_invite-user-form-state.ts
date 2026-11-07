@@ -2,20 +2,20 @@ import { strFromU8, unzipSync } from 'fflate';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
-import type { ResolveTenantProfileNameResolution } from '~/lib/query/staff-tenant-profiles';
+import type { ResolveTenantRoleNameResolution } from '~/lib/query/staff-tenant-roles';
 
 /**
  * Invite-drawer row state: one invited person, whether they came from the
- * dropped CSV/Excel file or a manual row, and the profile names the file
+ * dropped CSV/Excel file or a manual row, and the role names the file
  * carried (manual rows never have names — only ids picked in the UI).
  */
 export type InviteRow = {
 	/** Stable per-row identity for React keys and unresolved-name lookups. */
 	key: string;
 	email: string;
-	profileIds: string[];
+	roleIds: string[];
 	/** Raw names as parsed from the file; empty for manual rows. */
-	profileNames: string[];
+	roleNames: string[];
 	source: 'file' | 'manual';
 	/** Non-null when the email on the row does not match the email format.
 	 * Carries the raw email value so the drawer can surface a per-row error
@@ -35,7 +35,7 @@ export type InviteRow = {
  * and value so the importer knows what to fix in their file. */
 export type InvalidCell = {
 	/** Column header name that the cell was read from, e.g. "email",
-	 * or "profiles". Stable and non-empty for every cell regardless of file
+	 * or "roles". Stable and non-empty for every cell regardless of file
 	 * format — this is the stable React key and the column name surfaced in the
 	 * importer-facing error message when the cell reference is absent (CSV). */
 	column: string;
@@ -47,15 +47,15 @@ export type InvalidCell = {
 	kind: 'boolean' | 'formula-error';
 };
 
-/** The named-profile resolution rows this drawer receives come straight
+/** The named-role resolution rows this drawer receives come straight
  * from the resolve mutation, so the shape has one home in
- * `~/lib/query/staff-tenant-profiles`. */
-export type ProfileNameResolution = ResolveTenantProfileNameResolution;
+ * `~/lib/query/staff-tenant-roles`. */
+export type RoleNameResolution = ResolveTenantRoleNameResolution;
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** `;` or `|` between profile names — documented in the downloadable template. */
-export const splitProfileNames = (raw: string): string[] =>
+/** `;` or `|` between role names — documented in the downloadable template. */
+export const splitRoleNames = (raw: string): string[] =>
 	raw
 		.split(/[;|]/)
 		.map((piece) => piece.trim())
@@ -156,7 +156,7 @@ const parseCsvRows = (text: string): string[][] => {
 
 export type ParsedInviteRow = {
 	email: string;
-	profileNames: string[];
+	roleNames: string[];
 	/** Set when the email on the row does not match the email format.
 	 * The row is in error; the drawer blocks Send and shows the raw value. */
 	invalidEmail: string | null;
@@ -222,29 +222,26 @@ const FORMULA_ERROR_CODES = new Set([
 const isFormulaErrorCode = (value: string): boolean =>
 	FORMULA_ERROR_CODES.has(value.trim());
 
-/** Parsed-row profiles fields: the split profile names, or a structured error. */
-type RowProfilesFields = {
-	profileNames: string[];
+/** Parsed-row roles fields: the split role names, or a structured error. */
+type RowRolesFields = {
+	roleNames: string[];
 	/** Cells in this column that were rejected as non-text. Empty when the
 	 * value was a parseable string list. */
 	invalidCells: InvalidCell[];
 };
 
-/** Maps a raw `profiles` cell to its parsed row fields: the split profile names,
+/** Maps a raw `roles` cell to its parsed row fields: the split role names,
  * or a structured error when the cell is a boolean (t="b"), formula error (t="e"),
  * or a formula error code stored as a shared string. Non-text cells are rejected,
- * not imported as profile names. */
-const mapProfilesToRowFields = (
-	rawCell: RawCell | undefined,
-	column: string,
-) => {
+ * not imported as role names. */
+const mapRolesToRowFields = (rawCell: RawCell | undefined, column: string) => {
 	if (
 		rawCell?.type === 'b' ||
 		rawCell?.type === 'e' ||
 		isFormulaErrorCode(rawCell?.value ?? '')
 	) {
 		return {
-			profileNames: [],
+			roleNames: [],
 			invalidCells: [
 				{
 					column,
@@ -253,13 +250,13 @@ const mapProfilesToRowFields = (
 					kind: rawCell?.type === 'b' ? 'boolean' : 'formula-error',
 				},
 			],
-		} satisfies RowProfilesFields;
+		} satisfies RowRolesFields;
 	}
 
 	return {
-		profileNames: splitProfileNames(rawCell?.value ?? ''),
+		roleNames: splitRoleNames(rawCell?.value ?? ''),
 		invalidCells: [],
-	} satisfies RowProfilesFields;
+	} satisfies RowRolesFields;
 };
 
 type EmailRowField = {
@@ -303,7 +300,7 @@ const mapEmailToRowField = (
 	return { email, invalidEmail: email, invalidCells: [] };
 };
 
-/** CSV → invite rows via the documented header: `email, profiles`. */
+/** CSV → invite rows via the documented header: `email, roles`. */
 export const parseInviteCsv = (text: string): ParseInviteResult => {
 	const rawRows = parseCsvRows(text);
 	if (rawRows.length === 0) {
@@ -313,7 +310,7 @@ export const parseInviteCsv = (text: string): ParseInviteResult => {
 	const [headerRow, ...dataRows] = rawRows;
 	const headers = headerRow!.map((header) => header.trim().toLowerCase());
 	const indexOfEmail = headers.indexOf('email');
-	const indexOfProfiles = headers.indexOf('profiles');
+	const indexOfRoles = headers.indexOf('roles');
 
 	if (indexOfEmail === -1) {
 		return { outcome: 'error', kind: 'no-email-column' };
@@ -330,17 +327,14 @@ export const parseInviteCsv = (text: string): ParseInviteResult => {
 			{ value: row[indexOfEmail] ?? '' },
 			'email',
 		);
-		const profilesFields = mapProfilesToRowFields(
-			{ value: row[indexOfProfiles] ?? '' },
-			'profiles',
+		const rolesFields = mapRolesToRowFields(
+			{ value: row[indexOfRoles] ?? '' },
+			'roles',
 		);
 		parsed.push({
 			...emailFields,
-			profileNames: profilesFields.profileNames,
-			invalidCells: [
-				...emailFields.invalidCells,
-				...profilesFields.invalidCells,
-			],
+			roleNames: rolesFields.roleNames,
+			invalidCells: [...emailFields.invalidCells, ...rolesFields.invalidCells],
 		});
 	}
 
@@ -489,7 +483,7 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	}
 
 	// Columns are located through the header row's own positions so sparse
-	// sheets (blank columns between email/profiles) stay aligned.
+	// sheets (blank columns between email/roles) stay aligned.
 	const headerRecord = rawRecords.find((record) =>
 		Array.from(record.values()).some(
 			(cell) => cell.value.trim().toLowerCase() === 'email',
@@ -509,7 +503,7 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 		return -1;
 	};
 	const emailColumn = columnIndexOf('email');
-	const profilesColumn = columnIndexOf('profiles');
+	const rolesColumn = columnIndexOf('roles');
 
 	for (const record of rawRecords) {
 		if (record === headerRecord) {
@@ -521,17 +515,11 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 			continue;
 		}
 
-		const profilesFields = mapProfilesToRowFields(
-			record.get(profilesColumn),
-			'profiles',
-		);
+		const rolesFields = mapRolesToRowFields(record.get(rolesColumn), 'roles');
 		rows.push({
 			...emailFields,
-			...profilesFields,
-			invalidCells: [
-				...emailFields.invalidCells,
-				...profilesFields.invalidCells,
-			],
+			...rolesFields,
+			invalidCells: [...emailFields.invalidCells, ...rolesFields.invalidCells],
 		} satisfies ParsedInviteRow);
 	}
 
@@ -547,8 +535,8 @@ export const makeManualRow = (email = ''): InviteRow => {
 	return {
 		key: `manual-${String(rowKeyCounter)}-${String(Date.now())}`,
 		email,
-		profileIds: [],
-		profileNames: [],
+		roleIds: [],
+		roleNames: [],
 		source: 'manual',
 		invalidEmail: null,
 		invalidCells: [],
@@ -592,8 +580,8 @@ export const buildImportedInvites = (
 		rows.push({
 			key: `${source}-${String(rowKeyCounter)}-${String(Date.now())}`,
 			email: parsed.email,
-			profileIds: [],
-			profileNames: parsed.profileNames,
+			roleIds: [],
+			roleNames: parsed.roleNames,
 			source,
 			invalidEmail: parsed.invalidEmail,
 			invalidCells: parsed.invalidCells,
@@ -623,18 +611,18 @@ export const syncInvalidEmail = (rows: InviteRow[]): InviteRow[] =>
 		};
 	});
 
-type ProfileResolutionOutcome = {
+type RoleResolutionOutcome = {
 	rows: InviteRow[];
 	unresolvedByRowKey: Record<string, Array<{ name: string; reason: string }>>;
 	unresolvedCount: number;
 };
 
 /** Applies server resolutions to rows: matched names fill ids, unresolved
- * ones are flagged per row. Admin rows suppress profile flags entirely —
- * they get full access and need no profiles. */
-export const applyProfileResolutions = (
+ * ones are flagged per row. Admin rows suppress role flags entirely —
+ * they get full access and need no roles. */
+export const applyRoleResolutions = (
 	rows: InviteRow[],
-	resolutions: ProfileNameResolution[],
+	resolutions: RoleNameResolution[],
 ) => {
 	const resolutionByName = new Map(
 		resolutions.map((resolution) => [
@@ -642,20 +630,20 @@ export const applyProfileResolutions = (
 			resolution,
 		]),
 	);
-	const unresolvedByRowKey: ProfileResolutionOutcome['unresolvedByRowKey'] = {};
+	const unresolvedByRowKey: RoleResolutionOutcome['unresolvedByRowKey'] = {};
 	let unresolvedCount = 0;
 
 	const nextRows = rows.map((row) => {
-		if (row.profileNames.length === 0) {
+		if (row.roleNames.length === 0) {
 			return row;
 		}
 
-		const profileIds: string[] = [];
+		const roleIds: string[] = [];
 		const unresolved: Array<{ name: string; reason: string }> = [];
-		for (const name of row.profileNames) {
+		for (const name of row.roleNames) {
 			const resolution = resolutionByName.get(name.toLowerCase());
-			if (resolution?.profileId) {
-				profileIds.push(resolution.profileId);
+			if (resolution?.roleId) {
+				roleIds.push(resolution.roleId);
 			} else {
 				unresolved.push({
 					name,
@@ -669,36 +657,36 @@ export const applyProfileResolutions = (
 			unresolvedCount += unresolved.length;
 		}
 
-		return { ...row, profileIds };
+		return { ...row, roleIds };
 	});
 
 	return {
 		rows: nextRows,
 		unresolvedByRowKey,
 		unresolvedCount,
-	} satisfies ProfileResolutionOutcome;
+	} satisfies RoleResolutionOutcome;
 };
 
 /** The Send gate: non-empty batch, no in-flight resolution, zero unresolved
- * profile flags, no row carrying a
+ * role flags, no row carrying a
  * non-text cell, and every row carrying a syntactically valid email. The
  * `invalidCellCount` is the count of ROWS with at least one non-text cell —
  * a single row with three faulty columns still counts as one blocked row,
  * not three, so the gate semantics are unchanged. */
 export const canSendInvitations = ({
 	rows,
-	isResolvingProfiles,
+	isResolvingRoles,
 	unresolvedCount,
 	invalidCellCount,
 }: {
 	rows: InviteRow[];
-	isResolvingProfiles: boolean;
+	isResolvingRoles: boolean;
 	unresolvedCount: number;
 	invalidCellCount: number;
 }): boolean => {
 	if (
 		rows.length === 0 ||
-		isResolvingProfiles ||
+		isResolvingRoles ||
 		unresolvedCount > 0 ||
 		invalidCellCount > 0
 	) {
@@ -713,16 +701,16 @@ export const buildSubmitInvitations = (
 	rows: InviteRow[],
 ): Array<{
 	email: string;
-	profileIds: string[];
+	roleIds: string[];
 }> =>
 	rows.map((row) => ({
 		email: row.email,
-		profileIds: [...new Set(row.profileIds)],
+		roleIds: [...new Set(row.roleIds)],
 	}));
 
 /** Downloadable template — matches the parser's documented columns. */
 export const buildInviteTemplateCsv = (): string =>
-	'email,profiles\nuser@example.com,Alpha; Beta\n';
+	'email,roles\nuser@example.com,Alpha; Beta\n';
 
 /** Renders an `InvalidCell` into a human-readable message naming the column (and the
  * cell reference when one exists) so the importer knows what to fix in their file.
@@ -762,13 +750,13 @@ export const renderInvalidCellMessage = (
  * handler all share. */
 export type InviteFormValues = {
 	pasteEmails: string;
-	sharedProfileIds: string[];
+	sharedRoleIds: string[];
 	rows: InviteRow[];
 };
 
 const DEFAULT_VALUES: InviteFormValues = {
 	pasteEmails: '',
-	sharedProfileIds: [],
+	sharedRoleIds: [],
 	rows: [makeManualRow()],
 };
 
@@ -778,12 +766,12 @@ const DEFAULT_VALUES: InviteFormValues = {
 const getInviteFormSchema = () =>
 	z.object({
 		pasteEmails: z.string().optional(),
-		sharedProfileIds: z.array(z.string()),
+		sharedRoleIds: z.array(z.string()),
 		rows: z.array(
 			z.object({
 				email: z.string(),
-				profileIds: z.array(z.string()),
-				profileNames: z.array(z.string()),
+				roleIds: z.array(z.string()),
+				roleNames: z.array(z.string()),
 				source: z.enum(['file', 'manual']),
 				key: z.string(),
 			}),

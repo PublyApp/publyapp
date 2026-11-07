@@ -7,7 +7,7 @@ export const getNewStaffUserSchema = (z: ZodI18n) => {
 		firstName: z.string().min(1).optional(),
 		lastName: z.string().min(1),
 		email: z.email(),
-		profileIds: z.array(z.string()).optional(),
+		roleIds: z.array(z.string()).optional(),
 		sendNotification: z.boolean().optional(),
 		avatar: getFileSchemaClientSide(z).or(z.string()).optional(),
 	});

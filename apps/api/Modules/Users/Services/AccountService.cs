@@ -91,7 +91,7 @@ public interface IAccountService {
 		CancellationToken cancellationToken = default
 	);
 	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
-	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
+	Task AssignRoleToAccountAsync(Guid accountId, Guid roleId, CancellationToken cancellationToken = default);
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -490,16 +490,16 @@ public class AccountService : IAccountService {
 		return new CreateTenantAccountResult.Success(addedAccount.Entity);
 	}
 
-	public async Task AssignProfileToAccountAsync(
+	public async Task AssignRoleToAccountAsync(
 		Guid accountId,
-		Guid profileId,
+		Guid roleId,
 		CancellationToken cancellationToken = default
 	) {
 		// Check if assignment already exists
 		var existingAssignment = await (
-			from uap in this._DbContext.UserAccountProfile
+			from uap in this._DbContext.UserAccountRole
 			where uap.UserAccountId == accountId
-			&& uap.ProfileId == profileId
+			&& uap.RoleId == roleId
 			select uap
 		).FirstOrDefaultAsync(cancellationToken);
 
@@ -508,12 +508,12 @@ public class AccountService : IAccountService {
 			return;
 		}
 
-		var userAccountProfile = new UserAccountProfile {
+		var userAccountRole = new UserAccountRole {
 			UserAccountId = accountId,
-			ProfileId = profileId
+			RoleId = roleId
 		};
 
-		await this._DbContext.UserAccountProfile.AddAsync(userAccountProfile, cancellationToken);
+		await this._DbContext.UserAccountRole.AddAsync(userAccountRole, cancellationToken);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 	}
 

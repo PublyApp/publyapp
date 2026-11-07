@@ -13,6 +13,7 @@ This guide captures **repository-specific preferences** for AI coding assistants
 It is intended to reduce review churn by making repeated feedback explicit.
 
 These preferences are **additive** to existing repo guides (especially):
+
 - `docs/guides/front/conventions.md`
 - `docs/guides/frontend-error-handling.md`
 - `docs/guides/api-module-structure.md`
@@ -35,7 +36,7 @@ If a preference below conflicts with an existing guide, follow the existing guid
   - Routes should ideally: read `useParams`/outlet context, render page shell + composed children.
   - State and queries should live where they are used (self-contained composition), not plumbed through multi-hop props.
 - Prefer **component composition** over prop drilling.
-  - If a component can derive `profileId` via `useParams`, do that instead of passing it down.
+  - If a component can derive `roleId` via `useParams`, do that instead of passing it down.
   - If a component owns a drawer, it should own open/close state as well.
 
 ### Extracting Components (Same File vs `parts/`)
@@ -66,7 +67,7 @@ If a preference below conflicts with an existing guide, follow the existing guid
     theme danger/error styling (`error` / `error.main`). Do not mute destructive delete
     actions merely because they originated from a table.
   - Relationship-removal actions that are reversible in context (for example unassigning a
-    user from a profile) should stay neutral unless the product explicitly treats them as
+    user from a role) should stay neutral unless the product explicitly treats them as
     destructive. Dense row icons can use `text.secondary`, but bulk menu labels and contained
     confirmation CTAs must still look enabled (`text.primary` or default contained styling).
   - Keep semantic colors for status badges, validation, dedicated danger-zone context, and

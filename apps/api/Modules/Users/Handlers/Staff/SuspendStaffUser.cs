@@ -31,7 +31,7 @@ public sealed class SuspendStaffUser {
 	) {
 		// Dedicated endpoint instead of PATCH status:
 		// suspension is a high-impact lifecycle operation and should be explicit, auditable,
-		// and permission-gated separately from routine profile edits.
+		// and permission-gated separately from routine role edits.
 		if (!Guid.TryParse(userId, out var userIdGuid)) {
 			return TypedProblems.BadRequest(
 				"Invalid user ID",

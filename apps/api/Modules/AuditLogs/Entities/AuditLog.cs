@@ -90,23 +90,23 @@ public static class AuditActions {
 	public const string JobSystemJobDisabled = "job.system_job.disabled";
 	public const string JobSystemJobCronUpdated = "job.system_job.cron_updated";
 	public const string JobSystemJobTriggered = "job.system_job.triggered";
-	public const string StaffProfileCreated = "staff.profile.created";
-	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
-	// Distinguish bulk delete of staff profiles from single-profile delete audit events.
-	public const string StaffProfileBulkDeleted = "staff.profile.bulk.deleted";
-	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
-	public const string StaffProfileUserUnassigned = "staff.profile.user.unassigned";
-	public const string TenantProfileCreated = "tenant.profile.created";
-	public const string TenantProfileUpdated = "tenant.profile.updated";
-	public const string TenantProfileDeleted = "tenant.profile.deleted";
-	public const string TenantProfilePermissionsAssigned = "tenant.profile.permissions.assigned";
-	public const string TenantProfilePermissionsUnassigned = "tenant.profile.permissions.unassigned";
-	// Membership changes are the only history for user_account_profiles rows, which are
+	public const string StaffRoleCreated = "staff.role.created";
+	public const string StaffRolePermissionsAssigned = "staff.role.permissions.assigned";
+	// Distinguish bulk delete of staff roles from single-role delete audit events.
+	public const string StaffRoleBulkDeleted = "staff.role.bulk.deleted";
+	public const string StaffRoleUserAssigned = "staff.role.user.assigned";
+	public const string StaffRoleUserUnassigned = "staff.role.user.unassigned";
+	public const string TenantRoleCreated = "tenant.role.created";
+	public const string TenantRoleUpdated = "tenant.role.updated";
+	public const string TenantRoleDeleted = "tenant.role.deleted";
+	public const string TenantRolePermissionsAssigned = "tenant.role.permissions.assigned";
+	public const string TenantRolePermissionsUnassigned = "tenant.role.permissions.unassigned";
+	// Membership changes are the only history for user_account_roles rows, which are
 	// hard-deleted on unassign. Keep assign and unassign as distinct actions so the audit
-	// trail reconstructs a member's profile timeline without inspecting row existence.
-	public const string TenantProfileUserAssigned = "tenant.profile.user.assigned";
-	public const string TenantProfileUserUnassigned = "tenant.profile.user.unassigned";
-	public const string TenantProfileBulkDeleted = "tenant.profile.bulk.deleted";
+	// trail reconstructs a member's role timeline without inspecting row existence.
+	public const string TenantRoleUserAssigned = "tenant.role.user.assigned";
+	public const string TenantRoleUserUnassigned = "tenant.role.user.unassigned";
+	public const string TenantRoleBulkDeleted = "tenant.role.bulk.deleted";
 	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
 	public const string TenantUpdated = "tenant.updated";
 	public const string TenantDeleted = "tenant.deleted";

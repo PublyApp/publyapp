@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 using PublyApp.Api.Data;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 
 namespace PublyApp.Api.Modules.Permissions.Entities;
 
@@ -74,7 +74,7 @@ public record Permission : INoTenantEntity {
 
 	// Navigation properties
 	[JsonIgnore]
-	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
+	public ICollection<RolePermission> RolePermissions { get; set; } = [];
 
 	public static Permission CreateTenantPermission(
 		string key,

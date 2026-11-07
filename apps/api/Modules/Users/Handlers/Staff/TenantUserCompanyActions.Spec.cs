@@ -12,7 +12,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -84,15 +84,15 @@ public sealed class TenantUserCompanyActionsSpec
 			seeded.RemovedTenantId,
 			AccountStatus.Active
 		);
-		await this._AssertDefaultProfileAssignedAsync(
+		await this._AssertDefaultRoleAssignedAsync(
 			seeded.UserId,
 			seeded.NewTenantId
 		);
-		await this._AssertDefaultProfileAssignedAsync(
+		await this._AssertDefaultRoleAssignedAsync(
 			seeded.UserId,
 			seeded.RemovedTenantId
 		);
-		await this._AssertOnlyDefaultProfileAssignedAsync(
+		await this._AssertOnlyDefaultRoleAssignedAsync(
 			seeded.UserId,
 			seeded.RemovedTenantId
 		);
@@ -418,24 +418,24 @@ public sealed class TenantUserCompanyActionsSpec
 		await dbContext.SaveChangesAsync();
 
 		// The removed membership used to be an admin: it held the tenant full-access role.
-		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 			dbContext,
 			removedTenantId,
 			accounts[^1].GetRequiredId()
 		);
 
-		var staleProfile = Profile.CreateTenantProfile(
+		var staleRole = Role.CreateTenantRole(
 			removedTenantId,
-			$"Actions Stale Profile {unique}"
+			$"Actions Stale Role {unique}"
 		);
-		await dbContext.Profile.AddAsync(staleProfile);
+		await dbContext.Role.AddAsync(staleRole);
 		await dbContext.SaveChangesAsync();
 		// Reassignment must not resurrect this stale link; the service should
-		// purge old membership profile links before assigning the default profile.
-		await dbContext.UserAccountProfile.AddAsync(
-			new UserAccountProfile {
+		// purge old membership role links before assigning the default role.
+		await dbContext.UserAccountRole.AddAsync(
+			new UserAccountRole {
 				UserAccountId = accounts[^1].GetRequiredId(),
-				ProfileId = staleProfile.GetRequiredId(),
+				RoleId = staleRole.GetRequiredId(),
 			}
 		);
 
@@ -514,7 +514,7 @@ public sealed class TenantUserCompanyActionsSpec
 		account.DeletedAt.Should().NotBeNull();
 	}
 
-	private async Task _AssertDefaultProfileAssignedAsync(
+	private async Task _AssertDefaultRoleAssignedAsync(
 		Guid userId,
 		Guid tenantId
 	) {
@@ -525,25 +525,25 @@ public sealed class TenantUserCompanyActionsSpec
 
 		var query =
 			from account in dbContext.UserAccount.IgnoreQueryFilters()
-			join link in dbContext.UserAccountProfile
+			join link in dbContext.UserAccountRole
 				on account.Id equals link.UserAccountId
-			join profile in dbContext.Profile.IgnoreQueryFilters()
-				on link.ProfileId equals profile.Id
+			join role in dbContext.Role.IgnoreQueryFilters()
+				on link.RoleId equals role.Id
 			where account.UserId == userId
 				&& account.TenantId == tenantId
 				&& account.Scope == AccountScope.Tenant
 				&& !account.IsDeleted
-				&& profile.Scope == ProfileScope.Tenant
-				&& profile.TenantId == tenantId
-				&& profile.IsDefault
-				&& !profile.IsDeleted
+				&& role.Scope == RoleScope.Tenant
+				&& role.TenantId == tenantId
+				&& role.IsDefault
+				&& !role.IsDeleted
 			select link;
 
-		var hasDefaultProfile = await query.AnyAsync();
-		hasDefaultProfile.Should().BeTrue();
+		var hasDefaultRole = await query.AnyAsync();
+		hasDefaultRole.Should().BeTrue();
 	}
 
-	private async Task _AssertOnlyDefaultProfileAssignedAsync(
+	private async Task _AssertOnlyDefaultRoleAssignedAsync(
 		Guid userId,
 		Guid tenantId
 	) {
@@ -552,24 +552,24 @@ public sealed class TenantUserCompanyActionsSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profiles = await (
+		var roles = await (
 			from account in dbContext.UserAccount.IgnoreQueryFilters()
-			join link in dbContext.UserAccountProfile
+			join link in dbContext.UserAccountRole
 				on account.Id equals link.UserAccountId
-			join profile in dbContext.Profile.IgnoreQueryFilters()
-				on link.ProfileId equals profile.Id
+			join role in dbContext.Role.IgnoreQueryFilters()
+				on link.RoleId equals role.Id
 			where account.UserId == userId
 				&& account.TenantId == tenantId
 				&& account.Scope == AccountScope.Tenant
 				&& !account.IsDeleted
-				&& profile.Scope == ProfileScope.Tenant
-				&& profile.TenantId == tenantId
-				&& !profile.IsDeleted
-			select profile
+				&& role.Scope == RoleScope.Tenant
+				&& role.TenantId == tenantId
+				&& !role.IsDeleted
+			select role
 		).ToListAsync();
 
-		profiles.Should().ContainSingle();
-		profiles[0].IsDefault.Should().BeTrue();
+		roles.Should().ContainSingle();
+		roles[0].IsDefault.Should().BeTrue();
 	}
 
 	private static async Task<UserAccount?> _FindTenantMembershipAsync(

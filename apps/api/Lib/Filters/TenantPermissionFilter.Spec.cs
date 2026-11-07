@@ -14,7 +14,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -24,11 +24,11 @@ using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
 namespace PublyApp.Api.Lib.Filters;
 
 /// <summary>
-/// Security proof for #861: a holder of the tenant's full-access `Owner` profile must
+/// Security proof for #861: a holder of the tenant's full-access `Owner` role must
 /// genuinely bypass the per-permission check (the full-access short-circuit in
 /// TenantPermissionFilter), the bypass must not leak into a different tenant, and tenant
-/// members without that profile must still be governed strictly by their
-/// profile-derived permissions.
+/// members without that role must still be governed strictly by their
+/// role-derived permissions.
 ///
 /// Exercises the real HTTP pipeline via the real tenant posts endpoint GET /posts
 /// (Program.cs: MapPostEndpointsForTenant), gated with
@@ -53,8 +53,8 @@ public sealed class TenantPermissionFilterSpec
 		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
-	// Creates a fresh Acme tenant member with no profile assignments at all. Seeded
-	// members carry their own profiles, so permission proofs seed a dedicated member.
+	// Creates a fresh Acme tenant member with no role assignments at all. Seeded
+	// members carry their own roles, so permission proofs seed a dedicated member.
 	private async Task<(Guid TenantId, string Email, Guid UserAccountId)>
 	_CreateBareAcmeMemberAsync() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
@@ -89,23 +89,23 @@ public sealed class TenantPermissionFilterSpec
 
 	[Fact]
 	public async Task
-	ItShouldAllowTenantFullAccessMemberWithNoProfilePermissionsToAccessPermissionGatedEndpoint() {
-		// The #861 scenario under the profile-based model: a tenant member holding ONLY
-		// the tenant Owner full-access profile — no profile_permissions rows — derives
+	ItShouldAllowTenantFullAccessMemberWithNoRolePermissionsToAccessPermissionGatedEndpoint() {
+		// The #861 scenario under the role-based model: a tenant member holding ONLY
+		// the tenant Owner full-access role — no role_permissions rows — derives
 		// the wildcard permission and passes every gate.
 		var (acmeId, email, userAccountId) = await this._CreateBareAcmeMemberAsync();
 
 		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
 			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			var ownerProfileId = await FullAccessProfileTestHelper.EnsureTenantProfileAsync(
+			var ownerRoleId = await FullAccessRoleTestHelper.EnsureTenantRoleAsync(
 				db,
 				acmeId
 			);
-			await FullAccessProfileTestHelper.AssignAsync(db, userAccountId, ownerProfileId);
+			await FullAccessRoleTestHelper.AssignAsync(db, userAccountId, ownerRoleId);
 
 			var permissionRowCount = await (
-				from pp in db.ProfilePermission
-				where pp.ProfileId == ownerProfileId
+				from pp in db.RolePermission
+				where pp.RoleId == ownerRoleId
 				select pp
 			).CountAsync();
 			permissionRowCount.Should().Be(0);
@@ -131,23 +131,23 @@ public sealed class TenantPermissionFilterSpec
 
 	[Fact]
 	public async Task
-	ItShouldReturn403ForTenantMemberWithRestrictedProfile() {
-		// A member whose only profile carries a permission other than posts.view is
-		// still governed strictly by the profile-derived permission set.
+	ItShouldReturn403ForTenantMemberWithRestrictedRole() {
+		// A member whose only role carries a permission other than posts.view is
+		// still governed strictly by the role-derived permission set.
 		var (acmeId, email, _) = await this._CreateBareAcmeMemberAsync();
-		var createdProfileIds = new List<Guid>();
+		var createdRoleIds = new List<Guid>();
 
 		try {
-			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var roleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Posts.CREATE.Key]
 			);
-			createdProfileIds.Add(profileId);
+			createdRoleIds.Add(roleId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				email,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			var memberToken = await this._AuthClient.LoginAsync(
@@ -175,15 +175,15 @@ public sealed class TenantPermissionFilterSpec
 			problem.TranslationKey.Should()
 				.Be("user-does-not-have-the-necessary-permissions");
 		} finally {
-			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
 		}
 	}
 
 	[Fact]
 	public async Task
-	ItShouldReturn200ForTenantMemberWithRequiredProfilePermission() {
-		// Regression guard: profile-derived permissions must still grant access for
-		// members without the full-access profile exactly as before the bypass existed.
+	ItShouldReturn200ForTenantMemberWithRequiredRolePermission() {
+		// Regression guard: role-derived permissions must still grant access for
+		// members without the full-access role exactly as before the bypass existed.
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -193,19 +193,19 @@ public sealed class TenantPermissionFilterSpec
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var createdProfileIds = new List<Guid>();
+		var createdRoleIds = new List<Guid>();
 
 		try {
-			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var roleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Posts.VIEW.Key]
 			);
-			createdProfileIds.Add(profileId);
+			createdRoleIds.Add(roleId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			var acmeUserToken = await this._AuthClient.LoginAsync(
@@ -225,14 +225,14 @@ public sealed class TenantPermissionFilterSpec
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		} finally {
-			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
 		}
 	}
 
 	[Fact]
 	public async Task
 	ItShouldNotLeakTheFullAccessBypassIntoADifferentTenantForTheSameUser() {
-		// Charlie holds the Acme Owner full-access profile but is only a non-full-access
+		// Charlie holds the Acme Owner full-access role but is only a non-full-access
 		// member in Global Solutions (see UserAccountSeeder cross-tenant fixtures). The
 		// bypass earned in Acme must not follow the user into a different tenant scope.
 		var staffToken =
@@ -277,7 +277,7 @@ public sealed class TenantPermissionFilterSpec
 			using var globalResponse =
 				await this._Http.SendAsync(globalRequest);
 
-			// Not full access in Global Solutions, no profiles assigned: must be denied.
+			// Not full access in Global Solutions, no roles assigned: must be denied.
 			globalResponse.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
 
@@ -326,7 +326,7 @@ public sealed class TenantPermissionFilterSpec
 		problem.TranslationKey.Should().Be("not-a-staff-user");
 	}
 
-	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantRoleWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
@@ -335,22 +335,22 @@ public sealed class TenantPermissionFilterSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			tenantId,
 			"Tenant Permission Filter Spec " + Guid.NewGuid().ToString("N")[..8],
 			"Created for TenantPermissionFilter permission assertions"
 		);
-		profile.ValidateProfileType();
+		role.ValidateRoleType();
 
-		_ = await dbContext.Profile.AddAsync(profile);
+		_ = await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		var profileId = profile.GetRequiredId();
+		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.ProfilePermission.AddAsync(
-				new ProfilePermission {
-					ProfileId = profileId,
+			_ = await dbContext.RolePermission.AddAsync(
+				new RolePermission {
+					RoleId = roleId,
 					PermissionKey = permissionKey
 				}
 			);
@@ -358,13 +358,13 @@ public sealed class TenantPermissionFilterSpec
 
 		await dbContext.SaveChangesAsync();
 
-		return profileId;
+		return roleId;
 	}
 
-	private async Task _AssignProfileToTenantUserAsync(
+	private async Task _AssignRoleToTenantUserAsync(
 		string email,
 		Guid tenantId,
-		IReadOnlyCollection<Guid> profileIds
+		IReadOnlyCollection<Guid> roleIds
 	) {
 		var trimmedEmail = email.Trim();
 
@@ -399,11 +399,11 @@ public sealed class TenantPermissionFilterSpec
 			);
 		}
 
-		foreach (var profileId in profileIds) {
-			_ = await dbContext.UserAccountProfile.AddAsync(
-				new UserAccountProfile {
+		foreach (var roleId in roleIds) {
+			_ = await dbContext.UserAccountRole.AddAsync(
+				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
-					ProfileId = profileId
+					RoleId = roleId
 				}
 			);
 		}
@@ -411,10 +411,10 @@ public sealed class TenantPermissionFilterSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _CleanupTenantProfileArtifactsAsync(
-		IReadOnlyCollection<Guid> profileIds
+	private async Task _CleanupTenantRoleArtifactsAsync(
+		IReadOnlyCollection<Guid> roleIds
 	) {
-		if (profileIds.Count == 0) {
+		if (roleIds.Count == 0) {
 			return;
 		}
 
@@ -423,11 +423,11 @@ public sealed class TenantPermissionFilterSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profileIdList = profileIds.ToList();
+		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountProfile
-			where profileIdList.Contains(uap.ProfileId)
+			from uap in dbContext.UserAccountRole
+			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
@@ -436,8 +436,8 @@ public sealed class TenantPermissionFilterSpec
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.ProfilePermission
-			where profileIdList.Contains(pp.ProfileId)
+			from pp in dbContext.RolePermission
+			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
@@ -445,15 +445,15 @@ public sealed class TenantPermissionFilterSpec
 			dbContext.ForceHardDeleteRange(permissionsToRemove);
 		}
 
-		var profilesToRemove = (await (
-			from p in dbContext.Profile
+		var rolesToRemove = (await (
+			from p in dbContext.Role
 			select p
 		).ToListAsync())
-			.Where(profile => profileIdList.Contains(profile.GetRequiredId()))
+			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
-		if (profilesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(profilesToRemove);
+		if (rolesToRemove.Count > 0) {
+			dbContext.ForceHardDeleteRange(rolesToRemove);
 			await dbContext.SaveChangesAsync();
 		}
 	}

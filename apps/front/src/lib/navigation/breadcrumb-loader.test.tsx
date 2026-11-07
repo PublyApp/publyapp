@@ -19,7 +19,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
  * over projected matches). This file mounts a REAL router with the REAL
  * production route option objects and proves the #851 outcome end to end:
  *
- * 1. A cold deep link to `/staff/tenants/t1/profiles/p1` paints the FULL
+ * 1. A cold deep link to `/staff/tenants/t1/roles/p1` paints the FULL
  *    trail (root + both entity names) once its first settled frame lands,
  *    because the route's awaited loader warmed TanStack Query's cache before
  *    the shell rendered — no entity skeleton is ever painted.
@@ -37,7 +37,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { AppShell } from '~/components/app-shell/app-shell';
-import { Route as ProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
+import { Route as RoleDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/roles/$roleId';
 
 const widenOptions = <T,>(value: unknown): T => {
 	return value as T;
@@ -128,8 +128,8 @@ const TENANT_PAYLOAD = {
 	status: 'active',
 };
 
-const PROFILE_PAYLOAD = {
-	profile: { id: 'p1', name: 'Approvers' },
+const ROLE_PAYLOAD = {
+	role: { id: 'p1', name: 'Approvers' },
 };
 
 const AppShellHost = (): JSX.Element => {
@@ -156,18 +156,18 @@ const buildRouter = (
 	});
 	const layoutRoute = createRoute({
 		getParentRoute: () => rootRoute,
-		id: '/_profile-details-layout',
-		staticData: ProfileDetailsRoute.options.staticData,
+		id: '/_role-details-layout',
+		staticData: RoleDetailsRoute.options.staticData,
 		component: () => <Outlet />,
 	});
 	const detailsOptions = widenOptions<
 		Record<string, unknown> & { loader?: unknown }
-	>(ProfileDetailsRoute.options);
+	>(RoleDetailsRoute.options);
 	const indexOptions = widenOptions<
 		Record<string, unknown> & { loader?: unknown }
 	>({
 		getParentRoute: () => layoutRoute,
-		path: '/staff/tenants/$tenantId/profiles/$profileId',
+		path: '/staff/tenants/$tenantId/roles/$roleId',
 		staticData: detailsOptions.staticData,
 		validateSearch: detailsOptions.validateSearch,
 		pendingComponent: detailsOptions.pendingComponent,
@@ -204,8 +204,8 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 			if (pathEndsWith(call, 'byTenantId', 'get')) {
 				return TENANT_PAYLOAD;
 			}
-			if (pathEndsWith(call, 'byProfileId', 'get')) {
-				return PROFILE_PAYLOAD;
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
 			}
 			return {};
 		});
@@ -217,7 +217,7 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 		render(
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider
-					router={buildRouter('/staff/tenants/t1/profiles/p1', queryClient, {
+					router={buildRouter('/staff/tenants/t1/roles/p1', queryClient, {
 						withLoader: true,
 					})}
 				/>
@@ -235,7 +235,7 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 		expect(nav.textContent).not.toContain('nav-root-staff');
 		expect(nav.textContent).toContain('nav-tenants');
 		expect(nav.textContent).toContain('Acme Corporation');
-		expect(nav.textContent).toContain('common:profiles');
+		expect(nav.textContent).toContain('common:roles');
 		expect(nav.textContent).toContain('Approvers');
 		expect(
 			screen.queryByTestId('app-shell-breadcrumb-entity-skeleton'),
@@ -243,19 +243,19 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 	});
 
 	test('without the awaited loader the same cold deep link shows entity skeletons first', async () => {
-		let releaseProfileFetch: (() => void) | undefined;
-		const profileFetchHeld = new Promise<void>((resolve) => {
-			releaseProfileFetch = resolve;
+		let releaseRoleFetch: (() => void) | undefined;
+		const roleFetchHeld = new Promise<void>((resolve) => {
+			releaseRoleFetch = resolve;
 		});
 
 		mocks.respond.mockImplementation(async (call) => {
 			if (pathEndsWith(call, 'byTenantId', 'get')) {
 				return TENANT_PAYLOAD;
 			}
-			if (pathEndsWith(call, 'byProfileId', 'get')) {
-				await profileFetchHeld;
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				await roleFetchHeld;
 
-				return PROFILE_PAYLOAD;
+				return ROLE_PAYLOAD;
 			}
 			return {};
 		});
@@ -267,7 +267,7 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 		render(
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider
-					router={buildRouter('/staff/tenants/t1/profiles/p1', queryClient, {
+					router={buildRouter('/staff/tenants/t1/roles/p1', queryClient, {
 						withLoader: false,
 					})}
 				/>
@@ -280,7 +280,7 @@ describe('breadcrumb-loader (#851 first-paint full trail)', () => {
 			).toBeGreaterThan(0);
 		});
 
-		releaseProfileFetch?.();
+		releaseRoleFetch?.();
 
 		await waitFor(() => {
 			expect(

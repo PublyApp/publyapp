@@ -75,34 +75,34 @@ public sealed class FindTenantsAsStaffSpec
 	}
 
 	[Fact]
-	public async Task ItShouldNotGrantPermissionsFromSoftDeletedProfileAssignments() {
+	public async Task ItShouldNotGrantPermissionsFromSoftDeletedRoleAssignments() {
 		var (staffToken, staffUserId) = await this._CreateUnprivilegedStaffUserAsync();
 		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var profileId = await this._CreateStaffProfileAsync(
+		var roleId = await this._CreateStaffRoleAsync(
 			adminToken,
 			permissions: [AppPermissions.Staff.Tenants.LIST.Key]
 		);
 
-		await this._UpdateStaffUserProfilesAsync(
+		await this._UpdateStaffUserRolesAsync(
 			adminToken,
 			staffUserId,
-			profileIds: [profileId]
+			roleIds: [roleId]
 		);
 
 		var url = TenantTestHelper.GetFindUrl();
 
-		// With the profile assigned, access should be granted.
+		// With the role assigned, access should be granted.
 		using (var okRequest = new HttpRequestMessage(HttpMethod.Get, url).WithSessionToken(staffToken)) {
 			using var okResponse = await this._Http.SendAsync(okRequest);
 			okResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		// Unassign: Update endpoint soft-deletes the join rows.
-		await this._UpdateStaffUserProfilesAsync(
+		await this._UpdateStaffUserRolesAsync(
 			adminToken,
 			staffUserId,
-			profileIds: []
+			roleIds: []
 		);
 
 		// Access must be revoked immediately (no stale permission from soft-deleted links).
@@ -672,33 +672,33 @@ public sealed class FindTenantsAsStaffSpec
 		await dbContext.SaveChangesAsync();
 
 		if (isOwner) {
-			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 				dbContext, tenantId, account.GetRequiredId()
 			);
 		}
 	}
 
-	private static string _GetCreateProfileUrl() {
+	private static string _GetCreateRoleUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
-			Routes.Profiles.ForStaff.Root,
-			Routes.Profiles.ForStaff.Create
+			Routes.Roles.ForStaff.Root,
+			Routes.Roles.ForStaff.Create
 		);
 	}
 
-	private static string _GetUpdateUserProfilesUrl(string userId) {
+	private static string _GetUpdateUserRolesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Profiles.UpdateFn(userId)
+			Routes.Users.ForStaff.Roles.UpdateFn(userId)
 		);
 	}
 
-	private async Task<string> _CreateStaffProfileAsync(
+	private async Task<string> _CreateStaffRoleAsync(
 		string staffToken,
 		string[] permissions
 	) {
-		var url = FindTenantsAsStaffSpec._GetCreateProfileUrl();
+		var url = FindTenantsAsStaffSpec._GetCreateRoleUrl();
 		var name = "TenantsPerms " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(HttpMethod.Post, url)
@@ -706,7 +706,7 @@ public sealed class FindTenantsAsStaffSpec
 
 		request.Content = JsonContent.Create(new {
 			name,
-			description = "Profile created by FindTenantsAsStaffSpec",
+			description = "Role created by FindTenantsAsStaffSpec",
 			permissions,
 			emails = Array.Empty<string>(),
 		});
@@ -715,23 +715,23 @@ public sealed class FindTenantsAsStaffSpec
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
 		var created =
-			await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
+			await response.Content.ReadFromJsonAsync<StaffRoleCreatedResponse>();
 		created.Should().NotBeNull();
 		Assert.NotNull(created);
-		return created.ProfileId.ToString();
+		return created.RoleId.ToString();
 	}
 
-	private async Task _UpdateStaffUserProfilesAsync(
+	private async Task _UpdateStaffUserRolesAsync(
 		string adminToken,
 		string userId,
-		string[] profileIds
+		string[] roleIds
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
-			FindTenantsAsStaffSpec._GetUpdateUserProfilesUrl(userId)
+			FindTenantsAsStaffSpec._GetUpdateUserRolesUrl(userId)
 		).WithSessionToken(adminToken);
 
-		request.Content = JsonContent.Create(new { profileIds });
+		request.Content = JsonContent.Create(new { roleIds });
 
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -1318,7 +1318,7 @@ public sealed class FindTenantsAsStaffSpec
 			.Where(user => user.Email == TestConstants.StaffAdminEmail)
 			.FirstAsync();
 
-		var invitation = Invitation.CreateTenantInvitationWithProfiles(
+		var invitation = Invitation.CreateTenantInvitationWithRoles(
 			$"pending-tenant-{Guid.NewGuid():N}@example.com",
 			tenantId,
 			[],
@@ -1331,8 +1331,8 @@ public sealed class FindTenantsAsStaffSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private record StaffProfileCreatedResponse {
-		public Guid ProfileId { get; init; }
+	private record StaffRoleCreatedResponse {
+		public Guid RoleId { get; init; }
 	}
 
 	private record FindResponse {

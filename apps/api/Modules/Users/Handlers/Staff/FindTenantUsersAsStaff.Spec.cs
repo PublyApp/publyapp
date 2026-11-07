@@ -13,7 +13,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -900,7 +900,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			)
 			.Subject;
 		owner.IsFullAccess.Should().BeTrue();
-		owner.Roles.Should().Contain(SystemProfileNames.TenantFullAccess);
+		owner.Roles.Should().Contain(SystemRoleNames.TenantFullAccess);
 
 		var member = result.Data.Should()
 			.ContainSingle(user =>
@@ -1516,7 +1516,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			return;
 		}
 
-		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 			dbContext,
 			tenantId,
 			account.GetRequiredId()

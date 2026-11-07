@@ -26,7 +26,7 @@ describe('FormPageLayout', () => {
 	test('supports the narrow 760px account variant', () => {
 		render(
 			<FormPageLayout width={760}>
-				<p>Profile form</p>
+				<p>Role form</p>
 			</FormPageLayout>,
 		);
 

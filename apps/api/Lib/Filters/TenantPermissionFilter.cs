@@ -45,11 +45,11 @@ public class TenantPermissionFilter : IEndpointFilter {
 			throw new InvalidOperationException("TenantPermissionFilter requires a tenant-scoped account with a TenantId.");
 		}
 
-		// SECURITY (#861): a holder of this tenant's full-access system profile genuinely
-		// bypasses the per-permission check. PermissionService materialises that profile as
+		// SECURITY (#861): a holder of this tenant's full-access system role genuinely
+		// bypasses the per-permission check. PermissionService materialises that role as
 		// the wildcard sentinel, and the check is scoped to THIS tenant account, so a
 		// full-access holder in one tenant never gains rights when the same user is a
-		// non-full-access member elsewhere. Everybody else is checked against profiles.
+		// non-full-access member elsewhere. Everybody else is checked against roles.
 		if (
 			(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
 			|| this._CustomPermissionChecker is not null

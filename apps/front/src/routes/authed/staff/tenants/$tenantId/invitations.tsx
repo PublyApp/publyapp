@@ -149,7 +149,7 @@ const StaffTenantInvitationsPage = () => {
 	});
 
 	// tenants-r6-F2 (mirrors invitations/index.tsx, staff-users.tsx,
-	// profiles.tsx): freeze the selection target set — cancel a pending
+	// roles.tsx): freeze the selection target set — cancel a pending
 	// search commit the moment selection mode starts; the status
 	// filter triggers are disabled for the same reason.
 	const { resetDraftToCommitted } = controller.search;

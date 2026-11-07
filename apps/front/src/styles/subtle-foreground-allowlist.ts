@@ -92,13 +92,13 @@ export const SUBTLE_FOREGROUND_ALLOWLIST: readonly SubtleAllowlistEntry[] = [
 		kind: 'label',
 		reason:
 			'11px permission count badge inside PermGroup header — small label.',
-		file: 'src/routes/authed/staff/profiles/$profileId/_permission-matrix.tsx',
+		file: 'src/routes/authed/staff/roles/$roleId/_permission-matrix.tsx',
 	},
 	{
 		selector: 'font-normal text-[var(--publy-foreground-subtle)]',
 		kind: 'inline-meta',
 		reason:
 			'Inline "Members · count" suffix accompanying the 14px card title — inline metadata, not standalone paragraph.',
-		file: 'src/routes/authed/staff/profiles/$profileId.tsx',
+		file: 'src/routes/authed/staff/roles/$roleId.tsx',
 	},
 ] as const;

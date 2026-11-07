@@ -140,11 +140,11 @@ describe('folded request bodies', () => {
 		expect(foldedNull.projectId).toBeNull();
 	});
 
-	test('CreateStaffProfileBody serializes its four folded keys and the absent state', () => {
+	test('CreateStaffRoleBody serializes its four folded keys and the absent state', () => {
 		const client = buildWireClient();
 
 		const withValue = readWireBody(
-			client.staff.profiles.toPostRequestInformation({
+			client.staff.roles.toPostRequestInformation({
 				name: createUntypedString('Editors'),
 				description: createUntypedString('Can edit posts'),
 				permissions: createUntypedArray([createUntypedString('posts.update')]),
@@ -166,7 +166,7 @@ describe('folded request bodies', () => {
 		expect(withValue.permissions).toEqual(['posts.update']);
 
 		const foldedAbsent = readWireBody(
-			client.staff.profiles.toPostRequestInformation({
+			client.staff.roles.toPostRequestInformation({
 				name: createUntypedString('Editors'),
 			}),
 		);
@@ -219,7 +219,7 @@ describe('folded request bodies', () => {
 				maxUsers: createUntypedNumber(25),
 				initialUsers: createUntypedArray([]),
 				code: createUntypedString('acme'),
-				seedDefaultProfile: createUntypedBoolean(true),
+				seedDefaultRole: createUntypedBoolean(true),
 				logoUrl: createUntypedString('https://cdn.example.test/acme.png'),
 				legalName: createUntypedString('Acme Inc'),
 				description: createUntypedString('Acme tenant'),
@@ -233,7 +233,7 @@ describe('folded request bodies', () => {
 		);
 		for (const key of [
 			'code',
-			'seedDefaultProfile',
+			'seedDefaultRole',
 			'logoUrl',
 			'legalName',
 			'description',

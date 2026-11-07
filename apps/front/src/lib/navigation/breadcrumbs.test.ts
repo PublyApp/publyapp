@@ -25,13 +25,13 @@ describe('deriveBreadcrumbTrail (#851 useMatches pipeline, unit)', () => {
 	test('the deepest non-shell match supplies the whole tail after the scope root', () => {
 		const tail: readonly CrumbSpec[] = [
 			label('nav-tenants', '/staff/tenants'),
-			label('common:profiles'),
+			label('common:roles'),
 		];
 		const trail = deriveBreadcrumbTrail([
 			{ pathname: '/staff', params: {}, staticData: shellStatic },
 			{
-				pathname: '/staff/tenants/t-1/profiles/p-1/members',
-				params: { tenantId: 't-1', profileId: 'p-1' },
+				pathname: '/staff/tenants/t-1/roles/p-1/members',
+				params: { tenantId: 't-1', roleId: 'p-1' },
 				staticData: {
 					crumbs: () => [...tail, label('common:members')],
 				},
@@ -49,7 +49,7 @@ describe('deriveBreadcrumbTrail (#851 useMatches pipeline, unit)', () => {
 		expect(lastSpec?.kind === 'label' ? lastSpec.labelKey : undefined).toBe(
 			'common:members',
 		);
-		expect(trail.params).toEqual({ tenantId: 't-1', profileId: 'p-1' });
+		expect(trail.params).toEqual({ tenantId: 't-1', roleId: 'p-1' });
 	});
 
 	test("'shell' matches are skipped, so a nested opt-in still wins", () => {

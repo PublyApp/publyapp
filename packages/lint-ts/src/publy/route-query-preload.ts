@@ -43,7 +43,7 @@ import { getSourceRelativePath, normalizeFilename } from './path-scopes.ts';
  *   - A "query hook call" is a `CallExpression` whose callee resolves (after
  *     alias resolution) to an identifier named `useQuery` exactly, or
  *     matching `/^use[A-Z].*\wQuery$/` (the repo's shared-factory hooks:
- *     `useStaffTenantDetailsQuery`, `useStaffProfilesQuery`, `useSuspenseQuery`,
+ *     `useStaffTenantDetailsQuery`, `useStaffRolesQuery`, `useSuspenseQuery`,
  *     `useInfiniteQuery`; deliberately NOT `useQueryClient` — it ends in
  *     `Client` — and not `usePreloadIntentQueries`, which ends in `Queries`).
  *   - Aliases are followed wherever a static reader can: named imports
@@ -485,7 +485,7 @@ export const routeQueryPreload = {
 						if (local === origin) {
 							// Named import where local === origin. Only
 							// canonical query-hook names matter: `useQuery`,
-							// `useStaffProfilesQuery`, etc. (matched by
+							// `useStaffRolesQuery`, etc. (matched by
 							// `isRouteQueryHookName`). Non-hook utilities
 							// imported FROM a query module — e.g.
 							// `toStaffTenantUserRows`, `staffTenantDetailsQueryOptions`

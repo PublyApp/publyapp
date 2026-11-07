@@ -188,7 +188,7 @@ describe('QueryDisplay', () => {
 				responseStatusCode: 403,
 				status: 403,
 				title: 'Forbidden',
-				detail: 'Your profile no longer has access to this tenant.',
+				detail: 'Your role no longer has access to this tenant.',
 				translationKey: 'tenant-forbidden',
 			}),
 		);
@@ -209,7 +209,7 @@ describe('QueryDisplay', () => {
 				status: 404,
 				title: 'Not Found',
 				detail: 'The resource was deleted.',
-				translationKey: 'tenant-profile-not-found',
+				translationKey: 'tenant-role-not-found',
 			}),
 		);
 

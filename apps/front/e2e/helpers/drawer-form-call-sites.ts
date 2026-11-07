@@ -1,24 +1,24 @@
 export const DRAWER_FORM_CALL_SITES = [
 	{
-		id: 'profile-create',
-		name: 'create-profile',
+		id: 'role-create',
+		name: 'create-role',
 		sourceFile:
-			'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx',
-		drawerTestId: 'profile-form-drawer',
+			'src/routes/authed/staff/tenants/$tenantId/roles/_role-form-drawer.tsx',
+		drawerTestId: 'role-form-drawer',
 	},
 	{
-		id: 'profile-edit',
-		name: 'edit-profile',
+		id: 'role-edit',
+		name: 'edit-role',
 		sourceFile:
-			'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx',
-		drawerTestId: 'profile-edit-details-drawer',
+			'src/routes/authed/staff/tenants/$tenantId/roles/_role-edit-details-drawer.tsx',
+		drawerTestId: 'role-edit-details-drawer',
 	},
 	{
-		id: 'staff-profile-edit',
-		name: 'edit-staff-profile',
+		id: 'staff-role-edit',
+		name: 'edit-staff-role',
 		sourceFile:
-			'src/routes/authed/staff/profiles/$profileId/_profile-edit-details-drawer.tsx',
-		drawerTestId: 'staff-profile-edit-details-drawer',
+			'src/routes/authed/staff/roles/$roleId/_role-edit-details-drawer.tsx',
+		drawerTestId: 'staff-role-edit-details-drawer',
 	},
 	{
 		id: 'tenant-user-invite',

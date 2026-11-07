@@ -98,10 +98,10 @@ describe('retryAvailability', () => {
 
 describe('accountProfileUrl', () => {
 	test.each([
-		['@jobspec.bsky.social', 'https://bsky.app/profile/jobspec.bsky.social'],
+		['@jobspec.bsky.social', 'https://bsky.app/role/jobspec.bsky.social'],
 		['me@social.example', 'https://social.example/@me'],
 		['@me@social.example', 'https://social.example/@me'],
-	])('derives the profile of %s', (label, url) => {
+	])('derives the role of %s', (label, url) => {
 		expect(accountProfileUrl(label)).toBe(url);
 	});
 

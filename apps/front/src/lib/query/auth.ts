@@ -13,7 +13,7 @@ export type CurrentUser = {
 	avatarUrl: string | null;
 	displayName: string | null;
 	/** The caller's EFFECTIVE tenant permission set (C3 A4): `["*"]` when the
-	 * resolved account is a tenant Admin, otherwise the profile-derived keys.
+	 * resolved account is a tenant Admin, otherwise the role-derived keys.
 	 * Empty array while unscoped or for users with no tenant permissions. */
 	tenantPermissionKeys: string[];
 };

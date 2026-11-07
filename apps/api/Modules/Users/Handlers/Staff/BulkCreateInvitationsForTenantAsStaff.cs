@@ -11,7 +11,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
@@ -20,19 +20,19 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public record BulkCreateInvitationsForTenantAsStaffItem {
 	public required string Email { get; init; }
-	public JsonElement ProfileIds { get; init; }
+	public JsonElement RoleIds { get; init; }
 
-	public List<Guid> GetProfileIds() {
-		if (this.ProfileIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
+	public List<Guid> GetRoleIds() {
+		if (this.RoleIds.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) {
 			return [];
 		}
 
-		var profileIds = new List<Guid>();
-		foreach (var profileId in this.ProfileIds.EnumerateArray()) {
-			profileIds.Add(profileId.GetGuid());
+		var roleIds = new List<Guid>();
+		foreach (var roleId in this.RoleIds.EnumerateArray()) {
+			roleIds.Add(roleId.GetGuid());
 		}
 
-		return profileIds;
+		return roleIds;
 	}
 }
 
@@ -47,13 +47,13 @@ public record BulkCreateTenantInvitationsForTenantAsStaffBody {
 
 		foreach (var invitationItem in this.Invitations.EnumerateArray()) {
 			var emailElement = invitationItem.GetProperty("email");
-			var profileIdsElement = invitationItem.TryGetProperty("profileIds", out var profileIdsProperty)
-				? profileIdsProperty
+			var roleIdsElement = invitationItem.TryGetProperty("roleIds", out var roleIdsProperty)
+				? roleIdsProperty
 				: new JsonElement();
 
 			invitations.Add(new BulkCreateInvitationsForTenantAsStaffItem {
 				Email = emailElement.GetString() ?? string.Empty,
-				ProfileIds = profileIdsElement,
+				RoleIds = roleIdsElement,
 			});
 		}
 
@@ -79,7 +79,7 @@ public record BulkCreateTenantInvitationsForTenantAsStaffCreated {
 
 public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 	: AbstractValidator<BulkCreateTenantInvitationsForTenantAsStaffBody> {
-	private readonly TenantInvitationProfileIdsValidator _ProfileIdsValidator = new();
+	private readonly TenantInvitationRoleIdsValidator _RoleIdsValidator = new();
 
 	public BulkCreateInvitationsForTenantAsStaffBodyValidator() {
 		this.RuleFor(x => x.Invitations)
@@ -140,37 +140,37 @@ public sealed class BulkCreateInvitationsForTenantAsStaffBodyValidator
 
 
 
-					if (!item.TryGetProperty("profileIds", out var profileIdsElement)) {
+					if (!item.TryGetProperty("roleIds", out var roleIdsElement)) {
 						continue;
 					}
 
-					var profileIdsValidation =
-						this._ProfileIdsValidator.Validate(profileIdsElement);
-					foreach (var failure in profileIdsValidation.Errors) {
+					var roleIdsValidation =
+						this._RoleIdsValidator.Validate(roleIdsElement);
+					foreach (var failure in roleIdsValidation.Errors) {
 						context.AddFailure(
-							$"invitations[{index}].profileIds",
+							$"invitations[{index}].roleIds",
 							failure.ErrorMessage
 						);
 					}
 
-					if (profileIdsElement.ValueKind != JsonValueKind.Array) {
+					if (roleIdsElement.ValueKind != JsonValueKind.Array) {
 						continue;
 					}
 
-					var profileIds = profileIdsElement.EnumerateArray().ToList();
-					var seenProfileIds = new HashSet<Guid>();
-					for (var j = 0; j < profileIds.Count; j++) {
-						var profileIdElement = profileIds[j];
-						if (profileIdElement.ValueKind != JsonValueKind.String
-							|| !profileIdElement.TryGetGuid(out var profileId)
+					var roleIds = roleIdsElement.EnumerateArray().ToList();
+					var seenRoleIds = new HashSet<Guid>();
+					for (var j = 0; j < roleIds.Count; j++) {
+						var roleIdElement = roleIds[j];
+						if (roleIdElement.ValueKind != JsonValueKind.String
+							|| !roleIdElement.TryGetGuid(out var roleId)
 						) {
 							continue;
 						}
 
-						if (!seenProfileIds.Add(profileId)) {
+						if (!seenRoleIds.Add(roleId)) {
 							context.AddFailure(
-								$"invitations[{index}].profileIds[{j}]",
-								"Duplicate profileId is not allowed"
+								$"invitations[{index}].roleIds[{j}]",
+								"Duplicate roleId is not allowed"
 							);
 						}
 					}
@@ -200,7 +200,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 		[FromRoute] string tenantId,
 		[FromBody] BulkCreateTenantInvitationsForTenantAsStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
+		[FromServices] IRoleAssignmentGuard roleAssignmentGuard,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] ITenantService tenantService,
@@ -245,8 +245,8 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			.Distinct(StringComparer.OrdinalIgnoreCase)
 			.ToList();
 
-		var allProfileIds = invitations
-			.SelectMany(invitation => invitation.GetProfileIds())
+		var allRoleIds = invitations
+			.SelectMany(invitation => invitation.GetRoleIds())
 			.Distinct()
 			.ToList();
 
@@ -256,9 +256,9 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			cancellationToken
 		);
 		var actor = authContext.GetRequiredStaffAccount();
-		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+		if (!await roleAssignmentGuard.CanAssignRolesAsync(
 			actor.UserId,
-			allProfileIds,
+			allRoleIds,
 			cancellationToken
 		)) {
 			return TypedProblems.Forbidden(
@@ -267,25 +267,25 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 			);
 		}
 
-		var validProfileIds = allProfileIds.Count > 0
-			? await invitationService.ValidateTenantProfilesAsync(
+		var validRoleIds = allRoleIds.Count > 0
+			? await invitationService.ValidateTenantRolesAsync(
 				tenantIdGuid,
-				allProfileIds,
+				allRoleIds,
 				cancellationToken
 			)
 			: [];
 
-		var validProfileIdSet = validProfileIds.ToHashSet();
+		var validRoleIdSet = validRoleIds.ToHashSet();
 		var existingInvitationEmailSet = existingInvitationEmails.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		var succeededInvitations = new List<(Guid InvitationId, string Email)>();
 		for (var i = 0; i < invitations.Count; i++) {
 			var invitation = invitations[i];
 			var email = invitation.Email;
-			var profileIds = invitation.GetProfileIds();
-			var invalidProfileIds = profileIds
+			var roleIds = invitation.GetRoleIds();
+			var invalidRoleIds = roleIds
 				.Distinct()
-				.Where(profileId => !validProfileIdSet.Contains(profileId))
+				.Where(roleId => !validRoleIdSet.Contains(roleId))
 				.ToList();
 			if (!seenEmails.Add(email)) {
 				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
@@ -297,11 +297,11 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 				continue;
 			}
 
-			if (invalidProfileIds.Count > 0) {
+			if (invalidRoleIds.Count > 0) {
 				failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
 					i,
 					email,
-					$"One or more profileIds are invalid for tenant {tenantIdGuid}",
+					$"One or more roleIds are invalid for tenant {tenantIdGuid}",
 					ResponseKeys.NotFound.Value
 				));
 				continue;
@@ -353,7 +353,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					Email: email,
 					TenantId: tenantIdGuid,
 					TenantName: tenant.Name,
-					ProfileIds: profileIds,
+					RoleIds: roleIds,
 					InvitedByUserId: account.UserId
 				);
 
@@ -362,7 +362,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 					cancellationToken
 				);
 				if (createResult
-					is CreateTenantInvitationResult.InvalidProfileAssignment invalidAssignment
+					is CreateTenantInvitationResult.InvalidRoleAssignment invalidAssignment
 				) {
 					failedItems.Add(new BulkCreateTenantInvitationsFailedItem(
 						i,
@@ -411,7 +411,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaff {
 							Details: new {
 								invitation.Email,
 								TenantId = tenantIdGuid,
-								ProfileIds = invitations.First(x => x.Email == invitation.Email).GetProfileIds(),
+								RoleIds = invitations.First(x => x.Email == invitation.Email).GetRoleIds(),
 								Scope = "Tenant"
 							}
 						))

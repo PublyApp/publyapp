@@ -7,7 +7,7 @@ import {
 /**
  * Shared trail base for the staff-user detail route AND every one of its
  * true nested children (`index`/`permissions`/`activity`/`settings`) — this
- * IS a genuinely nested route (unlike the flat tenant-profile detail route),
+ * IS a genuinely nested route (unlike the flat tenant-role detail route),
  * so each child still declares its own full tail (the mechanism is uniform
  * repo-wide), but they all share this common prefix rather than repeating
  * the entity spec by hand.

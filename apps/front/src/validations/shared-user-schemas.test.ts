@@ -6,7 +6,7 @@
  * and `getNewTenantSchemaServerSide`
  * (packages/shared-ts/src/validations/tenant/tenant.validations.ts) are the
  * canonical schema definitions for creating staff users and tenants. The tests
- * pin that the constraints they carry — email format, profile-assignment
+ * pin that the constraints they carry — email format, role-assignment
  * shape, minimum name length, at-least-one-owner refine and unique-email
  * refine —
  * still accept valid payloads and still reject invalid ones.
@@ -27,7 +27,7 @@ const makeZ = () =>
 		i18n: { getFixedT: () => (key: string) => key },
 	});
 
-describe('getNewStaffUserSchema — email format and profile-assignment constraints', () => {
+describe('getNewStaffUserSchema — email format and role-assignment constraints', () => {
 	const z = makeZ();
 	const schema = getNewStaffUserSchema(z);
 
@@ -36,7 +36,7 @@ describe('getNewStaffUserSchema — email format and profile-assignment constrai
 			firstName: 'Jane',
 			lastName: 'Doe',
 			email: 'jane@example.com',
-			profileIds: ['profile-1'],
+			roleIds: ['role-1'],
 			sendNotification: false,
 			avatar: 'https://example.com/a.png',
 		});
@@ -55,16 +55,16 @@ describe('getNewStaffUserSchema — email format and profile-assignment constrai
 		}
 	});
 
-	it('rejects profileIds that are not an array of strings', () => {
+	it('rejects roleIds that are not an array of strings', () => {
 		const result = schema.safeParse({
 			lastName: 'Doe',
 			email: 'jane@example.com',
-			profileIds: 'not-an-array',
+			roleIds: 'not-an-array',
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			const paths = result.error.issues.map((i) => i.path.join('.'));
-			expect(paths).toContain('profileIds');
+			expect(paths).toContain('roleIds');
 		}
 	});
 

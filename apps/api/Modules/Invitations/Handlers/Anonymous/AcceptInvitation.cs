@@ -199,7 +199,7 @@ public sealed class AcceptInvitation {
 						Details: new {
 							Email = invitation.Email,
 							TenantId = invitation.TenantId,
-							ProfileIds = invitation.ProfileIds,
+							RoleIds = invitation.RoleIds,
 							AcceptedWithExistingAccount = true
 						}
 					),
@@ -295,12 +295,12 @@ public sealed class AcceptInvitation {
 			? new {
 				Email = invitation.Email,
 				TenantId = (Guid?)null,
-				ProfileIds = invitation.ProfileIds,
+				RoleIds = invitation.RoleIds,
 			}
 			: new {
 				Email = invitation.Email,
 				TenantId = invitation.TenantId,
-				ProfileIds = invitation.ProfileIds,
+				RoleIds = invitation.RoleIds,
 			};
 
 		await auditLogService.LogAsync(

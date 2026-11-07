@@ -5,7 +5,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Permissions;
 
 /// <summary>
 /// Tenant-scoped permissions for the social-accounts slice (Epic C §1 decision 5):
-/// three verbs assigned through profiles like every other tenant permission.
+/// three verbs assigned through roles like every other tenant permission.
 /// Tenant admins hold them implicitly.
 /// </summary>
 public class SocialAccountPermissionsForTenant : ISlicePermissions {

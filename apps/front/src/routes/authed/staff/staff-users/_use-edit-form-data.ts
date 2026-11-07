@@ -17,22 +17,22 @@ import {
 } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useCursorPagination } from '~/components/table/use-cursor-pagination';
-import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
+import { useStaffRolesQuery } from '~/lib/query/staff-roles';
 import {
-	toAssignedStaffProfiles,
+	toAssignedStaffRoles,
 	toStaffUserDetails,
 	useStaffUserDetailsQuery,
-	useStaffUserProfilesQuery,
+	useStaffUserRolesQuery,
 } from '~/lib/query/staff-users';
 
 import {
-	buildStaffProfileOptions,
-	collectSelectedProfileIds,
-	rememberStaffProfileNames,
-} from '../_staff-profile-options';
+	buildStaffRoleOptions,
+	collectSelectedRoleIds,
+	rememberStaffRoleNames,
+} from '../_staff-role-options';
 import { rememberPristineStaffUserEditValues } from './_edit-nav-guard';
 import {
-	PROFILE_PAGE_SIZE,
+	ROLE_PAGE_SIZE,
 	getStaffUserEditSchema,
 	normalizeStatus,
 	type StaffUserEditValues,
@@ -43,69 +43,67 @@ import {
 // only from exported names so the declaration emit stays resolvable.
 type UseEditFormDataReturn = {
 	detailsQuery: ReturnType<typeof useStaffUserDetailsQuery>;
-	assignedProfilesQuery: ReturnType<typeof useStaffUserProfilesQuery>;
-	profilesQuery: ReturnType<typeof useStaffProfilesQuery>;
-	profilePagination: ReturnType<typeof useCursorPagination>;
+	assignedRolesQuery: ReturnType<typeof useStaffUserRolesQuery>;
+	rolesQuery: ReturnType<typeof useStaffRolesQuery>;
+	rolePagination: ReturnType<typeof useCursorPagination>;
 	user: ReturnType<typeof toStaffUserDetails>;
 	methods: UseFormReturn<StaffUserEditValues>;
 	formState: FormState<StaffUserEditValues>;
 	errors: FieldErrors<StaffUserEditValues>;
 	isSubmitting: boolean;
-	profileOptions: ReturnType<typeof buildStaffProfileOptions>;
-	hasNoServerProfileRows: boolean;
-	isProfileSearchSettled: boolean;
-	deferredProfileSearch: string;
-	profileSearch: string;
-	setProfileSearch: Dispatch<SetStateAction<string>>;
-	hasLoadedProfiles: boolean;
+	roleOptions: ReturnType<typeof buildStaffRoleOptions>;
+	hasNoServerRoleRows: boolean;
+	isRoleSearchSettled: boolean;
+	deferredRoleSearch: string;
+	roleSearch: string;
+	setRoleSearch: Dispatch<SetStateAction<string>>;
+	hasLoadedRoles: boolean;
 };
 
 export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 	const { t } = useTranslation(['staff-users', 'common']);
-	const [profileSearch, setProfileSearch] = useState('');
-	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
-	const isProfileSearchSettled = profileSearch.trim() === deferredProfileSearch;
-	const knownProfileNamesRef = useRef(new Map<string, string>());
+	const [roleSearch, setRoleSearch] = useState('');
+	const deferredRoleSearch = useDeferredValue(roleSearch.trim());
+	const isRoleSearchSettled = roleSearch.trim() === deferredRoleSearch;
+	const knownRoleNamesRef = useRef(new Map<string, string>());
 
 	const detailsQuery = useStaffUserDetailsQuery(
 		{ userId },
 		{ enabled: userId.length > 0 },
 	);
-	const assignedProfilesQuery = useStaffUserProfilesQuery(
+	const assignedRolesQuery = useStaffUserRolesQuery(
 		{ userId },
 		{ enabled: userId.length > 0 },
 	);
-	const profilePagination = useCursorPagination({
+	const rolePagination = useCursorPagination({
 		sortId: 'name',
 		sortOrder: 'asc',
-		size: PROFILE_PAGE_SIZE,
-		scopeKey: `${userId}:${deferredProfileSearch}`,
+		size: ROLE_PAGE_SIZE,
+		scopeKey: `${userId}:${deferredRoleSearch}`,
 	});
-	const profilesQuery = useStaffProfilesQuery({
-		limit: PROFILE_PAGE_SIZE,
+	const rolesQuery = useStaffRolesQuery({
+		limit: ROLE_PAGE_SIZE,
 		sortId: 'name',
 		sortOrder: 'asc',
-		q: deferredProfileSearch || undefined,
-		cursor: profilePagination.cursor,
+		q: deferredRoleSearch || undefined,
+		cursor: rolePagination.cursor,
 	});
 	// Render-safe "catalogue has loaded" gate (#1314): plain state seeded from
 	// the query's initial status and adjusted during render when the query
 	// resolves — the sanctioned derived-state pattern, never a ref read
 	// during render (react/refs).
-	const [hasLoadedProfiles, setHasLoadedProfiles] = useState(
-		profilesQuery.isSuccess,
-	);
-	if (profilesQuery.isSuccess && !hasLoadedProfiles) {
-		setHasLoadedProfiles(true);
+	const [hasLoadedRoles, setHasLoadedRoles] = useState(rolesQuery.isSuccess);
+	if (rolesQuery.isSuccess && !hasLoadedRoles) {
+		setHasLoadedRoles(true);
 	}
-	const hasNoServerProfileRows = profilesQuery.data?.data?.length === 0;
+	const hasNoServerRoleRows = rolesQuery.data?.data?.length === 0;
 	const user = useMemo(
 		() => toStaffUserDetails(detailsQuery.data),
 		[detailsQuery.data],
 	);
-	const assignedProfiles = useMemo(
-		() => toAssignedStaffProfiles(assignedProfilesQuery.data),
-		[assignedProfilesQuery.data],
+	const assignedRoles = useMemo(
+		() => toAssignedStaffRoles(assignedRolesQuery.data),
+		[assignedRolesQuery.data],
 	);
 	const staffUserEditSchema = useMemo(() => getStaffUserEditSchema(t), [t]);
 	const methods = useForm<StaffUserEditValues>({
@@ -116,44 +114,41 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 			avatarUrl: '',
 			email: '',
 			status: 'Active',
-			profileIds: [],
+			roleIds: [],
 		},
 	});
 	const { formState, reset } = methods;
 	const { errors, isSubmitting } = formState;
-	const watchedProfileIds = useWatch({
+	const watchedRoleIds = useWatch({
 		control: methods.control,
-		name: 'profileIds',
+		name: 'roleIds',
 	});
-	const selectedProfileIds = collectSelectedProfileIds([watchedProfileIds]);
-	const knownProfileNames = new Map(knownProfileNamesRef.current);
-	rememberStaffProfileNames(knownProfileNames, assignedProfiles);
-	rememberStaffProfileNames(knownProfileNames, profilesQuery.data?.data);
-	const profileOptions = buildStaffProfileOptions({
-		profiles: profilesQuery.data?.data,
-		selectedProfileIds,
-		knownProfileNames,
+	const selectedRoleIds = collectSelectedRoleIds([watchedRoleIds]);
+	const knownRoleNames = new Map(knownRoleNamesRef.current);
+	rememberStaffRoleNames(knownRoleNames, assignedRoles);
+	rememberStaffRoleNames(knownRoleNames, rolesQuery.data?.data);
+	const roleOptions = buildStaffRoleOptions({
+		roles: rolesQuery.data?.data,
+		selectedRoleIds,
+		knownRoleNames,
 		includeDescriptions: true,
 	});
 	const hydratedUserIdRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		rememberStaffProfileNames(
-			knownProfileNamesRef.current,
-			profilesQuery.data?.data,
-		);
-	}, [profilesQuery.data]);
+		rememberStaffRoleNames(knownRoleNamesRef.current, rolesQuery.data?.data);
+	}, [rolesQuery.data]);
 
 	useEffect(() => {
-		rememberStaffProfileNames(knownProfileNamesRef.current, assignedProfiles);
-	}, [assignedProfiles]);
+		rememberStaffRoleNames(knownRoleNamesRef.current, assignedRoles);
+	}, [assignedRoles]);
 
 	useEffect(() => {
 		if (
 			!user ||
 			!detailsQuery.isSuccess ||
-			!assignedProfilesQuery.isSuccess ||
-			assignedProfilesQuery.data === undefined
+			!assignedRolesQuery.isSuccess ||
+			assignedRolesQuery.data === undefined
 		) {
 			return;
 		}
@@ -169,7 +164,7 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 			avatarUrl: user.avatarUrl ?? '',
 			email: user.email,
 			status: normalizeStatus(user.status),
-			profileIds: assignedProfiles.map((profile) => profile.id),
+			roleIds: assignedRoles.map((role) => role.id),
 		};
 		reset(nextValues);
 		hydratedUserIdRef.current = userId;
@@ -179,32 +174,32 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 		// have diverged since (#1314-r1).
 		rememberPristineStaffUserEditValues(userId, nextValues);
 	}, [
-		assignedProfiles,
+		assignedRoles,
 		formState.isDirty,
 		reset,
 		user,
 		userId,
 		detailsQuery.isSuccess,
-		assignedProfilesQuery.isSuccess,
-		assignedProfilesQuery.data,
+		assignedRolesQuery.isSuccess,
+		assignedRolesQuery.data,
 	]);
 
 	return {
 		detailsQuery,
-		assignedProfilesQuery,
-		profilesQuery,
-		profilePagination,
+		assignedRolesQuery,
+		rolesQuery,
+		rolePagination,
 		user,
 		methods,
 		formState,
 		errors,
 		isSubmitting,
-		profileOptions,
-		hasNoServerProfileRows,
-		isProfileSearchSettled,
-		deferredProfileSearch,
-		profileSearch,
-		setProfileSearch,
-		hasLoadedProfiles,
+		roleOptions,
+		hasNoServerRoleRows,
+		isRoleSearchSettled,
+		deferredRoleSearch,
+		roleSearch,
+		setRoleSearch,
+		hasLoadedRoles,
 	};
 };

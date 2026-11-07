@@ -81,19 +81,19 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 			await this._DbContext.SaveChangesAsync(cancellationToken);
 
-			// Load invitation profiles
-			var invitationProfiles = await (
-				from ip in this._DbContext.InvitationProfile
+			// Load invitation roles
+			var invitationRoles = await (
+				from ip in this._DbContext.InvitationRole
 				where ip.InvitationId == invitation.GetRequiredId()
 				select ip
 			).ToListAsync(cancellationToken);
 
-			// Assign ALL profiles from the invitation
-			foreach (var invitationProfile in invitationProfiles) {
-				await this._DbContext.UserAccountProfile.AddAsync(
-					new UserAccountProfile {
+			// Assign ALL roles from the invitation
+			foreach (var invitationRole in invitationRoles) {
+				await this._DbContext.UserAccountRole.AddAsync(
+					new UserAccountRole {
 						UserAccountId = account.GetRequiredId(),
-						ProfileId = invitationProfile.ProfileId
+						RoleId = invitationRole.RoleId
 					},
 					cancellationToken
 				);
@@ -111,9 +111,9 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			if (this._Logger.IsEnabled(LogLevel.Information)) {
 				this._Logger.LogInformation(
-					"Staff invitation accepted: User {UserId} created with {ProfileCount} profiles from invitation {InvitationId}",
+					"Staff invitation accepted: User {UserId} created with {RoleCount} roles from invitation {InvitationId}",
 					user.GetRequiredId(),
-					invitationProfiles.Count,
+					invitationRoles.Count,
 					invitation.GetRequiredId()
 				);
 			}
@@ -162,19 +162,19 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 			await this._DbContext.UserAccount.AddAsync(account, cancellationToken);
 			await this._DbContext.SaveChangesAsync(cancellationToken);
 
-			// Load invitation profiles
-			var invitationProfiles = await (
-				from ip in this._DbContext.InvitationProfile
+			// Load invitation roles
+			var invitationRoles = await (
+				from ip in this._DbContext.InvitationRole
 				where ip.InvitationId == invitation.GetRequiredId()
 				select ip
 			).ToListAsync(cancellationToken);
 
-			// Assign ALL profiles from the invitation
-			foreach (var invitationProfile in invitationProfiles) {
-				await this._DbContext.UserAccountProfile.AddAsync(
-					new UserAccountProfile {
+			// Assign ALL roles from the invitation
+			foreach (var invitationRole in invitationRoles) {
+				await this._DbContext.UserAccountRole.AddAsync(
+					new UserAccountRole {
 						UserAccountId = account.GetRequiredId(),
-						ProfileId = invitationProfile.ProfileId
+						RoleId = invitationRole.RoleId
 					},
 					cancellationToken
 				);
@@ -209,10 +209,10 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			if (this._Logger.IsEnabled(LogLevel.Information)) {
 				this._Logger.LogInformation(
-					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with {ProfileCount} profiles from invitation {InvitationId}",
+					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with {RoleCount} roles from invitation {InvitationId}",
 					user.GetRequiredId(),
 					tenantId,
-					invitationProfiles.Count,
+					invitationRoles.Count,
 					invitation.GetRequiredId()
 				);
 			}
@@ -296,17 +296,17 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 				throw new InvalidOperationException("User is already member of tenant");
 			}
 
-			var invitationProfiles = await (
-				from ip in this._DbContext.InvitationProfile
+			var invitationRoles = await (
+				from ip in this._DbContext.InvitationRole
 				where ip.InvitationId == invitation.GetRequiredId()
 				select ip
 			).ToListAsync(cancellationToken);
 
-			foreach (var invitationProfile in invitationProfiles) {
-				await this._DbContext.UserAccountProfile.AddAsync(
-					new UserAccountProfile {
+			foreach (var invitationRole in invitationRoles) {
+				await this._DbContext.UserAccountRole.AddAsync(
+					new UserAccountRole {
 						UserAccountId = account.GetRequiredId(),
-						ProfileId = invitationProfile.ProfileId
+						RoleId = invitationRole.RoleId
 					},
 					cancellationToken
 				);
@@ -340,10 +340,10 @@ public sealed class InvitationAcceptanceService : IInvitationAcceptanceService {
 
 			if (this._Logger.IsEnabled(LogLevel.Information)) {
 				this._Logger.LogInformation(
-					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with {ProfileCount} profiles from invitation {InvitationId}",
+					"Tenant invitation accepted by existing user {UserId} in tenant {TenantId} with {RoleCount} roles from invitation {InvitationId}",
 					userId,
 					tenantId,
-					invitationProfiles.Count,
+					invitationRoles.Count,
 					invitation.GetRequiredId()
 				);
 			}

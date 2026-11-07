@@ -124,7 +124,7 @@ const renderPage = (
 				newAction={
 					options.headerActions
 						? {
-								label: 'Create profile',
+								label: 'Create role',
 								icon: IconBuilding,
 								onSelect: vi.fn(),
 							}
@@ -314,7 +314,7 @@ describe('ListPage', () => {
 
 		const exportButton = screen.getByRole('button', { name: /list-export/ });
 		expect(exportButton.className).toContain('max-md:hidden');
-		const create = screen.getByRole('button', { name: 'Create profile' });
+		const create = screen.getByRole('button', { name: 'Create role' });
 		expect(create.closest('span')?.className).toContain('max-md:hidden');
 		// The statistics chevron is not an action: it stays in the header.
 		expect(
@@ -332,7 +332,7 @@ describe('ListPage', () => {
 			},
 		);
 
-		expect(screen.queryByRole('button', { name: 'Create profile' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Create role' })).toBeNull();
 		expect(screen.queryByRole('button', { name: /list-export/ })).toBeNull();
 		// Exactly one action remains in the error body: the primary « Retour à
 		// l'accueil »; a 403 offers no retry.

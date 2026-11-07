@@ -12,7 +12,7 @@ namespace PublyApp.Api.Modules.Users.Validation;
 /// These rules depend on UserAccount and User entities.
 /// </summary>
 public static class UserValidationRules {
-	// Mirrors the front profile/identity forms' client-side caps:
+	// Mirrors the front role/identity forms' client-side caps:
 	// firstName/lastName ≤ 128 (after trim), avatarUrl ≤ 1024.
 	public const int FirstNameMaxLength = 128;
 	public const int LastNameMaxLength = 128;

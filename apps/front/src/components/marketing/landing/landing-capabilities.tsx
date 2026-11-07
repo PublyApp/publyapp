@@ -41,7 +41,7 @@ const CAPABILITY_FACTS: readonly CapabilityFact[] = [
 	{ key: 'calendar', Icon: IconCalendar },
 	{ key: 'composer', Icon: IconPencil },
 	{ key: 'approvals', Icon: IconShieldCheck },
-	{ key: 'profiles', Icon: IconUsersGroup },
+	{ key: 'roles', Icon: IconUsersGroup },
 	{ key: 'dashboards', Icon: IconLayoutDashboard },
 	{ key: 'permissions', Icon: IconKey },
 ];

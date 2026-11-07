@@ -10,9 +10,9 @@ describe('history category', () => {
 	test('maps the backend action domains to the nine categories', () => {
 		expect(historyCategory('auth.login.failed')).toBe('auth');
 		expect(historyCategory('tenant.suspended')).toBe('tenant');
-		expect(historyCategory('tenant.profile.updated')).toBe('tenant');
+		expect(historyCategory('tenant.role.updated')).toBe('tenant');
 		expect(historyCategory('tenant.user.suspended')).toBe('member');
-		expect(historyCategory('tenant.profile.user.assigned')).toBe('member');
+		expect(historyCategory('tenant.role.user.assigned')).toBe('member');
 		expect(historyCategory('staff.user.deleted')).toBe('staff');
 		expect(historyCategory('impersonation.started')).toBe('impersonation');
 		expect(historyCategory('tenant.invitation.accepted')).toBe('invitation');

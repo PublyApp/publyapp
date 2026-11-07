@@ -25,7 +25,7 @@ export interface CaptureEventParams {
 export interface IdentifyUserParams {
 	/** Unique identifier for the user */
 	distinctId: string;
-	/** Properties to set on the user profile */
+	/** Properties to set on the user role */
 	properties?: AnalyticsProperties;
 	/** Properties to set only once (won't overwrite existing values) */
 	propertiesSetOnce?: AnalyticsProperties;

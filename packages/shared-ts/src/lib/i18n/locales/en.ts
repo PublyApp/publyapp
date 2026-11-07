@@ -11,7 +11,7 @@ import staffAuditLogs from '../json/staff-audit-logs.en.json' with { type: 'json
 import staffInvitations from '../json/staff-invitations.en.json' with { type: 'json' };
 import staffJobs from '../json/staff-jobs.en.json' with { type: 'json' };
 import staffTenantActivity from '../json/staff-tenant-activity.en.json' with { type: 'json' };
-import staffTenantProfiles from '../json/staff-tenant-profiles.en.json' with { type: 'json' };
+import staffTenantRoles from '../json/staff-tenant-roles.en.json' with { type: 'json' };
 import staffUsers from '../json/staff-users.en.json' with { type: 'json' };
 import { I18N_NAMESPACES } from '../namespaces';
 import type { NamespaceResource } from '../shared';
@@ -30,7 +30,7 @@ const resourceEN = {
 	organizations,
 	posts,
 	'social-accounts': socialAccounts,
-	'staff-tenant-profiles': staffTenantProfiles,
+	'staff-tenant-roles': staffTenantRoles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
 	'staff-audit-logs': staffAuditLogs,

@@ -60,7 +60,7 @@ const resetKeysSignature = (resetKeys: readonly unknown[]): string =>
  * generation changes and the table-controller uses for the search draft).
  *
  * `resetKeys` names everything that means "the reader deliberately navigated
- * away from this listing" — tenant/profile identity, committed search, sort,
+ * away from this listing" — tenant/role identity, committed search, sort,
  * page size, and so on. It is deliberately folded into THIS derivation
  * rather than left as a separate "reset pageIndex to 0" effect at the call
  * site: two separate rules would both read the pre-update `pageIndex` from

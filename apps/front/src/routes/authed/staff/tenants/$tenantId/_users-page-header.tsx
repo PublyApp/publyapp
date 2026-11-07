@@ -22,7 +22,7 @@ export const TenantUsersPageHeader = ({
 				<h2 className="publy-type-page-title">
 					{t('members')}
 					{usersCount != null ? (
-						<span className="ml-2 publy-profile-count-badge align-middle">
+						<span className="ml-2 publy-role-count-badge align-middle">
 							{usersCount}
 						</span>
 					) : null}

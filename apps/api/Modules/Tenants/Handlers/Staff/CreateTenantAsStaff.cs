@@ -12,7 +12,7 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 
@@ -25,7 +25,7 @@ public class CreateTenantAsStaffBody {
 	public JsonElement MaxUsers { get; set; }
 	public JsonElement InitialUsers { get; set; }
 	public JsonElement? Code { get; set; }
-	public JsonElement? SeedDefaultProfile { get; set; }
+	public JsonElement? SeedDefaultRole { get; set; }
 	public JsonElement? LogoUrl { get; set; }
 	public JsonElement? LegalName { get; set; }
 	public JsonElement? Description { get; set; }
@@ -95,12 +95,12 @@ public class CreateTenantAsStaffBody {
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
-	public bool GetSeedDefaultProfile() {
-		var kind = this.SeedDefaultProfile?.ValueKind;
+	public bool GetSeedDefaultRole() {
+		var kind = this.SeedDefaultRole?.ValueKind;
 		if (kind is null or JsonValueKind.Null or JsonValueKind.Undefined) {
 			return true;
 		}
-		return this.SeedDefaultProfile.GetValueAsBoolean();
+		return this.SeedDefaultRole.GetValueAsBoolean();
 	}
 
 	public List<CreateTenantAsStaffInitialUserItem> GetInitialUsers() {
@@ -155,8 +155,8 @@ public partial class CreateTenantAsStaffBodyValidator : AbstractValidator<Create
 
 		this.RuleFor(x => x.Code).Custom(CreateTenantAsStaffBodyValidator._ValidateCode);
 
-		this.RuleFor(x => x.SeedDefaultProfile)
-			.MustBeNullableBoolean("SeedDefaultProfile");
+		this.RuleFor(x => x.SeedDefaultRole)
+			.MustBeNullableBoolean("SeedDefaultRole");
 
 		this.RuleFor(x => x.LogoUrl)
 			.MustBeNullableLogoUrl();
@@ -374,7 +374,7 @@ public sealed class CreateTenantAsStaff {
 		[FromBody] CreateTenantAsStaffBody body,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
+		[FromServices] IRoleAssignmentGuard roleAssignmentGuard,
 		[FromServices] ILogger<CreateTenantAsStaff> logger,
 		CancellationToken cancellationToken
 	) {
@@ -384,7 +384,7 @@ public sealed class CreateTenantAsStaff {
 		var maxUsers = body.GetMaxUsers();
 		var initialUsersItems = body.GetInitialUsers();
 		var code = body.GetCode();
-		var seedDefaultProfile = body.GetSeedDefaultProfile();
+		var seedDefaultRole = body.GetSeedDefaultRole();
 		var logoUrl = body.GetLogoUrl();
 		var legalName = body.GetLegalName();
 		var description = body.GetDescription();
@@ -398,7 +398,7 @@ public sealed class CreateTenantAsStaff {
 		var effectiveMaxUsers = maxUsers ?? AppEnvironment.Instance.DEFAULT_MAX_USERS_PER_TENANT;
 
 		if (initialUsersItems.Any(u => string.Equals(u.Role, "owner", StringComparison.OrdinalIgnoreCase))
-			&& !await profileAssignmentGuard.ActorHasFullAccessAsync(
+			&& !await roleAssignmentGuard.ActorHasFullAccessAsync(
 				staffAccount.UserId,
 				cancellationToken
 			)) {
@@ -422,7 +422,7 @@ public sealed class CreateTenantAsStaff {
 				InitialUsers: initialUsers,
 				InvitedByUserId: staffAccount.UserId,
 				Code: code,
-				SeedDefaultProfile: seedDefaultProfile,
+				SeedDefaultRole: seedDefaultRole,
 				LogoUrl: logoUrl,
 				LegalName: legalName,
 				Description: description,

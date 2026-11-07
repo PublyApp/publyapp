@@ -14,7 +14,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -917,7 +917,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		string email
 	) {
-		Guid profileId = await this._GetAnyStaffProfileIdAsync();
+		Guid roleId = await this._GetAnyStaffRoleIdAsync();
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
 			PathUtils.Join(Routes.Staff.Root, Routes.Invitations.ForStaff.Root)
@@ -925,7 +925,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 		request.Content = JsonContent.Create(new {
 			email,
-			profileId = profileId.ToString()
+			roleId = roleId.ToString()
 		});
 
 		using HttpResponseMessage response = await this._Http.SendAsync(request);
@@ -947,20 +947,20 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		Profile staffProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.Scope == ProfileScope.Staff
-				&& !profile.IsDeleted
+		Role staffRole = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
 			)
-			.OrderBy(profile => profile.Name)
+			.OrderBy(role => role.Name)
 			.FirstAsync();
 		User staffUser = await dbContext.User
 			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
 			.FirstAsync();
 
-		Invitation invitation = Invitation.CreateStaffInvitationWithProfiles(
+		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
 			email,
-			[staffProfile.GetRequiredId()],
+			[staffRole.GetRequiredId()],
 			staffUser.GetRequiredId(),
 			expiresAt,
 			Guid.NewGuid().ToString("N")[..32]
@@ -1023,20 +1023,20 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		Profile staffProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.Scope == ProfileScope.Staff
-				&& !profile.IsDeleted
+		Role staffRole = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
 			)
-			.OrderBy(profile => profile.Name)
+			.OrderBy(role => role.Name)
 			.FirstAsync();
 		User staffUser = await dbContext.User
 			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
 			.FirstAsync();
 
-		Invitation invitation = Invitation.CreateStaffInvitationWithProfiles(
+		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
 			email,
-			[staffProfile.GetRequiredId()],
+			[staffRole.GetRequiredId()],
 			staffUser.GetRequiredId(),
 			DateTime.UtcNow.AddDays(-1),
 			Guid.NewGuid().ToString("N")[..32]
@@ -1066,20 +1066,20 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<Guid> _GetAnyStaffProfileIdAsync() {
+	private async Task<Guid> _GetAnyStaffRoleIdAsync() {
 		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		Profile profile = await dbContext.Profile
-			.Where(profile =>
-				profile.Scope == ProfileScope.Staff
-				&& !profile.IsDeleted
+		Role role = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
 			)
-			.OrderBy(profile => profile.Name)
+			.OrderBy(role => role.Name)
 			.FirstAsync();
 
-		return profile.GetRequiredId();
+		return role.GetRequiredId();
 	}
 
 	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
@@ -1127,7 +1127,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		public Guid Id { get; init; }
 		public string Email { get; init; } = string.Empty;
 		public string Scope { get; init; } = string.Empty;
-		public string ProfileName { get; init; } = string.Empty;
+		public string RoleName { get; init; } = string.Empty;
 		public string Status { get; init; } = string.Empty;
 		public DateTime ExpiresAt { get; init; }
 		public DateTime? AcceptedAt { get; init; }
@@ -1148,29 +1148,29 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		// Disable FK enforcement triggers on both tables so the swap
 		// doesn't violate non-deferrable FK constraints. Triggers are
 		// re-enabled automatically when the transaction ends.
-		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE invitations DISABLE TRIGGER ALL; ALTER TABLE invitation_profiles DISABLE TRIGGER ALL");
+		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE invitations DISABLE TRIGGER ALL; ALTER TABLE invitation_roles DISABLE TRIGGER ALL");
 
 		var temp = Guid.NewGuid();
-		// Step 1: move idA -> temp in invitations, then redirect profiles.
+		// Step 1: move idA -> temp in invitations, then redirect roles.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			temp, idA);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			"UPDATE invitation_roles SET invitation_id = {0} WHERE invitation_id = {1}",
 			temp, idA);
-		// Step 2: move idB -> idA in invitations, then redirect profiles.
+		// Step 2: move idB -> idA in invitations, then redirect roles.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			idA, idB);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			"UPDATE invitation_roles SET invitation_id = {0} WHERE invitation_id = {1}",
 			idA, idB);
-		// Step 3: move temp -> idB in invitations, then redirect profiles.
+		// Step 3: move temp -> idB in invitations, then redirect roles.
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"UPDATE invitations SET id = {0} WHERE id = {1}",
 			idB, temp);
 		await dbContext.Database.ExecuteSqlRawAsync(
-			"UPDATE invitation_profiles SET invitation_id = {0} WHERE invitation_id = {1}",
+			"UPDATE invitation_roles SET invitation_id = {0} WHERE invitation_id = {1}",
 			idB, temp);
 
 		await tx.CommitAsync();

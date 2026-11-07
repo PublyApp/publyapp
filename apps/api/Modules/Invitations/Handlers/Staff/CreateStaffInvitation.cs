@@ -14,14 +14,14 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
 public record CreateStaffInvitationBody {
 	public required JsonElement Email { get; init; }
-	public required JsonElement ProfileId { get; init; }
+	public required JsonElement RoleId { get; init; }
 }
 
 public record InvitationCreated {
@@ -36,24 +36,24 @@ public class CreateStaffInvitationBodyValidator
 		this.RuleFor(x => x.Email)
 			.MustBeRequiredEmail();
 
-		this.RuleFor(x => x.ProfileId).Custom((element, context) => {
+		this.RuleFor(x => x.RoleId).Custom((element, context) => {
 			if (element.ValueKind
 				is JsonValueKind.Undefined
 				or JsonValueKind.Null) {
-				context.AddFailure("ProfileId is required");
+				context.AddFailure("RoleId is required");
 				return;
 			}
 			if (element.ValueKind != JsonValueKind.String) {
-				context.AddFailure("ProfileId must be a string");
+				context.AddFailure("RoleId must be a string");
 				return;
 			}
 			var str = element.GetString();
 			if (string.IsNullOrWhiteSpace(str)) {
-				context.AddFailure("ProfileId must not be empty");
+				context.AddFailure("RoleId must not be empty");
 				return;
 			}
 			if (!Guid.TryParse(str, out _)) {
-				context.AddFailure("ProfileId must be a valid GUID");
+				context.AddFailure("RoleId must be a valid GUID");
 			}
 		});
 	}
@@ -70,18 +70,18 @@ public sealed class CreateStaffInvitation {
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] IProfileAssignmentGuard profileAssignmentGuard,
+		[FromServices] IRoleAssignmentGuard roleAssignmentGuard,
 		CancellationToken cancellationToken = default
 	) {
 		var account = authContext.GetRequiredStaffAccount();
 
 		// Extract values after validation
 		var email = body.Email.GetValueAsString();
-		var profileId = Guid.Parse(body.ProfileId.GetValueAsString());
+		var roleId = Guid.Parse(body.RoleId.GetValueAsString());
 
-		if (!await profileAssignmentGuard.CanAssignProfilesAsync(
+		if (!await roleAssignmentGuard.CanAssignRolesAsync(
 			account.UserId,
-			[profileId],
+			[roleId],
 			cancellationToken
 		)) {
 			return TypedProblems.Forbidden(
@@ -90,13 +90,13 @@ public sealed class CreateStaffInvitation {
 			);
 		}
 
-		// Validate profile via service
-		var profile = await invitationService.GetStaffProfileAsync(
-			profileId,
+		// Validate role via service
+		var role = await invitationService.GetStaffRoleAsync(
+			roleId,
 			cancellationToken
 		);
-		if (profile is null) {
-			return TypedProblems.BadRequest("Profile not found", ResponseKeys.NotFound);
+		if (role is null) {
+			return TypedProblems.BadRequest("Role not found", ResponseKeys.NotFound);
 		}
 
 		// Check if user exists first - this determines whether we need to check for account conflicts
@@ -138,10 +138,10 @@ public sealed class CreateStaffInvitation {
 			);
 		}
 
-		// Create invitation via service (wrap single profileId in list for new API)
+		// Create invitation via service (wrap single roleId in list for new API)
 		var createArgs = new CreateStaffInvitationArgs(
 			Email: email,
-			ProfileIds: [profileId],
+			RoleIds: [roleId],
 			InvitedByUserId: account.UserId
 		);
 		var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
@@ -159,7 +159,7 @@ public sealed class CreateStaffInvitation {
 				UserId: account.UserId,
 				Action: AuditActions.InvitationCreated,
 				TargetId: invitation.GetRequiredId(),
-				Details: new { Email = email, ProfileId = profileId, Scope = "Staff" }
+				Details: new { Email = email, RoleId = roleId, Scope = "Staff" }
 			),
 			cancellationToken
 		);

@@ -65,7 +65,7 @@ const EN_LABELS: TestLabelMap = {
 	'posts:schedule-submit': 'Schedule',
 	'posts:schedule-past': 'Pick a date and time in the future.',
 	'posts:publish-now-too-many-destinations': 'At most {{max}} at once',
-	'posts:publish-on-empty': 'No connected profile to publish to yet.',
+	'posts:publish-on-empty': 'No connected role to publish to yet.',
 	'common:publish-now': 'Publish now',
 	'common:an-error-occurred': 'An error occurred',
 	'posts:publish-blocked-media-required': '{{destination}} needs an image',
@@ -286,7 +286,7 @@ describe('PublishOnBlock', () => {
 
 		expect(screen.getByTestId('tenant-posts-publish-on-block')).toBeTruthy();
 		expect(
-			screen.getByText('No connected profile to publish to yet.'),
+			screen.getByText('No connected role to publish to yet.'),
 		).toBeTruthy();
 	});
 

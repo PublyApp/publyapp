@@ -86,7 +86,7 @@ const buildTenant = (): Parameters<typeof UsersPreviewCard>[0]['tenant'] => ({
 	ownersCount: 1,
 	pendingInvitationsCount: 0,
 	expiringSoonInvitationsCount: 0,
-	profilesCount: 1,
+	rolesCount: 1,
 	code: null,
 	logoUrl: null,
 	legalName: null,

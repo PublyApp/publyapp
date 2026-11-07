@@ -177,7 +177,7 @@ void test('flags default import aliased to a banned name', () => {
 
 void test('flags namespace import aliased to a banned name', () => {
 	const root = makeSandbox({
-		'src/routes/authed/staff/profiles.tsx':
+		'src/routes/authed/staff/roles.tsx':
 			`import * as ColumnDef from '@tanstack/react-table';\n` +
 			`export const x = null as ColumnDef<never>;\n`,
 	});
@@ -379,7 +379,7 @@ void test('ADVERSE: catches namespace import (import * as ReactTable from)', () 
 	// banned names, so the old guard missed it. The new guard flags any
 	// namespace import from a banned specifier.
 	const root = makeSandbox({
-		'src/routes/authed/staff/profiles.tsx':
+		'src/routes/authed/staff/roles.tsx':
 			`import * as ReactTable from '@tanstack/react-table';\n` +
 			`export const x = null as ReactTable.ColumnDef<any>;\n`,
 	});
@@ -394,7 +394,7 @@ void test('ADVERSE: catches require() call', () => {
 	// module load that brings the same root types into scope. The guard
 	// must flag require calls whose first argument is a banned specifier.
 	const root = makeSandbox({
-		'src/routes/authed/staff/profiles.tsx':
+		'src/routes/authed/staff/roles.tsx':
 			`const ReactTable = require('@tanstack/react-table');\n` +
 			`export const x = null as ReactTable.ColumnDef<any>;\n`,
 	});
@@ -425,7 +425,7 @@ void test('ADVERSE: catches import = require() (ImportEqualsDeclaration)', () =>
 	// a CallExpression), so neither the import-declaration handler nor
 	// the require-call handler fires. The guard must flag this form.
 	const root = makeSandbox({
-		'src/routes/authed/staff/profiles.tsx':
+		'src/routes/authed/staff/roles.tsx':
 			`import ReactTable = require('@tanstack/react-table');\n` +
 			`export const x = null as ReactTable.ColumnDef<any>;\n`,
 	});

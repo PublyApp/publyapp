@@ -19,20 +19,23 @@ distils them. `apps/old-front` is retired and is **not** a pattern source.
 ## 1. Identity
 
 ### Name and mark
+
 - Product name: **PublyApp**.
 - Brand mark: `docs/assets/publyapp-mark.svg` — a 72×72 viewBox `0 0 24 24` two-path glyph with
   `aria-label="PublyApp"`. The path geometry is fixed; colour comes from CSS, not the file:
   - Muted path: `#6b7280` (light) / `#9ca3af` (dark, via `prefers-color-scheme: dark`).
   - Primary path: `#111827` (light) / `#f9fafb` (dark).
-  The mark carries **no** product yellow; yellow is the app-chrome accent, not the wordmark.
-  — source: `docs/assets/publyapp-mark.svg`
+    The mark carries **no** product yellow; yellow is the app-chrome accent, not the wordmark.
+    — source: `docs/assets/publyapp-mark.svg`
 
 ### Tone of voice for UI copy
+
 Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
+
 - **Sentence case** is the default for status, field, and message strings: `"User has no email"`,
   `"Uploads are not supported yet."`, `"No matching companies found"`, `"Verification link"`.
 - **Title Case** for navigation and noun labels: `"All tenants"`, `"Pending"`, `"Active"`,
-  `"Suspended"`, `"Staff"`, `"Tenants"`, `"Profiles"`, `"Dashboard"`.
+  `"Suspended"`, `"Staff"`, `"Tenants"`, `"Roles"`, `"Dashboard"`.
 - **Imperative verbs** for actions/buttons: `"Save"`, `"Edit"`, `"Delete"`, `"New"`, `"Preview"`,
   `"Clear search"`, `"Add first company"`.
 - Ellipsis on in-flight states: `"Loading..."`.
@@ -40,9 +43,10 @@ Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
   strings (e.g. `"Uploads are not supported yet."`).
 - French is a maintained translation (`common.fr.json`, `response-message.fr.json`, `zod.fr.json`),
   not a fallback.
-— source: `packages/shared-ts/src/lib/i18n/json/common.en.json`, `common.fr.json`
+  — source: `packages/shared-ts/src/lib/i18n/json/common.en.json`, `common.fr.json`
 
 ### i18n rules
+
 - UI strings live in three namespaces mirrored per locale: `common`, `response-message`, `zod`.
   — source: `packages/shared-ts/src/lib/i18n/json/`
 - **Never translate `response-message` keys by hand at a mutation call site.** Derive user-facing
@@ -58,6 +62,7 @@ Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
 ## 2. Foundations
 
 ### Colour tokens
+
 All colours are CSS custom properties declared in `apps/front/src/styles/app.css` under `:root`
 (light) and `html.dark` (dark), with a `@theme inline` bridge to Tailwind v4 utility names
 (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`, etc.).
@@ -65,31 +70,31 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 
 **Semantic groups** (light value → dark value; both columns generated from `apps/front/src/styles/app.css`):
 
-| Group | Light | Dark | Notes |
-| --- | --- | --- | --- |
-| Primary (chrome accent) | `--publy-primary #fdc700` | `#f0bd00` | Yellow. |
-| Primary foreground | `--publy-primary-foreground #733e0a` | `#1a0d00` | Solid-button text on `--publy-primary`. |
-| Primary soft | `#fffbeb` | `#2a2400` | Chips / soft pill background. |
-| Primary soft foreground | `#733e0a` | `#fbbf24` | Text on primary-soft; the value swaps to yellow in dark. |
-| Background / surface | `#f7f7f7` | `#18181b` | `--publy-background`, `--publy-surface` identical in both themes. |
-| Card / popover | `#f2f2f2` | `#1f1f23` | `--publy-card`; the raised card/popover fill. |
-| Muted | `#f7f7f7` | `#1f1f23` | Tailwind `muted`; equals `background` in light. |
-| Surface raised | `#f6f6f6` | `#18181b` | Dark equals `background`; use `card`/`popover` for an elevated panel. |
-| Surface muted | `#f2f2f2` | `#222226` | `--publy-surface-muted` (secondary/accent fills). |
-| Surface hover | `#f2f2f2` | `#222226` | |
-| Surface active | `#ffffff` | `#27272a` | Active navigation row. |
-| Foreground | `#18181b` | `#feffff` | Body text. |
-| Foreground secondary | `#3f3f46` | `#d4d4d8` | Real content text. |
-| Foreground muted | `#6b6b73` | `#898989` | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast). |
-| Foreground subtle | `#a1a1aa` | `#71717a` | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons). |
-| Border | `#e3e3e3` | `#323234` | Hairline ring colour. |
-| Border strong | `#d4d4d8` | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes). |
-| Input border | `#e4e4e7` | `#27272a` | `--publy-input-border`; field hairline, one step lighter than the general border. |
-| Danger | `#dc2626` | `#f87171` | `--publy-danger`; destructive actions/alerts. |
-| Success | `#047857` | `#34d399` | |
-| Warning | `#b45309` | `#fbbf24` | |
-| Focus ring | `#a16207` | `#facc15` | `--publy-focus-ring`. |
-| Disabled | `#d4d4d8` | `#52525b` | |
+| Group                   | Light                                | Dark                     | Notes                                                                                                                        |
+| ----------------------- | ------------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Primary (chrome accent) | `--publy-primary #fdc700`            | `#f0bd00`                | Yellow.                                                                                                                      |
+| Primary foreground      | `--publy-primary-foreground #733e0a` | `#1a0d00`                | Solid-button text on `--publy-primary`.                                                                                      |
+| Primary soft            | `#fffbeb`                            | `#2a2400`                | Chips / soft pill background.                                                                                                |
+| Primary soft foreground | `#733e0a`                            | `#fbbf24`                | Text on primary-soft; the value swaps to yellow in dark.                                                                     |
+| Background / surface    | `#f7f7f7`                            | `#18181b`                | `--publy-background`, `--publy-surface` identical in both themes.                                                            |
+| Card / popover          | `#f2f2f2`                            | `#1f1f23`                | `--publy-card`; the raised card/popover fill.                                                                                |
+| Muted                   | `#f7f7f7`                            | `#1f1f23`                | Tailwind `muted`; equals `background` in light.                                                                              |
+| Surface raised          | `#f6f6f6`                            | `#18181b`                | Dark equals `background`; use `card`/`popover` for an elevated panel.                                                        |
+| Surface muted           | `#f2f2f2`                            | `#222226`                | `--publy-surface-muted` (secondary/accent fills).                                                                            |
+| Surface hover           | `#f2f2f2`                            | `#222226`                |                                                                                                                              |
+| Surface active          | `#ffffff`                            | `#27272a`                | Active navigation row.                                                                                                       |
+| Foreground              | `#18181b`                            | `#feffff`                | Body text.                                                                                                                   |
+| Foreground secondary    | `#3f3f46`                            | `#d4d4d8`                | Real content text.                                                                                                           |
+| Foreground muted        | `#6b6b73`                            | `#898989`                | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast). |
+| Foreground subtle       | `#a1a1aa`                            | `#71717a`                | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons).                                      |
+| Border                  | `#e3e3e3`                            | `#323234`                | Hairline ring colour.                                                                                                        |
+| Border strong           | `#d4d4d8`                            | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes).                                                               |
+| Input border            | `#e4e4e7`                            | `#27272a`                | `--publy-input-border`; field hairline, one step lighter than the general border.                                            |
+| Danger                  | `#dc2626`                            | `#f87171`                | `--publy-danger`; destructive actions/alerts.                                                                                |
+| Success                 | `#047857`                            | `#34d399`                |                                                                                                                              |
+| Warning                 | `#b45309`                            | `#fbbf24`                |                                                                                                                              |
+| Focus ring              | `#a16207`                            | `#facc15`                | `--publy-focus-ring`.                                                                                                        |
+| Disabled                | `#d4d4d8`                            | `#52525b`                |                                                                                                                              |
 
 The avatar identity palette `--publy-avatar-1…8` (teal, violet, pink, rose, orange, sky, cyan,
 magenta) is **theme-invariant** (no `html.dark` counterpart) — WCAG-pinned against fixed white
@@ -108,6 +113,7 @@ Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / 
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`
 
 ### Typography
+
 - Fonts: **Geist** (sans, weights 400/500/600) and **Geist Mono** (weights 400/500), self-hosted
   woff2 under `apps/front/public/fonts/geist`, with system fallbacks. — source: `apps/front/src/styles/app.css` (`@font-face`, `--publy-font-sans`, `--publy-font-mono`)
 - UI text is dense: the app shell and table body use **13px** (`md:text-[13px]`); badges 11–12px;
@@ -124,6 +130,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - No bespoke type scale beyond Tailwind utilities mapped to the `--publy-font-*` tokens.
 
 ### Spacing & radius
+
 - Radius scales with control height. Canonical tokens: `--publy-radius-sm 0.375rem`, `--publy-radius-md 0.5rem`,
   `--publy-radius-input 10px`, `--publy-radius-chip 8px`, `--publy-radius-small-control 10px`,
   `--publy-radius-medium-control 12px`, `--publy-radius-control 14px`, `--publy-radius-menu-item 9px`,
@@ -132,10 +139,11 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   inputs/selects `10px`; chips/badges `8px`; dropdown/context menu items `9px`; drawer radius `28px`
   (`--publy-modal-radius`). — source: `apps/front/src/components/ui/button.tsx`, `input.tsx`, `badge.tsx`, `dropdown-menu.tsx`, `app.css`
 - **`rounded-full` / `999px` is forbidden everywhere except**: avatars, the 36px topbar icon buttons
-  (`.app-shell-topbar-action-btn`), and the profile icon-picker's pencil-pin corner badge. Enforced
+  (`.app-shell-topbar-action-btn`), and the role icon-picker's pencil-pin corner badge. Enforced
   by rule `no-rounded-full-or-999-radius` with an exact-selector allowlist. — source: `apps/front/scripts/guards/check-design-system.ts` (`ROUNDED_RULE_ID`), `docs/guides/front/conventions.md` (Corner radius)
 
 ### Elevation & z-index ladder
+
 - **Flat surfaces, crisp hairlines.** Cards/sections use a 1px box-shadow ring
   (`box-shadow: var(--publy-shadow-ring)` = `0 0 0 1px var(--publy-border)`), never a drop-shadow or
   elevation. An element must not carry both a real `border` and the ring. — source: `docs/guides/front/conventions.md` (Elevation & borders), `app.css` (`--publy-shadow-ring`)
@@ -146,6 +154,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   `menu 100` · `select 110` · `toast 120`. — source: `docs/guides/front/z-index-guard.md`, `app.css` (`--publy-z-*`)
 
 ### Motion
+
 - Tokens: `--publy-motion-ease cubic-bezier(0.22,1,0.36,1)`, `--publy-motion-fast 120ms`
   (colour), `--publy-motion-medium 240ms` (layout). — source: `app.css`
 - Marketing landing adds two durations: `--publy-landing-motion-press 50ms` (direct-manipulation
@@ -154,22 +163,24 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - No bespoke easing curves outside these tokens.
 
 ### Focus rings
+
 - `focus-visible` uses a ring at `--publy-focus-ring` (`focus-visible:ring-ring`), with the width set
   per component in its `cva`/class string:
   - **3px** (`focus-visible:ring-3`): `button.tsx`, `badge.tsx` (`ring-[3px]`), `input.tsx`,
     `textarea.tsx`, `select.tsx`, `switch.tsx`.
   - **2px** (`focus-visible:ring-2`): `checkbox.tsx`.
-  The ring colour is contrast-guarded to ≥3:1 against its surface (the focus-indicator floor):
-  token math lives in the vitest guard, and the RENDERED indicator is proven in a real browser
-  (real primitives, real compiled CSS, real cascade) by `focus-ring-cascade.spec.ts`. — source:
-  `apps/front/src/components/ui/button.tsx`, `badge.tsx`, `input.tsx`, `textarea.tsx`,
-  `select.tsx`, `switch.tsx`, `checkbox.tsx`, `apps/front/src/styles/focus-ring-contrast.test.ts`
-  (tokens), `apps/front/e2e/focus-ring-cascade.spec.ts` (rendered ring)
+    The ring colour is contrast-guarded to ≥3:1 against its surface (the focus-indicator floor):
+    token math lives in the vitest guard, and the RENDERED indicator is proven in a real browser
+    (real primitives, real compiled CSS, real cascade) by `focus-ring-cascade.spec.ts`. — source:
+    `apps/front/src/components/ui/button.tsx`, `badge.tsx`, `input.tsx`, `textarea.tsx`,
+    `select.tsx`, `switch.tsx`, `checkbox.tsx`, `apps/front/src/styles/focus-ring-contrast.test.ts`
+    (tokens), `apps/front/e2e/focus-ring-cascade.spec.ts` (rendered ring)
 - Destructive/validation states keep the compliant base ring (`aria-invalid` adds a low-opacity
   destructive ring that must not replace the compliant one). — source:
   `apps/front/src/styles/focus-ring-contrast.test.ts`
 
 ### Hover states
+
 - **Outline and ghost buttons** — and any open menu trigger
   (`[aria-haspopup][aria-expanded='true']`) — paint
   `color-mix(in oklch, var(--background), var(--foreground) 5%)`, in **both** themes. `bg-muted`
@@ -180,6 +191,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   `data-popup-open`. — source: `apps/front/src/components/ui/button.variants.ts`, `select.tsx`, `app.css`
 
 ### Scrollbars
+
 - On fine pointers, every scroll area has **no track** and a thin rounded thumb: **11px** wide with
   a **3px transparent border** (5px painted pill), visible only while the area is hovered or
   focused, at **32% foreground**, rising to **55%** under the pointer. Touch screens keep the system
@@ -189,6 +201,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   — source: `app.css`
 
 ### Contrast floors
+
 - Body text: **4.5:1** against its surface (enforced for avatar fallback initials, drawer
   descriptions, and marketing text pairs). — source: `apps/front/src/styles/avatar-fallback-contrast.test.ts`, `drawer-description-contrast.test.ts`, `marketing-contrast.test.ts`
 - Large text / focus indicators / UI component graphics: **3:1**. — source: `focus-ring-contrast.test.ts`, `e2e/focus-ring-cascade.spec.ts`, `z-index-guard.md`
@@ -198,7 +211,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - `--publy-foreground-muted` clears **4.5:1 on every text surface** in both themes (page, card,
   popover, secondary and raised), so it is safe for body-size secondary text. That is why it is a
   deliberate AA step away from Shopkart's `#71717a` / `#7f7f7f` (see Colour tokens). — source:
-  `app.css`, `apps/front/src/routes/authed/staff/tenants/$tenantId/profiles/_profile-tenant-band-contrast.test.tsx`,
+  `app.css`, `apps/front/src/routes/authed/staff/tenants/$tenantId/roles/_role-tenant-band-contrast.test.tsx`,
   `apps/front/src/styles/marketing-contrast.test.ts`
 
 ---
@@ -210,6 +223,7 @@ The component layer wraps `@base-ui/react` headless primitives with `class-varia
 scaffolding/CSS-import dependency only, not a runtime library. — source: `docs/guides/front/conventions.md` (Base UI and Tailwind), `apps/front/src/lib/utils.ts` (`cn`)
 
 **Conventions**
+
 - Every component sets a `data-slot="<name>"` attribute for testing/style targeting.
 - Variants are declared with `cva(...)`; the resolved class string is composed through `cn(base,
   variants, className)`, so a caller's `className` can override via `tailwind-merge`.
@@ -217,34 +231,34 @@ scaffolding/CSS-import dependency only, not a runtime library. — source: `docs
 
 **Component families** (purpose · `cva` variants · key tokens read):
 
-| Component | Purpose | Variants | Tokens read |
-| --- | --- | --- | --- |
-| `button.tsx` | Primary action control | `variant`: default/outline/secondary/ghost/destructive/link · `size`: default/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg | `--publy-radius-*-control`, `--publy-destructive-soft`, `--publy-border-strong`, `ring-ring` |
-| `badge.tsx` | Status / count chip | `variant`: default/secondary/destructive/outline/ghost/link | `bg-primary`, `bg-destructive/10`, `border-border` |
-| `card.tsx` | Sectioned surface (no cva; `size` prop) | `size`: default/sm; slots: Header/Title/Description/Action/Content/Footer | `--publy-shadow-ring`, `--publy-radius-card` |
-| `input.tsx` / `textarea.tsx` | Text entry | none (utility classes) | `--publy-radius-input`, `--publy-shadow-input`, `ring-ring`, `--publy-destructive-soft` |
-| `select.tsx` | Trigger-anchored dropdown select | none; `size` data attr | `--publy-radius-input`, `ring-ring`; `alignItemWithTrigger` defaults `false` |
-| `dropdown-menu.tsx` | Menu / context menu / submenu | item radius 9px; `showCheckbox` prop | `--publy-radius-menu-item`, 5% foreground mix on `--popover` (hover/focus/highlight) |
-| `switch.tsx` / `checkbox.tsx` | Toggles | `size`: default/sm | `--publy-radius-small-control`, `bg-primary` (checked) |
-| `tabs.tsx` | Tab list | `variant`: default/line | `bg-muted`, `border-border`; labels 14px/400 muted, active 500 foreground with a 2px foreground underline and 12px inline padding |
-| `table.tsx` | Data grid primitives (`TableContainer`, etc.) | none | `--publy-table-header`, `--publy-row-border` |
-| `skeleton.tsx` | Loading placeholder | none (allows `rounded-full` for circular shimmer) | surface-muted |
-| `tooltip.tsx` | Hover/focus hint | none | `bg-popover` |
-| `drawer.tsx` / `confirm-dialog.tsx` | Dialog surfaces (drawer = side panel) | none | `--publy-drawer-width 460px`, `--publy-modal-radius`, `--publy-shadow-drawer` |
-| `state-view.tsx` / `state-surface.tsx` | Empty / error / loading primitives | none | tone colour via `--publy-foreground-muted`/`--publy-danger`/`--publy-primary` |
-| `search-input.tsx` | List search field | `compact` / `table` | `--publy-data-table-search-input` |
-| `label.tsx` | Form label | none | `text-foreground` |
-| `loading-spinner.tsx` | Inline spinner | none | `animate-spin` (allowed `rounded-full`) |
-| `detail-layout.tsx` | Detail-view grid + DangerZone | none | `--publy-danger-zone-*` |
-| `product-page.tsx` | `PageHeader`, `StatusPill`, `DetailRow`, `PillTabs` | none | status tones |
-| `stat-card.tsx` | Metric tile | none | `--publy-stat-card-icon` |
-| `icon-color-picker.tsx` | Icon+colour chooser | none | `--publy-radius-circular` (pencil pin) |
-| `copy-button.tsx` | Copy-to-clipboard | none | `IconCheck`/`IconCopy` |
-| `toaster.tsx` | Sonner host (`AppToaster`); mounts the global toast surface | none | `.publy-toast-*` variants (via `toast-variants.ts`) |
-| `toast-variants.ts` | Toast variant tokens/tints (success/error/info/warning/loading/default) | none | semantic alert tokens |
-| `status-tone.ts` | Status→tone map + `StatusPillTone` type for status pills | none | danger/info/neutral/primary/success/warning |
-| `initials-avatar.tsx` | `EntityAvatar`, `AvatarStack`, `BrandTile` (org/people aggregations) | none | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
-| `avatar.tsx` / `initials-avatar.tsx` / `person-avatar.tsx` | Identity surfaces | `PersonAvatar` sizes: default/xs/sm/md/lg (default 30px/11px) | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
+| Component                                                  | Purpose                                                                 | Variants                                                                                                            | Tokens read                                                                                                                       |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `button.tsx`                                               | Primary action control                                                  | `variant`: default/outline/secondary/ghost/destructive/link · `size`: default/xs/sm/lg/icon/icon-xs/icon-sm/icon-lg | `--publy-radius-*-control`, `--publy-destructive-soft`, `--publy-border-strong`, `ring-ring`                                      |
+| `badge.tsx`                                                | Status / count chip                                                     | `variant`: default/secondary/destructive/outline/ghost/link                                                         | `bg-primary`, `bg-destructive/10`, `border-border`                                                                                |
+| `card.tsx`                                                 | Sectioned surface (no cva; `size` prop)                                 | `size`: default/sm; slots: Header/Title/Description/Action/Content/Footer                                           | `--publy-shadow-ring`, `--publy-radius-card`                                                                                      |
+| `input.tsx` / `textarea.tsx`                               | Text entry                                                              | none (utility classes)                                                                                              | `--publy-radius-input`, `--publy-shadow-input`, `ring-ring`, `--publy-destructive-soft`                                           |
+| `select.tsx`                                               | Trigger-anchored dropdown select                                        | none; `size` data attr                                                                                              | `--publy-radius-input`, `ring-ring`; `alignItemWithTrigger` defaults `false`                                                      |
+| `dropdown-menu.tsx`                                        | Menu / context menu / submenu                                           | item radius 9px; `showCheckbox` prop                                                                                | `--publy-radius-menu-item`, 5% foreground mix on `--popover` (hover/focus/highlight)                                              |
+| `switch.tsx` / `checkbox.tsx`                              | Toggles                                                                 | `size`: default/sm                                                                                                  | `--publy-radius-small-control`, `bg-primary` (checked)                                                                            |
+| `tabs.tsx`                                                 | Tab list                                                                | `variant`: default/line                                                                                             | `bg-muted`, `border-border`; labels 14px/400 muted, active 500 foreground with a 2px foreground underline and 12px inline padding |
+| `table.tsx`                                                | Data grid primitives (`TableContainer`, etc.)                           | none                                                                                                                | `--publy-table-header`, `--publy-row-border`                                                                                      |
+| `skeleton.tsx`                                             | Loading placeholder                                                     | none (allows `rounded-full` for circular shimmer)                                                                   | surface-muted                                                                                                                     |
+| `tooltip.tsx`                                              | Hover/focus hint                                                        | none                                                                                                                | `bg-popover`                                                                                                                      |
+| `drawer.tsx` / `confirm-dialog.tsx`                        | Dialog surfaces (drawer = side panel)                                   | none                                                                                                                | `--publy-drawer-width 460px`, `--publy-modal-radius`, `--publy-shadow-drawer`                                                     |
+| `state-view.tsx` / `state-surface.tsx`                     | Empty / error / loading primitives                                      | none                                                                                                                | tone colour via `--publy-foreground-muted`/`--publy-danger`/`--publy-primary`                                                     |
+| `search-input.tsx`                                         | List search field                                                       | `compact` / `table`                                                                                                 | `--publy-data-table-search-input`                                                                                                 |
+| `label.tsx`                                                | Form label                                                              | none                                                                                                                | `text-foreground`                                                                                                                 |
+| `loading-spinner.tsx`                                      | Inline spinner                                                          | none                                                                                                                | `animate-spin` (allowed `rounded-full`)                                                                                           |
+| `detail-layout.tsx`                                        | Detail-view grid + DangerZone                                           | none                                                                                                                | `--publy-danger-zone-*`                                                                                                           |
+| `product-page.tsx`                                         | `PageHeader`, `StatusPill`, `DetailRow`, `PillTabs`                     | none                                                                                                                | status tones                                                                                                                      |
+| `stat-card.tsx`                                            | Metric tile                                                             | none                                                                                                                | `--publy-stat-card-icon`                                                                                                          |
+| `icon-color-picker.tsx`                                    | Icon+colour chooser                                                     | none                                                                                                                | `--publy-radius-circular` (pencil pin)                                                                                            |
+| `copy-button.tsx`                                          | Copy-to-clipboard                                                       | none                                                                                                                | `IconCheck`/`IconCopy`                                                                                                            |
+| `toaster.tsx`                                              | Sonner host (`AppToaster`); mounts the global toast surface             | none                                                                                                                | `.publy-toast-*` variants (via `toast-variants.ts`)                                                                               |
+| `toast-variants.ts`                                        | Toast variant tokens/tints (success/error/info/warning/loading/default) | none                                                                                                                | semantic alert tokens                                                                                                             |
+| `status-tone.ts`                                           | Status→tone map + `StatusPillTone` type for status pills                | none                                                                                                                | danger/info/neutral/primary/success/warning                                                                                       |
+| `initials-avatar.tsx`                                      | `EntityAvatar`, `AvatarStack`, `BrandTile` (org/people aggregations)    | none                                                                                                                | `--publy-avatar-1…8`, `--publy-avatar-foreground`                                                                                 |
+| `avatar.tsx` / `initials-avatar.tsx` / `person-avatar.tsx` | Identity surfaces                                                       | `PersonAvatar` sizes: default/xs/sm/md/lg (default 30px/11px)                                                       | `--publy-avatar-1…8`, `--publy-avatar-foreground`                                                                                 |
 
 Avatars: `Avatar`/`AvatarImage`/`AvatarFallback` is the neutral primitive; `PersonAvatar`/`EntityAvatar`
 applies the deterministic name-hashed `--publy-avatar-N` palette; `BrandTile`/`AvatarStack` are org/people
@@ -256,6 +270,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 ## 4. Patterns
 
 ### App shell & navigation
+
 - Authenticated surfaces use a rail + secondary panel + topbar shell. Rail width `--publy-shell-rail-width 49px`,
   panel `--publy-shell-panel-width 272px`, topbar `--publy-shell-topbar-height 64px`. — source: `app.css`
 - The rail follows Shopkart: muted icons, no hover fill, and the active section uses
@@ -281,25 +296,28 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 - A resource's sections are **path segments, not `?tab=`**. — source: `conventions.md`
 
 ### List pages
+
 - Use the `DataTable` primitive. **First column is the entity link**: the whole cell is a `<Link>`
   (`no-underline`) wrapping icon/avatar + name; the name span carries `.publy-record-link` (underlines
   on hover). The ⋯ row-actions button is horizontally centered. — source: `conventions.md` (Tables)
 - **Tables scroll inside the table, never the page.** A top-level list route uses `.publy-page-fill`
   (`flex h-full min-h-0 flex-col`) so the table body's own `overflow-auto` scrolls while the toolbar
   and cursor footer stay pinned. A `DataTable` inside a detail-tab shell must get the same
-  bounded-height chain (`bodyScroll="contained"`). Card grids (e.g. Profiles tab) use page-scroll. — source: `conventions.md` (Tables)
+  bounded-height chain (`bodyScroll="contained"`). Card grids (e.g. Roles tab) use page-scroll. — source: `conventions.md` (Tables)
 - **URL state is snake_case**: `q`, `sort_id`, `sort_order`, `cursor`, `size`. Convert between
   internal state and URL at explicit parse/serialize boundaries. — source: `conventions.md` (URL State), `AGENTS.md` (API contract naming split)
 - Cursor/keyset pagination (not offset) for list data. — source: `AGENTS.md` (Cursor/keyset pagination guide)
 
 ### Tabs
+
 - One tab style, both the router-link tab rows on detail pages and Base UI `Tabs`: label **14px /
   400 / muted**, foreground on hover; the active tab is **foreground / 500**, with a **2px
   underline in the text colour** (not the brand yellow) and **12px horizontal padding**.
 - A tab is active only on its **own exact route**, never because its path prefixes a sibling's.
-  — source: `apps/front/src/components/ui/tabs.tsx`, `apps/front/src/routes/authed/staff/tenants/$tenantId/_tenant-details-shell.tsx`, `.../profiles/_profile-section-nav-link.tsx`
+  — source: `apps/front/src/components/ui/tabs.tsx`, `apps/front/src/routes/authed/staff/tenants/$tenantId/_tenant-details-shell.tsx`, `.../roles/_role-section-nav-link.tsx`
 
 ### Selection mode & bulk actions
+
 - Row selection renders a **floating bottom-center action bar** (`FloatingSelectionBar`), portalled to
   `document.body` (`.app-shell-main` sets `container-type: inline-size`, which would trap a non-portalled
   `position: fixed` bar). The bar uses dedicated inverted `--publy-selection-bar-*` tokens (dark pill
@@ -310,6 +328,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   selected card also gets an amber ring (`--publy-primary`). — source: `conventions.md`
 
 ### Drawers & dialogs
+
 - Drawers open as a side panel (`--publy-drawer-width 460px`, `--publy-shadow-drawer`); confirm dialogs
   are centred modals (`--publy-modal-radius 28px`). Both read overlay/surface tokens.
 - **Description contrast**: drawer/description text must meet 4.5:1 on its surface, enumerated by the
@@ -320,12 +339,14 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   list search write uses `replace: true`. — source: `conventions.md` (Route-Local Private File Naming / drawer-open flags)
 
 ### Forms
+
 - React Hook Form + Zod; go through the front form/field wrappers, not raw `register()` on inputs.
   — source: `AGENTS.md` (Frontend Coding Standards)
 - Field errors render inline and exhaustively (every field error or a visible root/summary fallback);
   handled 422 validation produces **no duplicate toast**. — source: `conventions.md` (Mutation Feedback Ownership)
 
 ### Toasts
+
 - Sonner, `unstyled: true`, presentation owned by `components/ui/toaster.tsx` + `lib/mutation-feedback/mutation-toast.ts`.
   Variant tints come from the same semantic alert tokens as inline alerts (`.publy-toast-success/error/info/warning/loading/default`).
   — source: `app.css` (`.publy-toast`), `apps/front/src/components/ui/toast-variants.ts`, `conventions.md`
@@ -333,6 +354,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   because Sonner's un-layered stylesheet would defeat the app cascade. — source: `app.css`, `e2e/toast-contrast.spec.ts`
 
 ### Empty / error / loading states
+
 - **Every failure state shows its cause in plain words and the next action; never a bare "something went wrong".** This is the owner's product UI rule (decision 2026-08-22, spec `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7, on branch `docs/spec-epic-c-social-accounts`). A failed or paused state names what went wrong in one short sentence and offers the concrete recovery action (Retry / Reconnect the account / Reschedule), not a generic error string. — source: owner decision 2026-08-22, `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7
 - One shared primitive `state-view.tsx` (`StateView`, `StateSurface`, `ErrorStateSurface`,
   `NoMatchStateSurface`) at a **single visual scale**: 48px tone-coloured glyph (no disc/ring/box),
@@ -344,13 +366,14 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 - Loading uses `skeleton.tsx` (and `loading-spinner.tsx` inline). Never ad-hoc conditional rendering. — source: `AGENTS.md`
 
 ### Dark mode
+
 - Toggled via `ui-store` and the `.dark` class on `<html>` (`@custom-variant dark (&:is(.dark *))`).
   The toggle is **instant** (no flash). Dark values are authored at implementation time from the
   `gray-ui-csm` template; light is the design canvas. — source: `conventions.md` (Navigation & layout), `app.css` (`@custom-variant dark`), `docs/records/2026-07-09-spec-front-2-gray-ui-stack-migration.md`
 - Theme-invariant tokens (avatar palette, auth panel, chrome bevel) intentionally do **not** swap. — source: `check-design-system.ts` (`THEME_INVARIANT_TOKENS`)
 
-
 ### Mutation feedback
+
 - A single global owner (`router.tsx` `MutationCache`) emits one success toast / one general failure
   toast. Query failures stay persistent. Aborts and mutation 401s are silent. — source: `conventions.md` (Mutation Feedback Ownership)
 
@@ -392,15 +415,15 @@ and error branches). — source: `conventions.md` (Marketing Surfaces)
 Each guard is machine-checked. Run them with `pnpm --filter front …` (they run inside `just ci-front`
 and `pnpm --filter front test`).
 
-| Guard (file) | Rule it enforces | How to run | What red looks like |
-| --- | --- | --- | --- |
-| `scripts/guards/check-design-system.ts` | Enforces (by `ruleId`): `no-heroui-import`, `no-mui-import`, `no-lucide-import`, `no-heroui-color-scale`, `no-raw-visual-color` (hex/rgb/hsl/`color-mix` outside tokens), `no-native-product-select`, `no-prototype-icons`, `no-icon-font-classes`, `no-native-confirm`, `no-important-foundation`, `no-rounded-full-or-999-radius` (exact-selector allowlist), `no-non-confirmation-centered-overlay`, `no-dialog-popup-primitives`, `no-raw-internal-anchor`, `no-single-star-route-glob`, `token-theme-parity`, `token-must-be-declared`, `status-filter-checkbox-contract`, `stale-guard-debt`, `suppression-inventory-drift`. | `pnpm --filter front check:design-system` | A listed `ruleId` (e.g. `no-rounded-full-or-999-radius`, `no-raw-visual-color`, `token-theme-parity`) with the offending file/line. |
-| `scripts/guards/check-zindex-guard.ts` (+ `.test.ts`) | Every `z-*` utility routes through `--publy-z-*`; no raw `z-10`/`z-50`/`[z-index:5]`; scale defined only in `:root` of `app.css`. | `pnpm --filter front check:zindex` (CLI) or `pnpm --filter front test` (suite) | A raw z-index candidate or an emitted `z-index:` not via `var(--publy-z-…)`; a second reachable scale definition. |
-| `src/styles/focus-ring-contrast.test.ts` | Focus ring resolves to ≥3:1 against its surface for every Button/Badge variant (incl. `aria-invalid`). | `pnpm --filter front test` | A variant whose resolved ring colour is below `CONTRAST_FLOOR = 3.0`. |
-| `src/styles/avatar-fallback-contrast.test.ts` | Each `--publy-avatar-N` bg meets 4.5:1 with white initials, both themes. | `pnpm --filter front test` | A palette token below `SMALL_TEXT_CONTRAST_FLOOR = 4.5`. |
-| `src/styles/drawer-description-contrast.test.ts` (+ `e2e/drawer-description-contrast.spec.ts`) | Every drawer description selector meets 4.5:1; inventory matches real call sites. | `pnpm --filter front test` + Playwright | An undeclared `*-description` class, or a listed consumer missing from `drawer-description-inventory.ts`. |
-| `e2e/toast-contrast.spec.ts` | Each `toastVariantClassNames` variant's glyph pixels meet contrast after Chromium resolves the cascade. | `pnpm --filter front exec playwright test e2e/toast-contrast.spec.ts` | A measured variant whose text/background pair fails the floor; a variant added to `toast-variants.ts` but not measured. |
-| `src/styles/marketing-contrast.test.ts` | Marketing shell text pairs meet contrast in both themes. | `pnpm --filter front test` | A pinned pair below its floor. |
+| Guard (file)                                                                                   | Rule it enforces                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | How to run                                                                     | What red looks like                                                                                                                 |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/guards/check-design-system.ts`                                                        | Enforces (by `ruleId`): `no-heroui-import`, `no-mui-import`, `no-lucide-import`, `no-heroui-color-scale`, `no-raw-visual-color` (hex/rgb/hsl/`color-mix` outside tokens), `no-native-product-select`, `no-prototype-icons`, `no-icon-font-classes`, `no-native-confirm`, `no-important-foundation`, `no-rounded-full-or-999-radius` (exact-selector allowlist), `no-non-confirmation-centered-overlay`, `no-dialog-popup-primitives`, `no-raw-internal-anchor`, `no-single-star-route-glob`, `token-theme-parity`, `token-must-be-declared`, `status-filter-checkbox-contract`, `stale-guard-debt`, `suppression-inventory-drift`. | `pnpm --filter front check:design-system`                                      | A listed `ruleId` (e.g. `no-rounded-full-or-999-radius`, `no-raw-visual-color`, `token-theme-parity`) with the offending file/line. |
+| `scripts/guards/check-zindex-guard.ts` (+ `.test.ts`)                                          | Every `z-*` utility routes through `--publy-z-*`; no raw `z-10`/`z-50`/`[z-index:5]`; scale defined only in `:root` of `app.css`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `pnpm --filter front check:zindex` (CLI) or `pnpm --filter front test` (suite) | A raw z-index candidate or an emitted `z-index:` not via `var(--publy-z-…)`; a second reachable scale definition.                   |
+| `src/styles/focus-ring-contrast.test.ts`                                                       | Focus ring resolves to ≥3:1 against its surface for every Button/Badge variant (incl. `aria-invalid`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `pnpm --filter front test`                                                     | A variant whose resolved ring colour is below `CONTRAST_FLOOR = 3.0`.                                                               |
+| `src/styles/avatar-fallback-contrast.test.ts`                                                  | Each `--publy-avatar-N` bg meets 4.5:1 with white initials, both themes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `pnpm --filter front test`                                                     | A palette token below `SMALL_TEXT_CONTRAST_FLOOR = 4.5`.                                                                            |
+| `src/styles/drawer-description-contrast.test.ts` (+ `e2e/drawer-description-contrast.spec.ts`) | Every drawer description selector meets 4.5:1; inventory matches real call sites.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `pnpm --filter front test` + Playwright                                        | An undeclared `*-description` class, or a listed consumer missing from `drawer-description-inventory.ts`.                           |
+| `e2e/toast-contrast.spec.ts`                                                                   | Each `toastVariantClassNames` variant's glyph pixels meet contrast after Chromium resolves the cascade.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | `pnpm --filter front exec playwright test e2e/toast-contrast.spec.ts`          | A measured variant whose text/background pair fails the floor; a variant added to `toast-variants.ts` but not measured.             |
+| `src/styles/marketing-contrast.test.ts`                                                        | Marketing shell text pairs meet contrast in both themes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `pnpm --filter front test`                                                     | A pinned pair below its floor.                                                                                                      |
 
 — source: `apps/front/scripts/guards/check-design-system.ts`, `check-zindex-guard.ts`, `apps/front/src/styles/*.test.ts`, `e2e/toast-contrast.spec.ts`
 

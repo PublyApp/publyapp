@@ -13,14 +13,14 @@ import { loginAsStaffAdmin, setLocaleCookie } from './helpers/login';
 
 const TENANT_ID = '0197b8f0-7a10-7aaa-8aaa-aaaaaaaaaaaa';
 const UNKNOWN_ID = '0197b8f0-9999-7aaa-8aaa-999999999999';
-const DEFAULT_PROFILE_ID = '0197b8f0-7b10-7bbb-8bbb-bbbbbbbbbbbb';
-const LONG_PROFILE_ID = '0197b8f0-7c10-7ccc-8ccc-cccccccccccc';
+const DEFAULT_ROLE_ID = '0197b8f0-7b10-7bbb-8bbb-bbbbbbbbbbbb';
+const LONG_ROLE_ID = '0197b8f0-7c10-7ccc-8ccc-cccccccccccc';
 
 const LONG_TENANT_NAME =
 	'Organisation Internationale de Coopération et de Développement des Territoires Sans Frontières — Direction Générale des Partenariats Stratégiques';
-const LONG_PROFILE_NAME =
+const LONG_ROLE_NAME =
 	'Profil 3 — un nom de profil volontairement très long pour déborder de sa carte';
-const LONG_PROFILE_DESCRIPTION =
+const LONG_ROLE_DESCRIPTION =
 	'Description longue du profil. Description longue du profil. Description longue du profil. Description longue du profil.';
 
 const isApiPath = (url: string, path: string): boolean => {
@@ -38,26 +38,26 @@ const tenantPayload = (overrides: Record<string, unknown> = {}) => ({
 	ownersCount: 0,
 	pendingInvitationsCount: 1,
 	expiringSoonInvitationsCount: 0,
-	profilesCount: 2,
+	rolesCount: 2,
 	logoUrl: null,
 	createdAt: '2026-11-01T09:00:00Z',
 	updatedAt: '2026-11-02T10:00:00Z',
 	...overrides,
 });
 
-const profileRows = () => [
+const roleRows = () => [
 	{
-		id: DEFAULT_PROFILE_ID,
-		name: 'Default profile',
-		description: 'Default profile with no permissions',
+		id: DEFAULT_ROLE_ID,
+		name: 'Default role',
+		description: 'Default role with no permissions',
 		isDefault: true,
 		userAccountCount: 0,
 		permissionsCount: 12,
 	},
 	{
-		id: LONG_PROFILE_ID,
-		name: LONG_PROFILE_NAME,
-		description: LONG_PROFILE_DESCRIPTION,
+		id: LONG_ROLE_ID,
+		name: LONG_ROLE_NAME,
+		description: LONG_ROLE_DESCRIPTION,
 		isDefault: false,
 		userAccountCount: 3,
 		permissionsCount: 4,
@@ -86,11 +86,11 @@ const mockTenantWorkspace = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (isApiPath(request.url(), `/staff/tenants/${TENANT_ID}/profiles`)) {
+		if (isApiPath(request.url(), `/staff/tenants/${TENANT_ID}/roles`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify({ data: profileRows(), nextCursor: null }),
+				body: JSON.stringify({ data: roleRows(), nextCursor: null }),
 			});
 			return;
 		}
@@ -356,7 +356,7 @@ test.describe(
 			);
 		});
 
-		test('H4: profile cards clip their long content at 1440 and 390', async ({
+		test('H4: role cards clip their long content at 1440 and 390', async ({
 			page,
 		}) => {
 			await openFrench(page);
@@ -367,10 +367,8 @@ test.describe(
 				{ width: 390, height: 844 },
 			]) {
 				await page.setViewportSize(viewport);
-				await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
-				const card = page.getByTestId(
-					`staff-tenant-profile-card-${LONG_PROFILE_ID}`,
-				);
+				await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
+				const card = page.getByTestId(`staff-tenant-role-card-${LONG_ROLE_ID}`);
 				await expect(card).toBeVisible();
 				await page.evaluate(() => document.fonts.ready);
 				const measured = await card.evaluate((element) => {
@@ -501,18 +499,18 @@ test.describe(
 			await expect(tenantUserView.getByRole('alert')).toBeVisible();
 			await page.unroute('**/staff/tenants/**');
 
-			await page.route('**/staff/profiles/**', async (route) => {
-				if (isApiPath(route.request().url(), `/staff/profiles/${UNKNOWN_ID}`)) {
-					await route.fulfill(problem('Profile not found'));
+			await page.route('**/staff/roles/**', async (route) => {
+				if (isApiPath(route.request().url(), `/staff/roles/${UNKNOWN_ID}`)) {
+					await route.fulfill(problem('Role not found'));
 					return;
 				}
 				await route.fallback();
 			});
-			await page.goto(`/staff/profiles/${UNKNOWN_ID}`);
-			const profileView = page.getByTestId('staff-profile-details-not-found');
-			await expect(profileView).toBeVisible();
-			await expect(profileView).toContainText('Rôle du staff introuvable');
-			await expect(profileView).not.toContainText('Profile not found');
+			await page.goto(`/staff/roles/${UNKNOWN_ID}`);
+			const roleView = page.getByTestId('staff-role-details-not-found');
+			await expect(roleView).toBeVisible();
+			await expect(roleView).toContainText('Rôle du staff introuvable');
+			await expect(roleView).not.toContainText('Role not found');
 
 			await page.route('**/staff/staff-users/**', async (route) => {
 				if (
@@ -601,7 +599,7 @@ test.describe(
 
 			const cases = [
 				['/staff/staff-users', 'Membres du staff'],
-				['/staff/profiles', 'Rôles'],
+				['/staff/roles', 'Rôles'],
 				['/staff/audit-logs', "Journaux d'audit"],
 				['/staff/dashboard/reports', 'Rapports'],
 			] as const;
@@ -821,32 +819,32 @@ test.describe(
 		}) => {
 			await openFrench(page);
 			await mockTenantWorkspace(page);
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles`);
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
 			const defaultCard = page.getByTestId(
-				`staff-tenant-profile-card-${DEFAULT_PROFILE_ID}`,
+				`staff-tenant-role-card-${DEFAULT_ROLE_ID}`,
 			);
 			await expect(defaultCard).toContainText('Rôle par défaut');
 			await expect(defaultCard).toContainText(
 				'Rôle par défaut sans autorisations',
 			);
-			await expect(defaultCard).not.toContainText('Default profile');
+			await expect(defaultCard).not.toContainText('Default role');
 
-			// The invite drawer's profile dropdown is the same flow: it must
+			// The invite drawer's role dropdown is the same flow: it must
 			// show the translated default name too, never the raw seeded copy.
 			await page.goto(`/staff/tenants/${TENANT_ID}/users?invite=1`);
 			const drawer = page.locator('[data-slot="drawer"]');
 			await expect(drawer).toBeVisible();
-			const profileTrigger = drawer
+			const roleTrigger = drawer
 				.locator('button')
 				.filter({ hasText: 'Sélectionner les rôles' })
 				.first();
-			await expect(profileTrigger).toBeEnabled();
-			await profileTrigger.click();
+			await expect(roleTrigger).toBeEnabled();
+			await roleTrigger.click();
 			await expect(
 				page.getByRole('menuitemcheckbox', { name: /Rôle par défaut/ }),
 			).toBeVisible();
 			await expect(
-				page.getByRole('menuitemcheckbox', { name: /Default profile/ }),
+				page.getByRole('menuitemcheckbox', { name: /Default role/ }),
 			).toHaveCount(0);
 			await page.keyboard.press('Escape');
 

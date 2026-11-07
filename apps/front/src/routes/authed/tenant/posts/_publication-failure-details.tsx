@@ -109,7 +109,7 @@ export const PublicationFailureDetails = ({
 						target="_blank"
 						rel="noopener noreferrer"
 						className="publy-record-link"
-						data-testid="tenant-posts-publication-profile-link"
+						data-testid="tenant-posts-publication-role-link"
 					>
 						{t('posts:publication-review-open-profile')}
 					</a>

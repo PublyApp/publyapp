@@ -14,7 +14,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 
 using Xunit;
 
@@ -112,8 +112,8 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = invitation.Id.Should().NotBeEmpty();
 			_ = invitation.Email.Should().NotBeNullOrEmpty();
 			_ = invitation.Scope.Should().Be("Tenant");
-			_ = invitation.ProfileName.Should().BeNull();
-			_ = invitation.Profiles.Should().BeEmpty();
+			_ = invitation.RoleName.Should().BeNull();
+			_ = invitation.Roles.Should().BeEmpty();
 			_ = invitation.Status.Should().Be("Pending");
 			_ = invitation.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
 			_ = invitation.CreatedAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(1));
@@ -122,7 +122,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 		[Fact]
 		public async Task
-		ItShouldReturnProfilesInInvitationListRows() {
+		ItShouldReturnRolesInInvitationListRows() {
 			string staffToken =
 				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
@@ -134,23 +134,23 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					);
 
 			string inviteeEmail =
-				$"tenant-list-profiles-{Guid.NewGuid():N}@example.com";
+				$"tenant-list-roles-{Guid.NewGuid():N}@example.com";
 			using (IServiceScope setupScope = this._Fixture.Factory.Services.CreateScope()) {
 				AppDbContext dbContext = setupScope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
-				var profileA = Profile.CreateTenantProfile(
+				var roleA = Role.CreateTenantRole(
 					tenantId,
-					name: $"tenant-profile-list-a-{Guid.NewGuid():N}",
-					description: "Invitation list profile A"
+					name: $"tenant-role-list-a-{Guid.NewGuid():N}",
+					description: "Invitation list role A"
 				);
-				var profileB = Profile.CreateTenantProfile(
+				var roleB = Role.CreateTenantRole(
 					tenantId,
-					name: $"tenant-profile-list-b-{Guid.NewGuid():N}",
-					description: "Invitation list profile B"
+					name: $"tenant-role-list-b-{Guid.NewGuid():N}",
+					description: "Invitation list role B"
 				);
 
-				await dbContext.Profile.AddRangeAsync(profileA, profileB);
+				await dbContext.Role.AddRangeAsync(roleA, roleB);
 				await dbContext.SaveChangesAsync();
 
 				var createRequest = FindInvitationsForTenantAsStaffSpec._CreateTenantInviteRequest(
@@ -158,9 +158,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					tenantId.ToString(),
 					new {
 						email = inviteeEmail,
-						profileIds = new[] {
-							profileA.GetRequiredId().ToString(),
-							profileB.GetRequiredId().ToString(),
+						roleIds = new[] {
+							roleA.GetRequiredId().ToString(),
+							roleB.GetRequiredId().ToString(),
 						},
 					}
 				);
@@ -189,7 +189,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				.FirstOrDefault(i => i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase));
 			_ = invitation.Should().NotBeNull();
 			Assert.NotNull(invitation);
-			_ = invitation.Profiles.Should().HaveCount(2);
+			_ = invitation.Roles.Should().HaveCount(2);
 		}
 
 		#endregion
@@ -906,18 +906,18 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				AppDbContext dbContext = scope.ServiceProvider
 					.GetRequiredService<AppDbContext>();
 
-				Profile defaultProfile =
-					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
+				Role defaultRole =
+					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantRoleAsync(dbContext, tenantId);
 
 				Users.Entities.User staffUser = await dbContext.User
 					.FirstAsync(u =>
 						u.Email == SeedConstants.Staff.AdminEmail
 					);
 
-				Invitation invitation = Invitation.CreateTenantInvitationWithProfiles(
+				Invitation invitation = Invitation.CreateTenantInvitationWithRoles(
 					expiredEmail,
 					tenantId,
-					new List<Guid> { defaultProfile.GetRequiredId() },
+					new List<Guid> { defaultRole.GetRequiredId() },
 					staffUser.GetRequiredId(),
 					DateTime.UtcNow.AddDays(-1), // Already expired
 					Guid.NewGuid().ToString("N")[..32]
@@ -1432,7 +1432,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 		[Fact]
 		public async Task
-		ItShouldReturnEmptyProfileNameWhenNoProfilesAssigned() {
+		ItShouldReturnEmptyRoleNameWhenNoRolesAssigned() {
 			string staffToken =
 				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
@@ -1443,9 +1443,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						SeedConstants.Tenants.AcmeName
 					);
 
-			// Create invitation directly without profiles
-			string noProfileEmail =
-				$"no-profile-{Guid.NewGuid():N}@example.com";
+			// Create invitation directly without roles
+			string noRoleEmail =
+				$"no-role-{Guid.NewGuid():N}@example.com";
 
 			using (IServiceScope scope =
 				this._Fixture.Factory.Services.CreateScope()) {
@@ -1458,7 +1458,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					);
 
 				Invitation invitation = new Invitation {
-					Email = noProfileEmail.ToLowerInvariant(),
+					Email = noRoleEmail.ToLowerInvariant(),
 					Scope = InvitationScope.Tenant,
 					TenantId = tenantId,
 					Token = Guid.NewGuid().ToString("N")[..32],
@@ -1488,17 +1488,17 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			Assert.NotNull(result);
 			InvitationListItemDto? foundInvitation = result.Data
 							.FirstOrDefault(i =>
-								i.Email.Equals(noProfileEmail, StringComparison.OrdinalIgnoreCase)
+								i.Email.Equals(noRoleEmail, StringComparison.OrdinalIgnoreCase)
 							);
 			_ = foundInvitation.Should().NotBeNull();
 			Assert.NotNull(foundInvitation);
-			_ = foundInvitation.ProfileName.Should().BeNull();
-			_ = foundInvitation.Profiles.Should().BeEmpty();
+			_ = foundInvitation.RoleName.Should().BeNull();
+			_ = foundInvitation.Roles.Should().BeEmpty();
 		}
 
 		[Fact]
 		public async Task
-		ItShouldKeepProfileNameForProfileBasedInvitations() {
+		ItShouldKeepRoleNameForRoleBasedInvitations() {
 			string staffToken =
 				await this._AuthClient.LoginAsStaffAdminAsync();
 			Guid tenantId =
@@ -1509,8 +1509,8 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string profileBasedEmail =
-				$"profile-based-{Guid.NewGuid():N}@example.com";
+			string roleBasedEmail =
+				$"role-based-{Guid.NewGuid():N}@example.com";
 
 			using (IServiceScope scope =
 				this._Fixture.Factory.Services.CreateScope()) {
@@ -1520,12 +1520,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				Users.Entities.User staffUser = await dbContext.User
 					.FirstAsync(u => u.Email == SeedConstants.Staff.AdminEmail);
 
-				Profile defaultProfile =
-					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantProfileAsync(dbContext, tenantId);
-				Invitation invitation = Invitation.CreateTenantInvitationWithProfiles(
-					profileBasedEmail,
+				Role defaultRole =
+					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantRoleAsync(dbContext, tenantId);
+				Invitation invitation = Invitation.CreateTenantInvitationWithRoles(
+					roleBasedEmail,
 					tenantId,
-					new List<Guid> { defaultProfile.GetRequiredId() },
+					new List<Guid> { defaultRole.GetRequiredId() },
 					staffUser.GetRequiredId(),
 					DateTime.UtcNow.AddDays(7),
 					Guid.NewGuid().ToString("N")[..32]
@@ -1552,12 +1552,12 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			InvitationListItemDto? foundInvitation = result.Data
 				.FirstOrDefault(i =>
-					i.Email.Equals(profileBasedEmail, StringComparison.OrdinalIgnoreCase)
+					i.Email.Equals(roleBasedEmail, StringComparison.OrdinalIgnoreCase)
 				);
 			_ = foundInvitation.Should().NotBeNull();
 			Assert.NotNull(foundInvitation);
-			_ = foundInvitation.ProfileName.Should().NotBeEmpty();
-			_ = foundInvitation.Profiles.Should().NotBeEmpty();
+			_ = foundInvitation.RoleName.Should().NotBeEmpty();
+			_ = foundInvitation.Roles.Should().NotBeEmpty();
 		}
 
 		[Fact]
@@ -1593,13 +1593,13 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					.FirstAsync(u =>
 						u.Email == SeedConstants.Staff.AdminEmail
 					);
-				Profile defaultProfile =
-					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantProfileAsync(dbContext, techStartTenantId);
+				Role defaultRole =
+					await FindInvitationsForTenantAsStaffSpec._GetOrCreateDefaultTenantRoleAsync(dbContext, techStartTenantId);
 
-				Invitation invitation = Invitation.CreateTenantInvitationWithProfiles(
+				Invitation invitation = Invitation.CreateTenantInvitationWithRoles(
 					techStartEmail,
 					techStartTenantId,
-					new List<Guid> { defaultProfile.GetRequiredId() },
+					new List<Guid> { defaultRole.GetRequiredId() },
 					staffUser.GetRequiredId(),
 					DateTime.UtcNow.AddDays(7),
 					Guid.NewGuid().ToString("N")[..32]
@@ -2117,7 +2117,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 		Guid tenantId,
 		string email
 	) {
-			return await this._CreateTenantInvitationWithProfilesAsync(
+			return await this._CreateTenantInvitationWithRolesAsync(
 				staffToken,
 				tenantId,
 				email,
@@ -2125,11 +2125,11 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			);
 		}
 
-		private async Task<Guid> _CreateTenantInvitationWithProfilesAsync(
+		private async Task<Guid> _CreateTenantInvitationWithRolesAsync(
 			string staffToken,
 			Guid tenantId,
 			string email,
-			IReadOnlyCollection<Guid> profileIds
+			IReadOnlyCollection<Guid> roleIds
 		) {
 			string url = PathUtils.Join(
 				Routes.Staff.Root,
@@ -2144,7 +2144,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			var body = new {
 				email,
-				profileIds = profileIds.Select(x => x.ToString()).ToArray()
+				roleIds = roleIds.Select(x => x.ToString()).ToArray()
 			};
 
 			request.Content = JsonContent.Create(body);
@@ -2203,31 +2203,31 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		private static async Task<Profile> _GetOrCreateDefaultTenantProfileAsync(
+		private static async Task<Role> _GetOrCreateDefaultTenantRoleAsync(
 		AppDbContext dbContext,
 		Guid tenantId
 	) {
-			Profile? defaultProfile = await dbContext.Profile
+			Role? defaultRole = await dbContext.Role
 				.Where(p =>
 					p.TenantId == tenantId &&
-					p.Scope == ProfileScope.Tenant &&
+					p.Scope == RoleScope.Tenant &&
 					p.IsDefault
 				)
 				.FirstOrDefaultAsync();
-			if (defaultProfile is not null) {
-				return defaultProfile;
+			if (defaultRole is not null) {
+				return defaultRole;
 			}
 
-			defaultProfile = Profile.CreateTenantProfile(
+			defaultRole = Role.CreateTenantRole(
 			tenantId,
-			name: "Default profile",
-			description: "Default profile with no permissions",
+			name: "Default role",
+			description: "Default role with no permissions",
 			isDefault: true
 		);
-			_ = await dbContext.Profile.AddAsync(defaultProfile);
+			_ = await dbContext.Role.AddAsync(defaultRole);
 			_ = await dbContext.SaveChangesAsync();
 
-			return defaultProfile;
+			return defaultRole;
 		}
 
 		#endregion
@@ -2243,8 +2243,8 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			public Guid Id { get; init; }
 			public string Email { get; init; } = string.Empty;
 			public string Scope { get; init; } = string.Empty;
-			public string ProfileName { get; init; } = string.Empty;
-			public List<InvitationProfileDto> Profiles { get; init; } = [];
+			public string RoleName { get; init; } = string.Empty;
+			public List<InvitationRoleDto> Roles { get; init; } = [];
 			public string Status { get; init; } = string.Empty;
 			public DateTime ExpiresAt { get; init; }
 			public DateTime? AcceptedAt { get; init; }
@@ -2252,7 +2252,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			public string? InvitedByName { get; init; }
 		}
 
-		private record InvitationProfileDto {
+		private record InvitationRoleDto {
 			public Guid Id { get; init; }
 			public string Name { get; init; } = string.Empty;
 		}

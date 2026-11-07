@@ -262,12 +262,12 @@ describe('authenticated shell continuity', () => {
 
 	test('holds neutral shell geometry before hydration without identity or navigation', () => {
 		mocks.location = {
-			pathname: '/staff/profiles',
+			pathname: '/staff/roles',
 			search: {},
 			searchStr: '',
 		};
 		mocks.resolvedLocation = mocks.location;
-		mocks.matchedPathname = '/staff/profiles';
+		mocks.matchedPathname = '/staff/roles';
 		mocks.isHydrated = false;
 
 		render(

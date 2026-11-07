@@ -35,7 +35,7 @@ export const KNOWN_DOMAINS: ReadonlySet<string> = new Set([
 	'@shell',
 	'@staff-audit',
 	'@staff-invitations',
-	'@staff-profiles',
+	'@staff-roles',
 	'@staff-tenants',
 	'@staff-users',
 	'@staff-jobs',

@@ -4,11 +4,11 @@
 
 ## Two API Scopes
 
-| Scope | Prefix | Auth | Tenant Context |
-|-------|--------|------|----------------|
-| **Staff API** | `/staff/...` | Staff session + authorization | Explicit via `{tenantId}` in path |
-| **Tenant API** | `/...` (root) | Tenant session + authorization | Implicit from `X-Tenant-Id` header |
-| **Anonymous** | `/auth/...`, `/invitations/...` | None | None |
+| Scope          | Prefix                          | Auth                           | Tenant Context                     |
+| -------------- | ------------------------------- | ------------------------------ | ---------------------------------- |
+| **Staff API**  | `/staff/...`                    | Staff session + authorization  | Explicit via `{tenantId}` in path  |
+| **Tenant API** | `/...` (root)                   | Tenant session + authorization | Implicit from `X-Tenant-Id` header |
+| **Anonymous**  | `/auth/...`, `/invitations/...` | None                           | None                               |
 
 ## Staff API Structure (`/staff/*`)
 
@@ -44,7 +44,7 @@ Staff (platform administrators) access resources with explicit tenant context:
 │   ├── POST   /                     # Create staff invitation
 │   └── ...
 │
-├── profiles/                        # Staff profiles/roles
+├── roles/                        # Staff roles/roles
 ├── permissions/                     # Permission management
 └── [other-staff-slices]/            # Other staff-only resources
 ```
@@ -108,6 +108,7 @@ Tenant users access their own resources with implicit tenant context from header
 ## Route Constants Location
 
 Routes are defined as C# constants in partial classes:
+
 - Base routes: `apps/api/Lib/Routes/Routes.cs`
 - Domain routes: `apps/api/Modules/<Domain>/Routes.<Domain>.cs`
 
@@ -139,12 +140,12 @@ public static partial class Routes {
 
 ## Handler & Endpoint Naming Convention
 
-| Context | Handler Suffix | Endpoint File |
-|---------|---------------|---------------|
-| Staff managing staff resources | `*ForStaff` | `*EndpointsForStaff.cs` |
+| Context                         | Handler Suffix      | Endpoint File                   |
+| ------------------------------- | ------------------- | ------------------------------- |
+| Staff managing staff resources  | `*ForStaff`         | `*EndpointsForStaff.cs`         |
 | Staff managing tenant resources | `*ForTenantAsStaff` | `*EndpointsForTenantAsStaff.cs` |
-| Tenant self-service | `*ForTenant` | `*EndpointsForTenant.cs` |
-| Anonymous/public | `*Anonymous` | `*EndpointsAnonymous.cs` |
+| Tenant self-service             | `*ForTenant`        | `*EndpointsForTenant.cs`        |
+| Anonymous/public                | `*Anonymous`        | `*EndpointsAnonymous.cs`        |
 
 ## Bulk Action Endpoint Shape
 

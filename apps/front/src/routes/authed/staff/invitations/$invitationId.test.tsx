@@ -50,7 +50,7 @@ vi.mock('react-i18next', () => ({
 				'staff-revoke': 'Revoke',
 				status: 'Status',
 				email: 'Email',
-				profiles: 'Profiles',
+				roles: 'Roles',
 				'expiry-date': 'Expiry date',
 				'accepted-at': 'Accepted at',
 				'created-at': 'Created at',
@@ -128,7 +128,7 @@ const pendingInvitation = {
 	expiresAt: new Date('2026-07-10T12:00:00Z'),
 	acceptedAt: null,
 	revokedAt: null,
-	profiles: [],
+	roles: [],
 };
 
 const renderPage = () => {
@@ -183,7 +183,7 @@ describe('StaffInvitationDetailsPage', () => {
 					expiresAt: new Date('2026-07-10T12:00:00Z'),
 					acceptedAt: null,
 					revokedAt: null,
-					profiles: [
+					roles: [
 						{
 							id: '33333333-3333-3333-3333-333333333333',
 							name: 'Admins',
@@ -225,7 +225,7 @@ describe('StaffInvitationDetailsPage', () => {
 					expiresAt: new Date('2026-07-10T12:00:00Z'),
 					acceptedAt: null,
 					revokedAt: null,
-					profiles: [],
+					roles: [],
 				},
 			}),
 		);
@@ -273,7 +273,7 @@ describe('StaffInvitationDetailsPage', () => {
 					expiresAt: new Date('2026-07-10T12:00:00Z'),
 					acceptedAt: null,
 					revokedAt: null,
-					profiles: [],
+					roles: [],
 				},
 			}),
 		);
@@ -311,7 +311,7 @@ describe('StaffInvitationDetailsPage', () => {
 					expiresAt: new Date('2026-07-10T12:00:00Z'),
 					acceptedAt: null,
 					revokedAt: null,
-					profiles: [],
+					roles: [],
 				},
 			}),
 		);

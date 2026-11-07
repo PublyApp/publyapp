@@ -58,7 +58,7 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		ApiRateLimitPolicies.EmailOperation
 	)]
 	[InlineData(
-		"CreateStaffProfile",
+		"CreateStaffRole",
 		ApiRateLimitPolicies.EmailOperation
 	)]
 	[InlineData(
@@ -78,7 +78,7 @@ public sealed class EndpointRateLimitAssignmentsSpec
 		ApiRateLimitPolicies.Upload
 	)]
 	[InlineData(
-		"ResolveTenantProfileNamesAsStaff",
+		"ResolveTenantRoleNamesAsStaff",
 		ApiRateLimitPolicies.HeavySearchList
 	)]
 	public void ItShouldAssignTheApprovedPolicyToEachEndpointClass(

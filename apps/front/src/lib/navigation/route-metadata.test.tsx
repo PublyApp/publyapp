@@ -72,7 +72,7 @@ describe('front route metadata', () => {
 		).toEqual([
 			'nav-staff-all-users',
 			'nav-staff-invitations',
-			'nav-staff-profiles',
+			'nav-staff-roles',
 			'nav-staff-audit-logs',
 		]);
 	});
@@ -265,7 +265,7 @@ describe('front route metadata', () => {
 			}),
 		).toBe(true);
 		expect(
-			shouldShowSecondaryPanel('/staff/profiles/p-1', {
+			shouldShowSecondaryPanel('/staff/roles/p-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
@@ -307,7 +307,7 @@ describe('front route metadata', () => {
 			}),
 		).toBe(true);
 		expect(
-			shouldShowSecondaryPanel('/staff/profiles/new', {
+			shouldShowSecondaryPanel('/staff/roles/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),

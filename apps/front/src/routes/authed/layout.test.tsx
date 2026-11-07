@@ -140,8 +140,8 @@ describe('beforeLoad session-token guard', () => {
 
 		await expect(
 			routeOptions.beforeLoad({
-				location: { pathname: '/staff/profiles' },
-				matches: exactMatches('/staff/profiles'),
+				location: { pathname: '/staff/roles' },
+				matches: exactMatches('/staff/roles'),
 			}),
 		).rejects.toEqual({ to: '/tenant' });
 	});
@@ -162,14 +162,14 @@ describe('beforeLoad session-token guard', () => {
 
 		const rejection = await routeOptions
 			.beforeLoad({
-				location: { pathname: '/staff/profiles' },
-				matches: exactMatches('/staff/profiles'),
+				location: { pathname: '/staff/roles' },
+				matches: exactMatches('/staff/roles'),
 			})
 			.catch((error: unknown) => error);
 
 		expect(rejection).toMatchObject({
 			to: '/login',
-			search: { rto: '/staff/profiles' },
+			search: { rto: '/staff/roles' },
 		});
 		expect(
 			(rejection as { search?: Record<string, unknown> }).search,
@@ -181,8 +181,8 @@ describe('beforeLoad session-token guard', () => {
 
 		await expect(
 			routeOptions.beforeLoad({
-				location: { pathname: '/staff/profiles' },
-				matches: exactMatches('/staff/profiles'),
+				location: { pathname: '/staff/roles' },
+				matches: exactMatches('/staff/roles'),
 			}),
 		).resolves.toBeUndefined();
 	});
@@ -216,8 +216,8 @@ describe('beforeLoad exact-match guard (PR #997 finding 1)', () => {
 
 		await expect(
 			routeOptions.beforeLoad({
-				location: { pathname: '/staff/profiles' },
-				matches: exactMatches('/staff/profiles'),
+				location: { pathname: '/staff/roles' },
+				matches: exactMatches('/staff/roles'),
 			}),
 		).rejects.toMatchObject({ to: '/login' });
 	});

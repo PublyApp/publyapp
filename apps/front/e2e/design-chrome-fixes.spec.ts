@@ -227,10 +227,10 @@ test.describe(
 			await acmeLink.click();
 			await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
 			const tenantPathname = new URL(page.url()).pathname;
-			await page.goto(`${tenantPathname}/profiles`);
+			await page.goto(`${tenantPathname}/roles`);
 
 			await page
-				.getByTestId('staff-tenant-profiles-grid-type-filter-trigger')
+				.getByTestId('staff-tenant-roles-grid-type-filter-trigger')
 				.click();
 
 			await expect(

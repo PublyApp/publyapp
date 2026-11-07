@@ -1,17 +1,17 @@
 import { createContext, useContext } from 'react';
 import type {
-	AssignedStaffProfile,
+	AssignedStaffRole,
 	StaffUserDetails,
 } from '~/lib/query/staff-users';
 
 export type StaffUserOverviewContextValue = {
 	user: StaffUserDetails;
 	locale: string;
-	profiles: AssignedStaffProfile[];
-	profilesIsPending: boolean;
-	profilesHasError: boolean;
-	onRetryProfiles: () => void;
-	maxProfilesPerUser: number;
+	roles: AssignedStaffRole[];
+	rolesIsPending: boolean;
+	rolesHasError: boolean;
+	onRetryRoles: () => void;
+	maxRolesPerUser: number;
 	canSuspend: boolean;
 	canReactivate: boolean;
 	suspendLabelKey: 'suspend' | 'reactivate';
