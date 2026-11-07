@@ -81,7 +81,6 @@ describe('StatCard', () => {
 				testId="stat-ghost"
 				label="Membres"
 				icon={<IconUsers />}
-				value="31"
 				unavailable
 				footer={
 					<>
@@ -92,9 +91,25 @@ describe('StatCard', () => {
 			/>,
 		);
 
-		expect(screen.getByText('31')).toBeTruthy();
+		expect(screen.getByText('—')).toBeTruthy();
 		expect(screen.getByText('Pas encore de données')).toBeTruthy();
 		// `min-h-9` is the 36 px the coloured delta and its period occupied.
+		expect(container.querySelector('.min-h-9')).toBeTruthy();
+	});
+
+	test('a real figure keeps that height without the ghost copy', () => {
+		const { container } = render(
+			<StatCard
+				testId="stat-real"
+				label="Membres"
+				icon={<IconUsers />}
+				value="31"
+				footer={<span aria-hidden="true" className="block min-h-9" />}
+			/>,
+		);
+
+		expect(screen.getByText('31')).toBeTruthy();
+		expect(screen.queryByText('Pas encore de données')).toBeNull();
 		expect(container.querySelector('.min-h-9')).toBeTruthy();
 	});
 

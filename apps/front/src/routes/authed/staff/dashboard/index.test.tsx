@@ -410,7 +410,7 @@ describe('staff dashboard overview', () => {
 		).toBeTruthy();
 	});
 
-	test('shows « — » in a KPI only when its figure is missing', () => {
+	test('a real zero KPI shows « 0 », never « — » nor the ghost footer', () => {
 		withData();
 		const counts = mocks.countsQuery.data;
 		if (counts) {
@@ -419,12 +419,21 @@ describe('staff dashboard overview', () => {
 		render(<Overview />);
 
 		// A real zero is a figure, never « — ».
-		expect(
-			within(
-				screen.getByTestId('staff-dashboard-kpi-active-tenants'),
-			).getByText('0'),
-		).toBeTruthy();
-		expect(screen.getAllByText('No data yet').length).toBeGreaterThanOrEqual(5);
+		const card = screen.getByTestId('staff-dashboard-kpi-active-tenants');
+		expect(within(card).getByText('0')).toBeTruthy();
+		expect(within(card).queryByText('—')).toBeNull();
+		expect(within(card).queryByText('No data yet')).toBeNull();
+	});
+
+	test('a KPI with a real figure never carries the ghost footer (BLOCKING 2)', () => {
+		withData();
+		render(<Overview />);
+
+		const card = screen.getByTestId('staff-dashboard-kpi-active-tenants');
+		expect(within(card).getByText('31')).toBeTruthy();
+		expect(within(card).queryByText('No data yet')).toBeNull();
+		// The ghost footer's 36 px stays, so the figure does not jump.
+		expect(card.querySelector('.min-h-9')).toBeTruthy();
 	});
 
 	test('a failed KPI request shows the error state, never the ghost (B4)', () => {

@@ -201,16 +201,15 @@ describe('staff dashboard reports', () => {
 		withData();
 		render(<Reports />);
 
-		expect(
-			within(screen.getByTestId('staff-dashboard-kpi-report-events')).getByText(
-				'4,812',
-			),
-		).toBeTruthy();
-		expect(
-			within(
-				screen.getByTestId('staff-dashboard-kpi-impersonations'),
-			).getByText('12'),
-		).toBeTruthy();
+		for (const [testId, figure] of [
+			['staff-dashboard-kpi-report-events', '4,812'],
+			['staff-dashboard-kpi-impersonations', '12'],
+		]) {
+			const card = screen.getByTestId(testId);
+			expect(within(card).getByText(figure)).toBeTruthy();
+			// A served figure is not a ghost: no « No data yet » footer.
+			expect(within(card).queryByText('No data yet')).toBeNull();
+		}
 	});
 
 	test('the sign-in KPIs are ghosts: their audit actions are never emitted (B1)', () => {

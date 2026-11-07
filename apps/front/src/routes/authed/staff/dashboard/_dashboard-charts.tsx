@@ -17,7 +17,7 @@ export type DonutSegment = {
 	color: string;
 };
 
-export type BarRow = {
+type BarRow = {
 	label: string;
 	value: number;
 	/** Optional trailing figure (« 15 · 63 % »). */

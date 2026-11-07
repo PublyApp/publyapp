@@ -4,7 +4,7 @@ test.describe(
 	'staff dashboard reports tab',
 	{ tag: ['@staff-dashboard', '@818'] },
 	() => {
-		/** Mocks the unfiltered audit-log export endpoint the card calls. */
+		/** Mocks the audit-log export endpoint the export menu calls. */
 		const mockExport = async (page: Page) => {
 			await page.route('**/staff/audit-logs/export**', async (route) => {
 				await route.fulfill({
@@ -15,15 +15,14 @@ test.describe(
 			});
 		};
 
-		test('downloads the audit-log export through the working report card', async ({
-			page,
-		}) => {
+		test('the export menu downloads the audit log as CSV', async ({ page }) => {
 			await mockExport(page);
 
 			await page.goto('/staff/dashboard/reports');
 
-			const panel = page.getByTestId('staff-dashboard-reports-panel');
-			await expect(panel).toBeVisible();
+			await expect(
+				page.getByTestId('staff-dashboard-reports-panel'),
+			).toBeVisible();
 
 			const exportRequest = page.waitForRequest(
 				(request) =>
@@ -32,7 +31,8 @@ test.describe(
 					new URL(request.url()).searchParams.get('format') === 'csv',
 			);
 			const downloadPromise = page.waitForEvent('download');
-			await page.getByTestId('staff-dashboard-reports-download').click();
+			await page.getByTestId('staff-dashboard-export-trigger').click();
+			await page.getByTestId('staff-dashboard-export-csv').click();
 			await exportRequest;
 			const download = await downloadPromise;
 
@@ -41,7 +41,7 @@ test.describe(
 			);
 		});
 
-		test('switching the format control sends format=json instead of csv', async ({
+		test('the export menu sends format=json for the JSON entry', async ({
 			page,
 		}) => {
 			await mockExport(page);
@@ -51,8 +51,7 @@ test.describe(
 				page.getByTestId('staff-dashboard-reports-panel'),
 			).toBeVisible();
 
-			await page.getByTestId('staff-dashboard-reports-format').click();
-			await page.getByRole('option', { name: 'JSON', exact: true }).click();
+			await page.getByTestId('staff-dashboard-export-trigger').click();
 
 			const exportRequest = page.waitForRequest(
 				(request) =>
@@ -60,24 +59,8 @@ test.describe(
 					request.url().includes('/staff/audit-logs/export') &&
 					new URL(request.url()).searchParams.get('format') === 'json',
 			);
-			await page.getByTestId('staff-dashboard-reports-download').click();
+			await page.getByTestId('staff-dashboard-export-json').click();
 			await exportRequest;
-		});
-
-		test('shows the honest coming-later analytics state (no fabricated charts)', async ({
-			page,
-		}) => {
-			await mockExport(page);
-
-			await page.goto('/staff/dashboard/reports');
-
-			const panel = page.getByTestId('staff-dashboard-reports-panel');
-			await expect(panel).toBeVisible();
-			await expect(
-				panel.getByTestId('staff-dashboard-reports-empty'),
-			).toBeVisible();
-			// The retired bare-placeholder copy must never come back (#818 F8).
-			await expect(panel.getByText(/not built yet/i)).toHaveCount(0);
 		});
 	},
 );

@@ -200,7 +200,7 @@ export const DashboardCardQuery = <TData,>({
  * says what will live there. The two branches are the only way in: an
  * unavailable series can never be passed as an empty chart.
  */
-export type ChartCardSeries =
+type ChartCardSeries =
 	| { status: 'ready'; chart: ReactNode; table: ReactNode }
 	| { status: 'unavailable'; sentence: string; ghost: ReactNode };
 
@@ -330,6 +330,7 @@ export const KpiCard = ({
 	query?: UseQueryResult<unknown, Error>;
 }) => {
 	const { t } = useTranslation('common');
+	const missing = figure === null || figure === undefined;
 
 	const card = (
 		<StatCard
@@ -337,19 +338,25 @@ export const KpiCard = ({
 			label={label}
 			icon={icon}
 			value={
-				figure === null || figure === undefined ? (
+				missing ? (
 					<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
 				) : (
 					formatCount(figure, locale)
 				)
 			}
 			footer={
-				<>
-					<span className="min-w-0 truncate">{t('dashboard-ghost-tag')}</span>
-					<GhostSpark />
-				</>
+				missing ? (
+					<>
+						<span className="min-w-0 truncate">{t('dashboard-ghost-tag')}</span>
+						<GhostSpark />
+					</>
+				) : (
+					// The ghost footer's 36 px, kept so the card does not jump once
+					// the delta series ships. No ghost text or sparkline on a figure.
+					<span aria-hidden="true" className="block min-h-9" />
+				)
 			}
-			unavailable
+			unavailable={missing}
 		/>
 	);
 
