@@ -31,12 +31,10 @@ import { parse } from 'yaml';
 // and the guard fails the job before any pull attempt with an explicit
 // message.
 //
-// Like ci-gate-bootstrap.test.mjs / ci-gate-aggregation.test.mjs, the REAL
-// `run:` body is extracted from the real workflow YAML (parsed, not
-// hand-copied) and executed via `bash -e` (GitHub's default
-// unspecified-shell behavior for a `run:` step), with the environment set
-// the way an actual run would see it. The guard references only plain
-// environment variables, so no GitHub-expression substitution is needed.
+// The guard's logic lives in packages/scripts-ts/src/ci-e2e-rerun-guard.ts
+// (shell stays glue only, docs/guides/languages.md). This test pins the step
+// that calls it, pins the tag scheme it depends on, and executes the REAL
+// script with the environment an actual run would see.
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -48,11 +46,12 @@ const workflowPath = path.join(repoRoot, '.github/workflows/ci.yml');
 const GUARD_STEP_NAME = 'Detect partial rerun';
 const PULL_STEP_NAME = 'Pull stack images';
 const TAG_STEP_NAME = 'Resolve image tag';
+const GUARD_SCRIPT = 'node packages/scripts-ts/src/ci-e2e-rerun-guard.ts';
 
 /**
  * Parses the real central workflow and returns the pinned facts the guard tests
- * assert against: the guard step's `run:` body, the step index of the guard
- * relative to the pull step, and the e2e-build job's tag derivation step.
+ * assert against: the guard step's `run:` command, its position relative to the
+ * pull step, and the e2e-build job's tag derivation step.
  * Extraction is by exact pinned names, so removing, renaming, or relocating
  * the guard (or abandoning the per-run tag scheme) fails these tests even if
  * the remaining assertions never get a chance to run.
@@ -78,9 +77,9 @@ const extractGuard = () => {
 	const guardStep = testSteps[guardIndex];
 
 	assert.equal(
-		typeof guardStep.run,
-		'string',
-		`ci.yml::e2e-test::${GUARD_STEP_NAME}: expected step.run to be a string`,
+		guardStep.run?.trim(),
+		GUARD_SCRIPT,
+		`ci.yml::e2e-test::${GUARD_STEP_NAME}: the guard must be one line calling the script`,
 	);
 
 	const pullIndex = testSteps.findIndex(
@@ -112,20 +111,23 @@ const extractGuard = () => {
 		'ci.yml::e2e-build::Resolve image tag: expected step.run to be a string',
 	);
 
-	return { guardRun: guardStep.run, tagRun: tagStep.run };
+	return { tagRun: tagStep.run };
 };
 
-const { guardRun, tagRun } = extractGuard();
+const { tagRun } = extractGuard();
+
+const guardScript = path.join(
+	repoRoot,
+	GUARD_SCRIPT.replace('node ', '').trim(),
+);
 
 /**
- * Executes the guard's real `run:` body exactly as GitHub Actions would for
- * an unspecified-shell step (`bash -e -c`), with the environment a real run
- * would see for the given scenario. `spawnSync` so a nonzero exit is data,
- * not a thrown exception.
+ * Executes the guard script with the environment a real run would see for the
+ * given scenario. `spawnSync` so a nonzero exit is data, not an exception.
  */
 // @ts-expect-error rung-0: add proper type in later rung
 const runGuard = (env) =>
-	spawnSync('bash', ['-e', '-c', guardRun], {
+	spawnSync(process.execPath, [guardScript], {
 		encoding: 'utf8',
 		env: { ...process.env, ...env },
 	});

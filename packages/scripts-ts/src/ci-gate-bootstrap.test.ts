@@ -72,6 +72,21 @@ test('central ci: exact base-pinned classifier ABI falls back closed without inv
 		mkdirSync(path.dirname(basePath), { recursive: true });
 		writeFileSync(basePath, baseClassifier);
 
+		// #2306: the step is one line calling this script, so the fixture tree
+		// needs the real script at the same relative path.
+		const wrapperPath = path.join(
+			cwd,
+			'packages/scripts-ts/src/ci-classify.ts',
+		);
+		mkdirSync(path.dirname(wrapperPath), { recursive: true });
+		writeFileSync(
+			wrapperPath,
+			readFileSync(
+				path.join(repoRoot, 'packages/scripts-ts/src/ci-classify.ts'),
+				'utf8',
+			),
+		);
+
 		const { stdout, output } = runInline(script, cwd, {
 			GITHUB_EVENT_NAME: 'push',
 		});

@@ -22,9 +22,9 @@
 			"reason": "Local mirror just ci-spec-drift is derived from exact normalized workflow command match(es): [\"just build-api-full\"]."
 		},
 		"ci.yml::api::Check generated client drift": {
-			"hash": "81ad4949a2213aad",
+			"hash": "e4d6b504f31373ed",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Check generated client drift\"; normalized workflow command(s): [\"git diff --exit-code -- packages/client-ts\",\"test -z \\\"$(git status --porcelain -- packages/client-ts)\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Check generated client drift\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-tree-clean.ts packages/client-ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::api::Check OpenAPI drift": {
 			"hash": "89e13aa17d20dcf7",
@@ -102,9 +102,9 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-api-${{ matrix.shard }}\",\"path\":\"ci-results/api-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::api::Verify API shard partition": {
-			"hash": "1af70c7cf01c1035",
+			"hash": "030bd93394b4d1e3",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Verify API shard partition\"; normalized workflow command(s): [\"if [ \\\"${{ matrix.shard }}\\\" = 1 ]; then\",\"just ci-api-shard-partition\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Verify API shard partition\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-shard-partition.ts ${{ matrix.shard }}\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::audit-development::Audit development dependencies": {
 			"hash": "ef54b1ae64476a06",
@@ -207,9 +207,9 @@
 			"reason": "Hosted-only action step \"Checkout classifier from the base commit\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"ref\":\"${{ github.event.pull_request.base.sha || github.sha }}\",\"path\":\"base-ref\",\"sparse-checkout\":\"packages/scripts-ts/src/ci-changed-paths.ts\",\"sparse-checkout-cone-mode\":false},\"env\":null}."
 		},
 		"ci.yml::classify::Classify changed paths once": {
-			"hash": "00f09105546e548c",
+			"hash": "680a25a7bfbbf530",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Classify changed paths once\"; normalized workflow command(s): [\"classifier='base-ref/packages/scripts-ts/src/ci-changed-paths.ts'\",\"if [ -f \\\"$classifier\\\" ] && grep -Fq 'CI_CLASSIFIER_ABI_VERSION = 2' \\\"$classifier\\\"; then\",\"node \\\"$classifier\\\" --lanes\",\"echo '::warning::base classifier ABI is unavailable; failing closed to every lane'\",\"for lane in quality front api e2e docs react; do\",\"echo \\\"${lane}=true\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Classify changed paths once\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-classify.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::classify::Collect ci-lane-result": {
 			"hash": "a0adb92c18038fff",
@@ -292,9 +292,9 @@
 			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::docs-react::Resolve React Doctor base": {
-			"hash": "cb6b53ad731e58a5",
+			"hash": "1bfdb2ce311ac7b5",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Resolve React Doctor base\"; normalized workflow command(s): [\"case \\\"$CI_EVENT_NAME\\\" in\",\"pull_request) diff_base=\\\"$CI_PR_BASE_SHA\\\" ;;\",\"merge_group) diff_base=\\\"$CI_MERGE_GROUP_BASE_SHA\\\" ;;\",\"push)\",\"if [ -n \\\"$CI_PUSH_BEFORE\\\" ] && [ \\\"$CI_PUSH_BEFORE\\\" != \\\"0000000000000000000000000000000000000000\\\" ]; then\",\"diff_base=\\\"$CI_PUSH_BEFORE\\\"\",\"diff_base='HEAD~1'\",\"*) echo \\\"unsupported event $CI_EVENT_NAME\\\" >&2; exit 1 ;;\",\"git rev-parse --verify \\\"$diff_base^{commit}\\\" >/dev/null\",\"printf 'base=%s\\\\n' \\\"$diff_base\\\" >> \\\"$GITHUB_OUTPUT\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Resolve React Doctor base\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-react-doctor-base.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::docs-react::Run React Doctor": {
 			"hash": "4161d502d06cfd4e",
@@ -337,9 +337,9 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-docs-react\",\"path\":\"ci-results/docs-react.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Build and push e2e images": {
-			"hash": "c563b90279a0ae4a",
+			"hash": "f232a7e8ca674865",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Build and push e2e images\"; normalized workflow command(s): [\"compose_files=(-f apps/front/docker-compose.test.yml)\",\"if [ \\\"${{ steps.image-fork.outputs.fork }}\\\" = \\\"true\\\" ]; then\",\"compose_files+=(-f apps/front/docker-compose.fork-overlay.yml)\",\"docker compose \\\"${compose_files[@]}\\\" build\",\"if [ \\\"${{ steps.image-fork.outputs.fork }}\\\" != \\\"true\\\" ]; then\",\"docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front\",\"mkdir -p /tmp/e2e-images\",\"for service in migrate api request-counter front; do\",\"docker save \\\"${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}\\\" | gzip > \\\"/tmp/e2e-images/${service}.tar.gz\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Build and push e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-images.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
@@ -452,9 +452,9 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Detect partial rerun": {
-			"hash": "bcc320e145ff6719",
+			"hash": "2dd58e37d6882d57",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-rerun-guard.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Download fork e2e images": {
 			"hash": "a26b0649f6bc3254",
@@ -472,9 +472,9 @@
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Load fork e2e images": {
-			"hash": "7c583cafcad19efa",
+			"hash": "de917b3943420e1c",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-load-images.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-smoke::Login to GHCR": {
 			"hash": "77be1267a21692a6",
@@ -517,9 +517,9 @@
 			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-smoke-playwright-report\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-smoke::Wait for e2e stack health": {
-			"hash": "2ab21af93eb90c43",
+			"hash": "2de8744ffa27ce49",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-wait-health.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Assert exact pins": {
 			"hash": "81532e634476b395",
@@ -547,9 +547,9 @@
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Detect partial rerun": {
-			"hash": "e81e52aa0fc5ba18",
+			"hash": "f83eebd43fbf92b2",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"expected_tag=\\\"${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\\\"\",\"[ \\\"$E2E_IMAGE_TAG\\\" = \\\"$expected_tag\\\" ] || {\",\"echo \\\"::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs\\\"\",\"exit 1\",\"}\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Detect partial rerun\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-rerun-guard.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Download fork e2e images": {
 			"hash": "e298e42f59ebd90e",
@@ -567,9 +567,9 @@
 			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Load fork e2e images": {
-			"hash": "e2014f129f9d03ac",
+			"hash": "0f2b505206f9a0c3",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c \\\"$tarball\\\" | docker load; done\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Load fork e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-load-images.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Login to GHCR": {
 			"hash": "f7f44ad74a67a684",
@@ -582,9 +582,9 @@
 			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"docker compose -f apps/front/docker-compose.test.yml pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"hash": "f8b50d63f39681f6",
+			"hash": "0e62fd2b287dd4a7",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"pnpm --filter front exec playwright install chromium --with-deps\",\"pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/2\",\"if [ \\\"${{ matrix.shard }}\\\" = \\\"2\\\" ]; then\",\"pnpm --filter front exec playwright test --project=setup --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps\",\"pnpm --filter front exec playwright test --project=chromium-hermetic-source --no-deps\",\"pnpm --filter front test:drawer-contrast\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 2\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Setup Node": {
 			"hash": "ffdd064f68f94812",
@@ -612,9 +612,9 @@
 			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-2\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
-			"hash": "ea11648ef2e8f3d5",
+			"hash": "f60c45c86d686294",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"timeout 180 bash -lc '\",\"services=\\\"front api request-counter traefik toxiproxy postgres\\\"\",\"for attempt in $(seq 1 90); do\",\"all_running=true\",\"for service in $services; do\",\"container_id=\\\"$(docker compose -f apps/front/docker-compose.test.yml ps -q \\\"$service\\\")\\\"\",\"[ -n \\\"$container_id\\\" ] || { all_running=false; break; }\",\"state=\\\"$(docker inspect --format \\\"{{.State.Status}}\\\" \\\"$container_id\\\")\\\"\",\"health=\\\"$(docker inspect --format \\\"{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}\\\" \\\"$container_id\\\")\\\"\",\"[ \\\"$state\\\" = running ] || { all_running=false; break; }\",\"[ \\\"$health\\\" = healthy ] || [ \\\"$health\\\" = no-healthcheck ] || { all_running=false; break; }\",\"[ \\\"$all_running\\\" = true ] && exit 0\",\"sleep 2\",\"exit 1\",\"'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Wait for e2e stack health\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-wait-health.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Build front": {
 			"hash": "fabde19aca7da08f",
@@ -682,9 +682,9 @@
 			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::front-build::Smoke front production server": {
-			"hash": "946f61944280dd08",
+			"hash": "574b00d070d19f7b",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &\",\"front_server_pid=$!\",\"trap 'kill \\\"$front_server_pid\\\" || true' EXIT\",\"for attempt in $(seq 1 20); do\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html && break\",\"sleep 1\",\"curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html\",\"grep -aEq 'rel=\\\"stylesheet\\\"[^>]*href=\\\"[^\\\"]+\\\\.css\\\"' /tmp/front-home.html\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-front-smoke.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Test front (non-vitest report-all)": {
 			"hash": "0e2ba3e770c22a4a",
@@ -902,9 +902,9 @@
 			"reason": "Hosted-only action step \"Upload live PR snapshot\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"github.event_name == 'pull_request'\",\"with\":{\"name\":\"ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}\",\"path\":\"ci-results/ci-pr-snapshot.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::gate::Verify linked issue relationship": {
-			"hash": "bd16b221f81e4aa7",
+			"hash": "4c2e2d2c8b797d31",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Verify linked issue relationship\"; normalized workflow command(s): [\"PR_NUMBER=\\\"$(jq -r '.pr_number' \\\"$CI_LIVE_PR_RECORD_PATH\\\")\\\"\",\"PR_AUTHOR=\\\"$(jq -r '.pr.author_login' \\\"$CI_LIVE_PR_RECORD_PATH\\\")\\\"\",\"PR_BODY=\\\"$(jq -r '.pr.body' \\\"$CI_LIVE_PR_RECORD_PATH\\\")\\\"\",\"export PR_NUMBER PR_AUTHOR PR_BODY GH_REPO\",\"PR_NUMBER=\\\"$PR_NUMBER\\\" PR_AUTHOR=\\\"$PR_AUTHOR\\\" PR_BODY=\\\"$PR_BODY\\\" GH_REPO=\\\"$GH_REPO\\\" bash <<'LINKED_ISSUE_SCRIPT'\",\"if [ \\\"$PR_AUTHOR\\\" = \\\"dependabot[bot]\\\" ] || [ \\\"$PR_AUTHOR\\\" = \\\"app/dependabot\\\" ]; then\",\"echo \\\"dependabot PR — linked-issue requirement waived by policy #1240\\\"\",\"exit 0\",\"if [ -z \\\"${PR_BODY//[[:space:]]/}\\\" ]; then\",\"echo \\\"::error::PR body is empty — it must link an issue (e.g. \\\\\\\"Closes #123\\\\\\\" or \\\\\\\"Part of #123\\\\\\\").\\\"\",\"exit 1\",\"relationships=$(printf '%s' \\\"$PR_BODY\\\" \\\\\",\"| grep -ioE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \\\\\",\"| sort -u)\",\"if [ -z \\\"$relationships\\\" ]; then\",\"echo \\\"::error::This PR has no explicit issue relationship on its own line. Add \\\\\\\"Closes #123\\\\\\\" for complete work or \\\\\\\"Part of #123\\\\\\\"/\\\\\\\"Refs #123\\\\\\\" for a partial slice.\\\"\",\"exit 1\",\"closing_issue_numbers=''\",\"closing_issues_verified=false\",\"verify_closing_issue() {\",\"if [ \\\"$closing_issues_verified\\\" = \\\"false\\\" ]; then\",\"repo_owner=\\\"${GH_REPO%%/*}\\\"\",\"repo_name=\\\"${GH_REPO#*/}\\\"\",\"if ! closing_issue_numbers=$(gh api graphql \\\\\",\"-f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}' \\\\\",\"-F owner=\\\"$repo_owner\\\" \\\\\",\"-F name=\\\"$repo_name\\\" \\\\\",\"-F number=\\\"$PR_NUMBER\\\" \\\\\",\"--jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' \\\\\",\"2>/dev/null\",\"); then\",\"echo \\\" could not verify GitHub closingIssuesReferences for PR #$PR_NUMBER — rejecting the closing declaration.\\\"\",\"return 1\",\"closing_issues_verified=true\",\"if ! printf '%s\\\\n' \\\"$closing_issue_numbers\\\" | grep -Fxq \\\"$1\\\"; then\",\"echo \\\" #$1 is not present in GitHub closingIssuesReferences — rejecting the closing declaration.\\\"\",\"return 1\",\"}\",\"invalid_relationship=false\",\"linked_issue=false\",\"while IFS= read -r relationship; do\",\"n=$(printf '%s' \\\"$relationship\\\" | grep -oE '[0-9]+$')\",\"is_closing=false\",\"if printf '%s' \\\"$relationship\\\" | grep -qiE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]:]+'; then\",\"is_closing=true\",\"if [ \\\"$n\\\" = \\\"$PR_NUMBER\\\" ]; then\",\"echo \\\" #$n references itself — a pull request cannot satisfy its own issue-link requirement.\\\"\",\"invalid_relationship=true\",\"continue\",\"if ! is_pr=$(gh api \\\"repos/${GH_REPO}/issues/${n}\\\" --jq '.pull_request != null' 2>/dev/null); then\",\"echo \\\" #$n could not be verified as an existing issue — rejecting the declaration.\\\"\",\"invalid_relationship=true\",\"continue\",\"if [ \\\"$is_pr\\\" = \\\"true\\\" ]; then\",\"if [ \\\"$is_closing\\\" = \\\"true\\\" ]; then\",\"echo \\\" #$n is a pull request, not an issue — rejecting the closing declaration (#2003).\\\"\",\"invalid_relationship=true\",\"echo \\\" #$n is a non-closing pull-request reference — it does not satisfy the issue requirement.\\\"\",\"continue\",\"if [ \\\"$is_closing\\\" = \\\"true\\\" ] && ! verify_closing_issue \\\"$n\\\"; then\",\"invalid_relationship=true\",\"continue\",\"if state=$(gh issue view \\\"$n\\\" --json state --jq '.state' 2>/dev/null); then\",\"echo \\\"✓ PR links issue #$n (state: $state).\\\"\",\"linked_issue=true\",\"continue\",\"echo \\\" #$n is not an existing issue — rejecting the declaration.\\\"\",\"invalid_relationship=true\",\"done <<< \\\"$relationships\\\"\",\"if [ \\\"$invalid_relationship\\\" = \\\"true\\\" ]; then\",\"echo \\\"::error::A closing relationship to a PR, a self-reference, an unverifiable number, or a failed closing-reference lookup invalidates the declaration.\\\"\",\"exit 1\",\"if [ \\\"$linked_issue\\\" = \\\"true\\\" ]; then\",\"exit 0\",\"echo \\\"::error::The relationship keyword(s) reference no existing issue. Link a real issue with \\\\\\\"Closes #N\\\\\\\" or \\\\\\\"Part of #N\\\\\\\".\\\"\",\"exit 1\",\"LINKED_ISSUE_SCRIPT\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Verify linked issue relationship\"; normalized workflow command(s): [\"node packages/scripts-ts/src/require-linked-issue.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Write live PR snapshot": {
 			"hash": "937ac29d482d4ae4",

@@ -379,12 +379,22 @@ const extractChangesFilterRunBlock = (fileText: string): string => {
 const classifierCommandPattern =
 	/^node "\$(?:CLASSIFIER|classifier)" (?:--lanes|'([^']+)')$/;
 
+/**
+ * #2306: the classifier step is one line calling this wrapper, which runs
+ * `ci-changed-paths.ts --lanes` itself. Same `--lanes` surface, one hop away.
+ */
+const classifierWrapperCommand = 'node packages/scripts-ts/src/ci-classify.ts';
+
 export const extractClassifierCommand = (fileText: string) => {
 	const runBlock = extractChangesFilterRunBlock(fileText);
 	const matches = [];
 	for (const line of runBlock.split(/\r?\n/)) {
 		const executable = line.trim();
 		if (executable === '' || executable.startsWith('#')) {
+			continue;
+		}
+		if (executable === classifierWrapperCommand) {
+			matches.push({ command: executable, pattern: null });
 			continue;
 		}
 		const match = executable.match(classifierCommandPattern);
@@ -415,9 +425,12 @@ export const readApiTestsGateSurfaces = (
 	const { command: classifierCommand, pattern: classifierPattern } =
 		extractClassifierCommand(fileText);
 	if (classifierPattern === null) {
-		if (classifierCommand !== 'node "$classifier" --lanes') {
+		if (
+			classifierCommand !== 'node "$classifier" --lanes' &&
+			classifierCommand !== classifierWrapperCommand
+		) {
 			throw new Error(
-				'ci.yml classifier command must be exactly `node "$CLASSIFIER" --lanes`.',
+				`ci.yml classifier command must be exactly \`node "$CLASSIFIER" --lanes\` or \`${classifierWrapperCommand}\`.`,
 			);
 		}
 		const classifierSource = readFromRoot(

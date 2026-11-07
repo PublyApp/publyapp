@@ -194,24 +194,9 @@ test-api $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # One CI shard of the API suite (#1947), also the way to reproduce a CI shard locally.
 # `node .../shard-api-tests.ts` discovers the real suite once and prints the shard's
 # assigned test count and `--filter`; the executed total must equal that count.
-# `just test-api` stays the unsharded local run. Unix only (bash).
-[unix]
+# `just test-api` stays the unsharded local run.
 test-api-shard shard total $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
-  #!/usr/bin/env bash
-  set -euo pipefail
-  export DOTNET_CLI_UI_LANGUAGE=en
-  dotnet restore {{api_dir}}/Tests/PublyApp.Api.Tests.csproj
-  plan=$(node packages/scripts-ts/src/shard-api-tests.ts {{shard}} {{total}})
-  assigned=$(sed -n 's/^tests=//p' <<< "$plan")
-  filter=$(sed -n 's/^filter=//p' <<< "$plan")
-  log=$(mktemp)
-  trap 'rm -f "$log"' EXIT
-  (cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --no-build --nologo --verbosity minimal --logger "console;verbosity=normal" --filter "$filter") 2>&1 | tee "$log"
-  executed=$(sed -nE 's/^ *Total tests: +([0-9]+).*/\1/p' "$log" | tail -1)
-  if [ "$executed" != "$assigned" ]; then
-    echo "::error::API shard {{shard}}/{{total}} executed ${executed:-no} tests but was assigned $assigned"
-    exit 1
-  fi
+  node packages/scripts-ts/src/test-api-shard.ts {{shard}} {{total}}
 
 # Run analyzer tests
 test-analyzers:
