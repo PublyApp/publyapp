@@ -11,6 +11,8 @@ COPY packages/shared-ts/src/lib/i18n/json/response-message.en.json ./packages/sh
 COPY packages/shared-ts/src/lib/profile-style/tenant-profile-icons.json ./packages/shared-ts/src/lib/profile-style/tenant-profile-icons.json
 
 RUN dotnet tool restore
+# RID-specific, framework-dependent publish: the aspnet base carries the runtime, and a
+# RID-less publish ships every platform's native assets (~450 MB, mostly Windows .pdb).
 RUN cd apps/api \
 	&& ASPNETCORE_ENVIRONMENT=Production \
 	DOTNET_ENVIRONMENT=Production \
@@ -34,7 +36,11 @@ RUN cd apps/api \
 	EMAIL_VERIFY_TOKEN_LENGTH="25" \
 	PASSWORD_RESET_TOKEN_LENGTH="25" \
 	INVITATION_TOKEN_LENGTH="25" \
-	dotnet publish -c Release -o /publish
+	dotnet publish -c Release -o /publish \
+		--runtime linux-x64 \
+		--self-contained false \
+		-p:DebugType=None \
+		-p:DebugSymbols=false
 
 FROM build AS migrations
 WORKDIR /src/apps/api
