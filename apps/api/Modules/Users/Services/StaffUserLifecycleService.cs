@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -56,6 +57,17 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 
 		if (userData.User.IsSuspended()) {
 			return new SuspendStaffUserResult.AlreadySuspended();
+		}
+
+		// Staff last-owner invariant (#2322): the full-access system role is the source of
+		// every staff permission, so suspending its last active holder would lock every staff
+		// member out for good. Same invariant and response key as the tenant last-admin guard.
+		if (userData.IsFullAccess
+			&& !await this._HasAnotherActiveStaffFullAccessHolderAsync(
+				userId,
+				cancellationToken
+			)) {
+			return new SuspendStaffUserResult.CannotSuspendLastAdmin();
 		}
 
 		var now = DateTime.UtcNow;
@@ -157,7 +169,31 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 		var succeededCount = 0;
 		var now = DateTime.UtcNow;
 
+		// Staff last-owner invariant (#2322), tenant bulk shape: count the active holders once,
+		// then decrement for every affected holder so a batch cannot empty the role in one call.
+		var activeFullAccessUserIds = (
+			await (
+				from ua in FullAccessRoleQueries.ActiveStaffFullAccessAccounts(this._DbContext)
+				where candidateUserIds.Contains(ua.UserId)
+				select ua.UserId
+			).ToListAsync(cancellationToken)
+		).ToHashSet();
+		var activeFullAccessCount =
+			await FullAccessRoleQueries.CountActiveStaffFullAccessAsync(
+				this._DbContext,
+				cancellationToken
+			);
+
 		foreach (var userId in candidateUserIds) {
+			if (activeFullAccessUserIds.Contains(userId)) {
+				if (activeFullAccessCount <= 1) {
+					failedItems.Add(new BulkStaffUserFailedItem(userId, "last-admin"));
+					continue;
+				}
+
+				activeFullAccessCount--;
+			}
+
 			var updatedUserCount = await this._BuildLiveStaffUserMutationQuery(userId)
 				.Where(x => x.Status != UserStatus.Suspended)
 				.ExecuteUpdateAsync(
@@ -318,6 +354,11 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				continue;
 			}
 
+			if (result is DeleteStaffUserResult.CannotRemoveLastAdmin) {
+				failedItems.Add(new BulkStaffUserFailedItem(userId, "last-admin"));
+				continue;
+			}
+
 			if (result is DeleteStaffUserResult.NotSuspended) {
 				failedItems.Add(
 					new BulkStaffUserFailedItem(
@@ -351,6 +392,17 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 
 		if (target is null) {
 			return new DeleteStaffUserResult.NotFound();
+		}
+
+		// Staff last-owner invariant (#2322). Checked before the "must be suspended" rule so the
+		// informative refusal wins for a sole active owner: deleting the only full-access holder
+		// destroys the last role assignment, after which nobody can grant it again.
+		if (target.UserData.IsFullAccess
+			&& !await this._HasAnotherActiveStaffFullAccessHolderAsync(
+				userId,
+				cancellationToken
+			)) {
+			return new DeleteStaffUserResult.CannotRemoveLastAdmin();
 		}
 
 		if (!target.UserData.User.IsSuspended()) {
@@ -412,6 +464,23 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			target.UserData,
 			target.UserAccountId
 		);
+	}
+
+	/// <summary>
+	/// True when an active staff full-access holder other than <paramref name="excludedUserId"/>
+	/// remains. "Active" is the shared <see cref="FullAccessRoleQueries"/> definition, so a
+	/// suspended account or user never satisfies the last-owner invariant.
+	/// </summary>
+	private Task<bool> _HasAnotherActiveStaffFullAccessHolderAsync(
+		Guid excludedUserId,
+		CancellationToken cancellationToken
+	) {
+		return FullAccessRoleQueries
+			.ActiveStaffFullAccessAccounts(this._DbContext)
+			.AnyAsync(
+				account => account.UserId != excludedUserId,
+				cancellationToken
+			);
 	}
 
 	private IQueryable<StaffUserData> _BuildLiveStaffUserQuery(Guid userId) {

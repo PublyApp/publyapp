@@ -58,6 +58,13 @@ public sealed class SuspendStaffUser {
 			);
 		}
 
+		if (result is SuspendStaffUserResult.CannotSuspendLastAdmin) {
+			return TypedProblems.BadRequest(
+				"Cannot suspend the last Staff Owner",
+				ResponseKeys.CannotSuspendLastAdmin
+			);
+		}
+
 		var account = authContext.GetRequiredStaffAccount();
 
 		if (result is not SuspendStaffUserResult.Success success) {

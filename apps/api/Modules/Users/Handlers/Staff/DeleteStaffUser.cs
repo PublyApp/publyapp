@@ -41,6 +41,13 @@ public sealed class DeleteStaffUser {
 			);
 		}
 
+		if (result is DeleteStaffUserResult.CannotRemoveLastAdmin) {
+			return TypedProblems.BadRequest(
+				"Cannot delete the last Staff Owner",
+				ResponseKeys.CannotRemoveLastAdmin
+			);
+		}
+
 		if (result is DeleteStaffUserResult.NotSuspended) {
 			return TypedProblems.BadRequest(
 				"Only suspended staff users can be deleted",
