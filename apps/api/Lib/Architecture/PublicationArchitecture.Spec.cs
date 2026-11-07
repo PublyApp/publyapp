@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 
 using FluentAssertions;
 
+using Microsoft.AspNetCore.Builder;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -158,36 +159,44 @@ public sealed partial class PublicationArchitectureSpec {
 		documentationMode: DocumentationMode.Parse
 	);
 
-	// Framework + package references harvested from the loaded test domain; the API
-	// assemblies are EXCLUDED so application types bind to the parsed SOURCE trees
-	// (the scan sees exactly what is on disk, never a stale compiled artifact).
-	// Duplicate simple names occur in test hosts (same assembly loaded twice), so
-	// resolution is a deterministic first-wins dictionary keyed by simple name.
+	// Framework + package references, resolved from DISK ONLY. xUnit runs test
+	// classes in parallel, so AppDomain.CurrentDomain.GetAssemblies() is a
+	// schedule-dependent snapshot: a package no earlier test happened to touch
+	// (Scalar, OpenTelemetry, ...) used to be absent from the reference set, its
+	// member accesses then failed to bind, and the guard reported "unresolved
+	// member-access" on a perfectly legal `options.X = ...` assignment. The test
+	// host's own output directory IS the runtime closure of the API project
+	// reference — every package dll is copied next to the test assembly — so it
+	// supplies the same references on every run, whatever else got loaded first.
+	// The shared frameworks come from the directories the running host LOADED
+	// (see _SharedFrameworkAssemblies): a machine with several runtimes installed
+	// must never make the scan compile against a framework the app does not run on.
+	// The API assemblies are EXCLUDED so application types bind to the parsed
+	// SOURCE trees (the scan sees exactly what is on disk, never a stale compiled
+	// artifact). Duplicate simple names (the same package in several build
+	// configurations) resolve first-wins in this fixed source order, so the pick
+	// never depends on filesystem enumeration order either.
 	private static readonly Lazy<IReadOnlyList<PortableExecutableReference>>
 		_ScanReferences = new(PublicationArchitectureSpec._BuildScanReferences);
 
 	private static IReadOnlyList<PortableExecutableReference> _BuildScanReferences() {
 		var locations = new Dictionary<string, string>(StringComparer.Ordinal);
 
-		// Assemblies already loaded in the test host (packages, framework pieces
-		// the host happens to touch).
-		foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
-			if (assembly.IsDynamic) {
-				continue;
-			}
+		// The test output directory: the exact package closure the scanned
+		// sources are compiled against.
+		PublicationArchitectureSpec._AddDirectoryAssemblies(
+			locations,
+			AppContext.BaseDirectory
+		);
 
-			PublicationArchitectureSpec._AddAssemblyLocation(locations, assembly.GetName().Name, assembly.Location);
-		}
-
-		// A filtered test run may never have touched the ASP.NET Core stack, yet
-		// scanned production code binds against it (HttpContext and friends), so
-		// the shared frameworks are enumerated from disk next to the runtime.
+		// The shared frameworks are resolved at runtime, never copied next to the
+		// test assembly: enumerate them from the runtime this host executes on.
 		foreach (var (name, path) in PublicationArchitectureSpec._SharedFrameworkAssemblies()) {
 			PublicationArchitectureSpec._AddAssemblyLocation(locations, name, path);
 		}
 
-		// A filtered run also misses NuGet dependencies the host never touched
-		// (Quartz, Scalar, ...); the API build output carries them all on disk.
+		// Fallback for a package that lives in the API build output without being
+		// copied to the test output (compile-time-only assets).
 		foreach (var (name, path) in PublicationArchitectureSpec._ApiOutputAssemblies()) {
 			PublicationArchitectureSpec._AddAssemblyLocation(locations, name, path);
 		}
@@ -195,6 +204,21 @@ public sealed partial class PublicationArchitectureSpec {
 		return locations.Values
 			.Select(path => MetadataReference.CreateFromFile(path))
 			.ToList();
+	}
+
+	private static void _AddDirectoryAssemblies(
+		Dictionary<string, string> locations,
+		string directory
+	) {
+		foreach (var dll in Directory
+					.EnumerateFiles(directory, "*.dll", SearchOption.TopDirectoryOnly)
+					.OrderBy(path => path, StringComparer.Ordinal)) {
+			PublicationArchitectureSpec._AddAssemblyLocation(
+				locations,
+				Path.GetFileNameWithoutExtension(dll),
+				dll
+			);
+		}
 	}
 
 	private static void _AddAssemblyLocation(
@@ -235,7 +259,8 @@ public sealed partial class PublicationArchitectureSpec {
 					projectDir,
 					"*.dll",
 					SearchOption.AllDirectories
-				)) {
+				)
+				.OrderBy(path => path, StringComparer.Ordinal)) {
 				yield return (
 					Path.GetFileNameWithoutExtension(dll),
 					dll
@@ -244,54 +269,79 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 	}
 
+	// The two framework directories are taken from the assemblies the host ACTUALLY
+	// LOADED, never from a version guess. A machine can keep several ASP.NET Core
+	// runtimes side by side under shared/Microsoft.AspNetCore.App (the GitHub runner
+	// ships 8.0.x next to 10.0.x), and ordinal comparison ranks "8.0.x" above
+	// "10.0.x", so the old `OrderBy(path).Last()` compiled the API sources against a
+	// framework the app never runs on. Scalar.AspNetCore, OpenTelemetry.Instrumentation.Http
+	// and Microsoft.AspNetCore.OpenApi all ship lib/net10.0 assets: referenced against
+	// ASP.NET Core 8/9 they raise CS1705, their members stop binding, and the
+	// fail-closed branch reports the five legal `options.X = ...` / `schema.Type = ...`
+	// assignments as rogue. The running framework's own directory is the only
+	// reference set the compiled app uses.
 	private static IEnumerable<(string Name, string Path)> _SharedFrameworkAssemblies() {
-		var coreLib = typeof(object).Assembly.Location;
-		var netCoreDir = Path.GetDirectoryName(coreLib);
-		if (netCoreDir is null || !Directory.Exists(netCoreDir)) {
-			yield break;
+		foreach (var dll in PublicationArchitectureSpec._DllsIn(
+				System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory()
+			)) {
+			yield return (Path.GetFileNameWithoutExtension(dll), dll);
 		}
 
-		foreach (var dll in Directory.EnumerateFiles(
-				netCoreDir,
-				"*.dll",
-				SearchOption.TopDirectoryOnly
-			)) {
-			yield return (
-				Path.GetFileNameWithoutExtension(dll),
-				dll
+		var aspNetDir = Path.GetDirectoryName(typeof(WebApplication).Assembly.Location);
+		if (aspNetDir is null || !Directory.Exists(aspNetDir)) {
+			// Single-file / self-contained hosts report no usable location: fall
+			// back to the HIGHEST framework version, parsed as a version — never
+			// the ordinally last directory name.
+			aspNetDir = PublicationArchitectureSpec._NewestFrameworkDirectory(
+				"Microsoft.AspNetCore.App"
 			);
 		}
 
-		// .../dotnet/shared/Microsoft.NETCore.App/<v>/ -> .../dotnet/shared
-		var sharedRoot = Path.GetDirectoryName(
-			Path.GetDirectoryName(netCoreDir)
-		);
-		if (sharedRoot is null || !Directory.Exists(sharedRoot)) {
+		if (aspNetDir is null) {
 			yield break;
 		}
 
-		var aspnetVersions = Path.Combine(
-			sharedRoot,
-			"Microsoft.AspNetCore.App"
-		);
-		if (!Directory.Exists(aspnetVersions)) {
-			yield break;
+		foreach (var dll in PublicationArchitectureSpec._DllsIn(aspNetDir)) {
+			yield return (Path.GetFileNameWithoutExtension(dll), dll);
+		}
+	}
+
+	private static IEnumerable<string> _DllsIn(string directory) {
+		if (directory.Length == 0 || !Directory.Exists(directory)) {
+			return [];
 		}
 
-		var newest = Directory
-			.EnumerateDirectories(aspnetVersions)
-			.OrderBy(path => path, StringComparer.Ordinal)
-			.Last();
-		foreach (var dll in Directory.EnumerateFiles(
-				newest,
-				"*.dll",
-				SearchOption.TopDirectoryOnly
-			)) {
-			yield return (
-				Path.GetFileNameWithoutExtension(dll),
-				dll
-			);
+		return Directory
+			.EnumerateFiles(directory, "*.dll", SearchOption.TopDirectoryOnly)
+			.OrderBy(path => path, StringComparer.Ordinal);
+	}
+
+	// .../dotnet/shared/<framework>/<version>/; the framework name is the caller's.
+	private static string? _NewestFrameworkDirectory(string frameworkName) {
+		var coreDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
+		var sharedRoot = coreDir is null
+			? null
+			: Path.GetDirectoryName(Path.GetDirectoryName(coreDir));
+		if (sharedRoot is null) {
+			return null;
 		}
+
+		var versionsDir = Path.Combine(sharedRoot, frameworkName);
+		if (!Directory.Exists(versionsDir)) {
+			return null;
+		}
+
+		return Directory
+			.EnumerateDirectories(versionsDir)
+			.OrderByDescending(path => PublicationArchitectureSpec._ParseVersion(path))
+			.ThenBy(path => path, StringComparer.Ordinal)
+			.FirstOrDefault();
+	}
+
+	private static Version _ParseVersion(string directory) {
+		return Version.TryParse(Path.GetFileName(directory), out var version)
+			? version
+			: new Version(0, 0);
 	}
 
 	private static readonly HashSet<SyntaxKind> _SqlStringTokenKinds = [

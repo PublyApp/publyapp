@@ -543,12 +543,19 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		var policyName = $"spec-rollover-{suffix}";
 		const string partitionKey = "rejection-does-not-consume";
 		const int permitLimit = 2;
-		// A 1-second window so the DB clock
-		// (floor(EXTRACT(EPOCH FROM now()) / 1) * 1) rolls over within the test —
-		// the app's utcNow parameter no longer drives window alignment (#1546).
-		var window = TimeSpan.FromSeconds(1);
+		// Window alignment is Postgres's job (#1546: every replica lands in the same
+		// window row from the DB clock, never the app clock), so the test must take
+		// its timing from that same clock. A 1-second window used to be crossed
+		// between two of the acquisitions below whenever a second boundary fell
+		// between two round trips: the counter row changed, the expected rejection
+		// became a fresh-window grant, and the spec went red on a flake that passed
+		// again on rerun. Starting just past a boundary gives the whole batch a full
+		// window of margin instead of relying on it being fast enough.
+		var window = TimeSpan.FromSeconds(2);
 
 		await using var store = this._CreateStoreFromHost();
+
+		await dbContext.WaitForWindowStartAsync(window);
 
 		var firstScope = await store.AcquireAsync(
 			policyName,
@@ -574,9 +581,9 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			2,
 			PostgresRateLimitCounterStoreSpec._BaseTime
 		);
-		// Wait long enough for the DB-clock window to roll over to the
-		// next second, replenishing the budget.
-		await Task.Delay(TimeSpan.FromMilliseconds(1_100));
+		// Roll over on the DB clock's next boundary — the same aligned window the
+		// store computes — rather than on a blind sleep.
+		await dbContext.WaitForWindowStartAsync(window);
 		var rolledOver = await store.AcquireAsync(
 			policyName,
 			partitionKey,
@@ -894,6 +901,30 @@ internal static class PostgresRateLimitCounterStoreSpecQueries {
 	) {
 		await dbContext.Database.ExecuteSqlRawAsync(
 			"DELETE FROM rate_limit_counters"
+		);
+	}
+
+	// Sleeps until the Postgres clock has just crossed an aligned window boundary,
+	// leaving almost a whole window of margin for the caller's batch. Window
+	// alignment belongs to the DB clock (#1546), so the test reads that clock
+	// instead of assuming its own round trips fit inside a wall-clock window.
+	public static async Task WaitForWindowStartAsync(
+		this AppDbContext dbContext,
+		TimeSpan window
+	) {
+		const double marginSeconds = 0.05;
+		var windowSeconds = window.TotalSeconds;
+		var epoch = await dbContext.Database
+			.SqlQuery<double>(
+				$"""
+				SELECT EXTRACT(EPOCH FROM now())::double precision AS "Value"
+				"""
+			)
+			.SingleAsync();
+		var intoWindow = epoch % windowSeconds;
+		var untilNextBoundary = windowSeconds - intoWindow;
+		await Task.Delay(
+			TimeSpan.FromSeconds(untilNextBoundary + marginSeconds)
 		);
 	}
 }
