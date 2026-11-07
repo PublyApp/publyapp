@@ -9,6 +9,7 @@ import { test } from 'vitest';
 import { parse } from 'yaml';
 
 import {
+	CLOSING_REFERENCES_QUERY,
 	isClosingRelationship,
 	parseRelationships,
 	waivesIssueRequirement,
@@ -56,6 +57,33 @@ test('the gate step is one line calling the linked-issue script', () => {
 	assert.ok(
 		!JSON.stringify(step).includes('github.event.pull_request.body'),
 		'the gate must read the canonical live record, never the event body',
+	);
+});
+
+// #2306 review B1: the shell→.ts move dropped the last `}` of the GraphQL
+// query, so every `Closes #N` PR would fail the gate at runtime. `gh` is not
+// called here — the constant is pinned, so a re-typo fails this test.
+test('the closing-references GraphQL query is brace-balanced', () => {
+	let depth = 0;
+
+	for (const character of CLOSING_REFERENCES_QUERY) {
+		if (character === '{') {
+			depth++;
+		}
+
+		if (character === '}') {
+			depth--;
+			assert.ok(
+				depth >= 0,
+				'the query must never close a brace it did not open',
+			);
+		}
+	}
+
+	assert.equal(depth, 0, 'the query must end with every brace closed');
+	assert.equal(
+		CLOSING_REFERENCES_QUERY,
+		'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}',
 	);
 });
 

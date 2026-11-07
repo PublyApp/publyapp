@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -571,7 +572,7 @@ export const hasBlockingExpandContractIssues = async (options) =>
 
 if (
 	process.argv[1] &&
-	path.basename(process.argv[1]) === 'check-migration-expand-contract.mjs'
+	path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
 	const findings = await findMigrationExpandContractIssues({
 		rootDir: process.cwd(),

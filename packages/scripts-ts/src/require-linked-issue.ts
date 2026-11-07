@@ -32,8 +32,8 @@ const RELATIONSHIP =
 const CLOSING_RELATIONSHIP =
 	/^\s*(?:-\s*)?(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)[\s:]+/i;
 
-const CLOSING_REFERENCES_QUERY =
-	'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}';
+export const CLOSING_REFERENCES_QUERY =
+	'query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}';
 
 /** The Dependabot waiver is exact equality against the two integration logins. */
 export const waivesIssueRequirement = (author: string): boolean =>
