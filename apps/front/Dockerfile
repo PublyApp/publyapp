@@ -67,6 +67,14 @@ RUN pnpm --filter front build
 # design documented in docs/records/2026-07-29-spec-deployment-guide.md.
 RUN node -e "const fs=require('fs'),m=JSON.parse(fs.readFileSync('package.json','utf8'));delete m.scripts.prepare;fs.writeFileSync('package.json',JSON.stringify(m))"
 RUN pnpm --filter=front deploy --legacy --prod /workspace/deploy
+# `--prod` installs the production *install* closure, which is ~196 MB larger
+# than the production *runtime* closure: the TanStack Start plugin drags
+# vite/rolldown/esbuild/lightningcss in as peers, `typescript` arrives as an
+# optional peer of i18next, and `posthog-js` is browser-only. The prune step
+# keeps only the packages `server.ts`, `trust-proxy.ts` and the built
+# `dist/server` chunks import (plus their dependencies), and drops the ~3 MB
+# of source maps Vite emits. See scripts/ci/prune-runtime-deps.ts.
+RUN node apps/front/scripts/ci/prune-runtime-deps.ts /workspace/deploy
 
 FROM node:24-alpine@sha256:156b55f92e98ccd5ef49578a8cea0df4679826564bad1c9d4ef04462b9f0ded6 AS runtime
 LABEL org.opencontainers.image.source="https://github.com/PublyApp/publyapp"

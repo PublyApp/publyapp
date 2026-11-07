@@ -88,6 +88,12 @@ const config: KnipConfig = {
 				// at the same time. Not imported: importing it would run the
 				// contention in-process, which is exactly what the proof must avoid.
 				'scripts/e2e-compose-env.contention-harness.ts',
+				// Build-time CLI invoked from apps/front/Dockerfile's `RUN node
+				// apps/front/scripts/ci/prune-runtime-deps.ts /workspace/deploy`.
+				// knip reads no Dockerfile, so without this entry the prune step
+				// would be reported unused and could be deleted silently while
+				// the image quietly grows back to 276 MB of node_modules.
+				'scripts/ci/prune-runtime-deps.ts',
 				'scripts/generate/generate-route-tree.ts', // documented shim kept after #1300 moved the implementation to route-tree-generator.ts
 				'scripts/generate/generate-suppression-inventory.ts', // manual generator; check-design-system.ts tells humans to run it when the inventory drifts
 				'tools/ci/node-24-type-stripping.ts', // manual proof runner; its sibling node-24-type-stripping.test.ts pins it
