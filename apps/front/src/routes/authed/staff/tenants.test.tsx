@@ -54,7 +54,7 @@ vi.mock('@tanstack/react-router', () => ({
 const TRANSLATIONS = {
 	tenants: 'Organisations',
 	'tenants-list-description': 'Gérez les organisations.',
-	'list-aria': 'Organisations (personnel)',
+	'list-aria': 'Organisations (staff)',
 	'list-search-placeholder': 'Rechercher une organisation…',
 	'list-export': 'Exporter',
 	'list-export-file': 'organisations',

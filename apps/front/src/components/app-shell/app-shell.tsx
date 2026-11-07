@@ -201,7 +201,7 @@ const AuthedWorkspaceShell = ({
 	});
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	// #2291 M4: the panel heading names the page the user is actually on
-	// (« Membres du personnel », « Profils », « Rapports » …), never the
+	// (« Membres du staff », « Profils », « Rapports » …), never the
 	// broader module label (« Équipe », « Tableau de bord ») that the H1 does
 	// not repeat. Filter-shortcut variants carry a `search` and are skipped:
 	// their label describes a filter, not the section, so a filtered URL
