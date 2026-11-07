@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => ({
 	invalidateStaffRoles: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
+	toastWarning: vi.fn(),
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	shouldLogoutForFailure: vi.fn().mockReturnValue(false),
 }));
@@ -57,6 +58,7 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,
 		error: mocks.toastError,
+		warning: mocks.toastWarning,
 	},
 }));
 
@@ -85,6 +87,8 @@ vi.mock('react-i18next', () => ({
 					'Some rows may no longer appear in the filtered view.',
 				'bulk-action-total-failure-no-reason':
 					"The server didn't specify a reason for this failure. Try again, or contact support if the problem persists.",
+				'bulk-delete-skips-system-role':
+					'System roles cannot be deleted and were skipped.',
 			};
 
 			return (labels[key] ?? key).replace(
@@ -111,11 +115,13 @@ import { RolesListBulkActions } from './_roles-bulk-actions';
 const row = (
 	id: string,
 	userAccountCount: number | null = null,
+	isFullAccess = false,
 ): StaffRoleRow => ({
 	id,
 	name: `Role ${id.slice(0, 4)}`,
 	description: null,
 	userAccountCount,
+	isFullAccess,
 	icon: 'briefcase',
 	iconTone: 'neutral',
 });
@@ -504,5 +510,50 @@ describe('#1386 RolesListBulkActions', () => {
 		expect(description).toContain('Default roles cannot be deleted');
 		expect(description).toContain('Role not found');
 		expect(description).not.toContain('Some rows may no longer appear');
+	});
+
+	test('skips the system role when selected and shows the i18n warning toast', async () => {
+		const SYSTEM_ID = 'dddddddd-0000-0000-0000-000000000000';
+		renderBulkActions({
+			rows: [row(SYSTEM_ID, null, true), row(ROLE_A), row(ROLE_B)],
+			selectedIds: [SYSTEM_ID, ROLE_A],
+		});
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+
+		expect(mocks.toastWarning).toHaveBeenCalledWith(
+			'System roles cannot be deleted and were skipped.',
+		);
+		// Dialog counts only eligible ids (not the system one).
+		expect(
+			await screen.findByText(
+				'Are you sure you want to delete 1 selected role(s)? Assigned members lose this role.',
+			),
+		).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() =>
+			expect(mocks.bulkDelete).toHaveBeenCalledWith({
+				roleIds: [ROLE_A],
+			}),
+		);
+	});
+
+	test('selecting only the system role warns and does not open the confirm dialog', async () => {
+		const SYSTEM_ID = 'eeeeeeee-0000-0000-0000-000000000000';
+		renderBulkActions({
+			rows: [row(SYSTEM_ID, null, true)],
+			selectedIds: [SYSTEM_ID],
+		});
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+
+		expect(mocks.toastWarning).toHaveBeenCalledWith(
+			'System roles cannot be deleted and were skipped.',
+		);
+		expect(screen.queryByText(/Are you sure you want to delete/)).toBeNull();
+		expect(mocks.bulkDelete).not.toHaveBeenCalled();
 	});
 });

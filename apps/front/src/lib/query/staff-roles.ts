@@ -79,7 +79,7 @@ export type StaffRoleRow = {
 	description: string | null;
 	userAccountCount: number | null;
 	/** The seeded full-access system role: shown as « Système », not editable. */
-	isFullAccess?: boolean;
+	isFullAccess: boolean;
 	icon: string;
 	iconTone: string;
 };
@@ -90,7 +90,7 @@ export type StaffRoleDetails = {
 	description: string | null;
 	userAccountCount: number | null;
 	/** The seeded full-access system role: shown as « Système », not editable. */
-	isFullAccess?: boolean;
+	isFullAccess: boolean;
 	icon: string;
 	iconTone: string;
 };

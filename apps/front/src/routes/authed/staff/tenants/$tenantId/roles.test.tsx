@@ -1048,6 +1048,65 @@ describe('staff tenant roles route', () => {
 		);
 	});
 
+	test('bulk delete with the system role selected skips it and shows the i18n toast', async () => {
+		mocks.toStaffTenantRoleRows.mockReturnValue([
+			{
+				id: 'system-role',
+				name: 'Owner',
+				description: null,
+				isDefault: false,
+				isFullAccess: true,
+				userAccountCount: 1,
+				permissionsCount: 0,
+			},
+			{
+				id: 'role-2',
+				name: 'Support',
+				description: null,
+				isDefault: false,
+				isFullAccess: false,
+				userAccountCount: 1,
+				permissionsCount: 1,
+			},
+		]);
+		mocks.bulkDeleteRoleMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		mocks.toStaffTenantRoleBulkActionSummary.mockReturnValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-role-card-select-system-role'),
+		);
+		fireEvent.click(screen.getByTestId('staff-tenant-role-card-select-role-2'));
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		expect(mocks.toastWarning).toHaveBeenCalled();
+
+		await waitFor(() =>
+			expect(
+				screen.getByText('Are you sure you want to delete 1 role(s)?'),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.bulkDeleteRoleMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				roleIds: ['role-2'],
+			}),
+		);
+	});
+
 	// The gate is structurally hard to reach through normal navigation (row
 	// selection is pruned to the visible page every fetch, and page size tops
 	// out at BULK_ACTION_MAX_COUNT — see review-r2-tests.md F3/F4), but the

@@ -95,7 +95,7 @@ export type StaffTenantRoleRow = {
 	tone?: string | null;
 	isDefault: boolean;
 	/** The seeded full-access system role: shown as « Système », not editable. */
-	isFullAccess?: boolean;
+	isFullAccess: boolean;
 	userAccountCount: number;
 	permissionsCount: number;
 };
@@ -108,7 +108,7 @@ export type StaffTenantRoleDetails = {
 	tone?: string | null;
 	isDefault: boolean;
 	/** The seeded full-access system role: shown as « Système », not editable. */
-	isFullAccess?: boolean;
+	isFullAccess: boolean;
 	userAccountCount: number;
 	createdAt: Date | null;
 	updatedAt: Date | null;

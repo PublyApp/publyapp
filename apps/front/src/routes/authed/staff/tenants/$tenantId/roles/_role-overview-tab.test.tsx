@@ -160,6 +160,7 @@ const baseRole: StaffTenantRoleDetails = {
 	name: 'Approvers',
 	description: 'Reviews approvals',
 	isDefault: false,
+	isFullAccess: false,
 	userAccountCount: 4,
 	createdAt: new Date('2026-05-10T09:00:00Z'),
 	updatedAt: new Date('2026-07-14T10:00:00Z'),
@@ -243,9 +244,19 @@ describe('RoleOverviewTab', () => {
 		const permissions = screen.getByTestId('role-stat-permissions');
 		expect(permissions.textContent).toContain('Full access');
 		expect(permissions.textContent).not.toContain('/ 3');
+		expect(permissions.textContent).not.toContain('with access');
 		expect(
 			screen.getByText('This system role grants every permission.'),
 		).toBeTruthy();
+	});
+
+	test('shows the full module count instead of « 0 / N » for the system role', () => {
+		renderTab({ role: { ...baseRole, isFullAccess: true } });
+
+		const modules = screen.getByTestId('role-stat-modules');
+		expect(modules.textContent).toContain('2');
+		expect(modules.textContent).toContain('/ 2');
+		expect(modules.textContent).not.toContain('0 /');
 	});
 
 	test('renders the About card with the description, omitting it when null', () => {

@@ -273,9 +273,20 @@ export const RoleOverviewTab = ({
 		0,
 	);
 
+	let modulesFigure: ReactNode;
+	if (role.isFullAccess) {
+		if (catalogReady) {
+			modulesFigure = glance.totalModules;
+		} else {
+			modulesFigure = t('common:full-access');
+		}
+	} else {
+		modulesFigure = glance.modulesWithAccess;
+	}
+
 	let permissionsSecondary: ReactNode;
 	if (role.isFullAccess) {
-		permissionsSecondary = <span>{t('with-access')}</span>;
+		permissionsSecondary = undefined;
 	} else if (catalogReady) {
 		permissionsSecondary = (
 			<div className="publy-stat-meter">
@@ -350,7 +361,7 @@ export const RoleOverviewTab = ({
 					icon={<IconLayoutGrid aria-hidden="true" className="size-[14px]" />}
 					secondary={<span>{t('with-access')}</span>}
 				>
-					{glance.modulesWithAccess}
+					{modulesFigure}
 					{catalogReady ? (
 						<span className="publy-stat-card-value-suffix">
 							{' '}

@@ -453,6 +453,7 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 				icon: undefined,
 				tone: undefined,
 				isDefault: true,
+				isFullAccess: false,
 				userAccountCount: 7,
 				permissionsCount: 12,
 			};

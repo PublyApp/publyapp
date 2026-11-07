@@ -61,6 +61,7 @@ describe('staff roles column grid', () => {
 			(column) => column.id === 'type',
 		);
 		expect(typeColumn?.value).toBeDefined();
+		expect(typeColumn?.sortable).toBe(false);
 
 		const systemCell = typeColumn?.cell?.(row(true));
 		const { unmount } = render(systemCell);
