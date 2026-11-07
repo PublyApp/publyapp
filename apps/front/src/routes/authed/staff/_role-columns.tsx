@@ -58,13 +58,16 @@ export const staffRoleColumns = (t: Translate): ListColumn<StaffRoleRow>[] => [
 		header: t('list-column-type'),
 		icon: IconStack2,
 		width: 140,
-		// Staff roles can never be `isDefault` (Role.ValidateRoleType),
-		// so every one of them is custom — the prototype's own data has 0
-		// system roles too.
-		cell: () => (
-			<StatusPill tone="neutral">{t('list-role-type-custom')}</StatusPill>
+		// The seeded full-access role is the only system role; every other
+		// staff role is custom.
+		cell: (row) => (
+			<StatusPill tone={row.isFullAccess ? 'primary' : 'neutral'}>
+				{row.isFullAccess
+					? t('list-role-type-system')
+					: t('list-role-type-custom')}
+			</StatusPill>
 		),
-		value: () => 'custom',
+		value: (row) => (row.isFullAccess ? 'system' : 'custom'),
 		sortable: false,
 	},
 	{
@@ -106,8 +109,7 @@ export const staffRoleColumns = (t: Translate): ListColumn<StaffRoleRow>[] => [
 ];
 
 /** The prototype's panel filter: Types (Système / Personnalisé). Membres stays
- * in the filter menu. Staff roles are never system roles, so the custom
- * value is the only one a row can carry. */
+ * in the filter menu. */
 export const buildStaffRoleFilters = (
 	t: Translate,
 ): ListFilter<StaffRoleRow>[] => [
@@ -120,7 +122,7 @@ export const buildStaffRoleFilters = (
 			{ value: 'system', label: t('list-role-type-system') },
 			{ value: 'custom', label: t('list-role-type-custom') },
 		],
-		valueOf: () => 'custom',
+		valueOf: (row) => (row.isFullAccess ? 'system' : 'custom'),
 	},
 	{
 		key: 'members',

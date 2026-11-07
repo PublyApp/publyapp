@@ -475,6 +475,7 @@ describe('staff role details route — edit drawer (#819)', () => {
 			name: 'Platform admin',
 			description: 'Full access',
 			userAccountCount: 2,
+			isFullAccess: false,
 			icon: 'shield-check',
 			iconTone: '5',
 		});
@@ -583,5 +584,34 @@ describe('staff role details route — edit drawer (#819)', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: 'leave-page' }));
 		expect(mocks.blockerResolver.proceed).toHaveBeenCalled();
+	});
+
+	test('shows « Accès complet » and hides the edit action for the full-access system role (#2327)', () => {
+		mocks.useStaffRoleDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					role: {
+						id: '11111111-1111-1111-1111-111111111111',
+						name: 'Staff Owner',
+						description: 'Full access',
+						userAccountCount: 0,
+						isFullAccess: true,
+					},
+				},
+			}),
+		);
+		mocks.useStaffRolePermissionKeysQuery.mockReturnValue(
+			buildQueryResult({ data: { permissionKeys: [] } }),
+		);
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-role-full-access-note')).toBeTruthy();
+		expect(screen.queryByText('no-permissions-assigned-to-role')).toBeNull();
+		expect(screen.queryByTestId('staff-role-edit-button')).toBeNull();
+		expect(screen.getAllByText('full-access').length).toBeGreaterThan(0);
+		expect(
+			screen.getByText('system-role-full-access-description'),
+		).toBeTruthy();
 	});
 });

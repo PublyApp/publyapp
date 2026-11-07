@@ -158,13 +158,14 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/roles`)
 		) {
-			const isDefaultParam = new URL(url).searchParams.get('is_default');
+			const isFullAccessParam = new URL(url).searchParams.get('is_full_access');
 			const roles = [
 				{
 					id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 					name: 'Approvers',
 					description: 'Can review approvals',
-					isDefault: true,
+					isFullAccess: true,
+					isDefault: false,
 					userAccountCount: 7,
 					permissionsCount: 3,
 				},
@@ -172,15 +173,21 @@ const mockTenantDetails = async (page: Page) => {
 					id: '0197b8f0-5555-7ccc-8ccc-fffffffffff1',
 					name: 'Support',
 					description: 'Respond to member tickets',
-					isDefault: false,
+					isFullAccess: false,
+					// A default role that is NOT the full-access system role: Delete
+					// stays visible but disabled (#2327 hides Delete only on the
+					// system role).
+					isDefault: true,
 					userAccountCount: 5,
 					permissionsCount: 4,
 				},
 			];
 			const filtered =
-				isDefaultParam === null
+				isFullAccessParam === null
 					? roles
-					: roles.filter((role) => String(role.isDefault) === isDefaultParam);
+					: roles.filter(
+							(role) => String(role.isFullAccess) === isFullAccessParam,
+						);
 
 			await route.fulfill({
 				status: 200,
@@ -396,7 +403,7 @@ test.describe(
 			await expect(page.getByText('7 members · 3 permissions')).toBeVisible();
 		});
 
-		test('Roles tab type filter narrows to System-only and Custom-only roles via the is_default URL param', async ({
+		test('Roles tab type filter narrows to System-only and Custom-only roles via the is_full_access URL param', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -414,7 +421,7 @@ test.describe(
 				.getByTestId('staff-tenant-roles-grid-type-filter-system')
 				.click();
 
-			await expect(page).toHaveURL(/is_default=true/);
+			await expect(page).toHaveURL(/is_full_access=true/);
 			await expect(page.getByText('Approvers')).toBeVisible();
 			await expect(page.getByText('Support')).not.toBeVisible();
 
@@ -425,7 +432,7 @@ test.describe(
 				.getByTestId('staff-tenant-roles-grid-type-filter-custom')
 				.click();
 
-			await expect(page).toHaveURL(/is_default=false/);
+			await expect(page).toHaveURL(/is_full_access=false/);
 			await expect(page.getByText('Support')).toBeVisible();
 			await expect(page.getByText('Approvers')).not.toBeVisible();
 		});
@@ -483,7 +490,7 @@ test.describe(
 			await expect(card).toHaveCSS('box-shadow', /rgb\(254, 205, 0\)/);
 		});
 
-		test("the default (System) role's Delete action is visible but disabled, with a tooltip explaining why", async ({
+		test('the full-access (System) role offers no Edit and no Delete action (#2327)', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -492,14 +499,48 @@ test.describe(
 			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
 			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
 
+			// Approvers is the seeded full-access system role: the owner rule
+			// hides Edit and Delete entirely instead of disabling them.
 			await page
 				.getByTestId(
 					'staff-tenant-role-actions-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 				)
 				.click();
 
+			await expect(
+				page.getByTestId(
+					'staff-tenant-role-delete-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+				),
+			).toHaveCount(0);
+			await expect(
+				page.getByTestId(
+					'staff-tenant-role-edit-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+				),
+			).toHaveCount(0);
+			await expect(
+				page.getByRole('menuitem', { name: 'View details' }),
+			).toBeVisible();
+		});
+
+		test("a default role's Delete action is visible but disabled, with a tooltip explaining why", async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/roles`);
+			await expect(page.getByTestId('staff-tenant-roles-page')).toBeVisible();
+
+			// Support is default but not the full-access system role: Delete
+			// exists and explains why it is unavailable.
+			await page
+				.getByTestId(
+					'staff-tenant-role-actions-0197b8f0-5555-7ccc-8ccc-fffffffffff1',
+				)
+				.click();
+
 			const deleteItem = page.getByTestId(
-				'staff-tenant-role-delete-0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
+				'staff-tenant-role-delete-0197b8f0-5555-7ccc-8ccc-fffffffffff1',
 			);
 			await expect(deleteItem).toBeVisible();
 			await expect(deleteItem).toHaveAttribute('aria-disabled', 'true');

@@ -21,6 +21,7 @@ export const RolePermissionsTab = ({
 	isCatalogPending,
 	isCatalogError,
 	catalogError,
+	isFullAccess,
 	onDirtyChange,
 	onSessionExpired,
 }: {
@@ -34,6 +35,8 @@ export const RolePermissionsTab = ({
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
 	catalogError: unknown;
+	/** The system role grants every permission implicitly and cannot be edited. */
+	isFullAccess?: boolean;
 	/** Reports staged-edit dirtiness so the page's nav guard can prompt before
 	 * a tab switch / Back discards unsaved matrix changes. */
 	onDirtyChange: (isDirty: boolean) => void;
@@ -94,6 +97,38 @@ export const RolePermissionsTab = ({
 	const permissionsStatusText = isDirty
 		? `${t('permissions-unsaved-changes', { count: changeCount })}${changeSummarySuffix}`
 		: t('permissions-no-unsaved-changes');
+
+	// Full access is implicit: no matrix to toggle, no action bar to save.
+	if (isFullAccess) {
+		return (
+			<div
+				className="flex flex-col gap-4"
+				data-testid="staff-tenant-role-permissions-content"
+			>
+				<div className="flex flex-col gap-1">
+					<h2
+						ref={headingRef}
+						tabIndex={-1}
+						className="publy-type-page-title outline-none"
+					>
+						{t('common:permissions')}
+					</h2>
+					<p className="publy-type-helper">{t('role-permissions-subtitle')}</p>
+				</div>
+				<div
+					className="flex flex-col gap-1"
+					data-testid="role-full-access-note"
+				>
+					<p className="text-sm font-medium text-foreground">
+						{t('common:full-access')}
+					</p>
+					<p className="text-sm text-muted-foreground">
+						{t('common:system-role-full-access-description')}
+					</p>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div

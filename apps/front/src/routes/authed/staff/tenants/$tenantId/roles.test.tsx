@@ -413,8 +413,10 @@ describe('staff tenant roles route', () => {
 		expect(screen.getAllByText('Can review approvals').length).toBeGreaterThan(
 			0,
 		);
-		expect(screen.getByText('System')).toBeTruthy();
-		expect(screen.getByText('Custom')).toBeTruthy();
+		// The system badge follows `isFullAccess`, not the default-role flag:
+		// neither seeded row is the protected full-access role.
+		expect(screen.queryByText('System')).toBeNull();
+		expect(screen.getAllByText('Custom').length).toBeGreaterThan(0);
 		expect(screen.getByText('7 members · 12 permissions')).toBeTruthy();
 		expect(screen.getByText('5 members · 4 permissions')).toBeTruthy();
 		expect(
@@ -625,6 +627,34 @@ describe('staff tenant roles route', () => {
 		expect(customDeleteItem.getAttribute('aria-disabled')).toBeNull();
 	});
 
+	test('hides Edit and Delete in the row menu for the system role', async () => {
+		mocks.toStaffTenantRoleRows.mockReturnValue([
+			{
+				id: 'system-role',
+				name: 'Owner',
+				description: null,
+				isDefault: false,
+				isFullAccess: true,
+				userAccountCount: 1,
+				permissionsCount: 0,
+			},
+		]);
+
+		renderPage();
+
+		const [trigger] = screen.getAllByRole('button', { name: /^Actions for/ });
+		fireEvent.click(trigger);
+		expect(
+			await screen.findByRole('menuitem', { name: 'View details' }),
+		).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-role-edit-system-role'),
+		).toBeNull();
+		expect(
+			screen.queryByTestId('staff-tenant-role-delete-system-role'),
+		).toBeNull();
+	});
+
 	test('deletes a custom role after explicit confirmation and invalidates the roles query', async () => {
 		mocks.deleteRoleMutation.mockResolvedValue({});
 
@@ -683,7 +713,7 @@ describe('staff tenant roles route', () => {
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
-	test('the type filter maps System/Custom to the is_default URL param and resets the cursor', async () => {
+	test('the type filter maps System/Custom to the is_full_access URL param and resets the cursor', async () => {
 		renderPage();
 
 		fireEvent.click(
@@ -695,7 +725,7 @@ describe('staff tenant roles route', () => {
 
 		expect(mocks.navigate).toHaveBeenCalledWith(
 			expect.objectContaining({
-				search: expect.objectContaining({ is_default: true }),
+				search: expect.objectContaining({ is_full_access: true }),
 				replace: true,
 			}),
 		);
@@ -715,7 +745,7 @@ describe('staff tenant roles route', () => {
 		).validateSearch;
 		const canonicalSearch = validateSearch({
 			new: 'yes',
-			is_default: 'maybe',
+			is_full_access: 'maybe',
 			view: 'invalid',
 		});
 
@@ -723,14 +753,14 @@ describe('staff tenant roles route', () => {
 			true,
 		);
 		expect(
-			Object.prototype.hasOwnProperty.call(canonicalSearch, 'is_default'),
+			Object.prototype.hasOwnProperty.call(canonicalSearch, 'is_full_access'),
 		).toBe(true);
 		expect(Object.prototype.hasOwnProperty.call(canonicalSearch, 'view')).toBe(
 			true,
 		);
 		expect(canonicalSearch).toMatchObject({
 			new: undefined,
-			is_default: undefined,
+			is_full_access: undefined,
 			view: undefined,
 		});
 
@@ -750,13 +780,13 @@ describe('staff tenant roles route', () => {
 		expect(screen.getByTestId('staff-tenant-roles-grid-rows')).toBeTruthy();
 	});
 
-	test('renders roles narrowed to System when is_default=true is set on the URL', () => {
-		mocks.search = { is_default: true };
+	test('renders roles narrowed to System when is_full_access=true is set on the URL', () => {
+		mocks.search = { is_full_access: true };
 
 		renderPage();
 
 		expect(mocks.useStaffTenantRolesQuery).toHaveBeenCalledWith(
-			expect.objectContaining({ isDefault: 'true' }),
+			expect.objectContaining({ isFullAccess: 'true' }),
 			expect.anything(),
 		);
 	});
@@ -1018,6 +1048,65 @@ describe('staff tenant roles route', () => {
 		);
 	});
 
+	test('bulk delete with the system role selected skips it and shows the i18n toast', async () => {
+		mocks.toStaffTenantRoleRows.mockReturnValue([
+			{
+				id: 'system-role',
+				name: 'Owner',
+				description: null,
+				isDefault: false,
+				isFullAccess: true,
+				userAccountCount: 1,
+				permissionsCount: 0,
+			},
+			{
+				id: 'role-2',
+				name: 'Support',
+				description: null,
+				isDefault: false,
+				isFullAccess: false,
+				userAccountCount: 1,
+				permissionsCount: 1,
+			},
+		]);
+		mocks.bulkDeleteRoleMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		mocks.toStaffTenantRoleBulkActionSummary.mockReturnValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+
+		renderPage();
+
+		fireEvent.click(
+			screen.getByTestId('staff-tenant-role-card-select-system-role'),
+		);
+		fireEvent.click(screen.getByTestId('staff-tenant-role-card-select-role-2'));
+
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Delete selected' }),
+		);
+		expect(mocks.toastWarning).toHaveBeenCalled();
+
+		await waitFor(() =>
+			expect(
+				screen.getByText('Are you sure you want to delete 1 role(s)?'),
+			).toBeTruthy(),
+		);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+
+		await waitFor(() =>
+			expect(mocks.bulkDeleteRoleMutation).toHaveBeenCalledWith({
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				roleIds: ['role-2'],
+			}),
+		);
+	});
+
 	// The gate is structurally hard to reach through normal navigation (row
 	// selection is pruned to the visible page every fetch, and page size tops
 	// out at BULK_ACTION_MAX_COUNT — see review-r2-tests.md F3/F4), but the
@@ -1253,7 +1342,7 @@ describe('staff tenant roles route', () => {
 });
 
 describe('tenantRoleTypeChipClassName', () => {
-	test('maps isDefault to the amber chip and otherwise to the neutral chip', () => {
+	test('maps isFullAccess to the amber chip and otherwise to the neutral chip', () => {
 		expect(tenantRoleTypeChipClassName(true)).toContain('--amber');
 		expect(tenantRoleTypeChipClassName(false)).toContain('--outline');
 	});

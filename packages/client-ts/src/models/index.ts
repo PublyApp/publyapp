@@ -5598,6 +5598,7 @@ export function deserializeIntoStaffRoleItem(staffRoleItem: Partial<StaffRoleIte
         "description": n => { staffRoleItem.description = n.getStringValue(); },
         "icon": n => { staffRoleItem.icon = n.getStringValue(); },
         "id": n => { staffRoleItem.id = n.getGuidValue(); },
+        "isFullAccess": n => { staffRoleItem.isFullAccess = n.getBooleanValue(); },
         "name": n => { staffRoleItem.name = n.getStringValue(); },
         "tone": n => { staffRoleItem.tone = n.getStringValue(); },
         "userAccountCount": n => { staffRoleItem.userAccountCount = n.getNumberValue(); },
@@ -6050,6 +6051,7 @@ export function deserializeIntoTenantRoleItem(tenantRoleItem: Partial<TenantRole
         "icon": n => { tenantRoleItem.icon = n.getStringValue(); },
         "id": n => { tenantRoleItem.id = n.getGuidValue(); },
         "isDefault": n => { tenantRoleItem.isDefault = n.getBooleanValue(); },
+        "isFullAccess": n => { tenantRoleItem.isFullAccess = n.getBooleanValue(); },
         "name": n => { tenantRoleItem.name = n.getStringValue(); },
         "permissionsCount": n => { tenantRoleItem.permissionsCount = n.getNumberValue(); },
         "tone": n => { tenantRoleItem.tone = n.getStringValue(); },
@@ -10869,6 +10871,7 @@ export function serializeStaffRoleItem(writer: SerializationWriter, staffRoleIte
     writer.writeStringValue("description", staffRoleItem.description);
     writer.writeStringValue("icon", staffRoleItem.icon);
     writer.writeGuidValue("id", staffRoleItem.id);
+    writer.writeBooleanValue("isFullAccess", staffRoleItem.isFullAccess);
     writer.writeStringValue("name", staffRoleItem.name);
     writer.writeStringValue("tone", staffRoleItem.tone);
     writer.writeNumberValue("userAccountCount", staffRoleItem.userAccountCount);
@@ -11350,6 +11353,7 @@ export function serializeTenantRoleItem(writer: SerializationWriter, tenantRoleI
     writer.writeStringValue("icon", tenantRoleItem.icon);
     writer.writeGuidValue("id", tenantRoleItem.id);
     writer.writeBooleanValue("isDefault", tenantRoleItem.isDefault);
+    writer.writeBooleanValue("isFullAccess", tenantRoleItem.isFullAccess);
     writer.writeStringValue("name", tenantRoleItem.name);
     writer.writeNumberValue("permissionsCount", tenantRoleItem.permissionsCount);
     writer.writeStringValue("tone", tenantRoleItem.tone);
@@ -12077,6 +12081,10 @@ export interface StaffRoleItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
+    /**
      * The name property
      */
     name?: string | null;
@@ -12785,6 +12793,10 @@ export interface TenantRoleItem extends AdditionalDataHolder, Parsable {
      * The isDefault property
      */
     isDefault?: boolean | null;
+    /**
+     * The isFullAccess property
+     */
+    isFullAccess?: boolean | null;
     /**
      * The name property
      */

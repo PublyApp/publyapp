@@ -62,6 +62,7 @@ const rows: StaffTenantRoleRow[] = Array.from(
 		name: `Role ${index + 1}`,
 		description: null,
 		isDefault: false,
+		isFullAccess: false,
 		userAccountCount: 0,
 		permissionsCount: 0,
 	}),

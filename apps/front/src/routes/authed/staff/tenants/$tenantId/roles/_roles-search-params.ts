@@ -19,14 +19,14 @@ export type StaffTenantRolesSearchParams = TableSearchParams & {
 	edit?: string;
 	/** Snake_case + a REAL boolean: this object IS the route search state the
 	 * router serializes into the URL — a camelCase key would leak into the URL,
-	 * and a 'true' STRING would be JSON-quoted (`?is_default=%22true%22`). */
-	is_default?: boolean;
+	 * and a 'true' STRING would be JSON-quoted (`?is_full_access=%22true%22`). */
+	is_full_access?: boolean;
 	view?: 'table';
 };
 export type StaffTenantRolesSearchParamInput = TableSearchParamInput & {
 	new?: unknown;
 	edit?: unknown;
-	is_default?: unknown;
+	is_full_access?: unknown;
 	view?: unknown;
 };
 
@@ -126,7 +126,7 @@ export const parseStaffTenantRolesSearchParams = (
 	const isCreateOpen =
 		search.new === 1 ||
 		(typeof search.new === 'string' && search.new.trim() === '1');
-	const isDefault = parseStaffTenantRoleTypeFilter(search.is_default);
+	const isFullAccess = parseStaffTenantRoleTypeFilter(search.is_full_access);
 	const view = parseStaffTenantRolesViewMode(search.view);
 
 	return {
@@ -135,7 +135,7 @@ export const parseStaffTenantRolesSearchParams = (
 			isCreateOpen,
 			parseStaffTenantRoleEditId(search.edit),
 		),
-		is_default: isDefault,
+		is_full_access: isFullAccess,
 		view: view === 'table' ? view : undefined,
 	};
 };
@@ -143,7 +143,7 @@ export const parseStaffTenantRolesSearchParams = (
 export type StaffTenantRolesWireParams = {
 	new?: 1;
 	edit?: string;
-	is_default?: boolean;
+	is_full_access?: boolean;
 	view?: 'table';
 } & TableSearchWireParams;
 
@@ -151,7 +151,7 @@ export const serializeStaffTenantRolesSearchParams = (
 	params: StaffTenantRolesSearchParams,
 ): StaffTenantRolesWireParams => {
 	const next = serializeTableSearchParams(params);
-	const isDefault = parseStaffTenantRoleTypeFilter(params.is_default);
+	const isFullAccess = parseStaffTenantRoleTypeFilter(params.is_full_access);
 	const view = parseStaffTenantRolesViewMode(params.view);
 
 	return {
@@ -160,7 +160,7 @@ export const serializeStaffTenantRolesSearchParams = (
 			params.new === 1,
 			parseStaffTenantRoleEditId(params.edit),
 		),
-		is_default: isDefault,
+		is_full_access: isFullAccess,
 		view: view === 'table' ? view : undefined,
 	};
 };

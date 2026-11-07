@@ -45,7 +45,7 @@ export type StaffTenantRolesQueryVariables = {
 	sortOrder?: SortOrder;
 	cursor?: string;
 	size?: number;
-	isDefault?: 'true' | 'false';
+	isFullAccess?: 'true' | 'false';
 };
 
 export type CreateStaffTenantRoleInput = {
@@ -94,6 +94,8 @@ export type StaffTenantRoleRow = {
 	icon?: string | null;
 	tone?: string | null;
 	isDefault: boolean;
+	/** The seeded full-access system role: shown as « Système », not editable. */
+	isFullAccess: boolean;
 	userAccountCount: number;
 	permissionsCount: number;
 };
@@ -105,6 +107,8 @@ export type StaffTenantRoleDetails = {
 	icon?: string | null;
 	tone?: string | null;
 	isDefault: boolean;
+	/** The seeded full-access system role: shown as « Système », not editable. */
+	isFullAccess: boolean;
 	userAccountCount: number;
 	createdAt: Date | null;
 	updatedAt: Date | null;
@@ -582,7 +586,7 @@ export const buildFindStaffTenantRolesQueryParameters = (
 	limit: isPositiveSafeInteger(variables.size)
 		? String(variables.size)
 		: undefined,
-	isDefault: variables.isDefault,
+	isFullAccess: variables.isFullAccess,
 });
 
 const buildBulkDeleteStaffTenantRolesBody = (
@@ -692,6 +696,7 @@ export const toStaffTenantRoleRows = (
 			icon: normalizeNullableString(item.icon),
 			tone: normalizeNullableString(item.tone),
 			isDefault: item.isDefault === true,
+			isFullAccess: item.isFullAccess === true,
 			userAccountCount: item.userAccountCount ?? 0,
 			permissionsCount: item.permissionsCount ?? 0,
 		});
@@ -721,6 +726,7 @@ export const toStaffTenantRoleDetails = (
 		icon: normalizeNullableString(role?.icon),
 		tone: normalizeNullableString(role?.tone),
 		isDefault: role?.isDefault === true,
+		isFullAccess: role?.isFullAccess === true,
 		userAccountCount: role?.userAccountCount ?? 0,
 		createdAt: normalizeDate(role?.createdAt),
 		updatedAt: normalizeDate(role?.updatedAt),

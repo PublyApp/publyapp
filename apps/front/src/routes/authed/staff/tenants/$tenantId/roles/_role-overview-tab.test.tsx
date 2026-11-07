@@ -90,6 +90,9 @@ vi.mock('react-i18next', () => ({
 				'role-created-month': 'Created {{date}}',
 				'system-role': 'System role',
 				'custom-role': 'Custom role',
+				'full-access': 'Full access',
+				'system-role-full-access-description':
+					'This system role grants every permission.',
 				manage: 'Manage',
 				'danger-zone': 'Danger zone',
 				'delete-role': 'Delete role',
@@ -157,6 +160,7 @@ const baseRole: StaffTenantRoleDetails = {
 	name: 'Approvers',
 	description: 'Reviews approvals',
 	isDefault: false,
+	isFullAccess: false,
 	userAccountCount: 4,
 	createdAt: new Date('2026-05-10T09:00:00Z'),
 	updatedAt: new Date('2026-07-14T10:00:00Z'),
@@ -221,12 +225,38 @@ describe('RoleOverviewTab', () => {
 		expect(type.textContent).toContain('2026');
 	});
 
-	test('renders a System role pill for default roles', () => {
-		renderTab({ role: { ...baseRole, isDefault: true } });
-
+	test('renders a System role pill for the full-access role, and Custom for a default role', () => {
+		const system = renderTab({ role: { ...baseRole, isFullAccess: true } });
 		expect(screen.getByTestId('role-stat-type').textContent).toContain(
 			'System role',
 		);
+		system.unmount();
+
+		renderTab({ role: { ...baseRole, isDefault: true } });
+		expect(screen.getByTestId('role-stat-type').textContent).toContain(
+			'Custom role',
+		);
+	});
+
+	test('shows « Accès complet » instead of the permission count for the system role', () => {
+		renderTab({ role: { ...baseRole, isFullAccess: true } });
+
+		const permissions = screen.getByTestId('role-stat-permissions');
+		expect(permissions.textContent).toContain('Full access');
+		expect(permissions.textContent).not.toContain('/ 3');
+		expect(permissions.textContent).not.toContain('with access');
+		expect(
+			screen.getByText('This system role grants every permission.'),
+		).toBeTruthy();
+	});
+
+	test('shows the full module count instead of « 0 / N » for the system role', () => {
+		renderTab({ role: { ...baseRole, isFullAccess: true } });
+
+		const modules = screen.getByTestId('role-stat-modules');
+		expect(modules.textContent).toContain('2');
+		expect(modules.textContent).toContain('/ 2');
+		expect(modules.textContent).not.toContain('0 /');
 	});
 
 	test('renders the About card with the description, omitting it when null', () => {
@@ -399,6 +429,13 @@ describe('RoleOverviewTab', () => {
 
 		expect(screen.queryByRole('button', { name: 'Delete role' })).toBeNull();
 		expect(screen.getByText("Default roles can't be deleted.")).toBeTruthy();
+	});
+
+	test('hides the whole danger zone for the system role', () => {
+		renderTab({ role: { ...baseRole, isFullAccess: true } });
+
+		expect(screen.queryByRole('button', { name: 'Delete role' })).toBeNull();
+		expect(screen.queryByText('Danger zone')).toBeNull();
 	});
 
 	test('shows a loading state while the catalog is pending', () => {

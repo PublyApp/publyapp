@@ -58,6 +58,7 @@ const mocks = vi.hoisted(() => ({
 			userAccountCount: 2,
 			icon: 'shield-check',
 			tone: '5',
+			isFullAccess: false,
 		},
 	},
 	permissionKeys: ['staff.users.read'],
@@ -226,6 +227,7 @@ describe('#819 the staff-role edit flow (real router)', () => {
 				userAccountCount: 2,
 				icon: 'shield-check',
 				tone: '5',
+				isFullAccess: false,
 			},
 		};
 	});
@@ -272,6 +274,25 @@ describe('#819 the staff-role edit flow (real router)', () => {
 
 		expect(screen.queryByTestId('staff-role-edit-details-drawer')).toBeNull();
 		expect(history.location.href).not.toContain('edit=');
+	});
+
+	// #2327: the seeded full-access system role has no editable state, so a
+	// deep link must not open the drawer. The page canonicalizes the flag away
+	// rather than leaving a URL that advertises an impossible drawer.
+	test('a ?edit=1 deep link on the full-access system role opens nothing and drops the param', async () => {
+		mocks.detailsPayload.role.isFullAccess = true;
+
+		const { history } = await renderAt(`${DETAILS_PATH}?edit=1`);
+
+		expect(screen.getByTestId('staff-role-details-page')).toBeTruthy();
+		expect(screen.queryByTestId('staff-role-edit-details-drawer')).toBeNull();
+		await waitFor(() =>
+			expect(
+				new URL(history.location.href, 'http://localhost').searchParams.has(
+					'edit',
+				),
+			).toBe(false),
+		);
 	});
 
 	test('the Edit button round-trips the flag: opening writes ?edit=1, a clean close removes it', async () => {

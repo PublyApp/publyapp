@@ -42,8 +42,8 @@ const RoleNameCell = ({
 				>
 					{roleName}
 				</span>
-				<span className={tenantRoleTypeChipClassName(role.isDefault)}>
-					{role.isDefault ? t('system') : t('custom')}
+				<span className={tenantRoleTypeChipClassName(role.isFullAccess)}>
+					{role.isFullAccess ? t('system') : t('custom')}
 				</span>
 			</span>
 		</Link>

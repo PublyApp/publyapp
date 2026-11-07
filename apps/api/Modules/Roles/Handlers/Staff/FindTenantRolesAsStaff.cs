@@ -17,8 +17,10 @@ public class FindTenantRolesAsStaffQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
-	[FromQuery(Name = "is_default")]
-	public string? IsDefault { get; set; }
+	// The list's "Type" filter (Système / Personnalisé) is about the seeded
+	// full-access role, not about the tenant's default invitation role.
+	[FromQuery(Name = "is_full_access")]
+	public string? IsFullAccess { get; set; }
 
 	public string? GetSearchNormalized() {
 		if (this.Search is null) {
@@ -29,8 +31,8 @@ public class FindTenantRolesAsStaffQuery : CursorPaginatedQuery {
 		return trimmed.Length == 0 ? null : trimmed;
 	}
 
-	public bool? GetIsDefault() {
-		return QueryPredicates.ParseNullableBoolean(this.IsDefault);
+	public bool? GetIsFullAccess() {
+		return QueryPredicates.ParseNullableBoolean(this.IsFullAccess);
 	}
 }
 
@@ -39,9 +41,9 @@ public class FindTenantRolesAsStaffQueryValidator
 	public FindTenantRolesAsStaffQueryValidator() {
 		this.RuleFor(x => x.Search).MaximumLength(200);
 
-		this.RuleFor(x => x.IsDefault)
+		this.RuleFor(x => x.IsFullAccess)
 			.Must(QueryPredicates.BeValidNullableBoolean)
-			.WithMessage("is_default must be 'true' or 'false'");
+			.WithMessage("is_full_access must be 'true' or 'false'");
 	}
 }
 
@@ -81,7 +83,7 @@ public sealed class FindTenantRolesAsStaff {
 			SortId: sortId,
 			SortOrder: sortOrder,
 			Search: findTenantRolesAsStaffQuery.GetSearchNormalized(),
-			IsDefault: findTenantRolesAsStaffQuery.GetIsDefault()
+			IsFullAccess: findTenantRolesAsStaffQuery.GetIsFullAccess()
 		);
 
 		var serviceResult = await tenantRoleService.FindTenantRolesAsync(

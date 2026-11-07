@@ -165,7 +165,7 @@ export const useStaffTenantRolesList = ({
 	const setTypeFilter = (next: StaffTenantRoleTypeFilter | undefined): void => {
 		applySearch({
 			...search,
-			is_default: next === undefined ? undefined : next === 'true',
+			is_full_access: next === undefined ? undefined : next === 'true',
 			cursor: undefined,
 		});
 	};
@@ -182,7 +182,7 @@ export const useStaffTenantRolesList = ({
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: `${tenantId}:${search.is_default ?? ''}`,
+		cursorResetKey: `${tenantId}:${search.is_full_access ?? ''}`,
 	});
 	const detailsQuery = useStaffTenantDetailsQuery(
 		{ tenantId },
@@ -196,7 +196,7 @@ export const useStaffTenantRolesList = ({
 			sortOrder: controller.apiVariables.sortOrder,
 			cursor: controller.apiVariables.cursor,
 			size: controller.apiVariables.size,
-			isDefault: toStaffTenantRoleTypeFilterString(search.is_default),
+			isFullAccess: toStaffTenantRoleTypeFilterString(search.is_full_access),
 		},
 		{
 			enabled: tenantId.length > 0,
@@ -211,8 +211,11 @@ export const useStaffTenantRolesList = ({
 	// row — so opening it costs no extra request. An `?edit=<id>` that names no
 	// loaded row (a stale bookmark, or a role filtered off the current page)
 	// simply leaves the drawer shut rather than inventing a role to show.
+	// The full-access system role is never editable, so an `?edit=<id>` naming
+	// it is an impossible state too: it leaves the drawer shut instead of
+	// opening one the API would reject (the row menu already hides Edit).
 	const editingRole = editRoleId
-		? rows.find((row) => row.id === editRoleId)
+		? rows.find((row) => row.id === editRoleId && row.isFullAccess !== true)
 		: undefined;
 	const isEditDrawerOpen = editingRole !== undefined;
 	// Keep the last edited row so the drawer stays mounted through its close
@@ -309,7 +312,7 @@ export const useStaffTenantRolesList = ({
 	);
 
 	const hasActiveSearch = Boolean(
-		controller.search.committed || search.is_default !== undefined,
+		controller.search.committed || search.is_full_access !== undefined,
 	);
 	const bodyState = resolveTableBodyState({
 		isPending: rolesQuery.isPending,

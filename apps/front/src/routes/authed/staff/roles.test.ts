@@ -64,6 +64,13 @@ describe('toStaffRoleRows', () => {
 				userAccountCount: 3,
 			},
 			{
+				id: 'role-system',
+				name: 'System',
+				description: 'Seeded full-access role',
+				userAccountCount: 0,
+				isFullAccess: true,
+			},
+			{
 				id: '',
 				name: 'Skip me',
 				description: 'Missing id',
@@ -83,6 +90,17 @@ describe('toStaffRoleRows', () => {
 				name: 'Admin',
 				description: 'Administrators',
 				userAccountCount: 3,
+				// Omitted by the API → the mapper's default.
+				isFullAccess: false,
+				icon: expect.any(String) as string,
+				iconTone: expect.any(String) as string,
+			},
+			{
+				id: 'role-system',
+				name: 'System',
+				description: 'Seeded full-access role',
+				userAccountCount: 0,
+				isFullAccess: true,
 				icon: expect.any(String) as string,
 				iconTone: expect.any(String) as string,
 			},
@@ -106,6 +124,30 @@ describe('toStaffRoleDetails', () => {
 			name: 'Platform admin',
 			description: null,
 			userAccountCount: null,
+			// Omitted by the API → the mapper's default.
+			isFullAccess: false,
+			icon: expect.any(String) as string,
+			iconTone: expect.any(String) as string,
+		});
+	});
+
+	test('keeps the full-access flag from a detail payload', () => {
+		const result: GetStaffRoleByIdResult = {
+			role: {
+				id: 'role-system',
+				name: 'System',
+				description: null,
+				userAccountCount: 0,
+				isFullAccess: true,
+			},
+		};
+
+		expect(toStaffRoleDetails(result)).toEqual({
+			id: 'role-system',
+			name: 'System',
+			description: null,
+			userAccountCount: 0,
+			isFullAccess: true,
 			icon: expect.any(String) as string,
 			iconTone: expect.any(String) as string,
 		});

@@ -145,14 +145,28 @@ const RoleSectionLink = ({
 
 const PermissionGlanceBody = ({
 	glance,
+	isFullAccess,
 	isCatalogPending,
 	isCatalogError,
 }: {
 	glance: RolePermissionGlance;
+	isFullAccess?: boolean;
 	isCatalogPending: boolean;
 	isCatalogError: boolean;
 }) => {
 	const { t } = useTranslation('staff-tenant-roles');
+
+	// Full access is implicit: there is no per-permission row to list.
+	if (isFullAccess) {
+		return (
+			<div className="px-4 py-6 text-sm">
+				<p className="font-medium text-foreground">{t('common:full-access')}</p>
+				<p className="mt-1 text-muted-foreground">
+					{t('common:system-role-full-access-description')}
+				</p>
+			</div>
+		);
+	}
 
 	if (isCatalogPending) {
 		return (
@@ -259,6 +273,35 @@ export const RoleOverviewTab = ({
 		0,
 	);
 
+	let modulesFigure: ReactNode;
+	if (role.isFullAccess) {
+		if (catalogReady) {
+			modulesFigure = glance.totalModules;
+		} else {
+			modulesFigure = t('common:full-access');
+		}
+	} else {
+		modulesFigure = glance.modulesWithAccess;
+	}
+
+	let permissionsSecondary: ReactNode;
+	if (role.isFullAccess) {
+		permissionsSecondary = undefined;
+	} else if (catalogReady) {
+		permissionsSecondary = (
+			<div className="publy-stat-meter">
+				<div
+					className="publy-stat-meter-fill"
+					style={{
+						width: `${meterPercent(glance.grantedTotal, glance.catalogTotal)}%`,
+					}}
+				/>
+			</div>
+		);
+	} else {
+		permissionsSecondary = <span>{t('granted')}</span>;
+	}
+
 	return (
 		<div
 			className="flex flex-col gap-5"
@@ -301,23 +344,10 @@ export const RoleOverviewTab = ({
 					testId="role-stat-permissions"
 					label={t('common:permissions')}
 					icon={<IconKey aria-hidden="true" className="size-[14px]" />}
-					secondary={
-						catalogReady ? (
-							<div className="publy-stat-meter">
-								<div
-									className="publy-stat-meter-fill"
-									style={{
-										width: `${meterPercent(glance.grantedTotal, glance.catalogTotal)}%`,
-									}}
-								/>
-							</div>
-						) : (
-							<span>{t('granted')}</span>
-						)
-					}
+					secondary={permissionsSecondary}
 				>
-					{glance.grantedTotal}
-					{catalogReady ? (
+					{role.isFullAccess ? t('common:full-access') : glance.grantedTotal}
+					{!role.isFullAccess && catalogReady ? (
 						<span className="publy-stat-card-value-suffix">
 							{' '}
 							/ {glance.catalogTotal}
@@ -331,7 +361,7 @@ export const RoleOverviewTab = ({
 					icon={<IconLayoutGrid aria-hidden="true" className="size-[14px]" />}
 					secondary={<span>{t('with-access')}</span>}
 				>
-					{glance.modulesWithAccess}
+					{modulesFigure}
 					{catalogReady ? (
 						<span className="publy-stat-card-value-suffix">
 							{' '}
@@ -354,8 +384,8 @@ export const RoleOverviewTab = ({
 						) : null
 					}
 				>
-					<StatusPill tone={role.isDefault ? 'primary' : 'neutral'}>
-						{role.isDefault ? t('system-role') : t('custom-role')}
+					<StatusPill tone={role.isFullAccess ? 'primary' : 'neutral'}>
+						{role.isFullAccess ? t('system-role') : t('custom-role')}
 					</StatusPill>
 				</StatCard>
 			</div>
@@ -384,7 +414,7 @@ export const RoleOverviewTab = ({
 								<p className="publy-type-section-title">
 									{t('permissions-at-a-glance')}
 								</p>
-								{catalogReady ? (
+								{catalogReady && !role.isFullAccess ? (
 									<p className="publy-type-helper mt-0.5">
 										{t('role-glance-summary', {
 											granted: glance.grantedTotal,
@@ -394,18 +424,21 @@ export const RoleOverviewTab = ({
 									</p>
 								) : null}
 							</div>
-							<RoleSectionLink
-								tenantId={tenantId}
-								roleId={role.id}
-								section="permissions"
-								className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-							>
-								{t('manage')}
-								<IconArrowRight aria-hidden="true" className="size-3.5" />
-							</RoleSectionLink>
+							{role.isFullAccess ? null : (
+								<RoleSectionLink
+									tenantId={tenantId}
+									roleId={role.id}
+									section="permissions"
+									className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+								>
+									{t('manage')}
+									<IconArrowRight aria-hidden="true" className="size-3.5" />
+								</RoleSectionLink>
+							)}
 						</div>
 						<PermissionGlanceBody
 							glance={glance}
+							isFullAccess={role.isFullAccess}
 							isCatalogPending={isCatalogPending}
 							isCatalogError={isCatalogError}
 						/>
@@ -440,29 +473,32 @@ export const RoleOverviewTab = ({
 						/>
 					</section>
 
-					<DangerZoneCard title={t('common:danger-zone')}>
-						<DangerZoneRow
-							title={t('common:delete-role')}
-							description={
-								role.isDefault
-									? t('common:default-role-delete-disabled')
-									: t('common:confirm-delete-tenant-role-description')
-							}
-							action={
-								role.isDefault ? null : (
-									<Button
-										type="button"
-										variant="destructive"
-										size="sm"
-										onClick={onDeleteRequest}
-										disabled={isDeletePending}
-									>
-										{t('common:delete-role')}
-									</Button>
-								)
-							}
-						/>
-					</DangerZoneCard>
+					{/* The system role cannot be deleted: no danger zone at all. */}
+					{role.isFullAccess ? null : (
+						<DangerZoneCard title={t('common:danger-zone')}>
+							<DangerZoneRow
+								title={t('common:delete-role')}
+								description={
+									role.isDefault
+										? t('common:default-role-delete-disabled')
+										: t('common:confirm-delete-tenant-role-description')
+								}
+								action={
+									role.isDefault ? null : (
+										<Button
+											type="button"
+											variant="destructive"
+											size="sm"
+											onClick={onDeleteRequest}
+											disabled={isDeletePending}
+										>
+											{t('common:delete-role')}
+										</Button>
+									)
+								}
+							/>
+						</DangerZoneCard>
+					)}
 				</DetailAside>
 			</DetailGrid>
 		</div>

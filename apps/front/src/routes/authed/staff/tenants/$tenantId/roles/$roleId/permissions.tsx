@@ -8,6 +8,7 @@ const StaffTenantRolePermissionsSection = () => {
 	const {
 		tenantId,
 		roleId,
+		role,
 		permissionKeys,
 		permissionKeysRevision,
 		permissionGroups,
@@ -28,6 +29,7 @@ const StaffTenantRolePermissionsSection = () => {
 			isCatalogPending={isCatalogPending}
 			isCatalogError={isCatalogError}
 			catalogError={catalogError}
+			isFullAccess={role.isFullAccess}
 			onDirtyChange={onPermissionsDirtyChange}
 			onSessionExpired={onSessionExpired}
 		/>

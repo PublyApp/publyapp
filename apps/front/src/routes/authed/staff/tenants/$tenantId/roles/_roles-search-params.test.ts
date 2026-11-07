@@ -113,13 +113,13 @@ describe('serializeStaffTenantRolesSearchParams', () => {
 	it('should round-trip a parsed search state unchanged', () => {
 		const parsed = parseStaffTenantRolesSearchParams({
 			edit: ROLE_ID,
-			is_default: 'true',
+			is_full_access: 'true',
 			view: 'table',
 		});
 
 		expect(serializeStaffTenantRolesSearchParams(parsed)).toMatchObject({
 			edit: ROLE_ID,
-			is_default: true,
+			is_full_access: true,
 			view: 'table',
 			new: undefined,
 		});

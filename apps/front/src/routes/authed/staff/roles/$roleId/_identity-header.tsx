@@ -66,13 +66,15 @@ export const StaffRoleIdentityHeader = ({
 								</>
 							)}
 							{' · '}
-							{t('assigned-permissions-count', { count: assignedCount })}
+							{details.isFullAccess
+								? t('full-access')
+								: t('assigned-permissions-count', { count: assignedCount })}
 						</span>
 					</div>
 				</div>
 			</div>
 			<div className="flex items-center gap-2.5">
-				{onEdit ? (
+				{onEdit && !details.isFullAccess ? (
 					<Button
 						type="button"
 						variant="outline"

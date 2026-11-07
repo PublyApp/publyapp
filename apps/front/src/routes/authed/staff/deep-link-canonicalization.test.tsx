@@ -207,7 +207,7 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 		expect(history.location.href).not.toContain('invite=2');
 	});
 
-	test('tenant roles: unrecognized is_default/view/new values are dropped from the URL', async () => {
+	test('tenant roles: unrecognized is_full_access/view/new values are dropped from the URL', async () => {
 		const { router, history } = buildHarness(
 			'/staff/tenants/$tenantId/roles',
 			asValidateSearch(TenantRolesRoute),
@@ -216,19 +216,21 @@ describe('malformed deep links are canonicalized at the router boundary (r4-tena
 					search as StaffTenantRolesSearchParamInput,
 				);
 				return {
-					is_default:
-						parsed.is_default === undefined ? 'all' : String(parsed.is_default),
+					is_full_access:
+						parsed.is_full_access === undefined
+							? 'all'
+							: String(parsed.is_full_access),
 					view: parsed.view ?? 'cards',
 					new: parsed.new === 1 ? 'open' : 'closed',
 				};
 			},
-			'/staff/tenants/t1/roles?is_default=maybe&view=list&new=yes',
+			'/staff/tenants/t1/roles?is_full_access=maybe&view=list&new=yes',
 		);
 
 		render(<RouterProvider router={router} />);
 		await waitFor(() => screen.getByTestId('resolved-search'));
 
-		expect(screen.getByTestId('field-is_default').textContent).toBe('all');
+		expect(screen.getByTestId('field-is_full_access').textContent).toBe('all');
 		expect(screen.getByTestId('field-view').textContent).toBe('cards');
 		expect(screen.getByTestId('field-new').textContent).toBe('closed');
 		expect(history.location.href).not.toContain('maybe');

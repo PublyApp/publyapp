@@ -214,6 +214,11 @@ export const useStaffTenantRoleDetails = ({
 	const deleteRole = useDeleteStaffTenantRoleMutation();
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 	const role = toStaffTenantRoleDetails(detailQuery.data);
+	// The seeded full-access system role is never editable, so a `?edit=1`
+	// deep link is an impossible state. The drawer must stay shut (the page
+	// canonicalizes the flag away), and the nav guard must not arm for a
+	// drawer that can never open.
+	const isSystemRole = role?.isFullAccess === true;
 	const permissionKeys = toStaffTenantRolePermissionKeys(
 		permissionKeysQuery.data,
 	);
@@ -260,7 +265,7 @@ export const useStaffTenantRoleDetails = ({
 		detailQuery,
 		editDrawerBlocker,
 		handleDelete,
-		isEditDrawerOpen,
+		isEditDrawerOpen: isEditDrawerOpen && !isSystemRole,
 		members,
 		membersQuery,
 		pendingDelete,
