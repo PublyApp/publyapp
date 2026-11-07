@@ -1,53 +1,45 @@
 import { IconActivity, IconCircleCheck } from '@tabler/icons-react';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import type { TenantListCountsResponse } from '@org/client-ts/models/index';
+import type { FindTenantsAsStaffResponse } from '@org/client-ts/models/index';
 
-import { GhostAxis, GhostLine } from './_chart-ghost';
-import {
-	ChartBody,
-	ChartNote,
-	DonutChart,
-	type DonutSegment,
-} from './_dashboard-charts';
-import { ChartCard, DashboardCard, DashboardCardState } from './_dashboard-ui';
+import { GhostAxis, GhostDonut, GhostLine } from './_chart-ghost';
+import { DonutChart, type DonutSegment } from './_dashboard-charts';
+import { ChartCard } from './_dashboard-ui';
 
 /** « Croissance des organisations » (no daily series endpoint yet → its own
- * ghost) and « Organisations par statut » (the tenants list's status facets). */
+ * ghost) and « Organisations par statut » (the UNFILTERED tenants facets: the
+ * « Organisations » filter never reaches this card, B3). The status donut owns
+ * the counts query, so its loading/error state renders through `QueryDisplay`.
+ */
 export const OverviewCharts = ({
-	counts,
-	isPending,
-	error,
-	onRetry,
+	countsQuery,
 	locale,
 }: {
-	counts: TenantListCountsResponse | null | undefined;
-	isPending: boolean;
-	error: unknown;
-	onRetry: () => void;
+	countsQuery: UseQueryResult<FindTenantsAsStaffResponse, Error>;
 	locale: string;
 }) => {
 	const { t } = useTranslation('common');
+	const counts = countsQuery.data?.counts;
 
-	const statusSegments: DonutSegment[] = counts
-		? [
-				{
-					label: t('dashboard-status-active'),
-					value: counts.active ?? 0,
-					color: 'var(--publy-success)',
-				},
-				{
-					label: t('dashboard-status-pending'),
-					value: counts.pending ?? 0,
-					color: 'var(--publy-warning)',
-				},
-				{
-					label: t('dashboard-status-suspended'),
-					value: counts.suspended ?? 0,
-					color: 'var(--publy-danger)',
-				},
-			]
-		: [];
+	const statusSegments: DonutSegment[] = [
+		{
+			label: t('dashboard-status-active'),
+			value: counts?.active ?? 0,
+			color: 'var(--publy-success)',
+		},
+		{
+			label: t('dashboard-status-pending'),
+			value: counts?.pending ?? 0,
+			color: 'var(--publy-warning)',
+		},
+		{
+			label: t('dashboard-status-suspended'),
+			value: counts?.suspended ?? 0,
+			color: 'var(--publy-danger)',
+		},
+	];
 
 	return (
 		<div className="grid gap-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
@@ -68,28 +60,34 @@ export const OverviewCharts = ({
 				}}
 			/>
 
-			<DashboardCard
+			<ChartCard
 				testId="staff-dashboard-status"
 				label={t('dashboard-card-status')}
 				icon={<IconCircleCheck />}
-			>
-				<ChartNote>{t('dashboard-note-status')}</ChartNote>
-				<ChartBody>
-					<DashboardCardState
-						testId="staff-dashboard-status"
-						isPending={isPending}
-						error={error}
-						onRetry={onRetry}
-					>
-						<DonutChart
-							segments={statusSegments}
-							total={counts?.total ?? 0}
-							totalLabel={t('dashboard-filter-organisations')}
-							locale={locale}
-						/>
-					</DashboardCardState>
-				</ChartBody>
-			</DashboardCard>
+				note={t('dashboard-note-status')}
+				toggle={false}
+				series={
+					counts
+						? {
+								status: 'ready',
+								chart: (
+									<DonutChart
+										segments={statusSegments}
+										total={counts.total ?? 0}
+										totalLabel={t('dashboard-filter-organisations')}
+										locale={locale}
+									/>
+								),
+								table: null,
+							}
+						: {
+								status: 'unavailable',
+								sentence: t('dashboard-ghost-card-status'),
+								ghost: <GhostDonut />,
+							}
+				}
+				query={countsQuery}
+			/>
 		</div>
 	);
 };

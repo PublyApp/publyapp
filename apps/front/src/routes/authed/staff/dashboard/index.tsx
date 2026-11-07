@@ -1,25 +1,25 @@
 import { IconActivity } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import {
-	toStaffTenantRows,
-	useStaffTenantsQuery,
-} from '~/lib/query/staff-tenants';
+import { useStaffTenantsQuery } from '~/lib/query/staff-tenants';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { GhostHeatmap } from './_chart-ghost';
 import {
-	ChartCard,
-	OrganisationScopeSelect,
-	PeriodSelect,
+	parseDashboardPeriod,
+	parseOrganisationScope,
 	periodStart,
 	type DashboardPeriod,
 	type OrganisationScope,
+} from './_dashboard-filters';
+import {
+	ChartCard,
+	OrganisationScopeSelect,
+	PeriodSelect,
 } from './_dashboard-ui';
 import { OverviewCharts } from './_overview-charts';
 import { OverviewKpis } from './_overview-kpis';
@@ -39,44 +39,53 @@ const HEATMAP_SCALE = [
 const Overview = () => {
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n.language;
-	const [period, setPeriod] = useState<DashboardPeriod>('30d');
-	const [scope, setScope] = useState<OrganisationScope>('all');
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const period: DashboardPeriod = search.period ?? '30d';
+	const scope: OrganisationScope = search.scope ?? 'all';
 
-	const tenantsQuery = useStaffTenantsQuery({
+	const onSearchChange = (next: {
+		period?: DashboardPeriod;
+		scope?: OrganisationScope;
+	}): void => {
+		void navigate({ search: { ...search, ...next }, replace: true });
+	};
+
+	// The counts and the status donut describe the whole platform: the
+	// « Organisations » filter must not reach them, or « Actives » would read 0
+	// as soon as « Suspendues uniquement » is picked (B3).
+	const countsQuery = useStaffTenantsQuery({ size: 1 });
+	// Only « Dernières organisations » follows the filter.
+	const latestTenantsQuery = useStaffTenantsQuery({
 		size: CARD_ROW_COUNT,
 		sortId: 'created_at',
 		sortOrder: 'desc',
 		status: scope === 'all' ? undefined : scope,
 	});
-	const invitationsQuery = useStaffInvitationsQuery({
+	const pendingInvitationsQuery = useStaffInvitationsQuery({
 		size: CARD_ROW_COUNT,
 		status: 'pending',
 	});
+	// The outcome facets must come from an UNFILTERED invitations query: the
+	// API computes them over the status-filtered set, so reusing the pending
+	// one would report accepted/expired/revoked as structural zeros (B2).
+	const invitationOutcomesQuery = useStaffInvitationsQuery({ size: 1 });
 	const auditQuery = useStaffAuditLogsQuery({
 		size: 1,
 		startDate: periodStart(period),
 	});
 
 	for (const queryError of [
-		tenantsQuery.error,
-		invitationsQuery.error,
+		countsQuery.error,
+		latestTenantsQuery.error,
+		pendingInvitationsQuery.error,
+		invitationOutcomesQuery.error,
 		auditQuery.error,
 	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
 			return <LogoutRedirect />;
 		}
 	}
-
-	const tenantsState = {
-		isPending: tenantsQuery.isPending,
-		error: tenantsQuery.error,
-		onRetry: () => void tenantsQuery.refetch(),
-	};
-	const invitationsState = {
-		isPending: invitationsQuery.isPending,
-		error: invitationsQuery.error,
-		onRetry: () => void invitationsQuery.refetch(),
-	};
 
 	return (
 		<div className="space-y-4" data-testid="staff-dashboard-overview-panel">
@@ -85,7 +94,7 @@ const Overview = () => {
 					<PeriodSelect
 						id="staff-dashboard-period"
 						value={period}
-						onChange={setPeriod}
+						onChange={(next) => onSearchChange({ period: next })}
 						ariaLabel={t('dashboard-filter-period')}
 					/>
 				</div>
@@ -93,26 +102,23 @@ const Overview = () => {
 					<OrganisationScopeSelect
 						id="staff-dashboard-scope"
 						value={scope}
-						onChange={setScope}
+						onChange={(next) => onSearchChange({ scope: next })}
 					/>
 				</div>
 			</div>
 
 			<OverviewKpis
-				activeTenants={tenantsQuery.data?.counts?.active}
-				members={tenantsQuery.data?.counts?.members}
+				activeTenants={countsQuery.data?.counts?.active}
+				members={countsQuery.data?.counts?.members}
 				auditEvents={auditQuery.data?.totalCount}
-				pendingInvitations={invitationsQuery.data?.counts?.pending}
+				pendingInvitations={pendingInvitationsQuery.data?.counts?.pending}
+				countsQuery={countsQuery}
+				auditQuery={auditQuery}
+				pendingInvitationsQuery={pendingInvitationsQuery}
 				locale={locale}
 			/>
 
-			<OverviewCharts
-				counts={tenantsQuery.data?.counts}
-				isPending={tenantsState.isPending}
-				error={tenantsState.error}
-				onRetry={tenantsState.onRetry}
-				locale={locale}
-			/>
+			<OverviewCharts countsQuery={countsQuery} locale={locale} />
 
 			<ChartCard
 				testId="staff-dashboard-heatmap"
@@ -141,18 +147,27 @@ const Overview = () => {
 			/>
 
 			<OverviewLists
-				invitationCounts={invitationsQuery.data?.counts}
-				tenants={toStaffTenantRows(tenantsQuery.data?.data)}
-				invitations={invitationsQuery.data?.data ?? []}
-				tenantsState={tenantsState}
-				invitationsState={invitationsState}
+				invitationOutcomesQuery={invitationOutcomesQuery}
+				latestTenantsQuery={latestTenantsQuery}
+				pendingInvitationsQuery={pendingInvitationsQuery}
 				locale={locale}
 			/>
 		</div>
 	);
 };
 
+/** The overview's URL state: both filters are optional, so a bare
+ * `/staff/dashboard` link stays valid. */
+type OverviewSearch = {
+	period?: DashboardPeriod;
+	scope?: OrganisationScope;
+};
+
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/')({
+	validateSearch: (search: Record<string, unknown>): OverviewSearch => ({
+		period: parseDashboardPeriod(search.period),
+		scope: parseOrganisationScope(search.scope),
+	}),
 	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
 	component: Overview,
 });

@@ -13,6 +13,8 @@ import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
+type ReportSearch = { period?: string };
+
 type AuditQuery = {
 	isPending: boolean;
 	isError: boolean;
@@ -23,20 +25,6 @@ type AuditQuery = {
 
 const mocks = vi.hoisted(() => ({
 	audit: {
-		isPending: false,
-		isError: false,
-		error: null as Error | null,
-		data: undefined as Record<string, unknown> | undefined,
-		refetch: vi.fn(),
-	},
-	signins: {
-		isPending: false,
-		isError: false,
-		error: null as Error | null,
-		data: undefined as Record<string, unknown> | undefined,
-		refetch: vi.fn(),
-	},
-	failed: {
 		isPending: false,
 		isError: false,
 		error: null as Error | null,
@@ -57,7 +45,11 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 	downloadFile: vi.fn(),
 	toastSuccess: vi.fn(),
+	search: {} as ReportSearch,
+	navigate: vi.fn(),
 }));
+
+const useStaffAuditLogsQuery = vi.hoisted(() => vi.fn());
 
 vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 	const actual =
@@ -65,19 +57,7 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 
 	return {
 		...actual,
-		useStaffAuditLogsQuery: vi.fn((variables: { actions?: string[] }) => {
-			const action = variables.actions?.[0];
-			if (action === 'auth.login.succeeded') {
-				return mocks.signins;
-			}
-			if (action === 'auth.login.failed') {
-				return mocks.failed;
-			}
-			if (action === 'impersonation.started') {
-				return mocks.impersonations;
-			}
-			return mocks.audit;
-		}),
+		useStaffAuditLogsQuery,
 		useExportStaffAuditLogsMutation: vi.fn(() => mocks.exportMutation),
 	};
 });
@@ -105,9 +85,12 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => undefined,
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
+		useSearch: () => mocks.search,
+		useNavigate: () => mocks.navigate,
 	}),
 }));
 
@@ -116,25 +99,16 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-kpi-signins': 'Sign-ins',
 	'dashboard-kpi-failed-signins': 'Failed sign-ins',
 	'dashboard-kpi-impersonations': 'Impersonation sessions',
-	'dashboard-last-30d': 'Last 30 days',
 	'dashboard-card-audit-events-per-day': 'Audit events per day',
 	'dashboard-card-type-share': 'Breakdown by type',
 	'dashboard-card-signins-per-day': 'Sign-ins per day',
 	'dashboard-card-top-orgs': 'Most active organisations',
 	'dashboard-note-events-per-day': 'Audit events per day',
-	'dashboard-note-signins-per-day': 'Successful sign-ins · last 30 days',
-	'dashboard-note-type-share-all': 'All events, grouped by domain',
+	'dashboard-note-signins': 'Successful sign-ins',
 	'dashboard-note-top-orgs': 'Audit events attributed to each organisation',
-	'dashboard-col-day': 'Day',
 	'dashboard-col-events': 'Events',
-	'dashboard-col-signins': 'Sign-ins',
 	'dashboard-col-type': 'Type',
 	'dashboard-col-share': 'Share',
-	'dashboard-type-organisation': 'Organisation',
-	'dashboard-type-auth': 'Authentication',
-	'dashboard-type-user': 'User',
-	'dashboard-type-invitation': 'Invitation',
-	'dashboard-type-other': 'Other',
 	'dashboard-export': 'Export',
 	'dashboard-exporting': 'Export…',
 	'dashboard-export-format': 'Export format',
@@ -143,6 +117,7 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-export-complete': 'Export complete · {{file}}',
 	'dashboard-filter-report-period': 'Report period',
 	'dashboard-period-30d': 'Last 30 days',
+	'dashboard-period-7d': 'Last 7 days',
 	'export-failed': 'Export failed',
 	'dashboard-ghost-tag': 'No data yet',
 	'dashboard-ghost-card-events-per-day':
@@ -151,6 +126,8 @@ const EN_LABELS: TestLabelMap = {
 		'The successful sign-ins curve will be drawn here, day by day.',
 	'dashboard-ghost-card-top-orgs':
 		'The most active organisations will be ranked here.',
+	'dashboard-ghost-card-type-share':
+		'The share of each event type will appear here.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -169,6 +146,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { periodStart } from './_dashboard-filters';
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './reports';
 
 const Reports = Route.options.component as ComponentType;
@@ -184,25 +163,15 @@ const withData = () => {
 			byAction: [
 				{ action: 'tenant.updated', count: 1684 },
 				{ action: 'auth.login.succeeded', count: 1215 },
-				{ action: 'tenant.user.removed', count: 902 },
-				{ action: 'invitation.created', count: 611 },
-				{ action: 'post.created', count: 400 },
 			],
 			byActor: [],
 		},
 	};
-	mocks.signins.data = { data: [], nextCursor: null, totalCount: 1469 };
-	mocks.failed.data = { data: [], nextCursor: null, totalCount: 38 };
 	mocks.impersonations.data = { data: [], nextCursor: null, totalCount: 12 };
 };
 
 const resetMocks = () => {
-	for (const query of [
-		mocks.audit,
-		mocks.signins,
-		mocks.failed,
-		mocks.impersonations,
-	] as AuditQuery[]) {
+	for (const query of [mocks.audit, mocks.impersonations] as AuditQuery[]) {
 		query.isPending = false;
 		query.isError = false;
 		query.error = null;
@@ -210,7 +179,16 @@ const resetMocks = () => {
 	}
 	mocks.exportMutation.isPending = false;
 	mocks.shouldLogoutForFailure.mockReturnValue(false);
+	mocks.search = {};
+	useStaffAuditLogsQuery.mockImplementation(
+		(variables: { actions?: string[] }) =>
+			variables.actions?.[0] === 'impersonation.started'
+				? mocks.impersonations
+				: mocks.audit,
+	);
 };
+
+resetMocks();
 
 afterEach(() => {
 	cleanup();
@@ -219,43 +197,62 @@ afterEach(() => {
 });
 
 describe('staff dashboard reports', () => {
-	test('renders the four report KPIs from period-scoped audit totals', () => {
+	test('renders the two served KPIs from period-scoped audit totals', () => {
 		withData();
 		render(<Reports />);
 
 		expect(
-			screen.getByTestId('staff-dashboard-kpi-report-events'),
+			within(screen.getByTestId('staff-dashboard-kpi-report-events')).getByText(
+				'4,812',
+			),
 		).toBeTruthy();
-		// The period total appears as the KPI value and as the events card's hero.
-		expect(screen.getAllByText('4,812').length).toBeGreaterThanOrEqual(1);
-		expect(screen.getByText('1,469')).toBeTruthy();
-		expect(screen.getByText('38')).toBeTruthy();
-		expect(screen.getByText('12')).toBeTruthy();
+		expect(
+			within(
+				screen.getByTestId('staff-dashboard-kpi-impersonations'),
+			).getByText('12'),
+		).toBeTruthy();
 	});
 
-	test('renders the type breakdown grouped by domain', () => {
+	test('the sign-in KPIs are ghosts: their audit actions are never emitted (B1)', () => {
 		withData();
 		render(<Reports />);
 
-		for (const label of [
-			'Organisation',
-			'Authentication',
-			'User',
-			'Invitation',
-			'Other',
+		for (const testId of [
+			'staff-dashboard-kpi-signins',
+			'staff-dashboard-kpi-failed-signins',
 		]) {
-			expect(screen.getByText(label)).toBeTruthy();
+			const card = screen.getByTestId(testId);
+			expect(within(card).getByText('—')).toBeTruthy();
+			expect(within(card).getByText('No data yet')).toBeTruthy();
 		}
-		expect(screen.getByText('1,684')).toBeTruthy();
-		expect(screen.getByText('35%')).toBeTruthy();
+
+		// No query is even issued for an action the backend never writes.
+		for (const call of useStaffAuditLogsQuery.mock.calls) {
+			expect(call[0].actions ?? []).not.toContain('auth.login.succeeded');
+			expect(call[0].actions ?? []).not.toContain('auth.login.failed');
+		}
+	});
+
+	test('the type breakdown is a ghost: its facet is whole-history (B7)', () => {
+		withData();
+		render(<Reports />);
+
+		const card = screen.getByTestId('staff-dashboard-type-share');
+		expect(within(card).getByText('No data yet')).toBeTruthy();
+		expect(
+			within(card).getByText('The share of each event type will appear here.'),
+		).toBeTruthy();
+		expect(
+			card.querySelectorAll('svg[aria-hidden="true"]').length,
+		).toBeGreaterThan(0);
+		// The whole-history figure must not leak into the period-scoped report.
+		expect(within(card).queryByText('1,684')).toBeNull();
 	});
 
 	test('draws ghosts (not « — ») for the daily series the API does not provide', () => {
 		withData();
 		render(<Reports />);
 
-		// Events/day, sign-ins/day and the top-organisations ranking each draw
-		// their own chart as a ghost, with the tag and their sentence.
 		for (const [testId, sentence] of [
 			[
 				'staff-dashboard-events-per-day',
@@ -278,13 +275,59 @@ describe('staff dashboard reports', () => {
 			).toBeGreaterThan(0);
 			expect(within(card).queryByRole('button', { name: 'Table' })).toBeNull();
 		}
+	});
 
-		// The events card's hero figure is a muted « — » on a ghost card.
+	test('both daily-ghost cards keep the hero slot as a muted « — » (N3)', () => {
+		withData();
+		render(<Reports />);
+
+		for (const testId of [
+			'staff-dashboard-events-per-day',
+			'staff-dashboard-signins-per-day',
+		]) {
+			const card = screen.getByTestId(testId);
+			const hero = card.querySelector('p.pt-3');
+			expect(hero?.textContent).toBe('—');
+			expect(hero?.querySelector('.text-muted-foreground')).toBeTruthy();
+		}
+	});
+
+	test('a failed events query shows the error state, never the ghost (B4)', () => {
+		withData();
+		mocks.audit.isError = true;
+		mocks.audit.error = new Error('500');
+		render(<Reports />);
+
 		expect(
-			within(screen.getByTestId('staff-dashboard-events-per-day')).getByText(
-				'—',
-			),
+			screen.getByTestId('staff-dashboard-kpi-report-events-error'),
 		).toBeTruthy();
+	});
+
+	test('a pending events query shows the existing skeleton (B4)', () => {
+		mocks.audit.isPending = true;
+		mocks.audit.data = undefined;
+		render(<Reports />);
+
+		expect(
+			screen.getByTestId('staff-dashboard-kpi-report-events-skeleton'),
+		).toBeTruthy();
+	});
+
+	test('the report period drives the API through the URL (N4)', () => {
+		withData();
+		mocks.search = { period: '7d' };
+		const expectedStart = periodStart('7d');
+		render(<Reports />);
+
+		expect(useStaffAuditLogsQuery).toHaveBeenCalledWith({
+			size: 1,
+			startDate: expectedStart,
+		});
+		expect(useStaffAuditLogsQuery).toHaveBeenCalledWith({
+			size: 1,
+			startDate: expectedStart,
+			actions: ['impersonation.started'],
+		});
 	});
 
 	test('opens the export dropdown with the two formats and exports the chosen one', async () => {
@@ -333,7 +376,7 @@ describe('staff dashboard reports', () => {
 	test('an auth failure on any query logs out through the shared path', () => {
 		withData();
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
-		mocks.signins.error = new Error('401');
+		mocks.impersonations.error = new Error('401');
 
 		render(<Reports />);
 

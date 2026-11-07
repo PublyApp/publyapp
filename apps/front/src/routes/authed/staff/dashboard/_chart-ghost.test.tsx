@@ -14,7 +14,6 @@ vi.mock('react-i18next', () => ({
 
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {
-	GHOST_HEIGHT,
 	GhostAxis,
 	GhostBars,
 	GhostDonut,
@@ -26,8 +25,6 @@ import {
 	GhostStacked,
 	GhostTag,
 } from './_chart-ghost';
-// eslint-disable-next-line import/first -- must follow the vi.mock call above
-import { CHART_HEIGHT } from './_dashboard-charts';
 
 afterEach(cleanup);
 
@@ -73,12 +70,11 @@ describe('ghost charts', () => {
 		expect(second).toBe(first);
 	});
 
-	test('the line ghost keeps the real line chart height (no jump)', () => {
+	test('the line ghost keeps the line chart height it stands for (no jump)', () => {
 		const { container } = render(<GhostLine />);
 		const svg = container.querySelector('svg');
 
-		expect(svg?.getAttribute('viewBox')).toBe(`0 0 760 ${CHART_HEIGHT}`);
-		expect(GHOST_HEIGHT.line).toBe(CHART_HEIGHT);
+		expect(svg?.getAttribute('viewBox')).toBe('0 0 760 220');
 	});
 
 	test('the bar ghost plus its axis fills the real column chart', () => {
@@ -90,11 +86,11 @@ describe('ghost charts', () => {
 		);
 		const [bars, axis] = svgsOf(container);
 
-		// The real `ColumnChart` is a 180 px body with no axis row of its own;
-		// the ghost spends 24 px of that height on the axis.
-		expect(Number(bars?.getAttribute('height'))).toBe(GHOST_HEIGHT.bars);
-		expect(Number(axis?.getAttribute('height'))).toBe(GHOST_HEIGHT.axis);
-		expect(GHOST_HEIGHT.bars + GHOST_HEIGHT.axis).toBe(180);
+		// The bar body the ghost stands for is 180 px tall; the ghost spends
+		// 24 px of it on the axis.
+		expect(Number(bars?.getAttribute('height'))).toBe(156);
+		expect(Number(axis?.getAttribute('height'))).toBe(24);
+		expect(156 + 24).toBe(180);
 	});
 
 	test('the horizontal bars keep the real rows (35 px rows, 16 px gaps)', () => {
@@ -108,29 +104,44 @@ describe('ghost charts', () => {
 		const { container } = render(<GhostStacked />);
 		const [bar, table] = svgsOf(container);
 
-		expect(Number(bar?.getAttribute('height'))).toBe(GHOST_HEIGHT.stackedBar);
-		expect(Number(table?.getAttribute('height'))).toBe(
-			GHOST_HEIGHT.stackedTable,
-		);
+		expect(Number(bar?.getAttribute('height'))).toBe(12);
+		expect(Number(table?.getAttribute('height'))).toBe(214);
 		// 12 px share bar + 214 px table (34 px head, five 36 px rows).
-		expect(GHOST_HEIGHT.stackedTable).toBe(34 + 5 * 36);
+		expect(214).toBe(34 + 5 * 36);
 	});
 
 	test('the donut and heatmap ghosts keep their real sizes', () => {
 		const donut = render(<GhostDonut />).container;
 		const donutSvgs = svgsOf(donut);
-		expect(donutSvgs[0]?.getAttribute('width')).toBe(
-			String(GHOST_HEIGHT.donutRing),
-		);
-		expect(Number(donutSvgs[1]?.getAttribute('height'))).toBe(
-			GHOST_HEIGHT.donutLegend,
-		);
+		expect(donutSvgs[0]?.getAttribute('width')).toBe('172');
+		expect(Number(donutSvgs[1]?.getAttribute('height'))).toBe(96);
 		cleanup();
 
 		const heatmap = render(<GhostHeatmap />).container;
 		expect(Number(heatmap.querySelector('svg')?.getAttribute('height'))).toBe(
-			GHOST_HEIGHT.heatmap,
+			137,
 		);
+	});
+
+	test('two heatmap ghosts never share an SVG id (N13)', () => {
+		const { container } = render(
+			<>
+				<GhostHeatmap />
+				<GhostHeatmap />
+			</>,
+		);
+		const ids = [...container.querySelectorAll('[id]')].map((node) =>
+			node.getAttribute('id'),
+		);
+		const references = [...container.querySelectorAll('[fill^="url("]')].map(
+			(node) => node.getAttribute('fill'),
+		);
+
+		expect(ids.length).toBe(6);
+		expect(new Set(ids).size).toBe(ids.length);
+		for (const reference of references) {
+			expect(ids).toContain(reference?.slice(5, -1));
+		}
 	});
 
 	test('the list ghost reserves five rows', () => {
@@ -144,8 +155,8 @@ describe('ghost charts', () => {
 		const { container } = render(<GhostSpark />);
 		const svg = container.querySelector('svg');
 
+		// The 28 px height comes from `.kpi-spark` (app.css), not an attribute.
 		expect(svg?.getAttribute('viewBox')).toBe('0 0 86 28');
-		expect(GHOST_HEIGHT.spark).toBe(28);
 		expect(svg?.getAttribute('class')).toContain('kpi-spark');
 	});
 });

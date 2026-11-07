@@ -1,87 +1,76 @@
 import { IconBuilding, IconMail, IconMailForward } from '@tabler/icons-react';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { StaffTenantRow } from '~/lib/query/staff-tenants';
+import { StateSurface } from '~/components/ui/state-surface';
+import { toStaffTenantRows } from '~/lib/query/staff-tenants';
 
 import type {
-	InvitationListItem,
-	StaffInvitationListCounts,
+	FindStaffInvitationsResult,
+	FindTenantsAsStaffResponse,
 } from '@org/client-ts/models/index';
 
-import {
-	ChartNote,
-	ChartTable,
-	HorizontalBars,
-	formatCount,
-	formatShare,
-	unknownTableRows,
-} from './_dashboard-charts';
+import { GhostHBars } from './_chart-ghost';
+import { ChartNote, ChartTable, HorizontalBars } from './_dashboard-charts';
+import { formatCount, formatShare } from './_dashboard-format';
 import {
 	ChartCard,
 	DashboardCard,
-	DashboardCardState,
+	DashboardCardQuery,
 	ViewAllLink,
 } from './_dashboard-ui';
 import { PendingInvitationsTable } from './_overview-invitations-table';
 import { TenantRows } from './_overview-tenant-rows';
 
-export type CardQueryState = {
-	isPending: boolean;
-	error: unknown;
-	onRetry: () => void;
-};
+const isEmptyList = <TData extends { data?: unknown[] | null }>(
+	data: TData,
+): boolean => (data.data ?? []).length === 0;
 
-/** The overview's three list/outcome cards: invitation outcomes, latest
- * organisations and pending invitations. */
+/** The overview's three list/outcome cards: invitation outcomes (an
+ * UNFILTERED invitations query, B2), latest organisations (the only card the
+ * « Organisations » filter drives, B3) and pending invitations. Each card owns
+ * its query, so its loading/error/empty/data state renders through
+ * `QueryDisplay`. */
 export const OverviewLists = ({
-	invitationCounts,
-	tenants,
-	invitations,
-	tenantsState,
-	invitationsState,
+	invitationOutcomesQuery,
+	latestTenantsQuery,
+	pendingInvitationsQuery,
 	locale,
 }: {
-	invitationCounts: StaffInvitationListCounts | null | undefined;
-	tenants: readonly StaffTenantRow[];
-	invitations: readonly InvitationListItem[];
-	tenantsState: CardQueryState;
-	invitationsState: CardQueryState;
+	invitationOutcomesQuery: UseQueryResult<FindStaffInvitationsResult, Error>;
+	latestTenantsQuery: UseQueryResult<FindTenantsAsStaffResponse, Error>;
+	pendingInvitationsQuery: UseQueryResult<FindStaffInvitationsResult, Error>;
 	locale: string;
 }) => {
 	const { t } = useTranslation('common');
+	const invitationCounts = invitationOutcomesQuery.data?.counts;
 
 	const sentTotal = invitationCounts?.total ?? 0;
-	const outcomeRows = invitationCounts
-		? [
-				{
-					label: t('dashboard-invitations-sent'),
-					value: sentTotal,
-					color: 'var(--publy-chart-seq-4)',
-					detail: undefined,
-				},
-				{
-					label: t('dashboard-invitations-accepted'),
-					value: invitationCounts.accepted ?? 0,
-					color: 'var(--publy-chart-seq-3)',
-					detail: formatShare(
-						invitationCounts.accepted ?? 0,
-						sentTotal,
-						locale,
-					),
-				},
-				{
-					label: t('dashboard-invitations-expired'),
-					value: invitationCounts.expired ?? 0,
-					color: 'var(--publy-chart-seq-2)',
-					detail: formatShare(invitationCounts.expired ?? 0, sentTotal, locale),
-				},
-				{
-					label: t('dashboard-invitations-revoked'),
-					value: invitationCounts.revoked ?? 0,
-					color: 'var(--publy-chart-seq-1)',
-					detail: formatShare(invitationCounts.revoked ?? 0, sentTotal, locale),
-				},
-			]
-		: [];
+	const outcomeRows = [
+		{
+			label: t('dashboard-invitations-sent'),
+			value: sentTotal,
+			color: 'var(--publy-chart-seq-4)',
+			detail: undefined,
+		},
+		{
+			label: t('dashboard-invitations-accepted'),
+			value: invitationCounts?.accepted ?? 0,
+			color: 'var(--publy-chart-seq-3)',
+			detail: formatShare(invitationCounts?.accepted ?? 0, sentTotal, locale),
+		},
+		{
+			label: t('dashboard-invitations-expired'),
+			value: invitationCounts?.expired ?? 0,
+			color: 'var(--publy-chart-seq-2)',
+			detail: formatShare(invitationCounts?.expired ?? 0, sentTotal, locale),
+		},
+		{
+			label: t('dashboard-invitations-revoked'),
+			value: invitationCounts?.revoked ?? 0,
+			color: 'var(--publy-chart-seq-1)',
+			detail: formatShare(invitationCounts?.revoked ?? 0, sentTotal, locale),
+		},
+	];
 
 	return (
 		<>
@@ -91,29 +80,33 @@ export const OverviewLists = ({
 					label={t('dashboard-card-invitation-outcomes')}
 					icon={<IconMailForward />}
 					note={t('dashboard-note-invitation-outcomes')}
-					series={{
-						status: 'ready',
-						chart: <HorizontalBars rows={outcomeRows} locale={locale} />,
-						table: (
-							<ChartTable
-								head={[
-									t('dashboard-col-status'),
-									t('dashboard-col-invitations'),
-									t('dashboard-col-share'),
-								]}
-								rows={
-									invitationCounts
-										? outcomeRows.map((row) => [
+					series={
+						invitationCounts
+							? {
+									status: 'ready',
+									chart: <HorizontalBars rows={outcomeRows} locale={locale} />,
+									table: (
+										<ChartTable
+											head={[
+												t('dashboard-col-status'),
+												t('dashboard-col-invitations'),
+												t('dashboard-col-share'),
+											]}
+											rows={outcomeRows.map((row) => [
 												row.label,
 												formatCount(row.value, locale),
 												formatShare(row.value, sentTotal, locale),
-											])
-										: unknownTableRows(3)
+											])}
+										/>
+									),
 								}
-							/>
-						),
-					}}
-					state={invitationsState}
+							: {
+									status: 'unavailable',
+									sentence: t('dashboard-ghost-card-invitation-outcomes'),
+									ghost: <GhostHBars rows={4} />,
+								}
+					}
+					query={invitationOutcomesQuery}
 				/>
 
 				<DashboardCard
@@ -130,12 +123,21 @@ export const OverviewLists = ({
 				>
 					<ChartNote>{t('dashboard-note-latest-tenants')}</ChartNote>
 					<div className="px-4 pb-3">
-						<DashboardCardState
+						<DashboardCardQuery
+							query={latestTenantsQuery}
 							testId="staff-dashboard-latest-tenants"
-							{...tenantsState}
+							isEmpty={isEmptyList}
+							emptySlot={
+								<StateSurface
+									title={t('overview-empty-tenants')}
+									testId="staff-dashboard-latest-tenants-empty"
+								/>
+							}
 						>
-							<TenantRows tenants={tenants} t={t} />
-						</DashboardCardState>
+							{({ data }) => (
+								<TenantRows tenants={toStaffTenantRows(data.data)} t={t} />
+							)}
+						</DashboardCardQuery>
 					</div>
 				</DashboardCard>
 			</div>
@@ -154,12 +156,21 @@ export const OverviewLists = ({
 			>
 				<ChartNote>{t('dashboard-note-pending-invitations')}</ChartNote>
 				<div className="px-4 pb-3">
-					<DashboardCardState
+					<DashboardCardQuery
+						query={pendingInvitationsQuery}
 						testId="staff-dashboard-pending-invitations"
-						{...invitationsState}
+						isEmpty={isEmptyList}
+						emptySlot={
+							<StateSurface
+								title={t('overview-empty-invitations')}
+								testId="staff-dashboard-pending-invitations-empty"
+							/>
+						}
 					>
-						<PendingInvitationsTable invitations={invitations} t={t} />
-					</DashboardCardState>
+						{({ data }) => (
+							<PendingInvitationsTable invitations={data.data ?? []} t={t} />
+						)}
+					</DashboardCardQuery>
 				</div>
 			</DashboardCard>
 		</>
