@@ -56,17 +56,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          classifier='base-ref/packages/scripts-ts/src/ci-changed-paths.ts'
-          if [ -f "$classifier" ] && grep -Fq 'CI_CLASSIFIER_ABI_VERSION = 2' "$classifier"; then
-            node "$classifier" --lanes
-          else
-            echo '::warning::base classifier ABI is unavailable; failing closed to every lane'
-            for lane in quality front api e2e docs react; do
-              echo "${lane}=true" >> "$GITHUB_OUTPUT"
-            done
-          fi
+        run: node packages/scripts-ts/src/ci-classify.ts
       - name: Collect ci-lane-result
         if: always()
         env:
@@ -588,22 +578,7 @@ jobs:
           CI_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           CI_MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           CI_PUSH_BEFORE: ${{ github.event.before }}
-        run: |
-          set -euo pipefail
-          case "$CI_EVENT_NAME" in
-            pull_request) diff_base="$CI_PR_BASE_SHA" ;;
-            merge_group) diff_base="$CI_MERGE_GROUP_BASE_SHA" ;;
-            push)
-              if [ -n "$CI_PUSH_BEFORE" ] && [ "$CI_PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
-                diff_base="$CI_PUSH_BEFORE"
-              else
-                diff_base='HEAD~1'
-              fi
-              ;;
-            *) echo "unsupported event $CI_EVENT_NAME" >&2; exit 1 ;;
-          esac
-          git rev-parse --verify "$diff_base^{commit}" >/dev/null
-          printf 'base=%s\n' "$diff_base" >> "$GITHUB_OUTPUT"
+        run: node packages/scripts-ts/src/ci-react-doctor-base.ts
       - name: Run React Doctor
         id: react_doctor
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.react == 'true' && steps.resolve_react_base.outcome == 'success'
@@ -713,17 +688,7 @@ jobs:
           PUBLIC_API_BASE_URL: 'http://127.0.0.1:5000'
           SERVER_API_BASE_URL: 'http://127.0.0.1:5000'
           TRUSTED_PROXY_CIDRS: '127.0.0.1/32,::1/128'
-        run: |
-          set -euo pipefail
-          pnpm --filter front start > /tmp/front-ci-server.log 2>&1 &
-          front_server_pid=$!
-          trap 'kill "$front_server_pid" || true' EXIT
-          for attempt in $(seq 1 20); do
-            curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html && break
-            sleep 1
-          done
-          curl -fsS http://127.0.0.1:3000/ >/tmp/front-home.html
-          grep -aEq 'rel="stylesheet"[^>]*href="[^"]+\.css"' /tmp/front-home.html
+        run: node packages/scripts-ts/src/ci-front-smoke.ts
       - name: Check front React Compiler artifacts
         id: front_react_compiler
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
@@ -1067,17 +1032,12 @@ jobs:
         id: client_drift
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
         continue-on-error: true
-        run: |
-          git diff --exit-code -- packages/client-ts
-          test -z "$(git status --porcelain -- packages/client-ts)"
+        run: node packages/scripts-ts/src/check-tree-clean.ts packages/client-ts
       - name: Verify API shard partition
         id: shard_partition
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
         continue-on-error: true
-        run: |
-          if [ "${{ matrix.shard }}" = 1 ]; then
-            just ci-api-shard-partition
-          fi
+        run: node packages/scripts-ts/src/ci-shard-partition.ts ${{ matrix.shard }}
       - name: Run full API test suite
         id: suite
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.api == 'true'
@@ -1243,23 +1203,10 @@ jobs:
         continue-on-error: true
         env:
           COMPOSE_BAKE: 'true'
+          E2E_FORK: ${{ steps.image-fork.outputs.fork }}
           E2E_IMAGE_NS: ${{ steps.image-root.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          compose_files=(-f apps/front/docker-compose.test.yml)
-          if [ "${{ steps.image-fork.outputs.fork }}" = "true" ]; then
-            compose_files+=(-f apps/front/docker-compose.fork-overlay.yml)
-          fi
-          docker compose "${compose_files[@]}" build
-          if [ "${{ steps.image-fork.outputs.fork }}" != "true" ]; then
-            docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
-          else
-            mkdir -p /tmp/e2e-images
-            for service in migrate api request-counter front; do
-              docker save "${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}" | gzip > "/tmp/e2e-images/${service}.tar.gz"
-            done
-          fi
+        run: node packages/scripts-ts/src/ci-e2e-images.ts
       - name: Verify built front image
         id: runtime-guard
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.images.outcome == 'success'
@@ -1354,13 +1301,7 @@ jobs:
         continue-on-error: true
         env:
           E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
-        run: |
-          set -euo pipefail
-          expected_tag="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          [ "$E2E_IMAGE_TAG" = "$expected_tag" ] || {
-            echo "::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs"
-            exit 1
-          }
+        run: node packages/scripts-ts/src/ci-e2e-rerun-guard.ts
       - name: Pull stack images
         id: pull-stack
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true' && steps.rerun-guard.outcome == 'success'
@@ -1380,7 +1321,7 @@ jobs:
         id: load-images
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'
         continue-on-error: true
-        run: for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c "$tarball" | docker load; done
+        run: node packages/scripts-ts/src/ci-e2e-load-images.ts
       - name: Cache Playwright browsers
         id: cache-playwright
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
@@ -1397,25 +1338,7 @@ jobs:
         id: wait-health
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.up-stack.outcome == 'success'
         continue-on-error: true
-        run: |
-          set -euo pipefail
-          timeout 180 bash -lc '
-            services="front api request-counter traefik toxiproxy postgres"
-            for attempt in $(seq 1 90); do
-              all_running=true
-              for service in $services; do
-                container_id="$(docker compose -f apps/front/docker-compose.test.yml ps -q "$service")"
-                [ -n "$container_id" ] || { all_running=false; break; }
-                state="$(docker inspect --format "{{.State.Status}}" "$container_id")"
-                health="$(docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}" "$container_id")"
-                [ "$state" = running ] || { all_running=false; break; }
-                [ "$health" = healthy ] || [ "$health" = no-healthcheck ] || { all_running=false; break; }
-              done
-              [ "$all_running" = true ] && exit 0
-              sleep 2
-            done
-            exit 1
-          '
+        run: node packages/scripts-ts/src/ci-e2e-wait-health.ts
       - name: Run Playwright smoke lane
         id: playwright
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.wait-health.outcome == 'success'
@@ -1519,13 +1442,7 @@ jobs:
         continue-on-error: true
         env:
           E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
-        run: |
-          set -euo pipefail
-          expected_tag="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          [ "$E2E_IMAGE_TAG" = "$expected_tag" ] || {
-            echo "::error::e2e build tag $E2E_IMAGE_TAG does not match this attempt $expected_tag; rerun all jobs"
-            exit 1
-          }
+        run: node packages/scripts-ts/src/ci-e2e-rerun-guard.ts
       - name: Pull stack images
         id: pull-stack
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork != 'true' && steps.rerun-guard.outcome == 'success'
@@ -1545,7 +1462,7 @@ jobs:
         id: load-images
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'
         continue-on-error: true
-        run: for tarball in /tmp/e2e-images/*.tar.gz; do gunzip -c "$tarball" | docker load; done
+        run: node packages/scripts-ts/src/ci-e2e-load-images.ts
       - name: Cache Playwright browsers
         id: cache-playwright
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
@@ -1562,39 +1479,12 @@ jobs:
         id: wait-health
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.up-stack.outcome == 'success'
         continue-on-error: true
-        run: |
-          set -euo pipefail
-          timeout 180 bash -lc '
-            services="front api request-counter traefik toxiproxy postgres"
-            for attempt in $(seq 1 90); do
-              all_running=true
-              for service in $services; do
-                container_id="$(docker compose -f apps/front/docker-compose.test.yml ps -q "$service")"
-                [ -n "$container_id" ] || { all_running=false; break; }
-                state="$(docker inspect --format "{{.State.Status}}" "$container_id")"
-                health="$(docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}" "$container_id")"
-                [ "$state" = running ] || { all_running=false; break; }
-                [ "$health" = healthy ] || [ "$health" = no-healthcheck ] || { all_running=false; break; }
-              done
-              [ "$all_running" = true ] && exit 0
-              sleep 2
-            done
-            exit 1
-          '
+        run: node packages/scripts-ts/src/ci-e2e-wait-health.ts
       - name: Run Playwright shard
         id: playwright
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.wait-health.outcome == 'success'
         continue-on-error: true
-        run: |
-          set -euo pipefail
-          pnpm --filter front exec playwright install chromium --with-deps
-          pnpm --filter front exec playwright test --project=chromium --project=chromium-faults --shard=${{ matrix.shard }}/2
-          if [ "${{ matrix.shard }}" = "2" ]; then
-            pnpm --filter front exec playwright test --project=setup --no-deps
-            pnpm --filter front exec playwright test --project=chromium-hermetic-counter --no-deps
-            pnpm --filter front exec playwright test --project=chromium-hermetic-source --no-deps
-            pnpm --filter front test:drawer-contrast
-          fi
+        run: node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 2
       - name: Upload Playwright report
         id: report-upload
         if: always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')
@@ -1746,115 +1636,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           CI_LIVE_PR_RECORD_PATH: ci-live-pr-record.json
-        run: |
-          PR_NUMBER="$(jq -r '.pr_number' "$CI_LIVE_PR_RECORD_PATH")"
-          PR_AUTHOR="$(jq -r '.pr.author_login' "$CI_LIVE_PR_RECORD_PATH")"
-          PR_BODY="$(jq -r '.pr.body' "$CI_LIVE_PR_RECORD_PATH")"
-          export PR_NUMBER PR_AUTHOR PR_BODY GH_REPO
-          PR_NUMBER="$PR_NUMBER" PR_AUTHOR="$PR_AUTHOR" PR_BODY="$PR_BODY" GH_REPO="$GH_REPO" bash <<'LINKED_ISSUE_SCRIPT'
-          set -euo pipefail
-
-          if [ "$PR_AUTHOR" = "dependabot[bot]" ] || [ "$PR_AUTHOR" = "app/dependabot" ]; then
-            echo "dependabot PR — linked-issue requirement waived by policy #1240"
-            exit 0
-          fi
-
-          if [ -z "${PR_BODY//[[:space:]]/}" ]; then
-            echo "::error::PR body is empty — it must link an issue (e.g. \"Closes #123\" or \"Part of #123\")."
-            exit 1
-          fi
-
-          relationships=$(printf '%s' "$PR_BODY" \
-            | grep -ioE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?|part[[:space:]]+of|refs?|references?)[[:space:]:]+#[0-9]+' \
-            | sort -u)
-
-          if [ -z "$relationships" ]; then
-            echo "::error::This PR has no explicit issue relationship on its own line. Add \"Closes #123\" for complete work or \"Part of #123\"/\"Refs #123\" for a partial slice."
-            exit 1
-          fi
-
-          closing_issue_numbers=''
-          closing_issues_verified=false
-          verify_closing_issue() {
-            if [ "$closing_issues_verified" = "false" ]; then
-              repo_owner="${GH_REPO%%/*}"
-              repo_name="${GH_REPO#*/}"
-              if ! closing_issue_numbers=$(gh api graphql \
-                -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){closingIssuesReferences(first:100){nodes{number}}}}}' \
-                -F owner="$repo_owner" \
-                -F name="$repo_name" \
-                -F number="$PR_NUMBER" \
-                --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' \
-                2>/dev/null
-              ); then
-                echo "  could not verify GitHub closingIssuesReferences for PR #$PR_NUMBER — rejecting the closing declaration."
-                return 1
-              fi
-              closing_issues_verified=true
-            fi
-
-            if ! printf '%s\n' "$closing_issue_numbers" | grep -Fxq "$1"; then
-              echo "  #$1 is not present in GitHub closingIssuesReferences — rejecting the closing declaration."
-              return 1
-            fi
-          }
-
-          invalid_relationship=false
-          linked_issue=false
-          while IFS= read -r relationship; do
-            n=$(printf '%s' "$relationship" | grep -oE '[0-9]+$')
-            is_closing=false
-            if printf '%s' "$relationship" | grep -qiE '^[[:space:]]*(-[[:space:]]*)?(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]:]+'; then
-              is_closing=true
-            fi
-
-            if [ "$n" = "$PR_NUMBER" ]; then
-              echo "  #$n references itself — a pull request cannot satisfy its own issue-link requirement."
-              invalid_relationship=true
-              continue
-            fi
-
-            if ! is_pr=$(gh api "repos/${GH_REPO}/issues/${n}" --jq '.pull_request != null' 2>/dev/null); then
-              echo "  #$n could not be verified as an existing issue — rejecting the declaration."
-              invalid_relationship=true
-              continue
-            fi
-            if [ "$is_pr" = "true" ]; then
-              if [ "$is_closing" = "true" ]; then
-                echo "  #$n is a pull request, not an issue — rejecting the closing declaration (#2003)."
-                invalid_relationship=true
-              else
-                echo "  #$n is a non-closing pull-request reference — it does not satisfy the issue requirement."
-              fi
-              continue
-            fi
-
-            if [ "$is_closing" = "true" ] && ! verify_closing_issue "$n"; then
-              invalid_relationship=true
-              continue
-            fi
-
-            if state=$(gh issue view "$n" --json state --jq '.state' 2>/dev/null); then
-              echo "✓ PR links issue #$n (state: $state)."
-              linked_issue=true
-              continue
-            fi
-            echo "  #$n is not an existing issue — rejecting the declaration."
-            invalid_relationship=true
-          done <<< "$relationships"
-
-          if [ "$invalid_relationship" = "true" ]; then
-            echo "::error::A closing relationship to a PR, a self-reference, an unverifiable number, or a failed closing-reference lookup invalidates the declaration."
-            exit 1
-          fi
-
-          if [ "$linked_issue" = "true" ]; then
-            exit 0
-          fi
-
-          echo "::error::The relationship keyword(s) reference no existing issue. Link a real issue with \"Closes #N\" or \"Part of #N\"."
-          exit 1
-          LINKED_ISSUE_SCRIPT
+        run: node packages/scripts-ts/src/require-linked-issue.ts
       - name: Run central structural self-check
         run: node packages/scripts-ts/src/check-ci-gate-structure.ts
       - name: Aggregate upstream artifacts

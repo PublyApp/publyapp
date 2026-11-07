@@ -85,8 +85,8 @@ existing and newly created worktree of the clone inherits that setting
 immediately, so commits are formatted in every worktree with zero per-worktree
 setup. The previous husky-generated `.husky/_` scheme silently left fresh
 worktrees with no hooks at all (three PRs went red on it); do not reintroduce a
-generated hooks directory. Each hook file is one line of glue calling a `.ts` script in
-`packages/scripts-ts/src/` (`git-pre-commit.ts`, `git-pre-push.ts`). The installer fails loudly when it cannot wire the
+generated hooks directory. The hook files stay shell scripts on purpose (owner, 07/11): git runs them from IDEs and GUIs
+where Node may not be on `PATH`, so `pre-commit` looks for pnpm itself. The installer fails loudly when it cannot wire the
 hooks. CI wires hooks explicitly via the `Install Git hooks` step
 (`pnpm run prepare`) in every verification job of `ci.yml`.
 
@@ -379,7 +379,8 @@ hooks, tooling) is C# (`.cs`) or TypeScript (`.ts`, `.tsx`). Never add `.js`/`.m
 shell, Python or PowerShell programs. Configuration and data files (JSON, XML/MSBuild, YAML,
 Markdown, CSS, `.env*`, Dockerfile, justfile…) are not programs. Shell is tolerated only as
 one-line glue that calls a tool or a `.ts` script (just recipes, CI `run:` steps, Dockerfile `RUN`,
-git hooks). Owner rule, full text and exceptions: [`docs/guides/languages.md`](docs/guides/languages.md).
+git hooks). A short, closed list of shell scripts with logic stays shell (git hooks, the Claude
+session hook, Dockerfile `RUN` in images without Node). Owner rule, full text and exceptions: [`docs/guides/languages.md`](docs/guides/languages.md).
 
 ## JavaScript/TypeScript Conventions
 

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -402,6 +403,32 @@ type E2eTestJob = {
 	steps: E2eLifecycleStep[];
 };
 
+/**
+ * The evidence a `run:` line is worth since #2306: the line itself plus the
+ * body of every `packages/scripts-ts/src/*.ts` script it calls. A guard that
+ * only looked at the line would go green on an emptied script.
+ */
+const runEvidence = (run: string | undefined): string => {
+	const text = String(run ?? '');
+	const scripts = [
+		...text.matchAll(/packages\/scripts-ts\/src\/([\w.-]+\.ts)/g),
+	];
+
+	return [
+		text,
+		...scripts.map((match) => {
+			try {
+				return readFileSync(
+					path.join(repoRoot, 'packages/scripts-ts/src', match[1] ?? ''),
+					'utf8',
+				);
+			} catch {
+				return '';
+			}
+		}),
+	].join('\n');
+};
+
 const assertE2eImageEnvPropagation = (
 	job: E2eTestJob,
 	options: { composeSuffix: string; lane: 'smoke' | 'full' },
@@ -422,8 +449,8 @@ const assertE2eImageEnvPropagation = (
 		const step = job.steps.find((candidate) => candidate.id === stepId);
 		assert.ok(step, `${stepId} must exist`);
 		assert.match(
-			String(step.run),
-			/docker compose -f apps\/front\/docker-compose\.test\.yml/,
+			runEvidence(step.run),
+			/apps\/front\/docker-compose\.test\.yml/,
 			`${stepId} must use the test compose file`,
 		);
 		for (const envName of Object.keys(expectedEnv)) {
@@ -1658,15 +1685,19 @@ test('central workflow owns the predecessor evidence as unconditional, named che
 
 test('central workflow pins full-history React Doctor resolution and all E2E evidence', async () => {
 	const workflow = await readFile(workflowPath, 'utf8');
+	// #2306: the resolution and the shard-2/health evidence live in the scripts
+	// the steps call, so the evidence is the workflow PLUS those script bodies.
+	const evidence = `${workflow}\n${runEvidence(workflow)}`;
 	assert.match(workflow, /fetch-depth: 0/);
 	assert.match(workflow, /CI_REACT_DOCTOR_BASE/);
-	assert.match(workflow, /git rev-parse --verify/);
-	assert.match(workflow, /chromium-hermetic-source/);
-	assert.match(workflow, /drawer-contrast/);
+	assert.match(evidence, /rev-parse/);
+	assert.match(evidence, /--verify/);
+	assert.match(evidence, /chromium-hermetic-source/);
+	assert.match(evidence, /drawer-contrast/);
 	assert.match(workflow, /Upload Playwright report/);
 	assert.match(workflow, /docker compose .* down -v/);
 	assert.match(
-		workflow,
+		evidence,
 		/front api request-counter traefik toxiproxy postgres/,
 	);
 	assert.match(workflow, /GITHUB_SHA: \$\{\{ github\.sha \}\}/);

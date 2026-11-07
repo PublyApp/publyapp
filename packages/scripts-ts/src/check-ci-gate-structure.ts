@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -2140,6 +2141,7 @@ const checkCentralVerificationSpecifics = (
 	document: CentralDocument,
 	jobs: CentralJobs,
 	findings: string[],
+	rootDir: string,
 ): void => {
 	if (JSON.stringify(jobs.gate ?? {}).includes('continue-on-error')) {
 		findings.push('gate: final reducer may not use continue-on-error');
@@ -2215,15 +2217,19 @@ const checkCentralVerificationSpecifics = (
 	const classifierRun = (jobs.classify?.steps ?? []).find(
 		(step) => step.id === 'classifier',
 	);
+	// #2306: the ABI probe and the fail-closed lane loop are the script's job
+	// now; pin BOTH the one-line call and the behaviour inside the script.
+	const classifierScript = readCentralScript(rootDir, 'ci-classify.ts');
 	if (
-		!String(classifierRun?.run).includes('CI_CLASSIFIER_ABI_VERSION = 2') ||
-		!String(classifierRun?.run).includes('node "$classifier" --lanes')
+		!String(classifierRun?.run).includes('ci-classify.ts') ||
+		!classifierScript.includes('CI_CLASSIFIER_ABI_VERSION = 2') ||
+		!classifierScript.includes("'--lanes'")
 	) {
 		findings.push(
 			'classify: base classifier ABI detection and --lanes invocation are not pinned',
 		);
 	}
-	if (!String(classifierRun?.run).includes('failing closed to every lane')) {
+	if (!classifierScript.includes('failing closed to every lane')) {
 		findings.push(
 			'classify: incompatible base classifier must fail closed to all lanes',
 		);
@@ -2235,14 +2241,17 @@ const checkCentralVerificationSpecifics = (
 	const reactDoctor = verificationSteps.find(
 		(step) => step.id === 'react_doctor',
 	);
-	const resolveReactRun = String(resolveReactBase?.run);
+	const resolveReactRun = `${String(resolveReactBase?.run)}\n${readCentralScript(
+		rootDir,
+		'ci-react-doctor-base.ts',
+	)}`;
 	if (
 		!resolveReactRun.includes('pull_request') ||
 		!resolveReactRun.includes('merge_group') ||
 		!resolveReactRun.includes('CI_PUSH_BEFORE') ||
 		!resolveReactRun.includes('0000000000000000000000000000000000000000') ||
 		!resolveReactRun.includes('HEAD~1') ||
-		!resolveReactRun.includes('git rev-parse --verify') ||
+		!resolveReactRun.includes("'rev-parse', '--verify'") ||
 		!resolveReactRun.includes('GITHUB_OUTPUT') ||
 		resolveReactBase?.env?.CI_EVENT_NAME !== '${{ github.event_name }}'
 	) {
@@ -2508,9 +2517,27 @@ const checkCentralDiagnosticUploads = (
 	}
 };
 
+/**
+ * Reads a script a workflow step calls. Since #2306 the steps' logic lives in
+ * `packages/scripts-ts/src/`, so evidence pinned on a step's `run:` text has to
+ * follow the call into the script — an empty string makes the assertions fail
+ * loudly rather than pass on nothing.
+ */
+const readCentralScript = (rootDir: string, name: string): string => {
+	try {
+		return readFileSync(
+			path.join(rootDir, 'packages/scripts-ts/src', name),
+			'utf8',
+		);
+	} catch {
+		return '';
+	}
+};
+
 const checkCentralLivePrAndE2e = (
 	jobs: CentralJobs,
 	findings: string[],
+	rootDir: string,
 ): void => {
 	const gateSteps = jobs.gate?.steps ?? [];
 	const readLive = gateSteps.find(
@@ -2528,9 +2555,15 @@ const checkCentralLivePrAndE2e = (
 	const writeSnapshotIndex = gateSteps.findIndex(
 		(step) => step.name === 'Write live PR snapshot',
 	);
+	// #2306: the relationship policy moved into require-linked-issue.ts, so
+	// the evidence is the step's one-line call PLUS that script's body.
+	const linkedIssueEvidence = `${String(linkedIssue?.run)}\n${readCentralScript(
+		rootDir,
+		'require-linked-issue.ts',
+	)}`;
 	if (
-		!JSON.stringify(jobs.gate ?? {}).includes('closingIssuesReferences') &&
-		!JSON.stringify(jobs.gate ?? {}).includes('gh issue view')
+		!linkedIssueEvidence.includes('closingIssuesReferences') &&
+		!linkedIssueEvidence.includes('gh issue view')
 	) {
 		findings.push(
 			'gate: linked-issue verification must use the live GitHub relationship policy',
@@ -2542,14 +2575,12 @@ const checkCentralLivePrAndE2e = (
 		readLive?.env?.CI_LIVE_PR_RECORD_PATH !== 'ci-live-pr-record.json' ||
 		readLive?.env?.GITHUB_SHA !== '${{ github.sha }}' ||
 		readLive?.env?.GITHUB_EVENT_NAME !== '${{ github.event_name }}' ||
-		!String(linkedIssue?.run).includes('CI_LIVE_PR_RECORD_PATH') ||
-		!String(linkedIssue?.run).includes("jq -r '.pr_number'") ||
-		!String(linkedIssue?.run).includes("jq -r '.pr.author_login'") ||
-		!String(linkedIssue?.run).includes("jq -r '.pr.body'") ||
+		!String(linkedIssue?.run).includes('require-linked-issue.ts') ||
+		!linkedIssueEvidence.includes('CI_LIVE_PR_RECORD_PATH') ||
+		!linkedIssueEvidence.includes('pr_number') ||
+		!linkedIssueEvidence.includes('author_login') ||
+		!linkedIssueEvidence.includes('pr.body') ||
 		String(linkedIssue?.run).includes('github.event.pull_request.body') ||
-		String(linkedIssue?.env?.PR_BODY ?? '').includes(
-			'github.event.pull_request.body',
-		) ||
 		!String(writeLive?.run).includes('ci-pr-snapshot.ts') ||
 		writeLive?.env?.CI_PR_PHASE !== 'snapshot' ||
 		writeLive?.env?.CI_LIVE_PR_RECORD_PATH !== 'ci-live-pr-record.json' ||
@@ -2563,12 +2594,23 @@ const checkCentralLivePrAndE2e = (
 	}
 
 	const e2eTestText = JSON.stringify(jobs['e2e-test'] ?? {});
+	// The health-wait and Playwright-shard logic moved into scripts (#2306);
+	// pin both the call site AND the script bodies, so deleting a step or
+	// gutting a script each trip this guard.
+	const e2eHelpers = [
+		'ci-e2e-wait-health.ts',
+		'ci-e2e-playwright-shard.ts',
+	] as const;
+	const e2eEvidence = `${e2eTestText}\n${e2eHelpers
+		.map((name) => readCentralScript(rootDir, name))
+		.join('\n')}`;
 	if (
-		!e2eTestText.includes(
+		!e2eHelpers.every((name) => e2eTestText.includes(name)) ||
+		!e2eEvidence.includes(
 			'front api request-counter traefik toxiproxy postgres',
 		) ||
-		!e2eTestText.includes('chromium-hermetic-source') ||
-		!e2eTestText.includes('drawer-contrast') ||
+		!e2eEvidence.includes('chromium-hermetic-source') ||
+		!e2eEvidence.includes('drawer-contrast') ||
 		!e2eTestText.includes('Upload Playwright report') ||
 		!e2eTestText.includes(
 			'docker compose -f apps/front/docker-compose.test.yml down -v',
@@ -2609,11 +2651,11 @@ export const findCentralCiStructureProblems = async ({
 		dataflow checks for every upstream job.
 	*/
 	/* old lane-evidence implementation removed; helper above owns this check */
-	checkCentralVerificationSpecifics(document, jobs, findings);
+	checkCentralVerificationSpecifics(document, jobs, findings, rootDir);
 	checkCentralProvenance(jobs, findings);
 	checkCentralArtifacts(jobs, findings);
 	checkCentralDiagnosticUploads(jobs, findings);
-	checkCentralLivePrAndE2e(jobs, findings);
+	checkCentralLivePrAndE2e(jobs, findings, rootDir);
 	return findings;
 };
 

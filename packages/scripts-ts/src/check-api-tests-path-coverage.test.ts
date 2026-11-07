@@ -173,7 +173,12 @@ test('findSpecReferencedProjectDirs extracts argv forms, not prose mentions', ()
 
 test('the central classifier command and API lane remain executable and cover API projects', () => {
 	const surfaces = readApiTestsGateSurfaces(read('.github/workflows/ci.yml'));
-	assert.equal(surfaces.classifierCommand, 'node "$classifier" --lanes');
+	// #2306: the step is one line calling the classifier wrapper, which runs
+	// `ci-changed-paths.ts --lanes`; the lane patterns come from that source.
+	assert.equal(
+		surfaces.classifierCommand,
+		'node packages/scripts-ts/src/ci-classify.ts',
+	);
 	assert.match(surfaces.classifierPattern, /apps\/api\//);
 	assert.match(surfaces.classifierPattern, /apps\/apphost\//);
 	assert.ok(surfaces.compiled.test('apps/api/Program.cs'));
@@ -183,8 +188,8 @@ test('the central classifier command and API lane remain executable and cover AP
 test('the central classifier command fails closed when its command is replaced', () => {
 	const central = read('.github/workflows/ci.yml');
 	const broken = central.replace(
-		'node "$classifier" --lanes',
-		'echo node "$classifier" --lanes',
+		'node packages/scripts-ts/src/ci-classify.ts',
+		'echo node packages/scripts-ts/src/ci-classify.ts',
 	);
 	assert.throws(
 		() => readApiTestsGateSurfaces(broken),
