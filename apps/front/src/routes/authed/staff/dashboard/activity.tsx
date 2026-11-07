@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { HistoryPage } from '~/components/history/history-page';
@@ -8,11 +8,14 @@ import type {
 	HistoryEvent,
 } from '~/components/history/history-types';
 import type { ListFiltersValue } from '~/components/list/list-types';
+import { DataTableCursorFooter } from '~/components/table/data-table';
+import { useTableController } from '~/components/table/use-table-controller';
 import {
 	toStaffAuditLogRows,
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
 } from '~/lib/query/staff-audit-logs';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
@@ -23,12 +26,20 @@ import {
 } from '../audit-logs/_audit-log-history-filters';
 import {
 	auditLogPeriodStart,
-	type AuditLogPeriod,
+	buildAuditLogsCursorResetKey,
+	parseAuditLogCategories,
+	parseAuditLogsListSearchParams,
+	serializeAuditLogCategories,
+	serializeAuditLogsListSearchParams,
+	type AuditLogsListSearchParamInput,
 } from '../audit-logs/_list-search-params';
+import { ViewAllLink } from './_dashboard-ui';
 
 /** The dashboard feed is a glance, not the full log: one page of the same
  * query the audit-logs page pages through. */
 const ACTIVITY_FEED_SIZE = 50;
+const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
+const TEST_ID = 'staff-dashboard-activity';
 
 const toHistoryEvents = (
 	rows: ReturnType<typeof toStaffAuditLogRows>,
@@ -45,38 +56,56 @@ const toHistoryEvents = (
 /**
  * The staff Dashboard › Activité tab: the shared activity history (§5.1), fed
  * by the same `GET /staff/audit-logs` query as `/staff/audit-logs` — per-day
- * groups, search, category/period/sensitivity filters and the retention
- * footnote. The dashboard owns the page title, so the history renders without
- * its own title row.
+ * groups, search, category/period/sensitivity filters, the retention
+ * footnote, an honest total with its cursor pager, and the « Tout voir → »
+ * link to the full log. The dashboard owns the page title, so the history
+ * renders without its own title row.
  */
 const Activity = () => {
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);
 	const { t: tCommon } = useTranslation('common');
 	const navigate = Route.useNavigate();
 	const locale = i18n.language;
+	const search = parseAuditLogsListSearchParams(
+		Route.useSearch() as AuditLogsListSearchParamInput,
+	);
 
-	const [q, setQ] = useState('');
-	const [categories, setCategories] = useState<HistoryCategory[]>([]);
-	const [period, setPeriod] = useState<AuditLogPeriod | undefined>();
-	const [sensitive, setSensitive] = useState(false);
+	const onSearchChange = (next: TableSearchParams): void => {
+		void navigate({
+			search: serializeAuditLogsListSearchParams({ ...search, ...next }),
+			replace: true,
+		});
+	};
+
+	const controller = useTableController({
+		search,
+		onSearchChange,
+		defaultSort: DEFAULT_SORT,
+		defaultSize: ACTIVITY_FEED_SIZE,
+		cursorResetKey: buildAuditLogsCursorResetKey(search),
+	});
 
 	const catalogQuery = useAuditLogActionsQuery();
 	const catalog = useMemo(
 		() => buildAuditActionCatalog(catalogQuery.data?.actions ?? []),
 		[catalogQuery.data],
 	);
+	const categories = parseAuditLogCategories(search.category);
 	const selection = resolveAuditLogSelection({
 		catalog,
 		categories,
-		sensitivity: sensitive,
-		startDate: period ? auditLogPeriodStart(period) : undefined,
+		sensitivity: search.sensitivity === 'sensitive',
+		startDate: search.period ? auditLogPeriodStart(search.period) : undefined,
 	});
 	const query = useStaffAuditLogsQuery(
 		{
-			q: q.trim() || undefined,
+			q: search.q,
 			actions: selection.actions?.split(','),
 			startDate: selection.startDate,
-			size: ACTIVITY_FEED_SIZE,
+			sortId: controller.apiVariables.sortId,
+			sortOrder: controller.apiVariables.sortOrder,
+			cursor: controller.apiVariables.cursor,
+			size: controller.apiVariables.size,
 		},
 		{ enabled: !selection.impossible },
 	);
@@ -90,13 +119,15 @@ const Activity = () => {
 		? []
 		: toStaffAuditLogRows(query.data?.data);
 	const events = toHistoryEvents(rows);
+	// The footnote may only print a whole-collection total: with a next cursor
+	// (or a page behind us) the collection is not complete, so it stays « — »
+	// instead of turning the loaded page into a total (B5).
+	const collectionComplete =
+		query.data !== undefined &&
+		query.data.nextCursor == null &&
+		!controller.cursor.hasPreviousPage;
+	const totalCount = collectionComplete ? events.length : null;
 
-	const search = {
-		q,
-		period,
-		category: categories.join(','),
-		sensitivity: sensitive ? ('sensitive' as const) : undefined,
-	};
 	const filters = buildAuditLogFilters({
 		t: tCommon,
 		catalog,
@@ -105,30 +136,61 @@ const Activity = () => {
 	});
 	const filtersValue: ListFiltersValue = {
 		category: categories,
-		period: period ? [period] : [],
-		sensitivity: sensitive ? ['sensitive'] : [],
+		period: search.period ? [search.period] : [],
+		sensitivity: search.sensitivity === 'sensitive' ? ['sensitive'] : [],
 	};
 
 	const applyFilters = (next: ListFiltersValue): void => {
 		const nextPeriod = (next.period ?? []).at(-1);
-		setPeriod(
+		const preset =
 			nextPeriod === 'today' || nextPeriod === 'week' || nextPeriod === 'month'
 				? nextPeriod
-				: undefined,
-		);
-		setCategories((next.category ?? []) as HistoryCategory[]);
-		setSensitive((next.sensitivity ?? []).includes('sensitive'));
+				: undefined;
+		void navigate({
+			search: serializeAuditLogsListSearchParams({
+				...search,
+				category: serializeAuditLogCategories(
+					(next.category ?? []) as HistoryCategory[],
+				),
+				period: preset,
+				sensitivity: (next.sensitivity ?? []).includes('sensitive')
+					? 'sensitive'
+					: undefined,
+				cursor: undefined,
+			}),
+			replace: true,
+		});
 	};
+
+	let isPending = query.isPending;
+	let isError = query.isError;
+	// While the action catalog has not fetched yet, an empty category
+	// selection does not prove the pair impossible: keep the skeleton instead
+	// of flashing the no-match state.
+	if (selection.impossible && catalogQuery.isFetched) {
+		isPending = false;
+		isError = false;
+	}
 
 	return (
 		<HistoryPage
-			testId="staff-dashboard-activity"
+			testId={TEST_ID}
 			title={t('common:activity')}
-			header={<div />}
-			totalCount={query.data?.totalCount ?? null}
+			header={
+				<div className="flex items-center justify-end">
+					<ViewAllLink
+						to="/staff/audit-logs"
+						label={tCommon('view-all')}
+						testId="staff-dashboard-activity-view-all"
+					/>
+				</div>
+			}
+			totalCount={totalCount}
 			searchPlaceholder={tCommon('history-search-placeholder')}
-			q={q}
-			onSearch={(next) => setQ(next ?? '')}
+			q={search.q ?? ''}
+			onSearch={(next) =>
+				onSearchChange({ ...search, q: next, cursor: undefined })
+			}
 			searchTestId="staff-dashboard-activity-search"
 			events={events}
 			locale={locale}
@@ -151,10 +213,29 @@ const Activity = () => {
 			filtersValue={filtersValue}
 			onFiltersChange={applyFilters}
 			queryState={{
-				isPending: query.isPending,
-				isError: query.isError,
+				isPending,
+				isError,
 				onRetry: () => void query.refetch(),
 			}}
+			pager={
+				rows.length > 0 ? (
+					<DataTableCursorFooter
+						testId={TEST_ID}
+						pageIndex={controller.cursor.pageIndex}
+						size={controller.size}
+						onSizeChange={controller.onSizeChange}
+						pageRowCount={rows.length}
+						hasPreviousPage={controller.cursor.hasPreviousPage}
+						hasNextPage={query.data?.nextCursor != null}
+						isPaginationPending={query.isFetching}
+						onNextPage={() =>
+							controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
+						}
+						onPreviousPage={controller.cursor.onPreviousPage}
+						variant="flat"
+					/>
+				) : null
+			}
 		/>
 	);
 };
@@ -162,6 +243,10 @@ const Activity = () => {
 export const Route = createFileRoute(
 	'/_authed-layout/staff/dashboard/activity',
 )({
+	validateSearch: (search) =>
+		serializeAuditLogsListSearchParams(
+			parseAuditLogsListSearchParams(search as AuditLogsListSearchParamInput),
+		),
 	staticData: {
 		crumbs: () => [
 			{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },

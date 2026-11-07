@@ -37,6 +37,10 @@ type Props<TData = unknown, TError = Error> = {
 	// stay a render function, and direct invocation keeps the element tree stable
 	// across parent rerenders instead of remounting the data subtree.
 	children?: ReactNode | ((props: { data: TData }) => ReactNode);
+	/** Extra emptiness rule for payloads whose emptiness lives inside the
+	 * object (a list response's `data` array, for one): the default check only
+	 * sees `undefined`/`null`/an empty top-level array. */
+	isEmpty?: (data: TData) => boolean;
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
@@ -154,6 +158,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	LoadingSlot,
 	ErrorSlot,
 	EmptySlot,
+	isEmpty,
 	forceRender,
 	children,
 }: Props<TData, TError>) => {
@@ -192,7 +197,9 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 		return renderError(query.error, query, ErrorSlot, t);
 	}
 
-	if (checkIfEmptyQueryData(query)) {
+	// `checkIfEmptyQueryData` short-circuits first, so a custom rule only ever
+	// runs on data that exists (never `undefined`/`null`).
+	if (checkIfEmptyQueryData(query) || isEmpty?.(query.data as TData) === true) {
 		return renderEmpty(EmptySlot);
 	}
 

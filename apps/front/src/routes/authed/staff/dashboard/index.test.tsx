@@ -12,15 +12,39 @@ import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
+type DashboardSearch = { period?: string; scope?: string };
+
+type QueryMock = {
+	isPending: boolean;
+	isError: boolean;
+	error: Error | null;
+	data: Record<string, unknown> | undefined;
+	refetch: ReturnType<typeof vi.fn>;
+};
+
 const mocks = vi.hoisted(() => ({
-	tenantsQuery: {
+	countsQuery: {
 		isPending: false,
 		isError: false,
 		error: null as Error | null,
 		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
-	invitationsQuery: {
+	latestTenantsQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	pendingInvitationsQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	invitationOutcomesQuery: {
 		isPending: false,
 		isError: false,
 		error: null as Error | null,
@@ -34,37 +58,34 @@ const mocks = vi.hoisted(() => ({
 		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
+	search: {} as DashboardSearch,
+	navigate: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
+
+const useStaffTenantsQuery = vi.hoisted(() => vi.fn());
+const useStaffInvitationsQuery = vi.hoisted(() => vi.fn());
+const useStaffAuditLogsQuery = vi.hoisted(() => vi.fn());
 
 vi.mock('~/lib/query/staff-tenants', async (importOriginal) => {
 	const actual =
 		await importOriginal<typeof import('~/lib/query/staff-tenants')>();
 
-	return {
-		...actual,
-		useStaffTenantsQuery: vi.fn(() => mocks.tenantsQuery),
-	};
+	return { ...actual, useStaffTenantsQuery };
 });
 
 vi.mock('~/lib/query/staff-invitations', async (importOriginal) => {
 	const actual =
 		await importOriginal<typeof import('~/lib/query/staff-invitations')>();
 
-	return {
-		...actual,
-		useStaffInvitationsQuery: vi.fn(() => mocks.invitationsQuery),
-	};
+	return { ...actual, useStaffInvitationsQuery };
 });
 
 vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 	const actual =
 		await importOriginal<typeof import('~/lib/query/staff-audit-logs')>();
 
-	return {
-		...actual,
-		useStaffAuditLogsQuery: vi.fn(() => mocks.auditQuery),
-	};
+	return { ...actual, useStaffAuditLogsQuery };
 });
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
@@ -80,6 +101,8 @@ vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
+		useSearch: () => mocks.search,
+		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({
 		to,
@@ -101,8 +124,6 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-kpi-members': 'Organisation members',
 	'dashboard-kpi-audit-events': 'Audit events',
 	'dashboard-kpi-pending-invitations': 'Pending invitations',
-	'dashboard-vs-previous-30d': 'vs previous 30 days',
-	'dashboard-last-30d': 'Last 30 days',
 	'dashboard-card-growth': 'Organisation growth',
 	'dashboard-note-growth': 'Active organisations per day',
 	'dashboard-card-status': 'Organisations by status',
@@ -110,18 +131,15 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-card-heatmap': 'Platform activity',
 	'dashboard-heatmap-note-empty': 'Audit events per day',
 	'dashboard-card-invitation-outcomes': 'Invitation outcomes',
-	'dashboard-note-invitation-outcomes': 'Staff invitations sent over 30 days',
+	'dashboard-note-invitation-outcomes': 'Staff invitations, by final status',
 	'dashboard-card-latest-tenants': 'Latest organisations',
 	'dashboard-note-latest-tenants':
 		'The five most recently created organisations.',
-	'dashboard-card-pending-invitations': 'Pending invitations',
 	'dashboard-note-pending-invitations':
 		'Staff invitations sent but not accepted yet.',
 	'dashboard-view-all': 'View all',
 	'dashboard-view-chart': 'Chart',
 	'dashboard-view-table': 'Table',
-	'dashboard-col-day': 'Day',
-	'dashboard-col-active-orgs': 'Active organisations',
 	'dashboard-col-status': 'Status',
 	'dashboard-col-invitations': 'Invitations',
 	'dashboard-col-share': 'Share',
@@ -146,6 +164,12 @@ const EN_LABELS: TestLabelMap = {
 		'The active-organisations curve will be drawn here, day by day.',
 	'dashboard-ghost-card-heatmap':
 		'Each square will become one day of platform activity.',
+	'dashboard-ghost-card-status':
+		'The split of organisations by status will appear here.',
+	'dashboard-ghost-card-invitation-outcomes':
+		'What happens to invitations: accepted, expired or revoked.',
+	'overview-empty-tenants': 'No organizations yet.',
+	'overview-empty-invitations': 'No pending invitations right now.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -162,6 +186,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { periodStart } from './_dashboard-filters';
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './index';
 
 const Overview = Route.options.component as ComponentType;
@@ -174,16 +200,31 @@ const tenantCounts = {
 	members: 1284,
 };
 
-const invitationCounts = {
+/** The facets of the status-filtered tenants query: the whole-platform counts
+ * must never come from here (B3). */
+const suspendedTenantCounts = {
+	total: 3,
+	active: 0,
+	pending: 0,
+	suspended: 3,
+	members: 40,
+};
+
+const outcomeCounts = {
 	total: 24,
 	pending: 5,
 	accepted: 15,
-	expired: 5,
+	expired: 0,
 	revoked: 4,
 };
 
 const withData = () => {
-	mocks.tenantsQuery.data = {
+	mocks.countsQuery.data = {
+		data: [],
+		nextCursor: null,
+		counts: tenantCounts,
+	};
+	mocks.latestTenantsQuery.data = {
 		data: [
 			{
 				id: '0197b8f0-3333-7ccc-8ccc-cccccccccc01',
@@ -197,7 +238,7 @@ const withData = () => {
 		nextCursor: null,
 		counts: tenantCounts,
 	};
-	mocks.invitationsQuery.data = {
+	mocks.pendingInvitationsQuery.data = {
 		data: [
 			{
 				id: '0197b8f0-3333-7ccc-8ccc-cccccccccc02',
@@ -208,7 +249,12 @@ const withData = () => {
 			},
 		],
 		nextCursor: null,
-		counts: invitationCounts,
+		counts: { total: 5, pending: 5, accepted: 0, expired: 0, revoked: 0 },
+	};
+	mocks.invitationOutcomesQuery.data = {
+		data: [],
+		nextCursor: null,
+		counts: outcomeCounts,
 	};
 	mocks.auditQuery.data = {
 		data: [],
@@ -220,17 +266,32 @@ const withData = () => {
 
 const resetMocks = () => {
 	for (const query of [
-		mocks.tenantsQuery,
-		mocks.invitationsQuery,
+		mocks.countsQuery,
+		mocks.latestTenantsQuery,
+		mocks.pendingInvitationsQuery,
+		mocks.invitationOutcomesQuery,
 		mocks.auditQuery,
-	]) {
+	] as QueryMock[]) {
 		query.isPending = false;
 		query.isError = false;
 		query.error = null;
 		query.data = undefined;
 	}
+	mocks.search = {};
 	mocks.shouldLogoutForFailure.mockReturnValue(false);
+	useStaffTenantsQuery.mockImplementation((variables: { size?: number }) =>
+		variables.size === 5 ? mocks.latestTenantsQuery : mocks.countsQuery,
+	);
+	useStaffInvitationsQuery.mockImplementation(
+		(variables: { status?: string }) =>
+			variables.status === 'pending'
+				? mocks.pendingInvitationsQuery
+				: mocks.invitationOutcomesQuery,
+	);
+	useStaffAuditLogsQuery.mockImplementation(() => mocks.auditQuery);
 };
+
+resetMocks();
 
 afterEach(() => {
 	cleanup();
@@ -244,19 +305,62 @@ describe('staff dashboard overview', () => {
 		render(<Overview />);
 
 		expect(
-			screen.getByTestId('staff-dashboard-kpi-active-tenants'),
-		).toBeTruthy();
-		expect(
 			within(
 				screen.getByTestId('staff-dashboard-kpi-active-tenants'),
 			).getByText('31'),
 		).toBeTruthy();
 		expect(screen.getByText('1,284')).toBeTruthy();
 		expect(screen.getByText('4,812')).toBeTruthy();
-		// Pending invitations appears twice: the KPI label and the card title.
-		expect(screen.getAllByText('Pending invitations').length).toBeGreaterThan(
-			0,
-		);
+		expect(
+			within(
+				screen.getByTestId('staff-dashboard-kpi-pending-invitations'),
+			).getByText('5'),
+		).toBeTruthy();
+	});
+
+	test('the invitation outcomes come from the unfiltered query, not the pending-only one (B2)', () => {
+		withData();
+		render(<Overview />);
+
+		// The pending-only response claims 5 sent and 0 accepted; the unfiltered
+		// one says 24 sent / 15 accepted. The card must show the latter.
+		const card = screen.getByTestId('staff-dashboard-invitation-outcomes');
+		expect(within(card).getByText('24')).toBeTruthy();
+		// « 15 · 62,5 % »: the figure and its share share one span.
+		expect(within(card).getByText(/^15 ·/)).toBeTruthy();
+		expect(useStaffInvitationsQuery).toHaveBeenCalledWith({ size: 1 });
+	});
+
+	test('the organisations filter never reaches the KPI counts or the status donut (B3)', () => {
+		withData();
+		mocks.search = { scope: 'suspended' };
+		mocks.latestTenantsQuery.data = {
+			data: [],
+			nextCursor: null,
+			counts: suspendedTenantCounts,
+		};
+
+		render(<Overview />);
+
+		// The KPI stays whole-platform: « Actives » reads 31, never the
+		// filtered query's 0.
+		expect(
+			within(
+				screen.getByTestId('staff-dashboard-kpi-active-tenants'),
+			).getByText('31'),
+		).toBeTruthy();
+		// The donut keeps its three real segments.
+		const status = screen.getByTestId('staff-dashboard-status');
+		expect(within(status).getByText('Active')).toBeTruthy();
+		expect(within(status).getByText('31')).toBeTruthy();
+		// Only the latest-organisations list follows the filter.
+		expect(useStaffTenantsQuery).toHaveBeenCalledWith({ size: 1 });
+		expect(useStaffTenantsQuery).toHaveBeenCalledWith({
+			size: 5,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			status: 'suspended',
+		});
 	});
 
 	test('renders the six prototype cards with the segmented chart/table toggle', () => {
@@ -285,8 +389,6 @@ describe('staff dashboard overview', () => {
 		withData();
 		render(<Overview />);
 
-		// Growth series and the heatmap have no endpoint yet: each card draws
-		// its own chart as a ghost, with the tag and its own sentence.
 		const growth = screen.getByTestId('staff-dashboard-growth');
 		expect(within(growth).getByText('No data yet')).toBeTruthy();
 		expect(
@@ -297,7 +399,6 @@ describe('staff dashboard overview', () => {
 		expect(
 			growth.querySelectorAll('svg[aria-hidden="true"]').length,
 		).toBeGreaterThan(0);
-		// No table without data: the switch steps aside on a ghost card.
 		expect(within(growth).queryByRole('button', { name: 'Table' })).toBeNull();
 
 		const heatmap = screen.getByTestId('staff-dashboard-heatmap');
@@ -311,9 +412,9 @@ describe('staff dashboard overview', () => {
 
 	test('shows « — » in a KPI only when its figure is missing', () => {
 		withData();
-		const tenantsData = mocks.tenantsQuery.data;
-		if (tenantsData) {
-			tenantsData.counts = { ...tenantCounts, active: 0 };
+		const counts = mocks.countsQuery.data;
+		if (counts) {
+			counts.counts = { ...tenantCounts, active: 0 };
 		}
 		render(<Overview />);
 
@@ -323,8 +424,95 @@ describe('staff dashboard overview', () => {
 				screen.getByTestId('staff-dashboard-kpi-active-tenants'),
 			).getByText('0'),
 		).toBeTruthy();
-		// The delta/sparkline series has no endpoint: the footer is the ghost.
 		expect(screen.getAllByText('No data yet').length).toBeGreaterThanOrEqual(5);
+	});
+
+	test('a failed KPI request shows the error state, never the ghost (B4)', () => {
+		withData();
+		mocks.countsQuery.isError = true;
+		mocks.countsQuery.error = new Error('500');
+
+		render(<Overview />);
+
+		const card = screen.getByTestId('staff-dashboard-kpi-active-tenants');
+		expect(
+			within(card).getByTestId('staff-dashboard-kpi-active-tenants-error'),
+		).toBeTruthy();
+		expect(within(card).queryByText('No data yet')).toBeNull();
+	});
+
+	test('a pending KPI request shows the existing skeleton (B4)', () => {
+		withData();
+		mocks.countsQuery.isPending = true;
+		mocks.countsQuery.data = undefined;
+
+		render(<Overview />);
+
+		expect(
+			screen.getByTestId('staff-dashboard-kpi-active-tenants-skeleton'),
+		).toBeTruthy();
+		expect(screen.getByTestId('staff-dashboard-status-skeleton')).toBeTruthy();
+	});
+
+	test('an empty list is the existing empty state, never « — » (B6)', () => {
+		withData();
+		mocks.latestTenantsQuery.data = {
+			data: [],
+			nextCursor: null,
+			counts: tenantCounts,
+		};
+		mocks.pendingInvitationsQuery.data = {
+			data: [],
+			nextCursor: null,
+			counts: { total: 0, pending: 0, accepted: 0, expired: 0, revoked: 0 },
+		};
+
+		render(<Overview />);
+
+		expect(
+			screen.getByTestId('staff-dashboard-latest-tenants-empty'),
+		).toBeTruthy();
+		expect(screen.getByText('No organizations yet.')).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-dashboard-pending-invitations-empty'),
+		).toBeTruthy();
+		expect(screen.getByText('No pending invitations right now.')).toBeTruthy();
+	});
+
+	test('a real empty platform still draws the status donut with its 0 (B6)', () => {
+		withData();
+		mocks.countsQuery.data = {
+			data: [],
+			nextCursor: null,
+			counts: { total: 0, active: 0, pending: 0, suspended: 0, members: 0 },
+		};
+
+		render(<Overview />);
+
+		const status = screen.getByTestId('staff-dashboard-status');
+		expect(
+			within(status).getByRole('img', { name: 'Organisations' }),
+		).toBeTruthy();
+		expect(within(status).queryByText('—')).toBeNull();
+	});
+
+	test('the period and scope filters drive the API through the URL (N4)', () => {
+		withData();
+		mocks.search = { period: '7d', scope: 'active' };
+		const expectedStart = periodStart('7d');
+
+		render(<Overview />);
+
+		expect(useStaffAuditLogsQuery).toHaveBeenCalledWith({
+			size: 1,
+			startDate: expectedStart,
+		});
+		expect(useStaffTenantsQuery).toHaveBeenCalledWith({
+			size: 5,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			status: 'active',
+		});
 	});
 
 	test('renders the latest tenants and pending invitations rows', () => {
@@ -333,9 +521,11 @@ describe('staff dashboard overview', () => {
 
 		expect(screen.getByText('Acme Corp')).toBeTruthy();
 		expect(screen.getByText('12 members')).toBeTruthy();
-		expect(screen.getByText('new-hire@example.com')).toBeTruthy();
-		expect(screen.getByText('Ada Admin')).toBeTruthy();
-		expect(screen.getByText('Support')).toBeTruthy();
+		// The table and the stacked phone cards both render in jsdom.
+		expect(screen.getAllByText('new-hire@example.com').length).toBeGreaterThan(
+			0,
+		);
+		expect(screen.getAllByText('Ada Admin').length).toBeGreaterThan(0);
 
 		const tenantsLink = screen.getByTestId(
 			'staff-dashboard-latest-tenants-view-all',
@@ -345,20 +535,6 @@ describe('staff dashboard overview', () => {
 			'staff-dashboard-pending-invitations-view-all',
 		);
 		expect(invitationsLink.getAttribute('href')).toBe('/staff/invitations');
-	});
-
-	test('renders the unknown figure while a query is pending', () => {
-		withData();
-		mocks.tenantsQuery.isPending = true;
-		mocks.tenantsQuery.data = undefined;
-
-		render(<Overview />);
-
-		expect(screen.getByTestId('staff-dashboard-status-skeleton')).toBeTruthy();
-		expect(
-			screen.getByTestId('staff-dashboard-latest-tenants-skeleton'),
-		).toBeTruthy();
-		expect(screen.getAllByText('—').length).toBeGreaterThan(0);
 	});
 
 	test('an auth failure on any query logs out through the shared path', () => {

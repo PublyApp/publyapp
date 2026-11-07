@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import type { UseQueryResult } from '@tanstack/react-query';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
@@ -24,6 +25,13 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
+
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { periodStart } from './_dashboard-filters';
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { ChartCard } from './_dashboard-ui';
 
 afterEach(cleanup);
@@ -34,6 +42,22 @@ const baseProps = {
 	icon: null,
 	note: 'The real description',
 };
+
+/** The flags `QueryDisplay` reads for the card ladder (default strategy
+ * `pending`), shaped like a real `UseQueryResult`. */
+const queryOf = (overrides: {
+	isPending?: boolean;
+	isError?: boolean;
+	error?: unknown;
+	refetch?: () => void;
+}): UseQueryResult<unknown, Error> =>
+	({
+		data: undefined,
+		error: overrides.error ?? null,
+		isPending: overrides.isPending ?? false,
+		isError: overrides.isError ?? false,
+		refetch: overrides.refetch ?? (() => undefined),
+	}) as UseQueryResult<unknown, Error>;
 
 describe('ChartCard series', () => {
 	test('a ready series renders its real chart, even all zeros', () => {
@@ -89,11 +113,11 @@ describe('ChartCard series', () => {
 					sentence: 'The curve will be drawn here.',
 					ghost: <svg aria-hidden="true" />,
 				}}
-				state={{
-					isPending: false,
+				query={queryOf({
+					isError: true,
 					error: new Error('boom'),
-					onRetry: vi.fn(),
-				}}
+					refetch: vi.fn(),
+				})}
 			/>,
 		);
 
@@ -110,7 +134,7 @@ describe('ChartCard series', () => {
 					sentence: 'The curve will be drawn here.',
 					ghost: <svg aria-hidden="true" />,
 				}}
-				state={{ isPending: true, error: null, onRetry: vi.fn() }}
+				query={queryOf({ isPending: true })}
 			/>,
 		);
 
@@ -183,5 +207,39 @@ describe('ChartCard series', () => {
 		// Same slot, same size: only the colour mix differs (the AA-safe
 		// `.ghost-sentence`).
 		expect(ghostNote?.className).toBe(readyNote?.className);
+	});
+});
+
+describe('periodStart', () => {
+	test('12m is 12 calendar months, not 365 days (N11)', () => {
+		// 2024 is a leap year: 12 calendar months before 2024-03-01 is
+		// 2023-03-01, while 365 days earlier would be 2023-03-02.
+		expect(periodStart('12m', new Date(2024, 2, 1, 12))).toBe('2023-03-01');
+	});
+
+	test('the start is the local calendar day, never a UTC-shifted one (N11)', () => {
+		// 00:30 local is still the previous day in UTC east of Greenwich; the
+		// wire date must stay on the local day the user picked.
+		expect(periodStart('7d', new Date(2026, 0, 15, 0, 30))).toBe('2026-01-08');
+	});
+
+	test('the day presets count calendar days', () => {
+		expect(periodStart('30d', new Date(2026, 0, 31, 9))).toBe('2026-01-01');
+	});
+});
+
+describe('dashboard i18n', () => {
+	test('the expiry sentences carry both plural forms (N6)', () => {
+		for (const bundle of [sharedEn.common, sharedFr.common]) {
+			for (const key of [
+				'dashboard-expires-in-days',
+				'dashboard-expires-in-hours',
+			]) {
+				const values = bundle as Record<string, string | undefined>;
+				expect(values[`${key}_one`]).toBeTruthy();
+				expect(values[`${key}_other`]).toBeTruthy();
+				expect(values[key]).toBeUndefined();
+			}
+		}
 	});
 });

@@ -1,59 +1,30 @@
 import { IconArrowRight } from '@tabler/icons-react';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorKindState } from '~/components/error-views/error-kind-state';
+import QueryDisplay from '~/components/query-display';
 import { CodeSelect } from '~/components/ui/code-select';
 import { SectionCard } from '~/components/ui/section-card';
 import { Segmented } from '~/components/ui/segmented';
 import { Skeleton } from '~/components/ui/skeleton';
+import { StatCard } from '~/components/ui/stat-card';
 
-import { GhostTag } from './_chart-ghost';
-import { ChartBody, ChartNote, UNKNOWN_VALUE } from './_dashboard-charts';
+import { GhostSpark, GhostTag } from './_chart-ghost';
+import { ChartBody, ChartNote } from './_dashboard-charts';
+import {
+	DASHBOARD_PERIODS,
+	ORGANISATION_SCOPES,
+	organisationScopeLabelKey,
+	periodLabelKey,
+	type DashboardPeriod,
+	type OrganisationScope,
+} from './_dashboard-filters';
+import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
 
-/** The overview/report periods (§5.2), in the prototype's order. */
-export type DashboardPeriod = '30d' | '7d' | '90d' | '12m';
-export const DASHBOARD_PERIODS: readonly DashboardPeriod[] = [
-	'30d',
-	'7d',
-	'90d',
-	'12m',
-];
-
-export type OrganisationScope = 'all' | 'active' | 'pending' | 'suspended';
-export const ORGANISATION_SCOPES: readonly OrganisationScope[] = [
-	'all',
-	'active',
-	'pending',
-	'suspended',
-];
-
-export type ChartView = 'chart' | 'table';
+type ChartView = 'chart' | 'table';
 const CHART_VIEWS: readonly ChartView[] = ['chart', 'table'];
-
-const PERIOD_DAYS = {
-	'30d': 30,
-	'7d': 7,
-	'90d': 90,
-	'12m': 365,
-} satisfies Record<DashboardPeriod, number>;
-
-/** `YYYY-MM-DD` for the API's `start_date` (the audit endpoints parse a bare
- * date as midnight, which is what a period start means). */
-export const periodStart = (
-	period: DashboardPeriod,
-	now: Date = new Date(),
-): string => {
-	const start = new Date(now);
-	start.setDate(start.getDate() - PERIOD_DAYS[period]);
-	return start.toISOString().slice(0, 10);
-};
-
-export const periodLabelKey = (period: DashboardPeriod): string =>
-	`dashboard-period-${period}`;
-
-export const organisationScopeLabelKey = (scope: OrganisationScope): string =>
-	`dashboard-org-${scope}`;
 
 /** The « Période » / « Période du rapport » filter: CodeSelect (popup ≥ md,
  * bottom sheet below), never a native select element. */
@@ -105,7 +76,7 @@ export const OrganisationScopeSelect = ({
 };
 
 /** The « Graphique | Tableau » segmented control. */
-export const ChartViewToggle = ({
+const ChartViewToggle = ({
 	value,
 	onChange,
 }: {
@@ -132,7 +103,7 @@ export const ViewAllLink = ({
 	label,
 	testId,
 }: {
-	to: '/staff/tenants' | '/staff/invitations';
+	to: '/staff/tenants' | '/staff/invitations' | '/staff/audit-logs';
 	label: string;
 	testId?: string;
 }) => (
@@ -179,48 +150,49 @@ export const DashboardCard = ({
 );
 
 /**
- * A card's query state: skeleton, inline retry on error, content otherwise.
- * Keeps every dashboard card honest about loading/error instead of printing
- * an empty figure while the API is still answering.
+ * A card's query ladder, through the shared `QueryDisplay`: the card skeleton
+ * while the query answers, the classified error with its retry, the caller's
+ * empty state, then the card body. Every dashboard card that owns a query goes
+ * through it — a card with no query at all (the ghost case) renders directly.
  */
-export const DashboardCardState = ({
-	isPending,
-	error,
-	onRetry,
+export const DashboardCardQuery = <TData,>({
+	query,
 	testId,
+	emptySlot,
+	isEmpty,
 	children,
 }: {
-	isPending: boolean;
-	error: unknown;
-	onRetry: () => void;
+	query: UseQueryResult<TData, Error>;
 	testId: string;
-	children: ReactNode;
-}) => {
-	if (error) {
-		return (
-			<div className="p-4">
-				<ErrorKindState
-					scale="inline"
-					panel
-					error={error}
-					onRetry={onRetry}
-					testId={`${testId}-error`}
-				/>
-			</div>
-		);
-	}
-
-	if (isPending) {
-		return (
+	emptySlot?: ReactNode;
+	isEmpty?: (data: TData) => boolean;
+	children: ReactNode | ((props: { data: TData }) => ReactNode);
+}) => (
+	<QueryDisplay
+		query={query}
+		LoadingSlot={
 			<div className="space-y-3 p-4" data-testid={`${testId}-skeleton`}>
 				<Skeleton className="h-4 w-2/5" />
 				<Skeleton className="h-24 w-full" />
 			</div>
-		);
-	}
-
-	return <>{children}</>;
-};
+		}
+		ErrorSlot={
+			<div className="p-4">
+				<ErrorKindState
+					scale="inline"
+					panel
+					error={query.error}
+					onRetry={() => void query.refetch()}
+					testId={`${testId}-error`}
+				/>
+			</div>
+		}
+		EmptySlot={emptySlot}
+		isEmpty={isEmpty}
+	>
+		{children}
+	</QueryDisplay>
+);
 
 /**
  * A chart card's series: the chart (and its table twin) when the API serves it,
@@ -261,26 +233,34 @@ export const ChartCard = ({
 	hero,
 	series,
 	toggle = true,
-	state,
+	query,
 	action,
 }: {
 	testId: string;
 	label: string;
 	icon: ReactNode;
-	note: string;
+	/** The card's description; omitted when the card has none to state. */
+	note?: string;
 	/** An optional figure above the note (the prototype's `chart-hero`). */
 	hero?: ReactNode;
 	series: ChartCardSeries;
 	toggle?: boolean;
-	state?: {
-		isPending: boolean;
-		error: unknown;
-		onRetry: () => void;
-	};
+	/** The card's own query, when it has one. A ghost series has none. */
+	query?: UseQueryResult<unknown, Error>;
 	action?: ReactNode;
 }) => {
 	const [view, setView] = useState<ChartView>('chart');
 	const unavailable = series.status === 'unavailable';
+	let noteSlot: ReactNode = null;
+	if (unavailable) {
+		noteSlot = (
+			<ChartNote>
+				<span className="ghost-sentence">{series.sentence}</span>
+			</ChartNote>
+		);
+	} else if (note) {
+		noteSlot = <ChartNote>{note}</ChartNote>;
+	}
 	const body = (
 		<>
 			{hero ? (
@@ -292,13 +272,7 @@ export const ChartCard = ({
 					)}
 				</p>
 			) : null}
-			<ChartNote>
-				{unavailable ? (
-					<span className="ghost-sentence">{series.sentence}</span>
-				) : (
-					note
-				)}
-			</ChartNote>
+			{noteSlot}
 			<ChartBody>{chartBodyOf(series, view)}</ChartBody>
 		</>
 	);
@@ -322,10 +296,10 @@ export const ChartCard = ({
 				)
 			}
 		>
-			{state ? (
-				<DashboardCardState testId={testId} {...state}>
+			{query ? (
+				<DashboardCardQuery testId={testId} query={query}>
 					{body}
-				</DashboardCardState>
+				</DashboardCardQuery>
 			) : (
 				body
 			)}
@@ -333,7 +307,84 @@ export const ChartCard = ({
 	);
 };
 
-/** The unknown-value convention: a figure the API cannot source is « — ». */
-export const Unknown = () => (
-	<span className="text-sm text-muted-foreground">{UNKNOWN_VALUE}</span>
-);
+/**
+ * A KPI card (§5.2): the figure when the API answered, the existing skeleton
+ * while it is answering, the existing error state when it failed, and only
+ * « — » + the ghost footer when the series does not exist at all. A real 0 is
+ * a figure and shows « 0 ». A KPI with no query at all (a series the API does
+ * not serve) is a ghost and renders directly, outside `QueryDisplay`.
+ */
+export const KpiCard = ({
+	testId,
+	label,
+	icon,
+	figure,
+	locale,
+	query,
+}: {
+	testId: string;
+	label: string;
+	icon: ReactNode;
+	figure: number | null | undefined;
+	locale: string;
+	query?: UseQueryResult<unknown, Error>;
+}) => {
+	const { t } = useTranslation('common');
+
+	const card = (
+		<StatCard
+			testId={testId}
+			label={label}
+			icon={icon}
+			value={
+				figure === null || figure === undefined ? (
+					<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
+				) : (
+					formatCount(figure, locale)
+				)
+			}
+			footer={
+				<>
+					<span className="min-w-0 truncate">{t('dashboard-ghost-tag')}</span>
+					<GhostSpark />
+				</>
+			}
+			unavailable
+		/>
+	);
+
+	if (!query) {
+		return card;
+	}
+
+	return (
+		<QueryDisplay
+			query={query}
+			LoadingSlot={
+				<StatCard
+					testId={`${testId}-skeleton`}
+					label={label}
+					icon={icon}
+					value={<Skeleton className="h-7 w-20" />}
+					footer={<Skeleton className="h-4 w-28" />}
+				/>
+			}
+			ErrorSlot={
+				<div
+					data-testid={testId}
+					className="flex min-h-28 flex-col justify-center rounded-[16px] bg-card p-1 text-card-foreground shadow-(--effect-raised-control)"
+				>
+					<ErrorKindState
+						scale="inline"
+						panel
+						error={query.error}
+						onRetry={() => void query.refetch()}
+						testId={`${testId}-error`}
+					/>
+				</div>
+			}
+		>
+			{() => card}
+		</QueryDisplay>
+	);
+};

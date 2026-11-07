@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useId, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 /** Fixed heights of the ghost shapes, in px, matched to the real chart each
  * one stands for (see `_chart-ghost.test.tsx` for the pairs). */
-export const GHOST_HEIGHT = {
+const GHOST_HEIGHT = {
 	/** The real `LineChart` viewBox height. */
 	line: 220,
 	/** The real x-axis label row under a line/column chart. */
@@ -300,15 +300,19 @@ export const GhostHBars = ({
 	);
 };
 
+/** The status donut's three fake segments (share, gap), module-scope so a
+ * render never rebuilds them. */
+const DONUT_SEGMENTS: ReadonlyArray<readonly [number, number]> = [
+	[0.62, 0.13],
+	[0.22, 0.085],
+	[0.12, 0.055],
+];
+
 /** A status chart's ghost: the 172 px ring (three segments) and its three
  * legend rows. */
 export const GhostDonut = () => {
 	const circumference = 2 * Math.PI * 66;
-	const segments: ReadonlyArray<readonly [number, number]> = [
-		[0.62, 0.13],
-		[0.22, 0.085],
-		[0.12, 0.055],
-	];
+	const segments = DONUT_SEGMENTS;
 	let at = 0;
 
 	return (
@@ -397,11 +401,14 @@ export const GhostDonut = () => {
 	);
 };
 
+const STACKED_SHARES = [35, 25, 19, 13, 8] as const;
+const STACKED_OPACITIES = [0.16, 0.12, 0.09, 0.065, 0.045] as const;
+
 /** A stacked share bar plus its table ghost (five shares, then the type
  * rows). */
 export const GhostStacked = ({ rows = 5 }: { rows?: number }) => {
-	const shares = [35, 25, 19, 13, 8];
-	const opacities = [0.16, 0.12, 0.09, 0.065, 0.045];
+	const shares = STACKED_SHARES;
+	const opacities = STACKED_OPACITIES;
 	const head = 34;
 	const rowHeight = 36;
 	let x = 0;
@@ -526,66 +533,74 @@ export const GhostStacked = ({ rows = 5 }: { rows?: number }) => {
 
 /** The platform-activity heatmap ghost: the 7-day grid as wide as the card,
  * fading towards the oldest weeks, with a row of month marks above. */
-export const GhostHeatmap = () => (
-	<svg
-		className="ghost-svg"
-		width="100%"
-		height={GHOST_HEIGHT.heatmap}
-		aria-hidden="true"
-		focusable="false"
-	>
-		<defs>
-			<pattern
-				id="ghost-heat-cell"
-				width="17"
-				height="17"
-				patternUnits="userSpaceOnUse"
-			>
-				<rect
-					width="14"
-					height="14"
-					rx="3"
-					fill="currentColor"
-					fillOpacity="0.09"
-				/>
-			</pattern>
-			<linearGradient id="ghost-heat-fade" x1="0" x2="1">
-				<stop offset="0" stopColor="currentColor" stopOpacity="0.35" />
-				<stop offset="0.7" stopColor="currentColor" stopOpacity="1" />
-			</linearGradient>
-			{/* `mask-type: alpha` (app.css): the fade must not depend on the
-			    theme's luminance, and a raw white stop would be a hard-coded
-			    colour. */}
-			<mask id="ghost-heat-mask" className="ghost-heat-mask">
-				<rect
-					width="100%"
-					height={GHOST_HEIGHT.heatmap}
-					fill="url(#ghost-heat-fade)"
-				/>
-			</mask>
-		</defs>
-		{['0%', '24%', '48%', '72%'].map((x) => (
-			<rect
-				key={x}
-				x={x}
-				y="2"
-				width="26"
-				height="7"
-				rx="3.5"
-				fill="currentColor"
-				fillOpacity={SOFT}
-			/>
-		))}
-		<rect
-			x="0"
-			y="21"
+export const GhostHeatmap = () => {
+	// Two heatmap ghosts on one page must not share SVG ids: the second would
+	// otherwise paint with the first's pattern and mask (N13).
+	const id = useId();
+	const cellId = `${id}-cell`;
+	const fadeId = `${id}-fade`;
+	const maskId = `${id}-mask`;
+	const cellFill = `url(#${cellId})`;
+	const fadeFill = `url(#${fadeId})`;
+	const maskFill = `url(#${maskId})`;
+
+	return (
+		<svg
+			className="ghost-svg"
 			width="100%"
-			height="116"
-			fill="url(#ghost-heat-cell)"
-			mask="url(#ghost-heat-mask)"
-		/>
-	</svg>
-);
+			height={GHOST_HEIGHT.heatmap}
+			aria-hidden="true"
+			focusable="false"
+		>
+			<defs>
+				<pattern
+					id={cellId}
+					width="17"
+					height="17"
+					patternUnits="userSpaceOnUse"
+				>
+					<rect
+						width="14"
+						height="14"
+						rx="3"
+						fill="currentColor"
+						fillOpacity="0.09"
+					/>
+				</pattern>
+				<linearGradient id={fadeId} x1="0" x2="1">
+					<stop offset="0" stopColor="currentColor" stopOpacity="0.35" />
+					<stop offset="0.7" stopColor="currentColor" stopOpacity="1" />
+				</linearGradient>
+				{/* `mask-type: alpha` (app.css): the fade must not depend on the
+				    theme's luminance, and a raw white stop would be a hard-coded
+				    colour. */}
+				<mask id={maskId} className="ghost-heat-mask">
+					<rect width="100%" height={GHOST_HEIGHT.heatmap} fill={fadeFill} />
+				</mask>
+			</defs>
+			{['0%', '24%', '48%', '72%'].map((x) => (
+				<rect
+					key={x}
+					x={x}
+					y="2"
+					width="26"
+					height="7"
+					rx="3.5"
+					fill="currentColor"
+					fillOpacity={SOFT}
+				/>
+			))}
+			<rect
+				x="0"
+				y="21"
+				width="100%"
+				height="116"
+				fill={cellFill}
+				mask={maskFill}
+			/>
+		</svg>
+	);
+};
 
 /** Short list rows (a latest/awaiting list): avatar, two lines, a status chip.
  * Calm: no shimmer. */
@@ -716,19 +731,21 @@ export const GhostList = ({
 	</svg>
 );
 
+const SPARK_POINTS: Point[] = [
+	[0, 20],
+	[14, 18],
+	[28, 19],
+	[43, 16],
+	[57, 17],
+	[72, 14],
+	[86, 15],
+];
+
 /** A KPI card's ghost sparkline: a dashed baseline and a faint flat curve, at
  * the real sparkline's height (narrower than the real one: room for the
  * words). */
 export const GhostSpark = () => {
-	const points: Point[] = [
-		[0, 20],
-		[14, 18],
-		[28, 19],
-		[43, 16],
-		[57, 17],
-		[72, 14],
-		[86, 15],
-	];
+	const points = SPARK_POINTS;
 	const path = smooth(points);
 
 	return (
