@@ -42,6 +42,12 @@ public abstract record SuspendStaffUserResult {
 	public sealed record Success(StaffUserData UserData) : SuspendStaffUserResult;
 	public sealed record NotFound() : SuspendStaffUserResult;
 	public sealed record AlreadySuspended() : SuspendStaffUserResult;
+
+	/// <summary>
+	/// Suspending would leave zero active staff full-access holders. Same invariant as the
+	/// tenant last-admin guard: losing it locks every staff member out.
+	/// </summary>
+	public sealed record CannotSuspendLastAdmin() : SuspendStaffUserResult;
 }
 
 public abstract record ReactivateStaffUserResult {
@@ -57,6 +63,12 @@ public abstract record DeleteStaffUserResult {
 	) : DeleteStaffUserResult;
 	public sealed record NotFound() : DeleteStaffUserResult;
 	public sealed record NotSuspended() : DeleteStaffUserResult;
+
+	/// <summary>
+	/// Deleting would remove the last staff full-access holder, leaving nobody able to grant
+	/// the role again. Mirrors <see cref="SuspendStaffUserResult.CannotSuspendLastAdmin"/>.
+	/// </summary>
+	public sealed record CannotRemoveLastAdmin() : DeleteStaffUserResult;
 }
 
 public sealed record BulkStaffUserFailedItem(
