@@ -158,36 +158,41 @@ public sealed partial class PublicationArchitectureSpec {
 		documentationMode: DocumentationMode.Parse
 	);
 
-	// Framework + package references harvested from the loaded test domain; the API
-	// assemblies are EXCLUDED so application types bind to the parsed SOURCE trees
-	// (the scan sees exactly what is on disk, never a stale compiled artifact).
-	// Duplicate simple names occur in test hosts (same assembly loaded twice), so
-	// resolution is a deterministic first-wins dictionary keyed by simple name.
+	// Framework + package references, resolved from DISK ONLY. xUnit runs test
+	// classes in parallel, so AppDomain.CurrentDomain.GetAssemblies() is a
+	// schedule-dependent snapshot: a package no earlier test happened to touch
+	// (Scalar, OpenTelemetry, ...) used to be absent from the reference set, its
+	// member accesses then failed to bind, and the guard reported "unresolved
+	// member-access" on a perfectly legal `options.X = ...` assignment. The test
+	// host's own output directory IS the runtime closure of the API project
+	// reference — every package dll is copied next to the test assembly — so it
+	// supplies the same references on every run, whatever else got loaded first.
+	// The API assemblies are EXCLUDED so application types bind to the parsed
+	// SOURCE trees (the scan sees exactly what is on disk, never a stale compiled
+	// artifact). Duplicate simple names (the same package in several build
+	// configurations) resolve first-wins in this fixed source order, so the pick
+	// never depends on filesystem enumeration order either.
 	private static readonly Lazy<IReadOnlyList<PortableExecutableReference>>
 		_ScanReferences = new(PublicationArchitectureSpec._BuildScanReferences);
 
 	private static IReadOnlyList<PortableExecutableReference> _BuildScanReferences() {
 		var locations = new Dictionary<string, string>(StringComparer.Ordinal);
 
-		// Assemblies already loaded in the test host (packages, framework pieces
-		// the host happens to touch).
-		foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
-			if (assembly.IsDynamic) {
-				continue;
-			}
+		// The test output directory: the exact package closure the scanned
+		// sources are compiled against.
+		PublicationArchitectureSpec._AddDirectoryAssemblies(
+			locations,
+			AppContext.BaseDirectory
+		);
 
-			PublicationArchitectureSpec._AddAssemblyLocation(locations, assembly.GetName().Name, assembly.Location);
-		}
-
-		// A filtered test run may never have touched the ASP.NET Core stack, yet
-		// scanned production code binds against it (HttpContext and friends), so
-		// the shared frameworks are enumerated from disk next to the runtime.
+		// The shared frameworks are resolved at runtime, never copied next to the
+		// test assembly: enumerate them from the runtime this host executes on.
 		foreach (var (name, path) in PublicationArchitectureSpec._SharedFrameworkAssemblies()) {
 			PublicationArchitectureSpec._AddAssemblyLocation(locations, name, path);
 		}
 
-		// A filtered run also misses NuGet dependencies the host never touched
-		// (Quartz, Scalar, ...); the API build output carries them all on disk.
+		// Fallback for a package that lives in the API build output without being
+		// copied to the test output (compile-time-only assets).
 		foreach (var (name, path) in PublicationArchitectureSpec._ApiOutputAssemblies()) {
 			PublicationArchitectureSpec._AddAssemblyLocation(locations, name, path);
 		}
@@ -195,6 +200,21 @@ public sealed partial class PublicationArchitectureSpec {
 		return locations.Values
 			.Select(path => MetadataReference.CreateFromFile(path))
 			.ToList();
+	}
+
+	private static void _AddDirectoryAssemblies(
+		Dictionary<string, string> locations,
+		string directory
+	) {
+		foreach (var dll in Directory
+					.EnumerateFiles(directory, "*.dll", SearchOption.TopDirectoryOnly)
+					.OrderBy(path => path, StringComparer.Ordinal)) {
+			PublicationArchitectureSpec._AddAssemblyLocation(
+				locations,
+				Path.GetFileNameWithoutExtension(dll),
+				dll
+			);
+		}
 	}
 
 	private static void _AddAssemblyLocation(
@@ -235,7 +255,8 @@ public sealed partial class PublicationArchitectureSpec {
 					projectDir,
 					"*.dll",
 					SearchOption.AllDirectories
-				)) {
+				)
+				.OrderBy(path => path, StringComparer.Ordinal)) {
 				yield return (
 					Path.GetFileNameWithoutExtension(dll),
 					dll
