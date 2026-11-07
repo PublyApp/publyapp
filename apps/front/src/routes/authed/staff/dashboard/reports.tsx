@@ -1,174 +1,203 @@
-import { IconChartBar, IconDownload } from '@tabler/icons-react';
+import {
+	IconChartBar,
+	IconChartPie,
+	IconFileSearch,
+	IconKey,
+	IconLogin2,
+	IconMask,
+	IconTrendingUp,
+} from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '~/components/ui/select';
-import { StateSurface } from '~/components/ui/state-surface';
-import { auditLogExportDownloadDescriptor } from '~/lib/audit-logs/audit-log-export-format';
-import {
-	displayLocalMutationFailure,
-	toastLocalMutationResult,
-} from '~/lib/mutation-feedback/mutation-toast';
-import {
-	useExportStaffAuditLogsMutation,
-	type StaffAuditLogExportFormat,
-} from '~/lib/query/staff-audit-logs';
-import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
+import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-const EXPORT_FORMATS: StaffAuditLogExportFormat[] = ['csv', 'json'];
+import {
+	GhostAxis,
+	GhostBars,
+	GhostHBars,
+	GhostLine,
+	GhostStacked,
+} from './_chart-ghost';
+import { DashboardExportMenu } from './_dashboard-export-menu';
+import {
+	parseDashboardPeriod,
+	periodLabelKey,
+	periodStart,
+	type DashboardPeriod,
+} from './_dashboard-filters';
+import { UNKNOWN_VALUE } from './_dashboard-format';
+import { ChartCard, KpiCard, PeriodSelect } from './_dashboard-ui';
 
-/**
- * The one working report: the server-side audit-log export (the same
- * `GET /staff/audit-logs/export-escaped` call the audit-logs page's drawer
- * makes, unfiltered). Format choice + download; failures surface through the
- * shared mutation-feedback path.
- */
-const AuditLogExportCard = ({
-	t,
-	onAuthFailure,
-}: {
-	t: (key: string) => string;
-	onAuthFailure: () => void;
-}) => {
-	const [format, setFormat] = useState<StaffAuditLogExportFormat>('csv');
-	const exportMutation = useExportStaffAuditLogsMutation();
-
-	const handleExport = async () => {
-		let data: ArrayBuffer | undefined;
-		try {
-			data = await exportMutation.mutateAsync({ format });
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				onAuthFailure();
-				return;
-			}
-
-			await displayLocalMutationFailure(error, t('common:export-failed'));
-			return;
-		}
-
-		if (!data) {
-			toastLocalMutationResult.error(t('common:export-failed'));
-			return;
-		}
-
-		try {
-			const descriptor = auditLogExportDownloadDescriptor(format);
-			downloadFile({
-				data,
-				fileName: `audit-logs-${formatExportDateStamp(new Date())}.${descriptor.extension}`,
-				mimeType: descriptor.mimeType,
-			});
-		} catch {
-			toastLocalMutationResult.error(t('common:export-failed'));
-			return;
-		}
-
-		toastLocalMutationResult.success(t('common:export-complete'));
-	};
-
-	return (
-		<Card data-testid="staff-dashboard-reports-export-card">
-			<CardHeader>
-				<CardTitle>{t('common:export')}</CardTitle>
-			</CardHeader>
-			<CardContent>
-				<p className="text-sm text-muted-foreground">
-					{t('reports-export-description')}
-				</p>
-				<div className="mt-4 flex flex-wrap items-center gap-3">
-					<Select
-						value={format}
-						onValueChange={(value) =>
-							setFormat(value as StaffAuditLogExportFormat)
-						}
-					>
-						<SelectTrigger
-							id="staff-dashboard-reports-format"
-							className="w-40"
-							aria-label={t('format')}
-							data-testid="staff-dashboard-reports-format"
-						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{EXPORT_FORMATS.map((candidate) => (
-								<SelectItem key={candidate} value={candidate}>
-									{candidate.toUpperCase()}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Button
-						type="button"
-						onClick={() => void handleExport()}
-						disabled={exportMutation.isPending}
-						data-testid="staff-dashboard-reports-download"
-					>
-						<IconDownload aria-hidden="true" className="size-4" />
-						{exportMutation.isPending ? t('exporting') : t('reports-download')}
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
-	);
-};
-
-/**
- * The staff Dashboard › Reports tab. The only report-shaped API that exists
- * today is the audit-log export, so that is the one working card here;
- * everything else is an explicit coming-later state — never fabricated
- * charts or metrics.
- */
-const StaffDashboardReportsTab = () => {
-	const { t } = useTranslation(['staff-audit-logs', 'common']);
+const Reports = () => {
+	const { t, i18n } = useTranslation('common');
+	const locale = i18n.language;
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const period: DashboardPeriod = search.period ?? '30d';
+	const startDate = periodStart(period);
 	const [shouldLogout, setShouldLogout] = useState(false);
+
+	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate });
+	// `impersonation.started` is emitted by the impersonation service, so this
+	// figure is real. The two sign-in actions exist only as constants in the
+	// backend and are never written, so they have no query at all (B1).
+	const impersonationsQuery = useStaffAuditLogsQuery({
+		size: 1,
+		startDate,
+		actions: ['impersonation.started'],
+	});
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
-	return (
-		<div className="space-y-5" data-testid="staff-dashboard-reports-panel">
-			<AuditLogExportCard t={t} onAuthFailure={() => setShouldLogout(true)} />
+	for (const queryError of [auditQuery.error, impersonationsQuery.error]) {
+		if (queryError !== null && shouldLogoutForFailure(queryError)) {
+			return <LogoutRedirect />;
+		}
+	}
 
-			<Card>
-				<CardHeader>
-					<CardTitle>{t('analytics-reports')}</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<StateSurface
-						icon={IconChartBar}
-						title={t('reports-coming-later-title')}
-						description={t('reports-coming-later-description')}
-						testId="staff-dashboard-reports-empty"
+	return (
+		<div className="space-y-4" data-testid="staff-dashboard-reports-panel">
+			<div className="mb-4 flex flex-wrap items-center gap-2">
+				<div className="w-full sm:w-52">
+					<PeriodSelect
+						id="staff-dashboard-report-period"
+						value={period}
+						onChange={(next) =>
+							void navigate({ search: { period: next }, replace: true })
+						}
+						ariaLabel={t('dashboard-filter-report-period')}
 					/>
-				</CardContent>
-			</Card>
+				</div>
+				<div className="ml-auto">
+					<DashboardExportMenu
+						startDate={startDate}
+						onAuthFailure={() => setShouldLogout(true)}
+					/>
+				</div>
+			</div>
+
+			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+				<KpiCard
+					testId="staff-dashboard-kpi-report-events"
+					label={t('dashboard-kpi-audit-events')}
+					icon={<IconFileSearch />}
+					figure={auditQuery.data?.totalCount}
+					locale={locale}
+					query={auditQuery}
+				/>
+				<KpiCard
+					testId="staff-dashboard-kpi-signins"
+					label={t('dashboard-kpi-signins')}
+					icon={<IconLogin2 />}
+					figure={undefined}
+					locale={locale}
+				/>
+				<KpiCard
+					testId="staff-dashboard-kpi-failed-signins"
+					label={t('dashboard-kpi-failed-signins')}
+					icon={<IconKey />}
+					figure={undefined}
+					locale={locale}
+				/>
+				<KpiCard
+					testId="staff-dashboard-kpi-impersonations"
+					label={t('dashboard-kpi-impersonations')}
+					icon={<IconMask />}
+					figure={impersonationsQuery.data?.totalCount}
+					locale={locale}
+					query={impersonationsQuery}
+				/>
+			</div>
+
+			<div className="grid gap-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
+				<ChartCard
+					testId="staff-dashboard-events-per-day"
+					label={t('dashboard-card-audit-events-per-day')}
+					icon={<IconChartBar />}
+					note={t('dashboard-note-events-per-day')}
+					hero={UNKNOWN_VALUE}
+					series={{
+						status: 'unavailable',
+						sentence: t('dashboard-ghost-card-events-per-day'),
+						ghost: (
+							<>
+								<GhostBars />
+								<GhostAxis />
+							</>
+						),
+					}}
+				/>
+
+				<ChartCard
+					testId="staff-dashboard-type-share"
+					label={t('dashboard-card-type-share')}
+					icon={<IconChartPie />}
+					toggle={false}
+					series={{
+						status: 'unavailable',
+						sentence: t('dashboard-ghost-card-type-share'),
+						ghost: <GhostStacked />,
+					}}
+				/>
+			</div>
+
+			<div className="grid gap-4 md:grid-cols-2">
+				<ChartCard
+					testId="staff-dashboard-signins-per-day"
+					label={t('dashboard-card-signins-per-day')}
+					icon={<IconTrendingUp />}
+					note={`${t('dashboard-note-signins')} · ${t(periodLabelKey(period))}`}
+					hero={UNKNOWN_VALUE}
+					series={{
+						status: 'unavailable',
+						sentence: t('dashboard-ghost-card-signins-per-day'),
+						ghost: (
+							<>
+								<GhostLine />
+								<GhostAxis />
+							</>
+						),
+					}}
+				/>
+
+				<ChartCard
+					testId="staff-dashboard-top-orgs"
+					label={t('dashboard-card-top-orgs')}
+					icon={<IconChartBar />}
+					note={t('dashboard-note-top-orgs')}
+					toggle={false}
+					series={{
+						status: 'unavailable',
+						sentence: t('dashboard-ghost-card-top-orgs'),
+						ghost: <GhostHBars rows={5} />,
+					}}
+				/>
+			</div>
 		</div>
 	);
 };
 
+/** The report's URL state: the period is optional, so a bare link stays
+ * valid. */
+type ReportsSearch = { period?: DashboardPeriod };
+
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/reports')(
 	{
+		validateSearch: (search: Record<string, unknown>): ReportsSearch => ({
+			period: parseDashboardPeriod(search.period),
+		}),
 		staticData: {
 			crumbs: () => [
 				{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },
 				{ kind: 'label', labelKey: 'nav-dashboard-reports' },
 			],
-			i18nNamespaces: ['staff-audit-logs'],
 		},
-		component: StaffDashboardReportsTab,
+		component: Reports,
 	},
 );

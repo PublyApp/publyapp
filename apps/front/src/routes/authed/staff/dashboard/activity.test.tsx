@@ -1,27 +1,40 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { StaffAuditLogRow } from '~/lib/query/staff-audit-logs';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+type ActivitySearch = {
+	q?: string;
+	period?: string;
+	category?: string;
+	sensitivity?: string;
+};
 
 const mocks = vi.hoisted(() => ({
 	query: {
 		isPending: false,
-		isLoading: false,
 		isError: false,
-		isSuccess: true,
+		isFetching: false,
 		error: null as Error | null,
-		data: undefined as
-			| { data: Array<Record<string, unknown>>; nextCursor: string | null }
-			| undefined,
+		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
+	actionsQuery: {
+		isError: false,
+		isFetched: true,
+		data: { actions: ['tenant.updated', 'auth.login.succeeded'] } as
+			| { actions: string[] }
+			| undefined,
+	},
 	shouldLogoutForFailure: vi.fn(() => false),
+	search: {} as ActivitySearch,
+	navigate: vi.fn(),
 }));
+
+const useStaffAuditLogsQuery = vi.hoisted(() => vi.fn());
 
 vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 	const actual =
@@ -29,7 +42,8 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 
 	return {
 		...actual,
-		useStaffAuditLogsQuery: vi.fn(() => mocks.query),
+		useStaffAuditLogsQuery,
+		useAuditLogActionsQuery: vi.fn(() => mocks.actionsQuery),
 	};
 });
 
@@ -42,10 +56,11 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
 		options,
+		useSearch: () => mocks.search,
+		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({
 		to,
@@ -63,119 +78,191 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 const EN_LABELS: TestLabelMap = {
-	'recent-activity': 'Recent Activity',
-	'view-all': 'View all',
-	retry: 'Retry',
+	'history-search-placeholder': 'Search an event, an actor, an IP…',
+	'history-events': '{{count}} events · kept {{days}} days',
+	'history-events-unknown': 'Events · kept {{days}} days',
+	'history-day-today': 'Today',
+	'history-day-yesterday': 'Yesterday',
+	'history-day-unknown': 'Unknown date',
+	'history-filter-categories': 'Categories',
+	'history-filter-period': 'Period',
+	'history-filter-sensitivity': 'Sensitivity',
+	'history-period-today': 'Today',
+	'history-period-week': 'Last 7 days',
+	'history-period-month': 'Last 30 days',
+	'history-sensitivity-sensitive': 'Sensitive actions',
+	'history-category-tenant': 'Organisation',
+	'history-category-auth': 'Authentication',
+	'history-open': 'Open',
+	'history-system': 'System',
 	'no-audit-logs-yet': 'No audit logs yet',
-	'no-audit-logs-description':
-		'Audit logs will appear here once activities are tracked.',
-	'failed-to-load-activity': "Couldn't load recent activity",
-	'failed-to-load-activity-description':
-		'The latest audit events could not be loaded. Try again.',
-	unknown: 'Unknown',
-	loading: 'Loading',
+	'no-audit-logs-description': 'Audit events will appear here.',
+	'no-audit-logs-match-title': 'No matching events',
+	'no-audit-logs-match-description': 'Try removing a filter.',
+	'list-open-row': 'Open {{name}}',
+	'list-no-match-title': 'No match',
+	'list-no-match-default-description': 'No rows match the filters.',
+	'view-all': 'View all',
+	'list-next-page': 'Next page',
+	'list-previous-page': 'Previous page',
+	'list-page-of': 'Page {{page}}',
+	'list-rows-per-page': 'Rows per page',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
-			if (EN_LABELS[key] !== undefined) {
-				return EN_LABELS[key];
+		t: (key: string, options?: Record<string, unknown>) => {
+			let label = EN_LABELS[key] ?? key;
+			if (options) {
+				for (const [name, value] of Object.entries(options)) {
+					label = label.replaceAll(`{{${name}}}`, String(value));
+				}
 			}
-			// The component qualifies cross-namespace keys (`common:retry`);
-			// real i18next resolves those through the namespaces array.
-			const separator = key.indexOf(':');
-			if (separator !== -1) {
-				return EN_LABELS[key.slice(separator + 1)] ?? key;
-			}
-			return key;
+			return label;
 		},
-		i18n: { resolvedLanguage: 'en', language: 'en' },
+		i18n: {
+			resolvedLanguage: 'en',
+			language: 'en',
+			exists: () => false,
+		},
 	}),
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { auditLogPeriodStart } from '../audit-logs/_list-search-params';
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './activity';
 
-const StaffDashboardActivityTab = Route.options.component as ComponentType;
+const Activity = Route.options.component as ComponentType;
 
-const auditRow = (overrides: Partial<StaffAuditLogRow> = {}) => ({
+const auditRow = (overrides: Record<string, unknown> = {}) => ({
 	id: '0197b8f0-3333-7ccc-8ccc-cccccccccccc',
-	action: 'tenant.created',
+	action: 'tenant.updated',
 	userName: 'Ada Admin',
 	userEmail: 'ada@example.com',
 	ipAddress: '10.0.0.1',
 	targetId: null,
-	createdAt: new Date('2026-08-26T08:00:00Z'),
+	createdAt: new Date(),
 	...overrides,
 });
+
+const resetMocks = () => {
+	mocks.query.isPending = false;
+	mocks.query.isError = false;
+	mocks.query.isFetching = false;
+	mocks.query.error = null;
+	mocks.query.data = undefined;
+	mocks.actionsQuery.isError = false;
+	mocks.actionsQuery.isFetched = true;
+	mocks.actionsQuery.data = {
+		actions: ['tenant.updated', 'auth.login.succeeded'],
+	};
+	mocks.shouldLogoutForFailure.mockReturnValue(false);
+	mocks.search = {};
+	useStaffAuditLogsQuery.mockImplementation(() => mocks.query);
+};
+
+resetMocks();
 
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	mocks.query.isPending = false;
-	mocks.query.isError = false;
-	mocks.query.isSuccess = true;
-	mocks.query.error = null;
+	resetMocks();
 });
 
-describe('StaffDashboardActivityTab', () => {
-	test('renders the mapped recent audit events from the API response', () => {
-		mocks.query.data = { data: [auditRow()], nextCursor: null };
+describe('staff dashboard activity', () => {
+	test('renders the shared activity history with the event and its day group', () => {
+		mocks.query.data = {
+			data: [auditRow()],
+			nextCursor: null,
+			totalCount: 1,
+		};
 
-		render(<StaffDashboardActivityTab />);
+		render(<Activity />);
 
-		expect(screen.getByText('Recent Activity')).toBeTruthy();
-		const entries = screen.getAllByTestId('staff-dashboard-activity-entry');
-		expect(entries.length).toBe(1);
+		expect(screen.getByTestId('staff-dashboard-activity')).toBeTruthy();
+		expect(screen.getByTestId('staff-dashboard-activity-days')).toBeTruthy();
+		expect(screen.getByText('Today')).toBeTruthy();
 		expect(screen.getByText('Ada Admin')).toBeTruthy();
-		const viewAll = screen.getByRole('link', { name: /view all/i });
-		expect(viewAll.getAttribute('href')).toBe('/staff/audit-logs');
+		expect(
+			screen.getByPlaceholderText('Search an event, an actor, an IP…'),
+		).toBeTruthy();
+		// One complete page: the loaded rows ARE the whole collection.
+		expect(
+			screen.getByTestId('staff-dashboard-activity-count').textContent,
+		).toBe('1 events · kept 365 days');
 	});
 
-	test('shows the empty state when the feed maps to zero rows', () => {
-		mocks.query.data = { data: [], nextCursor: null };
+	test('an incomplete collection never turns its page into a total, and gets a pager (B5)', () => {
+		mocks.query.data = {
+			data: [auditRow()],
+			nextCursor: '0197b8f0-3333-7ccc-8ccc-cccccccccc99',
+			totalCount: 4812,
+		};
 
-		render(<StaffDashboardActivityTab />);
+		render(<Activity />);
+
+		expect(
+			screen.getByTestId('staff-dashboard-activity-count').textContent,
+		).toBe('Events · kept 365 days');
+		expect(screen.getByTestId('staff-dashboard-activity-footer')).toBeTruthy();
+		expect(
+			(
+				screen.getByTestId(
+					'staff-dashboard-activity-next-page',
+				) as HTMLButtonElement
+			).disabled,
+		).toBe(false);
+	});
+
+	test('keeps the « Tout voir » link to the full audit log (B5)', () => {
+		mocks.query.data = { data: [auditRow()], nextCursor: null, totalCount: 1 };
+
+		render(<Activity />);
+
+		expect(
+			screen
+				.getByTestId('staff-dashboard-activity-view-all')
+				.getAttribute('href'),
+		).toBe('/staff/audit-logs');
+	});
+
+	test('the filters live in the URL and reach the query (N4)', () => {
+		mocks.search = { period: 'week', q: 'ada' };
+		const expectedStart = auditLogPeriodStart('week');
+		mocks.query.data = { data: [], nextCursor: null, totalCount: 0 };
+
+		render(<Activity />);
+
+		expect(useStaffAuditLogsQuery).toHaveBeenCalledWith(
+			expect.objectContaining({ q: 'ada', startDate: expectedStart }),
+			expect.anything(),
+		);
+	});
+
+	test('shows the empty state when the API returns no event', () => {
+		mocks.query.data = { data: [], nextCursor: null, totalCount: 0 };
+
+		render(<Activity />);
 
 		expect(screen.getByTestId('staff-dashboard-activity-empty')).toBeTruthy();
 	});
 
-	test('shows a skeleton while the query is pending', () => {
+	test('shows the shared skeleton while the query is pending', () => {
 		mocks.query.isPending = true;
-		mocks.query.isSuccess = false;
+		mocks.query.data = undefined;
 
-		render(<StaffDashboardActivityTab />);
+		render(<Activity />);
 
-		expect(
-			screen.getByTestId('staff-dashboard-activity-skeleton'),
-		).toBeTruthy();
+		expect(screen.getByTestId('staff-dashboard-activity-loading')).toBeTruthy();
 	});
 
-	test('shows the error state with a working retry', async () => {
-		const user = userEvent.setup();
+	test('an auth failure logs out through the shared path', () => {
 		mocks.query.isError = true;
-		mocks.query.isSuccess = false;
-		mocks.query.error = new Error('network down');
-		mocks.query.refetch.mockResolvedValue(undefined);
-
-		render(<StaffDashboardActivityTab />);
-
-		expect(screen.getByTestId('staff-dashboard-activity-error')).toBeTruthy();
-
-		await user.click(screen.getByRole('button', { name: 'Retry' }));
-		await waitFor(() => {
-			expect(mocks.query.refetch).toHaveBeenCalled();
-		});
-	});
-
-	test('redirects to logout on an auth failure', () => {
-		mocks.query.isError = true;
-		mocks.query.isSuccess = false;
 		mocks.query.error = new Error('401');
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
 
-		render(<StaffDashboardActivityTab />);
+		render(<Activity />);
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});

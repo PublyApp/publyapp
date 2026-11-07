@@ -16,6 +16,7 @@ export const SectionCard = ({
 	tone,
 	children,
 	className,
+	headerClassName,
 	contentClassName,
 }: {
 	label: ReactNode;
@@ -24,6 +25,9 @@ export const SectionCard = ({
 	tone?: 'danger';
 	children: ReactNode;
 	className?: string;
+	/** Extra classes for the label row (e.g. a min-height kept after its
+	 * action cluster steps aside). */
+	headerClassName?: string;
 	contentClassName?: string;
 }) => (
 	<section
@@ -32,7 +36,13 @@ export const SectionCard = ({
 			className,
 		)}
 	>
-		<div className="flex min-h-8 items-center justify-between gap-3 px-4 pt-1 pb-2">
+		<div
+			data-slot="section-card-header"
+			className={cn(
+				'flex min-h-8 items-center justify-between gap-3 px-4 pt-1 pb-2',
+				headerClassName,
+			)}
+		>
 			<span
 				className={cn(
 					'flex min-w-0 items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0',

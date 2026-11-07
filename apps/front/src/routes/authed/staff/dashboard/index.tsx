@@ -1,203 +1,173 @@
+import { IconActivity } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import {
-	toStaffTenantRows,
-	useStaffTenantsQuery,
-	type StaffTenantRow,
-} from '~/lib/query/staff-tenants';
-import {
-	toStaffUserRows,
-	useStaffUsersQuery,
-	type StaffUserRow,
-} from '~/lib/query/staff-users';
+import { useStaffTenantsQuery } from '~/lib/query/staff-tenants';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { OverviewListCard, StatusLabel } from './_overview-list-card';
+import { GhostHeatmap } from './_chart-ghost';
+import {
+	parseDashboardPeriod,
+	parseOrganisationScope,
+	periodStart,
+	type DashboardPeriod,
+	type OrganisationScope,
+} from './_dashboard-filters';
+import {
+	ChartCard,
+	OrganisationScopeSelect,
+	PeriodSelect,
+} from './_dashboard-ui';
+import { OverviewCharts } from './_overview-charts';
+import { OverviewKpis } from './_overview-kpis';
+import { OverviewLists } from './_overview-lists';
 
-/** How many rows each summary card shows. The cards link to the full lists;
- * they are a glance, not a replacement. */
-const OVERVIEW_ROW_COUNT = 5;
+/** The five-row glance the two list cards show (the prototype's « cinq »). */
+const CARD_ROW_COUNT = 5;
 
-/**
- * Data-mapping lines: every rendered value in the three summary cards comes
- * from these mappers over `GET /staff/tenants`, `GET /staff/staff-users` and
- * `GET /staff/invitations`. Stubbing any of them empties its card and fails
- * `index.test.tsx` ("renders the mapped platform summary").
- */
-const toOverviewTenants = (
-	items: Parameters<typeof toStaffTenantRows>[0],
-): StaffTenantRow[] => toStaffTenantRows(items);
+const HEATMAP_SCALE = [
+	'var(--publy-chart-empty)',
+	'var(--publy-chart-seq-1)',
+	'var(--publy-chart-seq-2)',
+	'var(--publy-chart-seq-3)',
+	'var(--publy-chart-seq-4)',
+] as const;
 
-const toOverviewStaff = (
-	items: Parameters<typeof toStaffUserRows>[0],
-): StaffUserRow[] => toStaffUserRows(items);
+const Overview = () => {
+	const { t, i18n } = useTranslation('common');
+	const locale = i18n.language;
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const period: DashboardPeriod = search.period ?? '30d';
+	const scope: OrganisationScope = search.scope ?? 'all';
 
-type OverviewInvitation = {
-	id: string;
-	email: string;
-	invitedByName: string | null;
-};
+	const onSearchChange = (next: {
+		period?: DashboardPeriod;
+		scope?: OrganisationScope;
+	}): void => {
+		void navigate({ search: { ...search, ...next }, replace: true });
+	};
 
-const toOverviewInvitations = (
-	items:
-		| Array<{ id?: unknown; email?: unknown; invitedByName?: unknown }>
-		| null
-		| undefined,
-): OverviewInvitation[] => {
-	const rows: OverviewInvitation[] = [];
-
-	for (const item of items ?? []) {
-		const id = typeof item.id === 'string' ? item.id : '';
-		if (!id) {
-			continue;
-		}
-
-		rows.push({
-			id,
-			email: typeof item.email === 'string' ? item.email.trim() : '',
-			invitedByName:
-				typeof item.invitedByName === 'string' && item.invitedByName.trim()
-					? item.invitedByName.trim()
-					: null,
-		});
-	}
-
-	return rows;
-};
-
-/**
- * The staff Dashboard › Overview tab: a real glance at the platform built
- * from the three existing staff list queries — latest tenants, staff members
- * and pending invitations — each linking to its full list. No fabricated
- * totals or charts; empty sources render their honest empty state (#818 F8).
- */
-const StaffDashboardOverviewTab = () => {
-	const { t } = useTranslation('common');
-
-	const tenantsQuery = useStaffTenantsQuery({ size: OVERVIEW_ROW_COUNT });
-	const usersQuery = useStaffUsersQuery({ size: OVERVIEW_ROW_COUNT });
-	const invitationsQuery = useStaffInvitationsQuery({
-		size: OVERVIEW_ROW_COUNT,
+	// The counts and the status donut describe the whole platform: the
+	// « Organisations » filter must not reach them, or « Actives » would read 0
+	// as soon as « Suspendues uniquement » is picked (B3).
+	const countsQuery = useStaffTenantsQuery({ size: 1 });
+	// Only « Dernières organisations » follows the filter.
+	const latestTenantsQuery = useStaffTenantsQuery({
+		size: CARD_ROW_COUNT,
+		sortId: 'created_at',
+		sortOrder: 'desc',
+		status: scope === 'all' ? undefined : scope,
+	});
+	const pendingInvitationsQuery = useStaffInvitationsQuery({
+		size: CARD_ROW_COUNT,
 		status: 'pending',
 	});
+	// The outcome facets must come from an UNFILTERED invitations query: the
+	// API computes them over the status-filtered set, so reusing the pending
+	// one would report accepted/expired/revoked as structural zeros (B2).
+	const invitationOutcomesQuery = useStaffInvitationsQuery({ size: 1 });
+	const auditQuery = useStaffAuditLogsQuery({
+		size: 1,
+		startDate: periodStart(period),
+	});
 
-	// Logout gate: read the hoisted errors instead of branching on results.
 	for (const queryError of [
-		tenantsQuery.error,
-		usersQuery.error,
-		invitationsQuery.error,
+		countsQuery.error,
+		latestTenantsQuery.error,
+		pendingInvitationsQuery.error,
+		invitationOutcomesQuery.error,
+		auditQuery.error,
 	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
 			return <LogoutRedirect />;
 		}
 	}
 
-	const tenants = toOverviewTenants(tenantsQuery.data?.data);
-	const staff = toOverviewStaff(usersQuery.data?.data);
-	const invitations = toOverviewInvitations(invitationsQuery.data?.data);
-
 	return (
-		<div className="space-y-5" data-testid="staff-dashboard-overview-panel">
-			<div className="grid gap-5 lg:grid-cols-2">
-				<OverviewListCard
-					title={t('nav-tenants')}
-					viewAllTo="/staff/tenants"
-					testId="staff-dashboard-overview-tenants"
-					isPending={tenantsQuery.isPending}
-					error={tenantsQuery.error}
-					onRetry={() => void tenantsQuery.refetch()}
-					rows={tenants}
-					emptyTitle={t('overview-empty-tenants')}
-					t={t}
-					renderRows={() => (
-						<div className="divide-y">
-							{tenants.map((tenant) => (
-								<div
-									className="flex items-center justify-between gap-3 py-2.5"
-									data-testid="staff-dashboard-overview-tenant-row"
-									key={tenant.id}
-								>
-									<p className="min-w-0 truncate text-sm">{tenant.name}</p>
-									<div className="flex shrink-0 items-center gap-2">
-										<span className="text-xs text-muted-foreground">
-											{t('tenant-member-count', {
-												count: tenant.usersCount,
-											})}
-										</span>
-										<StatusLabel status={tenant.status} t={t} />
-									</div>
-								</div>
-							))}
-						</div>
-					)}
-				/>
-
-				<OverviewListCard
-					title={t('staff-users')}
-					viewAllTo="/staff/staff-users"
-					testId="staff-dashboard-overview-staff"
-					isPending={usersQuery.isPending}
-					error={usersQuery.error}
-					onRetry={() => void usersQuery.refetch()}
-					rows={staff}
-					emptyTitle={t('overview-empty-staff')}
-					t={t}
-					renderRows={() => (
-						<div className="divide-y">
-							{staff.map((member) => (
-								<div
-									className="flex items-center justify-between gap-3 py-2.5"
-									data-testid="staff-dashboard-overview-staff-row"
-									key={member.id}
-								>
-									<p className="min-w-0 truncate text-sm">
-										{member.displayName}
-									</p>
-									<StatusLabel status={member.status} t={t} />
-								</div>
-							))}
-						</div>
-					)}
-				/>
+		<div className="space-y-4" data-testid="staff-dashboard-overview-panel">
+			<div className="mb-4 flex flex-wrap items-center gap-2">
+				<div className="w-full sm:w-48">
+					<PeriodSelect
+						id="staff-dashboard-period"
+						value={period}
+						onChange={(next) => onSearchChange({ period: next })}
+						ariaLabel={t('dashboard-filter-period')}
+					/>
+				</div>
+				<div className="w-full sm:w-56">
+					<OrganisationScopeSelect
+						id="staff-dashboard-scope"
+						value={scope}
+						onChange={(next) => onSearchChange({ scope: next })}
+					/>
+				</div>
 			</div>
 
-			<OverviewListCard
-				title={t('pending-invitations')}
-				viewAllTo="/staff/invitations"
-				testId="staff-dashboard-overview-invitations"
-				isPending={invitationsQuery.isPending}
-				error={invitationsQuery.error}
-				onRetry={() => void invitationsQuery.refetch()}
-				rows={invitations}
-				emptyTitle={t('overview-empty-invitations')}
-				t={t}
-				renderRows={() => (
-					<div className="divide-y">
-						{invitations.map((invitation) => (
-							<div
-								className="flex items-center justify-between gap-3 py-2.5"
-								data-testid="staff-dashboard-overview-invitation-row"
-								key={invitation.id}
-							>
-								<p className="min-w-0 truncate text-sm">{invitation.email}</p>
-								{invitation.invitedByName ? (
-									<span className="shrink-0 text-xs text-muted-foreground">
-										{invitation.invitedByName}
-									</span>
-								) : null}
-							</div>
+			<OverviewKpis
+				activeTenants={countsQuery.data?.counts?.active}
+				members={countsQuery.data?.counts?.members}
+				auditEvents={auditQuery.data?.totalCount}
+				pendingInvitations={pendingInvitationsQuery.data?.counts?.pending}
+				countsQuery={countsQuery}
+				auditQuery={auditQuery}
+				pendingInvitationsQuery={pendingInvitationsQuery}
+				locale={locale}
+			/>
+
+			<OverviewCharts countsQuery={countsQuery} locale={locale} />
+
+			<ChartCard
+				testId="staff-dashboard-heatmap"
+				label={t('dashboard-card-heatmap')}
+				icon={<IconActivity />}
+				note={t('dashboard-heatmap-note-empty')}
+				toggle={false}
+				action={
+					<div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+						<span>{t('dashboard-heat-less')}</span>
+						{HEATMAP_SCALE.map((color) => (
+							<span
+								key={color}
+								className="size-3 rounded-[3px]"
+								style={{ backgroundColor: color }}
+							/>
 						))}
+						<span>{t('dashboard-heat-more')}</span>
 					</div>
-				)}
+				}
+				series={{
+					status: 'unavailable',
+					sentence: t('dashboard-ghost-card-heatmap'),
+					ghost: <GhostHeatmap />,
+				}}
+			/>
+
+			<OverviewLists
+				invitationOutcomesQuery={invitationOutcomesQuery}
+				latestTenantsQuery={latestTenantsQuery}
+				pendingInvitationsQuery={pendingInvitationsQuery}
+				locale={locale}
 			/>
 		</div>
 	);
 };
 
+/** The overview's URL state: both filters are optional, so a bare
+ * `/staff/dashboard` link stays valid. */
+type OverviewSearch = {
+	period?: DashboardPeriod;
+	scope?: OrganisationScope;
+};
+
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/')({
+	validateSearch: (search: Record<string, unknown>): OverviewSearch => ({
+		period: parseDashboardPeriod(search.period),
+		scope: parseOrganisationScope(search.scope),
+	}),
 	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
-	component: StaffDashboardOverviewTab,
+	component: Overview,
 });
