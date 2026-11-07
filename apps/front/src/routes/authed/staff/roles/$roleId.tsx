@@ -31,8 +31,9 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 import { RoleDetailsError, RoleDetailsLoading } from './$roleId/_detail-views';
 import { StaffRoleIdentityHeader } from './$roleId/_identity-header';
 import { renderStaffRoleMembersCard } from './$roleId/_members-card-content';
-import { PermissionMatrix } from './$roleId/_permission-matrix';
+import { StaffRolePermissionsCardBody } from './$roleId/_permissions-card-body';
 import { StaffRoleEditDetailsDrawer } from './$roleId/_role-edit-details-drawer';
+import { useSystemRoleEditGuard } from './$roleId/_use-system-role-edit-guard';
 
 /** Search state for the staff-role detail page (#819): the edit drawer's
  * open flag, mirroring the tenant role detail layout's `?edit=1`. */
@@ -64,6 +65,9 @@ const StaffRoleDetailsPage = () => {
 		language: i18n.language,
 	});
 	const usersQuery = useStaffRoleUsersQuery({ roleId, size: 5 });
+	// Mapped before the early returns so the system-role guard below can read
+	// the loaded role without mapping it twice.
+	const details = toStaffRoleDetails(detailQuery.data);
 
 	// #819 — the edit drawer's open flag lives in the URL (`?edit=1`), the way
 	// the tenant role detail page hosts its own drawer.
@@ -73,7 +77,11 @@ const StaffRoleDetailsPage = () => {
 	// drawer; the guard below must never block that transition even while the
 	// drawer's dirty flag is being flushed asynchronously (W8-DRAWER).
 	const editDrawerNavBypassRef = useRef(false);
-	const isEditDrawerOpen = search.edit === 1;
+	// The seeded full-access system role has no editable state, so `?edit=1`
+	// is not a view state this page can honour: the flag must not open the
+	// drawer even for one frame while it is being canonicalized away below.
+	const isSystemRole = details?.isFullAccess === true;
+	const isEditDrawerOpen = search.edit === 1 && !isSystemRole;
 	const setEditDrawerOpen = (isOpen: boolean): void => {
 		// Opening re-arms the guard for the new draft; every close here is
 		// either a clean close or an already-confirmed discard/save.
@@ -88,6 +96,14 @@ const StaffRoleDetailsPage = () => {
 			replace: true,
 		});
 	};
+
+	// A deep link to the system role's edit drawer is an impossible state:
+	// canonicalize the flag away at the router boundary.
+	useSystemRoleEditGuard({
+		edit: search.edit,
+		isFullAccess: isSystemRole,
+		navigate,
+	});
 
 	// Only an OPEN drawer holding a DIRTY draft is work the user can lose; the
 	// bypass ref keeps the app's own close/save transition unblocked.
@@ -170,7 +186,6 @@ const StaffRoleDetailsPage = () => {
 		);
 	}
 
-	const details = toStaffRoleDetails(detailQuery.data);
 	if (!details) {
 		return (
 			<AppErrorView
@@ -209,6 +224,17 @@ const StaffRoleDetailsPage = () => {
 		}
 	}
 
+	// Full access is implicit: no "N of M granted" count to show.
+	let permissionsCountLabel: string | number = assignedKeys.length;
+	if (details.isFullAccess) {
+		permissionsCountLabel = t('full-access');
+	} else if (catalogPermCount > 0) {
+		permissionsCountLabel = t('permissions-of-total-granted', {
+			count: assignedKeys.length,
+			total: catalogPermCount,
+		});
+	}
+
 	return (
 		<div
 			className="publy-detail-page publy-page-fill"
@@ -237,13 +263,11 @@ const StaffRoleDetailsPage = () => {
 								{t('permissions-in-this-role')}
 							</span>
 						</div>
-						{assignedKeys.length === 0 ? (
-							<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
-								{t('no-permissions-assigned-to-role')}
-							</div>
-						) : (
-							<PermissionMatrix assignedKeys={assignedKeys} catalog={catalog} />
-						)}
+						<StaffRolePermissionsCardBody
+							isFullAccess={details.isFullAccess}
+							assignedKeys={assignedKeys}
+							catalog={catalog}
+						/>
 					</Card>
 				</DetailMain>
 
@@ -267,12 +291,7 @@ const StaffRoleDetailsPage = () => {
 									{t('permissions')}
 								</span>
 								<span className="text-[12px] font-medium">
-									{catalogPermCount > 0
-										? t('permissions-of-total-granted', {
-												count: assignedKeys.length,
-												total: catalogPermCount,
-											})
-										: assignedKeys.length}
+									{permissionsCountLabel}
 								</span>
 							</div>
 						</div>

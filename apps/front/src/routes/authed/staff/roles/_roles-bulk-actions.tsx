@@ -55,11 +55,22 @@ export const RolesListBulkActions = ({
 	// without a row (possible in the render window before `useRowSelection`
 	// prunes a data change) must not reach the wire — the server would report
 	// it "Role not found" for an id the user cannot see (#1408 r1).
+	// The full-access system role is never sent: the API refuses it, and the
+	// click handler says so with an i18n toast instead of a server error.
 	const selectedIds = rows.flatMap((row) =>
-		selection.rowSelection[row.id] ? [row.id] : [],
+		selection.rowSelection[row.id] && !row.isFullAccess ? [row.id] : [],
 	);
+	const selectedSystemRoleCount = rows.filter(
+		(row) => selection.rowSelection[row.id] && row.isFullAccess,
+	).length;
 
 	const handleMenuItemClick = (): void => {
+		if (selectedSystemRoleCount > 0) {
+			toastLocalMutationResult.warning(t('bulk-delete-skips-system-role'));
+		}
+		if (selectedIds.length === 0) {
+			return;
+		}
 		setIsDialogOpen(true);
 	};
 

@@ -15,6 +15,9 @@ public class StaffRoleItem {
 	public string? Description { get; set; }
 	public string? Icon { get; set; }
 	public string? Tone { get; set; }
+	// The seeded full-access system role is protected: the front hides its
+	// edit/delete affordances and shows "Accès complet" instead of a count.
+	public bool IsFullAccess { get; set; }
 	public int UserAccountCount { get; set; }
 }
 
@@ -249,6 +252,7 @@ public sealed class StaffRoleQueryAsStaffService : IStaffRoleQueryAsStaffService
 				Description = p.Description,
 				Icon = p.Icon,
 				Tone = p.Tone,
+				IsFullAccess = p.IsFullAccess,
 				UserAccountCount = p.UserAccountRoles.Count
 			})
 			.Take(effectiveLimit + 1)  // Fetch one extra to check for more pages
@@ -294,6 +298,7 @@ public sealed class StaffRoleQueryAsStaffService : IStaffRoleQueryAsStaffService
 				Description = p.Description,
 				Icon = p.Icon,
 				Tone = p.Tone,
+				IsFullAccess = p.IsFullAccess,
 				UserAccountCount = p.UserAccountRoles.Count,
 			}
 		).FirstOrDefaultAsync(cancellationToken);

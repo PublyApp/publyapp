@@ -56,6 +56,7 @@ type RoleRow = {
 	icon?: string | null;
 	tone?: string | null;
 	isDefault: boolean;
+	isFullAccess?: boolean;
 	userAccountCount: number;
 	permissionsCount: number;
 };
@@ -354,7 +355,7 @@ describe('#972 tenant roles list — quick-edit drawer opens over the list', () 
 
 	test('opening adds only the edit id, and closing restores the list exactly as it was', async () => {
 		const { history } = await renderList(
-			`${LIST_PATH}?q=sup&view=table&is_default=false`,
+			`${LIST_PATH}?q=sup&view=table&is_full_access=false`,
 		);
 
 		await openEditFor(SUPPORT_ID);
@@ -368,7 +369,7 @@ describe('#972 tenant roles list — quick-edit drawer opens over the list', () 
 		expect(openParams.get('edit')).toBe(SUPPORT_ID);
 		expect(openParams.get('q')).toBe('sup');
 		expect(openParams.get('view')).toBe('table');
-		expect(openParams.get('is_default')).toBe('false');
+		expect(openParams.get('is_full_access')).toBe('false');
 		expect(
 			screen
 				.getByTestId('staff-tenant-roles-grid-view-toggle-table')
@@ -387,7 +388,7 @@ describe('#972 tenant roles list — quick-edit drawer opens over the list', () 
 		// Every other piece of list state is byte-identical to before the open.
 		expect(params.get('q')).toBe('sup');
 		expect(params.get('view')).toBe('table');
-		expect(params.get('is_default')).toBe('false');
+		expect(params.get('is_full_access')).toBe('false');
 		expect(screen.getByTestId('staff-tenant-roles-grid-rows')).toBeTruthy();
 		expect(
 			screen
@@ -478,6 +479,29 @@ describe('#972 tenant roles list — quick-edit drawer opens over the list', () 
 
 	test('an ?edit id that names no loaded row leaves the drawer shut rather than inventing a role', async () => {
 		await renderList(`${LIST_PATH}?edit=0198c0de-9999-7000-8000-cccccccccccc`);
+
+		expect(screen.getByTestId('staff-tenant-roles-grid-rows')).toBeTruthy();
+		expect(screen.queryByTestId('role-edit-details-drawer')).toBeNull();
+	});
+
+	// #2327: the full-access system role is never editable (its row menu hides
+	// Edit), so an `?edit=<its id>` deep link must not open the drawer either.
+	test('a deep link naming the full-access system role leaves the drawer shut', async () => {
+		const systemRoleId = '0198c0de-3333-7000-8000-dddddddddddd';
+		mocks.rows = [
+			...buildRows(),
+			{
+				id: systemRoleId,
+				name: 'System',
+				description: null,
+				isDefault: false,
+				isFullAccess: true,
+				userAccountCount: 2,
+				permissionsCount: 0,
+			},
+		];
+
+		await renderList(`${LIST_PATH}?edit=${systemRoleId}`);
 
 		expect(screen.getByTestId('staff-tenant-roles-grid-rows')).toBeTruthy();
 		expect(screen.queryByTestId('role-edit-details-drawer')).toBeNull();

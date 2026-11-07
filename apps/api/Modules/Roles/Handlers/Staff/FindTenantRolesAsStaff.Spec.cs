@@ -90,21 +90,21 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturnOnlyDefaultRolesWhenIsDefaultTrue() {
+	public async Task ItShouldReturnOnlyFullAccessRolesWhenIsFullAccessTrue() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		// A dedicated tenant avoids racing the "one active default role per
+		// A dedicated tenant avoids racing the "one active full-access role per
 		// tenant" unique constraint against other tests seeding Acme in parallel.
-		var tenantId = await this._SeedFreshTenantAsync("Roles IsDefault True");
-		var defaultRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: true
+		var tenantId = await this._SeedFreshTenantAsync("Roles IsFullAccess True");
+		var fullAccessRoleId = await this._SeedTenantRoleAsync(
+			tenantId, permissionCount: 0, isFullAccess: true
 		);
 		var customRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: false
+			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_default=true")
+			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_full_access=true")
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -114,25 +114,25 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		result.Data.Should().Contain(p => p.Id == defaultRoleId);
+		result.Data.Should().Contain(p => p.Id == fullAccessRoleId);
 		result.Data.Should().NotContain(p => p.Id == customRoleId);
-		result.Data.Should().OnlyContain(p => p.IsDefault);
+		result.Data.Should().OnlyContain(p => p.IsFullAccess);
 	}
 
 	[Fact]
-	public async Task ItShouldReturnOnlyCustomRolesWhenIsDefaultFalse() {
+	public async Task ItShouldReturnOnlyCustomRolesWhenIsFullAccessFalse() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._SeedFreshTenantAsync("Roles IsDefault False");
-		var defaultRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: true
+		var tenantId = await this._SeedFreshTenantAsync("Roles IsFullAccess False");
+		var fullAccessRoleId = await this._SeedTenantRoleAsync(
+			tenantId, permissionCount: 0, isFullAccess: true
 		);
 		var customRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: false
+			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_default=false")
+			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_full_access=false")
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -143,19 +143,19 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 
 		result.Data.Should().Contain(p => p.Id == customRoleId);
-		result.Data.Should().NotContain(p => p.Id == defaultRoleId);
-		result.Data.Should().OnlyContain(p => !p.IsDefault);
+		result.Data.Should().NotContain(p => p.Id == fullAccessRoleId);
+		result.Data.Should().OnlyContain(p => !p.IsFullAccess);
 	}
 
 	[Fact]
-	public async Task ItShouldReturnBothRoleTypesWhenIsDefaultIsAbsent() {
+	public async Task ItShouldReturnBothRoleTypesWhenIsFullAccessIsAbsent() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._SeedFreshTenantAsync("Roles IsDefault Absent");
-		var defaultRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: true
+		var tenantId = await this._SeedFreshTenantAsync("Roles IsFullAccess Absent");
+		var fullAccessRoleId = await this._SeedTenantRoleAsync(
+			tenantId, permissionCount: 0, isFullAccess: true
 		);
 		var customRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: false
+			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
 		using var request = new HttpRequestMessage(
@@ -170,24 +170,27 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		result.Data.Should().Contain(p => p.Id == defaultRoleId);
+		result.Data.Should().Contain(p => p.Id == fullAccessRoleId);
 		result.Data.Should().Contain(p => p.Id == customRoleId);
 	}
 
 	[Fact]
-	public async Task ItShouldReturnBothRoleTypesWhenIsDefaultIsWhitespace() {
+	public async Task ItShouldReturnBothRoleTypesWhenIsFullAccessIsWhitespace() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._SeedFreshTenantAsync("Roles IsDefault Whitespace");
-		var defaultRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: true
+		var tenantId = await this._SeedFreshTenantAsync("Roles IsFullAccess Whitespace");
+		var fullAccessRoleId = await this._SeedTenantRoleAsync(
+			tenantId, permissionCount: 0, isFullAccess: true
 		);
 		var customRoleId = await this._SeedTenantRoleAsync(
-			tenantId, permissionCount: 0, isDefault: false
+			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), $"limit=100&is_default={Uri.EscapeDataString(" ")}")
+			FindTenantRolesAsStaffSpec._GetUrl(
+				tenantId.ToString(),
+				$"limit=100&is_full_access={Uri.EscapeDataString(" ")}"
+			)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -197,7 +200,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 
-		result.Data.Should().Contain(p => p.Id == defaultRoleId);
+		result.Data.Should().Contain(p => p.Id == fullAccessRoleId);
 		result.Data.Should().Contain(p => p.Id == customRoleId);
 	}
 
@@ -229,13 +232,13 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldReturnUnprocessableEntityForInvalidIsDefaultValue() {
+	public async Task ItShouldReturnUnprocessableEntityForInvalidIsFullAccessValue() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "is_default=not-a-bool")
+			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "is_full_access=not-a-bool")
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -281,7 +284,8 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	private async Task<Guid> _SeedTenantRoleAsync(
 		Guid tenantId,
 		int permissionCount,
-		bool isDefault = false
+		bool isDefault = false,
+		bool isFullAccess = false
 	) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -289,7 +293,8 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		var role = Role.CreateTenantRole(
 			tenantId,
 			"Permission Count Role " + Guid.NewGuid().ToString("N")[..8],
-			isDefault: isDefault
+			isDefault: isDefault,
+			isFullAccess: isFullAccess
 		);
 
 		await dbContext.Role.AddAsync(role);
@@ -349,6 +354,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		public string Name { get; init; } = string.Empty;
 		public string? Description { get; init; }
 		public bool IsDefault { get; init; }
+		public bool IsFullAccess { get; init; }
 		public int UserAccountCount { get; init; }
 		public int PermissionsCount { get; init; }
 	}

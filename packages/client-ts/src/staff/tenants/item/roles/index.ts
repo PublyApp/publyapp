@@ -75,7 +75,7 @@ export interface RolesRequestBuilder extends BaseRequestBuilder<RolesRequestBuil
  */
 export interface RolesRequestBuilderGetQueryParameters {
     cursor?: string;
-    isDefault?: string;
+    isFullAccess?: string;
     limit?: string;
     q?: string;
     sortId?: string;
@@ -84,12 +84,12 @@ export interface RolesRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const RolesRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/roles{?cursor*,is_default*,limit*,q*,sort_id*,sort_order*}";
+export const RolesRequestBuilderUriTemplate = "{+baseurl}/staff/tenants/{tenantId}/roles{?cursor*,is_full_access*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const RolesRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "isDefault": "is_default",
+    "isFullAccess": "is_full_access",
     "sortId": "sort_id",
     "sortOrder": "sort_order",
 };

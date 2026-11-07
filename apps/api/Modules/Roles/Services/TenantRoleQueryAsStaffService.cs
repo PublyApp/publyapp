@@ -17,6 +17,9 @@ public class TenantRoleItem {
 	public string? Icon { get; set; }
 	public string? Tone { get; set; }
 	public bool IsDefault { get; set; }
+	// The seeded full-access system role is protected: the front hides its
+	// edit/delete affordances and shows "Accès complet" instead of a count.
+	public bool IsFullAccess { get; set; }
 	public int UserAccountCount { get; set; }
 	public int PermissionsCount { get; set; }
 	public DateTime CreatedAt { get; set; }
@@ -39,7 +42,7 @@ public sealed record FindTenantRolesArgs(
 	string? SortId,
 	SortOrder? SortOrder,
 	string? Search,
-	bool? IsDefault
+	bool? IsFullAccess
 );
 
 public sealed record GetTenantRoleByIdArgs(
@@ -284,8 +287,8 @@ public sealed class TenantRoleQueryAsStaffService : ITenantRoleQueryAsStaffServi
 			);
 		}
 
-		if (args.IsDefault is { } isDefault) {
-			query = query.Where(p => p.IsDefault == isDefault);
+		if (args.IsFullAccess is { } isFullAccess) {
+			query = query.Where(p => p.IsFullAccess == isFullAccess);
 		}
 
 		if (args.Cursor != Guid.Empty) {
@@ -348,6 +351,7 @@ public sealed class TenantRoleQueryAsStaffService : ITenantRoleQueryAsStaffServi
 				Icon = p.Icon,
 				Tone = p.Tone,
 				IsDefault = p.IsDefault,
+				IsFullAccess = p.IsFullAccess,
 				UserAccountCount = userAccountCountByRoleId.GetValueOrDefault(roleId, 0),
 				PermissionsCount = permissionCountByRoleId.GetValueOrDefault(roleId, 0),
 				CreatedAt = p.CreatedAt,
@@ -380,6 +384,7 @@ public sealed class TenantRoleQueryAsStaffService : ITenantRoleQueryAsStaffServi
 				Icon = p.Icon,
 				Tone = p.Tone,
 				IsDefault = p.IsDefault,
+				IsFullAccess = p.IsFullAccess,
 				UserAccountCount = p.UserAccountRoles.Count,
 				PermissionsCount = p.RolePermissions.Count,
 				CreatedAt = p.CreatedAt,

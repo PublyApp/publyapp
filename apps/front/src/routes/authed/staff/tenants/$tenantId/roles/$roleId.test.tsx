@@ -405,6 +405,9 @@ vi.mock('react-i18next', () => ({
 				members: 'Members',
 				system: 'System',
 				'system-role': 'System role',
+				'full-access': 'Full access',
+				'system-role-full-access-description':
+					'This system role grants every permission.',
 				'default-role-name': 'Default role',
 				'default-role-description': 'Default role with no permissions',
 				'open-tenant': 'Open tenant',
@@ -814,7 +817,9 @@ describe('staff tenant role details route', () => {
 		// A renamed default role keeps its own name (display-role.ts): only
 		// the untouched seeded copy is translated at render time.
 		expect(identity.textContent).toContain('Approvers');
-		expect(identity.textContent).toContain('System role');
+		// The type chip follows `isFullAccess`: a default role is not the
+		// protected system role.
+		expect(identity.textContent).toContain('Custom role');
 		expect(identity.textContent).toContain('Can review approvals');
 		expect(identity.textContent).toContain('7 members · 2 permissions');
 		// #1023 (review-ui-fidelity.md MINOR): the accessible-name assertion
@@ -997,6 +1002,20 @@ describe('staff tenant role details route', () => {
 		});
 	});
 
+	test('shows « Accès complet » and hides Edit for the full-access system role', () => {
+		mocks.toStaffTenantRoleDetails.mockReturnValue({
+			...nonDefaultRole,
+			isFullAccess: true,
+		});
+
+		renderPage();
+
+		const identity = screen.getByTestId('staff-tenant-role-identity');
+		expect(identity.textContent).toContain('System role');
+		expect(identity.textContent).toContain('Full access');
+		expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+	});
+
 	// The delete flow stays on the LAYOUT: the Overview body only asks for it
 	// (`onDeleteRequest`), which is what the mounted section child calls.
 	test('opens the delete confirmation from the section body request', async () => {
@@ -1036,6 +1055,27 @@ describe('staff tenant role details route', () => {
 
 		expect(screen.getByTestId('role-edit-details-drawer-open')).toBeTruthy();
 		expect(screen.queryByTestId('role-edit-drawer-open')).toBeNull();
+	});
+
+	// #2327: the full-access system role has no editable state, so `?edit=1`
+	// must not open the drawer — and the page canonicalizes the flag away
+	// (replace-navigating on the section path, so the section is preserved).
+	test('a ?edit=1 deep link on the full-access system role opens nothing and drops the param', () => {
+		mocks.toStaffTenantRoleDetails.mockReturnValue({
+			...nonDefaultRole,
+			isFullAccess: true,
+		});
+		mocks.search = { edit: 1 };
+
+		renderPage();
+
+		expect(screen.queryByTestId('role-edit-details-drawer-open')).toBeNull();
+		const navigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+			replace?: boolean;
+			search?: (previous: Record<string, unknown>) => Record<string, unknown>;
+		};
+		expect(navigation.replace).toBe(true);
+		expect(navigation.search?.({ edit: 1 })).toEqual({ edit: undefined });
 	});
 
 	test('confirms deletion, invalidates tenant role queries, and navigates back to the list', async () => {

@@ -71,6 +71,9 @@ vi.mock('react-i18next', () => ({
 				'permissions-saved-count_other': '{{count}} changes saved',
 				'permissions-failed-count_one': '{{count}} change failed',
 				'permissions-failed-count_other': '{{count}} changes failed',
+				'full-access': 'Full access',
+				'system-role-full-access-description':
+					'This system role grants every permission.',
 			};
 
 			const pluralKey =
@@ -1214,5 +1217,16 @@ describe('RolePermissionsTab', () => {
 				).disabled,
 			).toBe(true);
 		});
+	});
+
+	test('shows « Accès complet » instead of the matrix for the system role', () => {
+		renderTab({ isFullAccess: true });
+
+		expect(screen.getByTestId('role-full-access-note')).toBeTruthy();
+		expect(
+			screen.getByText('This system role grants every permission.'),
+		).toBeTruthy();
+		expect(screen.queryByTestId('permission-module-posts')).toBeNull();
+		expect(screen.queryByTestId('permissions-action-bar')).toBeNull();
 	});
 });

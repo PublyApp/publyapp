@@ -6983,7 +6983,7 @@
             }
           },
           {
-            "name": "is_default",
+            "name": "is_full_access",
             "in": "query",
             "schema": {
               "type": "string"
@@ -20056,6 +20056,9 @@
               "string"
             ]
           },
+          "isFullAccess": {
+            "type": "boolean"
+          },
           "userAccountCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
@@ -21014,6 +21017,9 @@
             ]
           },
           "isDefault": {
+            "type": "boolean"
+          },
+          "isFullAccess": {
             "type": "boolean"
           },
           "userAccountCount": {

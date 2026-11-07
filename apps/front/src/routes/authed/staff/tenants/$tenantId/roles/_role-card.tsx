@@ -66,23 +66,27 @@ export const RoleRowActions = ({
 			 * filters, cursor page, selection and scroll. Editing is a list-local
 			 * search-state change (`?edit=<roleId>`) that opens the same drawer
 			 * over the list. */}
-			<DropdownMenuItem
-				data-testid={`staff-tenant-role-edit-${role.id}`}
-				onClick={() => onEditRequest(role)}
-			>
-				<IconPencil className="size-[15px]" />
-				{t('edit')}
-			</DropdownMenuItem>
-			<DropdownMenuItem
-				variant="destructive"
-				disabled={role.isDefault}
-				title={role.isDefault ? t('default-role-delete-disabled') : undefined}
-				data-testid={`staff-tenant-role-delete-${role.id}`}
-				onClick={() => onDeleteRequest(role)}
-			>
-				<IconTrash className="size-[15px]" />
-				{t('delete')}
-			</DropdownMenuItem>
+			{role.isFullAccess ? null : (
+				<DropdownMenuItem
+					data-testid={`staff-tenant-role-edit-${role.id}`}
+					onClick={() => onEditRequest(role)}
+				>
+					<IconPencil className="size-[15px]" />
+					{t('edit')}
+				</DropdownMenuItem>
+			)}
+			{role.isFullAccess ? null : (
+				<DropdownMenuItem
+					variant="destructive"
+					disabled={role.isDefault}
+					title={role.isDefault ? t('default-role-delete-disabled') : undefined}
+					data-testid={`staff-tenant-role-delete-${role.id}`}
+					onClick={() => onDeleteRequest(role)}
+				>
+					<IconTrash className="size-[15px]" />
+					{t('delete')}
+				</DropdownMenuItem>
+			)}
 		</DataTableRowActions>
 	);
 };
@@ -162,8 +166,8 @@ export const RoleCard = ({
 					>
 						{roleName}
 					</Link>
-					<span className={tenantRoleTypeChipClassName(role.isDefault)}>
-						{role.isDefault ? t('system') : t('custom')}
+					<span className={tenantRoleTypeChipClassName(role.isFullAccess)}>
+						{role.isFullAccess ? t('system') : t('custom')}
 					</span>
 				</div>
 				<p

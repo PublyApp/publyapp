@@ -156,7 +156,7 @@ const StaffTenantRolesPage = () => {
 	const toolbarEnd = (
 		<div className="flex items-center gap-2">
 			<RoleTypeFilter
-				value={toStaffTenantRoleTypeFilterString(search.is_default)}
+				value={toStaffTenantRoleTypeFilterString(search.is_full_access)}
 				onChange={list.setTypeFilter}
 				testId={testId}
 				disabled={selection.isSelectionMode}

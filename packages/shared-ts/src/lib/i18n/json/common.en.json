@@ -1858,5 +1858,7 @@
 	"full-access": "Full access",
 	"staff-owner": "Staff Owner",
 	"standard-access": "No full access",
+	"system-role-full-access-description": "This system role grants every permission. It can't be edited or deleted.",
+	"bulk-delete-skips-system-role": "The system role can't be deleted — it was skipped.",
 	"invite-import-no-role-column": "That file has no \"roles\" column."
 }

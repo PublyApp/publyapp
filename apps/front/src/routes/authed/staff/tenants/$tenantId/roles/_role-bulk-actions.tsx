@@ -37,8 +37,11 @@ export const RoleBulkActions = ({
 	const bulkDeleteMutation = useBulkDeleteStaffTenantRolesMutation();
 
 	const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
+	// The system role is protected by the API; default roles are not deletable
+	// by product rule. Neither is sent, and the click below says so.
+	const systemRoleCount = selectedRows.filter((row) => row.isFullAccess).length;
 	const eligibleIds = selectedRows.flatMap((row) =>
-		row.isDefault ? [] : [row.id],
+		row.isDefault || row.isFullAccess ? [] : [row.id],
 	);
 	const selectedCount = selection.selectedCount;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
@@ -111,10 +114,17 @@ export const RoleBulkActions = ({
 				}
 				className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
 				onClick={() => {
-					if (eligibleIds.length === 0) {
+					if (systemRoleCount > 0) {
 						toastLocalMutationResult.warning(
-							t('bulk-delete-disabled-only-default-roles'),
+							t('bulk-delete-skips-system-role'),
 						);
+					}
+					if (eligibleIds.length === 0) {
+						if (systemRoleCount === 0) {
+							toastLocalMutationResult.warning(
+								t('bulk-delete-disabled-only-default-roles'),
+							);
+						}
 						return;
 					}
 					setIsDeleteDialogOpen(true);

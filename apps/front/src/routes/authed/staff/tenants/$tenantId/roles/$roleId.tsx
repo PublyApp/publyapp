@@ -1,6 +1,6 @@
 import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -86,6 +86,19 @@ const StaffTenantRoleDetailsPage = () => {
 		tenant,
 		tenantQuery,
 	} = details;
+
+	// The seeded full-access system role has no editable state. A `?edit=1`
+	// deep link is canonicalized away at the router boundary — replacing the
+	// current entry, so Back does not bounce through it — instead of opening
+	// a drawer the API would reject. The hook already keeps it shut until
+	// this runs.
+	const isSystemRole = role?.isFullAccess === true;
+	useEffect(() => {
+		if (!isSystemRole || search.edit !== 1) {
+			return;
+		}
+		applyEditFlag(details.activeSection, false);
+	}, [applyEditFlag, details.activeSection, isSystemRole, search.edit]);
 
 	if (details.shouldRedirectToLogout) {
 		return <LogoutRedirect />;

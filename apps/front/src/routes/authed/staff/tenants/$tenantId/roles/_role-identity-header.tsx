@@ -46,8 +46,8 @@ export const RoleIdentityHeader = ({
 						<h1 className="text-2xl font-semibold text-foreground">
 							{roleName}
 						</h1>
-						<span className={tenantRoleTypeChipClassName(role.isDefault)}>
-							{role.isDefault ? t('system-role') : t('custom-role')}
+						<span className={tenantRoleTypeChipClassName(role.isFullAccess)}>
+							{role.isFullAccess ? t('system-role') : t('custom-role')}
 						</span>
 					</div>
 					<p className="max-w-3xl text-sm text-muted-foreground">
@@ -58,9 +58,11 @@ export const RoleIdentityHeader = ({
 							count: role.userAccountCount,
 						})}
 						{' · '}
-						{t('common:tenant-permission-count', {
-							count: permissionCount,
-						})}
+						{role.isFullAccess
+							? t('common:full-access')
+							: t('common:tenant-permission-count', {
+									count: permissionCount,
+								})}
 						{updatedRelativeParts ? (
 							<>
 								{' · '}
@@ -76,10 +78,12 @@ export const RoleIdentityHeader = ({
 				</div>
 			</div>
 
-			<Button type="button" variant="outline" size="sm" onClick={onEdit}>
-				<IconPencil aria-hidden="true" className="size-4" />
-				{t('common:edit')}
-			</Button>
+			{role.isFullAccess ? null : (
+				<Button type="button" variant="outline" size="sm" onClick={onEdit}>
+					<IconPencil aria-hidden="true" className="size-4" />
+					{t('common:edit')}
+				</Button>
+			)}
 		</header>
 	);
 };

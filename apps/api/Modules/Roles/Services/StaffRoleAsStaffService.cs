@@ -226,6 +226,7 @@ public sealed class StaffRoleAsStaffService : IStaffRoleAsStaffService {
 			Description = role.Description,
 			Icon = role.Icon,
 			Tone = role.Tone,
+			IsFullAccess = role.IsFullAccess,
 			UserAccountCount = userAccountCount,
 		};
 

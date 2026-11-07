@@ -78,6 +78,8 @@ export type StaffRoleRow = {
 	name: string;
 	description: string | null;
 	userAccountCount: number | null;
+	/** The seeded full-access system role: shown as « Système », not editable. */
+	isFullAccess?: boolean;
 	icon: string;
 	iconTone: string;
 };
@@ -87,6 +89,8 @@ export type StaffRoleDetails = {
 	name: string;
 	description: string | null;
 	userAccountCount: number | null;
+	/** The seeded full-access system role: shown as « Système », not editable. */
+	isFullAccess?: boolean;
 	icon: string;
 	iconTone: string;
 };
@@ -199,6 +203,7 @@ export const toStaffRoleRows = (
 			name,
 			description: item.description ?? null,
 			userAccountCount: item.userAccountCount ?? null,
+			isFullAccess: item.isFullAccess === true,
 			...toRoleCardStyle(name, item.icon, item.tone),
 		});
 	}
@@ -225,6 +230,7 @@ export const toStaffRoleDetails = (
 		name,
 		description: role?.description ?? null,
 		userAccountCount: role?.userAccountCount ?? null,
+		isFullAccess: role?.isFullAccess === true,
 		...toRoleCardStyle(name, role?.icon, role?.tone),
 	};
 };

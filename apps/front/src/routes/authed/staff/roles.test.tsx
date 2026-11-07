@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
+import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
@@ -10,11 +11,27 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: (props: { children?: ReactNode }) => props.children ?? null,
 }));
 
-import { staffRoleColumns } from './_role-columns';
+import type { StaffRoleRow } from '~/lib/query/staff-roles';
+
+import { buildStaffRoleFilters, staffRoleColumns } from './_role-columns';
 
 const t = (key: string): string => key;
 
+const row = (isFullAccess: boolean): StaffRoleRow => ({
+	id: isFullAccess ? 'system' : 'custom',
+	name: isFullAccess ? 'Staff Owner' : 'Support',
+	description: null,
+	userAccountCount: 0,
+	isFullAccess,
+	icon: 'shield',
+	iconTone: '1',
+});
+
 describe('staff roles column grid', () => {
+	afterEach(() => {
+		cleanup();
+	});
+
 	test('uses the four designed columns in order', () => {
 		const columns = staffRoleColumns(t);
 		expect(columns.map((column) => column.id)).toEqual([
@@ -39,12 +56,28 @@ describe('staff roles column grid', () => {
 		});
 	});
 
-	test('renders Type as the custom pill: staff roles are never system', () => {
-		const columns = staffRoleColumns(t);
-		const typeColumn = columns.find((column) => column.id === 'type');
-		// Every staff role is « Personnalisé » (Role.ValidateRoleType
-		// forbids a default staff role), so the column carries a real value.
+	test('renders « Système » for the full-access role and « Personnalisé » otherwise', () => {
+		const typeColumn = staffRoleColumns(t).find(
+			(column) => column.id === 'type',
+		);
 		expect(typeColumn?.value).toBeDefined();
-		expect(typeColumn?.sortable).toBe(false);
+
+		const systemCell = typeColumn?.cell?.(row(true));
+		const { unmount } = render(systemCell);
+		expect(screen.getByText('list-role-type-system')).toBeTruthy();
+		unmount();
+
+		const customCell = typeColumn?.cell?.(row(false));
+		render(customCell);
+		expect(screen.getByText('list-role-type-custom')).toBeTruthy();
+	});
+
+	test('the Type filter classifies rows by isFullAccess', () => {
+		const typeFilter = buildStaffRoleFilters(t).find(
+			(filter) => filter.key === 'type',
+		);
+
+		expect(typeFilter?.valueOf?.(row(true))).toBe('system');
+		expect(typeFilter?.valueOf?.(row(false))).toBe('custom');
 	});
 });
