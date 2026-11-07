@@ -67,7 +67,7 @@ RUN pnpm --filter front build
 # design documented in docs/records/2026-07-29-spec-deployment-guide.md.
 RUN node -e "const fs=require('fs'),m=JSON.parse(fs.readFileSync('package.json','utf8'));delete m.scripts.prepare;fs.writeFileSync('package.json',JSON.stringify(m))"
 RUN pnpm --filter=front deploy --legacy --prod /workspace/deploy
-# `--prod` installs the production *install* closure, which is ~186 MB larger
+# `--prod` installs the production *install* closure, which is ~196 MB larger
 # than the production *runtime* closure: the TanStack Start plugin drags
 # vite/rolldown/esbuild/lightningcss in as peers, `typescript` arrives as an
 # optional peer of i18next, and `posthog-js` is browser-only. The prune step

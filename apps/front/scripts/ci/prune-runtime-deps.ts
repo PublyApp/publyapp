@@ -11,7 +11,11 @@
  * The closure is computed from the real entry points — `server.ts`,
  * `trust-proxy.ts` and every JS chunk under `dist/server` (lazy route chunks
  * included) — so a package is kept only when the bundle imports it, or when a
- * kept package depends on it. Anything unresolvable is kept, never pruned.
+ * kept package depends on it. Node builtins are not packages. A bare
+ * specifier that no package backs, or a closure that comes out empty (the
+ * scan stopped matching the emitted chunk syntax), fails the build: both mean
+ * the image would crash on startup, and a build error is cheaper to read than
+ * a runtime one.
  *
  * Also drops `*.map` from `dist`: Vite emits ~3 MB of source maps here, and
  * the runtime never reads them.
@@ -19,6 +23,7 @@
  * Usage: `node scripts/ci/prune-runtime-deps.ts [appDir]` (default: cwd).
  */
 import fs from 'node:fs';
+import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -87,7 +92,7 @@ for (const file of entryPoints) {
 		.readFileSync(file, 'utf8')
 		.matchAll(specifierPattern)) {
 		const specifier = match[1];
-		if (/^[./#]/.test(specifier) || specifier.startsWith('node:')) {
+		if (/^[./#]/.test(specifier) || isBuiltin(specifier)) {
 			continue;
 		}
 		const name = packageNameOf(specifier);
@@ -97,9 +102,17 @@ for (const file of entryPoints) {
 	}
 }
 
+/**
+ * The package entries of the virtual store. `.pnpm` also holds `lock.yaml`
+ * and `node_modules`, pnpm's hoisted resolution fallback — a directory of
+ * symlinks, not a package. Deleting it would change runtime resolution for
+ * every kept package that reaches a dependency through hoisting (an
+ * undeclared dep, a peer resolved from the workspace root), so it is never a
+ * prune candidate; its dangling links are dropped further down instead.
+ */
 const storeEntries = fs
 	.readdirSync(storeDir)
-	.filter((entry) => entry !== 'lock.yaml');
+	.filter((entry) => entry !== 'lock.yaml' && entry !== 'node_modules');
 
 /** `.pnpm/<entry>/node_modules/<pkg>` → `<entry>`. */
 const storeEntryOf = (dir: string): string | null => {
@@ -171,6 +184,25 @@ for (const name of roots) {
 	if (!found) {
 		unresolved.add(name);
 	}
+}
+
+// Both of these mean the image would boot and crash, or boot with nothing to
+// load. Fail the build while the log still says why, before deleting anything.
+if (unresolved.size > 0) {
+	console.error(
+		`[prune] ${unresolved.size} root import(s) from the server bundle resolve ` +
+			`to no package: ${[...unresolved].sort().join(' ')}. The server would ` +
+			'crash importing them. Refusing to prune.',
+	);
+	process.exit(1);
+}
+if (roots.size === 0 || kept.size === 0) {
+	console.error(
+		`[prune] found ${roots.size} root import(s) and kept ${kept.size} package(s): ` +
+			'the bundle scan matched nothing usable. Refusing to ship an empty ' +
+			'node_modules.',
+	);
+	process.exit(1);
 }
 
 const sizeOf = (dir: string): number => {
@@ -279,8 +311,3 @@ console.log(
 		`keptSize=${megabytes(keptBytes)}MB removedSize=${megabytes(removedBytes)}MB ` +
 		`sourceMaps=${megabytes(mapBytes)}MB`,
 );
-if (unresolved.size > 0) {
-	console.log(
-		`[prune] unresolved roots left untouched: ${[...unresolved].join(' ')}`,
-	);
-}
