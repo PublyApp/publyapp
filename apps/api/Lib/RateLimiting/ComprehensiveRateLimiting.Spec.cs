@@ -18,7 +18,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Auth.Services;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -191,7 +191,7 @@ public sealed class ComprehensiveRateLimitingSpec
 
 	[Fact]
 	public async Task
-	ItShouldCountEveryStaffProfileInvitationRecipient() {
+	ItShouldCountEveryStaffRoleInvitationRecipient() {
 		await using var factory = this._CreateFactory(
 			emailPermitLimit: 2
 		);
@@ -200,7 +200,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			.LoginAsStaffAdminAsync();
 
 		using var weightedResponse =
-			await ComprehensiveRateLimitingSpec._SendStaffProfileCreateAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffRoleCreateAsync(
 				client,
 				token,
 				[
@@ -209,7 +209,7 @@ public sealed class ComprehensiveRateLimitingSpec
 				]
 			);
 		using var rejectedResponse =
-			await ComprehensiveRateLimitingSpec._SendStaffProfileCreateAsync(
+			await ComprehensiveRateLimitingSpec._SendStaffRoleCreateAsync(
 				client,
 				token,
 				[]
@@ -270,7 +270,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
-		var profileId = await ComprehensiveRateLimitingSpec._GetStaffProfileIdAsync(
+		var roleId = await ComprehensiveRateLimitingSpec._GetStaffRoleIdAsync(
 			factory
 		);
 
@@ -278,7 +278,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			await ComprehensiveRateLimitingSpec._SendStaffBulkInvitationsAsync(
 				client,
 				token,
-				profileId,
+				roleId,
 				[
 					$"weighted-staff-a-{Guid.NewGuid():N}"
 						+ "@example.com",
@@ -290,7 +290,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			await ComprehensiveRateLimitingSpec._SendStaffBulkInvitationsAsync(
 				client,
 				token,
-				profileId,
+				roleId,
 				[
 					$"weighted-staff-c-{Guid.NewGuid():N}"
 						+ "@example.com",
@@ -343,7 +343,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		using var client = ComprehensiveRateLimitingSpec._CreateClient(factory);
 		var token = await new TestAuthClient(client)
 			.LoginAsStaffAdminAsync();
-		var profileId = await ComprehensiveRateLimitingSpec._GetStaffProfileIdAsync(
+		var roleId = await ComprehensiveRateLimitingSpec._GetStaffRoleIdAsync(
 			factory
 		);
 		var emails = new[] {
@@ -355,7 +355,7 @@ public sealed class ComprehensiveRateLimitingSpec
 			await ComprehensiveRateLimitingSpec._SendStaffBulkInvitationsAsync(
 				client,
 				token,
-				profileId,
+				roleId,
 				emails
 			);
 
@@ -1066,7 +1066,7 @@ public sealed class ComprehensiveRateLimitingSpec
 	}
 
 	private static async Task<HttpResponseMessage>
-		_SendStaffProfileCreateAsync(
+		_SendStaffRoleCreateAsync(
 			HttpClient client,
 			string token,
 			IReadOnlyList<string> emails
@@ -1075,15 +1075,15 @@ public sealed class ComprehensiveRateLimitingSpec
 			HttpMethod.Post,
 			PathUtils.Join(
 				AppRoutes.Staff.Root,
-				AppRoutes.Profiles.ForStaff.Root,
-				AppRoutes.Profiles.ForStaff.Create
+				AppRoutes.Roles.ForStaff.Root,
+				AppRoutes.Roles.ForStaff.Create
 			)
 		) {
 			Content = JsonContent.Create(new {
-				name = $"Weighted Profile {Guid.NewGuid():N}",
+				name = $"Weighted Role {Guid.NewGuid():N}",
 				description = (string?)null,
 				permissions = new[] {
-					AppPermissions.Staff.Profiles
+					AppPermissions.Staff.Roles
 						.GET_FOR_STAFF.Key,
 				},
 				emails,
@@ -1093,32 +1093,32 @@ public sealed class ComprehensiveRateLimitingSpec
 	}
 
 	private static async Task<Guid>
-		_GetStaffProfileIdAsync(
+		_GetStaffRoleIdAsync(
 			WebApplicationFactory<Program> factory
 		) {
 		await using var scope =
 			factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
-		var profile = await dbContext.Profile
+		var role = await dbContext.Role
 			.FirstAsync(candidate =>
-				candidate.Scope == ProfileScope.Staff
+				candidate.Scope == RoleScope.Staff
 			);
-		return profile.GetRequiredId();
+		return role.GetRequiredId();
 	}
 
 	private static async Task<HttpResponseMessage>
 		_SendStaffBulkInvitationsAsync(
 			HttpClient client,
 			string token,
-			Guid profileId,
+			Guid roleId,
 			IReadOnlyList<string> emails
 		) {
 		var invitations = emails
 			.Select(email => new {
 				email,
-				profileIds = new[] {
-					profileId,
+				roleIds = new[] {
+					roleId,
 				},
 			})
 			.ToArray();
@@ -1259,7 +1259,7 @@ public sealed class ComprehensiveRateLimitingSpec
 				email =
 					$"weighted-tenant-{Guid.NewGuid():N}"
 					+ "@example.com",
-				profileIds = Array.Empty<string>(),
+				roleIds = Array.Empty<string>(),
 			})
 			.ToArray();
 		using var request = new HttpRequestMessage(

@@ -617,19 +617,19 @@ const runCases = (rule, label) => {
 					errors: [{ messageId: 'preferQueryDisplay' }],
 				},
 				// Render prop with a block body computing state from the query
-				// (_invite-profile-select.tsx shape).
+				// (_invite-role-select.tsx shape).
 				{
 					code: [
 						'const Foo = () => {',
-						'  const profilesQuery = useStaffProfilesQuery();',
+						'  const rolesQuery = useStaffRolesQuery();',
 						'  return (',
 						'    <Controller',
-						'      name="profiles"',
+						'      name="roles"',
 						'      control={control}',
 						'      render={({ field }) => {',
-						'        const triggerLabel = profilesQuery.isPending',
-						'          ? t("loading-profiles")',
-						'          : t("select-profiles");',
+						'        const triggerLabel = rolesQuery.isPending',
+						'          ? t("loading-roles")',
+						'          : t("select-roles");',
 						'        return <span>{triggerLabel}</span>;',
 						'      }}',
 						'    />',

@@ -24,7 +24,8 @@ import { Route as authedStaffAuditLogsRouteImport } from './routes/authed/staff/
 import { Route as authedStaffDashboardRouteImport } from './routes/authed/staff/dashboard'
 import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
 import { Route as authedStaffJobsRouteImport } from './routes/authed/staff/jobs'
-import { Route as authedStaffProfilesRouteImport } from './routes/authed/staff/profiles'
+import { Route as authedStaffLegacyProfileRedirectsStaffProfilesRouteImport } from './routes/authed/staff/_legacy-profile-redirects/staff-profiles'
+import { Route as authedStaffRolesRouteImport } from './routes/authed/staff/roles'
 import { Route as authedStaffStaffUsersRouteImport } from './routes/authed/staff/staff-users'
 import { Route as authedStaffTenantsRouteImport } from './routes/authed/staff/tenants'
 import { Route as authedTenantAccountRouteImport } from './routes/authed/tenant/account'
@@ -40,8 +41,9 @@ import { Route as authedStaffInvitationsNewRouteImport } from './routes/authed/s
 import { Route as authedStaffJobsQueueRouteImport } from './routes/authed/staff/jobs/queue'
 import { Route as authedStaffJobsDeadLetterRouteImport } from './routes/authed/staff/jobs/dead-letter'
 import { Route as authedStaffJobsSystemJobsRouteImport } from './routes/authed/staff/jobs/system-jobs'
-import { Route as authedStaffProfilesProfileIdRouteImport } from './routes/authed/staff/profiles/$profileId'
-import { Route as authedStaffProfilesNewRouteImport } from './routes/authed/staff/profiles-new'
+import { Route as authedStaffLegacyProfileRedirectsStaffProfilesSplatRouteImport } from './routes/authed/staff/_legacy-profile-redirects/staff-profiles-splat'
+import { Route as authedStaffRolesRoleIdRouteImport } from './routes/authed/staff/roles/$roleId'
+import { Route as authedStaffRolesNewRouteImport } from './routes/authed/staff/roles-new'
 import { Route as authedStaffStaffUsersUserIdRouteImport } from './routes/authed/staff/staff-users/$userId'
 import { Route as authedStaffTenantsTenantIdRouteImport } from './routes/authed/staff/tenants/$tenantId'
 import { Route as authedStaffTenantsNewRouteImport } from './routes/authed/staff/tenants-new'
@@ -59,7 +61,7 @@ import { Route as authedTenantSettingsMembersRouteImport } from './routes/authed
 import { Route as authedTenantSettingsRolesRouteImport } from './routes/authed/tenant/settings/roles'
 import { Route as authedTenantSettingsSecurityRouteImport } from './routes/authed/tenant/settings/security'
 import { Route as authedTenantSettingsWorkspacesRouteImport } from './routes/authed/tenant/settings/workspaces'
-import { Route as authedStaffProfilesProfileIdUsersRouteImport } from './routes/authed/staff/profiles/$profileId/users'
+import { Route as authedStaffRolesRoleIdUsersRouteImport } from './routes/authed/staff/roles/$roleId/users'
 import { Route as authedStaffStaffUsersUserIdIndexRouteImport } from './routes/authed/staff/staff-users/$userId/index'
 import { Route as authedStaffStaffUsersUserIdActivityRouteImport } from './routes/authed/staff/staff-users/$userId/activity'
 import { Route as authedStaffStaffUsersUserIdEditRouteImport } from './routes/authed/staff/staff-users/$userId-edit'
@@ -69,22 +71,24 @@ import { Route as authedStaffTenantUsersDetailsUserIdRouteImport } from './route
 import { Route as authedStaffTenantsTenantIdActivityRouteImport } from './routes/authed/staff/tenants/$tenantId/activity'
 import { Route as authedStaffTenantsTenantIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId-edit'
 import { Route as authedStaffTenantsTenantIdInvitationsRouteImport } from './routes/authed/staff/tenants/$tenantId/invitations'
-import { Route as authedStaffTenantsTenantIdProfilesRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles'
+import { Route as authedStaffLegacyProfileRedirectsTenantProfilesRouteImport } from './routes/authed/staff/_legacy-profile-redirects/tenant-profiles'
+import { Route as authedStaffTenantsTenantIdRolesRouteImport } from './routes/authed/staff/tenants/$tenantId/roles'
 import { Route as authedStaffTenantsTenantIdUsageRouteImport } from './routes/authed/staff/tenants/$tenantId/usage'
 import { Route as authedStaffTenantsTenantIdUsersRouteImport } from './routes/authed/staff/tenants/$tenantId/users'
 import { Route as authedTenantPostsPostIdEditRouteImport } from './routes/authed/tenant/posts/$postId/edit'
 import { Route as authedStaffTenantUserDetailsTabFallbackRouteImport } from './routes/authed/staff/_tenant-user-details-tab-fallback'
 import { Route as authedStaffTenantUsersUserIdGeneralRouteImport } from './routes/authed/staff/tenant-users/$userId-general'
 import { Route as authedStaffTenantUsersUserIdOrganizationsRouteImport } from './routes/authed/staff/tenant-users/$userId-organizations'
-import { Route as authedStaffTenantsTenantIdProfilesProfileIdRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId'
-import { Route as authedStaffTenantsTenantIdProfilesNewRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles-new'
+import { Route as authedStaffLegacyProfileRedirectsTenantProfilesSplatRouteImport } from './routes/authed/staff/_legacy-profile-redirects/tenant-profiles-splat'
+import { Route as authedStaffTenantsTenantIdRolesRoleIdRouteImport } from './routes/authed/staff/tenants/$tenantId/roles/$roleId'
+import { Route as authedStaffTenantsTenantIdRolesNewRouteImport } from './routes/authed/staff/tenants/$tenantId/roles-new'
 import { Route as authedStaffTenantsTenantIdUsersUserIdRouteImport } from './routes/authed/staff/tenants/$tenantId/users/$userId'
 import { Route as authedStaffTenantsTenantIdUsersInviteRouteImport } from './routes/authed/staff/tenants/$tenantId/users-invite'
-import { Route as authedStaffTenantsTenantIdProfilesProfileIdIndexRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId/index'
-import { Route as authedStaffTenantsTenantIdProfilesProfileIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId-edit'
-import { Route as authedStaffTenantsTenantIdProfilesProfileIdMembersRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId/members'
-import { Route as authedStaffTenantsTenantIdProfilesProfileIdPermissionsRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId/permissions'
-import { Route as authedStaffTenantsTenantIdProfilesProfileIdUsersRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId/users'
+import { Route as authedStaffTenantsTenantIdRolesRoleIdIndexRouteImport } from './routes/authed/staff/tenants/$tenantId/roles/$roleId/index'
+import { Route as authedStaffTenantsTenantIdRolesRoleIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId/roles/$roleId-edit'
+import { Route as authedStaffTenantsTenantIdRolesRoleIdMembersRouteImport } from './routes/authed/staff/tenants/$tenantId/roles/$roleId/members'
+import { Route as authedStaffTenantsTenantIdRolesRoleIdPermissionsRouteImport } from './routes/authed/staff/tenants/$tenantId/roles/$roleId/permissions'
+import { Route as authedStaffTenantsTenantIdRolesRoleIdUsersRouteImport } from './routes/authed/staff/tenants/$tenantId/roles/$roleId/users'
 import { Route as authedStaffTenantsTenantIdUsersUserIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId/users/$userId-edit'
 
 const indexRoute = indexRouteImport.update({
@@ -162,9 +166,15 @@ const authedStaffJobsRoute = authedStaffJobsRouteImport.update({
   path: '/staff/jobs',
   getParentRoute: () => authedLayoutRoute,
 } as any)
-const authedStaffProfilesRoute = authedStaffProfilesRouteImport.update({
-  id: '/staff/profiles',
-  path: '/staff/profiles',
+const authedStaffLegacyProfileRedirectsStaffProfilesRoute =
+  authedStaffLegacyProfileRedirectsStaffProfilesRouteImport.update({
+    id: '/staff/profiles',
+    path: '/staff/profiles',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffRolesRoute = authedStaffRolesRouteImport.update({
+  id: '/staff/roles',
+  path: '/staff/roles',
   getParentRoute: () => authedLayoutRoute,
 } as any)
 const authedStaffStaffUsersRoute = authedStaffStaffUsersRouteImport.update({
@@ -251,15 +261,20 @@ const authedStaffJobsSystemJobsRoute =
     path: '/system-jobs',
     getParentRoute: () => authedStaffJobsRoute,
   } as any)
-const authedStaffProfilesProfileIdRoute =
-  authedStaffProfilesProfileIdRouteImport.update({
-    id: '/staff/profiles/$profileId',
-    path: '/staff/profiles/$profileId',
+const authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute =
+  authedStaffLegacyProfileRedirectsStaffProfilesSplatRouteImport.update({
+    id: '/staff/profiles/$',
+    path: '/staff/profiles/$',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffProfilesNewRoute = authedStaffProfilesNewRouteImport.update({
-  id: '/staff/profiles/new',
-  path: '/staff/profiles/new',
+const authedStaffRolesRoleIdRoute = authedStaffRolesRoleIdRouteImport.update({
+  id: '/staff/roles/$roleId',
+  path: '/staff/roles/$roleId',
+  getParentRoute: () => authedLayoutRoute,
+} as any)
+const authedStaffRolesNewRoute = authedStaffRolesNewRouteImport.update({
+  id: '/staff/roles/new',
+  path: '/staff/roles/new',
   getParentRoute: () => authedLayoutRoute,
 } as any)
 const authedStaffStaffUsersUserIdRoute =
@@ -361,10 +376,10 @@ const authedTenantSettingsWorkspacesRoute =
     path: '/workspaces',
     getParentRoute: () => authedTenantSettingsRoute,
   } as any)
-const authedStaffProfilesProfileIdUsersRoute =
-  authedStaffProfilesProfileIdUsersRouteImport.update({
-    id: '/staff/profiles/$profileId/users',
-    path: '/staff/profiles/$profileId/users',
+const authedStaffRolesRoleIdUsersRoute =
+  authedStaffRolesRoleIdUsersRouteImport.update({
+    id: '/staff/roles/$roleId/users',
+    path: '/staff/roles/$roleId/users',
     getParentRoute: () => authedLayoutRoute,
   } as any)
 const authedStaffStaffUsersUserIdIndexRoute =
@@ -421,10 +436,16 @@ const authedStaffTenantsTenantIdInvitationsRoute =
     path: '/staff/tenants/$tenantId/invitations',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesRoute =
-  authedStaffTenantsTenantIdProfilesRouteImport.update({
+const authedStaffLegacyProfileRedirectsTenantProfilesRoute =
+  authedStaffLegacyProfileRedirectsTenantProfilesRouteImport.update({
     id: '/staff/tenants/$tenantId/profiles',
     path: '/staff/tenants/$tenantId/profiles',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffTenantsTenantIdRolesRoute =
+  authedStaffTenantsTenantIdRolesRouteImport.update({
+    id: '/staff/tenants/$tenantId/roles',
+    path: '/staff/tenants/$tenantId/roles',
     getParentRoute: () => authedLayoutRoute,
   } as any)
 const authedStaffTenantsTenantIdUsageRoute =
@@ -463,16 +484,22 @@ const authedStaffTenantUsersUserIdOrganizationsRoute =
     path: '/staff/tenant-users/details/$userId/organizations',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesProfileIdRoute =
-  authedStaffTenantsTenantIdProfilesProfileIdRouteImport.update({
-    id: '/staff/tenants/$tenantId/profiles/$profileId',
-    path: '/staff/tenants/$tenantId/profiles/$profileId',
+const authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute =
+  authedStaffLegacyProfileRedirectsTenantProfilesSplatRouteImport.update({
+    id: '/staff/tenants/$tenantId/profiles/$',
+    path: '/staff/tenants/$tenantId/profiles/$',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesNewRoute =
-  authedStaffTenantsTenantIdProfilesNewRouteImport.update({
-    id: '/staff/tenants/$tenantId/profiles/new',
-    path: '/staff/tenants/$tenantId/profiles/new',
+const authedStaffTenantsTenantIdRolesRoleIdRoute =
+  authedStaffTenantsTenantIdRolesRoleIdRouteImport.update({
+    id: '/staff/tenants/$tenantId/roles/$roleId',
+    path: '/staff/tenants/$tenantId/roles/$roleId',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffTenantsTenantIdRolesNewRoute =
+  authedStaffTenantsTenantIdRolesNewRouteImport.update({
+    id: '/staff/tenants/$tenantId/roles/new',
+    path: '/staff/tenants/$tenantId/roles/new',
     getParentRoute: () => authedLayoutRoute,
   } as any)
 const authedStaffTenantsTenantIdUsersUserIdRoute =
@@ -487,34 +514,34 @@ const authedStaffTenantsTenantIdUsersInviteRoute =
     path: '/staff/tenants/$tenantId/users/invite',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesProfileIdIndexRoute =
-  authedStaffTenantsTenantIdProfilesProfileIdIndexRouteImport.update({
+const authedStaffTenantsTenantIdRolesRoleIdIndexRoute =
+  authedStaffTenantsTenantIdRolesRoleIdIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => authedStaffTenantsTenantIdProfilesProfileIdRoute,
+    getParentRoute: () => authedStaffTenantsTenantIdRolesRoleIdRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesProfileIdEditRoute =
-  authedStaffTenantsTenantIdProfilesProfileIdEditRouteImport.update({
-    id: '/staff/tenants/$tenantId/profiles/$profileId/edit',
-    path: '/staff/tenants/$tenantId/profiles/$profileId/edit',
+const authedStaffTenantsTenantIdRolesRoleIdEditRoute =
+  authedStaffTenantsTenantIdRolesRoleIdEditRouteImport.update({
+    id: '/staff/tenants/$tenantId/roles/$roleId/edit',
+    path: '/staff/tenants/$tenantId/roles/$roleId/edit',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesProfileIdMembersRoute =
-  authedStaffTenantsTenantIdProfilesProfileIdMembersRouteImport.update({
+const authedStaffTenantsTenantIdRolesRoleIdMembersRoute =
+  authedStaffTenantsTenantIdRolesRoleIdMembersRouteImport.update({
     id: '/members',
     path: '/members',
-    getParentRoute: () => authedStaffTenantsTenantIdProfilesProfileIdRoute,
+    getParentRoute: () => authedStaffTenantsTenantIdRolesRoleIdRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute =
-  authedStaffTenantsTenantIdProfilesProfileIdPermissionsRouteImport.update({
+const authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute =
+  authedStaffTenantsTenantIdRolesRoleIdPermissionsRouteImport.update({
     id: '/permissions',
     path: '/permissions',
-    getParentRoute: () => authedStaffTenantsTenantIdProfilesProfileIdRoute,
+    getParentRoute: () => authedStaffTenantsTenantIdRolesRoleIdRoute,
   } as any)
-const authedStaffTenantsTenantIdProfilesProfileIdUsersRoute =
-  authedStaffTenantsTenantIdProfilesProfileIdUsersRouteImport.update({
-    id: '/staff/tenants/$tenantId/profiles/$profileId/users',
-    path: '/staff/tenants/$tenantId/profiles/$profileId/users',
+const authedStaffTenantsTenantIdRolesRoleIdUsersRoute =
+  authedStaffTenantsTenantIdRolesRoleIdUsersRouteImport.update({
+    id: '/staff/tenants/$tenantId/roles/$roleId/users',
+    path: '/staff/tenants/$tenantId/roles/$roleId/users',
     getParentRoute: () => authedLayoutRoute,
   } as any)
 const authedStaffTenantsTenantIdUsersUserIdEditRoute =
@@ -538,7 +565,8 @@ export interface FileRoutesByFullPath {
   '/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
   '/staff/jobs': typeof authedStaffJobsRouteWithChildren
-  '/staff/profiles': typeof authedStaffProfilesRoute
+  '/staff/profiles': typeof authedStaffLegacyProfileRedirectsStaffProfilesRoute
+  '/staff/roles': typeof authedStaffRolesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
   '/tenant/account': typeof authedTenantAccountRouteWithChildren
@@ -557,8 +585,9 @@ export interface FileRoutesByFullPath {
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/jobs/dead-letter': typeof authedStaffJobsDeadLetterRoute
   '/staff/jobs/system-jobs': typeof authedStaffJobsSystemJobsRoute
-  '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
-  '/staff/profiles/new': typeof authedStaffProfilesNewRoute
+  '/staff/profiles/$': typeof authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute
+  '/staff/roles/$roleId': typeof authedStaffRolesRoleIdRoute
+  '/staff/roles/new': typeof authedStaffRolesNewRoute
   '/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRouteWithChildren
   '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
   '/staff/tenants/new': typeof authedStaffTenantsNewRoute
@@ -574,7 +603,7 @@ export interface FileRoutesByFullPath {
   '/tenant/settings/security': typeof authedTenantSettingsSecurityRoute
   '/tenant/settings/workspaces': typeof authedTenantSettingsWorkspacesRoute
   '/staff/dashboard/': typeof authedStaffDashboardIndexRoute
-  '/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
+  '/staff/roles/$roleId/users': typeof authedStaffRolesRoleIdUsersRoute
   '/staff/staff-users/$userId/activity': typeof authedStaffStaffUsersUserIdActivityRoute
   '/staff/staff-users/$userId/edit': typeof authedStaffStaffUsersUserIdEditRoute
   '/staff/staff-users/$userId/permissions': typeof authedStaffStaffUsersUserIdPermissionsRoute
@@ -583,7 +612,8 @@ export interface FileRoutesByFullPath {
   '/staff/tenants/$tenantId/activity': typeof authedStaffTenantsTenantIdActivityRoute
   '/staff/tenants/$tenantId/edit': typeof authedStaffTenantsTenantIdEditRoute
   '/staff/tenants/$tenantId/invitations': typeof authedStaffTenantsTenantIdInvitationsRoute
-  '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
+  '/staff/tenants/$tenantId/profiles': typeof authedStaffLegacyProfileRedirectsTenantProfilesRoute
+  '/staff/tenants/$tenantId/roles': typeof authedStaffTenantsTenantIdRolesRoute
   '/staff/tenants/$tenantId/usage': typeof authedStaffTenantsTenantIdUsageRoute
   '/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
   '/tenant/posts/$postId/edit': typeof authedTenantPostsPostIdEditRoute
@@ -591,16 +621,17 @@ export interface FileRoutesByFullPath {
   '/staff/tenant-users/details/$userId/$tab': typeof authedStaffTenantUserDetailsTabFallbackRoute
   '/staff/tenant-users/details/$userId/general': typeof authedStaffTenantUsersUserIdGeneralRoute
   '/staff/tenant-users/details/$userId/organizations': typeof authedStaffTenantUsersUserIdOrganizationsRoute
-  '/staff/tenants/$tenantId/profiles/$profileId': typeof authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren
-  '/staff/tenants/$tenantId/profiles/new': typeof authedStaffTenantsTenantIdProfilesNewRoute
+  '/staff/tenants/$tenantId/profiles/$': typeof authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute
+  '/staff/tenants/$tenantId/roles/$roleId': typeof authedStaffTenantsTenantIdRolesRoleIdRouteWithChildren
+  '/staff/tenants/$tenantId/roles/new': typeof authedStaffTenantsTenantIdRolesNewRoute
   '/staff/tenants/$tenantId/users/$userId': typeof authedStaffTenantsTenantIdUsersUserIdRoute
   '/staff/tenants/$tenantId/users/invite': typeof authedStaffTenantsTenantIdUsersInviteRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/edit': typeof authedStaffTenantsTenantIdProfilesProfileIdEditRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/members': typeof authedStaffTenantsTenantIdProfilesProfileIdMembersRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/permissions': typeof authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/users': typeof authedStaffTenantsTenantIdProfilesProfileIdUsersRoute
+  '/staff/tenants/$tenantId/roles/$roleId/edit': typeof authedStaffTenantsTenantIdRolesRoleIdEditRoute
+  '/staff/tenants/$tenantId/roles/$roleId/members': typeof authedStaffTenantsTenantIdRolesRoleIdMembersRoute
+  '/staff/tenants/$tenantId/roles/$roleId/permissions': typeof authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute
+  '/staff/tenants/$tenantId/roles/$roleId/users': typeof authedStaffTenantsTenantIdRolesRoleIdUsersRoute
   '/staff/tenants/$tenantId/users/$userId/edit': typeof authedStaffTenantsTenantIdUsersUserIdEditRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/': typeof authedStaffTenantsTenantIdProfilesProfileIdIndexRoute
+  '/staff/tenants/$tenantId/roles/$roleId/': typeof authedStaffTenantsTenantIdRolesRoleIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
@@ -614,7 +645,8 @@ export interface FileRoutesByTo {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRouteWithChildren
   '/staff/audit-logs': typeof authedStaffAuditLogsRoute
-  '/staff/profiles': typeof authedStaffProfilesRoute
+  '/staff/profiles': typeof authedStaffLegacyProfileRedirectsStaffProfilesRoute
+  '/staff/roles': typeof authedStaffRolesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
   '/tenant/organizations': typeof authedTenantOrganizationsRoute
@@ -630,8 +662,9 @@ export interface FileRoutesByTo {
   '/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/staff/jobs/dead-letter': typeof authedStaffJobsDeadLetterRoute
   '/staff/jobs/system-jobs': typeof authedStaffJobsSystemJobsRoute
-  '/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
-  '/staff/profiles/new': typeof authedStaffProfilesNewRoute
+  '/staff/profiles/$': typeof authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute
+  '/staff/roles/$roleId': typeof authedStaffRolesRoleIdRoute
+  '/staff/roles/new': typeof authedStaffRolesNewRoute
   '/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
   '/staff/tenants/new': typeof authedStaffTenantsNewRoute
   '/tenant/account/notifications': typeof authedTenantAccountNotificationsRoute
@@ -646,7 +679,7 @@ export interface FileRoutesByTo {
   '/tenant/settings/security': typeof authedTenantSettingsSecurityRoute
   '/tenant/settings/workspaces': typeof authedTenantSettingsWorkspacesRoute
   '/staff/dashboard': typeof authedStaffDashboardIndexRoute
-  '/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
+  '/staff/roles/$roleId/users': typeof authedStaffRolesRoleIdUsersRoute
   '/staff/staff-users/$userId/activity': typeof authedStaffStaffUsersUserIdActivityRoute
   '/staff/staff-users/$userId/edit': typeof authedStaffStaffUsersUserIdEditRoute
   '/staff/staff-users/$userId/permissions': typeof authedStaffStaffUsersUserIdPermissionsRoute
@@ -655,7 +688,8 @@ export interface FileRoutesByTo {
   '/staff/tenants/$tenantId/activity': typeof authedStaffTenantsTenantIdActivityRoute
   '/staff/tenants/$tenantId/edit': typeof authedStaffTenantsTenantIdEditRoute
   '/staff/tenants/$tenantId/invitations': typeof authedStaffTenantsTenantIdInvitationsRoute
-  '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
+  '/staff/tenants/$tenantId/profiles': typeof authedStaffLegacyProfileRedirectsTenantProfilesRoute
+  '/staff/tenants/$tenantId/roles': typeof authedStaffTenantsTenantIdRolesRoute
   '/staff/tenants/$tenantId/usage': typeof authedStaffTenantsTenantIdUsageRoute
   '/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
   '/tenant/posts/$postId/edit': typeof authedTenantPostsPostIdEditRoute
@@ -663,15 +697,16 @@ export interface FileRoutesByTo {
   '/staff/tenant-users/details/$userId/$tab': typeof authedStaffTenantUserDetailsTabFallbackRoute
   '/staff/tenant-users/details/$userId/general': typeof authedStaffTenantUsersUserIdGeneralRoute
   '/staff/tenant-users/details/$userId/organizations': typeof authedStaffTenantUsersUserIdOrganizationsRoute
-  '/staff/tenants/$tenantId/profiles/new': typeof authedStaffTenantsTenantIdProfilesNewRoute
+  '/staff/tenants/$tenantId/profiles/$': typeof authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute
+  '/staff/tenants/$tenantId/roles/new': typeof authedStaffTenantsTenantIdRolesNewRoute
   '/staff/tenants/$tenantId/users/$userId': typeof authedStaffTenantsTenantIdUsersUserIdRoute
   '/staff/tenants/$tenantId/users/invite': typeof authedStaffTenantsTenantIdUsersInviteRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/edit': typeof authedStaffTenantsTenantIdProfilesProfileIdEditRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/members': typeof authedStaffTenantsTenantIdProfilesProfileIdMembersRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/permissions': typeof authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute
-  '/staff/tenants/$tenantId/profiles/$profileId/users': typeof authedStaffTenantsTenantIdProfilesProfileIdUsersRoute
+  '/staff/tenants/$tenantId/roles/$roleId/edit': typeof authedStaffTenantsTenantIdRolesRoleIdEditRoute
+  '/staff/tenants/$tenantId/roles/$roleId/members': typeof authedStaffTenantsTenantIdRolesRoleIdMembersRoute
+  '/staff/tenants/$tenantId/roles/$roleId/permissions': typeof authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute
+  '/staff/tenants/$tenantId/roles/$roleId/users': typeof authedStaffTenantsTenantIdRolesRoleIdUsersRoute
   '/staff/tenants/$tenantId/users/$userId/edit': typeof authedStaffTenantsTenantIdUsersUserIdEditRoute
-  '/staff/tenants/$tenantId/profiles/$profileId': typeof authedStaffTenantsTenantIdProfilesProfileIdIndexRoute
+  '/staff/tenants/$tenantId/roles/$roleId': typeof authedStaffTenantsTenantIdRolesRoleIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -689,7 +724,8 @@ export interface FileRoutesById {
   '/_authed-layout/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/_authed-layout/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
   '/_authed-layout/staff/jobs': typeof authedStaffJobsRouteWithChildren
-  '/_authed-layout/staff/profiles': typeof authedStaffProfilesRoute
+  '/_authed-layout/staff/profiles': typeof authedStaffLegacyProfileRedirectsStaffProfilesRoute
+  '/_authed-layout/staff/roles': typeof authedStaffRolesRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/_authed-layout/staff/tenants': typeof authedStaffTenantsRoute
   '/_authed-layout/tenant/account': typeof authedTenantAccountRouteWithChildren
@@ -708,8 +744,9 @@ export interface FileRoutesById {
   '/_authed-layout/staff/invitations/new': typeof authedStaffInvitationsNewRoute
   '/_authed-layout/staff/jobs/dead-letter': typeof authedStaffJobsDeadLetterRoute
   '/_authed-layout/staff/jobs/system-jobs': typeof authedStaffJobsSystemJobsRoute
-  '/_authed-layout/staff/profiles/$profileId': typeof authedStaffProfilesProfileIdRoute
-  '/_authed-layout/staff/profiles/new': typeof authedStaffProfilesNewRoute
+  '/_authed-layout/staff/profiles/$': typeof authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute
+  '/_authed-layout/staff/roles/$roleId': typeof authedStaffRolesRoleIdRoute
+  '/_authed-layout/staff/roles/new': typeof authedStaffRolesNewRoute
   '/_authed-layout/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdRouteWithChildren
   '/_authed-layout/staff/tenants/$tenantId': typeof authedStaffTenantsTenantIdRoute
   '/_authed-layout/staff/tenants/new': typeof authedStaffTenantsNewRoute
@@ -725,7 +762,7 @@ export interface FileRoutesById {
   '/_authed-layout/tenant/settings/security': typeof authedTenantSettingsSecurityRoute
   '/_authed-layout/tenant/settings/workspaces': typeof authedTenantSettingsWorkspacesRoute
   '/_authed-layout/staff/dashboard/': typeof authedStaffDashboardIndexRoute
-  '/_authed-layout/staff/profiles/$profileId/users': typeof authedStaffProfilesProfileIdUsersRoute
+  '/_authed-layout/staff/roles/$roleId/users': typeof authedStaffRolesRoleIdUsersRoute
   '/_authed-layout/staff/staff-users/$userId/activity': typeof authedStaffStaffUsersUserIdActivityRoute
   '/_authed-layout/staff/staff-users/$userId/edit': typeof authedStaffStaffUsersUserIdEditRoute
   '/_authed-layout/staff/staff-users/$userId/permissions': typeof authedStaffStaffUsersUserIdPermissionsRoute
@@ -734,7 +771,8 @@ export interface FileRoutesById {
   '/_authed-layout/staff/tenants/$tenantId/activity': typeof authedStaffTenantsTenantIdActivityRoute
   '/_authed-layout/staff/tenants/$tenantId/edit': typeof authedStaffTenantsTenantIdEditRoute
   '/_authed-layout/staff/tenants/$tenantId/invitations': typeof authedStaffTenantsTenantIdInvitationsRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
+  '/_authed-layout/staff/tenants/$tenantId/profiles': typeof authedStaffLegacyProfileRedirectsTenantProfilesRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles': typeof authedStaffTenantsTenantIdRolesRoute
   '/_authed-layout/staff/tenants/$tenantId/usage': typeof authedStaffTenantsTenantIdUsageRoute
   '/_authed-layout/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
   '/_authed-layout/tenant/posts/$postId/edit': typeof authedTenantPostsPostIdEditRoute
@@ -742,16 +780,17 @@ export interface FileRoutesById {
   '/_authed-layout/staff/tenant-users/details/$userId/$tab': typeof authedStaffTenantUserDetailsTabFallbackRoute
   '/_authed-layout/staff/tenant-users/details/$userId/general': typeof authedStaffTenantUsersUserIdGeneralRoute
   '/_authed-layout/staff/tenant-users/details/$userId/organizations': typeof authedStaffTenantUsersUserIdOrganizationsRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId': typeof authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren
-  '/_authed-layout/staff/tenants/$tenantId/profiles/new': typeof authedStaffTenantsTenantIdProfilesNewRoute
+  '/_authed-layout/staff/tenants/$tenantId/profiles/$': typeof authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles/$roleId': typeof authedStaffTenantsTenantIdRolesRoleIdRouteWithChildren
+  '/_authed-layout/staff/tenants/$tenantId/roles/new': typeof authedStaffTenantsTenantIdRolesNewRoute
   '/_authed-layout/staff/tenants/$tenantId/users/$userId': typeof authedStaffTenantsTenantIdUsersUserIdRoute
   '/_authed-layout/staff/tenants/$tenantId/users/invite': typeof authedStaffTenantsTenantIdUsersInviteRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/edit': typeof authedStaffTenantsTenantIdProfilesProfileIdEditRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/members': typeof authedStaffTenantsTenantIdProfilesProfileIdMembersRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/permissions': typeof authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users': typeof authedStaffTenantsTenantIdProfilesProfileIdUsersRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/edit': typeof authedStaffTenantsTenantIdRolesRoleIdEditRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/members': typeof authedStaffTenantsTenantIdRolesRoleIdMembersRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/permissions': typeof authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/users': typeof authedStaffTenantsTenantIdRolesRoleIdUsersRoute
   '/_authed-layout/staff/tenants/$tenantId/users/$userId/edit': typeof authedStaffTenantsTenantIdUsersUserIdEditRoute
-  '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/': typeof authedStaffTenantsTenantIdProfilesProfileIdIndexRoute
+  '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/': typeof authedStaffTenantsTenantIdRolesRoleIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -770,6 +809,7 @@ export interface FileRouteTypes {
     | '/staff/dashboard'
     | '/staff/jobs'
     | '/staff/profiles'
+    | '/staff/roles'
     | '/staff/staff-users'
     | '/staff/tenants'
     | '/tenant/account'
@@ -788,8 +828,9 @@ export interface FileRouteTypes {
     | '/staff/invitations/new'
     | '/staff/jobs/dead-letter'
     | '/staff/jobs/system-jobs'
-    | '/staff/profiles/$profileId'
-    | '/staff/profiles/new'
+    | '/staff/profiles/$'
+    | '/staff/roles/$roleId'
+    | '/staff/roles/new'
     | '/staff/staff-users/$userId'
     | '/staff/tenants/$tenantId'
     | '/staff/tenants/new'
@@ -805,7 +846,7 @@ export interface FileRouteTypes {
     | '/tenant/settings/security'
     | '/tenant/settings/workspaces'
     | '/staff/dashboard/'
-    | '/staff/profiles/$profileId/users'
+    | '/staff/roles/$roleId/users'
     | '/staff/staff-users/$userId/activity'
     | '/staff/staff-users/$userId/edit'
     | '/staff/staff-users/$userId/permissions'
@@ -815,6 +856,7 @@ export interface FileRouteTypes {
     | '/staff/tenants/$tenantId/edit'
     | '/staff/tenants/$tenantId/invitations'
     | '/staff/tenants/$tenantId/profiles'
+    | '/staff/tenants/$tenantId/roles'
     | '/staff/tenants/$tenantId/usage'
     | '/staff/tenants/$tenantId/users'
     | '/tenant/posts/$postId/edit'
@@ -822,16 +864,17 @@ export interface FileRouteTypes {
     | '/staff/tenant-users/details/$userId/$tab'
     | '/staff/tenant-users/details/$userId/general'
     | '/staff/tenant-users/details/$userId/organizations'
-    | '/staff/tenants/$tenantId/profiles/$profileId'
-    | '/staff/tenants/$tenantId/profiles/new'
+    | '/staff/tenants/$tenantId/profiles/$'
+    | '/staff/tenants/$tenantId/roles/$roleId'
+    | '/staff/tenants/$tenantId/roles/new'
     | '/staff/tenants/$tenantId/users/$userId'
     | '/staff/tenants/$tenantId/users/invite'
-    | '/staff/tenants/$tenantId/profiles/$profileId/edit'
-    | '/staff/tenants/$tenantId/profiles/$profileId/members'
-    | '/staff/tenants/$tenantId/profiles/$profileId/permissions'
-    | '/staff/tenants/$tenantId/profiles/$profileId/users'
+    | '/staff/tenants/$tenantId/roles/$roleId/edit'
+    | '/staff/tenants/$tenantId/roles/$roleId/members'
+    | '/staff/tenants/$tenantId/roles/$roleId/permissions'
+    | '/staff/tenants/$tenantId/roles/$roleId/users'
     | '/staff/tenants/$tenantId/users/$userId/edit'
-    | '/staff/tenants/$tenantId/profiles/$profileId/'
+    | '/staff/tenants/$tenantId/roles/$roleId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -846,6 +889,7 @@ export interface FileRouteTypes {
     | '/tenant'
     | '/staff/audit-logs'
     | '/staff/profiles'
+    | '/staff/roles'
     | '/staff/staff-users'
     | '/staff/tenants'
     | '/tenant/organizations'
@@ -861,8 +905,9 @@ export interface FileRouteTypes {
     | '/staff/invitations/new'
     | '/staff/jobs/dead-letter'
     | '/staff/jobs/system-jobs'
-    | '/staff/profiles/$profileId'
-    | '/staff/profiles/new'
+    | '/staff/profiles/$'
+    | '/staff/roles/$roleId'
+    | '/staff/roles/new'
     | '/staff/tenants/$tenantId'
     | '/staff/tenants/new'
     | '/tenant/account/notifications'
@@ -877,7 +922,7 @@ export interface FileRouteTypes {
     | '/tenant/settings/security'
     | '/tenant/settings/workspaces'
     | '/staff/dashboard'
-    | '/staff/profiles/$profileId/users'
+    | '/staff/roles/$roleId/users'
     | '/staff/staff-users/$userId/activity'
     | '/staff/staff-users/$userId/edit'
     | '/staff/staff-users/$userId/permissions'
@@ -887,6 +932,7 @@ export interface FileRouteTypes {
     | '/staff/tenants/$tenantId/edit'
     | '/staff/tenants/$tenantId/invitations'
     | '/staff/tenants/$tenantId/profiles'
+    | '/staff/tenants/$tenantId/roles'
     | '/staff/tenants/$tenantId/usage'
     | '/staff/tenants/$tenantId/users'
     | '/tenant/posts/$postId/edit'
@@ -894,15 +940,16 @@ export interface FileRouteTypes {
     | '/staff/tenant-users/details/$userId/$tab'
     | '/staff/tenant-users/details/$userId/general'
     | '/staff/tenant-users/details/$userId/organizations'
-    | '/staff/tenants/$tenantId/profiles/new'
+    | '/staff/tenants/$tenantId/profiles/$'
+    | '/staff/tenants/$tenantId/roles/new'
     | '/staff/tenants/$tenantId/users/$userId'
     | '/staff/tenants/$tenantId/users/invite'
-    | '/staff/tenants/$tenantId/profiles/$profileId/edit'
-    | '/staff/tenants/$tenantId/profiles/$profileId/members'
-    | '/staff/tenants/$tenantId/profiles/$profileId/permissions'
-    | '/staff/tenants/$tenantId/profiles/$profileId/users'
+    | '/staff/tenants/$tenantId/roles/$roleId/edit'
+    | '/staff/tenants/$tenantId/roles/$roleId/members'
+    | '/staff/tenants/$tenantId/roles/$roleId/permissions'
+    | '/staff/tenants/$tenantId/roles/$roleId/users'
     | '/staff/tenants/$tenantId/users/$userId/edit'
-    | '/staff/tenants/$tenantId/profiles/$profileId'
+    | '/staff/tenants/$tenantId/roles/$roleId'
   id:
     | '__root__'
     | '/'
@@ -920,6 +967,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/dashboard'
     | '/_authed-layout/staff/jobs'
     | '/_authed-layout/staff/profiles'
+    | '/_authed-layout/staff/roles'
     | '/_authed-layout/staff/staff-users'
     | '/_authed-layout/staff/tenants'
     | '/_authed-layout/tenant/account'
@@ -938,8 +986,9 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/invitations/new'
     | '/_authed-layout/staff/jobs/dead-letter'
     | '/_authed-layout/staff/jobs/system-jobs'
-    | '/_authed-layout/staff/profiles/$profileId'
-    | '/_authed-layout/staff/profiles/new'
+    | '/_authed-layout/staff/profiles/$'
+    | '/_authed-layout/staff/roles/$roleId'
+    | '/_authed-layout/staff/roles/new'
     | '/_authed-layout/staff/staff-users/$userId'
     | '/_authed-layout/staff/tenants/$tenantId'
     | '/_authed-layout/staff/tenants/new'
@@ -955,7 +1004,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/tenant/settings/security'
     | '/_authed-layout/tenant/settings/workspaces'
     | '/_authed-layout/staff/dashboard/'
-    | '/_authed-layout/staff/profiles/$profileId/users'
+    | '/_authed-layout/staff/roles/$roleId/users'
     | '/_authed-layout/staff/staff-users/$userId/activity'
     | '/_authed-layout/staff/staff-users/$userId/edit'
     | '/_authed-layout/staff/staff-users/$userId/permissions'
@@ -965,6 +1014,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/tenants/$tenantId/edit'
     | '/_authed-layout/staff/tenants/$tenantId/invitations'
     | '/_authed-layout/staff/tenants/$tenantId/profiles'
+    | '/_authed-layout/staff/tenants/$tenantId/roles'
     | '/_authed-layout/staff/tenants/$tenantId/usage'
     | '/_authed-layout/staff/tenants/$tenantId/users'
     | '/_authed-layout/tenant/posts/$postId/edit'
@@ -972,16 +1022,17 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/tenant-users/details/$userId/$tab'
     | '/_authed-layout/staff/tenant-users/details/$userId/general'
     | '/_authed-layout/staff/tenant-users/details/$userId/organizations'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/new'
+    | '/_authed-layout/staff/tenants/$tenantId/profiles/$'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/$roleId'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/new'
     | '/_authed-layout/staff/tenants/$tenantId/users/$userId'
     | '/_authed-layout/staff/tenants/$tenantId/users/invite'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/edit'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/members'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/permissions'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/edit'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/members'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/permissions'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/users'
     | '/_authed-layout/staff/tenants/$tenantId/users/$userId/edit'
-    | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/'
+    | '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1107,7 +1158,14 @@ declare module '@tanstack/react-router' {
       id: '/_authed-layout/staff/profiles'
       path: '/staff/profiles'
       fullPath: '/staff/profiles'
-      preLoaderRoute: typeof authedStaffProfilesRouteImport
+      preLoaderRoute: typeof authedStaffLegacyProfileRedirectsStaffProfilesRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/roles': {
+      id: '/_authed-layout/staff/roles'
+      path: '/staff/roles'
+      fullPath: '/staff/roles'
+      preLoaderRoute: typeof authedStaffRolesRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/staff-users': {
@@ -1215,18 +1273,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffJobsSystemJobsRouteImport
       parentRoute: typeof authedStaffJobsRoute
     }
-    '/_authed-layout/staff/profiles/$profileId': {
-      id: '/_authed-layout/staff/profiles/$profileId'
-      path: '/staff/profiles/$profileId'
-      fullPath: '/staff/profiles/$profileId'
-      preLoaderRoute: typeof authedStaffProfilesProfileIdRouteImport
+    '/_authed-layout/staff/profiles/$': {
+      id: '/_authed-layout/staff/profiles/$'
+      path: '/staff/profiles/$'
+      fullPath: '/staff/profiles/$'
+      preLoaderRoute: typeof authedStaffLegacyProfileRedirectsStaffProfilesSplatRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/profiles/new': {
-      id: '/_authed-layout/staff/profiles/new'
-      path: '/staff/profiles/new'
-      fullPath: '/staff/profiles/new'
-      preLoaderRoute: typeof authedStaffProfilesNewRouteImport
+    '/_authed-layout/staff/roles/$roleId': {
+      id: '/_authed-layout/staff/roles/$roleId'
+      path: '/staff/roles/$roleId'
+      fullPath: '/staff/roles/$roleId'
+      preLoaderRoute: typeof authedStaffRolesRoleIdRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/roles/new': {
+      id: '/_authed-layout/staff/roles/new'
+      path: '/staff/roles/new'
+      fullPath: '/staff/roles/new'
+      preLoaderRoute: typeof authedStaffRolesNewRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/staff-users/$userId': {
@@ -1348,11 +1413,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedTenantSettingsWorkspacesRouteImport
       parentRoute: typeof authedTenantSettingsRoute
     }
-    '/_authed-layout/staff/profiles/$profileId/users': {
-      id: '/_authed-layout/staff/profiles/$profileId/users'
-      path: '/staff/profiles/$profileId/users'
-      fullPath: '/staff/profiles/$profileId/users'
-      preLoaderRoute: typeof authedStaffProfilesProfileIdUsersRouteImport
+    '/_authed-layout/staff/roles/$roleId/users': {
+      id: '/_authed-layout/staff/roles/$roleId/users'
+      path: '/staff/roles/$roleId/users'
+      fullPath: '/staff/roles/$roleId/users'
+      preLoaderRoute: typeof authedStaffRolesRoleIdUsersRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/staff-users/$userId/': {
@@ -1422,7 +1487,14 @@ declare module '@tanstack/react-router' {
       id: '/_authed-layout/staff/tenants/$tenantId/profiles'
       path: '/staff/tenants/$tenantId/profiles'
       fullPath: '/staff/tenants/$tenantId/profiles'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesRouteImport
+      preLoaderRoute: typeof authedStaffLegacyProfileRedirectsTenantProfilesRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenants/$tenantId/roles': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles'
+      path: '/staff/tenants/$tenantId/roles'
+      fullPath: '/staff/tenants/$tenantId/roles'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/tenants/$tenantId/usage': {
@@ -1467,18 +1539,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffTenantUsersUserIdOrganizationsRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId'
-      path: '/staff/tenants/$tenantId/profiles/$profileId'
-      fullPath: '/staff/tenants/$tenantId/profiles/$profileId'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRouteImport
+    '/_authed-layout/staff/tenants/$tenantId/profiles/$': {
+      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$'
+      path: '/staff/tenants/$tenantId/profiles/$'
+      fullPath: '/staff/tenants/$tenantId/profiles/$'
+      preLoaderRoute: typeof authedStaffLegacyProfileRedirectsTenantProfilesSplatRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/new': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/new'
-      path: '/staff/tenants/$tenantId/profiles/new'
-      fullPath: '/staff/tenants/$tenantId/profiles/new'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesNewRouteImport
+    '/_authed-layout/staff/tenants/$tenantId/roles/$roleId': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/$roleId'
+      path: '/staff/tenants/$tenantId/roles/$roleId'
+      fullPath: '/staff/tenants/$tenantId/roles/$roleId'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRoleIdRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenants/$tenantId/roles/new': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/new'
+      path: '/staff/tenants/$tenantId/roles/new'
+      fullPath: '/staff/tenants/$tenantId/roles/new'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesNewRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/tenants/$tenantId/users/$userId': {
@@ -1495,39 +1574,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffTenantsTenantIdUsersInviteRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/'
+    '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/'
       path: '/'
-      fullPath: '/staff/tenants/$tenantId/profiles/$profileId/'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdIndexRouteImport
-      parentRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRoute
+      fullPath: '/staff/tenants/$tenantId/roles/$roleId/'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRoleIdIndexRouteImport
+      parentRoute: typeof authedStaffTenantsTenantIdRolesRoleIdRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/edit': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/edit'
-      path: '/staff/tenants/$tenantId/profiles/$profileId/edit'
-      fullPath: '/staff/tenants/$tenantId/profiles/$profileId/edit'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdEditRouteImport
+    '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/edit': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/edit'
+      path: '/staff/tenants/$tenantId/roles/$roleId/edit'
+      fullPath: '/staff/tenants/$tenantId/roles/$roleId/edit'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRoleIdEditRouteImport
       parentRoute: typeof authedLayoutRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/members': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/members'
+    '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/members': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/members'
       path: '/members'
-      fullPath: '/staff/tenants/$tenantId/profiles/$profileId/members'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdMembersRouteImport
-      parentRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRoute
+      fullPath: '/staff/tenants/$tenantId/roles/$roleId/members'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRoleIdMembersRouteImport
+      parentRoute: typeof authedStaffTenantsTenantIdRolesRoleIdRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/permissions': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/permissions'
+    '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/permissions': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/permissions'
       path: '/permissions'
-      fullPath: '/staff/tenants/$tenantId/profiles/$profileId/permissions'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdPermissionsRouteImport
-      parentRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRoute
+      fullPath: '/staff/tenants/$tenantId/roles/$roleId/permissions'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRoleIdPermissionsRouteImport
+      parentRoute: typeof authedStaffTenantsTenantIdRolesRoleIdRoute
     }
-    '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users': {
-      id: '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/users'
-      path: '/staff/tenants/$tenantId/profiles/$profileId/users'
-      fullPath: '/staff/tenants/$tenantId/profiles/$profileId/users'
-      preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdUsersRouteImport
+    '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/users': {
+      id: '/_authed-layout/staff/tenants/$tenantId/roles/$roleId/users'
+      path: '/staff/tenants/$tenantId/roles/$roleId/users'
+      fullPath: '/staff/tenants/$tenantId/roles/$roleId/users'
+      preLoaderRoute: typeof authedStaffTenantsTenantIdRolesRoleIdUsersRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/tenants/$tenantId/users/$userId/edit': {
@@ -1670,25 +1749,25 @@ const authedStaffStaffUsersUserIdRouteWithChildren =
     authedStaffStaffUsersUserIdRouteChildren,
   )
 
-interface authedStaffTenantsTenantIdProfilesProfileIdRouteChildren {
-  authedStaffTenantsTenantIdProfilesProfileIdMembersRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdMembersRoute
-  authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute
-  authedStaffTenantsTenantIdProfilesProfileIdIndexRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdIndexRoute
+interface authedStaffTenantsTenantIdRolesRoleIdRouteChildren {
+  authedStaffTenantsTenantIdRolesRoleIdMembersRoute: typeof authedStaffTenantsTenantIdRolesRoleIdMembersRoute
+  authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute: typeof authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute
+  authedStaffTenantsTenantIdRolesRoleIdIndexRoute: typeof authedStaffTenantsTenantIdRolesRoleIdIndexRoute
 }
 
-const authedStaffTenantsTenantIdProfilesProfileIdRouteChildren: authedStaffTenantsTenantIdProfilesProfileIdRouteChildren =
+const authedStaffTenantsTenantIdRolesRoleIdRouteChildren: authedStaffTenantsTenantIdRolesRoleIdRouteChildren =
   {
-    authedStaffTenantsTenantIdProfilesProfileIdMembersRoute:
-      authedStaffTenantsTenantIdProfilesProfileIdMembersRoute,
-    authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute:
-      authedStaffTenantsTenantIdProfilesProfileIdPermissionsRoute,
-    authedStaffTenantsTenantIdProfilesProfileIdIndexRoute:
-      authedStaffTenantsTenantIdProfilesProfileIdIndexRoute,
+    authedStaffTenantsTenantIdRolesRoleIdMembersRoute:
+      authedStaffTenantsTenantIdRolesRoleIdMembersRoute,
+    authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute:
+      authedStaffTenantsTenantIdRolesRoleIdPermissionsRoute,
+    authedStaffTenantsTenantIdRolesRoleIdIndexRoute:
+      authedStaffTenantsTenantIdRolesRoleIdIndexRoute,
   }
 
-const authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren =
-  authedStaffTenantsTenantIdProfilesProfileIdRoute._addFileChildren(
-    authedStaffTenantsTenantIdProfilesProfileIdRouteChildren,
+const authedStaffTenantsTenantIdRolesRoleIdRouteWithChildren =
+  authedStaffTenantsTenantIdRolesRoleIdRoute._addFileChildren(
+    authedStaffTenantsTenantIdRolesRoleIdRouteChildren,
   )
 
 interface authedLayoutRouteChildren {
@@ -1697,36 +1776,40 @@ interface authedLayoutRouteChildren {
   authedStaffAuditLogsRoute: typeof authedStaffAuditLogsRoute
   authedStaffDashboardRoute: typeof authedStaffDashboardRouteWithChildren
   authedStaffJobsRoute: typeof authedStaffJobsRouteWithChildren
-  authedStaffProfilesRoute: typeof authedStaffProfilesRoute
+  authedStaffLegacyProfileRedirectsStaffProfilesRoute: typeof authedStaffLegacyProfileRedirectsStaffProfilesRoute
+  authedStaffRolesRoute: typeof authedStaffRolesRoute
   authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
   authedStaffTenantsRoute: typeof authedStaffTenantsRoute
   authedStaffInvitationsIndexRoute: typeof authedStaffInvitationsIndexRoute
   authedStaffAuditLogsLogIdRoute: typeof authedStaffAuditLogsLogIdRoute
   authedStaffInvitationsInvitationIdRoute: typeof authedStaffInvitationsInvitationIdRoute
   authedStaffInvitationsNewRoute: typeof authedStaffInvitationsNewRoute
-  authedStaffProfilesProfileIdRoute: typeof authedStaffProfilesProfileIdRoute
-  authedStaffProfilesNewRoute: typeof authedStaffProfilesNewRoute
+  authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute: typeof authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute
+  authedStaffRolesRoleIdRoute: typeof authedStaffRolesRoleIdRoute
+  authedStaffRolesNewRoute: typeof authedStaffRolesNewRoute
   authedStaffStaffUsersUserIdRoute: typeof authedStaffStaffUsersUserIdRouteWithChildren
   authedStaffTenantsTenantIdRoute: typeof authedStaffTenantsTenantIdRoute
   authedStaffTenantsNewRoute: typeof authedStaffTenantsNewRoute
-  authedStaffProfilesProfileIdUsersRoute: typeof authedStaffProfilesProfileIdUsersRoute
+  authedStaffRolesRoleIdUsersRoute: typeof authedStaffRolesRoleIdUsersRoute
   authedStaffStaffUsersUserIdEditRoute: typeof authedStaffStaffUsersUserIdEditRoute
   authedStaffTenantUsersDetailsUserIdRoute: typeof authedStaffTenantUsersDetailsUserIdRoute
   authedStaffTenantsTenantIdActivityRoute: typeof authedStaffTenantsTenantIdActivityRoute
   authedStaffTenantsTenantIdEditRoute: typeof authedStaffTenantsTenantIdEditRoute
   authedStaffTenantsTenantIdInvitationsRoute: typeof authedStaffTenantsTenantIdInvitationsRoute
-  authedStaffTenantsTenantIdProfilesRoute: typeof authedStaffTenantsTenantIdProfilesRoute
+  authedStaffLegacyProfileRedirectsTenantProfilesRoute: typeof authedStaffLegacyProfileRedirectsTenantProfilesRoute
+  authedStaffTenantsTenantIdRolesRoute: typeof authedStaffTenantsTenantIdRolesRoute
   authedStaffTenantsTenantIdUsageRoute: typeof authedStaffTenantsTenantIdUsageRoute
   authedStaffTenantsTenantIdUsersRoute: typeof authedStaffTenantsTenantIdUsersRoute
   authedStaffTenantUserDetailsTabFallbackRoute: typeof authedStaffTenantUserDetailsTabFallbackRoute
   authedStaffTenantUsersUserIdGeneralRoute: typeof authedStaffTenantUsersUserIdGeneralRoute
   authedStaffTenantUsersUserIdOrganizationsRoute: typeof authedStaffTenantUsersUserIdOrganizationsRoute
-  authedStaffTenantsTenantIdProfilesProfileIdRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren
-  authedStaffTenantsTenantIdProfilesNewRoute: typeof authedStaffTenantsTenantIdProfilesNewRoute
+  authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute: typeof authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute
+  authedStaffTenantsTenantIdRolesRoleIdRoute: typeof authedStaffTenantsTenantIdRolesRoleIdRouteWithChildren
+  authedStaffTenantsTenantIdRolesNewRoute: typeof authedStaffTenantsTenantIdRolesNewRoute
   authedStaffTenantsTenantIdUsersUserIdRoute: typeof authedStaffTenantsTenantIdUsersUserIdRoute
   authedStaffTenantsTenantIdUsersInviteRoute: typeof authedStaffTenantsTenantIdUsersInviteRoute
-  authedStaffTenantsTenantIdProfilesProfileIdEditRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdEditRoute
-  authedStaffTenantsTenantIdProfilesProfileIdUsersRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdUsersRoute
+  authedStaffTenantsTenantIdRolesRoleIdEditRoute: typeof authedStaffTenantsTenantIdRolesRoleIdEditRoute
+  authedStaffTenantsTenantIdRolesRoleIdUsersRoute: typeof authedStaffTenantsTenantIdRolesRoleIdUsersRoute
   authedStaffTenantsTenantIdUsersUserIdEditRoute: typeof authedStaffTenantsTenantIdUsersUserIdEditRoute
 }
 
@@ -1736,7 +1819,9 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffAuditLogsRoute: authedStaffAuditLogsRoute,
   authedStaffDashboardRoute: authedStaffDashboardRouteWithChildren,
   authedStaffJobsRoute: authedStaffJobsRouteWithChildren,
-  authedStaffProfilesRoute: authedStaffProfilesRoute,
+  authedStaffLegacyProfileRedirectsStaffProfilesRoute:
+    authedStaffLegacyProfileRedirectsStaffProfilesRoute,
+  authedStaffRolesRoute: authedStaffRolesRoute,
   authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
   authedStaffTenantsRoute: authedStaffTenantsRoute,
   authedStaffInvitationsIndexRoute: authedStaffInvitationsIndexRoute,
@@ -1744,14 +1829,15 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffInvitationsInvitationIdRoute:
     authedStaffInvitationsInvitationIdRoute,
   authedStaffInvitationsNewRoute: authedStaffInvitationsNewRoute,
-  authedStaffProfilesProfileIdRoute: authedStaffProfilesProfileIdRoute,
-  authedStaffProfilesNewRoute: authedStaffProfilesNewRoute,
+  authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute:
+    authedStaffLegacyProfileRedirectsStaffProfilesSplatRoute,
+  authedStaffRolesRoleIdRoute: authedStaffRolesRoleIdRoute,
+  authedStaffRolesNewRoute: authedStaffRolesNewRoute,
   authedStaffStaffUsersUserIdRoute:
     authedStaffStaffUsersUserIdRouteWithChildren,
   authedStaffTenantsTenantIdRoute: authedStaffTenantsTenantIdRoute,
   authedStaffTenantsNewRoute: authedStaffTenantsNewRoute,
-  authedStaffProfilesProfileIdUsersRoute:
-    authedStaffProfilesProfileIdUsersRoute,
+  authedStaffRolesRoleIdUsersRoute: authedStaffRolesRoleIdUsersRoute,
   authedStaffStaffUsersUserIdEditRoute: authedStaffStaffUsersUserIdEditRoute,
   authedStaffTenantUsersDetailsUserIdRoute:
     authedStaffTenantUsersDetailsUserIdRoute,
@@ -1760,8 +1846,9 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffTenantsTenantIdEditRoute: authedStaffTenantsTenantIdEditRoute,
   authedStaffTenantsTenantIdInvitationsRoute:
     authedStaffTenantsTenantIdInvitationsRoute,
-  authedStaffTenantsTenantIdProfilesRoute:
-    authedStaffTenantsTenantIdProfilesRoute,
+  authedStaffLegacyProfileRedirectsTenantProfilesRoute:
+    authedStaffLegacyProfileRedirectsTenantProfilesRoute,
+  authedStaffTenantsTenantIdRolesRoute: authedStaffTenantsTenantIdRolesRoute,
   authedStaffTenantsTenantIdUsageRoute: authedStaffTenantsTenantIdUsageRoute,
   authedStaffTenantsTenantIdUsersRoute: authedStaffTenantsTenantIdUsersRoute,
   authedStaffTenantUserDetailsTabFallbackRoute:
@@ -1770,18 +1857,20 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
     authedStaffTenantUsersUserIdGeneralRoute,
   authedStaffTenantUsersUserIdOrganizationsRoute:
     authedStaffTenantUsersUserIdOrganizationsRoute,
-  authedStaffTenantsTenantIdProfilesProfileIdRoute:
-    authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren,
-  authedStaffTenantsTenantIdProfilesNewRoute:
-    authedStaffTenantsTenantIdProfilesNewRoute,
+  authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute:
+    authedStaffLegacyProfileRedirectsTenantProfilesSplatRoute,
+  authedStaffTenantsTenantIdRolesRoleIdRoute:
+    authedStaffTenantsTenantIdRolesRoleIdRouteWithChildren,
+  authedStaffTenantsTenantIdRolesNewRoute:
+    authedStaffTenantsTenantIdRolesNewRoute,
   authedStaffTenantsTenantIdUsersUserIdRoute:
     authedStaffTenantsTenantIdUsersUserIdRoute,
   authedStaffTenantsTenantIdUsersInviteRoute:
     authedStaffTenantsTenantIdUsersInviteRoute,
-  authedStaffTenantsTenantIdProfilesProfileIdEditRoute:
-    authedStaffTenantsTenantIdProfilesProfileIdEditRoute,
-  authedStaffTenantsTenantIdProfilesProfileIdUsersRoute:
-    authedStaffTenantsTenantIdProfilesProfileIdUsersRoute,
+  authedStaffTenantsTenantIdRolesRoleIdEditRoute:
+    authedStaffTenantsTenantIdRolesRoleIdEditRoute,
+  authedStaffTenantsTenantIdRolesRoleIdUsersRoute:
+    authedStaffTenantsTenantIdRolesRoleIdUsersRoute,
   authedStaffTenantsTenantIdUsersUserIdEditRoute:
     authedStaffTenantsTenantIdUsersUserIdEditRoute,
 }
@@ -1804,12 +1893,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

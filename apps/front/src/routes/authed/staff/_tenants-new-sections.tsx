@@ -347,7 +347,7 @@ export const TenantCreateDetailsFold = ({
 	);
 };
 
-/** `Configuration`: the default-profile switch, in the same row language. */
+/** `Configuration`: the default-role switch, in the same row language. */
 export const TenantCreateConfigGroup = ({
 	t,
 	isFormLocked,
@@ -360,20 +360,20 @@ export const TenantCreateConfigGroup = ({
 	return (
 		<FieldGroup title={t('configuration')}>
 			<Controller
-				name="seedDefaultProfile"
+				name="seedDefaultRole"
 				control={control}
 				render={({ field }) => (
-					<GroupRow label={t('default-profile')}>
+					<GroupRow label={t('default-role')}>
 						<label className="flex items-center justify-between gap-3 text-sm">
 							<span className="text-muted-foreground">
-								{t('default-profile-hint')}
+								{t('default-role-hint')}
 							</span>
 							<Switch
 								checked={Boolean(field.value)}
 								onCheckedChange={field.onChange}
 								onBlur={field.onBlur}
 								disabled={isFormLocked}
-								aria-label={t('default-profile')}
+								aria-label={t('default-role')}
 							/>
 						</label>
 					</GroupRow>

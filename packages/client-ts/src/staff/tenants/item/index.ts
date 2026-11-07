@@ -8,9 +8,9 @@ import { ActivityRequestBuilderRequestsMetadata, type ActivityRequestBuilder } f
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
-import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
-// @ts-ignore
 import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder } from './reactivate/index.js';
+// @ts-ignore
+import { RolesRequestBuilderNavigationMetadata, RolesRequestBuilderRequestsMetadata, type RolesRequestBuilder } from './roles/index.js';
 // @ts-ignore
 import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
 // @ts-ignore
@@ -33,13 +33,13 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      */
     get invitations(): InvitationsRequestBuilder;
     /**
-     * The profiles property
-     */
-    get profiles(): ProfilesRequestBuilder;
-    /**
      * The reactivate property
      */
     get reactivate(): ReactivateRequestBuilder;
+    /**
+     * The roles property
+     */
+    get roles(): RolesRequestBuilder;
     /**
      * The suspend property
      */
@@ -125,12 +125,12 @@ export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyo
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
     },
-    profiles: {
-        requestsMetadata: ProfilesRequestBuilderRequestsMetadata,
-        navigationMetadata: ProfilesRequestBuilderNavigationMetadata,
-    },
     reactivate: {
         requestsMetadata: ReactivateRequestBuilderRequestsMetadata,
+    },
+    roles: {
+        requestsMetadata: RolesRequestBuilderRequestsMetadata,
+        navigationMetadata: RolesRequestBuilderNavigationMetadata,
     },
     suspend: {
         requestsMetadata: SuspendRequestBuilderRequestsMetadata,

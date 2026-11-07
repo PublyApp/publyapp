@@ -18,7 +18,7 @@ import {
  * higher specificity or Tailwind utilities could still turn the real form or
  * body back into an unconstrained block and clip the footer.
  *
- * This spec follows profile-icon-picker-pin-geometry.spec.ts's live-route
+ * This spec follows role-icon-picker-pin-geometry.spec.ts's live-route
  * pattern. It opens every inventoried REAL DrawerForm call site against the
  * real docker-compose `front` container at both baseline and short viewports,
  * then measures their actual DOM and computed CSS in the ordinary `chromium`
@@ -29,7 +29,7 @@ import {
  */
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
-const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
+const ROLE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
 const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
 const FORCED_CONTENT_HEIGHT = 1_200;
 const GEOMETRY_EPSILON = 0.5;
@@ -125,7 +125,7 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 					ownersCount: 2,
 					pendingInvitationsCount: 0,
 					expiringSoonInvitationsCount: 0,
-					profilesCount: 0,
+					rolesCount: 0,
 					logoUrl: null,
 					legalName: 'Acme Corporation, Inc.',
 					websiteUrl: 'https://www.acme.example/',
@@ -137,14 +137,14 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)) {
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/roles`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
 					data: [
 						{
-							id: PROFILE_ID,
+							id: ROLE_ID,
 							name: 'Publishing',
 							description: 'Can publish tenant content.',
 							icon: null,
@@ -217,11 +217,11 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (isApiPath(request.url(), `/staff/users/${STAFF_USER_ID}/profiles`)) {
+		if (isApiPath(request.url(), `/staff/users/${STAFF_USER_ID}/roles`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify({ assignedProfiles: [], maxProfilesPerUser: 25 }),
+				body: JSON.stringify({ assignedRoles: [], maxRolesPerUser: 25 }),
 			});
 			return;
 		}
@@ -229,11 +229,11 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 		await route.fallback();
 	});
 
-	await page.route('**/staff/profiles**', async (route) => {
+	await page.route('**/staff/roles**', async (route) => {
 		const request = route.request();
 		if (
 			request.method() !== 'GET' ||
-			!isApiPath(request.url(), '/staff/profiles')
+			!isApiPath(request.url(), '/staff/roles')
 		) {
 			await route.fallback();
 			return;
@@ -247,11 +247,11 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 	});
 };
 
-const openProfileCreateDrawer = async (page: Page): Promise<void> => {
+const openRoleCreateDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
-	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?new=1`);
-	await expect(page.getByTestId('profile-form-drawer')).toBeVisible({
+	await page.goto(`/staff/tenants/${TENANT_ID}/roles?new=1`);
+	await expect(page.getByTestId('role-form-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
 };
@@ -266,7 +266,7 @@ const openInviteUserDrawer = async (page: Page): Promise<void> => {
 	// PR #979 introduced a Send gate that disables the footer submit until the
 	// form holds a valid row, so the geometry assertions' trial click would time
 	// out on the freshly opened (empty) invite form. Dirty it with one
-	// deterministic valid email (same reason the profile-edit drawer fills its
+	// deterministic valid email (same reason the role-edit drawer fills its
 	// name), without touching what the assertions measure. Target the bound
 	// field by its react-hook-form name: the role locator
 	// `getByRole('textbox', { name: 'Email', exact: true })` resolves to two
@@ -280,11 +280,11 @@ const openInviteUserDrawer = async (page: Page): Promise<void> => {
 		.fill('invitee@example.com');
 };
 
-const openProfileEditDrawer = async (page: Page): Promise<void> => {
+const openRoleEditDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
-	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?edit=${PROFILE_ID}`);
-	await expect(page.getByTestId('profile-edit-details-drawer')).toBeVisible({
+	await page.goto(`/staff/tenants/${TENANT_ID}/roles?edit=${ROLE_ID}`);
+	await expect(page.getByTestId('role-edit-details-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
 	// #1342 disables the footer submit while the form is pristine, so the
@@ -292,7 +292,7 @@ const openProfileEditDrawer = async (page: Page): Promise<void> => {
 	// Dirty the form with one deterministic edit (same reason link-companies
 	// checks a picker row first) without touching what the assertions measure.
 	await page
-		.getByTestId('profile-edit-details-drawer')
+		.getByTestId('role-edit-details-drawer')
 		.getByRole('textbox', { name: 'Role name' })
 		.fill('Publishing (edited for geometry)');
 };
@@ -307,32 +307,32 @@ const openChangeEmailDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
-/** Throwaway profiles created by openStaffProfileEditDrawer, deleted in the
+/** Throwaway roles created by openStaffRoleEditDrawer, deleted in the
  * suite's afterEach. Real rows beat a mock matrix here: the detail route
- * fans out to several profile sub-endpoints and all of them must succeed
+ * fans out to several role sub-endpoints and all of them must succeed
  * for the page (and therefore the drawer) to render. */
-const createdStaffProfileIds: string[] = [];
+const createdStaffRoleIds: string[] = [];
 
-const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
+const openStaffRoleEditDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	const token = await getSessionTokenFromBrowser(page, 'staff');
 	expect(token, 'staff session token for the API').toBeDefined();
-	const response = await page.request.post(`${API_BASE_URL}/staff/profiles/`, {
+	const response = await page.request.post(`${API_BASE_URL}/staff/roles/`, {
 		headers: token ? { 'X-Session-Token': token } : undefined,
 		data: {
 			name: `#990 geometry ${Date.now()}-${Math.random()
 				.toString(36)
 				.slice(2, 8)}`,
-			description: 'Scroll-geometry fixture profile',
+			description: 'Scroll-geometry fixture role',
 			// Read-only permission satisfying the at-least-one-key create rule.
 			permissions: ['staff.users.list_for_staff'],
 		},
 	});
-	expect(response.status(), 'create throwaway profile').toBe(201);
-	const payload = (await response.json()) as { profileId?: string };
-	expect(payload.profileId, 'created profile id').toBeTruthy();
-	const profileId = payload.profileId as string;
-	createdStaffProfileIds.push(profileId);
+	expect(response.status(), 'create throwaway role').toBe(201);
+	const payload = (await response.json()) as { roleId?: string };
+	expect(payload.roleId, 'created role id').toBeTruthy();
+	const roleId = payload.roleId as string;
+	createdStaffRoleIds.push(roleId);
 
 	// This call site navigates to a route whose chunks are requested for the
 	// FIRST time in the run (every other call site's routes were already pulled
@@ -343,29 +343,29 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 	// race behind a ceiling).
 	//
 	// The deterministic form is to wait for the PRECONDITION the drawer renders
-	// on: the detail route fetches `GET /staff/profiles/{id}` and the page
+	// on: the detail route fetches `GET /staff/roles/{id}` and the page
 	// returns its skeleton until that resolves, so the drawer cannot be visible
 	// before this response lands. A genuinely slow chunk delays that request
 	// rather than silently truncating the observation, and the assertion below
 	// keeps the same shared budget as every other call site.
 	const detailFetched = page.waitForResponse(
 		(response) =>
-			isApiPath(response.url(), `/staff/profiles/${profileId}`) &&
+			isApiPath(response.url(), `/staff/roles/${roleId}`) &&
 			response.request().method() === 'GET' &&
 			response.status() === 200,
 	);
-	await page.goto(`/staff/profiles/${profileId}?edit=1`);
+	await page.goto(`/staff/roles/${roleId}?edit=1`);
 	await detailFetched;
-	await expect(
-		page.getByTestId('staff-profile-edit-details-drawer'),
-	).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByTestId('staff-role-edit-details-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
 	// #1342 disables the footer submit while the form is pristine; dirty the
 	// form so the geometry assertions can trial-click the action (see the
 	// tenant edit drawer above).
 	await page
-		.getByTestId('staff-profile-edit-details-drawer')
+		.getByTestId('staff-role-edit-details-drawer')
 		.getByRole('textbox', { name: 'Role name' })
-		.fill('Scroll-geometry fixture profile (edited)');
+		.fill('Scroll-geometry fixture role (edited)');
 };
 
 const measureDrawer = async (
@@ -739,13 +739,13 @@ const openDiscordConnectDrawer = (page: Page) =>
 	openConnectDrawer(page, 'Connect Discord', 'discord-connect-drawer');
 
 const openDrawerByCallSiteId = {
-	'profile-create': openProfileCreateDrawer,
-	'profile-edit': openProfileEditDrawer,
+	'role-create': openRoleCreateDrawer,
+	'role-edit': openRoleEditDrawer,
 	'tenant-user-invite': openInviteUserDrawer,
 	'staff-user-email-change': openChangeEmailDrawer,
 	'tenant-post-create': openTenantPostCreateDrawer,
 	'tenant-user-link-companies': openLinkCompaniesDrawer,
-	'staff-profile-edit': openStaffProfileEditDrawer,
+	'staff-role-edit': openStaffRoleEditDrawer,
 	'bluesky-connect': openBlueskyConnectDrawer,
 	'mastodon-connect': openMastodonConnectDrawer,
 	'discord-connect': openDiscordConnectDrawer,
@@ -757,13 +757,13 @@ test.describe(
 	() => {
 		test.afterEach(async ({ page }) => {
 			const token = await getSessionTokenFromBrowser(page, 'staff');
-			while (createdStaffProfileIds.length > 0) {
-				const id = createdStaffProfileIds.pop();
+			while (createdStaffRoleIds.length > 0) {
+				const id = createdStaffRoleIds.pop();
 				if (!id || !token) {
 					continue;
 				}
 				// Tolerate 404: a failed test may have left nothing to clean up.
-				await page.request.delete(`${API_BASE_URL}/staff/profiles/${id}`, {
+				await page.request.delete(`${API_BASE_URL}/staff/roles/${id}`, {
 					headers: { 'X-Session-Token': token },
 				});
 			}

@@ -703,7 +703,7 @@ describe('DataTable state rendering', () => {
 		};
 
 		// SPEC 2g grid: 40 / 240 / 1fr / 104 / 140 / 120 / 40 — mirrors the
-		// staff profiles P3 column shape (selection/name/description/members/
+		// staff roles P3 column shape (selection/name/description/members/
 		// permissions/updated/actions), which has regressed the desktop track
 		// widths twice on this branch (f681b0bd, then a dropped-column variant
 		// of the same defect). Pinning the computed <col> widths here catches
@@ -712,7 +712,7 @@ describe('DataTable state rendering', () => {
 			{
 				id: 'name',
 				accessorKey: 'name',
-				header: 'Profile',
+				header: 'Role',
 				meta: { width: '240px', pinWidthAbove: 768 },
 				cell: ({ getValue }) => String(getValue()),
 			},

@@ -15,9 +15,9 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { useStaffUserOverviewContext } from './$userId/_overview-context';
 
 const mocks = vi.hoisted(() => ({
-	toAssignedStaffProfiles: vi.fn(),
+	toAssignedStaffRoles: vi.fn(),
 	toStaffUserDetails: vi.fn(),
-	useStaffUserProfilesQuery: vi.fn(),
+	useStaffUserRolesQuery: vi.fn(),
 	useStaffUserDetailsQuery: vi.fn(),
 	useDeleteStaffUserMutation: vi.fn(),
 	deleteMutateAsync: vi.fn().mockResolvedValue(undefined),
@@ -65,19 +65,19 @@ vi.mock('@tanstack/react-router', () => ({
 			canReactivate,
 			isDeletePending,
 			suspendLabelKey,
-			profilesIsPending,
-			onRetryProfiles,
+			rolesIsPending,
+			onRetryRoles,
 		} = useStaffUserOverviewContext();
 		const suspendLabel =
 			suspendLabelKey === 'reactivate' ? 'Reactivate' : 'Suspend';
 
 		return (
 			<div data-testid="staff-user-details-outlet">
-				<span data-testid="staff-user-details-outlet-profiles-pending">
-					{String(profilesIsPending)}
+				<span data-testid="staff-user-details-outlet-roles-pending">
+					{String(rolesIsPending)}
 				</span>
-				<button type="button" onClick={onRetryProfiles}>
-					Retry profiles
+				<button type="button" onClick={onRetryRoles}>
+					Retry roles
 				</button>
 				<button
 					type="button"
@@ -203,9 +203,9 @@ vi.mock('~/lib/query/staff-users', () => ({
 		queryClient.removeQueries({
 			queryKey: ['staff', 'staff-users', 'detail'],
 		}),
-	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
+	toAssignedStaffRoles: mocks.toAssignedStaffRoles,
 	toStaffUserDetails: mocks.toStaffUserDetails,
-	useStaffUserProfilesQuery: mocks.useStaffUserProfilesQuery,
+	useStaffUserRolesQuery: mocks.useStaffUserRolesQuery,
 	useStaffUserDetailsQuery: mocks.useStaffUserDetailsQuery,
 	useDeleteStaffUserMutation: mocks.useDeleteStaffUserMutation,
 	useReactivateStaffUserMutation: mocks.useReactivateStaffUserMutation,
@@ -263,11 +263,11 @@ describe('staff user details route shell', () => {
 				},
 			}),
 		);
-		mocks.useStaffUserProfilesQuery.mockReturnValue(
+		mocks.useStaffUserRolesQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
-					assignedProfiles: [],
-					maxProfilesPerUser: 5,
+					assignedRoles: [],
+					maxRolesPerUser: 5,
 				},
 			}),
 		);
@@ -290,7 +290,7 @@ describe('staff user details route shell', () => {
 			updatedAt: new Date('2026-07-02T10:00:00Z'),
 			displayName: 'Owner User',
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([]);
+		mocks.toAssignedStaffRoles.mockReturnValue([]);
 	});
 
 	afterEach(() => {
@@ -340,8 +340,8 @@ describe('staff user details route shell', () => {
 		expect(screen.getByTestId('staff-user-details-outlet')).toBeTruthy();
 	});
 
-	test('renders the page (past the details-pending gate) while the profiles query is still pending, and surfaces that pending state through context (r5-F6)', () => {
-		mocks.useStaffUserProfilesQuery.mockReturnValue(
+	test('renders the page (past the details-pending gate) while the roles query is still pending, and surfaces that pending state through context (r5-F6)', () => {
+		mocks.useStaffUserRolesQuery.mockReturnValue(
 			buildQueryResult({ data: undefined, isPending: true }),
 		);
 
@@ -349,33 +349,31 @@ describe('staff user details route shell', () => {
 
 		expect(screen.getByTestId('staff-user-details-page')).toBeTruthy();
 		expect(
-			screen.getByTestId('staff-user-details-outlet-profiles-pending')
-				.textContent,
+			screen.getByTestId('staff-user-details-outlet-roles-pending').textContent,
 		).toBe('true');
 	});
 
-	test('surfaces profiles resolved (non-pending) through context once the query succeeds', () => {
+	test('surfaces roles resolved (non-pending) through context once the query succeeds', () => {
 		renderPage();
 
 		expect(
-			screen.getByTestId('staff-user-details-outlet-profiles-pending')
-				.textContent,
+			screen.getByTestId('staff-user-details-outlet-roles-pending').textContent,
 		).toBe('false');
 	});
 
-	test('the context retry callback refetches the profiles query, not the details query', () => {
-		const profilesRefetch = vi.fn().mockResolvedValue(undefined);
-		mocks.useStaffUserProfilesQuery.mockReturnValue(
+	test('the context retry callback refetches the roles query, not the details query', () => {
+		const rolesRefetch = vi.fn().mockResolvedValue(undefined);
+		mocks.useStaffUserRolesQuery.mockReturnValue(
 			buildQueryResult({
-				data: { assignedProfiles: [], maxProfilesPerUser: 5 },
-				refetch: profilesRefetch,
+				data: { assignedRoles: [], maxRolesPerUser: 5 },
+				refetch: rolesRefetch,
 			}),
 		);
 
 		renderPage();
-		fireEvent.click(screen.getByText('Retry profiles'));
+		fireEvent.click(screen.getByText('Retry roles'));
 
-		expect(profilesRefetch).toHaveBeenCalledTimes(1);
+		expect(rolesRefetch).toHaveBeenCalledTimes(1);
 	});
 
 	test('each tab trigger renders as a real anchor with the deep-linkable href', () => {
@@ -525,7 +523,7 @@ describe('staff user details route shell', () => {
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
 	});
 
-	test('uses logout redirect for 401 failures from the assigned profiles query', () => {
+	test('uses logout redirect for 401 failures from the assigned roles query', () => {
 		const error = {
 			status: 401,
 			responseStatusCode: 401,
@@ -533,7 +531,7 @@ describe('staff user details route shell', () => {
 			detail: 'Session expired',
 		};
 
-		mocks.useStaffUserProfilesQuery.mockReturnValue(
+		mocks.useStaffUserRolesQuery.mockReturnValue(
 			buildQueryResult({
 				error,
 				isError: true,

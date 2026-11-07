@@ -1,0 +1,414 @@
+using System.Net;
+using System.Net.Http.Json;
+
+using FluentAssertions;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Roles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
+
+using Xunit;
+
+namespace PublyApp.Api.Modules.Roles.Handlers.Staff;
+
+/// <summary>
+/// Cursor-pagination contract specs for the staff roles list
+/// (<c>StaffRoleQueryAsStaffService.FindStaffRolesAsync</c>, #220
+/// refactor safety net). The list previously had no pagination coverage at
+/// all; these anchor the multi-page walk on a non-default sort field with
+/// its Id tie-breaker, the transparent cursor-not-found 400, and the
+/// case-insensitive <c>sort_id</c> resolution.
+/// </summary>
+public sealed class FindStaffRolesCursorBehaviorSpec
+	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
+
+	public FindStaffRolesCursorBehaviorSpec(ApiFixture fixture) {
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryPageOnANameSortWithoutOverlapOrGap() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// Deterministic, anti-correlated names: insertion order is c,b,a while
+		// the lexical (sort) order is a,b,c. The walk must return them in
+		// lexical order, so a keySelector swap to the id (insertion) order
+		// turns this assertion RED.
+		const int total = 3;
+		var seededIds = new List<Guid>();
+		var seededNames = new List<string>();
+		// Two rows share the same Name (i=0 and i=2), one has a
+		// different value (i=1). The tiebreaker (Id ascending) must
+		// determine the order of the two equal-key rows.
+		for (var i = 0; i < total; i++) {
+			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
+			seededIds.Add(await this._SeedStaffRoleAsync(name));
+			seededNames.Add(name);
+		}
+		seededNames.Sort(StringComparer.OrdinalIgnoreCase);
+
+		var visitedIds = new List<Guid>();
+		var visitedNamesById = new Dictionary<Guid, string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=NAME&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+				visitedNamesById[item.Id] = item.Name;
+			}
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers the whole list (any seeded template role
+		// included): no row may repeat and ours must all be visited.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		// Assert the OBSERVED Name order from the wire item matches the lexical
+		// sort, not the insertion order.
+		var visitedNames = visitedIds
+			.Where(seededIds.Contains)
+			.Select(id => visitedNamesById[id])
+			.ToList();
+		visitedNames.Should().Equal(seededNames);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// 3 roles with distinct Id; the walk must visit each once in
+		// ascending Id order. A keySelector swap to another same-type field
+		// (e.g. Name) turns this assertion RED.
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			var name = $"Id Walk {i} {Guid.NewGuid():N}";
+			seededIds.Add(await this._SeedStaffRoleAsync(name));
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=id&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds.OrderBy(id => id).ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// 3 roles with distinct, deliberately NOT insertion-ordered
+		// CreatedAt (anti-correlated). The walk must visit each once in
+		// ascending CreatedAt order, not insertion order, so a
+		// keySelector swap to another same-type field (e.g. Name)
+		// turns this assertion RED.
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		var seededIds = new List<Guid>();
+		var seededOrder = new List<DateTime>();
+		for (var i = 0; i < 3; i++) {
+			// Two rows share the same CreatedAt (i=0 and i=2), one has a
+			// different value (i=1). The tiebreaker (Id ascending) must
+			// determine the order of the two equal-key rows.
+			var createdAt = i == 1 ? baseDate.AddDays(1) : baseDate;
+			var id = await this._SeedStaffRoleAtAsync($"created-at-walk-{i}-{Guid.NewGuid():N}", createdAt);
+			seededIds.Add(id);
+			seededOrder.Add(createdAt);
+		}
+
+		// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
+		// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
+		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
+		// ThenBy(Id) and removing the production tiebreaker leaves the test
+		// green. After the swap, the tiebreaker is actually exercised.
+		await this._SwapStaffRoleIdsAsync(seededIds[0], seededIds[2]);
+		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=created_at&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var createdAtById = seededIds
+			.Zip(seededOrder, (id, c) => (id, c))
+			.ToDictionary(x => x.id, x => x.c);
+		visitedOrder.Should().Equal(
+			seededIds.OrderBy(id => createdAtById[id]).ThenBy(id => id).ToList()
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldWalkEveryUserAccountCountPageWithoutOverlapOrGap() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// 3 roles with distinct, deliberately NOT insertion-ordered
+		// UserAccountCount (anti-correlated). The walk must visit each once in
+		// ascending UserAccountCount order, so a keySelector swap to another
+		// same-type field (e.g. Name) turns this assertion RED.
+		var seededIds = new List<Guid>();
+		var seededCounts = new List<int>();
+		var counts = new[] { 3, 1, 2 };
+		for (var i = 0; i < 3; i++) {
+			var id = await this._SeedStaffRoleWithUsersAsync($"uac-walk-{i}-{Guid.NewGuid():N}", counts[i]);
+			seededIds.Add(id);
+			seededCounts.Add(counts[i]);
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var query = "limit=1&sort_id=user_account_count&sort_order=asc";
+			if (cursor is not null) {
+				query += $"&cursor={Uri.EscapeDataString(cursor)}";
+			}
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
+			).WithSessionToken(token);
+
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			foreach (var item in page.Data) {
+				visitedIds.Add(item.Id);
+			}
+			cursor = page.NextCursor;
+
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		var expectedOrder = seededIds
+			.Zip(seededCounts, (id, c) => (id, c))
+			.OrderBy(x => x.c)
+			.ThenBy(x => x.id)
+			.Select(x => x.id)
+			.ToList();
+		visitedOrder.Should().Equal(expectedOrder);
+	}
+
+	private async Task<Guid> _SeedStaffRoleAtAsync(string name, DateTime createdAt) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var role = Role.CreateStaffRole(name);
+		await dbContext.Role.AddAsync(role);
+		await dbContext.SaveChangesAsync();
+
+		var id = role.GetRequiredId();
+		var tracked = await dbContext.Role
+			.Where(p => p.Id == id)
+			.FirstAsync();
+		tracked.CreatedAt = createdAt;
+		await dbContext.SaveChangesAsync();
+
+		return id;
+	}
+
+	private async Task<Guid> _SeedStaffRoleWithUsersAsync(string name, int userCount) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var role = Role.CreateStaffRole(name);
+		await dbContext.Role.AddAsync(role);
+		await dbContext.SaveChangesAsync();
+
+		var id = role.GetRequiredId();
+		for (var i = 0; i < userCount; i++) {
+			var user = new User {
+				Email = $"uac-user-{id:N}-{i}-{Guid.NewGuid():N}@example.com",
+				Password = "unused",
+				FirstName = "UAC",
+				LastName = "User",
+				Status = UserStatus.Active,
+				IsVerified = true,
+			};
+			await dbContext.User.AddAsync(user);
+			await dbContext.SaveChangesAsync();
+
+			var account = UserAccount.CreateStaffAccount(user.GetRequiredId());
+			await dbContext.UserAccount.AddAsync(account);
+			await dbContext.SaveChangesAsync();
+
+			var junction = new UserAccountRole {
+				UserAccountId = account.GetRequiredId(),
+				RoleId = id,
+			};
+			await dbContext.UserAccountRole.AddAsync(junction);
+			await dbContext.SaveChangesAsync();
+		}
+
+		return id;
+	}
+
+	[Fact]
+	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffRolesCursorBehaviorSpec._GetUrl($"cursor={Guid.NewGuid()}")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
+	}
+
+	private static string _GetUrl(string query = "") {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Roles.ForStaff.Root,
+			Routes.Roles.ForStaff.Find
+		);
+
+		return query.Length == 0 ? url : $"{url}?{query}";
+	}
+
+	private async Task<Guid> _SeedStaffRoleAsync(string name) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var role = Role.CreateStaffRole(name);
+		await dbContext.Role.AddAsync(role);
+		await dbContext.SaveChangesAsync();
+
+		return role.GetRequiredId();
+	}
+
+	private sealed record FindStaffRolesResponse {
+		public List<StaffRoleItemResponse> Data { get; init; } = [];
+		public string? NextCursor { get; init; }
+	}
+
+	private sealed record StaffRoleItemResponse {
+		public Guid Id { get; init; }
+		public string Name { get; init; } = string.Empty;
+	}
+
+	private async Task _SwapStaffRoleIdsAsync(Guid idA, Guid idB) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var temp = Guid.NewGuid();
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE roles SET id = {0} WHERE id = {1}",
+			temp, idA);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE roles SET id = {0} WHERE id = {1}",
+			idA, idB);
+		await dbContext.Database.ExecuteSqlRawAsync(
+			"UPDATE roles SET id = {0} WHERE id = {1}",
+			idB, temp);
+	}
+}

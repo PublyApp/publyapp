@@ -29,7 +29,7 @@ import { formatDateTime } from './_tenant-details-shell';
  * rule).
  */
 
-const VISIBLE_PROFILE_CHIP_COUNT = 2;
+const VISIBLE_ROLE_CHIP_COUNT = 2;
 const EXPIRES_SOON_MS = 48 * 60 * 60 * 1000;
 
 export type InvitationColumnArgs = {
@@ -98,51 +98,49 @@ export const createTenantInvitationColumns = ({
 		},
 	},
 	{
-		id: 'profile_name',
+		id: 'role_name',
 		header: () => (
 			<div className="inline-flex items-center gap-1.5">
 				<IconId className="size-3.5 text-muted-foreground" />
 				<span>{t('access')}</span>
 			</div>
 		),
-		accessorKey: 'profileName',
+		accessorKey: 'roleName',
 		enableSorting: false,
 		meta: { width: '160px', hideBelow: 768 },
 		cell: ({ row }) => {
-			const profiles = row.original.profiles ?? [];
-			if (profiles.length > 0) {
-				const visibleProfiles = profiles.slice(0, VISIBLE_PROFILE_CHIP_COUNT);
-				const overflowProfiles = profiles.slice(VISIBLE_PROFILE_CHIP_COUNT);
+			const roles = row.original.roles ?? [];
+			if (roles.length > 0) {
+				const visibleRoles = roles.slice(0, VISIBLE_ROLE_CHIP_COUNT);
+				const overflowRoles = roles.slice(VISIBLE_ROLE_CHIP_COUNT);
 
 				return (
 					<div className="flex min-w-0 items-center gap-1">
-						{visibleProfiles.map((profile) => (
+						{visibleRoles.map((role) => (
 							<span
-								key={profile.id}
+								key={role.id}
 								className="publy-detail-chip publy-detail-chip--outline max-w-24 truncate"
-								title={profile.name}
+								title={role.name}
 							>
-								{profile.name}
+								{role.name}
 							</span>
 						))}
-						{overflowProfiles.length > 0 ? (
+						{overflowRoles.length > 0 ? (
 							<span
 								className="publy-detail-chip publy-detail-chip--outline"
-								title={overflowProfiles
-									.map((profile) => profile.name)
-									.join(', ')}
+								title={overflowRoles.map((role) => role.name).join(', ')}
 							>
-								+{overflowProfiles.length}
+								+{overflowRoles.length}
 							</span>
 						) : null}
 					</div>
 				);
 			}
 
-			const profileName = row.original.profileName;
-			const access = profileName?.trim().length
-				? profileName
-				: (row.original.roles ?? []).join(', ');
+			const roleName = row.original.roleName;
+			const access = roleName?.trim().length
+				? roleName
+				: (row.original.roleNames ?? []).join(', ');
 
 			if (access.length === 0) {
 				return <span className="text-muted-foreground">—</span>;

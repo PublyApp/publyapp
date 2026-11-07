@@ -12,7 +12,7 @@ using Xunit;
 
 namespace PublyApp.Api.Lib.Architecture;
 
-// Guard for issue #548 (review MAJOR finding): three other specs — CreateStaffProfile.Spec's
+// Guard for issue #548 (review MAJOR finding): three other specs — CreateStaffRole.Spec's
 // exact `Be(Pending)` assertion, the removed `NextAttemptAt = ...AddDays(1)` workaround, and
 // the migration spec's removed ten-attempt retry loop — are only safe to write deterministically
 // because no LIVE InvitationEmailOutboxDispatcher ever runs inside the integration test host.
@@ -49,7 +49,7 @@ public sealed class ApiFactoryHostedServiceGuardSpec : IClassFixture<ApiFixture>
 		resolvedHostedServices.Should().NotContain(
 			hostedService => hostedService is InvitationEmailOutboxDispatcher,
 			"a live InvitationEmailOutboxDispatcher running inside the integration test host "
-			+ "would claim due outbox rows and race CreateStaffProfile.Spec's exact Pending "
+			+ "would claim due outbox rows and race CreateStaffRole.Spec's exact Pending "
 			+ "assertion, the removed AddDays(1) workaround, and the migration retry loop all "
 			+ "at once (issue #548)"
 		);

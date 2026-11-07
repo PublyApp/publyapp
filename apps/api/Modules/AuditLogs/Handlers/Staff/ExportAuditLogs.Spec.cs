@@ -247,7 +247,7 @@ public sealed class ExportAuditLogsSpec
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			this._Fixture.Factory,
 			userId,
-			AuditActions.StaffProfileCreated
+			AuditActions.StaffRoleCreated
 		);
 		await AuditLogTestHelper.SeedAuditLogAsync(
 			this._Fixture.Factory,
@@ -257,7 +257,7 @@ public sealed class ExportAuditLogsSpec
 
 		var url = AuditLogTestHelper.GetExportUrl(
 			"csv",
-			actions: [AuditActions.StaffProfileCreated]
+			actions: [AuditActions.StaffRoleCreated]
 		);
 		var request = new HttpRequestMessage(
 			HttpMethod.Get, url
@@ -272,7 +272,7 @@ public sealed class ExportAuditLogsSpec
 		var content = await response.Content
 			.ReadAsStringAsync();
 		content.Should().Contain(
-			AuditActions.StaffProfileCreated
+			AuditActions.StaffRoleCreated
 		);
 		content.Should().NotContain(
 			AuditActions.ImpersonationEnded

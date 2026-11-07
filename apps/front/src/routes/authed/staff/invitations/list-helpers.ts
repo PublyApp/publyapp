@@ -22,12 +22,12 @@ const KNOWN_INVITATION_STATUS_SET = new Set<string>(KNOWN_INVITATION_STATUSES);
 
 export type InvitationListSearchParams = TableSearchParams & {
 	status?: string;
-	profile?: string;
+	role?: string;
 };
 
 export type InvitationListSearchParamInput = TableSearchParamInput & {
 	status?: unknown;
-	profile?: unknown;
+	role?: unknown;
 };
 
 const normalizeString = (value: unknown): string | undefined => {
@@ -52,7 +52,7 @@ const toSnakeLower = (value: string): string => {
 export type StaffInvitationRow = {
 	id: string;
 	email: string;
-	profileName: string;
+	roleName: string;
 	invitedByName: string;
 	status: InvitationDisplayStatus;
 	acceptedAt: Date | null;
@@ -73,7 +73,7 @@ export const toStaffInvitationRows = (
 		rows.push({
 			id: item.id,
 			email: item.email ?? '',
-			profileName: item.profileName?.trim() ?? '',
+			roleName: item.roleName?.trim() ?? '',
 			invitedByName: item.invitedByName?.trim() ?? '',
 			status: normalizeInvitationStatus(item.status),
 			acceptedAt: item.acceptedAt ?? null,
@@ -133,30 +133,30 @@ export const serializeInvitationStatusFilter = (
 	return undefined;
 };
 
-export const parseInvitationProfileFilter = (value: unknown): string[] => {
+export const parseInvitationRoleFilter = (value: unknown): string[] => {
 	const normalized = normalizeString(value);
 	if (!normalized) {
 		return [];
 	}
 	const seen = new Set<string>();
-	const profiles: string[] = [];
+	const roles: string[] = [];
 	for (const part of normalized.split(',')) {
 		const name = part.trim();
 		if (name.length === 0 || seen.has(name)) {
 			continue;
 		}
 		seen.add(name);
-		profiles.push(name);
+		roles.push(name);
 	}
-	return profiles;
+	return roles;
 };
 
-export const serializeInvitationProfileFilter = (
-	profiles: readonly string[],
+export const serializeInvitationRoleFilter = (
+	roles: readonly string[],
 ): string | undefined => {
 	const seen = new Set<string>();
 	const unique: string[] = [];
-	for (const name of profiles) {
+	for (const name of roles) {
 		const trimmed = name.trim();
 		if (trimmed.length === 0 || seen.has(trimmed)) {
 			continue;
@@ -174,20 +174,20 @@ export const parseInvitationListSearchParams = (
 	const status = serializeInvitationStatusFilter(
 		parseInvitationStatusFilter(search.status),
 	);
-	const profile = serializeInvitationProfileFilter(
-		parseInvitationProfileFilter(search.profile),
+	const role = serializeInvitationRoleFilter(
+		parseInvitationRoleFilter(search.role),
 	);
 
 	return {
 		...base,
 		status: status || undefined,
-		profile: profile || undefined,
+		role: role || undefined,
 	};
 };
 
 export type InvitationListWireParams = {
 	status?: string;
-	profile?: string;
+	role?: string;
 } & TableSearchWireParams;
 
 export const serializeInvitationListSearchParams = (
@@ -197,14 +197,14 @@ export const serializeInvitationListSearchParams = (
 	const status = serializeInvitationStatusFilter(
 		parseInvitationStatusFilter(params.status),
 	);
-	const profile = serializeInvitationProfileFilter(
-		parseInvitationProfileFilter(params.profile),
+	const role = serializeInvitationRoleFilter(
+		parseInvitationRoleFilter(params.role),
 	);
 
 	return {
 		...next,
 		status: status || undefined,
-		profile: profile || undefined,
+		role: role || undefined,
 	};
 };
 

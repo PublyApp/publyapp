@@ -35,7 +35,7 @@ const unwrapUntyped = (value: unknown): Unwrapped => {
 };
 
 describe('toAccountProfile', () => {
-	test('normalizes a full profile result', () => {
+	test('normalizes a full role result', () => {
 		expect(
 			toAccountProfile({
 				id: 'user-1',
@@ -60,7 +60,7 @@ describe('toAccountProfile', () => {
 	});
 
 	test('handles nulled identity fields', () => {
-		const profile = toAccountProfile({
+		const role = toAccountProfile({
 			id: 'user-1',
 			email: 'jason@studio.io',
 			firstName: null,
@@ -68,9 +68,9 @@ describe('toAccountProfile', () => {
 			avatarUrl: null,
 		});
 
-		expect(profile).not.toBeNull();
-		expect(profile?.firstName).toBeNull();
-		expect(profile?.displayName).toBeNull();
+		expect(role).not.toBeNull();
+		expect(role?.firstName).toBeNull();
+		expect(role?.displayName).toBeNull();
 	});
 });
 

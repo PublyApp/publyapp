@@ -16,7 +16,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -363,7 +363,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	ItShouldReturnForbiddenForANonAdminTenantUserWithoutSettingsEdit() {
 		var acmeId = await this._GetAcmeIdAsync();
 		// Round 2: the seeded Acme member holds publishing permissions via the demo
-		// profile, but nothing grants settings.* here, so the check must still deny.
+		// role, but nothing grants settings.* here, so the check must still deny.
 		var acmeUserToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
@@ -390,19 +390,19 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	ItShouldAllowANonAdminTenantUserWithSettingsEditToUpdate() {
 		var (acmeId, _, original) =
 			await this._PrepareAcmeAdminAsync();
-		var createdProfileIds = new List<Guid>();
+		var createdRoleIds = new List<Guid>();
 
 		try {
-			var profileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var roleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Settings.EDIT.Key]
 			);
-			createdProfileIds.Add(profileId);
+			createdRoleIds.Add(roleId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				TestConstants.AcmeUserEmail,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			var acmeUserToken = await this._AuthClient.LoginAsync(
@@ -432,7 +432,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				.Be("Updated by a non-admin with settings.edit");
 		} finally {
 			await this._RestoreTenantAsync(acmeId, original);
-			await this._CleanupTenantProfileArtifactsAsync(createdProfileIds);
+			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
 		}
 	}
 
@@ -538,7 +538,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 				.SetProperty(tenant => tenant.UpdatedAt, DateTime.UtcNow));
 	}
 
-	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantRoleWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
@@ -547,22 +547,22 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			tenantId,
 			"Tenant Settings General Spec " + Guid.NewGuid().ToString("N")[..8],
 			"Created for tenant settings general permission assertions"
 		);
-		profile.ValidateProfileType();
+		role.ValidateRoleType();
 
-		_ = await dbContext.Profile.AddAsync(profile);
+		_ = await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		var profileId = profile.GetRequiredId();
+		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.ProfilePermission.AddAsync(
-				new ProfilePermission {
-					ProfileId = profileId,
+			_ = await dbContext.RolePermission.AddAsync(
+				new RolePermission {
+					RoleId = roleId,
 					PermissionKey = permissionKey
 				}
 			);
@@ -570,13 +570,13 @@ public sealed class UpdateTenantSettingsForTenantSpec
 
 		await dbContext.SaveChangesAsync();
 
-		return profileId;
+		return roleId;
 	}
 
-	private async Task _AssignProfileToTenantUserAsync(
+	private async Task _AssignRoleToTenantUserAsync(
 		string email,
 		Guid tenantId,
-		IReadOnlyCollection<Guid> profileIds
+		IReadOnlyCollection<Guid> roleIds
 	) {
 		var trimmedEmail = email.Trim();
 
@@ -611,11 +611,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			);
 		}
 
-		foreach (var profileId in profileIds) {
-			_ = await dbContext.UserAccountProfile.AddAsync(
-				new UserAccountProfile {
+		foreach (var roleId in roleIds) {
+			_ = await dbContext.UserAccountRole.AddAsync(
+				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
-					ProfileId = profileId
+					RoleId = roleId
 				}
 			);
 		}
@@ -623,10 +623,10 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _CleanupTenantProfileArtifactsAsync(
-		IReadOnlyCollection<Guid> profileIds
+	private async Task _CleanupTenantRoleArtifactsAsync(
+		IReadOnlyCollection<Guid> roleIds
 	) {
-		if (profileIds.Count == 0) {
+		if (roleIds.Count == 0) {
 			return;
 		}
 
@@ -635,11 +635,11 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profileIdList = profileIds.ToList();
+		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountProfile
-			where profileIdList.Contains(uap.ProfileId)
+			from uap in dbContext.UserAccountRole
+			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
@@ -648,8 +648,8 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.ProfilePermission
-			where profileIdList.Contains(pp.ProfileId)
+			from pp in dbContext.RolePermission
+			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
@@ -657,15 +657,15 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			dbContext.ForceHardDeleteRange(permissionsToRemove);
 		}
 
-		var profilesToRemove = (await (
-			from p in dbContext.Profile
+		var rolesToRemove = (await (
+			from p in dbContext.Role
 			select p
 		).ToListAsync())
-			.Where(profile => profileIdList.Contains(profile.GetRequiredId()))
+			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
-		if (profilesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(profilesToRemove);
+		if (rolesToRemove.Count > 0) {
+			dbContext.ForceHardDeleteRange(rolesToRemove);
 			await dbContext.SaveChangesAsync();
 		}
 	}

@@ -88,17 +88,17 @@ export const invitationColumns = (
 		),
 	},
 	{
-		id: 'profile',
-		header: t('common:profile'),
+		id: 'role',
+		header: t('common:role'),
 		icon: IconShieldLock,
 		width: 200,
 		cell: (row) =>
-			row.profileName ? (
+			row.roleName ? (
 				<span className="inline-flex h-5 items-center rounded-[var(--publy-radius-chip)] border bg-background px-2 text-xs">
-					{row.profileName}
+					{row.roleName}
 				</span>
 			) : (
-				<span className="text-muted-foreground">{t('unknown-profile')}</span>
+				<span className="text-muted-foreground">{t('unknown-role')}</span>
 			),
 		sortable: false,
 	},

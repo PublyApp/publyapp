@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Modules.Auth.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -102,13 +102,13 @@ namespace PublyApp.Api.Lib.Architecture {
 				.Options;
 			using var dbContext = new AppDbContext(options);
 
-			ArchitectureGuardSpec._AssertCompositeJunctionKey<UserAccountProfile>(
+			ArchitectureGuardSpec._AssertCompositeJunctionKey<UserAccountRole>(
 				dbContext,
-				[nameof(UserAccountProfile.UserAccountId), nameof(UserAccountProfile.ProfileId)]
+				[nameof(UserAccountRole.UserAccountId), nameof(UserAccountRole.RoleId)]
 			);
-			ArchitectureGuardSpec._AssertCompositeJunctionKey<ProfilePermission>(
+			ArchitectureGuardSpec._AssertCompositeJunctionKey<RolePermission>(
 				dbContext,
-				[nameof(ProfilePermission.ProfileId), nameof(ProfilePermission.PermissionKey)]
+				[nameof(RolePermission.RoleId), nameof(RolePermission.PermissionKey)]
 			);
 		}
 

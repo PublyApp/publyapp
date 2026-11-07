@@ -13,7 +13,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -38,7 +38,7 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 			AppPermissions.Staff.Invitations.CREATE_FOR_STAFF.Key
 		);
 		string email = $"staff-create-permissioned-{Guid.NewGuid():N}@example.com";
-		Guid profileId = await this._GetAnyStaffProfileIdAsync();
+		Guid roleId = await this._GetAnyStaffRoleIdAsync();
 
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -47,7 +47,7 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 
 		request.Content = JsonContent.Create(new {
 			email,
-			profileId = profileId.ToString()
+			roleId = roleId.ToString()
 		});
 
 		using HttpResponseMessage response = await this._Http.SendAsync(request);
@@ -73,21 +73,21 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 			)
 			.FirstAsync();
 
-		Profile profile = Profile.CreateStaffProfile(
+		Role role = Role.CreateStaffRole(
 			$"staff-create-permission-{Guid.NewGuid():N}",
-			"Test-only staff profile for create invitation permission"
+			"Test-only staff role for create invitation permission"
 		);
 
-		await dbContext.Profile.AddAsync(profile);
+		await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
-			ProfileId = profile.GetRequiredId(),
+		await dbContext.RolePermission.AddAsync(new RolePermission {
+			RoleId = role.GetRequiredId(),
 			PermissionKey = permissionKey
 		});
-		await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+		await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = staffAccount.GetRequiredId(),
-			ProfileId = profile.GetRequiredId()
+			RoleId = role.GetRequiredId()
 		});
 		await dbContext.SaveChangesAsync();
 
@@ -97,19 +97,19 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<Guid> _GetAnyStaffProfileIdAsync() {
+	private async Task<Guid> _GetAnyStaffRoleIdAsync() {
 		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		Profile profile = await dbContext.Profile
-			.Where(profile =>
-				profile.Scope == ProfileScope.Staff
-				&& !profile.IsDeleted
+		Role role = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
 			)
-			.OrderBy(profile => profile.Name)
+			.OrderBy(role => role.Name)
 			.FirstAsync();
 
-		return profile.GetRequiredId();
+		return role.GetRequiredId();
 	}
 }

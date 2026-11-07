@@ -178,8 +178,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task
 		ItShouldReturnForbiddenForStaffWithoutPermission() {
-			// Use an isolated staff user with no profiles, so permissions are guaranteed empty even if
-			// other integration tests assign profiles to the seeded staff-user@example.com.
+			// Use an isolated staff user with no roles, so permissions are guaranteed empty even if
+			// other integration tests assign roles to the seeded staff-user@example.com.
 			string token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
 			// Use an existing user id so the permission failure cannot be masked by a 404 from the handler.
@@ -266,7 +266,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 				await this._Http.SendAsync(request);
 
 			// avatarUrl has no "blank means clear" semantics on this endpoint —
-			// unlike websiteUrl on the tenant org profile, an empty string must
+			// unlike websiteUrl on the tenant org role, an empty string must
 			// still 422 rather than silently persisting "" as the avatar URL.
 			_ = response.StatusCode.Should()
 				.Be(HttpStatusCode.UnprocessableEntity);

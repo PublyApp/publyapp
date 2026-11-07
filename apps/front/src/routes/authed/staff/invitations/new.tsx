@@ -25,7 +25,7 @@ import {
 	useBulkCreateStaffInvitationsMutation,
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
-import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
+import { useStaffRolesQuery } from '~/lib/query/staff-roles';
 
 import {
 	getFailureMessage,
@@ -40,10 +40,10 @@ import { createZodI18n } from '@org/shared-ts/lib/zod/zod-i18n';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 
 import {
-	buildStaffProfileOptions,
-	collectSelectedProfileIds,
-	rememberStaffProfileNames,
-} from '../_staff-profile-options';
+	buildStaffRoleOptions,
+	collectSelectedRoleIds,
+	rememberStaffRoleNames,
+} from '../_staff-role-options';
 
 type InvitationFormValues = z.infer<
 	ReturnType<typeof getBulkCreateInvitationsSchema>
@@ -53,7 +53,7 @@ const DEFAULT_VALUES: InvitationFormValues = {
 	invitations: [
 		{
 			email: '',
-			profileIds: [],
+			roleIds: [],
 		},
 	],
 };
@@ -77,35 +77,35 @@ const getZodForI18n = (instance: I18nInstance) => {
 	});
 };
 
-const InvitationProfileField = ({
+const InvitationRoleField = ({
 	index,
-	profileLoadError,
-	profilesQuery,
-	profileOptions,
+	roleLoadError,
+	rolesQuery,
+	roleOptions,
 	isPending,
 }: {
 	index: number;
-	profileLoadError: string;
-	profilesQuery: ReturnType<typeof useStaffProfilesQuery>;
-	profileOptions: ReturnType<typeof buildStaffProfileOptions>;
+	roleLoadError: string;
+	rolesQuery: ReturnType<typeof useStaffRolesQuery>;
+	roleOptions: ReturnType<typeof buildStaffRoleOptions>;
 	isPending: boolean;
 }) => {
 	const { t } = useTranslation(['staff-invitations', 'common']);
 
-	if (profileLoadError) {
-		return <p className="text-sm text-destructive">{profileLoadError}</p>;
+	if (roleLoadError) {
+		return <p className="text-sm text-destructive">{roleLoadError}</p>;
 	}
 
-	if (profilesQuery.isPending) {
+	if (rolesQuery.isPending) {
 		return (
 			<div className="flex items-center gap-2 text-sm text-muted-foreground">
 				<LoadingSpinner />
-				<span>{t('common:profiles')}</span>
+				<span>{t('common:roles')}</span>
 			</div>
 		);
 	}
 
-	if (profileOptions.length === 0) {
+	if (roleOptions.length === 0) {
 		return (
 			<p className="text-sm text-muted-foreground">{t('no-results-found')}</p>
 		);
@@ -113,11 +113,11 @@ const InvitationProfileField = ({
 
 	return (
 		<Field.CheckboxGroup
-			name={`invitations.${index}.profileIds`}
-			label={t('common:select-profiles')}
-			helperText={t('select-at-least-one-profile')}
-			options={profileOptions}
-			isDisabled={isPending || profilesQuery.isPending}
+			name={`invitations.${index}.roleIds`}
+			label={t('common:select-roles')}
+			helperText={t('select-at-least-one-role')}
+			options={roleOptions}
+			isDisabled={isPending || rolesQuery.isPending}
 		/>
 	);
 };
@@ -125,18 +125,18 @@ const InvitationProfileField = ({
 const NewStaffInvitationsRoute = () => {
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
-	const [profileSearch, setProfileSearch] = useState('');
-	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
+	const [roleSearch, setRoleSearch] = useState('');
+	const deferredRoleSearch = useDeferredValue(roleSearch.trim());
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
 	// Post-success redirect is driven by state: the submit handler only arms
 	// a flag, and the effect below owns the timer (and its cleanup). A ref
 	// write inside onSubmit taints it for React Compiler, skipping the whole
 	// component.
 	const [redirectCountdown, setRedirectCountdown] = useState(0);
-	// Known profile names, accumulated as state. The render reads this map
+	// Known role names, accumulated as state. The render reads this map
 	// directly (a ref read here made React Compiler skip the component); the
-	// effect below folds each page of fetched profiles into it idempotently.
-	const [knownProfileNamesState, setKnownProfileNamesState] = useState(
+	// effect below folds each page of fetched roles into it idempotently.
+	const [knownRoleNamesState, setKnownRoleNamesState] = useState(
 		() => new Map<string, string>(),
 	);
 
@@ -168,11 +168,11 @@ const NewStaffInvitationsRoute = () => {
 		name: 'invitations',
 	}) as StaffInvitationInput[] | undefined;
 
-	const profilesQuery = useStaffProfilesQuery({
+	const rolesQuery = useStaffRolesQuery({
 		limit: 20,
 		sortId: 'name',
 		sortOrder: 'asc',
-		q: deferredProfileSearch || undefined,
+		q: deferredRoleSearch || undefined,
 	});
 	const queryClient = useQueryClient();
 	const createInvitations = useBulkCreateStaffInvitationsMutation();
@@ -198,46 +198,46 @@ const NewStaffInvitationsRoute = () => {
 	}, [navigate, redirectCountdown]);
 
 	useEffect(() => {
-		if (profilesQuery.data === undefined) {
+		if (rolesQuery.data === undefined) {
 			return;
 		}
-		setKnownProfileNamesState((previous) => {
+		setKnownRoleNamesState((previous) => {
 			const next = new Map(previous);
-			rememberStaffProfileNames(next, profilesQuery.data?.data);
+			rememberStaffRoleNames(next, rolesQuery.data?.data);
 			if (next.size === previous.size) {
 				return previous;
 			}
 			return next;
 		});
-	}, [profilesQuery.data]);
+	}, [rolesQuery.data]);
 
 	// Fresh page rows are unioned synchronously so an option label never lags
 	// one render behind its data; the accumulated map only carries history.
-	const knownProfileNames = useMemo(() => {
-		const merged = new Map(knownProfileNamesState);
-		rememberStaffProfileNames(merged, profilesQuery.data?.data);
+	const knownRoleNames = useMemo(() => {
+		const merged = new Map(knownRoleNamesState);
+		rememberStaffRoleNames(merged, rolesQuery.data?.data);
 		return merged;
-	}, [knownProfileNamesState, profilesQuery.data]);
+	}, [knownRoleNamesState, rolesQuery.data]);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
-	const profilesError = profilesQuery.error;
-	if (profilesError !== null && shouldLogoutForFailure(profilesError)) {
+	const rolesError = rolesQuery.error;
+	if (rolesError !== null && shouldLogoutForFailure(rolesError)) {
 		return <LogoutRedirect />;
 	}
 
-	const selectedProfileIds = collectSelectedProfileIds(
-		watchedInvitations?.map((invitation) => invitation.profileIds),
+	const selectedRoleIds = collectSelectedRoleIds(
+		watchedInvitations?.map((invitation) => invitation.roleIds),
 	);
-	const profileOptions = buildStaffProfileOptions({
-		profiles: profilesQuery.data?.data,
-		selectedProfileIds,
-		knownProfileNames,
+	const roleOptions = buildStaffRoleOptions({
+		roles: rolesQuery.data?.data,
+		selectedRoleIds,
+		knownRoleNames,
 	});
 	const isPending = isSubmitting || createInvitations.isPending;
-	const profileLoadError =
-		profilesError !== null
-			? getFailureMessage(toApiFailure(profilesError), {
-					fallback: t('common:unable-to-load-profiles'),
+	const roleLoadError =
+		rolesError !== null
+			? getFailureMessage(toApiFailure(rolesError), {
+					fallback: t('common:unable-to-load-roles'),
 				})
 			: '';
 
@@ -282,7 +282,7 @@ const NewStaffInvitationsRoute = () => {
 				</Link>
 				<h1 className="publy-type-page-title">{t('common:invite-users')}</h1>
 				<p className="publy-type-helper">
-					{t('send-email-invitations-and-assign-staff-profiles')}
+					{t('send-email-invitations-and-assign-staff-roles')}
 				</p>
 			</div>
 
@@ -290,29 +290,29 @@ const NewStaffInvitationsRoute = () => {
 				<div className="space-y-1">
 					<label
 						className="text-sm font-medium text-foreground"
-						htmlFor="profile-search"
+						htmlFor="role-search"
 					>
-						{t('common:profiles')}
+						{t('common:roles')}
 					</label>
 					<Input
-						id="profile-search"
-						value={profileSearch}
+						id="role-search"
+						value={roleSearch}
 						onChange={(event) => {
-							setProfileSearch(event.target.value);
+							setRoleSearch(event.target.value);
 						}}
 						placeholder={t('common:search')}
 						autoComplete="off"
-						data-testid="staff-invitations-profile-search"
+						data-testid="staff-invitations-role-search"
 					/>
 					<p className="text-xs text-muted-foreground">
-						{t('select-at-least-one-profile')}
+						{t('select-at-least-one-role')}
 					</p>
 				</div>
 
-				{profilesQuery.isFetching ? (
+				{rolesQuery.isFetching ? (
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<LoadingSpinner />
-						<span>{t('common:profiles')}</span>
+						<span>{t('common:roles')}</span>
 					</div>
 				) : null}
 
@@ -336,7 +336,7 @@ const NewStaffInvitationsRoute = () => {
 											{t('common:invitation')} #{index + 1}
 										</h2>
 										<p className="text-sm text-muted-foreground">
-											{t('enter-email-and-select-profiles')}
+											{t('enter-email-and-select-roles')}
 										</p>
 									</div>
 									{fields.length > 1 ? (
@@ -361,11 +361,11 @@ const NewStaffInvitationsRoute = () => {
 									disabled={isPending}
 								/>
 
-								<InvitationProfileField
+								<InvitationRoleField
 									index={index}
-									profileLoadError={profileLoadError}
-									profilesQuery={profilesQuery}
-									profileOptions={profileOptions}
+									roleLoadError={roleLoadError}
+									rolesQuery={rolesQuery}
+									roleOptions={roleOptions}
 									isPending={isPending}
 								/>
 							</Card>
@@ -378,7 +378,7 @@ const NewStaffInvitationsRoute = () => {
 								onClick={() => {
 									append({
 										email: '',
-										profileIds: [],
+										roleIds: [],
 									});
 								}}
 								disabled={isPending}
@@ -389,7 +389,7 @@ const NewStaffInvitationsRoute = () => {
 							<Button
 								type="submit"
 								variant="default"
-								disabled={isPending || profilesQuery.isPending}
+								disabled={isPending || rolesQuery.isPending}
 								data-testid="staff-invitations-submit"
 							>
 								{isPending ? <LoadingSpinner /> : null}

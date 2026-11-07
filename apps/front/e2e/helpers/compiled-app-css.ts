@@ -94,7 +94,7 @@ let hasBuiltThisProcess = false;
  * would silently define none of the `--publy-*` tokens or component
  * classes this repo's e2e specs need to measure.
  *
- * Ported from the `feat/ui-profile-batch` lane's identical helper (#992
+ * Ported from the `feat/ui-role-batch` lane's identical helper (#992
  * review round 2) rather than reinvented, per the #973 round-3 review's
  * instruction to keep one hermetic-geometry pattern in the repo rather
  * than two independent ones. That round-3 review also found the ported

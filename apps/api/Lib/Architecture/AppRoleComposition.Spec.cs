@@ -543,7 +543,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		registry.RegisteredJobTypes.Should().BeEquivalentTo([
 			InvitationEmailJobs.TenantInvitationV1.JobType,
 			InvitationEmailJobs.StaffInvitationV1.JobType,
-			PublyApp.Api.Modules.Profiles.Jobs.StaffProfileEmailJobs.StaffJoinedNotificationV1.JobType,
+			PublyApp.Api.Modules.Roles.Jobs.StaffRoleEmailJobs.StaffJoinedNotificationV1.JobType,
 			AuthEmailJobs.PasswordResetV1.JobType,
 			AuthEmailJobs.VerifyEmailV1.JobType,
 			CleanupExpiredSessionsHandler.JobKey,

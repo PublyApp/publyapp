@@ -72,7 +72,7 @@ describe('front route metadata', () => {
 		).toEqual([
 			'nav-staff-all-users',
 			'nav-staff-invitations',
-			'nav-staff-profiles',
+			'nav-staff-roles',
 			'nav-staff-audit-logs',
 		]);
 	});
@@ -117,10 +117,10 @@ describe('front route metadata', () => {
 
 	test('tenant account panel items are exact', () => {
 		// #818 F8: Security and Notifications are hidden until their APIs
-		// exist; only Profile ships today.
+		// exist; only Role ships today.
 		expect(
 			getSecondaryPanelItems('/tenant/account').map((item) => item.labelKey),
-		).toEqual(['profile']);
+		).toEqual(['role']);
 	});
 
 	test('panel rows are active on their EXACT pathname only', () => {
@@ -196,23 +196,21 @@ describe('front route metadata', () => {
 	});
 
 	test('tenant account panel: only the deepest matching row is active', () => {
-		const [profile] = getSecondaryPanelItems('/tenant/account');
-		if (!profile) {
-			throw new Error('expected the profile account panel item to exist');
+		const [role] = getSecondaryPanelItems('/tenant/account');
+		if (!role) {
+			throw new Error('expected the role account panel item to exist');
 		}
 
-		expect(isSecondaryPanelItemActive(profile, '/tenant/account', {})).toBe(
-			true,
-		);
+		expect(isSecondaryPanelItemActive(role, '/tenant/account', {})).toBe(true);
 
-		// Panel rows match their EXACT pathname — the Profile row must stay
+		// Panel rows match their EXACT pathname — the Role row must stay
 		// off children's routes, including deep-linked hidden sections whose
 		// routes stay registered.
 		expect(
-			isSecondaryPanelItemActive(profile, '/tenant/account/security', {}),
+			isSecondaryPanelItemActive(role, '/tenant/account/security', {}),
 		).toBe(false);
 		expect(
-			isSecondaryPanelItemActive(profile, '/tenant/account/notifications', {}),
+			isSecondaryPanelItemActive(role, '/tenant/account/notifications', {}),
 		).toBe(false);
 	});
 
@@ -265,7 +263,7 @@ describe('front route metadata', () => {
 			}),
 		).toBe(true);
 		expect(
-			shouldShowSecondaryPanel('/staff/profiles/p-1', {
+			shouldShowSecondaryPanel('/staff/roles/p-1', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
@@ -307,7 +305,7 @@ describe('front route metadata', () => {
 			}),
 		).toBe(true);
 		expect(
-			shouldShowSecondaryPanel('/staff/profiles/new', {
+			shouldShowSecondaryPanel('/staff/roles/new', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),

@@ -67,7 +67,7 @@ const buildRow = (
 ): StaffInvitationRow => ({
 	id: 'invitation-1',
 	email: 'person@example.com',
-	profileName: 'Ops',
+	roleName: 'Ops',
 	invitedByName: 'Jane',
 	status: 'pending',
 	acceptedAt: null,
@@ -95,7 +95,7 @@ describe('invitationColumns', () => {
 		expect(columns.map((column) => column.id)).toEqual([
 			'email',
 			'status',
-			'profile',
+			'role',
 			'invitedBy',
 			'createdAt',
 			'expiresAt',
@@ -121,18 +121,18 @@ describe('invitationColumns', () => {
 		expect(screen.queryByRole('link')).toBeNull();
 	});
 
-	test('labels a missing profile or inviter as unknown', () => {
+	test('labels a missing role or inviter as unknown', () => {
 		const columns = invitationColumns(t, 'en');
-		const profileColumn = columns.find((column) => column.id === 'profile');
+		const roleColumn = columns.find((column) => column.id === 'role');
 		const invitedByColumn = columns.find((column) => column.id === 'invitedBy');
 		render(
 			<>
-				{profileColumn?.cell(buildRow({ profileName: '' }))}
+				{roleColumn?.cell(buildRow({ roleName: '' }))}
 				{invitedByColumn?.cell(buildRow({ invitedByName: '' }))}
 			</>,
 		);
 
-		expect(screen.getByText('unknown-profile')).toBeTruthy();
+		expect(screen.getByText('unknown-role')).toBeTruthy();
 		expect(screen.getByText('unknown-inviter')).toBeTruthy();
 		expect(screen.queryByText('—')).toBeNull();
 	});

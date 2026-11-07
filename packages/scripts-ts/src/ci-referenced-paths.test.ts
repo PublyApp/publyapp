@@ -111,7 +111,7 @@ test('every script path referenced by gate config surfaces exists', () => {
 // Issue #1297: the table listed the `_assign-members-drawer.tsx` skips under
 // `src/routes/authed/staff/tenants/$tenantId/profiles/`, but the file (and
 // the suppressions the row documents) actually lives under
-// `profiles/$profileId/`. The decision text was right and the path was wrong;
+// `roles/$roleId/`. The decision text was right and the path was wrong;
 // nothing failed because no guard resolved inventory paths against disk.
 //
 // WHAT THIS PROVES

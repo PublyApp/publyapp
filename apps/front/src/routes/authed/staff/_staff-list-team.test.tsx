@@ -47,10 +47,10 @@ const mocks = vi.hoisted(() => ({
 		]),
 		fetcher: vi.fn(),
 	},
-	staffProfilesQueryOptions: {
+	staffRolesQueryOptions: {
 		queryKey: vi.fn((variables: QueryArgumentRecord) => [
 			'staff',
-			'staff-profiles',
+			'staff-roles',
 			variables,
 		]),
 		fetcher: vi.fn(),
@@ -65,9 +65,9 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 	STAFF_INVITATIONS_QUERY_KEY: ['staff-invitations'],
 	staffInvitationsQueryOptions: mocks.staffInvitationsQueryOptions,
 }));
-vi.mock('~/lib/query/staff-profiles', () => ({
-	STAFF_PROFILES_QUERY_KEY: ['staff-profiles'],
-	staffProfilesQueryOptions: mocks.staffProfilesQueryOptions,
+vi.mock('~/lib/query/staff-roles', () => ({
+	STAFF_ROLES_QUERY_KEY: ['staff-roles'],
+	staffRolesQueryOptions: mocks.staffRolesQueryOptions,
 }));
 
 const OPTIONS = {
@@ -111,7 +111,7 @@ beforeEach(() => {
 	mocks.staffInvitationsQueryOptions.fetcher
 		.mockReset()
 		.mockResolvedValue(UNFILTERED_RESULT);
-	mocks.staffProfilesQueryOptions.fetcher
+	mocks.staffRolesQueryOptions.fetcher
 		.mockReset()
 		.mockResolvedValue({ data: [], totalCount: 0 });
 });
@@ -129,8 +129,8 @@ describe('useStaffTeamOverview counter cache', () => {
 			expect(mocks.staffUsersQueryOptions.fetcher).toHaveBeenCalledWith(
 				STAFF_TEAM_COUNT_VARIABLES.staff,
 			);
-			expect(mocks.staffProfilesQueryOptions.fetcher).toHaveBeenCalledWith(
-				STAFF_TEAM_COUNT_VARIABLES.profiles,
+			expect(mocks.staffRolesQueryOptions.fetcher).toHaveBeenCalledWith(
+				STAFF_TEAM_COUNT_VARIABLES.roles,
 			);
 		});
 		expect(STAFF_TEAM_COUNT_VARIABLES.invitations).toEqual({ size: 1 });
@@ -145,9 +145,9 @@ describe('useStaffTeamOverview counter cache', () => {
 			'staff-users',
 			{ size: 1 },
 		]);
-		expect(staffTeamCountQueryKey('profiles')).toEqual([
+		expect(staffTeamCountQueryKey('roles')).toEqual([
 			'staff',
-			'staff-profiles',
+			'staff-roles',
 			{ limit: 100 },
 		]);
 	});

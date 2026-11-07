@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
-import { TENANT_PROFILE_ICON_NAMES } from '@org/shared-ts/lib/profile-style/tenant-profile-icons';
+import { TENANT_ROLE_ICON_NAMES } from '@org/shared-ts/lib/role-style/tenant-role-icons';
 
 import { IconColorPicker } from './icon-color-picker';
 import { ICON_COLOR_PICKER_OPTIONS } from './icon-color-picker-options';
@@ -14,15 +14,15 @@ const translations: TestLabelMap = {
 	'choose-icon-and-color': 'Choose icon and color',
 	'choose-icon': 'Choose icon',
 	'choose-color': 'Choose color',
-	'choose-profile-tone': 'Choose {{color}}',
-	'profile-tone-2': 'Rose',
-	'profile-tone-4': 'Violet',
-	'profile-icon-search': 'Search icons',
-	'profile-icon-search-placeholder': 'Search icons…',
-	'clear-profile-icon-search': 'Clear icon search',
-	'profile-icon-shield-check': 'Shield check',
-	'profile-icon-briefcase': 'Briefcase',
-	'profile-icon-calendar': 'Calendar',
+	'choose-role-tone': 'Choose {{color}}',
+	'role-tone-2': 'Rose',
+	'role-tone-4': 'Violet',
+	'role-icon-search': 'Search icons',
+	'role-icon-search-placeholder': 'Search icons…',
+	'clear-role-icon-search': 'Clear icon search',
+	'role-icon-shield-check': 'Shield check',
+	'role-icon-briefcase': 'Briefcase',
+	'role-icon-calendar': 'Calendar',
 };
 
 vi.mock('react-i18next', () => ({
@@ -42,7 +42,7 @@ describe('IconColorPicker', () => {
 
 	test('exposes every icon from the shared API catalog exactly once', () => {
 		expect(ICON_COLOR_PICKER_OPTIONS.map((option) => option.name)).toEqual(
-			TENANT_PROFILE_ICON_NAMES,
+			TENANT_ROLE_ICON_NAMES,
 		);
 	});
 
@@ -103,9 +103,7 @@ describe('IconColorPicker', () => {
 		const trigger = screen.getByRole('button', {
 			name: 'Choose icon and color',
 		});
-		const pin = trigger.querySelector(
-			'[data-testid="profile-icon-picker-pin"]',
-		);
+		const pin = trigger.querySelector('[data-testid="role-icon-picker-pin"]');
 		expect(pin).not.toBeNull();
 		expect(pin?.getAttribute('aria-hidden')).toBe('true');
 		expect(pin?.className).toContain('pointer-events-none');

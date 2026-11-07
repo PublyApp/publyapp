@@ -34,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 const EN_LABELS: TestLabelMap = {
-	profile: 'Profile',
+	role: 'Role',
 	security: 'Security',
 	notifications: 'Notifications',
 };
@@ -52,9 +52,9 @@ import { Route } from './account';
 const TenantAccountLayout = Route.options.component as ComponentType;
 
 // #818 F8: Security and Notifications are hidden from navigation until
-// their APIs exist. Only the built Profile tab renders; the hidden
+// their APIs exist. Only the built Role tab renders; the hidden
 // sections' routes stay registered, so deep links keep working.
-const TAB_DESTINATIONS = [['/tenant/account', 'Profile']] as const;
+const TAB_DESTINATIONS = [['/tenant/account', 'Role']] as const;
 
 afterEach(() => {
 	cleanup();
@@ -84,7 +84,7 @@ describe('TenantAccountLayout', () => {
 		const activeTab = screen
 			.getAllByRole('tab')
 			.find((tab) => tab.getAttribute('aria-selected') === 'true');
-		expect(activeTab?.textContent).toBe('Profile');
+		expect(activeTab?.textContent).toBe('Role');
 	});
 
 	test('deep links into hidden sections render without a selected tab', () => {
@@ -93,7 +93,7 @@ describe('TenantAccountLayout', () => {
 
 		// #818 F8: Security keeps its route registered but ships no trigger.
 		// A deep link still renders its child through the outlet; nothing is
-		// presented as the current tab because Profile is not the section.
+		// presented as the current tab because Role is not the section.
 		expect(screen.getAllByRole('tab').length).toBe(1);
 		expect(
 			screen

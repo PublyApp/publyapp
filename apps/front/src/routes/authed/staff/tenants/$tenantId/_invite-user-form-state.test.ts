@@ -2,7 +2,7 @@ import { strToU8, zipSync } from 'fflate';
 import { describe, expect, test } from 'vitest';
 
 import {
-	applyProfileResolutions,
+	applyRoleResolutions,
 	buildImportedInvites,
 	buildSubmitInvitations,
 	canSendInvitations,
@@ -11,16 +11,16 @@ import {
 	parseInviteCsv,
 	parseInviteeEmails,
 	parseInviteWorkbook,
-	splitProfileNames,
+	splitRoleNames,
 	syncInvalidEmail,
 	type InvalidCell,
 	type InviteRow,
-	type ProfileNameResolution,
+	type RoleNameResolution,
 } from './_invite-user-form-state';
 
-describe('splitProfileNames', () => {
+describe('splitRoleNames', () => {
 	test('splits on semicolons and pipes and trims pieces', () => {
-		expect(splitProfileNames('Alpha; Beta| Gamma ;')).toEqual([
+		expect(splitRoleNames('Alpha; Beta| Gamma ;')).toEqual([
 			'Alpha',
 			'Beta',
 			'Gamma',
@@ -28,22 +28,20 @@ describe('splitProfileNames', () => {
 	});
 
 	test('returns an empty list for blank cells', () => {
-		expect(splitProfileNames('')).toEqual([]);
+		expect(splitRoleNames('')).toEqual([]);
 	});
 });
 
 describe('parseInviteCsv', () => {
-	test('parses the documented email and profiles columns', () => {
-		const result = parseInviteCsv(
-			'email,profiles\na@example.com,Alpha; Beta\n',
-		);
+	test('parses the documented email and roles columns', () => {
+		const result = parseInviteCsv('email,roles\na@example.com,Alpha; Beta\n');
 
 		expect(result).toEqual({
 			outcome: 'parsed',
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha', 'Beta'],
+					roleNames: ['Alpha', 'Beta'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -59,14 +57,14 @@ describe('parseInviteCsv', () => {
 	});
 
 	test('flags a malformed email as an invalid row instead of silently accepting it', () => {
-		const result = parseInviteCsv('email,profiles\nnot-an-email,Alpha\n');
+		const result = parseInviteCsv('email,roles\nnot-an-email,Alpha\n');
 
 		expect(result).toEqual({
 			outcome: 'parsed',
 			rows: [
 				{
 					email: 'not-an-email',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: 'not-an-email',
 					invalidCells: [],
 				},
@@ -83,7 +81,7 @@ describe('parseInviteCsv', () => {
 
 	test('handles quoted commas and CRLF line endings', () => {
 		const result = parseInviteCsv(
-			'"email","profiles"\r\n"a@example.com","Al,pha"\r\n',
+			'"email","roles"\r\n"a@example.com","Al,pha"\r\n',
 		);
 
 		expect(result.outcome).toBe('parsed');
@@ -91,11 +89,11 @@ describe('parseInviteCsv', () => {
 			throw new Error('expected parsed outcome');
 		}
 
-		expect(result.rows[0]?.profileNames).toEqual(['Al,pha']);
+		expect(result.rows[0]?.roleNames).toEqual(['Al,pha']);
 	});
 
 	test('is case-insensitive on header names', () => {
-		const result = parseInviteCsv('EMAIL,PROFILES\nb@example.com,X\n');
+		const result = parseInviteCsv('EMAIL,ROLES\nb@example.com,X\n');
 
 		expect(result.outcome).toBe('parsed');
 		if (result.outcome !== 'parsed') {
@@ -155,7 +153,7 @@ describe('parseInviteWorkbook', () => {
 			sharedStrings: [
 				'email',
 				'level',
-				'profiles',
+				'roles',
 				'a@example.com',
 				'admin',
 				'Alpha',
@@ -174,7 +172,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -184,7 +182,7 @@ describe('parseInviteWorkbook', () => {
 
 	test('skips sparse gaps by column letter, not cell order', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'profiles', 'a@example.com', 'Alpha'],
+			sharedStrings: ['email', 'roles', 'a@example.com', 'Alpha'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1" t="s"><v>1</v></c></row>' +
@@ -199,7 +197,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -246,7 +244,7 @@ describe('parseInviteWorkbook', () => {
 			sharedStrings: [],
 			sheetXml:
 				'<worksheet><sheetData>' +
-				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c><c r="B1" t="inlineStr"><is><t>level</t></is></c><c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
+				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c><c r="B1" t="inlineStr"><is><t>level</t></is></c><c r="C1" t="inlineStr"><is><t>roles</t></is></c></row>' +
 				'<row r="2"><c r="A2" t="inlineStr"><is><t>a@example.com</t></is></c><c r="B2" t="inlineStr"><is><t>admin</t></is></c><c r="C2" t="inlineStr"><is><t>Alpha</t></is></c></row>' +
 				'</sheetData></worksheet>',
 		});
@@ -258,7 +256,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -283,7 +281,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: [],
+					roleNames: [],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -298,7 +296,7 @@ describe('parseInviteWorkbook', () => {
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c>' +
 				'<c r="B1" t="inlineStr"><is><t>level</t></is></c>' +
-				'<c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
+				'<c r="C1" t="inlineStr"><is><t>roles</t></is></c></row>' +
 				'<row r="2"><c r="A2" t="inlineStr"><is><r><t>a@example.com</t></r><rPh sb="0" eb="2"><t>PARASITE</t></rPh></is></c>' +
 				'<c r="B2" t="inlineStr"><is><r><t>admin</t></r></is></c>' +
 				'<c r="C2" t="inlineStr"><is><r><t>Alpha</t></r></is></c></row>' +
@@ -312,7 +310,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -327,7 +325,7 @@ describe('parseInviteWorkbook', () => {
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="inlineStr"><is><t>email</t></is></c>' +
 				'<c r="B1" t="inlineStr"><is><t>level</t></is></c>' +
-				'<c r="C1" t="inlineStr"><is><t>profiles</t></is></c></row>' +
+				'<c r="C1" t="inlineStr"><is><t>roles</t></is></c></row>' +
 				'<row r="2"><c r="A2" t="inlineStr"><is><t>A &amp; B@example.com</t></is></c>' +
 				'<c r="B2" t="inlineStr"><is><t>admin</t></is></c>' +
 				'<c r="C2" t="inlineStr"><is><t>Alpha</t></is></c></row>' +
@@ -344,7 +342,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'A & B@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: 'A & B@example.com',
 					invalidCells: [],
 				},
@@ -378,7 +376,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: [],
+					roleNames: [],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -392,7 +390,7 @@ describe('parseInviteWorkbook', () => {
 				'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
 				'<si><t>email</t></si>' +
 				'<si><t>level</t></si>' +
-				'<si><t>profiles</t></si>' +
+				'<si><t>roles</t></si>' +
 				'<si><r><t>a@example.com</t><rPh sb="0" eb="2"><t>PARASITE</t></rPh></r></si>' +
 				'<si><t>admin</t></si>' +
 				'<si><t>Alpha</t></si>' +
@@ -411,7 +409,7 @@ describe('parseInviteWorkbook', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -426,19 +424,19 @@ describe('buildImportedInvites', () => {
 			parsedRows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
 				{
 					email: 'A@Example.com',
-					profileNames: [],
+					roleNames: [],
 					invalidEmail: null,
 					invalidCells: [],
 				},
 				{
 					email: 'b@example.com',
-					profileNames: [],
+					roleNames: [],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -464,8 +462,8 @@ describe('clearFileRows', () => {
 			{
 				key: 'k2',
 				email: 'drop@example.com',
-				profileIds: [],
-				profileNames: [],
+				roleIds: [],
+				roleNames: [],
 				invalidEmail: null,
 				invalidCells: [],
 				source: 'file',
@@ -523,17 +521,17 @@ describe('syncInvalidEmail', () => {
 	});
 });
 
-describe('applyProfileResolutions', () => {
-	const resolutions: ProfileNameResolution[] = [
-		{ name: 'alpha', profileId: 'p-1', reason: null },
-		{ name: 'ghost', profileId: null, reason: 'not-found' },
+describe('applyRoleResolutions', () => {
+	const resolutions: RoleNameResolution[] = [
+		{ name: 'alpha', roleId: 'p-1', reason: null },
+		{ name: 'ghost', roleId: null, reason: 'not-found' },
 	];
 
 	const baseRow = (overrides: Partial<InviteRow>): InviteRow => ({
 		key: 'k1',
 		email: 'a@example.com',
-		profileIds: [],
-		profileNames: ['alpha', 'ghost'],
+		roleIds: [],
+		roleNames: ['alpha', 'ghost'],
 		source: 'file',
 		invalidEmail: null,
 		invalidCells: [],
@@ -541,9 +539,9 @@ describe('applyProfileResolutions', () => {
 	});
 
 	test('fills ids from case-insensitive matches and flags unresolved names per row', () => {
-		const result = applyProfileResolutions([baseRow({})], resolutions);
+		const result = applyRoleResolutions([baseRow({})], resolutions);
 
-		expect(result.rows[0]?.profileIds).toEqual(['p-1']);
+		expect(result.rows[0]?.roleIds).toEqual(['p-1']);
 		expect(result.unresolvedByRowKey.k1?.map((item) => item.name)).toEqual([
 			'ghost',
 		]);
@@ -554,8 +552,8 @@ describe('canSendInvitations', () => {
 	const validRow: InviteRow = {
 		key: 'kv',
 		email: 'v@example.com',
-		profileIds: [],
-		profileNames: [],
+		roleIds: [],
+		roleNames: [],
 		invalidEmail: null,
 		invalidCells: [],
 		source: 'manual',
@@ -564,14 +562,14 @@ describe('canSendInvitations', () => {
 	const evaluate = (
 		rows: InviteRow[],
 		overrides?: {
-			isResolvingProfiles?: boolean;
+			isResolvingRoles?: boolean;
 			unresolvedCount?: number;
 			invalidCellCount?: number;
 		},
 	) =>
 		canSendInvitations({
 			rows,
-			isResolvingProfiles: overrides?.isResolvingProfiles ?? false,
+			isResolvingRoles: overrides?.isResolvingRoles ?? false,
 			unresolvedCount: overrides?.unresolvedCount ?? 0,
 			invalidCellCount: overrides?.invalidCellCount ?? 0,
 		});
@@ -589,15 +587,15 @@ describe('canSendInvitations', () => {
 		expect(evaluate([])).toBe(false);
 	});
 
-	test('blocks while profile resolution is in flight', () => {
-		expect(evaluate([validRow], { isResolvingProfiles: true })).toBe(false);
+	test('blocks while role resolution is in flight', () => {
+		expect(evaluate([validRow], { isResolvingRoles: true })).toBe(false);
 	});
 
-	test('blocks while a single unresolved profile name remains', () => {
+	test('blocks while a single unresolved role name remains', () => {
 		expect(evaluate([validRow], { unresolvedCount: 1 })).toBe(false);
 	});
 
-	test('blocks while several unresolved profile names remain', () => {
+	test('blocks while several unresolved role names remain', () => {
 		expect(evaluate([validRow], { unresolvedCount: 3 })).toBe(false);
 	});
 
@@ -614,7 +612,7 @@ describe('canSendInvitations', () => {
 		const rowWithThreeCells = rowWith({
 			invalidCells: [
 				{ column: 'email', cell: 'A2', value: '1', kind: 'boolean' },
-				{ column: 'profiles', cell: 'C2', value: '0', kind: 'boolean' },
+				{ column: 'roles', cell: 'C2', value: '0', kind: 'boolean' },
 			],
 		});
 		expect(evaluate([rowWithThreeCells], { invalidCellCount: 1 })).toBe(false);
@@ -651,8 +649,8 @@ describe('buildSubmitInvitations', () => {
 			{
 				key: 'k1',
 				email: 'a@example.com',
-				profileIds: ['p-9'],
-				profileNames: ['x'],
+				roleIds: ['p-9'],
+				roleNames: ['x'],
 				invalidEmail: null,
 				invalidCells: [],
 				source: 'file',
@@ -660,8 +658,8 @@ describe('buildSubmitInvitations', () => {
 			{
 				key: 'k2',
 				email: 'b@example.com',
-				profileIds: ['p-1', 'p-1', 'p-2'],
-				profileNames: [],
+				roleIds: ['p-1', 'p-1', 'p-2'],
+				roleNames: [],
 				invalidEmail: null,
 				invalidCells: [],
 				source: 'manual',
@@ -669,10 +667,10 @@ describe('buildSubmitInvitations', () => {
 		];
 
 		expect(buildSubmitInvitations(rows)).toEqual([
-			{ email: 'a@example.com', profileIds: ['p-9'] },
+			{ email: 'a@example.com', roleIds: ['p-9'] },
 			{
 				email: 'b@example.com',
-				profileIds: ['p-1', 'p-2'],
+				roleIds: ['p-1', 'p-2'],
 			},
 		]);
 	});
@@ -689,7 +687,7 @@ describe('parseInviteeEmails', () => {
 describe('parseInviteWorkbook cell types', () => {
 	test('rejects a boolean cell (t="b") in the email column with a structured error', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+			sharedStrings: ['email', 'level', 'roles', 'admin', 'Alpha'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -704,7 +702,7 @@ describe('parseInviteWorkbook cell types', () => {
 			rows: [
 				{
 					email: '1',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [
 						{
@@ -721,7 +719,7 @@ describe('parseInviteWorkbook cell types', () => {
 
 	test('rejects a formula error cell (t="e") in the email column with a structured error', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+			sharedStrings: ['email', 'level', 'roles', 'admin', 'Alpha'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -736,7 +734,7 @@ describe('parseInviteWorkbook cell types', () => {
 			rows: [
 				{
 					email: '#REF!',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [
 						{
@@ -753,7 +751,7 @@ describe('parseInviteWorkbook cell types', () => {
 
 	test('accepts a formula text result (t="str") as legitimate text', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+			sharedStrings: ['email', 'level', 'roles', 'admin', 'Alpha'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -768,7 +766,7 @@ describe('parseInviteWorkbook cell types', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [],
 				},
@@ -776,9 +774,9 @@ describe('parseInviteWorkbook cell types', () => {
 		});
 	});
 
-	test('rejects a boolean cell (t="b") in the profiles column with a structured error', () => {
+	test('rejects a boolean cell (t="b") in the roles column with a structured error', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'level', 'profiles', 'a@example.com', 'admin'],
+			sharedStrings: ['email', 'level', 'roles', 'a@example.com', 'admin'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -793,11 +791,11 @@ describe('parseInviteWorkbook cell types', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: [],
+					roleNames: [],
 					invalidEmail: null,
 					invalidCells: [
 						{
-							column: 'profiles',
+							column: 'roles',
 							cell: 'C2',
 							value: '1',
 							kind: 'boolean',
@@ -808,9 +806,9 @@ describe('parseInviteWorkbook cell types', () => {
 		});
 	});
 
-	test('rejects a formula error cell (t="e") in the profiles column with a structured error', () => {
+	test('rejects a formula error cell (t="e") in the roles column with a structured error', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'level', 'profiles', 'a@example.com', 'admin'],
+			sharedStrings: ['email', 'level', 'roles', 'a@example.com', 'admin'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -825,11 +823,11 @@ describe('parseInviteWorkbook cell types', () => {
 			rows: [
 				{
 					email: 'a@example.com',
-					profileNames: [],
+					roleNames: [],
 					invalidEmail: null,
 					invalidCells: [
 						{
-							column: 'profiles',
+							column: 'roles',
 							cell: 'C2',
 							value: '#REF!',
 							kind: 'formula-error',
@@ -842,7 +840,7 @@ describe('parseInviteWorkbook cell types', () => {
 
 	test('rejects a formula error code stored as a shared string (t="s") in the email column', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'level', 'profiles', '#REF!', 'admin', 'Alpha'],
+			sharedStrings: ['email', 'level', 'roles', '#REF!', 'admin', 'Alpha'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -857,7 +855,7 @@ describe('parseInviteWorkbook cell types', () => {
 			rows: [
 				{
 					email: '#REF!',
-					profileNames: ['Alpha'],
+					roleNames: ['Alpha'],
 					invalidEmail: null,
 					invalidCells: [
 						{
@@ -878,7 +876,7 @@ describe('parseInviteWorkbook cell types', () => {
 	// recognized columns.
 	test('retains every faulty column on a row whose columns are all non-text', () => {
 		const bytes = buildWorkbook({
-			sharedStrings: ['email', 'profiles'],
+			sharedStrings: ['email', 'roles'],
 			sheetXml:
 				'<worksheet><sheetData>' +
 				'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1" t="s"><v>1</v></c></row>' +
@@ -892,21 +890,21 @@ describe('parseInviteWorkbook cell types', () => {
 		const row = result.outcome === 'parsed' ? result.rows[0] : undefined;
 		expect(row?.invalidCells).toEqual([
 			{ column: 'email', cell: 'A2', value: '1', kind: 'boolean' },
-			{ column: 'profiles', cell: 'C2', value: '0', kind: 'boolean' },
+			{ column: 'roles', cell: 'C2', value: '0', kind: 'boolean' },
 		]);
 	});
 });
 
 describe('column-based React keys for InvalidCell', () => {
 	// Two invalid cells on the same CSV row can share the same value and kind
-	// (e.g. a boolean in both the email and profiles columns). Without a column
+	// (e.g. a boolean in both the email and roles columns). Without a column
 	// identifier, the old key ``${cell ?? ''}-${value}-${index}`` collapses to
 	// identical strings for both — the array index was the only thing keeping them
 	// unique, which is exactly the React Doctor anti-pattern being fixed.
 	test('two CSV invalid cells with identical value/kind get distinct keys via column', () => {
 		const invalidCells: InvalidCell[] = [
 			{ column: 'email', value: '1', kind: 'boolean' },
-			{ column: 'profiles', value: '1', kind: 'boolean' },
+			{ column: 'roles', value: '1', kind: 'boolean' },
 		];
 
 		const keys = invalidCells.map(
@@ -926,7 +924,7 @@ describe('column-based React keys for InvalidCell', () => {
 		// (which Excel writes as values like "#REF!") produce InvalidCell entries.
 		// Two such cells on the same row with the same value would share an empty
 		// cell ref + identical value — the column is the only distinguishing field.
-		const result = parseInviteCsv('email,profiles\n#REF!,#REF!\n');
+		const result = parseInviteCsv('email,roles\n#REF!,#REF!\n');
 
 		expect(result.outcome).toBe('parsed');
 		if (result.outcome !== 'parsed') {
@@ -937,7 +935,7 @@ describe('column-based React keys for InvalidCell', () => {
 		expect(row).toBeDefined();
 		expect(row?.invalidCells).toHaveLength(2);
 		const columns = row?.invalidCells.map((c) => c.column);
-		expect(columns).toEqual(['email', 'profiles']);
+		expect(columns).toEqual(['email', 'roles']);
 		expect(new Set(columns).size).toBe(2);
 	});
 
@@ -949,7 +947,7 @@ describe('column-based React keys for InvalidCell', () => {
 	test('old key derivation without column would collide on identical CSV cells', () => {
 		const invalidCells: InvalidCell[] = [
 			{ column: 'email', value: '1', kind: 'boolean' },
-			{ column: 'profiles', value: '1', kind: 'boolean' },
+			{ column: 'roles', value: '1', kind: 'boolean' },
 		];
 
 		// The NEW key (uses column) — always unique.

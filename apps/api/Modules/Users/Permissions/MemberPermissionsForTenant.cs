@@ -39,8 +39,8 @@ public class MemberPermissionsForTenant : ISlicePermissions {
 				SupportedLanguage.English,
 				new PermissionTranslation {
 					Name = "Manage members",
-					Description = "Change member account roles and statuses; profile assignment "
-						+ "requires profiles.assign_members"
+					Description = "Change member account roles and statuses; role assignment "
+						+ "requires roles.assign_members"
 				}
 			)
 			.SetTranslation(
@@ -48,7 +48,7 @@ public class MemberPermissionsForTenant : ISlicePermissions {
 				new PermissionTranslation {
 					Name = "Gérer les membres",
 					Description = "Modifier les rôles et statuts des comptes; l'affectation aux "
-						+ "profils exige profiles.assign_members"
+						+ "profils exige roles.assign_members"
 				}
 			);
 

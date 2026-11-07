@@ -15,8 +15,8 @@ public class UserPermissionsForStaff : ISlicePermissions {
 	public Permission SUSPEND_FOR_STAFF { get; }
 	public Permission REACTIVATE_FOR_STAFF { get; }
 	public Permission DELETE_FOR_STAFF { get; }
-	public Permission GET_PROFILES_FOR_STAFF { get; }
-	public Permission UPDATE_PROFILES_FOR_STAFF { get; }
+	public Permission GET_ROLES_FOR_STAFF { get; }
+	public Permission UPDATE_ROLES_FOR_STAFF { get; }
 
 	// ==== FOR TENANT ====
 	public Permission LIST_FOR_TENANT { get; }
@@ -69,14 +69,14 @@ public class UserPermissionsForStaff : ISlicePermissions {
 			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Delete a user for staff", Description = "Delete a user for staff" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Supprimer un utilisateur du staff", Description = "Supprimer un utilisateur du staff" });
 
-		this.GET_PROFILES_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "get_profiles_for_staff" }))
-			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "View staff user profiles", Description = "View profiles assigned to a staff user" })
+		this.GET_ROLES_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "get_roles_for_staff" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "View staff user roles", Description = "View roles assigned to a staff user" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Voir les profils d'un utilisateur du staff", Description = "Voir les profils assignés à un utilisateur du staff" });
 
-		this.UPDATE_PROFILES_FOR_STAFF = Permission
-			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "update_profiles_for_staff" }))
-			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update staff user profiles", Description = "Assign or remove profiles for a staff user" })
+		this.UPDATE_ROLES_FOR_STAFF = Permission
+			.CreateStaffPermission(string.Join(Permission.KeySeparator, new[] { this.KeyPrefix, "update_roles_for_staff" }))
+			.SetTranslation(SupportedLanguage.English, new PermissionTranslation { Name = "Update staff user roles", Description = "Assign or remove roles for a staff user" })
 			.SetTranslation(SupportedLanguage.French, new PermissionTranslation { Name = "Mettre à jour les profils d'un utilisateur du staff", Description = "Assigner ou retirer des profils à un utilisateur du staff" });
 
 		// ==== FOR TENANT ====

@@ -208,7 +208,7 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 				SegmentPosition = position,
 				ExternalRecordId = $"at://did:plc:x/app.bsky.feed.post/{publicationId:N}-{position}",
 				ExternalCid = $"cid-{position}",
-				ExternalUrl = $"https://bsky.app/profile/x/post/{publicationId:N}-{position}",
+				ExternalUrl = $"https://bsky.app/role/x/post/{publicationId:N}-{position}",
 			});
 		}
 

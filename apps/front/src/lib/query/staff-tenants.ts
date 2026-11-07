@@ -106,7 +106,7 @@ export type StaffTenantDetails = {
 	ownersCount: number;
 	pendingInvitationsCount: number;
 	expiringSoonInvitationsCount: number;
-	profilesCount: number;
+	rolesCount: number;
 	logoUrl: string | null;
 	legalName: string | null;
 	description: string | null;
@@ -131,8 +131,8 @@ export type CreateStaffTenantInput = {
 	maxUsers: number;
 	code?: string;
 	initialUsers: StaffTenantInitialUserInput[];
-	/** Seed the empty "default" profile for non-admin invitees. */
-	seedDefaultProfile?: boolean;
+	/** Seed the empty "default" role for non-admin invitees. */
+	seedDefaultRole?: boolean;
 	logoUrl?: string;
 	legalName?: string;
 	description?: string;
@@ -211,7 +211,7 @@ export const invalidateStaffTenants = (
 
 /** Same scope as {@link invalidateStaffTenants} (the prefix-match already
  * covers the tenants list, every tenant's details, and every child resource
- * scoped under a tenant — users/profiles/invitations) — named for the child
+ * scoped under a tenant — users/roles/invitations) — named for the child
  * resource call sites that pair a mutation with "and refresh the parent
  * tenant too". A prior name (`invalidateStaffTenantDetails`) implied a
  * narrow details-only scope it never had (r3-tenants-F9). */
@@ -289,7 +289,7 @@ export const toStaffTenantDetails = (
 		ownersCount: result?.ownersCount ?? 0,
 		pendingInvitationsCount: result?.pendingInvitationsCount ?? 0,
 		expiringSoonInvitationsCount: result?.expiringSoonInvitationsCount ?? 0,
-		profilesCount: result?.profilesCount ?? 0,
+		rolesCount: result?.rolesCount ?? 0,
 		logoUrl: normalizeNullableFileUrl(result?.logoUrl),
 		legalName: normalizeNullableString(result?.legalName),
 		description: normalizeNullableString(result?.description),
@@ -402,10 +402,10 @@ export const buildCreateStaffTenantBody = (
 		body.notes = createUntypedString(notes) as typeof body.notes;
 	}
 
-	if (typeof input.seedDefaultProfile === 'boolean') {
-		body.seedDefaultProfile = createUntypedBoolean(
-			input.seedDefaultProfile,
-		) as typeof body.seedDefaultProfile;
+	if (typeof input.seedDefaultRole === 'boolean') {
+		body.seedDefaultRole = createUntypedBoolean(
+			input.seedDefaultRole,
+		) as typeof body.seedDefaultRole;
 	}
 
 	return body;

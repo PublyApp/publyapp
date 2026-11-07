@@ -50,12 +50,12 @@ export type StaffTenantUsersQueryVariables = {
 export type StaffTenantUserInvitationInput = {
 	tenantId: string;
 	email: string;
-	profileIds: string[];
+	roleIds: string[];
 };
 
 export type StaffTenantInvitationInput = {
 	email: string;
-	profileIds: string[];
+	roleIds: string[];
 };
 
 export type StaffTenantInvitationsBulkCreateInput = {
@@ -82,10 +82,10 @@ type StaffTenantUserInvitationBodyInput = Omit<
 
 export type StaffTenantUserRow = {
 	/** The global `User.Id` — matches `/staff/tenants/{tenantId}/users/{userId}`. Never use
-	 * this for tenant-profile membership operations (assign/unassign/resolve); those key by
+	 * this for tenant-role membership operations (assign/unassign/resolve); those key by
 	 * `userAccountId` below. */
 	id: string;
-	/** The tenant membership (`UserAccount.Id`) — matches the tenant-profile assign/unassign
+	/** The tenant membership (`UserAccount.Id`) — matches the tenant-role assign/unassign
 	 * toggle route's `{user_account_id}` and the batch resolve-assignment endpoint. Distinct
 	 * from `id` above; never use `id` for these operations (step4b-review BLOCKER 1). */
 	userAccountId: string;
@@ -253,11 +253,11 @@ export const buildCreateStaffTenantUserInvitationBody = (
 		body.email = createUntypedString(email) as typeof body.email;
 	}
 
-	const profileIds = input.profileIds ?? [];
-	if (profileIds.length > 0) {
-		body.profileIds = createUntypedArray(
-			profileIds.map((profileId) => createUntypedString(profileId)),
-		) as typeof body.profileIds;
+	const roleIds = input.roleIds ?? [];
+	if (roleIds.length > 0) {
+		body.roleIds = createUntypedArray(
+			roleIds.map((roleId) => createUntypedString(roleId)),
+		) as typeof body.roleIds;
 	}
 
 	return body;
@@ -270,10 +270,8 @@ export const buildBulkCreateStaffTenantInvitationsBody = (
 		invitations.map((invitation) =>
 			createUntypedObject({
 				email: createUntypedString(invitation.email.trim()),
-				profileIds: createUntypedArray(
-					invitation.profileIds.map((profileId) =>
-						createUntypedString(profileId),
-					),
+				roleIds: createUntypedArray(
+					invitation.roleIds.map((roleId) => createUntypedString(roleId)),
 				),
 			}),
 		),
@@ -473,7 +471,7 @@ export const createStaffTenantUserInvitationMutationOptions =
 					.users.invitations.post(
 						buildCreateStaffTenantUserInvitationBody({
 							email: variables.email,
-							profileIds: variables.profileIds,
+							roleIds: variables.roleIds,
 						}),
 					),
 			meta: {

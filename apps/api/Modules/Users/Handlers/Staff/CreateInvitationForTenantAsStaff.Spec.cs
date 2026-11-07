@@ -20,7 +20,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -176,11 +176,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			.GetRequiredService<AppDbContext>();
 
 		Assert.NotNull(responseBody);
-		var invitationProfiles = await dbContext.InvitationProfile
+		var invitationRoles = await dbContext.InvitationRole
 					.Where(ip => ip.InvitationId == responseBody.InvitationId)
 					.ToListAsync();
 
-		invitationProfiles.Should().BeEmpty();
+		invitationRoles.Should().BeEmpty();
 	}
 
 	[Fact]
@@ -288,17 +288,17 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldRejectMemberTenantInvitationAboveConfiguredProfileCap() {
+	ItShouldRejectMemberTenantInvitationAboveConfiguredRoleCap() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await this._GetAcmeTenantIdAsync();
-		var profileCount =
-			AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
-		var profileIds =
-			await this._CreateTenantProfilesAsync(tenantId, profileCount);
+		var roleCount =
+			AppEnvironment.Instance.MAX_ROLES_PER_USER + 1;
+		var roleIds =
+			await this._CreateTenantRolesAsync(tenantId, roleCount);
 		var inviteeEmail =
-			$"tenant-user-profile-cap-{Guid.NewGuid():N}@example.com";
+			$"tenant-user-role-cap-{Guid.NewGuid():N}@example.com";
 
 		using var response = await this._Http.SendAsync(
 			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
@@ -306,7 +306,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = inviteeEmail,
-					profileIds = profileIds.Select(id => id.ToString()).ToArray(),
+					roleIds = roleIds.Select(id => id.ToString()).ToArray(),
 				}
 			)
 		);
@@ -318,39 +318,39 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
 		problem.TranslationKey.Should()
-			.Be(ResponseKeys.TooManyProfilesForInvitee.Value);
+			.Be(ResponseKeys.TooManyRolesForInvitee.Value);
 		(await this._TenantInvitationExistsAsync(tenantId, inviteeEmail))
 			.Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task
-	ItShouldCreateTenantInvitationWithSpecifiedProfileIds() {
+	ItShouldCreateTenantInvitationWithSpecifiedRoleIds() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
 			await this._GetAcmeTenantIdAsync();
 		var inviteeEmail =
-			$"tenant-profile-ids-{Guid.NewGuid():N}@example.com";
-		var profileAName = $"tenant-profile-a-{Guid.NewGuid():N}";
-		var profileBName = $"tenant-profile-b-{Guid.NewGuid():N}";
+			$"tenant-role-ids-{Guid.NewGuid():N}@example.com";
+		var roleAName = $"tenant-role-a-{Guid.NewGuid():N}";
+		var roleBName = $"tenant-role-b-{Guid.NewGuid():N}";
 
 		using var setupScope =
 			this._Fixture.Factory.Services.CreateScope();
 		var dbContext = setupScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profileA = Profile.CreateTenantProfile(
+		var roleA = Role.CreateTenantRole(
 			tenantId,
-			name: profileAName,
-			description: "test profile"
+			name: roleAName,
+			description: "test role"
 		);
-		var profileB = Profile.CreateTenantProfile(
+		var roleB = Role.CreateTenantRole(
 			tenantId,
-			name: profileBName,
-			description: "test profile"
+			name: roleBName,
+			description: "test role"
 		);
-		await dbContext.Profile.AddRangeAsync(profileA, profileB);
+		await dbContext.Role.AddRangeAsync(roleA, roleB);
 		await dbContext.SaveChangesAsync();
 
 		using var response = await this._Http.SendAsync(
@@ -359,9 +359,9 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				tenantId.ToString(),
 				new {
 					email = inviteeEmail,
-					profileIds = new[] {
-						profileA.GetRequiredId().ToString(),
-						profileB.GetRequiredId().ToString(),
+					roleIds = new[] {
+						roleA.GetRequiredId().ToString(),
+						roleB.GetRequiredId().ToString(),
 					},
 				}
 			)
@@ -374,19 +374,19 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				.ReadFromJsonAsync<InvitationCreatedForTenantResponse>();
 		responseBody.Should().NotBeNull();
 
-		var invitationProfiles = await dbContext.InvitationProfile
+		var invitationRoles = await dbContext.InvitationRole
 			.Where(ip => ip.InvitationId == responseBody.Required().InvitationId)
-			.Select(ip => ip.ProfileId)
+			.Select(ip => ip.RoleId)
 			.ToListAsync();
 
-		invitationProfiles.Should().HaveCount(2);
-		invitationProfiles.Should().Contain(profileA.GetRequiredId());
-		invitationProfiles.Should().Contain(profileB.GetRequiredId());
+		invitationRoles.Should().HaveCount(2);
+		invitationRoles.Should().Contain(roleA.GetRequiredId());
+		invitationRoles.Should().Contain(roleB.GetRequiredId());
 	}
 
 	[Fact]
 	public async Task
-	ItShouldRejectTenantInvitationWithForeignTenantProfileId() {
+	ItShouldRejectTenantInvitationWithForeignTenantRoleId() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId =
@@ -403,18 +403,18 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var dbContext = setupScope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var foreignProfile = await dbContext.Profile
-			.Where(profile =>
-				profile.TenantId == techStartTenantId && profile.Scope == ProfileScope.Tenant
+		var foreignRole = await dbContext.Role
+			.Where(role =>
+				role.TenantId == techStartTenantId && role.Scope == RoleScope.Tenant
 			)
 			.FirstOrDefaultAsync();
 
-		if (foreignProfile is null) {
-			foreignProfile = Profile.CreateTenantProfile(
+		if (foreignRole is null) {
+			foreignRole = Role.CreateTenantRole(
 				techStartTenantId,
-				"Foreign Tenant Profile"
+				"Foreign Tenant Role"
 			);
-			dbContext.Profile.Add(foreignProfile);
+			dbContext.Role.Add(foreignRole);
 			await dbContext.SaveChangesAsync();
 		}
 
@@ -423,8 +423,8 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				staffToken,
 				acmeTenantId.ToString(),
 				new {
-					email = $"tenant-invalid-profile-{Guid.NewGuid():N}@example.com",
-					profileIds = new[] { foreignProfile.GetRequiredId().ToString() },
+					email = $"tenant-invalid-role-{Guid.NewGuid():N}@example.com",
+					roleIds = new[] { foreignRole.GetRequiredId().ToString() },
 				}
 			)
 		);
@@ -644,7 +644,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldCreateTenantInvitationWithEmptyProfileIds() {
+	ItShouldCreateTenantInvitationWithEmptyRoleIds() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
@@ -655,13 +655,13 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			);
 
 		var inviteeEmail =
-			$"tenant-empty-profile-ids-{Guid.NewGuid():N}@example.com";
+			$"tenant-empty-role-ids-{Guid.NewGuid():N}@example.com";
 		var request = CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
 			staffToken,
 			tenantId.ToString(),
 			new {
 				email = inviteeEmail,
-				profileIds = Array.Empty<string>(),
+				roleIds = Array.Empty<string>(),
 			}
 		);
 
@@ -682,11 +682,11 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				.GetRequiredService<AppDbContext>();
 
 			Assert.NotNull(responseBody);
-			var assignedProfiles = await dbContext.InvitationProfile
+			var assignedRoles = await dbContext.InvitationRole
 				.Where(ip => ip.InvitationId == responseBody.InvitationId)
 				.ToListAsync();
 
-			assignedProfiles.Should().BeEmpty();
+			assignedRoles.Should().BeEmpty();
 		}
 	}
 
@@ -732,7 +732,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		);
 	}
 
-	private async Task<List<Guid>> _CreateTenantProfilesAsync(
+	private async Task<List<Guid>> _CreateTenantRolesAsync(
 		Guid tenantId,
 		int count
 	) {
@@ -740,23 +740,23 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
-		var profiles = new List<Profile>();
+		var roles = new List<Role>();
 
 		for (var index = 0; index < count; index++) {
-			profiles.Add(
-				Profile.CreateTenantProfile(
+			roles.Add(
+				Role.CreateTenantRole(
 					tenantId,
-					$"tenant-invite-profile-{Guid.NewGuid():N}",
-					"Single invitation profile-rule test"
+					$"tenant-invite-role-{Guid.NewGuid():N}",
+					"Single invitation role-rule test"
 				)
 			);
 		}
 
-		await dbContext.Profile.AddRangeAsync(profiles);
+		await dbContext.Role.AddRangeAsync(roles);
 		await dbContext.SaveChangesAsync();
 
-		return profiles
-			.Select(profile => profile.GetRequiredId())
+		return roles
+			.Select(role => role.GetRequiredId())
 			.ToList();
 	}
 
@@ -842,21 +842,21 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 			)
 			.FirstAsync();
 
-		var profile = Profile.CreateStaffProfile(
+		var role = Role.CreateStaffRole(
 			$"tenant-invite-permission-{Guid.NewGuid():N}",
-			"Test-only staff profile for tenant invitation creation"
+			"Test-only staff role for tenant invitation creation"
 		);
 
-		await dbContext.Profile.AddAsync(profile);
+		await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.ProfilePermission.AddAsync(new ProfilePermission {
-			ProfileId = profile.GetRequiredId(),
+		await dbContext.RolePermission.AddAsync(new RolePermission {
+			RoleId = role.GetRequiredId(),
 			PermissionKey = permissionKey,
 		});
-		await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+		await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = staffAccount.GetRequiredId(),
-			ProfileId = profile.GetRequiredId(),
+			RoleId = role.GetRequiredId(),
 		});
 		await dbContext.SaveChangesAsync();
 

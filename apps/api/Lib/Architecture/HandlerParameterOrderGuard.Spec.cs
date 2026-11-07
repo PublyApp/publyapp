@@ -37,7 +37,7 @@ public sealed class HandlerParameterOrderGuardSpec {
 	/// match the canonical shape. This is intentionally EMPTY: the #538 triage
 	/// already fixed the previously known violations
 	/// (<c>CreateStaffInvitation</c> and
-	/// <c>AssignTenantProfilePermissionAsStaff</c>). New violations must never
+	/// <c>AssignTenantRolePermissionAsStaff</c>). New violations must never
 	/// be added here; they must be fixed instead.
 	/// </summary>
 	private static readonly HashSet<string> _Allowlist = new(

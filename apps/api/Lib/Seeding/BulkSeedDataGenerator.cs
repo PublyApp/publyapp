@@ -112,7 +112,7 @@ public class BulkSeedDataGenerator {
 		}
 	}
 
-	/// <summary>Staff accounts that must receive the full-access system profile.</summary>
+	/// <summary>Staff accounts that must receive the full-access system role.</summary>
 	public IReadOnlyList<UserAccount> FullAccessStaffAccounts {
 		get {
 			return this._FullAccessStaffAccounts;

@@ -42,7 +42,7 @@ describe('_edit-schema', () => {
 				avatarUrl: 'https://example.com/avatar.png',
 				email: 'alex@example.com',
 				status: 'Active',
-				profileIds: ['profile-1'],
+				roleIds: ['role-1'],
 			});
 			expect(result.success).toBe(true);
 		});
@@ -54,7 +54,7 @@ describe('_edit-schema', () => {
 				avatarUrl: 'not-a-url',
 				email: 'alex@example.com',
 				status: 'Active',
-				profileIds: [],
+				roleIds: [],
 			});
 			expect(result.success).toBe(false);
 		});
@@ -66,7 +66,7 @@ describe('_edit-schema', () => {
 				avatarUrl: '',
 				email: 'alex@example.com',
 				status: 'Active',
-				profileIds: [],
+				roleIds: [],
 			});
 			expect(result.success).toBe(true);
 		});
@@ -82,7 +82,7 @@ describe('_edit-schema', () => {
 					avatarUrl: url,
 					email: 'alex@example.com',
 					status: 'Active',
-					profileIds: [],
+					roleIds: [],
 				});
 				expect(result.success).toBe(true);
 			}
@@ -95,7 +95,7 @@ describe('_edit-schema', () => {
 				avatarUrl: 'ftp://example.com/avatar.png',
 				email: 'alex@example.com',
 				status: 'Active',
-				profileIds: [],
+				roleIds: [],
 			});
 			expect(result.success).toBe(false);
 		});
@@ -107,7 +107,7 @@ describe('_edit-schema', () => {
 				avatarUrl: '',
 				email: 'not-an-email',
 				status: 'Active',
-				profileIds: [],
+				roleIds: [],
 			});
 			expect(result.success).toBe(false);
 		});
@@ -119,7 +119,7 @@ describe('_edit-schema', () => {
 				avatarUrl: '',
 				email: '',
 				status: 'Active',
-				profileIds: [],
+				roleIds: [],
 			});
 			expect(result.success).toBe(true);
 		});

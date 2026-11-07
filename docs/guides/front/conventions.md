@@ -46,13 +46,13 @@ Follow them by hand until automation exists:
   NUMBER `1`, never the string `'1'` — the router's search serializer JSON-quotes strings
   (`?invite=%221%22`), and bare `=1` URLs parse as a number, so string-typed flags break
   redirects and deep links. Parse leniently (accept `1` and `'1'`), emit the number.
-- An **id-carrying** search param (`?edit=<profileId>` — the drawer-over-a-list marker, where the
+- An **id-carrying** search param (`?edit=<roleId>` — the drawer-over-a-list marker, where the
   id says _which row_) is the opposite case: it must accept **strings only**. The serializer
   re-quotes any string that is itself valid JSON and the parser turns an unquoted numeric value
   back into a number, so an all-digit value cannot round-trip; UUID ids never are, and anything
   that parses to a non-string is not an id. Drop it at the router boundary rather than coercing.
 - When one route carries **more than one drawer-open flag** (`?new=1` and `?edit=<id>` on the tenant
-  profiles list — today the only such route), they are mutually exclusive and that must be resolved
+  roles list — today the only such route), they are mutually exclusive and that must be resolved
   at the **parse/serialize boundary**, not only at the open call sites: a URL carrying both is a
   link anyone can be sent, and it mounts both modals on first paint. Pick the flag that names a
   specific entity over a bare flag, and drop the loser from the address bar. Each open path must
@@ -62,7 +62,7 @@ Follow them by hand until automation exists:
   am I looking at" is a distinct, linkable, navigable location; query params are for view state
   that _modifies_ the page it sits on (filters, sort, pagination, a drawer-open flag). Both detail
   shells follow this today: `/staff/staff-users/$userId/{permissions,activity,settings}` and
-  `/staff/tenants/$tenantId/profiles/$profileId/{permissions,members}`, each with the overview as
+  `/staff/tenants/$tenantId/roles/$roleId/{permissions,members}`, each with the overview as
   the index child. Consequences worth knowing before adding the next one: the parent becomes a
   **layout** route, so anything it hosts (an edit drawer and its draft, a nav guard's state)
   survives a section switch while the section body remounts; a `to`-less `Route.useNavigate()`
@@ -194,7 +194,7 @@ a required field only proves a route declared _something_, not that the somethin
 
 - `'shell'` — opts the route out of ever supplying the trail. Use it for pathless layouts,
   auth/marketing surfaces, and redirect-only legacy stubs whose `beforeLoad` immediately
-  redirects and which render `null` (e.g. `profiles-new.tsx`, `$profileId-edit.tsx`,
+  redirects and which render `null` (e.g. `roles-new.tsx`, `$roleId-edit.tsx`,
   `users-invite.tsx`). `deriveBreadcrumbTrail` walks from the deepest match upward and skips
   `'shell'` matches, so an ancestor or sibling route still supplies the visible trail.
 - A function `(params) => readonly CrumbSpec[]` — the route's full trail _tail_ (everything
@@ -205,8 +205,8 @@ a required field only proves a route declared _something_, not that the somethin
 `CrumbSpec` has exactly two `kind`s:
 
 - `{ kind: 'label'; labelKey: string; to?: string }` — a static, developer-controlled i18n
-  string (e.g. `nav-tenants`, `common:profiles`). `to`, when present, is an already-interpolated
-  concrete href (`` `/staff/tenants/${tenantId}/profiles` ``), not a route-template literal — it
+  string (e.g. `nav-tenants`, `common:roles`). `to`, when present, is an already-interpolated
+  concrete href (`` `/staff/tenants/${tenantId}/roles` ``), not a route-template literal — it
   is typed as a plain `string` for exactly that reason.
 - `{ kind: 'entity'; to?: string; query: (params) => EntityCrumbQuery; select: (data) => string
   | undefined }` — a crumb whose label is a real entity's name, resolved at render time by
@@ -242,10 +242,10 @@ is correct there because the route never renders a trail at all).
   drives every real route's own `select` closure against a representative payload and asserts the
   output echoes that payload's name field, closing that specific gap.
 - **`query` and `select` must each belong to the crumb's OWN `$param`, not merely to SOME
-  registered entity** — the #973 BLOCKER's second round: a route whose profile crumb was rewired
+  registered entity** — the #973 BLOCKER's second round: a route whose role crumb was rewired
   to the tenant's already-registered `query`/`select` pair passed both tests above (the query was
   registered, and the selector echoed _its own_ payload's marker) while silently resolving the
-  tenant's name into the profile's slot at runtime. The route-tree-walk guard's binding test
+  tenant's name into the role's slot at runtime. The route-tree-walk guard's binding test
   closes this by proving each entity crumb's `query` is behaviorally sensitive to its OWN segment
   and NOT to any deeper (descendant) segment — it changes only that one route param at a time and
   asserts the resulting cache key changes (or doesn't) accordingly. This needs no hand-maintained
@@ -352,7 +352,7 @@ opaque helper call in a loader that has `queryClient` access). It runs in CI via
 `pnpm test:design-guards`). A lane that wants to warm the cache for a new surface must satisfy
 this guard — the sanctioning decision is explicit and findable, not emergent.
 
-The one shipped example is `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx`
+The one shipped example is `src/routes/authed/staff/tenants/$tenantId/roles/$roleId.tsx`
 (#846's skeleton-flash fix, implemented in #851); integration coverage lives in
 `src/lib/navigation/breadcrumb-loader.test.tsx`.
 
@@ -491,7 +491,7 @@ This is not left to memory at each call site — it is structural:
   `scopedKey(scope, KEY)`. Call sites use the helper; they never
   hand-assemble a prefixed array, which can silently desync into a no-op.
 - When a counter lives across scopes (a tenant detail's counts after a
-  child-user/profile/invitation mutation), invalidate the parent scope too —
+  child-user/role/invitation mutation), invalidate the parent scope too —
   `invalidateAllStaffTenantScopes` exists for exactly this pairing.
 - Every success path invalidates, including bulk partial success, and does so
   before or alongside user feedback bookkeeping. Selection is cleared after
@@ -530,7 +530,7 @@ new choice, decide in this spirit and add the rule here.
   chips 8px. These live on the size variants in `components/ui/button.tsx` and the
   `--publy-radius-*` tokens.
 - `rounded-full` / `999px` radius is **only** for avatars, the 36px topbar icon buttons, and the
-  profile icon-picker's pencil-pin corner badge (`.publy-profile-detail-tile-pin`) — the same
+  role icon-picker's pencil-pin corner badge (`.publy-role-detail-tile-pin`) — the same
   "genuinely circular" corner-badge shape as `AvatarBadge`
   (enforced by the `no-rounded-full-or-999-radius` design-system scanner rule, with an exact-selector
   allowlist so an unrelated selector cannot inherit an exception by sharing a name prefix).
@@ -553,9 +553,9 @@ new choice, decide in this spirit and add the rule here.
   one screen's primary action differently from the rest of the app, and the owner rules that
   cross-app consistency wins, apply the owner's ruling — the design pack is a single frozen
   snapshot; consistency across the shipped app is the higher-priority signal.
-- Concrete case (FIX-4, 2026-07-13): the tenant Profiles tab design PNG draws "New profile" as an
+- Concrete case (FIX-4, 2026-07-13): the tenant Roles tab design PNG draws "New role" as an
   outline button, but every other "Add xxx" primary action in the app (Add tenant, Invite user, …)
-  is a primary (`variant="default"`) button. The owner ruled "New profile" must match — it is
+  is a primary (`variant="default"`) button. The owner ruled "New role" must match — it is
   `variant="default"`, not outline, despite the design pack.
 
 ### Error & empty states
@@ -604,7 +604,7 @@ new choice, decide in this spirit and add the rule here.
   list route must use `.publy-page-fill` the same way. For a `DataTable` living inside a detail-tab
   shell (not a top-level route), the shell must give the tab body the same bounded-height chain —
   see `TenantDetailsPageShell`'s `bodyScroll="contained"` prop (`.publy-detail-tab-body`) used by
-  the tenant Users/Invitations tabs. This does **not** apply to card grids (e.g. the tenant Profiles
+  the tenant Users/Invitations tabs. This does **not** apply to card grids (e.g. the tenant Roles
   tab) — page-scroll is correct there; only `DataTable`-backed views must own their scroll.
 
 ### Selection mode & bulk actions
@@ -627,11 +627,11 @@ new choice, decide in this spirit and add the rule here.
   hardcode zinc/black/white values in the component.
   Existing bulk-action-ux-conventions.md rules (always-render menu items, ineligible click → i18n
   toast, trigger gates on `BULK_ACTION_MAX_COUNT`) apply unchanged inside the bar.
-- **Card-grid selection chrome** (tenant Profiles tab, FIX-4, 2026-07-13): a selectable card's
+- **Card-grid selection chrome** (tenant Roles tab, FIX-4, 2026-07-13): a selectable card's
   checkbox is **absolutely positioned in the card's top-left corner**, never an in-flow flex item —
   an in-flow checkbox pushes the icon tile/text column sideways, which is a layout regression, not
   a selection affordance. A selected card also gets an **amber ring** on the card surface itself
-  (`.publy-profile-card--selected`, `box-shadow: 0 0 0 2px var(--publy-primary)`) — the checkbox
+  (`.publy-role-card--selected`, `box-shadow: 0 0 0 2px var(--publy-primary)`) — the checkbox
   alone is not sufficient visual feedback that a card is selected.
 
 ### Content & data honesty

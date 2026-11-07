@@ -365,26 +365,26 @@
 	--publy-motion-medium: 240ms;
 	--accent: var(--publy-primary);
 	--accent-foreground: var(--publy-primary-foreground);
-	/* Profile icon-tile tone palette (F13/F3): named so the per-`data-tone`
+	/* Role icon-tile tone palette (F13/F3): named so the per-`data-tone`
 	   component rules below can reference them instead of repeating the
 	   literal hex values, which lets token-theme-parity (not a bespoke
 	   per-selector check) verify every tone has a dark counterpart. */
-	--publy-profile-tone-0-bg: #f0f9ff;
-	--publy-profile-tone-0-fg: #0369a1;
-	--publy-profile-tone-1-bg: #ecfdf5;
-	--publy-profile-tone-1-fg: #047857;
-	--publy-profile-tone-2-bg: #fef2f2;
-	--publy-profile-tone-2-fg: #be123c;
-	--publy-profile-tone-3-bg: #fffbeb;
-	--publy-profile-tone-3-fg: #b45309;
-	--publy-profile-tone-4-bg: #f5f3ff;
-	--publy-profile-tone-4-fg: #7c3aed;
-	--publy-profile-tone-5-bg: #fdf2f8;
-	--publy-profile-tone-5-fg: #be185d;
-	--publy-profile-tone-6-bg: #f0fdf4;
-	--publy-profile-tone-6-fg: #15803d;
-	--publy-profile-tone-7-bg: #eff6ff;
-	--publy-profile-tone-7-fg: #1d4ed8;
+	--publy-role-tone-0-bg: #f0f9ff;
+	--publy-role-tone-0-fg: #0369a1;
+	--publy-role-tone-1-bg: #ecfdf5;
+	--publy-role-tone-1-fg: #047857;
+	--publy-role-tone-2-bg: #fef2f2;
+	--publy-role-tone-2-fg: #be123c;
+	--publy-role-tone-3-bg: #fffbeb;
+	--publy-role-tone-3-fg: #b45309;
+	--publy-role-tone-4-bg: #f5f3ff;
+	--publy-role-tone-4-fg: #7c3aed;
+	--publy-role-tone-5-bg: #fdf2f8;
+	--publy-role-tone-5-fg: #be185d;
+	--publy-role-tone-6-bg: #f0fdf4;
+	--publy-role-tone-6-fg: #15803d;
+	--publy-role-tone-7-bg: #eff6ff;
+	--publy-role-tone-7-fg: #1d4ed8;
 
 	/* The landing page — the two durations the house motion scale lacks.
 	   Theme-invariant (durations carry no colour), so no html.dark
@@ -508,22 +508,22 @@ html.dark {
 	--publy-selection-bar-hover: rgba(0, 0, 0, 0.08);
 	--publy-selection-bar-divider: rgba(0, 0, 0, 0.1);
 	--publy-selection-bar-muted: #71717a;
-	--publy-profile-tone-0-bg: #082f49;
-	--publy-profile-tone-0-fg: #38bdf8;
-	--publy-profile-tone-1-bg: #052e22;
-	--publy-profile-tone-1-fg: #34d399;
-	--publy-profile-tone-2-bg: #4c0519;
-	--publy-profile-tone-2-fg: #fb7185;
-	--publy-profile-tone-3-bg: #451a03;
-	--publy-profile-tone-3-fg: #fbbf24;
-	--publy-profile-tone-4-bg: #2e1065;
-	--publy-profile-tone-4-fg: #a78bfa;
-	--publy-profile-tone-5-bg: #500724;
-	--publy-profile-tone-5-fg: #f472b6;
-	--publy-profile-tone-6-bg: #052e16;
-	--publy-profile-tone-6-fg: #4ade80;
-	--publy-profile-tone-7-bg: #172554;
-	--publy-profile-tone-7-fg: #60a5fa;
+	--publy-role-tone-0-bg: #082f49;
+	--publy-role-tone-0-fg: #38bdf8;
+	--publy-role-tone-1-bg: #052e22;
+	--publy-role-tone-1-fg: #34d399;
+	--publy-role-tone-2-bg: #4c0519;
+	--publy-role-tone-2-fg: #fb7185;
+	--publy-role-tone-3-bg: #451a03;
+	--publy-role-tone-3-fg: #fbbf24;
+	--publy-role-tone-4-bg: #2e1065;
+	--publy-role-tone-4-fg: #a78bfa;
+	--publy-role-tone-5-bg: #500724;
+	--publy-role-tone-5-fg: #f472b6;
+	--publy-role-tone-6-bg: #052e16;
+	--publy-role-tone-6-fg: #4ade80;
+	--publy-role-tone-7-bg: #172554;
+	--publy-role-tone-7-fg: #60a5fa;
 }
 
 /* The marketing header steps down to 56px below 768 (#1038). Declared here,
@@ -1786,7 +1786,7 @@ html.dark {
 		border-bottom: 1px solid var(--publy-row-border);
 	}
 
-	/* Profile multi-select chips (design 1c) */
+	/* Role multi-select chips (design 1c) */
 	.publy-choice-chip {
 		@apply inline-flex cursor-pointer items-center gap-1.5;
 		border-radius: var(--publy-radius-chip);
@@ -2982,9 +2982,9 @@ html.dark {
 }
 
 @layer components {
-	/* ---- T6B — staff profiles & invitations ---- */
+	/* ---- T6B — staff roles & invitations ---- */
 
-	.publy-profile-icon-tile {
+	.publy-role-icon-tile {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -2996,8 +2996,8 @@ html.dark {
 		flex-shrink: 0;
 	}
 
-	.publy-profile-detail-tile {
-		position: relative; /* anchors the .publy-profile-detail-tile-pin badge */
+	.publy-role-detail-tile {
+		position: relative; /* anchors the .publy-role-detail-tile-pin badge */
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -3035,17 +3035,17 @@ html.dark {
 	   axes. The overhang amount (4px, ~15% of the pin's 27px) is deliberately
 	   modest: the tile sits in a `grid ... gap-3` row next to a name field
 	   (12px gap) and a `space-y-1.5` (6px) gap above the hint text below it
-	   (_profile-edit-details-drawer.tsx, _profile-form-drawer.tsx) — 4px
+	   (_role-edit-details-drawer.tsx, _role-form-drawer.tsx) — 4px
 	   comfortably fits inside both without a layout change there, verified in
 	   a real browser (not just DOM presence) against the real compiled CSS —
-	   see e2e/profile-icon-picker-pin-geometry.spec.ts — for: the pin
+	   see e2e/role-icon-picker-pin-geometry.spec.ts — for: the pin
 	   actually extends beyond the tile's box on both axes; it is not clipped
 	   by the `DrawerBody` `overflow-y-auto` ancestor (per spec, a non-visible
 	   value on one axis forces the other to compute to `auto` rather than
 	   `visible` — the issue's own named risk); it does not collide with the
 	   neighbouring name field or the hint text below; and it still holds at
 	   the narrow single-column breakpoint. */
-	.publy-profile-detail-tile-pin {
+	.publy-role-detail-tile-pin {
 		position: absolute;
 		right: -4px;
 		bottom: -4px;
@@ -3059,7 +3059,7 @@ html.dark {
 		color: var(--publy-foreground-muted);
 	}
 
-	.publy-profile-count-badge {
+	.publy-role-count-badge {
 		display: inline-flex;
 		align-items: center;
 		height: 20px;
@@ -3159,7 +3159,7 @@ html.dark {
 		text-overflow: ellipsis;
 	}
 
-	/* inline detail chip (h20, r8) — for Profile/Custom/Role tags */
+	/* inline detail chip (h20, r8) — for Role/Custom/Role tags */
 	.publy-detail-chip {
 		display: inline-flex;
 		align-items: center;
@@ -3183,93 +3183,93 @@ html.dark {
 		color: var(--publy-chip-pending-text);
 	}
 
-	/* Icon-tile tone palette (F13): shared by the 32px staff-profiles table
-	tile and the 56px tenant-profile detail tile — both consume the same
+	/* Icon-tile tone palette (F13): shared by the 32px staff-roles table
+	tile and the 56px tenant-role detail tile — both consume the same
 	--publy-icon-tile-bg/-fg pair, so one selector list serves both instead
 	of two byte-identical rule sets drifting apart. */
-	.publy-profile-icon-tile[data-tone='0'],
-	.publy-profile-detail-tile[data-tone='0'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-0-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-0-fg);
+	.publy-role-icon-tile[data-tone='0'],
+	.publy-role-detail-tile[data-tone='0'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-0-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-0-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='1'],
-	.publy-profile-detail-tile[data-tone='1'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-1-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-1-fg);
+	.publy-role-icon-tile[data-tone='1'],
+	.publy-role-detail-tile[data-tone='1'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-1-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-1-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='2'],
-	.publy-profile-detail-tile[data-tone='2'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-2-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-2-fg);
+	.publy-role-icon-tile[data-tone='2'],
+	.publy-role-detail-tile[data-tone='2'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-2-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-2-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='3'],
-	.publy-profile-detail-tile[data-tone='3'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-3-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-3-fg);
+	.publy-role-icon-tile[data-tone='3'],
+	.publy-role-detail-tile[data-tone='3'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-3-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-3-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='4'],
-	.publy-profile-detail-tile[data-tone='4'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-4-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-4-fg);
+	.publy-role-icon-tile[data-tone='4'],
+	.publy-role-detail-tile[data-tone='4'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-4-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-4-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='5'],
-	.publy-profile-detail-tile[data-tone='5'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-5-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-5-fg);
+	.publy-role-icon-tile[data-tone='5'],
+	.publy-role-detail-tile[data-tone='5'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-5-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-5-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='6'],
-	.publy-profile-detail-tile[data-tone='6'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-6-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-6-fg);
+	.publy-role-icon-tile[data-tone='6'],
+	.publy-role-detail-tile[data-tone='6'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-6-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-6-fg);
 	}
 
-	.publy-profile-icon-tile[data-tone='7'],
-	.publy-profile-detail-tile[data-tone='7'] {
-		--publy-icon-tile-bg: var(--publy-profile-tone-7-bg);
-		--publy-icon-tile-fg: var(--publy-profile-tone-7-fg);
+	.publy-role-icon-tile[data-tone='7'],
+	.publy-role-detail-tile[data-tone='7'] {
+		--publy-icon-tile-bg: var(--publy-role-tone-7-bg);
+		--publy-icon-tile-fg: var(--publy-role-tone-7-fg);
 	}
 
-	/* ---- TEN-2 — tenant detail Profiles/Invitations/Users tabs ---- */
+	/* ---- TEN-2 — tenant detail Roles/Invitations/Users tabs ---- */
 
-	/* 40px r10 tile for the tenant-scoped profiles card grid (distinct sizing
-	from the 32px r9 staff-profiles table tile above; shares the same
+	/* 40px r10 tile for the tenant-scoped roles card grid (distinct sizing
+	from the 32px r9 staff-roles table tile above; shares the same
 	data-tone palette). */
-	.publy-profile-icon-tile--lg {
+	.publy-role-icon-tile--lg {
 		width: 40px;
 		height: 40px;
 		border-radius: 10px;
 	}
 
-	.publy-profile-icon-tile--lg svg {
+	.publy-role-icon-tile--lg svg {
 		width: 19px;
 		height: 19px;
 	}
 
-	.publy-profile-card-grid {
+	.publy-role-card-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 16px;
 	}
 
 	@media (max-width: 1023px) {
-		.publy-profile-card-grid {
+		.publy-role-card-grid {
 			grid-template-columns: repeat(2, 1fr);
 		}
 	}
 
 	@media (max-width: 767px) {
-		.publy-profile-card-grid {
+		.publy-role-card-grid {
 			grid-template-columns: 1fr;
 		}
 	}
 
-	/* Flat cursor footer for the profile card grid — it sits directly on the
+	/* Flat cursor footer for the role card grid — it sits directly on the
 	page background instead of being pinned inside a `.publy-table-card`. */
 	.publy-data-table-footer--flat {
 		background: transparent;
@@ -3282,7 +3282,7 @@ html.dark {
 	}
 }
 
-/* Selected card in the tenant Profiles grid: an amber ring replaces the
+/* Selected card in the tenant Roles grid: an amber ring replaces the
    neutral shadow-ring (FIX-4 owner ruling — checkbox alone was not a visible
    selection affordance on the card surface). Must live unlayered, not inside
    `@layer components` alongside the rest of this section's rules above: the
@@ -3291,7 +3291,7 @@ html.dark {
    regardless of source order or selector specificity, so a layered
    `box-shadow` here can never override it (same cascade-layer gotcha as
    `.app-shell-main:has(.publy-form-action-bar)` above). */
-.publy-profile-card--selected {
+.publy-role-card--selected {
 	box-shadow: 0 0 0 2px var(--publy-primary);
 }
 

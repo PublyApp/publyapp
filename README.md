@@ -36,11 +36,11 @@ migrations, and a TypeScript client generated from the API's OpenAPI contract.
 
 The platform has three distinct operating scopes:
 
-| Scope | Purpose |
-| --- | --- |
-| **Staff** | Platform-wide administration and support across tenants. |
-| **Tenant** | Organization-level users, settings, and operations. |
-| **Project** | A workspace boundary inside a tenant. |
+| Scope       | Purpose                                                  |
+| ----------- | -------------------------------------------------------- |
+| **Staff**   | Platform-wide administration and support across tenants. |
+| **Tenant**  | Organization-level users, settings, and operations.      |
+| **Project** | A workspace boundary inside a tenant.                    |
 
 Staff and tenant/project accounts are mutually exclusive. This keeps the
 platform-administration boundary separate from tenant data and permissions.
@@ -50,7 +50,7 @@ platform-administration boundary separate from tenant data and permissions.
 - Multi-tenant request handling with explicit tenant isolation.
 - Session authentication and route-level permission enforcement.
 - Staff, tenant, and project account boundaries.
-- User, profile, permission, and invitation workflows.
+- User, role, permission, and invitation workflows.
 - Post drafting, scheduling, publish-now actions, and publication history.
 - Social-account connections and a Bluesky publishing provider.
 - Audit logs and system notices for observable administration.
@@ -90,12 +90,12 @@ migrations, then starts persistent PostgreSQL (host port 5454), the API
 the same stack from the matching worktree, creating it when missing. Branches
 created before #2305 must be updated with develop first.
 
-| Service | Local address |
-| --- | --- |
-| Frontend | <http://localhost:5050> |
-| API | <http://localhost:5000> |
+| Service                | Local address                     |
+| ---------------------- | --------------------------------- |
+| Frontend               | <http://localhost:5050>           |
+| API                    | <http://localhost:5000>           |
 | API reference (Scalar) | <http://localhost:5000/scalar/v1> |
-| PostgreSQL | `localhost:5454` |
+| PostgreSQL             | `localhost:5454`                  |
 
 Do not start `just dev-api` alongside `just dev`; the AppHost already owns
 port 5000. For the single-piece recipes and environment rules, read the
@@ -164,16 +164,16 @@ Never hand-edit `packages/client-ts`; regeneration replaces its contents.
 The repository uses `just` for its supported workflows. `just --list` is the
 full command reference; these are the common entry points:
 
-| Command | Purpose |
-| --- | --- |
-| `just dev` | Run the complete local stack. |
-| `just build-api` | Build the API and emit OpenAPI. |
-| `pnpm --filter front build` | Build the shipped frontend. |
-| `just test-api` | Run API integration tests with Testcontainers. |
-| `pnpm --filter front test` | Run frontend tests and their existing guards. |
-| `just lint && just format` | Apply lint and formatting fixes. |
-| `just ci` | Run the local pre-push gate, including the API suite. |
-| `just ci-full` | Add both end-to-end suites to the pre-push gate. |
+| Command                     | Purpose                                               |
+| --------------------------- | ----------------------------------------------------- |
+| `just dev`                  | Run the complete local stack.                         |
+| `just build-api`            | Build the API and emit OpenAPI.                       |
+| `pnpm --filter front build` | Build the shipped frontend.                           |
+| `just test-api`             | Run API integration tests with Testcontainers.        |
+| `pnpm --filter front test`  | Run frontend tests and their existing guards.         |
+| `just lint && just format`  | Apply lint and formatting fixes.                      |
+| `just ci`                   | Run the local pre-push gate, including the API suite. |
+| `just ci-full`              | Add both end-to-end suites to the pre-push gate.      |
 
 GitHub Actions also runs the API, frontend, contract, documentation, and
 security gates required for pull requests. See the

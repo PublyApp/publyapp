@@ -784,7 +784,7 @@ public sealed class TenantUsageServiceSpec
 			await dbContext.SaveChangesAsync();
 
 			if (fullAccess) {
-				await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 					dbContext, tenantId, account.GetRequiredId()
 				);
 			}

@@ -120,7 +120,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	) {
 		if (request.Provider == SocialProvider.Pixelfed) {
 			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
-				"Pixelfed cannot confirm whether the post went out; check your profile"
+				"Pixelfed cannot confirm whether the post went out; check your role"
 			));
 		}
 
@@ -128,7 +128,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		ReconcileResult result = age <= MastodonPublishProvider.IdempotencyWindow
 			? new ReconcileResult.SafeToResend()
 			: new ReconcileResult.NeedsReview(
-				"Mastodon can no longer confirm whether the post went out; check your profile"
+				"Mastodon can no longer confirm whether the post went out; check your role"
 			);
 		return Task.FromResult(result);
 	}

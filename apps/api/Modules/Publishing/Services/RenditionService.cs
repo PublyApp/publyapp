@@ -242,7 +242,7 @@ public sealed class RenditionService : IRenditionService {
 		if (publication.FailureCategory == PublicationFailureCategory.NeedsReview) {
 			return new RenditionResult.Locked(
 				"This publication may already be on the provider, so its content cannot "
-				+ "change. Check the profile, then mark it published or retry.",
+				+ "change. Check the role, then mark it published or retry.",
 				NeedsReview: true
 			);
 		}

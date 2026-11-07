@@ -478,7 +478,7 @@ public sealed class TenantUserIdentityDangerZoneForStaffSpec
 		await dbContext.SaveChangesAsync();
 
 		foreach (var account in accounts) {
-			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 				dbContext,
 				tenantId,
 				account.GetRequiredId()

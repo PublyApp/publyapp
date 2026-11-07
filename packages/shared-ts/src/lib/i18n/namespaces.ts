@@ -9,7 +9,7 @@ const FEATURE_I18N_NAMESPACES = [
 	'posts',
 	// Connected social accounts (Epic C): reconnect banner + account surfaces.
 	'social-accounts',
-	'staff-tenant-profiles',
+	'staff-tenant-roles',
 	'staff-users',
 	'staff-invitations',
 	'staff-audit-logs',

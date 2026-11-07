@@ -5,7 +5,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
@@ -18,8 +18,8 @@ internal sealed record SeededStaffInvitation(
 	Guid Id,
 	string Email,
 	string Token,
-	Guid ProfileId,
-	string ProfileName,
+	Guid RoleId,
+	string RoleName,
 	Guid InvitedByUserId,
 	DateTime ExpiresAt,
 	DateTime ChangedAt
@@ -40,8 +40,8 @@ internal static class InvitationTestHelper {
 		await using var scope = fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-		var profile = await db.Profile
-			.Where(candidate => candidate.Scope == ProfileScope.Staff && !candidate.IsDeleted)
+		var role = await db.Role
+			.Where(candidate => candidate.Scope == RoleScope.Staff && !candidate.IsDeleted)
 			.OrderBy(candidate => candidate.Name)
 			.FirstAsync();
 		var inviter = await db.User
@@ -51,9 +51,9 @@ internal static class InvitationTestHelper {
 		var email = $"staff-invitation-{Guid.NewGuid():N}@example.com";
 		var token = Guid.NewGuid().ToString("N")[..32];
 		var changedAt = DateTime.UtcNow.AddMinutes(-1);
-		var invitation = Invitation.CreateStaffInvitationWithProfiles(
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			email,
-			[profile.GetRequiredId()],
+			[role.GetRequiredId()],
 			inviter.GetRequiredId(),
 			expiresAt ?? DateTime.UtcNow.AddDays(7),
 			token
@@ -74,8 +74,8 @@ internal static class InvitationTestHelper {
 			invitation.GetRequiredId(),
 			email,
 			token,
-			profile.GetRequiredId(),
-			profile.Name,
+			role.GetRequiredId(),
+			role.Name,
 			inviter.GetRequiredId(),
 			invitation.ExpiresAt,
 			changedAt
@@ -97,7 +97,7 @@ internal static class InvitationTestHelper {
 			.Where(user => user.Email == TestConstants.StaffAdminEmail)
 			.FirstAsync();
 
-		var invitation = Invitation.CreateTenantInvitationWithProfiles(
+		var invitation = Invitation.CreateTenantInvitationWithRoles(
 			$"tenant-invitation-{Guid.NewGuid():N}@example.com",
 			tenant.GetRequiredId(),
 			[],

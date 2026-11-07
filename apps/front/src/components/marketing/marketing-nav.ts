@@ -20,7 +20,7 @@ import {
  * ## Why entries carry an optional destination
  *
  * The handoff draws a mega-menu, a footer and a nav bar for a marketing site
- * whose per-feature and resource pages (Tenants, Profiles, Blog, Changelog,
+ * whose per-feature and resource pages (Tenants, Roles, Blog, Changelog,
  * Security, About, Contact, the legal trio, …) do not exist in `apps/front`
  * yet — the six marketing PRs that would have built them were closed against
  * the pre-rename frontend on 2026-07-21 and are still owed. The handoff's own
@@ -155,7 +155,7 @@ const PLATFORM_COLUMN: MarketingNavColumn = {
 			Icon: IconBuildingSkyscraper,
 		},
 		{
-			id: 'profiles',
+			id: 'roles',
 			labelKey: 'marketing-nav-profiles',
 			descriptionKey: 'marketing-nav-profiles-description',
 			Icon: IconWorld,
@@ -276,7 +276,7 @@ export const MARKETING_NAV_TRIGGERS: readonly MarketingNavTrigger[] = [
 ];
 
 /*
- * The handoff's mega-panel promo row ("Audit logs now record profile-level
+ * The handoff's mega-panel promo row ("Audit logs now record role-level
  * publishing actions" -> "Read the changelog") is deliberately NOT
  * implemented here: its only destination is the changelog, which has no
  * route, so under the no-dead-ends rule above the row could never render. It

@@ -181,7 +181,7 @@ export const buildTenantTotals =
 			'postsMonth',
 			'invitations',
 			'owners',
-			'profiles',
+			'roles',
 			'locale',
 			'timezone',
 			'website',

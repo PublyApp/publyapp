@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Permissions.Services;
@@ -11,15 +11,15 @@ public interface IPermissionService {
 	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null);
 	Task<HashSet<string>> GetPermissionsAsync(Guid userId);
 	Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId);
-	Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds);
+	Task<HashSet<string>> GetPermissionsForRolesAsync(List<Guid> roleIds);
 }
 
 [Service(ServiceLifetime.Scoped)]
 public class PermissionService : IPermissionService {
 	/// <summary>
 	/// Sentinel placed in an EFFECTIVE permission set for a holder of the scope's
-	/// full-access system profile. It is never persisted: the full-access profile has
-	/// no <c>profile_permissions</c> rows, which keeps "has every right" in one place.
+	/// full-access system role. It is never persisted: the full-access role has
+	/// no <c>role_permissions</c> rows, which keeps "has every right" in one place.
 	/// </summary>
 	public const string WildcardPermission = "*";
 
@@ -30,7 +30,7 @@ public class PermissionService : IPermissionService {
 	}
 
 	/// <summary>
-	/// Gets all effective permissions for a user across all their profiles.
+	/// Gets all effective permissions for a user across all their roles.
 	/// This method works seamlessly with the existing PermissionFilter.
 	/// Optimized query that uses proper indexing for better performance.
 	/// </summary>
@@ -39,16 +39,16 @@ public class PermissionService : IPermissionService {
 	/// <param name="projectId">Optional project ID for project-scoped permissions</param>
 	/// <returns>HashSet of permission keys</returns>
 	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null) {
-		if (await this._HasFullAccessProfileAsync(userId, tenantId, projectId)) {
+		if (await this._HasFullAccessRoleAsync(userId, tenantId, projectId)) {
 			return [PermissionService.WildcardPermission];
 		}
 
 		// Join tables are active-state only. Do not add IsDeleted filters here:
-		// removing a profile or permission assignment physically removes the row.
-		var userPermissions = await this._Context.Set<ProfilePermission>()
-			.Join(this._Context.Set<UserAccountProfile>(),
-				pp => pp.ProfileId,
-				uap => uap.ProfileId,
+		// removing a role or permission assignment physically removes the row.
+		var userPermissions = await this._Context.Set<RolePermission>()
+			.Join(this._Context.Set<UserAccountRole>(),
+				pp => pp.RoleId,
+				uap => uap.RoleId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(this._Context.Set<UserAccount>()
 				.Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
@@ -73,20 +73,20 @@ public class PermissionService : IPermissionService {
 	}
 
 	/// <summary>
-	/// Gets staff permissions for a user (from staff profiles)
+	/// Gets staff permissions for a user (from staff roles)
 	/// </summary>
 	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId) {
-		if (await this._HasFullAccessProfileAsync(userId, tenantId: null, projectId: null, staffScope: true)) {
+		if (await this._HasFullAccessRoleAsync(userId, tenantId: null, projectId: null, staffScope: true)) {
 			return [PermissionService.WildcardPermission];
 		}
 
 		// Important: respect soft-deletes on user/account entities. Junction rows are hard
 		// deleted when unassigned, so row existence is the active membership state.
-		return await this._Context.Set<ProfilePermission>()
+		return await this._Context.Set<RolePermission>()
 			.Join(
-				this._Context.Set<UserAccountProfile>(),
-				pp => pp.ProfileId,
-				uap => uap.ProfileId,
+				this._Context.Set<UserAccountRole>(),
+				pp => pp.RoleId,
+				uap => uap.RoleId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId }
 			)
 			.Join(
@@ -110,15 +110,15 @@ public class PermissionService : IPermissionService {
 	/// Gets tenant permissions for a user in a specific tenant
 	/// </summary>
 	public async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
-		if (await this._HasFullAccessProfileAsync(userId, tenantId, projectId: null)) {
+		if (await this._HasFullAccessRoleAsync(userId, tenantId, projectId: null)) {
 			return [PermissionService.WildcardPermission];
 		}
 
 		// Tenant-scoped auth uses the same row-existence contract as staff auth.
-		return await this._Context.Set<ProfilePermission>()
-			.Join(this._Context.Set<UserAccountProfile>(),
-				pp => pp.ProfileId,
-				uap => uap.ProfileId,
+		return await this._Context.Set<RolePermission>()
+			.Join(this._Context.Set<UserAccountRole>(),
+				pp => pp.RoleId,
+				uap => uap.RoleId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(this._Context.Set<UserAccount>().Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
 				joined => joined.UserAccountId,
@@ -134,12 +134,12 @@ public class PermissionService : IPermissionService {
 	/// Gets project permissions for a user in a specific project
 	/// </summary>
 	public async Task<HashSet<string>> GetProjectPermissionsAsync(Guid userId, Guid tenantId, Guid projectId) {
-		// Project permissions still travel through profile membership, so the two junction
+		// Project permissions still travel through role membership, so the two junction
 		// tables remain the only active-state filters before account scope checks.
-		return await this._Context.Set<ProfilePermission>()
-			.Join(this._Context.Set<UserAccountProfile>(),
-				pp => pp.ProfileId,
-				uap => uap.ProfileId,
+		return await this._Context.Set<RolePermission>()
+			.Join(this._Context.Set<UserAccountRole>(),
+				pp => pp.RoleId,
+				uap => uap.RoleId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(this._Context.Set<UserAccount>().Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
 				joined => joined.UserAccountId,
@@ -152,36 +152,36 @@ public class PermissionService : IPermissionService {
 	}
 
 	/// <summary>
-	/// Gets permissions for specific profile IDs (backward compatibility with existing filter)
+	/// Gets permissions for specific role IDs (backward compatibility with existing filter)
 	/// </summary>
-	public async Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds) {
-		var hasFullAccessProfile = await this._Context.Set<Profile>()
-			.Where(p => p.Id != null && profileIds.Contains(p.Id.Value) && p.IsFullAccess && !p.IsDeleted)
+	public async Task<HashSet<string>> GetPermissionsForRolesAsync(List<Guid> roleIds) {
+		var hasFullAccessRole = await this._Context.Set<Role>()
+			.Where(p => p.Id != null && roleIds.Contains(p.Id.Value) && p.IsFullAccess && !p.IsDeleted)
 			.AnyAsync();
-		if (hasFullAccessProfile) {
+		if (hasFullAccessRole) {
 			return [PermissionService.WildcardPermission];
 		}
 
-		// A missing ProfilePermission row is the only revoked state for a profile permission.
-		return await this._Context.Set<ProfilePermission>()
-			.Where(pp => profileIds.Contains(pp.ProfileId))
+		// A missing RolePermission row is the only revoked state for a role permission.
+		return await this._Context.Set<RolePermission>()
+			.Where(pp => roleIds.Contains(pp.RoleId))
 			.Select(pp => pp.PermissionKey)
 			.Distinct()
 			.ToHashSetAsync();
 	}
 
-	private async Task<bool> _HasFullAccessProfileAsync(
+	private async Task<bool> _HasFullAccessRoleAsync(
 		Guid userId,
 		Guid? tenantId,
 		Guid? projectId,
 		bool staffScope = false
 	) {
 		// Same liveness contract as every effective-permission read: the junction row means
-		// "assigned", while the account and profile must be live and the account active.
+		// "assigned", while the account and role must be live and the account active.
 		var query =
-			from uap in this._Context.Set<UserAccountProfile>()
+			from uap in this._Context.Set<UserAccountRole>()
 			join ua in this._Context.Set<UserAccount>() on uap.UserAccountId equals ua.Id
-			join p in this._Context.Set<Profile>() on uap.ProfileId equals p.Id
+			join p in this._Context.Set<Role>() on uap.RoleId equals p.Id
 			where ua.UserId == userId
 				&& !ua.IsDeleted
 				&& ua.Status != AccountStatus.Suspended

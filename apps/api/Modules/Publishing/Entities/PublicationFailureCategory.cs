@@ -21,7 +21,7 @@ public enum PublicationFailureCategory {
 	Unknown = 4,
 	/// <summary>
 	/// An ambiguous write could not be ruled in or out (#2176): the user checks the
-	/// provider profile, then marks the post published or retries.
+	/// provider role, then marks the post published or retries.
 	/// </summary>
 	NeedsReview = 5,
 }
@@ -55,7 +55,7 @@ public static class PublicationFailureCategoryWire {
 			PublicationFailureCategory.Unknown =>
 				"the outcome could not be classified",
 			PublicationFailureCategory.NeedsReview =>
-				"it may already be on the provider; check the profile, then mark it published or retry",
+				"it may already be on the provider; check the role, then mark it published or retry",
 			_ => throw new ArgumentOutOfRangeException(
 				nameof(category), category, "Unhandled PublicationFailureCategory"
 			),

@@ -28,9 +28,9 @@ export const TenantInvitationsSelectionExport = ({
 		{
 			header: t('access'),
 			getValue: (row) =>
-				(row.profiles ?? [])[0]?.name ??
-				row.profileName ??
-				(row.roles ?? []).join(', '),
+				(row.roles ?? [])[0]?.name ??
+				row.roleName ??
+				(row.roleNames ?? []).join(', '),
 		},
 		{ header: t('invited-by'), getValue: (row) => row.invitedByName },
 		{

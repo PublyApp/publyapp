@@ -33,7 +33,7 @@ const normalizeScopeAuthData = (
 const SCOPE_AUTH_DATA_QUERY_KEY = ['scope-auth-data'] as const;
 
 /**
- * Session-stable per tenant: profile assignments change through admin
+ * Session-stable per tenant: role assignments change through admin
  * actions, not during a session, and login/logout already clear the whole
  * cache — so no refocus or interval refetching here.
  *

@@ -1,4 +1,4 @@
-import type { StaffPermissionCatalogEntry } from '~/lib/query/staff-profiles';
+import type { StaffPermissionCatalogEntry } from '~/lib/query/staff-roles';
 
 export type StaffPermissionOption = {
 	value: string;

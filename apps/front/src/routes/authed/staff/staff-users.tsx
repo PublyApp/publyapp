@@ -19,7 +19,7 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 
 import { buildListSelection, selectedListIds } from './_staff-list-selection';
 import {
-	buildStaffProfilesPanelGroup,
+	buildStaffRolesPanelGroup,
 	buildStaffTeamPanelGroups,
 	useStaffTeamOverview,
 } from './_staff-list-team';
@@ -95,11 +95,11 @@ const StaffUsersPage = () => {
 	const counts = query.data?.counts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
-	const navigateToProfile = useCallback(
-		(profileId: string) => {
+	const navigateToRole = useCallback(
+		(roleId: string) => {
 			void navigate({
-				to: '/staff/profiles/$profileId/users',
-				params: { profileId },
+				to: '/staff/roles/$roleId/users',
+				params: { roleId },
 			});
 		},
 		[navigate],
@@ -109,7 +109,7 @@ const StaffUsersPage = () => {
 			toBe:
 				| '/staff/staff-users'
 				| '/staff/invitations'
-				| '/staff/profiles'
+				| '/staff/roles'
 				| '/staff/audit-logs',
 		) => {
 			void navigate({ to: toBe });
@@ -189,9 +189,9 @@ const StaffUsersPage = () => {
 			totals={() => buildStaffUserTotals(t, counts)}
 			panelGroups={[
 				...buildStaffTeamPanelGroups(t, 'staff', team.counts, navigateToTeam),
-				...buildStaffProfilesPanelGroup(t, team.profiles, navigateToProfile),
+				...buildStaffRolesPanelGroup(t, team.roles, navigateToRole),
 			]}
-			panelOrder={['team', 'status', 'staff-profiles']}
+			panelOrder={['team', 'status', 'staff-roles']}
 			onOpen={(row) =>
 				void navigate({
 					to: '/staff/staff-users/$userId',

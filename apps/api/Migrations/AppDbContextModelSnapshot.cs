@@ -17,7 +17,7 @@ namespace PublyApp.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -342,15 +342,15 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("invitation_email_outbox");
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.InvitationProfile", b =>
+            modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.InvitationRole", b =>
                 {
                     b.Property<Guid>("InvitationId")
                         .HasColumnType("uuid")
                         .HasColumnName("invitation_id");
 
-                    b.Property<Guid>("ProfileId")
+                    b.Property<Guid>("RoleId")
                         .HasColumnType("uuid")
-                        .HasColumnName("profile_id");
+                        .HasColumnName("role_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -360,11 +360,11 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("InvitationId", "ProfileId");
+                    b.HasKey("InvitationId", "RoleId");
 
-                    b.HasIndex("ProfileId");
+                    b.HasIndex("RoleId");
 
-                    b.ToTable("invitation_profiles");
+                    b.ToTable("invitation_roles");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.JobDeadLetter", b =>
@@ -1263,124 +1263,6 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("post_segments");
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.Profile", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Icon")
-                        .HasColumnType("text")
-                        .HasColumnName("icon");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_default");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<bool>("IsFullAccess")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_full_access");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.Property<Guid?>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
-                    b.Property<int>("Scope")
-                        .HasColumnType("integer")
-                        .HasColumnName("scope");
-
-                    b.Property<Guid?>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<string>("Tone")
-                        .HasColumnType("text")
-                        .HasColumnName("tone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
-
-                    b.HasIndex("TenantId", "Name")
-                        .IsUnique()
-                        .HasDatabaseName("ux_profiles_tenant_name")
-                        .HasFilter("\"scope\" = 1 AND \"is_deleted\" = false");
-
-                    b.HasIndex("Scope", "CreatedAt", "Id")
-                        .HasDatabaseName("ix_profiles_staff_created_at_id")
-                        .HasFilter("\"scope\" = 0");
-
-                    b.HasIndex("Scope", "Name", "Id")
-                        .HasDatabaseName("ix_profiles_staff_name_id")
-                        .HasFilter("\"scope\" = 0");
-
-                    b.HasIndex("TenantId", "Scope", "IsDefault")
-                        .IsUnique()
-                        .HasDatabaseName("ux_profiles_tenant_default_profile")
-                        .HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
-
-                    b.ToTable("profiles", t =>
-                        {
-                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
-
-                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
-
-                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
-                        });
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.ProfilePermission", b =>
-                {
-                    b.Property<Guid>("ProfileId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("profile_id");
-
-                    b.Property<string>("PermissionKey")
-                        .HasColumnType("text")
-                        .HasColumnName("permission_key");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("ProfileId", "PermissionKey");
-
-                    b.HasIndex("PermissionKey");
-
-                    b.ToTable("profile_permissions");
-                });
-
             modelBuilder.Entity("PublyApp.Api.Modules.Projects.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1760,6 +1642,124 @@ namespace PublyApp.Api.Migrations
                         {
                             t.HasCheckConstraint("CK_RateLimitCounters_PermitCount", "permit_count >= 0");
                         });
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Roles.Entities.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("text")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsFullAccess")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_full_access");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Tone")
+                        .HasColumnType("text")
+                        .HasColumnName("tone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_roles_tenant_name")
+                        .HasFilter("\"scope\" = 1 AND \"is_deleted\" = false");
+
+                    b.HasIndex("Scope", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_roles_staff_created_at_id")
+                        .HasFilter("\"scope\" = 0");
+
+                    b.HasIndex("Scope", "Name", "Id")
+                        .HasDatabaseName("ix_roles_staff_name_id")
+                        .HasFilter("\"scope\" = 0");
+
+                    b.HasIndex("TenantId", "Scope", "IsDefault")
+                        .IsUnique()
+                        .HasDatabaseName("ux_roles_tenant_default_role")
+                        .HasFilter("\"scope\" = 1 AND \"project_id\" IS NULL AND \"is_default\" = true AND \"is_deleted\" = false");
+
+                    b.ToTable("roles", t =>
+                        {
+                            t.HasCheckConstraint("CK_Role_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
+
+                            t.HasCheckConstraint("CK_Role_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+
+                            t.HasCheckConstraint("CK_Role_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
+                        });
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Roles.Entities.RolePermission", b =>
+                {
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("role_id");
+
+                    b.Property<string>("PermissionKey")
+                        .HasColumnType("text")
+                        .HasColumnName("permission_key");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("RoleId", "PermissionKey");
+
+                    b.HasIndex("PermissionKey");
+
+                    b.ToTable("role_permissions");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.OAuthAppRegistration", b =>
@@ -2483,15 +2483,15 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.UserAccountProfile", b =>
+            modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.UserAccountRole", b =>
                 {
                     b.Property<Guid>("UserAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_account_id");
 
-                    b.Property<Guid>("ProfileId")
+                    b.Property<Guid>("RoleId")
                         .HasColumnType("uuid")
-                        .HasColumnName("profile_id");
+                        .HasColumnName("role_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2501,11 +2501,11 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("UserAccountId", "ProfileId");
+                    b.HasKey("UserAccountId", "RoleId");
 
-                    b.HasIndex("ProfileId");
+                    b.HasIndex("RoleId");
 
-                    b.ToTable("user_account_profiles");
+                    b.ToTable("user_account_roles");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.AuditLogs.Entities.AuditLog", b =>
@@ -2569,23 +2569,23 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("Invitation");
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.InvitationProfile", b =>
+            modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.InvitationRole", b =>
                 {
                     b.HasOne("PublyApp.Api.Modules.Invitations.Entities.Invitation", "Invitation")
-                        .WithMany("InvitationProfiles")
+                        .WithMany("InvitationRoles")
                         .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PublyApp.Api.Modules.Profiles.Entities.Profile", "Profile")
+                    b.HasOne("PublyApp.Api.Modules.Roles.Entities.Role", "Role")
                         .WithMany()
-                        .HasForeignKey("ProfileId")
+                        .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Invitation");
 
-                    b.Navigation("Profile");
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.JobDeadLetterEvent", b =>
@@ -2672,40 +2672,6 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("Post");
 
                     b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.Profile", b =>
-                {
-                    b.HasOne("PublyApp.Api.Modules.Projects.Entities.Project", "Project")
-                        .WithMany("Profiles")
-                        .HasForeignKey("ProjectId");
-
-                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId");
-
-                    b.Navigation("Project");
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.ProfilePermission", b =>
-                {
-                    b.HasOne("PublyApp.Api.Modules.Permissions.Entities.Permission", "Permission")
-                        .WithMany("ProfilePermissions")
-                        .HasForeignKey("PermissionKey")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PublyApp.Api.Modules.Profiles.Entities.Profile", "Profile")
-                        .WithMany("ProfilePermissions")
-                        .HasForeignKey("ProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Permission");
-
-                    b.Navigation("Profile");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Projects.Entities.Project", b =>
@@ -2797,6 +2763,40 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Roles.Entities.Role", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Projects.Entities.Project", "Project")
+                        .WithMany("Roles")
+                        .HasForeignKey("ProjectId");
+
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Roles.Entities.RolePermission", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Permissions.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionKey")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Roles.Entities.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.OAuthState", b =>
                 {
                     b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
@@ -2883,47 +2883,47 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.UserAccountProfile", b =>
+            modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.UserAccountRole", b =>
                 {
-                    b.HasOne("PublyApp.Api.Modules.Profiles.Entities.Profile", "Profile")
-                        .WithMany("UserAccountProfiles")
-                        .HasForeignKey("ProfileId")
+                    b.HasOne("PublyApp.Api.Modules.Roles.Entities.Role", "Role")
+                        .WithMany("UserAccountRoles")
+                        .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("PublyApp.Api.Modules.Users.Entities.UserAccount", "UserAccount")
-                        .WithMany("UserAccountProfiles")
+                        .WithMany("UserAccountRoles")
                         .HasForeignKey("UserAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Profile");
+                    b.Navigation("Role");
 
                     b.Navigation("UserAccount");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.Invitation", b =>
                 {
-                    b.Navigation("InvitationProfiles");
+                    b.Navigation("InvitationRoles");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Permissions.Entities.Permission", b =>
                 {
-                    b.Navigation("ProfilePermissions");
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.Profile", b =>
-                {
-                    b.Navigation("ProfilePermissions");
-
-                    b.Navigation("UserAccountProfiles");
+                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Projects.Entities.Project", b =>
                 {
-                    b.Navigation("Profiles");
+                    b.Navigation("Roles");
 
                     b.Navigation("UserAccounts");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Roles.Entities.Role", b =>
+                {
+                    b.Navigation("RolePermissions");
+
+                    b.Navigation("UserAccountRoles");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Tenants.Entities.Tenant", b =>
@@ -2942,7 +2942,7 @@ namespace PublyApp.Api.Migrations
 
             modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.UserAccount", b =>
                 {
-                    b.Navigation("UserAccountProfiles");
+                    b.Navigation("UserAccountRoles");
                 });
 #pragma warning restore 612, 618
         }

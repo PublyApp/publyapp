@@ -99,11 +99,11 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '  alice@example.com  ',
-				profileIds: ['profile-1'],
+				roleIds: ['role-1'],
 			}),
 		).toMatchObject({
 			email: { value: 'alice@example.com' },
-			profileIds: { value: [{ value: 'profile-1' }] },
+			roleIds: { value: [{ value: 'role-1' }] },
 		});
 	});
 
@@ -111,7 +111,7 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 		expect(
 			buildCreateStaffTenantUserInvitationBody({
 				email: '   ',
-				profileIds: [],
+				roleIds: [],
 			}),
 		).toEqual({});
 	});
@@ -150,16 +150,16 @@ describe('buildCreateStaffTenantUserInvitationBody', () => {
 });
 
 describe('buildBulkCreateStaffTenantInvitationsBody', () => {
-	test('wraps every invitee email and profile id for Kiota', () => {
+	test('wraps every invitee email and role id for Kiota', () => {
 		expect(
 			buildBulkCreateStaffTenantInvitationsBody([
 				{
 					email: '  alice@example.com  ',
-					profileIds: ['profile-1', 'profile-2'],
+					roleIds: ['role-1', 'role-2'],
 				},
 				{
 					email: 'bob@example.com',
-					profileIds: [],
+					roleIds: [],
 				},
 			]),
 		).toMatchObject({
@@ -168,15 +168,15 @@ describe('buildBulkCreateStaffTenantInvitationsBody', () => {
 					{
 						value: {
 							email: { value: 'alice@example.com' },
-							profileIds: {
-								value: [{ value: 'profile-1' }, { value: 'profile-2' }],
+							roleIds: {
+								value: [{ value: 'role-1' }, { value: 'role-2' }],
 							},
 						},
 					},
 					{
 						value: {
 							email: { value: 'bob@example.com' },
-							profileIds: { value: [] },
+							roleIds: { value: [] },
 						},
 					},
 				],
@@ -234,7 +234,7 @@ describe('bulkCreateStaffTenantInvitationsMutationOptions', () => {
 				invitations: [
 					{
 						email: 'alice@example.com',
-						profileIds: ['profile-1'],
+						roleIds: ['role-1'],
 					},
 				],
 			});

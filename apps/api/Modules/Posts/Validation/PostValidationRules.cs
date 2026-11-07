@@ -1,7 +1,7 @@
 namespace PublyApp.Api.Modules.Posts.Validation;
 
 /// <summary>
-/// Post domain validation bounds. Mirrors the #1135 profile-fields mechanism:
+/// Post domain validation bounds. Mirrors the #1135 role-fields mechanism:
 /// max lengths are validator-side constants, not EF column bounds, so the
 /// database schema stays permissive while the API contract is bounded here.
 /// </summary>

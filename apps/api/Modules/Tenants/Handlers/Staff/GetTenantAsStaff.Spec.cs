@@ -15,7 +15,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -290,9 +290,9 @@ public sealed class GetTenantAsStaffSpec
 		// Excludes: deleted-pending, accepted, revoked, and expired-but-still-"Pending".
 		result.PendingInvitationsCount.Should().Be(2);
 		result.ExpiringSoonInvitationsCount.Should().Be(1);
-		// 3 active profiles (the tenant's full-access Owner role + 2 fixtures);
+		// 3 active roles (the tenant's full-access Owner role + 2 fixtures);
 		// 1 soft-deleted excluded.
-		result.ProfilesCount.Should().Be(3);
+		result.RolesCount.Should().Be(3);
 	}
 
 	[Fact]
@@ -438,7 +438,7 @@ public sealed class GetTenantAsStaffSpec
 			await dbContext.SaveChangesAsync();
 
 			if (isOwner) {
-				await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 					dbContext, tenantId, account.GetRequiredId()
 				);
 			}
@@ -464,7 +464,7 @@ public sealed class GetTenantAsStaffSpec
 			DateTime expiresAt,
 			bool isDeleted
 		) {
-			var invitation = Invitation.CreateTenantInvitationWithProfiles(
+			var invitation = Invitation.CreateTenantInvitationWithRoles(
 				$"tenant-get-counts-invite-{Guid.NewGuid():N}@example.com",
 				tenantId,
 				[],
@@ -489,18 +489,18 @@ public sealed class GetTenantAsStaffSpec
 		await AddInvitationAsync(InvitationStatus.Revoked, now.AddDays(10), isDeleted: false);
 		await AddInvitationAsync(InvitationStatus.Pending, now.AddHours(-1), isDeleted: false);
 
-		dbContext.Profile.Add(
-			Profile.CreateTenantProfile(tenantId, "Counts Fixture Profile A")
+		dbContext.Role.Add(
+			Role.CreateTenantRole(tenantId, "Counts Fixture Role A")
 		);
-		dbContext.Profile.Add(
-			Profile.CreateTenantProfile(tenantId, "Counts Fixture Profile B")
+		dbContext.Role.Add(
+			Role.CreateTenantRole(tenantId, "Counts Fixture Role B")
 		);
-		var deletedProfile =
-			Profile.CreateTenantProfile(tenantId, "Counts Fixture Profile C");
-		dbContext.Profile.Add(deletedProfile);
+		var deletedRole =
+			Role.CreateTenantRole(tenantId, "Counts Fixture Role C");
+		dbContext.Role.Add(deletedRole);
 		await dbContext.SaveChangesAsync();
 
-		deletedProfile.IsDeleted = true;
+		deletedRole.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
 
 		return tenantId;
@@ -545,7 +545,7 @@ public sealed class GetTenantAsStaffSpec
 			await dbContext.SaveChangesAsync();
 
 			if (isOwner) {
-				await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 					dbContext, tenantId, account.GetRequiredId()
 				);
 			}

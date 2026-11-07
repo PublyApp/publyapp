@@ -32,7 +32,7 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 		this._AuthClient = new TestAuthClient(this._Http);
 	}
 
-	// Creates a bare Acme tenant member with NO profiles at all (round 2: the
+	// Creates a bare Acme tenant member with NO roles at all (round 2: the
 	// seeded AcmeUserEmail member holds socialaccounts.publish + view through
 	// demo-publishing-acme, so a no-verb proof needs a fresh member).
 	private async Task<string> _CreateBareAcmeMemberAsync(Guid tenantId) {
@@ -66,8 +66,8 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
 			this._Http, staffToken, SeedConstants.Tenants.AcmeName
 		);
-		// Round 2: probe a dedicated profile-less member - the seeded Acme member
-		// now legitimately holds publish + view via the demo profile.
+		// Round 2: probe a dedicated role-less member - the seeded Acme member
+		// now legitimately holds publish + view via the demo role.
 		var bareEmail = await this._CreateBareAcmeMemberAsync(tenantId);
 		var token = await this._AuthClient.LoginAsync(
 			bareEmail, TestConstants.SeedPassword

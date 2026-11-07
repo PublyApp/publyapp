@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Services;
-using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
 
@@ -21,7 +21,7 @@ public class GetTenantAsStaffResult {
 	public int OwnersCount { get; set; }
 	public int PendingInvitationsCount { get; set; }
 	public int ExpiringSoonInvitationsCount { get; set; }
-	public int ProfilesCount { get; set; }
+	public int RolesCount { get; set; }
 	public string? LegalName { get; set; }
 	public string? Description { get; set; }
 	public string? WebsiteUrl { get; set; }
@@ -48,7 +48,7 @@ public sealed class GetTenantAsStaff {
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IInvitationQueryService invitationQueryService,
 		[FromServices]
-			ITenantProfileQueryAsStaffService tenantProfileQueryAsStaffService,
+			ITenantRoleQueryAsStaffService tenantRoleQueryAsStaffService,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
@@ -82,8 +82,8 @@ public sealed class GetTenantAsStaff {
 			.CountTenantInvitationsAsync(
 				tenantIdGuid, cancellationToken
 			);
-		var profilesCount = await tenantProfileQueryAsStaffService
-			.CountTenantProfilesAsync(
+		var rolesCount = await tenantRoleQueryAsStaffService
+			.CountTenantRolesAsync(
 				tenantIdGuid, cancellationToken
 			);
 
@@ -98,7 +98,7 @@ public sealed class GetTenantAsStaff {
 			OwnersCount = ownersCount,
 			PendingInvitationsCount = invitationCounts.Pending,
 			ExpiringSoonInvitationsCount = invitationCounts.ExpiringSoon,
-			ProfilesCount = profilesCount,
+			RolesCount = rolesCount,
 			LegalName = tenant.LegalName,
 			Description = tenant.Description,
 			WebsiteUrl = tenant.WebsiteUrl,

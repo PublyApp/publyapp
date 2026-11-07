@@ -707,8 +707,8 @@ const escapeRegExpLiteral = (value: string): string =>
 
 // #992 review follow-up: `.includes(selector)` matched any selector that
 // merely STARTS WITH the allowlisted one (e.g. an unauthorized
-// `.publy-profile-detail-tile-pin-impostor` silently inherited the
-// `.publy-profile-detail-tile-pin` exception). A selector is a complete
+// `.publy-role-detail-tile-pin-impostor` silently inherited the
+// `.publy-role-detail-tile-pin` exception). A selector is a complete
 // class/attribute token, not a free-text prefix, so require that the
 // character immediately following the matched text is not itself a
 // selector-identifier character (letter, digit, `_`, or `-`) — that is
@@ -891,7 +891,7 @@ const isRoundedRadiusAllowed = (
 			lineIndex,
 			'.publy-form-action-bar-status::before',
 		) ||
-		// #992: the profile icon-picker's pencil-pin corner badge is a THIRD,
+		// #992: the role icon-picker's pencil-pin corner badge is a THIRD,
 		// deliberately narrow exception (not just "avatars and topbar icon
 		// buttons" — keep this list and the `no-rounded-full-or-999-radius`
 		// rule message above, and docs/guides/front/conventions.md's corner-
@@ -900,9 +900,9 @@ const isRoundedRadiusAllowed = (
 		// indicator sitting on a corner). Matched with an exact selector
 		// boundary (`selectorAppearsExactly`/`hasNearbySelector`), not a raw
 		// substring, so an unrelated selector merely starting with this class
-		// name (e.g. a hypothetical `.publy-profile-detail-tile-pin-anything`)
+		// name (e.g. a hypothetical `.publy-role-detail-tile-pin-anything`)
 		// cannot silently inherit the exception.
-		hasNearbySelector(lines, lineIndex, '.publy-profile-detail-tile-pin')
+		hasNearbySelector(lines, lineIndex, '.publy-role-detail-tile-pin')
 	);
 };
 
@@ -2199,7 +2199,7 @@ const rules: DesignSystemRule[] = [
 	{
 		id: 'no-rounded-full-or-999-radius',
 		message:
-			'Only avatar surfaces, 36px topbar icon buttons, the profile ' +
+			'Only avatar surfaces, 36px topbar icon buttons, the role ' +
 			'icon-picker pencil-pin corner badge, and the status pill may ' +
 			'remain fully rounded.',
 		appliesTo: () => true,

@@ -39,7 +39,7 @@ const TEST_TRIGGERS: readonly MarketingNavTrigger[] = [
 				titleKey: 'marketing-nav-platform',
 				items: [
 					{
-						id: 'profiles',
+						id: 'roles',
 						labelKey: 'marketing-nav-profiles',
 						descriptionKey: 'marketing-nav-profiles-description',
 						Icon: IconWorld,

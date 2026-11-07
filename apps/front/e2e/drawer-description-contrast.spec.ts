@@ -46,7 +46,7 @@ import { loginAsStaffAdmin } from './helpers/login';
  */
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
-const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
+const ROLE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
 const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
 const GLOBAL_TENANT_USER_ID = '0197b8f0-6666-7ccc-8ccc-cccccccccccc';
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
@@ -133,7 +133,7 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 					ownersCount: 2,
 					pendingInvitationsCount: 0,
 					expiringSoonInvitationsCount: 0,
-					profilesCount: 1,
+					rolesCount: 1,
 					logoUrl: null,
 					legalName: 'Acme Corporation, Inc.',
 					websiteUrl: 'https://www.acme.example/',
@@ -145,14 +145,14 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)) {
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/roles`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
 					data: [
 						{
-							id: PROFILE_ID,
+							id: ROLE_ID,
 							name: 'Publishing',
 							description: 'Can publish tenant content.',
 							icon: null,
@@ -168,13 +168,13 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles/${PROFILE_ID}`)) {
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/roles/${ROLE_ID}`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					profile: {
-						id: PROFILE_ID,
+					role: {
+						id: ROLE_ID,
 						name: 'Publishing',
 						description: 'Can publish tenant content.',
 						icon: null,
@@ -190,10 +190,7 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 		}
 
 		if (
-			isApiPath(
-				url,
-				`/staff/tenants/${TENANT_ID}/profiles/${PROFILE_ID}/permissions`,
-			)
+			isApiPath(url, `/staff/tenants/${TENANT_ID}/roles/${ROLE_ID}/permissions`)
 		) {
 			await route.fulfill({
 				status: 200,
@@ -203,9 +200,7 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (
-			isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles/${PROFILE_ID}/users`)
-		) {
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/roles/${ROLE_ID}/users`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -270,13 +265,13 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (isApiPath(request.url(), `/staff/users/${STAFF_USER_ID}/profiles`)) {
+		if (isApiPath(request.url(), `/staff/users/${STAFF_USER_ID}/roles`)) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					assignedProfiles: [],
-					maxProfilesPerUser: 25,
+					assignedRoles: [],
+					maxRolesPerUser: 25,
 				}),
 			});
 			return;
@@ -285,11 +280,11 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 		await route.fallback();
 	});
 
-	await page.route('**/staff/profiles**', async (route) => {
+	await page.route('**/staff/roles**', async (route) => {
 		const request = route.request();
 		if (
 			request.method() !== 'GET' ||
-			!isApiPath(request.url(), '/staff/profiles')
+			!isApiPath(request.url(), '/staff/roles')
 		) {
 			await route.fallback();
 			return;
@@ -437,11 +432,11 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
-const openProfileCreateDrawer = async (page: Page): Promise<void> => {
+const openRoleCreateDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
-	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?new=1`);
-	await expect(page.getByTestId('profile-form-drawer')).toBeVisible({
+	await page.goto(`/staff/tenants/${TENANT_ID}/roles?new=1`);
+	await expect(page.getByTestId('role-form-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
 };
@@ -455,38 +450,38 @@ const openInviteUserDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
-const openProfileEditDrawer = async (page: Page): Promise<void> => {
+const openRoleEditDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
-	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?edit=${PROFILE_ID}`);
-	await expect(page.getByTestId('profile-edit-details-drawer')).toBeVisible({
+	await page.goto(`/staff/tenants/${TENANT_ID}/roles?edit=${ROLE_ID}`);
+	await expect(page.getByTestId('role-edit-details-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
 };
 
-// #819: the staff-scope profile edit drawer sits on its own detail route, so
+// #819: the staff-scope role edit drawer sits on its own detail route, so
 // this opener intercepts that page's four read endpoints instead of relying
 // on seeded rows. `mockDrawerDependencies` only covers `/staff/tenants/**`.
-const STAFF_PROFILE_ID = '0197b8f0-7777-7ccc-8ccc-cccccccccccc';
+const STAFF_ROLE_ID = '0197b8f0-7777-7ccc-8ccc-cccccccccccc';
 
-const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
+const openStaffRoleEditDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
-	await page.route('**/staff/profiles/**', async (route) => {
+	await page.route('**/staff/roles/**', async (route) => {
 		const request = route.request();
 		const url = new URL(request.url());
 
 		if (
 			request.method() !== 'GET' ||
 			url.origin !== API_BASE_URL ||
-			!url.pathname.startsWith('/staff/profiles/')
+			!url.pathname.startsWith('/staff/roles/')
 		) {
 			await route.fallback();
 			return;
 		}
 
-		const rest = url.pathname.slice('/staff/profiles/'.length);
+		const rest = url.pathname.slice('/staff/roles/'.length);
 
-		if (rest === `${STAFF_PROFILE_ID}/users`) {
+		if (rest === `${STAFF_ROLE_ID}/users`) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -498,7 +493,7 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (rest === `${STAFF_PROFILE_ID}/permissions`) {
+		if (rest === `${STAFF_ROLE_ID}/permissions`) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -509,13 +504,13 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		if (rest === STAFF_PROFILE_ID) {
+		if (rest === STAFF_ROLE_ID) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					profile: {
-						id: STAFF_PROFILE_ID,
+					role: {
+						id: STAFF_ROLE_ID,
 						name: 'Staff Admin',
 						description: 'Platform administrator with management access',
 						userAccountCount: 0,
@@ -529,13 +524,13 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 
 		await route.fallback();
 	});
-	// The permission catalog lives outside /staff/profiles/** and is only
+	// The permission catalog lives outside /staff/roles/** and is only
 	// needed once keys are assigned; with none assigned the page never reads
 	// it, so no handler is registered here.
-	await page.goto(`/staff/profiles/${STAFF_PROFILE_ID}?edit=1`);
-	await expect(
-		page.getByTestId('staff-profile-edit-details-drawer'),
-	).toBeVisible({ timeout: 10_000 });
+	await page.goto(`/staff/roles/${STAFF_ROLE_ID}?edit=1`);
+	await expect(page.getByTestId('staff-role-edit-details-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
 };
 
 const openChangeEmailDrawer = async (page: Page): Promise<void> => {
@@ -552,7 +547,7 @@ const openAssignMembersDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
 	await page.goto(
-		`/staff/tenants/${TENANT_ID}/profiles/${PROFILE_ID}/users?assign=1`,
+		`/staff/tenants/${TENANT_ID}/roles/${ROLE_ID}/users?assign=1`,
 	);
 	await expect(page.getByTestId('assign-members-drawer')).toBeVisible({
 		timeout: 10_000,
@@ -734,12 +729,12 @@ const openCookiePrefsDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
-const openProfileOverview = async (page: Page): Promise<void> => {
+const openRoleOverview = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
-	await page.goto(`/staff/tenants/${TENANT_ID}/profiles/${PROFILE_ID}`);
+	await page.goto(`/staff/tenants/${TENANT_ID}/roles/${ROLE_ID}`);
 	await expect(
-		page.getByTestId('staff-tenant-profile-overview-content'),
+		page.getByTestId('staff-tenant-role-overview-content'),
 	).toBeVisible({ timeout: 10_000 });
 };
 
@@ -759,7 +754,7 @@ const DESCRIPTION_LIVE_CASES: readonly DescriptionLiveCase[] = [
 	{
 		selector: '.publy-danger-zone-row-description',
 		name: 'danger-zone description',
-		open: openProfileOverview,
+		open: openRoleOverview,
 	},
 	{
 		selector: '.publy-field-switch-description',
@@ -1062,17 +1057,17 @@ const DRAWER_OPENERS = {
 		name: 'assign members',
 		open: openAssignMembersDrawer,
 	},
-	'profile-form-drawer': {
-		name: 'create profile',
-		open: openProfileCreateDrawer,
+	'role-form-drawer': {
+		name: 'create role',
+		open: openRoleCreateDrawer,
 	},
-	'profile-edit-details-drawer': {
-		name: 'edit profile',
-		open: openProfileEditDrawer,
+	'role-edit-details-drawer': {
+		name: 'edit role',
+		open: openRoleEditDrawer,
 	},
-	'staff-profile-edit-details-drawer': {
-		name: 'edit staff profile',
-		open: openStaffProfileEditDrawer,
+	'staff-role-edit-details-drawer': {
+		name: 'edit staff role',
+		open: openStaffRoleEditDrawer,
 	},
 	'audit-log-export-drawer': {
 		name: 'export audit logs',

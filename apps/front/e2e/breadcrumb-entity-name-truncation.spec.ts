@@ -23,7 +23,7 @@ import {
  *
  * This spec makes that proof durable and repo-resident rather than a
  * one-off manual probe. Docker/the full e2e stack are NOT required: like
- * `feat/ui-profile-batch`'s `profile-icon-picker-pin-geometry.spec.ts` (read
+ * `feat/ui-role-batch`'s `role-icon-picker-pin-geometry.spec.ts` (read
  * as reference, not modified — see `chromium-hermetic-source` below), it
  * renders a `page.setContent()` page built from the REAL compiled
  * production CSS (`dist/client/assets/app-*.css`, built once per process by the
@@ -191,7 +191,7 @@ test.describe(
 		});
 
 		/**
-		 * Geometry regression proof, mirroring `profile-icon-picker-pin-geometry
+		 * Geometry regression proof, mirroring `role-icon-picker-pin-geometry
 		 * .spec.ts`'s own mutation test. The baseline test above already renders
 		 * the real `EntityCrumb` component (see `helpers/render-entity-crumb
 		 * .tsx`), so a regression that removes `truncate` from `entity-crumb.tsx`

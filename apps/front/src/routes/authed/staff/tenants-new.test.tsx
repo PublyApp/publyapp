@@ -89,9 +89,9 @@ const LABELS: TestLabelMap = {
 	'add-member': 'Add member',
 	'remove-member': 'Remove member',
 	remove: 'Remove',
-	'default-profile': 'Default profile',
-	'default-profile-hint':
-		'Creates an empty profile, assigned to invited members who are not administrators',
+	'default-role': 'Default role',
+	'default-role-hint':
+		'Creates an empty role, assigned to invited members who are not administrators',
 	configuration: 'Configuration',
 	preview: 'Preview',
 	status: 'Status',
@@ -621,12 +621,12 @@ describe('staff tenant create route', () => {
 		expect(screen.getAllByText('Organization details').length).toBeGreaterThan(
 			0,
 		);
-		// The details live in a Fold; the default-profile switch lives in its
+		// The details live in a Fold; the default-role switch lives in its
 		// own « Configuration » group (prototype's `Config`).
 		expect(screen.queryByText('Setup')).toBeNull();
 		expect(screen.getByText('Configuration')).toBeTruthy();
 		expect(
-			screen.queryByRole('checkbox', { name: 'Seed default profiles' }),
+			screen.queryByRole('checkbox', { name: 'Seed default roles' }),
 		).toBeNull();
 	});
 
@@ -789,8 +789,8 @@ describe('staff tenant create route', () => {
 		expect(
 			screen.getByTestId('preview-checklist-owners').textContent,
 		).toContain('1 owners with full access');
-		// Per §4.3 the default-profile switch/checklist row was removed.
-		expect(screen.queryByTestId('preview-checklist-profile')).toBeNull();
+		// Per §4.3 the default-role switch/checklist row was removed.
+		expect(screen.queryByTestId('preview-checklist-role')).toBeNull();
 	});
 
 	test('the sticky bar summary is plural-aware for owners and members', () => {
@@ -806,7 +806,7 @@ describe('staff tenant create route', () => {
 		);
 	});
 
-	test('sends seedDefaultProfile false when the default-profile switch is turned off', async () => {
+	test('sends seedDefaultRole false when the default-role switch is turned off', async () => {
 		mocks.mutateAsync.mockResolvedValue({ id: 'tenant-001' });
 
 		renderPage();
@@ -815,18 +815,18 @@ describe('staff tenant create route', () => {
 		fireEvent.change(getEmailInputs()[0]!, {
 			target: { value: 'owner@acme.com' },
 		});
-		const profileSwitch = screen.getByRole('checkbox', {
-			name: 'Default profile',
+		const roleSwitch = screen.getByRole('checkbox', {
+			name: 'Default role',
 		}) as HTMLInputElement;
-		expect(profileSwitch.checked).toBe(true);
-		fireEvent.click(profileSwitch);
+		expect(roleSwitch.checked).toBe(true);
+		fireEvent.click(roleSwitch);
 
 		submitForm();
 		await confirmCreate();
 
 		await waitFor(() =>
 			expect(mocks.mutateAsync).toHaveBeenCalledWith(
-				expect.objectContaining({ seedDefaultProfile: false }),
+				expect.objectContaining({ seedDefaultRole: false }),
 			),
 		);
 	});
@@ -1058,7 +1058,7 @@ describe('staff tenant create route', () => {
 				name: 'Acme Corporation',
 				maxUsers: 5,
 				code: 'acme-corp',
-				seedDefaultProfile: true,
+				seedDefaultRole: true,
 				initialUsers: [
 					{ email: 'owner@acme.com', role: 'owner' },
 					{ email: 'member@acme.com', role: 'member' },

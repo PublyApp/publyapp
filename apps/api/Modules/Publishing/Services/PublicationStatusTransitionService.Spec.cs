@@ -146,7 +146,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 				seeded.GetRequiredId(),
 				seeded.TenantId,
 				"at://did.example/app.bsky.feed.post/abc123",
-				"https://bsky.app/profile/did.example/post/abc123"
+				"https://bsky.app/role/did.example/post/abc123"
 			),
 			CancellationToken.None
 		);

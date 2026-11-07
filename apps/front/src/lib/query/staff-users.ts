@@ -18,12 +18,12 @@ import type {
 	BulkStaffUserActionResult,
 	FindStaffUsersResponse,
 	GetStaffUserByIdResult,
-	GetStaffUserProfilesResult,
+	GetStaffUserRolesResult,
 	StaffUserItem,
 	UpdateStaffUserBody,
 	UserStatus,
 	UpdateStaffUserEmailBody,
-	UpdateStaffUserProfilesBody,
+	UpdateStaffUserRolesBody,
 } from '@org/client-ts/models/index';
 import {
 	buildStaffMutationOptions,
@@ -43,7 +43,7 @@ export type StaffUserDetailsQueryVariables = {
 	userId: string;
 };
 
-export type StaffUserProfilesQueryVariables = {
+export type StaffUserRolesQueryVariables = {
 	userId: string;
 };
 
@@ -59,7 +59,7 @@ export type StaffUserRow = {
 	displayName: string;
 };
 
-export type AssignedStaffProfile = {
+export type AssignedStaffRole = {
 	id: string;
 	name: string | undefined;
 	description: string | null;
@@ -91,9 +91,9 @@ export type StaffUserEmailUpdateInput = {
 	email?: string | null;
 };
 
-export type StaffUserProfilesUpdateInput = {
+export type StaffUserRolesUpdateInput = {
 	userId: string;
-	profileIds: string[];
+	roleIds: string[];
 };
 
 /** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
@@ -105,13 +105,13 @@ const STAFF_USER_DETAILS_QUERY_KEY = [
 	...STAFF_USERS_QUERY_KEY,
 	'detail',
 ] as const;
-const STAFF_USER_PROFILES_QUERY_KEY = [
+const STAFF_USER_ROLES_QUERY_KEY = [
 	...STAFF_USER_DETAILS_QUERY_KEY,
-	'profiles',
+	'roles',
 ] as const;
 
 /** Invalidates the staff-users list, every user's details entry, and its
- * assigned-profiles entry — both nest under `STAFF_USERS_QUERY_KEY`, so a
+ * assigned-roles entry — both nest under `STAFF_USERS_QUERY_KEY`, so a
  * single prefix invalidation covers all three (see F19/F16). */
 export const invalidateStaffUsers = (
 	queryClient: Pick<QueryClient, 'invalidateQueries'>,
@@ -258,12 +258,12 @@ export const toStaffUserDetails = (
 	};
 };
 
-export const toAssignedStaffProfiles = (
-	result: GetStaffUserProfilesResult | null | undefined,
-): AssignedStaffProfile[] => {
-	const profiles: AssignedStaffProfile[] = [];
+export const toAssignedStaffRoles = (
+	result: GetStaffUserRolesResult | null | undefined,
+): AssignedStaffRole[] => {
+	const roles: AssignedStaffRole[] = [];
 
-	for (const item of result?.assignedProfiles ?? []) {
+	for (const item of result?.assignedRoles ?? []) {
 		const id = normalizeString(
 			typeof item.id === 'string' ? item.id : undefined,
 		);
@@ -272,14 +272,14 @@ export const toAssignedStaffProfiles = (
 			continue;
 		}
 
-		profiles.push({
+		roles.push({
 			id,
 			name: normalizeString(item.name),
 			description: normalizeNullableString(item.description),
 		});
 	}
 
-	return profiles;
+	return roles;
 };
 
 const normalizeUpdateStringField = (
@@ -332,11 +332,11 @@ const buildUpdateStaffUserEmailBody = (
 	email: email === null ? null : createUntypedString(email),
 });
 
-const buildUpdateStaffUserProfilesBody = (
-	input: StaffUserProfilesUpdateInput,
-): UpdateStaffUserProfilesBody => ({
-	profileIds: createUntypedArray(
-		input.profileIds.map((profileId) => createUntypedString(profileId)),
+const buildUpdateStaffUserRolesBody = (
+	input: StaffUserRolesUpdateInput,
+): UpdateStaffUserRolesBody => ({
+	roleIds: createUntypedArray(
+		input.roleIds.map((roleId) => createUntypedString(roleId)),
 	),
 });
 
@@ -382,20 +382,20 @@ export const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffUserProfilesQueryOptions = buildStaffQueryOptions<
+const staffUserRolesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
-	GetStaffUserProfilesResult,
-	StaffUserProfilesQueryVariables
+	GetStaffUserRolesResult,
+	StaffUserRolesQueryVariables
 >(
 	{
-		queryKeyFn: () => [...STAFF_USER_PROFILES_QUERY_KEY],
+		queryKeyFn: () => [...STAFF_USER_ROLES_QUERY_KEY],
 		fetcher: async (client, variables) => {
 			const result = await client.staff.users
 				.byUserId(variables.userId)
-				.profiles.get();
+				.roles.get();
 
 			if (!result) {
-				throw new Error('staff user profiles result was empty');
+				throw new Error('staff user roles result was empty');
 			}
 
 			return result;
@@ -443,17 +443,17 @@ const updateStaffUserEmailMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const updateStaffUserProfilesMutationOptions = buildStaffMutationOptions<
+const updateStaffUserRolesMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	GetStaffUserByIdResult | undefined,
-	StaffUserProfilesUpdateInput
+	StaffUserRolesUpdateInput
 >(
 	{
-		mutationKeyFn: () => ['staff-users', 'update-profiles'],
+		mutationKeyFn: () => ['staff-users', 'update-roles'],
 		mutationFn: (client, variables) =>
 			client.staff.users
 				.byUserId(variables.userId)
-				.profiles.put(buildUpdateStaffUserProfilesBody(variables)),
+				.roles.put(buildUpdateStaffUserRolesBody(variables)),
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
@@ -536,15 +536,15 @@ export const selectStaffUserCrumbName = (data: unknown): string | undefined =>
 	toStaffUserDetails(data as GetStaffUserByIdResult | null | undefined)
 		?.displayName;
 
-export const useStaffUserProfilesQuery = (
-	variables: StaffUserProfilesQueryVariables,
+export const useStaffUserRolesQuery = (
+	variables: StaffUserRolesQueryVariables,
 	options?: {
 		enabled?: boolean;
 	},
 ) =>
 	useQuery({
-		queryKey: staffUserProfilesQueryOptions.queryKey(variables),
-		queryFn: () => staffUserProfilesQueryOptions.fetcher(variables),
+		queryKey: staffUserRolesQueryOptions.queryKey(variables),
+		queryFn: () => staffUserRolesQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
 
@@ -554,8 +554,8 @@ export const useUpdateStaffUserMutation = () =>
 export const useUpdateStaffUserEmailMutation = () =>
 	useMutation(updateStaffUserEmailMutationOptions);
 
-export const useUpdateStaffUserProfilesMutation = () =>
-	useMutation(updateStaffUserProfilesMutationOptions);
+export const useUpdateStaffUserRolesMutation = () =>
+	useMutation(updateStaffUserRolesMutationOptions);
 
 export const useSuspendStaffUserMutation = () =>
 	useMutation(suspendStaffUserMutationOptions);

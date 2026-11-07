@@ -1,23 +1,23 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
 
 /// <summary>
 /// THE canonical lock order for tenant-membership mutations: everything that changes a tenant's
-/// active-admin set or the <c>user_account_profiles</c> junction.
+/// active-admin set or the <c>user_account_roles</c> junction.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Order: (1) <c>users</c> → (2) <c>tenants</c> → (3) <c>profiles</c> →
-/// (4) <c>user_accounts</c> → (5) <c>user_account_profiles</c>.</b> A path takes only the steps
+/// <b>Order: (1) <c>users</c> → (2) <c>tenants</c> → (3) <c>roles</c> →
+/// (4) <c>user_accounts</c> → (5) <c>user_account_roles</c>.</b> A path takes only the steps
 /// it needs, but never takes them out of this order, and always takes a parent before reading
 /// the children it will act on.
 /// Within a step, rows are locked in a deterministic id order — for the junction, always
-/// <c>(user_account_id, profile_id)</c>, the same key for both the profile axis and the account
+/// <c>(user_account_id, role_id)</c>, the same key for both the role axis and the account
 /// axis, so cross-axis cleanups acquire shared rows in the same relative order and cannot
 /// deadlock.
 /// </para>
@@ -37,12 +37,12 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// predicate (tenant + scope + <c>is_deleted</c>) into the locking statement therefore means a
 /// parent that was soft-deleted while we waited yields <b>no row</b> — the caller reports
 /// not-found instead of acting on a dead parent. Matching on <c>id</c> alone would return the
-/// physical row and let the caller resurrect links under a deleted profile or a removed
+/// physical row and let the caller resurrect links under a deleted role or a removed
 /// membership.
 /// </para>
 /// <para>
 /// Writers that are themselves invalidating a parent lock it by id only
-/// (<see cref="LockProfileRowsAsync"/> / <see cref="LockUserAccountRowsAsync"/>): re-validating
+/// (<see cref="LockRoleRowsAsync"/> / <see cref="LockUserAccountRowsAsync"/>): re-validating
 /// liveness against their own pending change would be self-defeating. They contend with readers
 /// on the same physical row, which is what serializes the two sides.
 /// </para>
@@ -74,14 +74,14 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// Paths that take this order (keep this list current):
 /// <list type="bullet">
 /// <item>
-/// Profiles → <c>TenantProfileAsStaffService.SetTenantProfileUserAsync</c> (profile, account)
+/// Roles → <c>TenantRoleAsStaffService.SetTenantRoleUserAsync</c> (role, account)
 /// </item>
 /// <item>
-/// Profiles → <c>TenantProfileAsStaffService.DeleteTenantProfileAsync</c> (profile, links)
+/// Roles → <c>TenantRoleAsStaffService.DeleteTenantRoleAsync</c> (role, links)
 /// </item>
 /// <item>
-/// Profiles → <c>TenantProfileAsStaffService.BulkDeleteTenantProfilesAsync</c>
-/// (profiles, links)
+/// Roles → <c>TenantRoleAsStaffService.BulkDeleteTenantRolesAsync</c>
+/// (roles, links)
 /// </item>
 /// <item>
 /// Users → <c>TenantUserMembershipOperations.RemoveUserFromTenantAsync</c>
@@ -95,7 +95,7 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// (tenant, accounts, links)
 /// </item>
 /// <item>
-/// Users → <c>TenantUserMembershipOperations.RemoveUserAccountProfileLinksAsync</c>
+/// Users → <c>TenantUserMembershipOperations.RemoveUserAccountRoleLinksAsync</c>
 /// (account, links)
 /// </item>
 /// <item>
@@ -135,11 +135,11 @@ namespace PublyApp.Api.Modules.Users.Services;
 /// <para>
 /// Audit-log inserts take a foreign-key <c>FOR KEY SHARE</c> on the actor's <c>users</c> row.
 /// That conflicts only with <c>FOR UPDATE</c>. It is <b>not</b> true that no identity-mutex
-/// holder ever waits on a profile, account or junction row — company assignment holds
+/// holder ever waits on a role, account or junction row — company assignment holds
 /// <c>users(U)</c> while it writes <c>user_accounts</c>, purges junction rows and may insert a
-/// default-profile link, and existing-user invitation acceptance holds <c>users(U)</c> while it
-/// creates an account and profile links. No audit cycle forms all the same, but for a narrower
-/// reason: the only audited path here, <c>SetTenantProfileUserAsync</c>, takes its
+/// default-role link, and existing-user invitation acceptance holds <c>users(U)</c> while it
+/// creates an account and role links. No audit cycle forms all the same, but for a narrower
+/// reason: the only audited path here, <c>SetTenantRoleUserAsync</c>, takes its
 /// <c>FOR KEY SHARE</c> on the <b>staff</b> actor's <c>users</c> row, while these mutex
 /// participants target <b>tenant</b> identities, and staff/tenant scope exclusivity means those
 /// two <c>users</c> rows are never the same row. Do not restate the broad claim: it teaches the
@@ -192,30 +192,30 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 3: lock the live tenant profile and re-validate tenant, scope and soft-delete state
-	/// in the same statement. Returns <c>null</c> when the profile is not a live tenant profile
+	/// Step 3: lock the live tenant role and re-validate tenant, scope and soft-delete state
+	/// in the same statement. Returns <c>null</c> when the role is not a live tenant role
 	/// of <paramref name="tenantId"/> — including when a concurrent delete won the race.
 	/// </summary>
-	internal static async Task<Profile?> LockLiveTenantProfileAsync(
+	internal static async Task<Role?> LockLiveTenantRoleAsync(
 		AppDbContext dbContext,
 		Guid tenantId,
-		Guid profileId,
+		Guid roleId,
 		CancellationToken cancellationToken
 	) {
 		// ToListAsync (not FirstOrDefaultAsync) keeps EF from composing a LIMIT around the raw
 		// SQL; the id predicate already bounds this to at most one row.
-		var profiles = await dbContext.Profile
+		var roles = await dbContext.Role
 			.FromSql($"""
-				SELECT * FROM profiles
-				WHERE id = {profileId}
+				SELECT * FROM roles
+				WHERE id = {roleId}
 					AND tenant_id = {tenantId}
-					AND scope = {(int)ProfileScope.Tenant}
+					AND scope = {(int)RoleScope.Tenant}
 					AND is_deleted = FALSE
 				FOR UPDATE
 				""")
 			.ToListAsync(cancellationToken);
 
-		return profiles.FirstOrDefault();
+		return roles.FirstOrDefault();
 	}
 
 	/// <summary>
@@ -246,22 +246,22 @@ internal static class TenantMembershipLockOrder {
 	}
 
 	/// <summary>
-	/// Step 3, writer side: lock profile rows by id before enumerating their junction rows.
+	/// Step 3, writer side: lock role rows by id before enumerating their junction rows.
 	/// </summary>
-	internal static async Task LockProfileRowsAsync(
+	internal static async Task LockRoleRowsAsync(
 		AppDbContext dbContext,
-		IReadOnlyCollection<Guid> profileIds,
+		IReadOnlyCollection<Guid> roleIds,
 		CancellationToken cancellationToken
 	) {
-		if (profileIds.Count == 0) {
+		if (roleIds.Count == 0) {
 			return;
 		}
 
-		var orderedIds = profileIds.Distinct().OrderBy(id => id).ToArray();
+		var orderedIds = roleIds.Distinct().OrderBy(id => id).ToArray();
 
 		// LockRows sits above Sort in the plan, so rows are locked in the sorted order.
 		_ = await dbContext.Database.ExecuteSqlAsync(
-			$"SELECT 1 FROM profiles WHERE id = ANY({orderedIds}) ORDER BY id FOR UPDATE",
+			$"SELECT 1 FROM roles WHERE id = ANY({orderedIds}) ORDER BY id FOR UPDATE",
 			cancellationToken
 		);
 	}
@@ -293,7 +293,7 @@ internal static class TenantMembershipLockOrder {
 	/// tracked DELETE for a row that is already gone
 	/// (<c>DbUpdateConcurrencyException</c> → rolled-back transaction → 500 for the loser).
 	/// </summary>
-	internal static async Task<List<UserAccountProfile>>
+	internal static async Task<List<UserAccountRole>>
 		LockAndMaterializeLinksForAccountsAsync(
 			AppDbContext dbContext,
 			IReadOnlyCollection<Guid> userAccountIds,
@@ -305,38 +305,38 @@ internal static class TenantMembershipLockOrder {
 
 		var ids = userAccountIds.Distinct().ToArray();
 
-		return await dbContext.UserAccountProfile
+		return await dbContext.UserAccountRole
 			.FromSql($"""
-				SELECT * FROM user_account_profiles
+				SELECT * FROM user_account_roles
 				WHERE user_account_id = ANY({ids})
-				ORDER BY user_account_id, profile_id
+				ORDER BY user_account_id, role_id
 				FOR UPDATE
 				""")
 			.ToListAsync(cancellationToken);
 	}
 
 	/// <summary>
-	/// Step 5, profile axis. Ordered by the same <c>(user_account_id, profile_id)</c> key as the
+	/// Step 5, role axis. Ordered by the same <c>(user_account_id, role_id)</c> key as the
 	/// account axis: the two axes overlap on at most a shared subset, and because both walk that
 	/// subset in the same order, neither can hold a shared row the other needs earlier.
 	/// </summary>
-	internal static async Task<List<UserAccountProfile>>
-		LockAndMaterializeLinksForProfilesAsync(
+	internal static async Task<List<UserAccountRole>>
+		LockAndMaterializeLinksForRolesAsync(
 			AppDbContext dbContext,
-			IReadOnlyCollection<Guid> profileIds,
+			IReadOnlyCollection<Guid> roleIds,
 			CancellationToken cancellationToken
 		) {
-		if (profileIds.Count == 0) {
+		if (roleIds.Count == 0) {
 			return [];
 		}
 
-		var ids = profileIds.Distinct().ToArray();
+		var ids = roleIds.Distinct().ToArray();
 
-		return await dbContext.UserAccountProfile
+		return await dbContext.UserAccountRole
 			.FromSql($"""
-				SELECT * FROM user_account_profiles
-				WHERE profile_id = ANY({ids})
-				ORDER BY user_account_id, profile_id
+				SELECT * FROM user_account_roles
+				WHERE role_id = ANY({ids})
+				ORDER BY user_account_id, role_id
 				FOR UPDATE
 				""")
 			.ToListAsync(cancellationToken);

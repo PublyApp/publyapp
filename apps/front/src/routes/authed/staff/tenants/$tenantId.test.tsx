@@ -117,8 +117,8 @@ const TRANSLATIONS: TestLabelMap = {
 	'pending-invites': 'Pending invites',
 	'expire-soon': 'expire soon',
 	'no-invites-expiring-soon': 'No invites expiring soon',
-	profiles: 'Profiles',
-	'view-profiles': 'View profiles',
+	roles: 'Roles',
+	'view-roles': 'View roles',
 	'owner-chip-label': 'Owner',
 	'tenant-owners-preview-error': 'Unable to load owners.',
 	'no-tenant-owners': 'No owners yet.',
@@ -217,7 +217,7 @@ const ACTIVE_TENANT = {
 	ownersCount: 4,
 	pendingInvitationsCount: 4,
 	expiringSoonInvitationsCount: 2,
-	profilesCount: 6,
+	rolesCount: 6,
 	logoUrl: null,
 	legalName: 'Acme Corporation, Inc.',
 	websiteUrl: 'https://www.acme.example/',
@@ -350,7 +350,7 @@ describe('staff tenant details route', () => {
 		expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
 	});
 
-	test('renders the owners, pending invites, and profiles stat cards from the new detail counts', () => {
+	test('renders the owners, pending invites, and roles stat cards from the new detail counts', () => {
 		renderPage();
 
 		const ownersCard = screen.getByTestId('tenant-stat-owners');
@@ -361,13 +361,13 @@ describe('staff tenant details route', () => {
 		expect(invitesCard.textContent).toContain('2');
 		expect(invitesCard.textContent).toContain('expire soon');
 
-		const profilesCard = screen.getByTestId('tenant-stat-profiles');
-		expect(profilesCard.textContent).toContain('6');
+		const rolesCard = screen.getByTestId('tenant-stat-roles');
+		expect(rolesCard.textContent).toContain('6');
 		expect(
-			within(profilesCard)
-				.getByRole('link', { name: 'View profiles' })
+			within(rolesCard)
+				.getByRole('link', { name: 'View roles' })
 				.getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/roles');
 	});
 
 	test('shows a muted line instead of the amber chip when no invites are expiring soon', () => {

@@ -69,16 +69,16 @@ export const historyCategoryIcon = (category: HistoryCategory): Icon =>
 export const historyCategoryLabelKey = (category: HistoryCategory): string =>
 	`history-category-${category}`;
 
-/** Longest prefix wins, so `tenant.profile.user.*` is a membership event while
- * `tenant.profile.*` stays an organisation event. */
+/** Longest prefix wins, so `tenant.role.user.*` is a membership event while
+ * `tenant.role.*` stays an organisation event. */
 const CATEGORY_PREFIXES: readonly (readonly [string, HistoryCategory])[] = [
 	['auth.', 'auth'],
 	['impersonation.', 'impersonation'],
 	['invitation.', 'invitation'],
 	['tenant.invitation.', 'invitation'],
-	['tenant.profile.user.', 'member'],
+	['tenant.role.user.', 'member'],
 	['tenant.user.', 'member'],
-	['tenant.profile.', 'tenant'],
+	['tenant.role.', 'tenant'],
 	['tenant.', 'tenant'],
 	['staff.', 'staff'],
 	['job.', 'job'],

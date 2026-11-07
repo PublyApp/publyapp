@@ -67,27 +67,27 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private static string _GetProfilesUrl(string userId) {
+	private static string _GetRolesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Profiles.GetFn(userId)
+			Routes.Users.ForStaff.Roles.GetFn(userId)
 		);
 	}
 
-	private static string _GetUpdateProfilesUrl(string userId) {
+	private static string _GetUpdateRolesUrl(string userId) {
 		return PathUtils.Join(
 			Routes.Staff.Root,
 			Routes.Users.ForStaff.Root,
-			Routes.Users.ForStaff.Profiles.UpdateFn(userId)
+			Routes.Users.ForStaff.Roles.UpdateFn(userId)
 		);
 	}
 
-	private static string _GetCreateProfileUrl() {
+	private static string _GetCreateRoleUrl() {
 		return PathUtils.Join(
 			Routes.Staff.Root,
-			Routes.Profiles.ForStaff.Root,
-			Routes.Profiles.ForStaff.Create
+			Routes.Roles.ForStaff.Root,
+			Routes.Roles.ForStaff.Create
 		);
 	}
 
@@ -244,8 +244,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			$"bulk-delete-audit-{Guid.NewGuid():N}@example.com"
 		);
 		var deletedUserIdGuid = Guid.Parse(deletedUserId);
-		var firstProfileId = await this._CreateStaffProfileAsync(staffToken);
-		var secondProfileId = await this._CreateStaffProfileAsync(staffToken);
+		var firstRoleId = await this._CreateStaffRoleAsync(staffToken);
+		var secondRoleId = await this._CreateStaffRoleAsync(staffToken);
 		var unsuspendedUserId = Guid.Parse(
 			await this._CreateStaffUserAsync(
 				staffToken,
@@ -254,11 +254,11 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		);
 		var missingUserId = Guid.NewGuid();
 
-		await this._AssignProfilesAsync(
+		await this._AssignRolesAsync(
 			staffToken,
 			deletedUserId,
-			firstProfileId,
-			secondProfileId
+			firstRoleId,
+			secondRoleId
 		);
 		await this._SuspendStaffUserAsync(staffToken, deletedUserId);
 
@@ -281,7 +281,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 		await this._AssertSoftDeletedRowsAsync(
 			deletedUserIdGuid,
-			expectedProfileLinkCount: 0
+			expectedRoleLinkCount: 0
 		);
 		await this._AssertFindStaffUsersDoesNotContainAsync(
 			staffToken,
@@ -291,7 +291,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			deletedUserId
 		);
-		await this._AssertGetStaffUserProfilesReturnsNotFoundAsync(
+		await this._AssertGetStaffUserRolesReturnsNotFoundAsync(
 			staffToken,
 			deletedUserId
 		);
@@ -336,16 +336,16 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task<string> _CreateStaffProfileAsync(string staffToken) {
+	private async Task<string> _CreateStaffRoleAsync(string staffToken) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			BulkDeleteStaffUsersSpec._GetCreateProfileUrl()
+			BulkDeleteStaffUsersSpec._GetCreateRoleUrl()
 		).WithSessionToken(staffToken);
 
 		request.Content = JsonContent.Create(
 			new {
 				name = "Bulk Delete Staff User " + Guid.NewGuid().ToString("N")[..8],
-				description = "Profile used by BulkDeleteStaffUsersSpec",
+				description = "Role used by BulkDeleteStaffUsersSpec",
 				permissions = new[] { AppPermissions.Staff.Users.LIST_FOR_STAFF.Key },
 				emails = Array.Empty<string>(),
 			}
@@ -354,23 +354,23 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreatedResponse>();
+		var created = await response.Content.ReadFromJsonAsync<StaffRoleCreatedResponse>();
 		created.Should().NotBeNull();
 		Assert.NotNull(created);
-		return created.ProfileId.ToString();
+		return created.RoleId.ToString();
 	}
 
-	private async Task _AssignProfilesAsync(
+	private async Task _AssignRolesAsync(
 		string staffToken,
 		string userId,
-		params string[] profileIds
+		params string[] roleIds
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
-			BulkDeleteStaffUsersSpec._GetUpdateProfilesUrl(userId)
+			BulkDeleteStaffUsersSpec._GetUpdateRolesUrl(userId)
 		).WithSessionToken(staffToken);
 
-		request.Content = JsonContent.Create(new { profileIds });
+		request.Content = JsonContent.Create(new { roleIds });
 
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -402,7 +402,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 
 	private async Task _AssertSoftDeletedRowsAsync(
 		Guid userId,
-		int? expectedProfileLinkCount = null
+		int? expectedRoleLinkCount = null
 	) {
 		await this._AssertStaffUserStateAsync(
 			userId,
@@ -425,17 +425,17 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		staffAccount.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
 
-		if (expectedProfileLinkCount is null) {
+		if (expectedRoleLinkCount is null) {
 			return;
 		}
 
-		var userAccountProfiles = await dbContext.UserAccountProfile
+		var userAccountRoles = await dbContext.UserAccountRole
 			.IgnoreQueryFilters()
 			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
 			.ToListAsync();
 
 		// Bulk delete shares the single-delete contract: membership rows are removed.
-		userAccountProfiles.Should().HaveCount(expectedProfileLinkCount.Value);
+		userAccountRoles.Should().HaveCount(expectedRoleLinkCount.Value);
 	}
 
 	private async Task _AssertStaffUserStateAsync(
@@ -503,13 +503,13 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
-	private async Task _AssertGetStaffUserProfilesReturnsNotFoundAsync(
+	private async Task _AssertGetStaffUserRolesReturnsNotFoundAsync(
 		string staffToken,
 		string userId
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			BulkDeleteStaffUsersSpec._GetProfilesUrl(userId)
+			BulkDeleteStaffUsersSpec._GetRolesUrl(userId)
 		).WithSessionToken(staffToken);
 
 		using var response = await this._Http.SendAsync(request);
@@ -575,8 +575,8 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		requiredEntries.Should().Contain("userIds");
 	}
 
-	private sealed record StaffProfileCreatedResponse {
-		public Guid ProfileId { get; init; }
+	private sealed record StaffRoleCreatedResponse {
+		public Guid RoleId { get; init; }
 	}
 
 	private sealed record BulkStaffUserActionResponse {

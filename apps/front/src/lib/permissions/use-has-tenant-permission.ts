@@ -15,7 +15,7 @@ const WILDCARD_SENTINEL = '*';
 /** Wire shape of GET /auth/user-auth-data (only what the gates read). */
 type TenantPermissionKeysResult = {
 	/** EFFECTIVE set for ?tenant_id= (C3 A4): `["*"]` for a tenant Admin,
-	 * profile-derived keys otherwise, `[]` when the scope is unusable. */
+	 * role-derived keys otherwise, `[]` when the scope is unusable. */
 	tenantPermissionKeys: string[];
 };
 

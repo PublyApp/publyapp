@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 // W6-FLAKE #827: the two tree-walking design-guard suites re-parse the whole
 // src tree on every assertion round. Running them CONCURRENTLY with the
 // render-heavy route fixtures starved render workers past testing-library's
-// findBy* budget under load (the profiles bulk-delete flake), so this lane is
+// findBy* budget under load (the roles bulk-delete flake), so this lane is
 // run SEPARATELY, after the main app lane finishes — see the `test` script in
 // package.json and vitest.config.ts (which excludes exactly these files).
 //

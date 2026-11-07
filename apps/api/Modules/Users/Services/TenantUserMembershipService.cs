@@ -230,11 +230,11 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			new TenantUserData {
 				User = user,
 				Account = account,
-				IsFullAccess = await PublyApp.Api.Modules.Profiles.Services.FullAccessRoleQueries
+				IsFullAccess = await PublyApp.Api.Modules.Roles.Services.FullAccessRoleQueries
 					.IsFullAccessAccountAsync(this._DbContext, account.GetRequiredId(), cancellationToken),
 				Roles = await (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					from uap in this._DbContext.UserAccountRole
+					join p in this._DbContext.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == account.GetRequiredId() && !p.IsDeleted
 					orderby p.Name
 					select p.Name

@@ -5,7 +5,7 @@ import { Badge } from '~/components/ui/badge';
 /**
  * Shared scaffolding for the tenant workspace pages: a page heading, a
  * labelled field-row layout, a read-only value display and the read-only
- * affordance badge. The account pages (profile, security, notifications)
+ * affordance badge. The account pages (role, security, notifications)
  * are display-only until their update APIs ship; the stub pages reuse the
  * heading so every workspace page opens the same way.
  */

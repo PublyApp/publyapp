@@ -12,8 +12,8 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -274,7 +274,7 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	// Creates a non-admin tenant member of Acme holding EXACTLY the given
-	// permission keys through a fresh profile, and returns the email to log
+	// permission keys through a fresh role, and returns the email to log
 	// in with (seed password).
 	private async Task<(Guid TenantId, string Email)> _CreatePermittedUserAsync(
 		params string[] permissionKeys
@@ -302,24 +302,24 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		account.ValidateAccountType();
 		db.UserAccount.Add(account);
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			acmeId,
 			"publish-targets-" + Guid.NewGuid().ToString("N")[..8],
-			"spec profile for publish-targets permission probes"
+			"spec role for publish-targets permission probes"
 		);
-		profile.ValidateProfileType();
-		db.Profile.Add(profile);
+		role.ValidateRoleType();
+		db.Role.Add(role);
 		await db.SaveChangesAsync();
 
 		foreach (var key in permissionKeys) {
-			db.ProfilePermission.Add(new ProfilePermission {
-				ProfileId = profile.GetRequiredId(),
+			db.RolePermission.Add(new RolePermission {
+				RoleId = role.GetRequiredId(),
 				PermissionKey = key,
 			});
 		}
-		db.UserAccountProfile.Add(new UserAccountProfile {
+		db.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = account.GetRequiredId(),
-			ProfileId = profile.GetRequiredId(),
+			RoleId = role.GetRequiredId(),
 		});
 		await db.SaveChangesAsync();
 

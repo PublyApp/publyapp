@@ -1467,13 +1467,13 @@ test('keeps circular rounded exceptions for topbar/avatar while flagging primiti
 	);
 });
 
-test('allows the profile icon-picker pencil-pin circular exception but flags an impostor selector that merely starts with its name', async () => {
+test('allows the role icon-picker pencil-pin circular exception but flags an impostor selector that merely starts with its name', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': [
-			'.publy-profile-detail-tile-pin {',
+			'.publy-role-detail-tile-pin {',
 			'\tborder-radius: var(--publy-radius-circular);',
 			'}',
-			'.publy-profile-detail-tile-pin-impostor {',
+			'.publy-role-detail-tile-pin-impostor {',
 			'\tborder-radius: var(--publy-radius-circular);',
 			'}',
 		].join('\n'),
@@ -1493,7 +1493,7 @@ test('allows the profile icon-picker pencil-pin circular exception but flags an 
 		roundedRuleHits.some(
 			(violation) =>
 				violation.file === 'src/styles/app.css' &&
-				violation.source.includes('.publy-profile-detail-tile-pin {'),
+				violation.source.includes('.publy-role-detail-tile-pin {'),
 		),
 		false,
 	);
@@ -2990,7 +2990,7 @@ test('does not flag a TanStack Link with a path-constant `to` prop', async () =>
 test('flags a page.route glob whose trailing single star cannot cross a path separator', async () => {
 	const root = await makeFixture({
 		'e2e/tenants.spec.ts':
-			"await page.route('**/staff/tenants*', handler);\nawait page.route('**/staff/profiles**', handler);",
+			"await page.route('**/staff/tenants*', handler);\nawait page.route('**/staff/roles**', handler);",
 	});
 
 	const violations = await scanFront2DesignSystem({
@@ -3014,7 +3014,7 @@ test('flags a page.route glob whose trailing single star cannot cross a path sep
 test('F824-tests-F4: flags a single-star glob on a chained receiver (page.context().route)', async () => {
 	const root = await makeFixture({
 		'e2e/chained.spec.ts':
-			"await page.context().route('**/staff/tenants*', handler);\nawait page.context().route('**/staff/profiles**', handler);",
+			"await page.context().route('**/staff/tenants*', handler);\nawait page.context().route('**/staff/roles**', handler);",
 	});
 
 	const violations = await scanFront2DesignSystem({
@@ -4316,8 +4316,8 @@ test('F6: the auth panel, T6B, TEN-2 and P3 component rules moved into @layer co
 
 	for (const selector of [
 		'.publy-auth-brand-panel',
-		'.publy-profile-icon-tile {',
-		'.publy-profile-card-grid {',
+		'.publy-role-icon-tile {',
+		'.publy-role-card-grid {',
 		"tr:last-child [data-slot='table-cell']",
 	]) {
 		const lineIndex = lines.findIndex((line) => line.includes(selector));

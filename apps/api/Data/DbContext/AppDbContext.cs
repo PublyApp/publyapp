@@ -12,10 +12,10 @@ using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.RateLimiting.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Uploads.Entities;
@@ -48,14 +48,14 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<Permission> Permission {
 		get { return this.Set<Permission>(); }
 	}
-	public DbSet<Profile> Profile {
-		get { return this.Set<Profile>(); }
+	public DbSet<Role> Role {
+		get { return this.Set<Role>(); }
 	}
-	public DbSet<ProfilePermission> ProfilePermission {
-		get { return this.Set<ProfilePermission>(); }
+	public DbSet<RolePermission> RolePermission {
+		get { return this.Set<RolePermission>(); }
 	}
-	public DbSet<UserAccountProfile> UserAccountProfile {
-		get { return this.Set<UserAccountProfile>(); }
+	public DbSet<UserAccountRole> UserAccountRole {
+		get { return this.Set<UserAccountRole>(); }
 	}
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
@@ -67,8 +67,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<Invitation> Invitation {
 		get { return this.Set<Invitation>(); }
 	}
-	public DbSet<InvitationProfile> InvitationProfile {
-		get { return this.Set<InvitationProfile>(); }
+	public DbSet<InvitationRole> InvitationRole {
+		get { return this.Set<InvitationRole>(); }
 	}
 	public DbSet<InvitationEmailOutbox> InvitationEmailOutbox {
 		get { return this.Set<InvitationEmailOutbox>(); }
@@ -387,19 +387,19 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 		// Apply matching query filters to ensure consistent filtering
 		if (this.TenantId is not null) {
-			// UserAccountProfile gets a filter that matches the Profile's tenant
+			// UserAccountRole gets a filter that matches the Role's tenant
 			// This ensures both entities in the relationship are filtered consistently
-			modelBuilder.Entity<UserAccountProfile>()
-				.HasQueryFilter(uap => uap.Profile.TenantId == this.TenantId);
+			modelBuilder.Entity<UserAccountRole>()
+				.HasQueryFilter(uap => uap.Role.TenantId == this.TenantId);
 		}
 
 		// Configure other entities with generic approach
 		foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
-			// Skip UserAccountProfile - it's already configured above with custom query filter
-			// UserAccountProfile implements INoTenantEntity but needs tenant filtering through Profile.TenantId
+			// Skip UserAccountRole - it's already configured above with custom query filter
+			// UserAccountRole implements INoTenantEntity but needs tenant filtering through Role.TenantId
 			// Without this check, it would be processed as a regular INoTenantEntity (no filtering)
 			// or potentially cause duplicate entity configuration issues
-			if (entityType.ClrType == typeof(UserAccountProfile)) {
+			if (entityType.ClrType == typeof(UserAccountRole)) {
 				continue;
 			}
 

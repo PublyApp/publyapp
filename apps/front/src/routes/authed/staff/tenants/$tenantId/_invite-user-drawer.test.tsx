@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 	inviteMutation: vi.fn(),
 	resolveNamesMutation: vi.fn(),
 	useBulkInviteTenantUsersMutation: vi.fn(),
-	useResolveTenantProfileNamesMutation: vi.fn(),
+	useResolveTenantRoleNamesMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	displayLocalMutationFailure: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock('react-i18next', () => ({
 				'invite-tenant-users-description': 'Send tenant invitations.',
 				email: 'Email',
 				'paste-emails': 'Paste emails',
-				'shared-profiles': 'Shared profiles',
+				'shared-roles': 'Shared roles',
 				'add-pasted-emails': 'Add pasted emails',
 				'paste-email-addresses': 'Paste email addresses',
 				'paste-email-addresses-description': 'Paste several addresses.',
@@ -77,16 +77,16 @@ vi.mock('react-i18next', () => ({
 				'invite-remove-row': 'Remove invitee',
 				'invite-add-row': 'Add another invitee',
 				'invite-admin-full-access':
-					'Admins get full access; profiles do not apply.',
-				'invite-unresolved-profile-not-found': 'No profile named {{names}}.',
-				'invite-unresolved-profile-ambiguous': 'Ambiguous profile {{names}}.',
+					'Admins get full access; roles do not apply.',
+				'invite-unresolved-role-not-found': 'No role named {{names}}.',
+				'invite-unresolved-role-ambiguous': 'Ambiguous role {{names}}.',
 				'invite-invalid-email':
 					'Row for {{email}} is not a valid email address. Fix the address, then try again.',
 				'invite-footer-count': 'People: {{count}}',
 				// Base key: i18next resolves _one/_other; the stub collapses to
 				// the historical label so submit-button queries stay stable.
 				'invite-send-invitations': 'Invite people',
-				profiles: 'Profiles',
+				roles: 'Roles',
 				admin: 'Admin',
 				user: 'User',
 				cancel: 'Cancel',
@@ -271,8 +271,8 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 	toStaffTenantInvitationBulkCreateSummary: (result: unknown) => result,
 }));
 
-vi.mock('./_invite-profile-select', () => ({
-	InviteProfileSelect: ({ name, label }: { name: string; label: string }) => {
+vi.mock('./_invite-role-select', () => ({
+	InviteRoleSelect: ({ name, label }: { name: string; label: string }) => {
 		const { setValue, watch } = useFormContext();
 		const selected = watch(name) as string[] | undefined;
 		return createElement(
@@ -280,7 +280,7 @@ vi.mock('./_invite-profile-select', () => ({
 			{
 				type: 'button',
 				'aria-label': `${label} ${name}`,
-				onClick: () => setValue(name, ['profile-1'], { shouldDirty: true }),
+				onClick: () => setValue(name, ['role-1'], { shouldDirty: true }),
 			},
 			selected?.join(',') || label,
 		);
@@ -291,19 +291,18 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 }));
 
-vi.mock('~/lib/query/staff-tenant-profiles', () => ({
-	useResolveTenantProfileNamesMutation:
-		mocks.useResolveTenantProfileNamesMutation,
-	toResolveTenantProfileNameResolutions: (result: {
+vi.mock('~/lib/query/staff-tenant-roles', () => ({
+	useResolveTenantRoleNamesMutation: mocks.useResolveTenantRoleNamesMutation,
+	toResolveTenantRoleNameResolutions: (result: {
 		names?: Array<{
 			name?: string | null;
-			profileId?: unknown;
+			roleId?: unknown;
 			reason?: string | null;
 		}> | null;
 	}) =>
 		(result?.names ?? []).map((item) => ({
 			name: item.name ?? '',
-			profileId: typeof item.profileId === 'string' ? item.profileId : null,
+			roleId: typeof item.roleId === 'string' ? item.roleId : null,
 			reason:
 				item.reason === 'not-found' || item.reason === 'ambiguous'
 					? item.reason
@@ -336,7 +335,7 @@ describe('InviteTenantUserDrawer', () => {
 			mutateAsync: mocks.inviteMutation,
 			isPending: false,
 		});
-		mocks.useResolveTenantProfileNamesMutation.mockReturnValue({
+		mocks.useResolveTenantRoleNamesMutation.mockReturnValue({
 			mutateAsync: mocks.resolveNamesMutation,
 			isPending: false,
 		});
@@ -506,7 +505,7 @@ describe('InviteTenantUserDrawer', () => {
 				invitations: [
 					{
 						email: 'new-user@example.com',
-						profileIds: [],
+						roleIds: [],
 					},
 				],
 			}),
@@ -537,7 +536,7 @@ describe('InviteTenantUserDrawer', () => {
 		});
 		fireEvent.click(
 			screen.getByRole('button', {
-				name: 'Shared profiles sharedProfileIds',
+				name: 'Shared roles sharedRoleIds',
 			}),
 		);
 		fireEvent.click(screen.getByRole('button', { name: 'Add pasted emails' }));
@@ -565,11 +564,11 @@ describe('InviteTenantUserDrawer', () => {
 				invitations: expect.arrayContaining([
 					expect.objectContaining({
 						email: 'alice@example.com',
-						profileIds: ['profile-1'],
+						roleIds: ['role-1'],
 					}),
 					expect.objectContaining({
 						email: 'carol@example.com',
-						profileIds: ['profile-1'],
+						roleIds: ['role-1'],
 					}),
 				]),
 			}),
@@ -869,7 +868,7 @@ describe('InviteTenantUserDrawer', () => {
 		);
 
 		expect(screen.getByTestId('invite-dropzone')).toBeTruthy();
-		dropFile('email,profiles\nfiona@example.com,\ngeorge@example.com,\n');
+		dropFile('email,roles\nfiona@example.com,\ngeorge@example.com,\n');
 
 		await waitFor(() =>
 			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
@@ -904,7 +903,7 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		dropFile('email,profiles\nvalid@example.com,\nnot-an-email,\n');
+		dropFile('email,roles\nvalid@example.com,\nnot-an-email,\n');
 
 		await waitFor(() =>
 			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
@@ -939,9 +938,9 @@ describe('InviteTenantUserDrawer', () => {
 		expect(screen.queryByTestId('invite-file-bar')).toBeNull();
 	});
 
-	test('flags unresolved profile names per row and keeps Send disabled until they resolve', async () => {
+	test('flags unresolved role names per row and keeps Send disabled until they resolve', async () => {
 		mocks.resolveNamesMutation.mockResolvedValue({
-			names: [{ name: 'Ghost Profile', profileId: null, reason: 'not-found' }],
+			names: [{ name: 'Ghost Role', roleId: null, reason: 'not-found' }],
 		});
 
 		render(
@@ -954,16 +953,16 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		dropFile('email,profiles\nhelen@example.com,Ghost Profile\n');
+		dropFile('email,roles\nhelen@example.com,Ghost Role\n');
 
 		await waitFor(() =>
 			expect(mocks.resolveNamesMutation).toHaveBeenCalledWith({
 				tenantId: 'tenant-1',
-				names: ['Ghost Profile'],
+				names: ['Ghost Role'],
 			}),
 		);
 		await waitFor(() =>
-			expect(screen.getByText('No profile named Ghost Profile.')).toBeTruthy(),
+			expect(screen.getByText('No role named Ghost Role.')).toBeTruthy(),
 		);
 		expect(
 			screen
@@ -972,7 +971,7 @@ describe('InviteTenantUserDrawer', () => {
 		).toBe(true);
 
 		// Recovery flow: the staff member clears the bad file and re-imports
-		// one whose profile name resolves; Send unlocks once every name
+		// one whose role name resolves; Send unlocks once every name
 		// resolves.
 		fireEvent.click(screen.getByRole('button', { name: 'Clear file' }));
 		await waitFor(() =>
@@ -981,13 +980,13 @@ describe('InviteTenantUserDrawer', () => {
 		mocks.resolveNamesMutation.mockResolvedValue({
 			names: [
 				{
-					name: 'Real Profile',
-					profileId: '11111111-1111-1111-1111-111111111111',
+					name: 'Real Role',
+					roleId: '11111111-1111-1111-1111-111111111111',
 					reason: null,
 				},
 			],
 		});
-		dropFile('email,profiles\nhelen@example.com,Real Profile\n');
+		dropFile('email,roles\nhelen@example.com,Real Role\n');
 
 		await waitFor(() =>
 			expect(mocks.resolveNamesMutation).toHaveBeenCalledTimes(2),
@@ -999,10 +998,10 @@ describe('InviteTenantUserDrawer', () => {
 					.hasAttribute('disabled'),
 			).toBe(false),
 		);
-		expect(screen.queryByText('No profile named Ghost Profile.')).toBeNull();
+		expect(screen.queryByText('No role named Ghost Role.')).toBeNull();
 	});
 
-	test('stamps resolved profile ids onto file rows and submits them', async () => {
+	test('stamps resolved role ids onto file rows and submits them', async () => {
 		mocks.inviteMutation.mockResolvedValue({
 			succeededCount: 1,
 			failedCount: 0,
@@ -1012,7 +1011,7 @@ describe('InviteTenantUserDrawer', () => {
 			names: [
 				{
 					name: 'Reviewers',
-					profileId: '22222222-2222-2222-2222-222222222222',
+					roleId: '22222222-2222-2222-2222-222222222222',
 					reason: null,
 				},
 			],
@@ -1028,7 +1027,7 @@ describe('InviteTenantUserDrawer', () => {
 			/>,
 		);
 
-		dropFile('email,profiles\njames@example.com,Reviewers\n');
+		dropFile('email,roles\njames@example.com,Reviewers\n');
 
 		await waitFor(() =>
 			expect(
@@ -1045,7 +1044,7 @@ describe('InviteTenantUserDrawer', () => {
 				invitations: [
 					{
 						email: 'james@example.com',
-						profileIds: ['22222222-2222-2222-2222-222222222222'],
+						roleIds: ['22222222-2222-2222-2222-222222222222'],
 					},
 				],
 			}),

@@ -21,7 +21,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
@@ -301,7 +301,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			.Should()
 			.ContainSingle(line => line.Contains(ownerEmail))
 			.Subject;
-		ownerLine.Should().Contain($",{SystemProfileNames.TenantFullAccess},");
+		ownerLine.Should().Contain($",{SystemRoleNames.TenantFullAccess},");
 	}
 
 	[Fact]
@@ -625,7 +625,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.UserAccount.AddAsync(adminAccount);
 		await dbContext.SaveChangesAsync();
 
-		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 			dbContext,
 			tenant.GetRequiredId(),
 			adminAccount.GetRequiredId()
@@ -708,7 +708,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 
 		if (fullAccess) {
-			await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 				dbContext,
 				tenantId,
 				account.GetRequiredId()

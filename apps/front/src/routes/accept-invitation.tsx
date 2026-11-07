@@ -48,7 +48,7 @@ type InvitationLoaderData =
 			view: 'valid';
 			token: string;
 			email: string;
-			profileName: string;
+			roleName: string;
 			userExists: boolean;
 	  };
 
@@ -76,7 +76,7 @@ const invitationLoader = async ({
 		view: 'valid',
 		token,
 		email: result.email,
-		profileName: result.profileName,
+		roleName: result.roleName,
 		userExists: result.userExists,
 	};
 };
@@ -355,7 +355,7 @@ const AcceptInvitationRoute = () => {
 			{branchKind === 'new-user' ? (
 				<NewUserForm
 					email={loaderData.email}
-					profileName={loaderData.profileName}
+					roleName={loaderData.roleName}
 					submit={acceptSubmit.submit}
 					isSubmitting={acceptSubmit.isSubmitting}
 					errorMessage={acceptSubmit.errorMessage}
@@ -364,7 +364,7 @@ const AcceptInvitationRoute = () => {
 			{branchKind === 'existing-match' ? (
 				<ExistingMatchView
 					email={loaderData.email}
-					profileName={loaderData.profileName}
+					roleName={loaderData.roleName}
 					currentEmail={
 						authState.status === 'authenticated' ? authState.email : ''
 					}
@@ -377,14 +377,14 @@ const AcceptInvitationRoute = () => {
 			{branchKind === 'existing-signed-out' ? (
 				<ExistingSignedOutView
 					email={loaderData.email}
-					profileName={loaderData.profileName}
+					roleName={loaderData.roleName}
 					loginSearch={loginSearch}
 				/>
 			) : null}
 			{branchKind === 'mismatch' ? (
 				<MismatchView
 					email={loaderData.email}
-					profileName={loaderData.profileName}
+					roleName={loaderData.roleName}
 					currentEmail={
 						authState.status === 'authenticated' ? authState.email : ''
 					}

@@ -363,7 +363,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		await dbContext.UserAccount.AddAsync(adminAccount);
 		await dbContext.SaveChangesAsync();
 
-		await FullAccessProfileTestHelper.MakeTenantFullAccessAsync(
+		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
 			dbContext,
 			tenant.GetRequiredId(),
 			adminAccount.GetRequiredId()

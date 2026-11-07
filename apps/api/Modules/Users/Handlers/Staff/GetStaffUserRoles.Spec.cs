@@ -1,0 +1,374 @@
+using System.Net;
+using System.Net.Http.Json;
+
+using FluentAssertions;
+
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Users.Entities;
+
+using Xunit;
+
+namespace PublyApp.Api.Modules.Users.Handlers.Staff;
+
+public sealed class GetStaffUserRolesSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _Fixture;
+	private readonly HttpClient _Http;
+	private readonly TestAuthClient _AuthClient;
+
+	public GetStaffUserRolesSpec(ApiFixture fixture) {
+		this._Fixture = fixture;
+		this._Http = fixture.HttpClient;
+		this._AuthClient = new TestAuthClient(this._Http);
+	}
+
+	private static string _GetUrl(string userId) {
+		return PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.Roles.GetFn(userId)
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnauthorizedWithoutSession() {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl(Guid.NewGuid().ToString())
+		);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForNonStaffUser() {
+		var token = await this._AuthClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl(Guid.NewGuid().ToString())
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
+		// Use an isolated staff user with no roles, so permissions are guaranteed empty even if
+		// other integration tests assign roles to the seeded staff-user@example.com.
+		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+
+		// Use an existing user id so the permission failure cannot be masked by a 404.
+		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var existingUserId = await GetStaffUserRolesSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
+			adminToken,
+			TestConstants.StaffAdminEmail
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl(existingUserId)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnBadRequestForMalformedId() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl("not-a-guid")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+		var problem = await response.Content
+			.ReadFromJsonAsync<AppProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnNotFoundForNonExistentId() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl(Guid.NewGuid().ToString())
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	// This endpoint is mostly a "projection" of the user's current assignments.
+	// The more interesting invariants are covered by UpdateStaffUserRoles.Spec.cs.
+	[Fact]
+	public async Task ItShouldReturnAssignedRolesAndMaxLimit() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		var userId = await GetStaffUserRolesSpec._GetStaffUserIdByEmailAsync(
+			this._Http,
+			token,
+			TestConstants.StaffUserEmail
+		);
+
+		// Create a new staff role and assign it to the user.
+		var roleId = await this._CreateStaffRoleAsync(token);
+
+		using (var updateRequest = new HttpRequestMessage(
+			HttpMethod.Put,
+			PathUtils.Join(
+				Routes.Staff.Root,
+				Routes.Users.ForStaff.Root,
+				Routes.Users.ForStaff.Roles.UpdateFn(userId)
+			)
+		).WithSessionToken(token)) {
+			updateRequest.Content = JsonContent.Create(
+				new { roleIds = new[] { roleId } }
+			);
+
+			using var updateResponse = await this._Http.SendAsync(updateRequest);
+			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl(userId)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetStaffUserRolesResult>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.MaxRolesPerUser.Should().BeGreaterThan(0);
+		result.AssignedRoles.Should().Contain(p => p.Id == Guid.Parse(roleId));
+	}
+
+	[Fact]
+	public async Task ItShouldReturnAssignedRolesForSuspendedStaffUser() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		// Use an isolated staff user to avoid mutating seeded fixtures that other integration tests rely on.
+		var userId = await this._CreateStaffUserIdAsync();
+
+		var roleId = await this._CreateStaffRoleAsync(token);
+
+		// Assign role.
+		using (var updateRequest = new HttpRequestMessage(
+			HttpMethod.Put,
+			PathUtils.Join(
+				Routes.Staff.Root,
+				Routes.Users.ForStaff.Root,
+				Routes.Users.ForStaff.Roles.UpdateFn(userId)
+			)
+		).WithSessionToken(token)) {
+			updateRequest.Content = JsonContent.Create(
+				new { roleIds = new[] { roleId } }
+			);
+
+			using var updateResponse = await this._Http.SendAsync(updateRequest);
+			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		// Suspend the user (global lifecycle). The roles endpoint should still be able to render the page.
+		using (var suspendRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				Routes.Staff.Root,
+				Routes.Users.ForStaff.Root,
+				Routes.Users.ForStaff.SuspendFn(userId)
+			)
+		).WithSessionToken(token)) {
+			using var suspendResponse = await this._Http.SendAsync(suspendRequest);
+			suspendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetStaffUserRolesSpec._GetUrl(userId)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<GetStaffUserRolesResult>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.AssignedRoles.Should().Contain(p => p.Id == Guid.Parse(roleId));
+	}
+
+	// -- Helpers --
+
+	private async Task<string> _CreateStaffRoleAsync(string staffToken) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Roles.ForStaff.Root,
+			Routes.Roles.ForStaff.Create
+		);
+
+		var name = "Test User Roles " + Guid.NewGuid().ToString("N")[..8];
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			url
+		).WithSessionToken(staffToken);
+
+		request.Content = JsonContent.Create(
+			new {
+				name,
+				description = "Test role used by GetStaffUserRolesSpec",
+				permissions = new[] {
+					AppPermissions.Staff.Users.LIST_FOR_STAFF.Key,
+				},
+				emails = Array.Empty<string>(),
+			}
+		);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var created = await response.Content.ReadFromJsonAsync<StaffRoleCreatedResponse>();
+		created.Should().NotBeNull();
+		Assert.NotNull(created);
+		return created.RoleId.ToString();
+	}
+
+	private static async Task<string> _GetStaffUserIdByEmailAsync(
+		HttpClient http,
+		string staffToken,
+		string email
+	) {
+		var url = PathUtils.Join(
+			Routes.Staff.Root,
+			Routes.Users.ForStaff.Root,
+			Routes.Users.ForStaff.Find
+		) + "?limit=50";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(staffToken);
+
+		using var response = await http.SendAsync(request);
+		response.EnsureSuccessStatusCode();
+
+		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Failed to deserialize staff user list response"
+			);
+		}
+
+		var user = result.Data.FirstOrDefault(
+			u => string.Equals(
+				u.Email,
+				email,
+				StringComparison.OrdinalIgnoreCase
+			)
+		);
+
+		if (user is null) {
+			throw new InvalidOperationException(
+				$"Staff user with email '{email}' not found"
+			);
+		}
+
+		return user.Id.ToString();
+	}
+
+	private async Task<string> _CreateStaffUserIdAsync() {
+		var email = $"staff-roles-suspended-{Guid.NewGuid():N}@example.com";
+
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "Suspended",
+			LastName = "StaffUser",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+
+		_ = dbContext.User.Add(user);
+		_ = await dbContext.SaveChangesAsync();
+
+		var userId = user.GetRequiredId();
+		var staffAccount = UserAccount.CreateStaffAccount(userId);
+		staffAccount.ValidateAccountType();
+		_ = dbContext.UserAccount.Add(staffAccount);
+		_ = await dbContext.SaveChangesAsync();
+
+		return userId.ToString();
+	}
+
+	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
+		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
+
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
+			FirstName = "NoPerm",
+			LastName = "User",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+
+		_ = dbContext.User.Add(user);
+		_ = await dbContext.SaveChangesAsync();
+
+		var userId = user.GetRequiredId();
+		var staffAccount = UserAccount.CreateStaffAccount(userId);
+		staffAccount.ValidateAccountType();
+		_ = dbContext.UserAccount.Add(staffAccount);
+		_ = await dbContext.SaveChangesAsync();
+
+		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+	}
+
+	// -- Response DTOs --
+
+	private class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
+
+	private record StaffUserItem {
+		public Guid Id { get; init; }
+		public string Email { get; init; } = string.Empty;
+	}
+
+	private record StaffRoleCreatedResponse {
+		public Guid RoleId { get; init; }
+	}
+}

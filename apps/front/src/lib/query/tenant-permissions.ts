@@ -78,10 +78,10 @@ const fetchTenantPermissions = async (
 
 /** Session-stable (staleTime Infinity, refetchOnWindowFocus false — same
  * contract as `useCurrentUserQuery`, auth.ts): permissions change only via
- * rare profile-admin actions outside the composer flow.
+ * rare role-admin actions outside the composer flow.
  * Implicit grant (#1445): `hasPermission` returns true for EVERY tenant key
  * when the payload carries `isAdmin` — mirrors the backend Admin short-circuit
- * (TenantPermissionFilter.cs:49-57, #861) whose subjects hold no profiles,
+ * (TenantPermissionFilter.cs:49-57, #861) whose subjects hold no roles,
  * hence an empty `permissions` array. Non-admins fail closed onto the exact
  * key. */
 export const useTenantPermissions = (

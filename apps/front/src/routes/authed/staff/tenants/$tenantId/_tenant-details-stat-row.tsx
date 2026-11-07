@@ -97,20 +97,20 @@ export const TenantDetailsStatRow = ({
 			</StatCard>
 
 			<StatCard
-				testId="tenant-stat-profiles"
-				label={t('profiles')}
+				testId="tenant-stat-roles"
+				label={t('roles')}
 				icon={<IconShield aria-hidden="true" className="size-[14px]" />}
 				secondary={
 					<Link
-						to="/staff/tenants/$tenantId/profiles"
+						to="/staff/tenants/$tenantId/roles"
 						params={{ tenantId: tenant.id }}
 						className="publy-stat-card-link"
 					>
-						{t('view-profiles')}
+						{t('view-roles')}
 					</Link>
 				}
 			>
-				{tenant.profilesCount}
+				{tenant.rolesCount}
 			</StatCard>
 		</div>
 	);

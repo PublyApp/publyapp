@@ -27,6 +27,9 @@ namespace PublyApp.Api.Migrations;
 // transitions, not app behavior after all migrations have already run.
 public sealed class AddUserAccountMembershipUniquenessSpec : IAsyncLifetime {
 	private const string _PreviousMigrationId = "20260712114851_AddTenantOrganizationProfileFields";
+	// The migration under test. Historical specs must not run later migrations: a later
+	// rename (#2290 renamed profiles -> roles) changes the schema these assertions read.
+	private const string _MigrationUnderTestId = "20260714135430_AddUserAccountMembershipUniqueness";
 
 	private PostgresContainerFixture? _ContainerFixture;
 	private string? _DbName;
@@ -142,7 +145,7 @@ public sealed class AddUserAccountMembershipUniquenessSpec : IAsyncLifetime {
 		}
 
 		// 2) Apply the migration under test (and anything after it). Must not throw.
-		var applyRemaining = async () => await migrator.MigrateAsync();
+		var applyRemaining = async () => await migrator.MigrateAsync(AddUserAccountMembershipUniquenessSpec._MigrationUnderTestId);
 		await applyRemaining.Should().NotThrowAsync(
 			"the migration must deduplicate legacy data before creating the unique index, "
 			+ "not abort with a 23505 unique violation"

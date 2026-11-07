@@ -20,9 +20,9 @@ using PublyApp.Api.Modules.Invitations.Endpoints;
 using PublyApp.Api.Modules.Jobs.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
 using PublyApp.Api.Modules.Posts.Endpoints;
-using PublyApp.Api.Modules.Profiles.Endpoints;
 using PublyApp.Api.Modules.Projects.Endpoints;
 using PublyApp.Api.Modules.Publishing.Endpoints;
+using PublyApp.Api.Modules.Roles.Endpoints;
 using PublyApp.Api.Modules.Settings.Endpoints;
 using PublyApp.Api.Modules.SocialAccounts.Endpoints;
 using PublyApp.Api.Modules.SystemNotices.Endpoints;
@@ -327,7 +327,7 @@ public class Program {
 		staffGroup.MapInvitationEndpointsForStaff();
 		staffGroup.MapInvitationEndpointsForTenantAsStaff();
 		staffGroup.MapPermissionEndpointsForStaff();
-		staffGroup.MapProfileEndpointsForStaff();
+		staffGroup.MapRoleEndpointsForStaff();
 		staffGroup.MapTenantEndpointsForStaff();
 		staffGroup.MapSystemNoticeEndpointsForStaff();
 		staffGroup.MapAuditLogEndpointsForStaff();
@@ -336,7 +336,7 @@ public class Program {
 		staffGroup.MapJobVisibilityEndpointsForStaff();
 
 		// First real tenant-scoped surface (root `/`): the signed-in user's
-		// own account profile. Posts shipped as the first real permission-gated
+		// own account role. Posts shipped as the first real permission-gated
 		// tenant CRUD surface (B1 #637) and replaces the former Testing-only
 		// /test-permission scaffold as the permission-filter probe.
 		tenantGroup.MapAccountEndpointsForTenant();

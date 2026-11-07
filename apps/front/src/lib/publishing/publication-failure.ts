@@ -51,7 +51,7 @@ const FAILURE_PRESENTATION = {
 		primaryAction: 'retry',
 	},
 	// #2176: an ambiguous write could not be ruled in or out. The user checks the
-	// provider profile, then marks the post published (primary) or retries.
+	// provider role, then marks the post published (primary) or retries.
 	needs_review: {
 		tone: 'warning',
 		pillKey: 'posts:publication-category-needs-review',
@@ -141,7 +141,7 @@ export const retryAvailability = ({
 	return { enabled: true };
 };
 
-/** The account's profile page on its network, derived from the display label
+/** The account's role page on its network, derived from the display label
  * (`@name.bsky.social` for Bluesky, `name@host` for Mastodon); null when the
  * label does not clearly name one, so the link is simply omitted. */
 export const accountProfileUrl = (label: string | null): string | null => {
@@ -151,7 +151,7 @@ export const accountProfileUrl = (label: string | null): string | null => {
 		return `https://${mastodon[2]}/@${mastodon[1]}`;
 	}
 	if (/^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(handle)) {
-		return `https://bsky.app/profile/${handle}`;
+		return `https://bsky.app/role/${handle}`;
 	}
 	return null;
 };

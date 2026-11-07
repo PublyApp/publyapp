@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import type { Icon } from '@tabler/icons-react';
 
-import { TENANT_PROFILE_ICON_NAMES } from '@org/shared-ts/lib/profile-style/tenant-profile-icons';
+import { TENANT_ROLE_ICON_NAMES } from '@org/shared-ts/lib/role-style/tenant-role-icons';
 
 export type IconColorPickerOption = {
 	name: string;
@@ -26,7 +26,7 @@ export type IconColorPickerOption = {
 	Icon: Icon;
 };
 
-const TENANT_PROFILE_ICON_COMPONENTS: readonly Icon[] = [
+const TENANT_ROLE_ICON_COMPONENTS: readonly Icon[] = [
 	IconShieldCheck,
 	IconKey,
 	IconLock,
@@ -45,24 +45,20 @@ const TENANT_PROFILE_ICON_COMPONENTS: readonly Icon[] = [
 	IconBuilding,
 ];
 
-if (
-	TENANT_PROFILE_ICON_NAMES.length !== TENANT_PROFILE_ICON_COMPONENTS.length
-) {
-	throw new Error(
-		'Tenant profile icon catalog and component map are out of sync',
-	);
+if (TENANT_ROLE_ICON_NAMES.length !== TENANT_ROLE_ICON_COMPONENTS.length) {
+	throw new Error('Tenant role icon catalog and component map are out of sync');
 }
 
 export const ICON_COLOR_PICKER_OPTIONS: readonly IconColorPickerOption[] =
-	TENANT_PROFILE_ICON_NAMES.map((name, index) => {
-		const IconComponent = TENANT_PROFILE_ICON_COMPONENTS[index];
+	TENANT_ROLE_ICON_NAMES.map((name, index) => {
+		const IconComponent = TENANT_ROLE_ICON_COMPONENTS[index];
 		if (!IconComponent) {
-			throw new Error(`Missing tenant profile icon component for ${name}`);
+			throw new Error(`Missing tenant role icon component for ${name}`);
 		}
 
 		return {
 			name,
-			labelKey: `profile-icon-${name}`,
+			labelKey: `role-icon-${name}`,
 			Icon: IconComponent,
 		};
 	});

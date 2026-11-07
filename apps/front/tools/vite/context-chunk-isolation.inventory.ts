@@ -16,7 +16,7 @@ export const contextChunkIsolationInventory: readonly ContextInventoryEntry[] =
 				'src/routes/authed/staff/staff-users/$userId/_overview-context.tsx',
 		},
 		{
-			name: 'StaffTenantProfileDetailsContext',
+			name: 'StaffTenantRoleDetailsContext',
 			sourceFile:
 				'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_details-context.tsx',
 		},

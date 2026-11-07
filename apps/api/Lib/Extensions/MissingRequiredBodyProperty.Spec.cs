@@ -77,7 +77,7 @@ public sealed class MissingRequiredBodyPropertySpec : IClassFixture<ApiFixture> 
 		var problem = await this._PostJsonAsync("/staff/invitations/", "{}");
 
 		problem.Status.Should().Be(StatusCodes.Status422UnprocessableEntity);
-		problem.Errors.Keys.Should().BeEquivalentTo(["Email", "ProfileId"]);
+		problem.Errors.Keys.Should().BeEquivalentTo(["Email", "RoleId"]);
 	}
 
 	[Fact]

@@ -6,7 +6,7 @@ using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Seeders;
@@ -247,25 +247,25 @@ public class UserAccountSeeder : IEntitySeeder {
 			return;
 		}
 
-		var staffProfile = await (
-			from p in dbContext.Profile
-			where p.Scope == ProfileScope.Staff
-				&& p.Name == SystemProfileNames.StaffFullAccess
+		var staffRole = await (
+			from p in dbContext.Role
+			where p.Scope == RoleScope.Staff
+				&& p.Name == SystemRoleNames.StaffFullAccess
 				&& !p.IsDeleted
 			select p
 		).FirstOrDefaultAsync(cancellationToken);
 
-		if (staffProfile is null) {
-			staffProfile = Profile.CreateStaffProfile(
-				SystemProfileNames.StaffFullAccess,
+		if (staffRole is null) {
+			staffRole = Role.CreateStaffRole(
+				SystemRoleNames.StaffFullAccess,
 				"Platform owner with full system access",
 				isFullAccess: true
 			);
-			await dbContext.Profile.AddAsync(staffProfile, cancellationToken);
+			await dbContext.Role.AddAsync(staffRole, cancellationToken);
 			await dbContext.SaveChangesAsync(cancellationToken);
 		}
 
-		if (staffProfile.Id is Guid staffProfileId) {
+		if (staffRole.Id is Guid staffRoleId) {
 			var staffAccountIds = await (
 				from ua in dbContext.UserAccount
 				join u in dbContext.User on ua.UserId equals u.Id
@@ -276,40 +276,40 @@ public class UserAccountSeeder : IEntitySeeder {
 			).ToListAsync(cancellationToken);
 
 			foreach (var accountId in staffAccountIds.OfType<Guid>()) {
-				var exists = await dbContext.UserAccountProfile.AnyAsync(
-					uap => uap.UserAccountId == accountId && uap.ProfileId == staffProfileId,
+				var exists = await dbContext.UserAccountRole.AnyAsync(
+					uap => uap.UserAccountId == accountId && uap.RoleId == staffRoleId,
 					cancellationToken);
 				if (!exists) {
-					await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+					await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 						UserAccountId = accountId,
-						ProfileId = staffProfileId
+						RoleId = staffRoleId
 					}, cancellationToken);
 				}
 			}
 		}
 
 		foreach (var (userId, tenantId) in this._FullAccessTenants) {
-			var tenantProfile = await (
-				from p in dbContext.Profile
-				where p.Scope == ProfileScope.Tenant
+			var tenantRole = await (
+				from p in dbContext.Role
+				where p.Scope == RoleScope.Tenant
 					&& p.TenantId == tenantId
-					&& p.Name == SystemProfileNames.TenantFullAccess
+					&& p.Name == SystemRoleNames.TenantFullAccess
 					&& !p.IsDeleted
 				select p
 			).FirstOrDefaultAsync(cancellationToken);
 
-			if (tenantProfile is null) {
-				tenantProfile = Profile.CreateTenantProfile(
+			if (tenantRole is null) {
+				tenantRole = Role.CreateTenantRole(
 					tenantId,
-					SystemProfileNames.TenantFullAccess,
+					SystemRoleNames.TenantFullAccess,
 					"Organization owner with full access",
 					isFullAccess: true
 				);
-				await dbContext.Profile.AddAsync(tenantProfile, cancellationToken);
+				await dbContext.Role.AddAsync(tenantRole, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 			}
 
-			if (tenantProfile.Id is not Guid tenantProfileId) {
+			if (tenantRole.Id is not Guid tenantRoleId) {
 				continue;
 			}
 
@@ -326,13 +326,13 @@ public class UserAccountSeeder : IEntitySeeder {
 				continue;
 			}
 
-			var exists = await dbContext.UserAccountProfile.AnyAsync(
-				uap => uap.UserAccountId == memberAccountId && uap.ProfileId == tenantProfileId,
+			var exists = await dbContext.UserAccountRole.AnyAsync(
+				uap => uap.UserAccountId == memberAccountId && uap.RoleId == tenantRoleId,
 				cancellationToken);
 			if (!exists) {
-				await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+				await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 					UserAccountId = memberAccountId,
-					ProfileId = tenantProfileId
+					RoleId = tenantRoleId
 				}, cancellationToken);
 			}
 		}

@@ -133,8 +133,8 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	private static readonly HashSet<string> _BaselinedDriftRoutes = new(
 		StringComparer.OrdinalIgnoreCase
 	) {
-		// Tenant self-service profile routes (Account module, tranche 2 #1133).
-		// Any ACTIVE tenant member may read and edit their OWN profile — tenant
+		// Tenant self-service role routes (Account module, tranche 2 #1133).
+		// Any ACTIVE tenant member may read and edit their OWN role — tenant
 		// membership (TenantAuthFilter on the tenant group) is the only
 		// authorization dimension, and the tenant permission vocabulary
 		// (modules.access_*) gates module surfaces, not self-service identity.

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Projects.Entities;
@@ -39,7 +39,7 @@ public class Project : BaseAttributes, ITenantEntity {
 	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
 	[JsonIgnore]
-	public ICollection<Profile> Profiles { get; set; } = [];
+	public ICollection<Role> Roles { get; set; } = [];
 
 	public static string GetStatusDescription(ProjectStatus status) {
 		return status switch {

@@ -420,7 +420,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				publicationId,
 				tenantId,
 				"it may already be on the provider, so it was not sent again: "
-					+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}. Check the profile, "
+					+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}. Check the role, "
 					+ "then mark it published or retry",
 				PublicationFailureCategory.NeedsReview
 			),

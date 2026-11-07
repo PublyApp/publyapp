@@ -6,36 +6,36 @@ using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
 
-public sealed record StaffUserProfileSummary(
+public sealed record StaffUserRoleSummary(
 	Guid Id,
 	string Name,
 	string? Description
 );
 
-public sealed record StaffUserProfilesSummary(
-	List<StaffUserProfileSummary> AssignedProfiles
+public sealed record StaffUserRolesSummary(
+	List<StaffUserRoleSummary> AssignedRoles
 );
 
-public abstract record UpdateStaffUserProfilesServiceResult {
+public abstract record UpdateStaffUserRolesServiceResult {
 	public sealed record Success(
-		List<StaffUserProfileSummary> AssignedProfiles
-	) : UpdateStaffUserProfilesServiceResult;
+		List<StaffUserRoleSummary> AssignedRoles
+	) : UpdateStaffUserRolesServiceResult;
 
-	public sealed record UserNotFound() : UpdateStaffUserProfilesServiceResult;
+	public sealed record UserNotFound() : UpdateStaffUserRolesServiceResult;
 
-	public sealed record ProfilesNotFound(
-		List<Guid> ProfileIds
-	) : UpdateStaffUserProfilesServiceResult;
+	public sealed record RolesNotFound(
+		List<Guid> RoleIds
+	) : UpdateStaffUserRolesServiceResult;
 
-	public sealed record ProfilesNotStaffScope(
-		List<Guid> ProfileIds
-	) : UpdateStaffUserProfilesServiceResult;
+	public sealed record RolesNotStaffScope(
+		List<Guid> RoleIds
+	) : UpdateStaffUserRolesServiceResult;
 
 	/// <summary>
 	/// The update would strip the full-access system role from its last active holder.
 	/// Same invariant as the tenant last-admin guard: losing it locks every staff member out.
 	/// </summary>
-	public sealed record LastFullAccessRoleRemoval() : UpdateStaffUserProfilesServiceResult;
+	public sealed record LastFullAccessRoleRemoval() : UpdateStaffUserRolesServiceResult;
 }
 
 public abstract record SuspendStaffUserResult {

@@ -82,20 +82,20 @@ export const DRAWER_DESCRIPTION_CONSUMERS = [
 		testId: 'invite-tenant-user-drawer',
 	},
 	{
-		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx',
+		file: 'src/routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-drawer.tsx',
 		testId: 'assign-members-drawer',
 	},
 	{
-		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx',
-		testId: 'profile-form-drawer',
+		file: 'src/routes/authed/staff/tenants/$tenantId/roles/_role-form-drawer.tsx',
+		testId: 'role-form-drawer',
 	},
 	{
-		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx',
-		testId: 'profile-edit-details-drawer',
+		file: 'src/routes/authed/staff/tenants/$tenantId/roles/_role-edit-details-drawer.tsx',
+		testId: 'role-edit-details-drawer',
 	},
 	{
-		file: 'src/routes/authed/staff/profiles/$profileId/_profile-edit-details-drawer.tsx',
-		testId: 'staff-profile-edit-details-drawer',
+		file: 'src/routes/authed/staff/roles/$roleId/_role-edit-details-drawer.tsx',
+		testId: 'staff-role-edit-details-drawer',
 	},
 	{
 		file: 'src/routes/authed/staff/audit-logs/_audit-log-export-drawer.tsx',

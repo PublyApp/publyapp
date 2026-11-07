@@ -41,7 +41,7 @@ const staffJobPermissionsQueryOptions = buildStaffQueryOptions<
 );
 
 /** Derives per-action gating from the caller's EFFECTIVE permission payload.
- * `GET /auth/scope-auth-data?scope=staff` flattens the staff user's profile
+ * `GET /auth/scope-auth-data?scope=staff` flattens the staff user's role
  * grants into `permissions`. The permission-CATALOG endpoint
  * (`/staff/permissions/scopes/staff`) deliberately lists every definable key
  * for any staff session — never gate UI on it. Kiota models the union

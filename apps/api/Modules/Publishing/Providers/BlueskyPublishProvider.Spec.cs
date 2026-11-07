@@ -136,7 +136,7 @@ public sealed class BlueskyPublishProviderSpec {
 
 		var published = result.Should().BeOfType<PublishResult.Published>().Subject;
 		published.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
-		published.RecordUrl.Should().Be($"https://bsky.app/profile/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+		published.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
 	}
 
 	[Fact]
@@ -333,7 +333,7 @@ public sealed class BlueskyPublishProviderSpec {
 		var adopted = second.Should()
 			.BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>().Subject;
 		adopted.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
-		adopted.RecordUrl.Should().Be($"https://bsky.app/profile/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+		adopted.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
 
 		// The adoption went through the documented read-back: GET getRecord carrying
 		// the freshly derived rkey.

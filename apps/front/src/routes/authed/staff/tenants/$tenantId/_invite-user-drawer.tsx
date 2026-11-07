@@ -28,9 +28,9 @@ import {
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
 import {
-	toResolveTenantProfileNameResolutions,
-	useResolveTenantProfileNamesMutation,
-} from '~/lib/query/staff-tenant-profiles';
+	toResolveTenantRoleNameResolutions,
+	useResolveTenantRoleNamesMutation,
+} from '~/lib/query/staff-tenant-roles';
 import {
 	type StaffTenantInvitationBulkCreateFailedItem,
 	type StaffTenantInvitationBulkCreateSummary,
@@ -46,9 +46,9 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import { InviteProfileSelect } from './_invite-profile-select';
+import { InviteRoleSelect } from './_invite-role-select';
 import {
-	applyProfileResolutions,
+	applyRoleResolutions,
 	buildImportedInvites,
 	buildInviteTemplateCsv,
 	buildSubmitInvitations,
@@ -68,7 +68,7 @@ import {
 } from './_invite-user-form-state';
 
 const MAX_IMPORT_FILE_BYTES = 2_000_000;
-const MAX_PROFILE_NAMES = 500;
+const MAX_ROLE_NAMES = 500;
 const CSV_EXTENSION_PATTERN = /\.csv$/i;
 const EXCEL_EXTENSION_PATTERN = /\.xlsx?$/i;
 
@@ -77,14 +77,14 @@ const EXCEL_EXTENSION_PATTERN = /\.xlsx?$/i;
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** Signature of the profile names currently awaiting server resolution.
+/** Signature of the role names currently awaiting server resolution.
  * Deduped case-insensitively because that is how the server matches. */
-const profileNamesNeedingResolution = (rows: InviteRow[]): string[] => {
+const roleNamesNeedingResolution = (rows: InviteRow[]): string[] => {
 	const seen = new Set<string>();
 	const names: string[] = [];
 
 	for (const row of rows) {
-		for (const name of row.profileNames) {
+		for (const name of row.roleNames) {
 			const identity = name.toLowerCase();
 			if (!identity || seen.has(identity)) {
 				continue;
@@ -125,10 +125,10 @@ const PasteInviteesSection = ({
 			rows={3}
 			isDisabled={isFormLocked}
 		/>
-		<InviteProfileSelect
+		<InviteRoleSelect
 			tenantId={tenantId}
-			name="sharedProfileIds"
-			label={t('shared-profiles')}
+			name="sharedRoleIds"
+			label={t('shared-roles')}
 			isDisabled={isFormLocked}
 		/>
 		<Button
@@ -320,17 +320,17 @@ const unresolvedFlagCount = (
 
 type UnresolvedEntry = { name: string; reason: string };
 
-type UseInviteProfileResolutionArgs = {
+type UseInviteRoleResolutionArgs = {
 	tenantId: string;
 	rows: InviteRow[];
 	isOpen: boolean;
 	methods: ReturnType<typeof useForm<InviteFormValues>>;
-	resolveNames: ReturnType<typeof useResolveTenantProfileNamesMutation>;
+	resolveNames: ReturnType<typeof useResolveTenantRoleNamesMutation>;
 	onSessionExpired: () => void;
 	t: Translate;
 };
 
-const useInviteProfileResolution = ({
+const useInviteRoleResolution = ({
 	tenantId,
 	rows,
 	isOpen,
@@ -338,8 +338,8 @@ const useInviteProfileResolution = ({
 	resolveNames,
 	onSessionExpired,
 	t,
-}: UseInviteProfileResolutionArgs) => {
-	/** Server-side profile-name resolution (#979): resolves the unique names on
+}: UseInviteRoleResolutionArgs) => {
+	/** Server-side role-name resolution (#979): resolves the unique names on
 	 * file/manual rows once per signature change and stamps ids back onto the rows.
 	 * Pulled into its own hook so the host component stays under the
 	 * giant-component threshold. Owns the unresolved-by-row-key map, the
@@ -352,11 +352,10 @@ const useInviteProfileResolution = ({
 	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
 		Record<string, UnresolvedEntry[]>
 	>({});
-	const [profileResolutionLimitError, setProfileResolutionLimitError] =
-		useState('');
+	const [roleResolutionLimitError, setRoleResolutionLimitError] = useState('');
 
 	const namesSignature = useMemo(
-		() => profileNamesNeedingResolution(rows ?? []).join('\u0000'),
+		() => roleNamesNeedingResolution(rows ?? []).join('\u0000'),
 		[rows],
 	);
 	const lastResolvedSignatureRef = useRef<string>('');
@@ -374,22 +373,22 @@ const useInviteProfileResolution = ({
 			}
 
 			if (!isOpen || namesSignature.length === 0) {
-				setProfileResolutionLimitError('');
+				setRoleResolutionLimitError('');
 				return;
 			}
 
 			const names = namesSignature.split('\u0000');
-			if (names.length > MAX_PROFILE_NAMES) {
-				setProfileResolutionLimitError(
-					t('invite-import-too-many-profile-names', {
+			if (names.length > MAX_ROLE_NAMES) {
+				setRoleResolutionLimitError(
+					t('invite-import-too-many-role-names', {
 						count: names.length,
-						limit: MAX_PROFILE_NAMES,
+						limit: MAX_ROLE_NAMES,
 					}),
 				);
 				return;
 			}
 
-			setProfileResolutionLimitError('');
+			setRoleResolutionLimitError('');
 
 			if (lastResolvedSignatureRef.current === namesSignature) {
 				return;
@@ -406,9 +405,9 @@ const useInviteProfileResolution = ({
 						return;
 					}
 
-					const resolutions = toResolveTenantProfileNameResolutions(result);
+					const resolutions = toResolveTenantRoleNameResolutions(result);
 					const currentRows = methods.getValues('rows');
-					const outcome = applyProfileResolutions(currentRows, resolutions);
+					const outcome = applyRoleResolutions(currentRows, resolutions);
 					methods.setValue('rows', outcome.rows, { shouldDirty: true });
 					setUnresolvedByRowKey(outcome.unresolvedByRowKey);
 				})
@@ -423,7 +422,7 @@ const useInviteProfileResolution = ({
 					}
 
 					lastResolvedSignatureRef.current = '';
-					void displayLocalMutationFailure(error, t('unable-to-load-profiles'));
+					void displayLocalMutationFailure(error, t('unable-to-load-roles'));
 				});
 		};
 
@@ -444,8 +443,8 @@ const useInviteProfileResolution = ({
 
 	return {
 		unresolvedByRowKey,
-		profileResolutionLimitError,
-		isResolvingProfiles: resolveNames.isPending,
+		roleResolutionLimitError,
+		isResolvingRoles: resolveNames.isPending,
 	};
 };
 
@@ -521,14 +520,14 @@ const RowUnresolvedNotes = ({
 		<div role="alert" className="space-y-0.5">
 			{notFound.length > 0 ? (
 				<p className="text-xs text-destructive">
-					{t('invite-unresolved-profile-not-found', {
+					{t('invite-unresolved-role-not-found', {
 						names: notFound.join(', '),
 					})}
 				</p>
 			) : null}
 			{ambiguous.length > 0 ? (
 				<p className="text-xs text-destructive">
-					{t('invite-unresolved-profile-ambiguous', {
+					{t('invite-unresolved-role-ambiguous', {
 						names: ambiguous.join(', '),
 					})}
 				</p>
@@ -559,13 +558,13 @@ const InviteRowsList = ({
 	t,
 }: InviteRowsListProps) => {
 	const renderInviteRow = (field: { id: string }, index: number) => {
-		const renderRowProfileControl = (row: InviteRow) => {
+		const renderRowRoleControl = (row: InviteRow) => {
 			if (row.source === 'manual') {
 				return (
-					<InviteProfileSelect
+					<InviteRoleSelect
 						tenantId={tenantId}
-						name={`rows.${index}.profileIds`}
-						label={t('profiles')}
+						name={`rows.${index}.roleIds`}
+						label={t('roles')}
 						isDisabled={isFormLocked}
 					/>
 				);
@@ -613,7 +612,7 @@ const InviteRowsList = ({
 					isDisabled={isFormLocked}
 					fullWidth
 				/>
-				{renderRowProfileControl(row)}
+				{renderRowRoleControl(row)}
 				<RowUnresolvedNotes unresolved={unresolvedByRowKey[row.key]} t={t} />
 				<RowInvalidEmailNote invalidEmail={row.invalidEmail} t={t} />
 				<RowInvalidCellNotes invalidCells={row.invalidCells} t={t} />
@@ -992,7 +991,7 @@ const InviteTenantUserDrawerInner = ({
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const bulkInvite = useBulkInviteTenantUsersMutation();
-	const resolveNames = useResolveTenantProfileNamesMutation();
+	const resolveNames = useResolveTenantRoleNamesMutation();
 	const [rootValidationError, setRootValidationError] = useState('');
 	const [batchSummary, setBatchSummary] =
 		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
@@ -1014,19 +1013,16 @@ const InviteTenantUserDrawerInner = ({
 	const rows = methods.watch('rows');
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
-	const {
-		unresolvedByRowKey,
-		profileResolutionLimitError,
-		isResolvingProfiles,
-	} = useInviteProfileResolution({
-		tenantId,
-		rows: rows ?? [],
-		isOpen,
-		methods,
-		resolveNames,
-		onSessionExpired,
-		t,
-	});
+	const { unresolvedByRowKey, roleResolutionLimitError, isResolvingRoles } =
+		useInviteRoleResolution({
+			tenantId,
+			rows: rows ?? [],
+			isOpen,
+			methods,
+			resolveNames,
+			onSessionExpired,
+			t,
+		});
 
 	const isFormLockedFinal =
 		bulkInvite.isPending || isSubmitting || resolveNames.isPending;
@@ -1040,12 +1036,12 @@ const InviteTenantUserDrawerInner = ({
 			return;
 		}
 
-		const sharedProfileIds = methods.getValues('sharedProfileIds');
+		const sharedRoleIds = methods.getValues('sharedRoleIds');
 		const currentRows = methods.getValues('rows');
 		const outcome = buildImportedInvites({
 			parsedRows: emails.map((email) => ({
 				email,
-				profileNames: [] as string[],
+				roleNames: [] as string[],
 				invalidEmail: EMAIL_REGEX.test(email) ? null : email,
 				invalidCells: [],
 			})),
@@ -1054,7 +1050,7 @@ const InviteTenantUserDrawerInner = ({
 		});
 		const stampedRows = outcome.rows.map((row) => ({
 			...row,
-			profileIds: [...sharedProfileIds],
+			roleIds: [...sharedRoleIds],
 		}));
 		const hasOnlyBlankInitialRow =
 			currentRows.length === 1 &&
@@ -1086,14 +1082,14 @@ const InviteTenantUserDrawerInner = ({
 
 	const canSend = canSendInvitations({
 		rows: rows ?? [],
-		isResolvingProfiles,
+		isResolvingRoles,
 		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
 		invalidCellCount: (rows ?? []).filter(
 			(row) => (row.invalidCells ?? []).length > 0,
 		).length,
 	});
 	const isSendDisabled =
-		isFormLockedFinal || !canSend || profileResolutionLimitError.length > 0;
+		isFormLockedFinal || !canSend || roleResolutionLimitError.length > 0;
 	const peopleCount = rows?.length ?? 0;
 
 	const onSubmit = useInviteSubmit({
@@ -1111,7 +1107,7 @@ const InviteTenantUserDrawerInner = ({
 		<Drawer
 			open={isOpen}
 			onOpenChange={(open) => {
-				if (isFormLockedFinal || isResolvingProfiles) {
+				if (isFormLockedFinal || isResolvingRoles) {
 					return;
 				}
 
@@ -1136,7 +1132,7 @@ const InviteTenantUserDrawerInner = ({
 				<DrawerForm methods={methods} onSubmit={onSubmit}>
 					<DrawerBody className="space-y-5">
 						<ImportFileSection
-							isFormLocked={isFormLockedFinal || isResolvingProfiles}
+							isFormLocked={isFormLockedFinal || isResolvingRoles}
 							fileBar={fileBar}
 							importError={importError}
 							duplicateNote={duplicateNote}
@@ -1149,7 +1145,7 @@ const InviteTenantUserDrawerInner = ({
 						<OrAddManuallyDivider t={t} />
 						<PasteInviteesSection
 							tenantId={tenantId}
-							isFormLocked={isFormLockedFinal || isResolvingProfiles}
+							isFormLocked={isFormLockedFinal || isResolvingRoles}
 							onAddPastedEmails={addPastedEmails}
 							t={t}
 						/>
@@ -1158,7 +1154,7 @@ const InviteTenantUserDrawerInner = ({
 							fields={fields}
 							rows={rows ?? []}
 							unresolvedByRowKey={unresolvedByRowKey}
-							isFormLocked={isFormLockedFinal || isResolvingProfiles}
+							isFormLocked={isFormLockedFinal || isResolvingRoles}
 							onRemoveRow={remove}
 							onAddRow={() => append(makeManualRow())}
 							t={t}
@@ -1176,9 +1172,9 @@ const InviteTenantUserDrawerInner = ({
 								{rootValidationError}
 							</p>
 						) : null}
-						{profileResolutionLimitError ? (
+						{roleResolutionLimitError ? (
 							<p className="text-sm text-destructive" role="alert">
-								{profileResolutionLimitError}
+								{roleResolutionLimitError}
 							</p>
 						) : null}
 					</DrawerBody>
@@ -1189,7 +1185,7 @@ const InviteTenantUserDrawerInner = ({
 						<Button
 							type="button"
 							variant="ghost"
-							disabled={isFormLockedFinal || isResolvingProfiles}
+							disabled={isFormLockedFinal || isResolvingRoles}
 							onClick={requestClose}
 						>
 							{t('cancel')}

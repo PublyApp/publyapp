@@ -164,9 +164,9 @@ describe('buildCreateStaffTenantBody', () => {
 		});
 
 		expect(unwrapUntyped(body.code)).toBe('acme-corp');
-		// The API defaults seedDefaultProfile to false; the create form never
-		// sends the flag (the "seed default profiles" switch was removed).
-		expect(body.seedDefaultProfile).toBeUndefined();
+		// The API defaults seedDefaultRole to false; the create form never
+		// sends the flag (the "seed default roles" switch was removed).
+		expect(body.seedDefaultRole).toBeUndefined();
 	});
 
 	test('omits code when not provided', () => {
@@ -177,7 +177,7 @@ describe('buildCreateStaffTenantBody', () => {
 		});
 
 		expect(body.code).toBeUndefined();
-		expect(body.seedDefaultProfile).toBeUndefined();
+		expect(body.seedDefaultRole).toBeUndefined();
 	});
 
 	test('omits a blank code rather than sending an empty string', () => {
@@ -191,7 +191,7 @@ describe('buildCreateStaffTenantBody', () => {
 		expect(body.code).toBeUndefined();
 	});
 
-	test('trims and wraps the organization profile fields when provided', () => {
+	test('trims and wraps the organization role fields when provided', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
@@ -216,7 +216,7 @@ describe('buildCreateStaffTenantBody', () => {
 		expect(unwrapUntyped(body.notes)).toBe('staff-only note');
 	});
 
-	test('omits the organization profile fields when absent or blank', () => {
+	test('omits the organization role fields when absent or blank', () => {
 		const body = buildCreateStaffTenantBody({
 			name: 'Acme Tenant',
 			maxUsers: 5,
@@ -290,7 +290,7 @@ describe('buildUpdateStaffTenantBody', () => {
 		expect(unwrapUntyped(body.logoUrl)).toBe('/files/uploads/2026/07/logo.png');
 	});
 
-	test('trims and wraps the organization profile fields when set', () => {
+	test('trims and wraps the organization role fields when set', () => {
 		const body = buildUpdateStaffTenantBody({
 			legalName: ' Acme Tenant Ltd ',
 			description: ' A social platform ',
@@ -312,7 +312,7 @@ describe('buildUpdateStaffTenantBody', () => {
 		expect(unwrapUntyped(body.notes)).toBe('staff-only note');
 	});
 
-	test('sends explicit null for each organization profile field cleared to blank', () => {
+	test('sends explicit null for each organization role field cleared to blank', () => {
 		const body = buildUpdateStaffTenantBody({
 			legalName: '   ',
 			description: '   ',
@@ -334,7 +334,7 @@ describe('buildUpdateStaffTenantBody', () => {
 		expect(body.notes).toBeNull();
 	});
 
-	test('omits the organization profile fields when not provided', () => {
+	test('omits the organization role fields when not provided', () => {
 		const body = buildUpdateStaffTenantBody({
 			name: 'Acme Tenant',
 		});
@@ -700,7 +700,7 @@ describe('toStaffTenantDetails', () => {
 			ownersCount: 4,
 			pendingInvitationsCount: 3,
 			expiringSoonInvitationsCount: 1,
-			profilesCount: 6,
+			rolesCount: 6,
 			logoUrl: ' https://cdn.example.com/acme.png ',
 			legalName: ' Acme Corporation Ltd ',
 			description: ' A social media platform ',
@@ -725,7 +725,7 @@ describe('toStaffTenantDetails', () => {
 			ownersCount: 4,
 			pendingInvitationsCount: 3,
 			expiringSoonInvitationsCount: 1,
-			profilesCount: 6,
+			rolesCount: 6,
 			logoUrl: 'https://cdn.example.com/acme.png',
 			legalName: 'Acme Corporation Ltd',
 			description: 'A social media platform',
@@ -741,7 +741,7 @@ describe('toStaffTenantDetails', () => {
 		});
 	});
 
-	test('defaults the new detail counts to zero and the organization profile fields to null when the payload omits them', () => {
+	test('defaults the new detail counts to zero and the organization role fields to null when the payload omits them', () => {
 		const result = toStaffTenantDetails({
 			tenantId: 'tenant-8',
 			name: 'Acme Corporation',
@@ -751,7 +751,7 @@ describe('toStaffTenantDetails', () => {
 			ownersCount: 0,
 			pendingInvitationsCount: 0,
 			expiringSoonInvitationsCount: 0,
-			profilesCount: 0,
+			rolesCount: 0,
 			legalName: null,
 			description: null,
 			websiteUrl: null,

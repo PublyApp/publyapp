@@ -12,7 +12,7 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
 /// <summary>
 /// Resolves a needs-review publication (#2176): the user checked the provider
-/// profile and confirms the post is there. 404 for an absent or foreign row, 409
+/// role and confirms the post is there. 404 for an absent or foreign row, 409
 /// when the publication is not waiting for review.
 /// </summary>
 public sealed class MarkPublicationPublishedForTenant {

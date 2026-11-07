@@ -400,9 +400,9 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 			return new DeleteStaffUserResult.NotFound();
 		}
 
-		// Profile links have no independent lifecycle after the staff account is deleted.
+		// Role links have no independent lifecycle after the staff account is deleted.
 		// ExecuteDeleteAsync bypasses soft-delete conversion and removes membership rows.
-		await this._DbContext.UserAccountProfile
+		await this._DbContext.UserAccountRole
 			.Where(x => x.UserAccountId == target.UserAccountId)
 			.ExecuteDeleteAsync(cancellationToken);
 
@@ -423,13 +423,13 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				&& !ua.User.IsDeleted
 			select new StaffUserData {
 				User = ua.User,
-				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+				IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 					uap.UserAccountId == ua.Id
-					&& !uap.Profile.IsDeleted
-					&& uap.Profile.IsFullAccess),
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess),
 				Roles = (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					from uap in this._DbContext.UserAccountRole
+					join p in this._DbContext.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == ua.Id && !p.IsDeleted
 					orderby p.Name
 					select p.Name
@@ -471,13 +471,13 @@ public sealed class StaffUserLifecycleService : IStaffUserLifecycleService {
 				UserAccountId = ua.GetRequiredId(),
 				UserData = new StaffUserData {
 					User = ua.User,
-					IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+					IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 						uap.UserAccountId == ua.Id
-						&& !uap.Profile.IsDeleted
-						&& uap.Profile.IsFullAccess),
+						&& !uap.Role.IsDeleted
+						&& uap.Role.IsFullAccess),
 					Roles = (
-						from uap in this._DbContext.UserAccountProfile
-						join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+						from uap in this._DbContext.UserAccountRole
+						join p in this._DbContext.Role on uap.RoleId equals p.Id
 						where uap.UserAccountId == ua.Id && !p.IsDeleted
 						orderby p.Name
 						select p.Name

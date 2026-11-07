@@ -12,7 +12,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -164,24 +164,24 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			select account;
 		var staffAccount = staffAccountQuery.First();
 
-		var profile = Profile.CreateStaffProfile(
+		var role = Role.CreateStaffRole(
 			$"{emailPrefix}-permission-{Guid.NewGuid():N}",
-			"Test-only staff profile for tenant user route permissions"
+			"Test-only staff role for tenant user route permissions"
 		);
 
-		await dbContext.Profile.AddAsync(profile);
+		await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		await dbContext.ProfilePermission.AddAsync(
-			new ProfilePermission {
-				ProfileId = profile.GetRequiredId(),
+		await dbContext.RolePermission.AddAsync(
+			new RolePermission {
+				RoleId = role.GetRequiredId(),
 				PermissionKey = permissionKey,
 			}
 		);
-		await dbContext.UserAccountProfile.AddAsync(
-			new UserAccountProfile {
+		await dbContext.UserAccountRole.AddAsync(
+			new UserAccountRole {
 				UserAccountId = staffAccount.GetRequiredId(),
-				ProfileId = profile.GetRequiredId(),
+				RoleId = role.GetRequiredId(),
 			}
 		);
 		await dbContext.SaveChangesAsync();

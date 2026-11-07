@@ -78,7 +78,7 @@ x-api-test-environment: &api-test-environment
   UPLOAD_RATE_LIMIT_PERMIT_LIMIT: 10000
   UPLOAD_RATE_LIMIT_WINDOW_SECONDS: 60
   AUDIT_LOG_EXPORT_MAX_ROWS: 10000
-  MAX_PROFILES_PER_USER: 5
+  MAX_ROLES_PER_USER: 5
 
 services:
   postgres:

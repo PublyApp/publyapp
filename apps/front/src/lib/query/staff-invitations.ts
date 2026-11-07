@@ -41,7 +41,7 @@ export const invalidateStaffInvitations = (
 
 export type StaffInvitationInput = {
 	email: string;
-	profileIds: string[];
+	roleIds: string[];
 };
 
 export type BulkCreateStaffInvitationsInput = {
@@ -105,10 +105,8 @@ const buildBulkCreateStaffInvitationsBody = (
 		input.invitations.map((invitation) =>
 			createUntypedObject({
 				email: createUntypedString(invitation.email),
-				profileIds: createUntypedArray(
-					invitation.profileIds.map((profileId) =>
-						createUntypedString(profileId),
-					),
+				roleIds: createUntypedArray(
+					invitation.roleIds.map((roleId) => createUntypedString(roleId)),
 				),
 			}),
 		),

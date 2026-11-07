@@ -101,7 +101,7 @@ vi.mock('@tanstack/react-router', () => ({
 const TRANSLATIONS: TestLabelMap = {
 	access: 'Access',
 	basics: 'Basics',
-	profiles: 'Profiles',
+	roles: 'Roles',
 	invitations: 'Invitations',
 	users: 'Users',
 	'pending-invitations': 'Pending invitations',
@@ -291,7 +291,7 @@ describe('staff tenant invitations route', () => {
 				email: 'alex@example.com',
 				status: 'Pending',
 				scope: 'Tenant',
-				profileName: 'Approvers',
+				roleName: 'Approvers',
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
 				createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -333,8 +333,8 @@ describe('staff tenant invitations route', () => {
 			screen.getByRole('link', { name: 'Basics' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111');
 		expect(
-			screen.getByRole('link', { name: 'Profiles' }).getAttribute('href'),
-		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/profiles');
+			screen.getByRole('link', { name: 'Roles' }).getAttribute('href'),
+		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/roles');
 		expect(
 			screen.getByRole('link', { name: 'Users' }).getAttribute('href'),
 		).toBe('/staff/tenants/11111111-1111-1111-1111-111111111111/users');
@@ -382,18 +382,18 @@ describe('staff tenant invitations route', () => {
 		expect(title.textContent).toContain('3 pending');
 	});
 
-	test('renders plural invitation profiles as chips with a +N overflow affordance', () => {
+	test('renders plural invitation roles as chips with a +N overflow affordance', () => {
 		mocks.toStaffTenantInvitationRows.mockReturnValue([
 			{
-				id: 'invite-many-profiles',
-				email: 'profiles@example.com',
+				id: 'invite-many-roles',
+				email: 'roles@example.com',
 				status: 'Pending',
 				scope: 'Tenant',
-				profileName: 'Legacy profile',
-				profiles: [
-					{ id: 'profile-1', name: 'Authors' },
-					{ id: 'profile-2', name: 'Reviewers' },
-					{ id: 'profile-3', name: 'Publishers' },
+				roleName: 'Legacy role',
+				roles: [
+					{ id: 'role-1', name: 'Authors' },
+					{ id: 'role-2', name: 'Reviewers' },
+					{ id: 'role-3', name: 'Publishers' },
 				],
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
@@ -407,7 +407,7 @@ describe('staff tenant invitations route', () => {
 		expect(screen.getByText('Authors')).toBeTruthy();
 		expect(screen.getByText('Reviewers')).toBeTruthy();
 		expect(screen.getByText('+1').getAttribute('title')).toBe('Publishers');
-		expect(screen.queryByText('Legacy profile')).toBeNull();
+		expect(screen.queryByText('Legacy role')).toBeNull();
 	});
 
 	test('renders the invite CTA in the empty state when there are no invitations', () => {
@@ -486,7 +486,7 @@ describe('staff tenant invitations route', () => {
 				email: 'pending@example.com',
 				status: 'Pending',
 				scope: 'Tenant',
-				profileName: 'Approvers',
+				roleName: 'Approvers',
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
 				createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -497,7 +497,7 @@ describe('staff tenant invitations route', () => {
 				email: 'accepted@example.com',
 				status: 'Accepted',
 				scope: 'Tenant',
-				profileName: 'Approvers',
+				roleName: 'Approvers',
 				invitedByName: 'Taylor Smith',
 				acceptedAt: new Date('2026-07-02T09:00:00Z'),
 				createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -915,7 +915,7 @@ describe('staff tenant invitations route', () => {
 				email: 'alex@example.com',
 				status: 'Pending',
 				scope: 'Tenant',
-				profileName: 'Approvers',
+				roleName: 'Approvers',
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
 				createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -926,7 +926,7 @@ describe('staff tenant invitations route', () => {
 				email: 'sam@example.com',
 				status: 'Pending',
 				scope: 'Tenant',
-				profileName: null,
+				roleName: null,
 				invitedByName: 'Taylor Smith',
 				acceptedAt: null,
 				createdAt: new Date('2026-07-01T10:00:00Z'),
@@ -1094,7 +1094,7 @@ describe('createColumns column widths', () => {
 
 		expect(widthById).toEqual({
 			email: undefined,
-			profile_name: '160px',
+			role_name: '160px',
 			invited_by: '150px',
 			expires_at: '150px',
 			status: '128px',
@@ -1115,7 +1115,7 @@ describe('createColumns column widths', () => {
 
 		expect(hideBelowById).toEqual({
 			email: undefined,
-			profile_name: 768,
+			role_name: 768,
 			// #838: the selection column adds 40px, which pushed the table past
 			// its card bound at 768px; invited_by now hides below 1024px.
 			invited_by: 1024,

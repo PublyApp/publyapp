@@ -2208,13 +2208,13 @@
         }
       }
     },
-    "/staff/users/{userId}/profiles": {
+    "/staff/users/{userId}/roles": {
       "get": {
         "tags": [
           "Staff Users"
         ],
-        "summary": "Get profiles assigned to a staff user",
-        "operationId": "GetStaffUserProfiles",
+        "summary": "Get roles assigned to a staff user",
+        "operationId": "GetStaffUserRoles",
         "parameters": [
           {
             "name": "userId",
@@ -2271,7 +2271,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetStaffUserProfilesResult"
+                  "$ref": "#/components/schemas/GetStaffUserRolesResult"
                 }
               }
             }
@@ -2302,8 +2302,8 @@
         "tags": [
           "Staff Users"
         ],
-        "summary": "Update profiles assigned to a staff user",
-        "operationId": "UpdateStaffUserProfiles",
+        "summary": "Update roles assigned to a staff user",
+        "operationId": "UpdateStaffUserRoles",
         "parameters": [
           {
             "name": "userId",
@@ -2318,7 +2318,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateStaffUserProfilesBody"
+                "$ref": "#/components/schemas/UpdateStaffUserRolesBody"
               }
             }
           },
@@ -2370,7 +2370,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UpdateStaffUserProfilesResult"
+                  "$ref": "#/components/schemas/UpdateStaffUserRolesResult"
                 }
               }
             }
@@ -2740,7 +2740,7 @@
         "tags": [
           "Tenant Users (Staff View)"
         ],
-        "summary": "Update a tenant user's name, avatar or profile assignments",
+        "summary": "Update a tenant user's name, avatar or role assignments",
         "operationId": "UpdateTenantUserAsStaff",
         "parameters": [
           {
@@ -5751,13 +5751,13 @@
         }
       }
     },
-    "/staff/profiles": {
+    "/staff/roles": {
       "get": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Find profiles for a staff member",
-        "operationId": "FindStaffProfiles",
+        "summary": "Find roles for a staff member",
+        "operationId": "FindStaffRoles",
         "parameters": [
           {
             "name": "cursor",
@@ -5841,7 +5841,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindStaffProfilesResult"
+                  "$ref": "#/components/schemas/FindStaffRolesResult"
                 }
               }
             }
@@ -5870,15 +5870,15 @@
       },
       "post": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Create a new staff profile",
-        "operationId": "CreateStaffProfile",
+        "summary": "Create a new staff role",
+        "operationId": "CreateStaffRole",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateStaffProfileBody"
+                "$ref": "#/components/schemas/CreateStaffRoleBody"
               }
             }
           },
@@ -5930,7 +5930,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StaffProfileCreated"
+                  "$ref": "#/components/schemas/StaffRoleCreated"
                 }
               }
             }
@@ -5958,16 +5958,16 @@
         }
       }
     },
-    "/staff/profiles/{profileId}": {
+    "/staff/roles/{roleId}": {
       "get": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Get a staff profile by id",
-        "operationId": "GetStaffProfileById",
+        "summary": "Get a staff role by id",
+        "operationId": "GetStaffRoleById",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6021,7 +6021,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetStaffProfileByIdResult"
+                  "$ref": "#/components/schemas/GetStaffRoleByIdResult"
                 }
               }
             }
@@ -6050,13 +6050,13 @@
       },
       "delete": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Delete a staff profile",
-        "operationId": "DeleteStaffProfile",
+        "summary": "Delete a staff role",
+        "operationId": "DeleteStaffRole",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6139,13 +6139,13 @@
       },
       "patch": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Update a staff profile (name/description)",
-        "operationId": "UpdateStaffProfile",
+        "summary": "Update a staff role (name/description)",
+        "operationId": "UpdateStaffRole",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6157,7 +6157,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateStaffProfileBody"
+                "$ref": "#/components/schemas/UpdateStaffRoleBody"
               }
             }
           },
@@ -6209,7 +6209,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetStaffProfileByIdResult"
+                  "$ref": "#/components/schemas/GetStaffRoleByIdResult"
                 }
               }
             }
@@ -6247,18 +6247,18 @@
         }
       }
     },
-    "/staff/profiles/bulk-delete": {
+    "/staff/roles/bulk-delete": {
       "post": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Bulk delete staff profiles",
-        "operationId": "BulkDeleteStaffProfiles",
+        "summary": "Bulk delete staff roles",
+        "operationId": "BulkDeleteStaffRoles",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkDeleteStaffProfilesBody"
+                "$ref": "#/components/schemas/BulkDeleteStaffRolesBody"
               }
             }
           },
@@ -6310,7 +6310,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BulkProfileActionResult"
+                  "$ref": "#/components/schemas/BulkRoleActionResult"
                 }
               }
             }
@@ -6328,16 +6328,16 @@
         }
       }
     },
-    "/staff/profiles/{profileId}/permissions": {
+    "/staff/roles/{roleId}/permissions": {
       "get": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "List permission keys assigned to a staff profile",
-        "operationId": "FindStaffProfilePermissions",
+        "summary": "List permission keys assigned to a staff role",
+        "operationId": "FindStaffRolePermissions",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6391,7 +6391,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindStaffProfilePermissionsResult"
+                  "$ref": "#/components/schemas/FindStaffRolePermissionsResult"
                 }
               }
             }
@@ -6419,16 +6419,16 @@
         }
       }
     },
-    "/staff/profiles/{profileId}/permissions/{permissionKey}": {
+    "/staff/roles/{roleId}/permissions/{permissionKey}": {
       "post": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Assign a permission key to a staff profile",
-        "operationId": "AssignStaffProfilePermission",
+        "summary": "Assign a permission key to a staff role",
+        "operationId": "AssignStaffRolePermission",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6512,13 +6512,13 @@
       },
       "delete": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Unassign a permission key from a staff profile",
-        "operationId": "UnassignStaffProfilePermission",
+        "summary": "Unassign a permission key from a staff role",
+        "operationId": "UnassignStaffRolePermission",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6601,16 +6601,16 @@
         }
       }
     },
-    "/staff/profiles/{profileId}/users": {
+    "/staff/roles/{roleId}/users": {
       "get": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Find users assigned to a staff profile",
-        "operationId": "FindStaffProfileUsers",
+        "summary": "Find users assigned to a staff role",
+        "operationId": "FindStaffRoleUsers",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6699,7 +6699,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindStaffProfileUsersResult"
+                  "$ref": "#/components/schemas/FindStaffRoleUsersResult"
                 }
               }
             }
@@ -6737,16 +6737,16 @@
         }
       }
     },
-    "/staff/profiles/{profileId}/users/assignment-resolution": {
+    "/staff/roles/{roleId}/users/assignment-resolution": {
       "post": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Resolve whether staff users are assigned to a staff profile (batch)",
-        "operationId": "ResolveStaffProfileUserAssignments",
+        "summary": "Resolve whether staff users are assigned to a staff role (batch)",
+        "operationId": "ResolveStaffRoleUserAssignments",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6758,7 +6758,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResolveStaffProfileUserAssignmentsBody"
+                "$ref": "#/components/schemas/ResolveStaffRoleUserAssignmentsBody"
               }
             }
           },
@@ -6810,7 +6810,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResolveStaffProfileUserAssignmentsResult"
+                  "$ref": "#/components/schemas/ResolveStaffRoleUserAssignmentsResult"
                 }
               }
             }
@@ -6848,16 +6848,16 @@
         }
       }
     },
-    "/staff/profiles/{profileId}/users/unassign": {
+    "/staff/roles/{roleId}/users/unassign": {
       "post": {
         "tags": [
-          "Staff Profiles"
+          "Staff Roles"
         ],
-        "summary": "Bulk-unassign staff users from a staff profile",
-        "operationId": "UnassignStaffProfileUsers",
+        "summary": "Bulk-unassign staff users from a staff role",
+        "operationId": "UnassignStaffRoleUsers",
         "parameters": [
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -6869,7 +6869,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UnassignStaffProfileUsersBody"
+                "$ref": "#/components/schemas/UnassignStaffRoleUsersBody"
               }
             }
           },
@@ -6921,7 +6921,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BulkStaffProfileUserUnassignActionResult"
+                  "$ref": "#/components/schemas/BulkStaffRoleUserUnassignActionResult"
                 }
               }
             }
@@ -6959,13 +6959,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles": {
+    "/staff/tenants/{tenantId}/roles": {
       "get": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Find profiles for a tenant",
-        "operationId": "FindTenantProfiles",
+        "summary": "Find roles for a tenant",
+        "operationId": "FindTenantRoles",
         "parameters": [
           {
             "name": "tenantId",
@@ -7064,7 +7064,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindTenantProfilesAsStaffResult"
+                  "$ref": "#/components/schemas/FindTenantRolesAsStaffResult"
                 }
               }
             }
@@ -7093,10 +7093,10 @@
       },
       "post": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Create a tenant profile",
-        "operationId": "CreateTenantProfileAsStaff",
+        "summary": "Create a tenant role",
+        "operationId": "CreateTenantRoleAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7111,7 +7111,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateTenantProfileAsStaffBody"
+                "$ref": "#/components/schemas/CreateTenantRoleAsStaffBody"
               }
             }
           },
@@ -7163,7 +7163,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTenantProfileByIdResponse"
+                  "$ref": "#/components/schemas/GetTenantRoleByIdResponse"
                 }
               }
             }
@@ -7201,13 +7201,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}": {
+    "/staff/tenants/{tenantId}/roles/{roleId}": {
       "get": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Get a tenant profile by id",
-        "operationId": "GetTenantProfileByIdAsStaff",
+        "summary": "Get a tenant role by id",
+        "operationId": "GetTenantRoleByIdAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7218,7 +7218,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -7272,7 +7272,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTenantProfileByIdResponse"
+                  "$ref": "#/components/schemas/GetTenantRoleByIdResponse"
                 }
               }
             }
@@ -7301,10 +7301,10 @@
       },
       "patch": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Update a tenant profile",
-        "operationId": "UpdateTenantProfileAsStaff",
+        "summary": "Update a tenant role",
+        "operationId": "UpdateTenantRoleAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7315,7 +7315,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -7327,7 +7327,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateTenantProfileAsStaffBody"
+                "$ref": "#/components/schemas/UpdateTenantRoleAsStaffBody"
               }
             }
           },
@@ -7379,7 +7379,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTenantProfileByIdResponse"
+                  "$ref": "#/components/schemas/GetTenantRoleByIdResponse"
                 }
               }
             }
@@ -7418,10 +7418,10 @@
       },
       "delete": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Delete a tenant profile",
-        "operationId": "DeleteTenantProfileAsStaff",
+        "summary": "Delete a tenant role",
+        "operationId": "DeleteTenantRoleAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7432,7 +7432,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -7514,13 +7514,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/bulk-delete": {
+    "/staff/tenants/{tenantId}/roles/bulk-delete": {
       "post": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Bulk delete tenant profiles",
-        "operationId": "BulkDeleteTenantProfilesAsStaff",
+        "summary": "Bulk delete tenant roles",
+        "operationId": "BulkDeleteTenantRolesAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7535,7 +7535,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkDeleteTenantProfilesBody"
+                "$ref": "#/components/schemas/BulkDeleteTenantRolesBody"
               }
             }
           },
@@ -7587,7 +7587,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BulkProfileActionResult"
+                  "$ref": "#/components/schemas/BulkRoleActionResult"
                 }
               }
             }
@@ -7615,13 +7615,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/permissions": {
+    "/staff/tenants/{tenantId}/roles/{roleId}/permissions": {
       "get": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "List permission keys assigned to a tenant profile",
-        "operationId": "FindTenantProfilePermissionsAsStaff",
+        "summary": "List permission keys assigned to a tenant role",
+        "operationId": "FindTenantRolePermissionsAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7632,7 +7632,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -7686,7 +7686,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindTenantProfilePermissionsAsStaffResult"
+                  "$ref": "#/components/schemas/FindTenantRolePermissionsAsStaffResult"
                 }
               }
             }
@@ -7714,13 +7714,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/permissions/{permissionKey}": {
+    "/staff/tenants/{tenantId}/roles/{roleId}/permissions/{permissionKey}": {
       "post": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Assign a permission key to a tenant profile",
-        "operationId": "AssignTenantProfilePermissionAsStaff",
+        "summary": "Assign a permission key to a tenant role",
+        "operationId": "AssignTenantRolePermissionAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7731,7 +7731,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -7815,10 +7815,10 @@
       },
       "delete": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Unassign a permission key from a tenant profile",
-        "operationId": "UnassignTenantProfilePermissionAsStaff",
+        "summary": "Unassign a permission key from a tenant role",
+        "operationId": "UnassignTenantRolePermissionAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7829,7 +7829,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -7912,13 +7912,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/users": {
+    "/staff/tenants/{tenantId}/roles/{roleId}/users": {
       "get": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Find tenant members assigned to a tenant profile",
-        "operationId": "FindTenantProfileUsersAsStaff",
+        "summary": "Find tenant members assigned to a tenant role",
+        "operationId": "FindTenantRoleUsersAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -7929,7 +7929,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -8018,7 +8018,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindTenantProfileUsersAsStaffResult"
+                  "$ref": "#/components/schemas/FindTenantRoleUsersAsStaffResult"
                 }
               }
             }
@@ -8056,13 +8056,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/users/assignment-resolution": {
+    "/staff/tenants/{tenantId}/roles/{roleId}/users/assignment-resolution": {
       "post": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Resolve whether tenant members are assigned to a tenant profile (batch)",
-        "operationId": "ResolveTenantProfileUserAssignmentsAsStaff",
+        "summary": "Resolve whether tenant members are assigned to a tenant role (batch)",
+        "operationId": "ResolveTenantRoleUserAssignmentsAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -8073,7 +8073,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -8085,7 +8085,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResolveTenantProfileUserAssignmentsAsStaffBody"
+                "$ref": "#/components/schemas/ResolveTenantRoleUserAssignmentsAsStaffBody"
               }
             }
           },
@@ -8137,7 +8137,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResolveTenantProfileUserAssignmentsAsStaffResult"
+                  "$ref": "#/components/schemas/ResolveTenantRoleUserAssignmentsAsStaffResult"
                 }
               }
             }
@@ -8175,13 +8175,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/{profileId}/users/{user_account_id}": {
+    "/staff/tenants/{tenantId}/roles/{roleId}/users/{user_account_id}": {
       "post": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Assign a tenant profile to a tenant member",
-        "operationId": "AssignTenantProfileUserAsStaff",
+        "summary": "Assign a tenant role to a tenant member",
+        "operationId": "AssignTenantRoleUserAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -8192,7 +8192,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -8286,10 +8286,10 @@
       },
       "delete": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Unassign a tenant profile from a tenant member",
-        "operationId": "UnassignTenantProfileUserAsStaff",
+        "summary": "Unassign a tenant role from a tenant member",
+        "operationId": "UnassignTenantRoleUserAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -8300,7 +8300,7 @@
             }
           },
           {
-            "name": "profileId",
+            "name": "roleId",
             "in": "path",
             "required": true,
             "schema": {
@@ -8383,13 +8383,13 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}/profiles/resolve-names": {
+    "/staff/tenants/{tenantId}/roles/resolve-names": {
       "post": {
         "tags": [
-          "Tenant Profiles (Staff View)"
+          "Tenant Roles (Staff View)"
         ],
-        "summary": "Resolve tenant profile names to profile ids (batch)",
-        "operationId": "ResolveTenantProfileNamesAsStaff",
+        "summary": "Resolve tenant role names to role ids (batch)",
+        "operationId": "ResolveTenantRoleNamesAsStaff",
         "parameters": [
           {
             "name": "tenantId",
@@ -8404,7 +8404,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResolveTenantProfileNamesAsStaffBody"
+                "$ref": "#/components/schemas/ResolveTenantRoleNamesAsStaffBody"
               }
             }
           },
@@ -8456,7 +8456,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResolveTenantProfileNamesAsStaffResult"
+                  "$ref": "#/components/schemas/ResolveTenantRoleNamesAsStaffResult"
                 }
               }
             }
@@ -15968,13 +15968,13 @@
           }
         }
       },
-      "BulkDeleteStaffProfilesBody": {
+      "BulkDeleteStaffRolesBody": {
         "required": [
-          "profileIds"
+          "roleIds"
         ],
         "type": "object",
         "properties": {
-          "profileIds": {
+          "roleIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -15990,13 +15990,13 @@
           }
         }
       },
-      "BulkDeleteTenantProfilesBody": {
+      "BulkDeleteTenantRolesBody": {
         "required": [
-          "profileIds"
+          "roleIds"
         ],
         "type": "object",
         "properties": {
-          "profileIds": {
+          "roleIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -16031,48 +16031,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BulkDeleteFailedItem"
-            }
-          }
-        }
-      },
-      "BulkProfileActionFailedItem": {
-        "required": [
-          "profileId",
-          "error"
-        ],
-        "type": "object",
-        "properties": {
-          "profileId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "error": {
-            "type": "string"
-          }
-        }
-      },
-      "BulkProfileActionResult": {
-        "required": [
-          "succeededCount",
-          "failedCount",
-          "failedItems"
-        ],
-        "type": "object",
-        "properties": {
-          "succeededCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
-          },
-          "failedCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
-          },
-          "failedItems": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BulkProfileActionFailedItem"
             }
           }
         }
@@ -16202,6 +16160,48 @@
           }
         }
       },
+      "BulkRoleActionFailedItem": {
+        "required": [
+          "roleId",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkRoleActionResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkRoleActionFailedItem"
+            }
+          }
+        }
+      },
       "BulkStaffInvitationActionFailedItem": {
         "required": [
           "invitationId",
@@ -16257,7 +16257,7 @@
           }
         }
       },
-      "BulkStaffProfileUserUnassignActionFailedItem": {
+      "BulkStaffRoleUserUnassignActionFailedItem": {
         "required": [
           "userId",
           "reason"
@@ -16273,7 +16273,7 @@
           }
         }
       },
-      "BulkStaffProfileUserUnassignActionResult": {
+      "BulkStaffRoleUserUnassignActionResult": {
         "required": [
           "succeededCount",
           "failedCount",
@@ -16294,7 +16294,7 @@
           "failedItems": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/BulkStaffProfileUserUnassignActionFailedItem"
+              "$ref": "#/components/schemas/BulkStaffRoleUserUnassignActionFailedItem"
             }
           }
         }
@@ -16503,7 +16503,7 @@
           "email": {
             "$ref": "#/components/schemas/JsonElement"
           },
-          "profileIds": {
+          "roleIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -16532,19 +16532,19 @@
       "CreateStaffInvitationBody": {
         "required": [
           "email",
-          "profileId"
+          "roleId"
         ],
         "type": "object",
         "properties": {
           "email": {
             "$ref": "#/components/schemas/JsonElement"
           },
-          "profileId": {
+          "roleId": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
-      "CreateStaffProfileBody": {
+      "CreateStaffRoleBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -16632,7 +16632,7 @@
               }
             ]
           },
-          "seedDefaultProfile": {
+          "seedDefaultRole": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
@@ -16716,7 +16716,7 @@
           }
         }
       },
-      "CreateTenantProfileAsStaffBody": {
+      "CreateTenantRoleAsStaffBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -17356,7 +17356,7 @@
           }
         }
       },
-      "FindStaffProfilePermissionsResult": {
+      "FindStaffRolePermissionsResult": {
         "required": [
           "permissionKeys"
         ],
@@ -17370,7 +17370,7 @@
           }
         }
       },
-      "FindStaffProfilesResult": {
+      "FindStaffRolesResult": {
         "type": "object",
         "properties": {
           "totalCount": {
@@ -17386,7 +17386,7 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StaffProfileItem"
+              "$ref": "#/components/schemas/StaffRoleItem"
             }
           },
           "nextCursor": {
@@ -17397,7 +17397,7 @@
           }
         }
       },
-      "FindStaffProfileUsersResult": {
+      "FindStaffRoleUsersResult": {
         "required": [
           "users",
           "count"
@@ -17407,7 +17407,7 @@
           "users": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StaffProfileUserItem"
+              "$ref": "#/components/schemas/StaffRoleUserItem"
             }
           },
           "count": {
@@ -17501,7 +17501,7 @@
           }
         }
       },
-      "FindTenantProfilePermissionsAsStaffResult": {
+      "FindTenantRolePermissionsAsStaffResult": {
         "required": [
           "permissionKeys"
         ],
@@ -17515,13 +17515,13 @@
           }
         }
       },
-      "FindTenantProfilesAsStaffResult": {
+      "FindTenantRolesAsStaffResult": {
         "type": "object",
         "properties": {
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TenantProfileItem"
+              "$ref": "#/components/schemas/TenantRoleItem"
             }
           },
           "nextCursor": {
@@ -17532,7 +17532,7 @@
           }
         }
       },
-      "FindTenantProfileUsersAsStaffResult": {
+      "FindTenantRoleUsersAsStaffResult": {
         "required": [
           "users",
           "count"
@@ -17542,7 +17542,7 @@
           "users": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TenantProfileUserItem"
+              "$ref": "#/components/schemas/TenantRoleUserItem"
             }
           },
           "count": {
@@ -17681,10 +17681,10 @@
           "code": {
             "type": "string"
           },
-          "profiles": {
+          "roles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ProfileItem"
+              "$ref": "#/components/schemas/RoleItem"
             }
           },
           "isAdmin": {
@@ -17709,14 +17709,14 @@
           }
         }
       },
-      "GetStaffProfileByIdResult": {
+      "GetStaffRoleByIdResult": {
         "required": [
-          "profile"
+          "role"
         ],
         "type": "object",
         "properties": {
-          "profile": {
-            "$ref": "#/components/schemas/StaffProfileItem"
+          "role": {
+            "$ref": "#/components/schemas/StaffRoleItem"
           }
         }
       },
@@ -17770,22 +17770,22 @@
           }
         }
       },
-      "GetStaffUserProfilesResult": {
+      "GetStaffUserRolesResult": {
         "required": [
-          "maxProfilesPerUser",
-          "assignedProfiles"
+          "maxRolesPerUser",
+          "assignedRoles"
         ],
         "type": "object",
         "properties": {
-          "maxProfilesPerUser": {
+          "maxRolesPerUser": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
           },
-          "assignedProfiles": {
+          "assignedRoles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StaffUserProfileItem"
+              "$ref": "#/components/schemas/StaffUserRoleItem"
             }
           }
         }
@@ -17837,7 +17837,7 @@
             "type": "integer",
             "format": "int32"
           },
-          "profilesCount": {
+          "rolesCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
@@ -17907,14 +17907,14 @@
           }
         }
       },
-      "GetTenantProfileByIdResponse": {
+      "GetTenantRoleByIdResponse": {
         "required": [
-          "profile"
+          "role"
         ],
         "type": "object",
         "properties": {
-          "profile": {
-            "$ref": "#/components/schemas/TenantProfileItem"
+          "role": {
+            "$ref": "#/components/schemas/TenantRoleItem"
           }
         }
       },
@@ -17993,7 +17993,7 @@
             "items": {
               "type": "string"
             },
-            "description": "The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:\n[\"*\"] when the account holds the tenant's full-access system profile (the\n#861 bypass TenantPermissionFilter applies), otherwise the profile-derived\nkeys. Empty array — never null — whenever there is no usable scope\n(missing/malformed tenant_id, unknown or suspended account), gating\neverything closed."
+            "description": "The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:\n[\"*\"] when the account holds the tenant's full-access system role (the\n#861 bypass TenantPermissionFilter applies), otherwise the role-derived\nkeys. Empty array — never null — whenever there is no usable scope\n(missing/malformed tenant_id, unknown or suspended account), gating\neverything closed."
           }
         }
       },
@@ -18129,7 +18129,7 @@
       "InvitationDetails": {
         "required": [
           "email",
-          "profileName",
+          "roleName",
           "expiresAt"
         ],
         "type": "object",
@@ -18137,7 +18137,7 @@
           "email": {
             "type": "string"
           },
-          "profileName": {
+          "roleName": {
             "type": "string"
           },
           "expiresAt": {
@@ -18159,7 +18159,7 @@
           "id",
           "email",
           "scope",
-          "profileName",
+          "roleName",
           "status",
           "expiresAt",
           "createdAt"
@@ -18176,7 +18176,7 @@
           "scope": {
             "type": "string"
           },
-          "profileName": {
+          "roleName": {
             "type": "string"
           },
           "status": {
@@ -18914,27 +18914,6 @@
           }
         }
       },
-      "ProfileItem": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "isFullAccess": {
-            "type": "boolean"
-          },
-          "permissions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
       "ProjectListItem": {
         "required": [
           "id",
@@ -19462,7 +19441,7 @@
           }
         }
       },
-      "ResolveStaffProfileUserAssignmentsBody": {
+      "ResolveStaffRoleUserAssignmentsBody": {
         "type": "object",
         "properties": {
           "userIds": {
@@ -19470,7 +19449,7 @@
           }
         }
       },
-      "ResolveStaffProfileUserAssignmentsItem": {
+      "ResolveStaffRoleUserAssignmentsItem": {
         "required": [
           "userId",
           "isAssigned"
@@ -19486,7 +19465,7 @@
           }
         }
       },
-      "ResolveStaffProfileUserAssignmentsResult": {
+      "ResolveStaffRoleUserAssignmentsResult": {
         "required": [
           "assignments"
         ],
@@ -19495,12 +19474,12 @@
           "assignments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResolveStaffProfileUserAssignmentsItem"
+              "$ref": "#/components/schemas/ResolveStaffRoleUserAssignmentsItem"
             }
           }
         }
       },
-      "ResolveTenantProfileNameResolutionItem": {
+      "ResolveTenantRoleNameResolutionItem": {
         "required": [
           "name"
         ],
@@ -19509,7 +19488,7 @@
           "name": {
             "type": "string"
           },
-          "profileId": {
+          "roleId": {
             "type": [
               "null",
               "string"
@@ -19524,7 +19503,7 @@
           }
         }
       },
-      "ResolveTenantProfileNamesAsStaffBody": {
+      "ResolveTenantRoleNamesAsStaffBody": {
         "type": "object",
         "properties": {
           "names": {
@@ -19532,7 +19511,7 @@
           }
         }
       },
-      "ResolveTenantProfileNamesAsStaffResult": {
+      "ResolveTenantRoleNamesAsStaffResult": {
         "required": [
           "names"
         ],
@@ -19541,12 +19520,12 @@
           "names": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResolveTenantProfileNameResolutionItem"
+              "$ref": "#/components/schemas/ResolveTenantRoleNameResolutionItem"
             }
           }
         }
       },
-      "ResolveTenantProfileUserAssignmentsAsStaffBody": {
+      "ResolveTenantRoleUserAssignmentsAsStaffBody": {
         "type": "object",
         "properties": {
           "userAccountIds": {
@@ -19554,7 +19533,7 @@
           }
         }
       },
-      "ResolveTenantProfileUserAssignmentsAsStaffItem": {
+      "ResolveTenantRoleUserAssignmentsAsStaffItem": {
         "required": [
           "userAccountId",
           "isAssigned"
@@ -19570,7 +19549,7 @@
           }
         }
       },
-      "ResolveTenantProfileUserAssignmentsAsStaffResult": {
+      "ResolveTenantRoleUserAssignmentsAsStaffResult": {
         "required": [
           "assignments"
         ],
@@ -19579,7 +19558,28 @@
           "assignments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ResolveTenantProfileUserAssignmentsAsStaffItem"
+              "$ref": "#/components/schemas/ResolveTenantRoleUserAssignmentsAsStaffItem"
+            }
+          }
+        }
+      },
+      "RoleItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isFullAccess": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -19869,7 +19869,7 @@
           "createdAt",
           "invitedByName",
           "invitedByUserId",
-          "profiles"
+          "roles"
         ],
         "type": "object",
         "properties": {
@@ -19912,10 +19912,10 @@
             "type": "string",
             "format": "uuid"
           },
-          "profiles": {
+          "roles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StaffInvitationProfile"
+              "$ref": "#/components/schemas/StaffInvitationRole"
             }
           }
         }
@@ -19955,7 +19955,7 @@
           }
         }
       },
-      "StaffInvitationProfile": {
+      "StaffInvitationRole": {
         "required": [
           "id",
           "name"
@@ -19971,7 +19971,7 @@
           }
         }
       },
-      "StaffInvitationProfileInfo": {
+      "StaffInvitationRoleInfo": {
         "required": [
           "id",
           "name"
@@ -19987,9 +19987,9 @@
           }
         }
       },
-      "StaffProfileCreated": {
+      "StaffRoleCreated": {
         "required": [
-          "profileId",
+          "roleId",
           "name",
           "description",
           "permissionsAssigned",
@@ -19998,7 +19998,7 @@
         ],
         "type": "object",
         "properties": {
-          "profileId": {
+          "roleId": {
             "type": "string",
             "format": "uuid"
           },
@@ -20028,7 +20028,7 @@
           }
         }
       },
-      "StaffProfileItem": {
+      "StaffRoleItem": {
         "type": "object",
         "properties": {
           "id": {
@@ -20063,7 +20063,7 @@
           }
         }
       },
-      "StaffProfileUserItem": {
+      "StaffRoleUserItem": {
         "type": "object",
         "properties": {
           "id": {
@@ -20101,7 +20101,7 @@
           "id",
           "email",
           "scope",
-          "profiles",
+          "roles",
           "status",
           "expiresAt",
           "createdAt"
@@ -20118,16 +20118,16 @@
           "scope": {
             "type": "string"
           },
-          "profileName": {
+          "roleName": {
             "type": [
               "null",
               "string"
             ]
           },
-          "profiles": {
+          "roles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StaffInvitationProfileInfo"
+              "$ref": "#/components/schemas/StaffInvitationRoleInfo"
             }
           },
           "status": {
@@ -20258,7 +20258,23 @@
           }
         }
       },
-      "StaffUserProfileItem": {
+      "StaffUserReactivatedResult": {
+        "required": [
+          "userId",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus"
+          }
+        }
+      },
+      "StaffUserRoleItem": {
         "required": [
           "id",
           "name"
@@ -20277,22 +20293,6 @@
               "null",
               "string"
             ]
-          }
-        }
-      },
-      "StaffUserReactivatedResult": {
-        "required": [
-          "userId",
-          "status"
-        ],
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "status": {
-            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -20965,7 +20965,27 @@
           }
         }
       },
-      "TenantProfileItem": {
+      "TenantReactivatedResult": {
+        "required": [
+          "tenantId",
+          "name",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TenantStatus"
+          }
+        }
+      },
+      "TenantRoleItem": {
         "type": "object",
         "properties": {
           "id": {
@@ -21016,9 +21036,9 @@
           }
         }
       },
-      "TenantProfileUserItem": {
+      "TenantRoleUserItem": {
         "required": [
-          "otherProfiles"
+          "otherRoles"
         ],
         "type": "object",
         "properties": {
@@ -21057,10 +21077,10 @@
           "isFullAccess": {
             "type": "boolean"
           },
-          "otherProfiles": {
+          "otherRoles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TenantProfileUserProfileItem"
+              "$ref": "#/components/schemas/TenantRoleUserRoleItem"
             }
           },
           "joinedAt": {
@@ -21072,7 +21092,7 @@
           }
         }
       },
-      "TenantProfileUserProfileItem": {
+      "TenantRoleUserRoleItem": {
         "type": "object",
         "properties": {
           "id": {
@@ -21081,26 +21101,6 @@
           },
           "name": {
             "type": "string"
-          }
-        }
-      },
-      "TenantReactivatedResult": {
-        "required": [
-          "tenantId",
-          "name",
-          "status"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -21436,7 +21436,7 @@
           "GloballySuspended"
         ]
       },
-      "UnassignStaffProfileUsersBody": {
+      "UnassignStaffRoleUsersBody": {
         "required": [
           "userIds"
         ],
@@ -21494,7 +21494,7 @@
           }
         }
       },
-      "UpdateStaffProfileBody": {
+      "UpdateStaffRoleBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -21533,24 +21533,24 @@
           }
         }
       },
-      "UpdateStaffUserProfilesBody": {
+      "UpdateStaffUserRolesBody": {
         "type": "object",
         "properties": {
-          "profileIds": {
+          "roleIds": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
-      "UpdateStaffUserProfilesResult": {
+      "UpdateStaffUserRolesResult": {
         "required": [
-          "assignedProfiles"
+          "assignedRoles"
         ],
         "type": "object",
         "properties": {
-          "assignedProfiles": {
+          "assignedRoles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StaffUserProfileItem"
+              "$ref": "#/components/schemas/StaffUserRoleItem"
             }
           }
         }
@@ -21653,7 +21653,7 @@
           }
         }
       },
-      "UpdateTenantProfileAsStaffBody": {
+      "UpdateTenantRoleAsStaffBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -21715,7 +21715,7 @@
             "$ref": "#/components/schemas/JsonElement"
           }
         },
-        "description": "Updates a tenant user's name, avatar and/or profile assignments."
+        "description": "Updates a tenant user's name, avatar and/or role assignments."
       },
       "UpdateTenantUserEmailForStaffBody": {
         "type": "object",
@@ -21844,10 +21844,10 @@
       "name": "Permissions"
     },
     {
-      "name": "Staff Profiles"
+      "name": "Staff Roles"
     },
     {
-      "name": "Tenant Profiles (Staff View)"
+      "name": "Tenant Roles (Staff View)"
     },
     {
       "name": "Tenants"

@@ -87,13 +87,13 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				&& !ua.User.IsDeleted
 			select new StaffUserData {
 				User = ua.User,
-				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+				IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 					uap.UserAccountId == ua.Id
-					&& !uap.Profile.IsDeleted
-					&& uap.Profile.IsFullAccess),
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess),
 				Roles = (
-					from uap in this._DbContext.UserAccountProfile
-					join p in this._DbContext.Profile on uap.ProfileId equals p.Id
+					from uap in this._DbContext.UserAccountRole
+					join p in this._DbContext.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == ua.Id && !p.IsDeleted
 					orderby p.Name
 					select p.Name
@@ -194,10 +194,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			.Where(ua => ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted),
-		keySelector: ua => this._DbContext.UserAccountProfile.Any(uap =>
+		keySelector: ua => this._DbContext.UserAccountRole.Any(uap =>
 			uap.UserAccountId == ua.Id
-			&& !uap.Profile.IsDeleted
-			&& uap.Profile.IsFullAccess),
+			&& !uap.Role.IsDeleted
+			&& uap.Role.IsFullAccess),
 		idSelector: ua => ua.UserId,
 		cancellationToken
 	),
@@ -268,10 +268,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 		// Full access is a protected system role, not a level: count the accounts
 		// holding it over the same filtered collection.
 		var fullAccess = await query.CountAsync(
-			ua => this._DbContext.UserAccountProfile.Any(uap =>
+			ua => this._DbContext.UserAccountRole.Any(uap =>
 				uap.UserAccountId == ua.Id
-				&& !uap.Profile.IsDeleted
-				&& uap.Profile.IsFullAccess),
+				&& !uap.Role.IsDeleted
+				&& uap.Role.IsFullAccess),
 			cancellationToken
 		);
 
@@ -320,10 +320,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			from ua in orderedQuery
 			select new StaffUserData {
 				User = ua.User,
-				IsFullAccess = this._DbContext.UserAccountProfile.Any(uap =>
+				IsFullAccess = this._DbContext.UserAccountRole.Any(uap =>
 					uap.UserAccountId == ua.Id
-					&& !uap.Profile.IsDeleted
-					&& uap.Profile.IsFullAccess),
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess),
 			}
 		)
 			.Take(effectiveLimit + 1)
@@ -336,22 +336,22 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			nextCursor = results.Last().User.GetRequiredId().ToString();
 		}
 
-		// One batched profile query for the whole page, never one per row.
+		// One batched role query for the whole page, never one per row.
 		var pageUserIds = results
 			.Select(staffUser => staffUser.User.GetRequiredId())
 			.ToList();
 		var roleRows = await (
-			from accountProfile in this._DbContext.UserAccountProfile.AsNoTracking()
+			from accountRole in this._DbContext.UserAccountRole.AsNoTracking()
 			join account in this._DbContext.UserAccount.AsNoTracking()
-				on (Guid?)accountProfile.UserAccountId equals account.Id
-			join profile in this._DbContext.Profile.AsNoTracking()
-				on (Guid?)accountProfile.ProfileId equals profile.Id
+				on (Guid?)accountRole.UserAccountId equals account.Id
+			join role in this._DbContext.Role.AsNoTracking()
+				on (Guid?)accountRole.RoleId equals role.Id
 			where account.Scope == AccountScope.Staff
 				&& pageUserIds.Contains(account.UserId)
-				&& !profile.IsDeleted
+				&& !role.IsDeleted
 			select new {
 				account.UserId,
-				profile.Name,
+				role.Name,
 			}
 		).ToListAsync(cancellationToken);
 

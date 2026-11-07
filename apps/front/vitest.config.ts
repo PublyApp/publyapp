@@ -14,7 +14,7 @@ const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 // W6-FLAKE #827: the two tree-walking design-guard suites re-parse the whole
 // src tree on every assertion round. Running them CONCURRENTLY with the
 // render-heavy route fixtures starved render workers past testing-library's
-// findBy* budget under load (the profiles bulk-delete flake). They are
+// findBy* budget under load (the roles bulk-delete flake). They are
 // EXCLUDED here and run afterwards by vitest.design-guards.config.ts — see
 // the `test` script in package.json. A `projects` split with sequence
 // groupOrder was rejected because vite's config merge CONCATENATES per-

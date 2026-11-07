@@ -366,18 +366,18 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateAllStaffTenantScopes: () => Promise.resolve(),
 }));
 
-vi.mock('~/lib/query/staff-profiles', () => ({
-	invalidateStaffProfiles: () => Promise.resolve(),
-	useUpdateStaffProfileMutation: () => ({
+vi.mock('~/lib/query/staff-roles', () => ({
+	invalidateStaffRoles: () => Promise.resolve(),
+	useUpdateStaffRoleMutation: () => ({
 		mutateAsync: () => Promise.resolve(undefined),
 		isPending: false,
 	}),
 }));
 
-vi.mock('~/lib/query/staff-tenant-profiles', async () => {
+vi.mock('~/lib/query/staff-tenant-roles', async () => {
 	const actual = await vi.importActual<
-		typeof import('~/lib/query/staff-tenant-profiles')
-	>('~/lib/query/staff-tenant-profiles');
+		typeof import('~/lib/query/staff-tenant-roles')
+	>('~/lib/query/staff-tenant-roles');
 
 	return {
 		...actual,
@@ -387,11 +387,11 @@ vi.mock('~/lib/query/staff-tenant-profiles', async () => {
 			isError: false,
 			error: null,
 		}),
-		useCreateStaffTenantProfileMutation: () => ({
-			mutateAsync: () => Promise.resolve({ profile: { id: 'profile-1' } }),
+		useCreateStaffTenantRoleMutation: () => ({
+			mutateAsync: () => Promise.resolve({ role: { id: 'role-1' } }),
 			isPending: false,
 		}),
-		useUpdateStaffTenantProfileMutation: () => ({
+		useUpdateStaffTenantRoleMutation: () => ({
 			mutateAsync: () => Promise.resolve(undefined),
 			isPending: false,
 		}),
@@ -415,22 +415,22 @@ vi.mock('~/lib/query/staff-users', () => ({
 }));
 
 vi.mock(
-	'../../routes/authed/staff/tenants/$tenantId/_invite-profile-select',
+	'../../routes/authed/staff/tenants/$tenantId/_invite-role-select',
 	() => ({
-		InviteProfileSelect: () => null,
+		InviteRoleSelect: () => null,
 	}),
 );
 
-import { StaffProfileEditDetailsDrawer } from '../../routes/authed/staff/profiles/$profileId/_profile-edit-details-drawer';
+import { StaffRoleEditDetailsDrawer } from '../../routes/authed/staff/roles/$roleId/_role-edit-details-drawer';
 import { ChangeStaffUserEmailDialog } from '../../routes/authed/staff/staff-users/_change-email-dialog';
 import { LinkCompaniesDrawerHost } from '../../routes/authed/staff/tenant-users/$userId-organizations-drawer';
 import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
-import { ProfileEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer';
-import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer';
+import { RoleEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/roles/_role-edit-details-drawer';
+import { RoleFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/roles/_role-form-drawer';
 import {
-	getProfileFormValues,
-	type ProfileFormValues,
-} from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-schema';
+	getRoleFormValues,
+	type RoleFormValues,
+} from '../../routes/authed/staff/tenants/$tenantId/roles/_role-form-schema';
 import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
 import { BlueskyConnectDrawer } from '../../routes/authed/tenant/settings/_bluesky-connect-drawer';
 import { DiscordConnectDrawer } from '../../routes/authed/tenant/settings/_discord-connect-drawer';
@@ -1641,7 +1641,7 @@ const FORM_LESS_DRAWER_SURFACE_FILES = [
 	'src/routes/authed/staff/audit-logs/_audit-log-export-drawer.tsx',
 	'src/routes/authed/staff/jobs/_dead-letter-drawer.tsx',
 	'src/routes/authed/staff/jobs/queue.tsx',
-	'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx',
+	'src/routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-drawer.tsx',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -9500,17 +9500,17 @@ export const scanDrawerSurfaces = (options: DrawerScanOptions = {}) => {
 };
 
 const renderDrawerByCallSiteId = {
-	'profile-create': () => {
-		// ProfileFormDrawer receives its RHF instance from its host page, so
+	'role-create': () => {
+		// RoleFormDrawer receives its RHF instance from its host page, so
 		// the guard mounts it through a minimal owner component mirroring
 		// that contract instead of rendering it bare.
-		const ProfileCreateGuardHarness = () => {
-			const methods = useForm<ProfileFormValues>({
-				defaultValues: getProfileFormValues(),
+		const RoleCreateGuardHarness = () => {
+			const methods = useForm<RoleFormValues>({
+				defaultValues: getRoleFormValues(),
 			});
 
 			return (
-				<ProfileFormDrawer
+				<RoleFormDrawer
 					tenantId="tenant-1"
 					isOpen
 					onOpenChange={noop}
@@ -9521,15 +9521,15 @@ const renderDrawerByCallSiteId = {
 			);
 		};
 
-		render(<ProfileCreateGuardHarness />);
+		render(<RoleCreateGuardHarness />);
 	},
-	'profile-edit': () => {
+	'role-edit': () => {
 		render(
-			<ProfileEditDetailsDrawer
+			<RoleEditDetailsDrawer
 				tenantId="tenant-1"
 				isOpen
-				profile={{
-					id: 'profile-1',
+				role={{
+					id: 'role-1',
 					name: 'Author',
 					description: 'Draft posts',
 					icon: null,
@@ -9572,12 +9572,12 @@ const renderDrawerByCallSiteId = {
 			<LinkCompaniesDrawerHost userId="user-1" isOpen onOpenChange={noop} />,
 		);
 	},
-	'staff-profile-edit': () => {
+	'staff-role-edit': () => {
 		render(
-			<StaffProfileEditDetailsDrawer
+			<StaffRoleEditDetailsDrawer
 				isOpen
-				profile={{
-					id: 'profile-1',
+				role={{
+					id: 'role-1',
 					name: 'Author',
 					description: 'Draft posts',
 					icon: null,
@@ -12921,7 +12921,7 @@ describe('drawer surface flex chain guard (#990)', () => {
 	}
 
 	test('the drawer form wrapper preserves the general form inter-child spacing', () => {
-		renderDrawerByCallSiteId['profile-create']();
+		renderDrawerByCallSiteId['role-create']();
 		render(
 			<div data-testid="general-form-spacing-reference">
 				<SpacingReferenceForm />
@@ -12929,7 +12929,7 @@ describe('drawer surface flex chain guard (#990)', () => {
 		);
 
 		const drawerForm = screen
-			.getByTestId('profile-form-drawer')
+			.getByTestId('role-form-drawer')
 			.querySelector('form.publy-drawer-form');
 		const generalForm = screen
 			.getByTestId('general-form-spacing-reference')

@@ -649,7 +649,7 @@ public sealed class AddEmailLogAndFoldEmailOutboxSpec : IClassFixture<ApiFixture
 		db.User.Add(inviter);
 		await db.SaveChangesAsync();
 
-		var invitation = Invitation.CreateStaffInvitationWithProfiles(
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
 			inviter.GetRequiredId(),

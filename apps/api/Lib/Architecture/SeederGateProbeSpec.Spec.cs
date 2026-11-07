@@ -45,7 +45,7 @@ public sealed class SeederGateProbeSpec {
 			var payload = results.Payload.Required();
 			payload.DemoSeedersExcluded.Should().BeTrue();
 			payload.HasSeededPermissions.Should().BeTrue();
-			payload.HasStaffOwnerProfile.Should().BeTrue();
+			payload.HasStaffOwnerRole.Should().BeTrue();
 			payload.HasSystemJobDefinitions.Should().BeTrue();
 			payload.HasOwnerUser.Should().BeTrue();
 			payload.HasOwnerAccount.Should().BeTrue();
@@ -137,7 +137,7 @@ public sealed class SeederGateProbeSpec {
 	private sealed record SeederGatePayload(
 		bool DemoSeedersExcluded,
 		bool HasSeededPermissions,
-		bool HasStaffOwnerProfile,
+		bool HasStaffOwnerRole,
 		bool HasSystemJobDefinitions,
 		bool HasOwnerUser,
 		bool HasOwnerAccount,

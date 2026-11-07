@@ -57,7 +57,7 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const labels: TestLabelMap = {
 				basics: 'Basics',
-				profiles: 'Profiles',
+				roles: 'Roles',
 				invitations: 'Invitations',
 				users: 'Users',
 				usage: 'Usage',
@@ -83,7 +83,7 @@ const tenant: StaffTenantDetails = {
 	ownersCount: 4,
 	pendingInvitationsCount: 4,
 	expiringSoonInvitationsCount: 2,
-	profilesCount: 6,
+	rolesCount: 6,
 	logoUrl: null,
 	legalName: null,
 	description: null,
@@ -120,7 +120,7 @@ describe('TenantDetailsPageShell tabs', () => {
 		expect(active.tagName).toBe('SPAN');
 
 		const expectedHrefs: [string, string][] = [
-			['Profiles', `/staff/tenants/${tenant.id}/profiles`],
+			['Roles', `/staff/tenants/${tenant.id}/roles`],
 			['Invitations', `/staff/tenants/${tenant.id}/invitations`],
 			['Users', `/staff/tenants/${tenant.id}/users`],
 			['Usage', `/staff/tenants/${tenant.id}/usage`],
@@ -147,14 +147,14 @@ describe('TenantDetailsPageShell tabs', () => {
 		render(
 			<TenantDetailsPageShell
 				tenant={tenant}
-				activeSection="profiles"
-				testId="staff-tenant-profiles-page"
+				activeSection="roles"
+				testId="staff-tenant-roles-page"
 			>
 				<div data-testid="tab-body-marker">content</div>
 			</TenantDetailsPageShell>,
 		);
 
-		const shell = screen.getByTestId('staff-tenant-profiles-page');
+		const shell = screen.getByTestId('staff-tenant-roles-page');
 		expect(shell.getAttribute('data-body-scroll')).toBe('page');
 		expect(shell.className).not.toContain('h-full');
 		expect(

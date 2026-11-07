@@ -23,7 +23,7 @@
  * "bounded by the CSS guard" - the source scan is the bound.
  *
  * House style follows drawer-description-contrast.test.ts and
- * profile-icon-picker-pin-contrast.test.ts: read the real stylesheets, strip
+ * role-icon-picker-pin-contrast.test.ts: read the real stylesheets, strip
  * comments only for fallback scans, use postcss for the CSS walk.
  */
 

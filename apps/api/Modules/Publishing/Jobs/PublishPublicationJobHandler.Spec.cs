@@ -229,7 +229,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 		var sessionProvider = FakeSessions.Opened();
 		var publishProvider = new FakePublishProvider(
-			new PublishResult.Published(recordUri, $"https://bsky.app/profile/x/post/{recordUri}")
+			new PublishResult.Published(recordUri, $"https://bsky.app/role/x/post/{recordUri}")
 		);
 		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, publishProvider, sessionProvider);
 
@@ -267,7 +267,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.AlreadyExistsTreatedAsPublished(
 				$"at://did:plc:x/app.bsky.feed.post/pub-{seeded.IdempotencyKey}",
-				"https://bsky.app/profile/x/post/existing"
+				"https://bsky.app/role/x/post/existing"
 			)
 		);
 		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, publishProvider, FakeSessions.Opened());
@@ -343,7 +343,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.AlreadyExistsTreatedAsPublished(
 				$"at://did:plc:x/app.bsky.feed.post/pub-{seeded.IdempotencyKey}",
-				"https://bsky.app/profile/x/post/existing"
+				"https://bsky.app/role/x/post/existing"
 			)
 		);
 		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, publishProvider, FakeSessions.Opened());
@@ -1625,7 +1625,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
-		second.Reconciles.Should().BeEmpty("the user already reviewed the profile");
+		second.Reconciles.Should().BeEmpty("the user already reviewed the role");
 		second.Writes.Should().Be(1);
 	}
 

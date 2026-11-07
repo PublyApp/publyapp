@@ -3,9 +3,9 @@
 	"staff-invited-by": "Invited By",
 	"add-invitation": "Add invitation",
 	"send-invitations": "Send invitations",
-	"enter-email-and-select-profiles": "Enter email address and select roles to invite",
+	"enter-email-and-select-roles": "Enter email address and select roles to invite",
 	"remove-invitation": "Remove invitation",
-	"select-at-least-one-profile": "Select at least one role",
+	"select-at-least-one-role": "Select at least one role",
 	"send-reminder": "Send reminder",
 	"invitation-details": "Invitation details",
 	"invitation-not-found-description": "This invitation no longer exists, or the link is wrong.",
@@ -34,9 +34,9 @@
 	"invite-staff-users-to-the-platform": "Invite staff users to the platform.",
 	"no-invitations-found": "No invitations found.",
 	"no-invitations-match-your-search": "No invitations match your search.",
-	"send-email-invitations-and-assign-staff-profiles": "Send email invitations and assign staff roles.",
+	"send-email-invitations-and-assign-staff-roles": "Send email invitations and assign staff roles.",
 	"validation-failed": "Validation failed.",
 	"invitation-missing-email": "Missing email",
-	"unknown-profile": "Unknown role",
+	"unknown-role": "Unknown role",
 	"unknown-inviter": "Unknown inviter"
 }

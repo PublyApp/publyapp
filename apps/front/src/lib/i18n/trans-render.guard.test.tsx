@@ -144,7 +144,7 @@ type InvitationLoaderData =
 			view: 'valid';
 			token: string;
 			email: string;
-			profileName: string;
+			roleName: string;
 			userExists: boolean;
 	  };
 
@@ -360,7 +360,7 @@ const CALL_SITES: CallSiteSpec[] = [
 			view: 'valid',
 			token: 'tok-guard',
 			email: INVITED_EMAIL,
-			profileName: 'Editor',
+			roleName: 'Editor',
 			userExists: true,
 		},
 		key: 'auth-invitation-existing-user-mismatch-description',
@@ -380,7 +380,7 @@ const CALL_SITES: CallSiteSpec[] = [
 			view: 'valid',
 			token: 'tok-guard',
 			email: INVITED_EMAIL,
-			profileName: 'Editor',
+			roleName: 'Editor',
 			userExists: false,
 		},
 		key: 'auth-invitation-new-user-mismatch-description',

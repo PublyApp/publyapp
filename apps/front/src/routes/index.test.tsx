@@ -56,7 +56,7 @@ const TOUR_TAB_IDS = [
 	'calendar',
 	'composer',
 	'approvals',
-	'profiles',
+	'roles',
 	'dashboards',
 ] as const;
 

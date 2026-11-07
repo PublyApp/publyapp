@@ -62,7 +62,7 @@ describe('loadInvitationInfo', () => {
 		mocks.checkGet.mockResolvedValue({ userExists: true });
 		mocks.detailsGet.mockResolvedValue({
 			email: 'rui@latticecloud.com',
-			profileName: 'Approvers',
+			roleName: 'Approvers',
 		});
 
 		await expect(
@@ -70,7 +70,7 @@ describe('loadInvitationInfo', () => {
 		).resolves.toEqual({
 			ok: true,
 			email: 'rui@latticecloud.com',
-			profileName: 'Approvers',
+			roleName: 'Approvers',
 			userExists: true,
 		});
 	});

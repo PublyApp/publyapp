@@ -53,7 +53,7 @@ const buildTenant = (
 	ownersCount: 1,
 	pendingInvitationsCount: 2,
 	expiringSoonInvitationsCount: 0,
-	profilesCount: 4,
+	rolesCount: 4,
 	code: null,
 	logoUrl: null,
 	legalName: null,

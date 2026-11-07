@@ -55,7 +55,7 @@ const buildTenantPayload = (overrides: Record<string, unknown> = {}) => ({
 	ownersCount: 2,
 	pendingInvitationsCount: 4,
 	expiringSoonInvitationsCount: 2,
-	profilesCount: 6,
+	rolesCount: 6,
 	logoUrl: null,
 	legalName: null,
 	description: null,

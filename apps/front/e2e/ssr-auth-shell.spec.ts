@@ -554,16 +554,16 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 	// states = 12 cases); only the loop that ran them inside one test has been
 	// lifted to generate one test() per case.
 	const geometryCases = [
-		{ pathname: '/staff/profiles', sidebarOpen: true, width: 390 },
-		{ pathname: '/staff/profiles', sidebarOpen: false, width: 390 },
+		{ pathname: '/staff/roles', sidebarOpen: true, width: 390 },
+		{ pathname: '/staff/roles', sidebarOpen: false, width: 390 },
 		{ pathname: '/staff/staff-users', sidebarOpen: true, width: 390 },
 		{ pathname: '/staff/staff-users', sidebarOpen: false, width: 390 },
-		{ pathname: '/staff/profiles', sidebarOpen: true, width: 800 },
-		{ pathname: '/staff/profiles', sidebarOpen: false, width: 800 },
+		{ pathname: '/staff/roles', sidebarOpen: true, width: 800 },
+		{ pathname: '/staff/roles', sidebarOpen: false, width: 800 },
 		{ pathname: '/staff/staff-users', sidebarOpen: true, width: 800 },
 		{ pathname: '/staff/staff-users', sidebarOpen: false, width: 800 },
-		{ pathname: '/staff/profiles', sidebarOpen: true, width: 1440 },
-		{ pathname: '/staff/profiles', sidebarOpen: false, width: 1440 },
+		{ pathname: '/staff/roles', sidebarOpen: true, width: 1440 },
+		{ pathname: '/staff/roles', sidebarOpen: false, width: 1440 },
 		{ pathname: '/staff/staff-users', sidebarOpen: true, width: 1440 },
 		{ pathname: '/staff/staff-users', sidebarOpen: false, width: 1440 },
 	] as const;

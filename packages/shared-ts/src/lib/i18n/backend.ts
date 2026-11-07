@@ -43,14 +43,8 @@ const sharedLoaders = new Map<SharedLoaderKey, ResourceLoader>([
 	['fr/posts', () => import('./json/posts.fr.json')],
 	['en/social-accounts', () => import('./json/social-accounts.en.json')],
 	['fr/social-accounts', () => import('./json/social-accounts.fr.json')],
-	[
-		'en/staff-tenant-profiles',
-		() => import('./json/staff-tenant-profiles.en.json'),
-	],
-	[
-		'fr/staff-tenant-profiles',
-		() => import('./json/staff-tenant-profiles.fr.json'),
-	],
+	['en/staff-tenant-roles', () => import('./json/staff-tenant-roles.en.json')],
+	['fr/staff-tenant-roles', () => import('./json/staff-tenant-roles.fr.json')],
 	['en/staff-users', () => import('./json/staff-users.en.json')],
 	['fr/staff-users', () => import('./json/staff-users.fr.json')],
 	['en/staff-invitations', () => import('./json/staff-invitations.en.json')],

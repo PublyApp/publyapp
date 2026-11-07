@@ -51,7 +51,7 @@ type EntityHeaderSkeletonProps = React.ComponentProps<'div'> & {
 	lines: string[];
 	/**
 	 * `inline` (default): tile left of the stacked name/meta lines — mirrors
-	 * the loaded identity blocks on account/profile-style pages. `stacked`:
+	 * the loaded identity blocks on account/role-style pages. `stacked`:
 	 * tile above the lines — mirrors compact identity cards in grids.
 	 */
 	orientation?: 'inline' | 'stacked';

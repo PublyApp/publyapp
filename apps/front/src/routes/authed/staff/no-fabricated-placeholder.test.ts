@@ -29,7 +29,7 @@ const staffDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 // check because it was mid-edit by a concurrent packet and several files
 // there carried the same `|| '—'` shape for REQUIRED identity fields
 // (`tenants/$tenantId/users.tsx`, `tenants/$tenantId.tsx`,
-// `tenants/$tenantId/invitations.tsx`, `tenants/$tenantId/profiles.tsx`,
+// `tenants/$tenantId/invitations.tsx`, `tenants/$tenantId/roles.tsx`,
 // `tenants/$tenantId/users/$userId.tsx`). Those have all been swept — the
 // mappers now guarantee non-null email/name, so the rendering-boundary
 // fallback was dead defensive code and has been removed — so the exemption

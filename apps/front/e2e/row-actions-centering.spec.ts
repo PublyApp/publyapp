@@ -6,7 +6,7 @@ import { loginAsStaffAdmin } from './helpers/login';
 // Kiota's getGuidValue() silently drops rows with non-UUID ids, which makes
 // a table look empty while the test still passes — mocks must use real UUIDs.
 const TENANT_ID = '0197b8f0-6001-7aaa-8aaa-aaaaaaaaaaaa';
-const PROFILE_ID = '0197b8f0-6002-7bbb-8bbb-bbbbbbbbbbbb';
+const ROLE_ID = '0197b8f0-6002-7bbb-8bbb-bbbbbbbbbbbb';
 const INVITATION_ID = '0197b8f0-6003-7ccc-8ccc-cccccccccccc';
 
 const isApiPath = (url: string, path: string): boolean => {
@@ -43,12 +43,12 @@ const mockStaffTenantsList = async (page: Page) => {
 	});
 };
 
-const mockStaffProfilesList = async (page: Page) => {
-	await page.route('**/staff/profiles**', async (route) => {
+const mockStaffRolesList = async (page: Page) => {
+	await page.route('**/staff/roles**', async (route) => {
 		const request = route.request();
 		if (
 			request.method() === 'GET' &&
-			isApiPath(request.url(), '/staff/profiles')
+			isApiPath(request.url(), '/staff/roles')
 		) {
 			await route.fulfill({
 				status: 200,
@@ -56,8 +56,8 @@ const mockStaffProfilesList = async (page: Page) => {
 				body: JSON.stringify({
 					data: [
 						{
-							id: PROFILE_ID,
-							name: 'Centring Profile',
+							id: ROLE_ID,
+							name: 'Centring Role',
 							description: null,
 							userAccountCount: 0,
 						},
@@ -86,7 +86,7 @@ const mockStaffInvitationsList = async (page: Page) => {
 						{
 							id: INVITATION_ID,
 							email: 'centring-invite@example.com',
-							profileName: 'Admins',
+							roleName: 'Admins',
 							status: 'Pending',
 							expiresAt: '2026-07-10T12:00:00Z',
 							acceptedAt: null,
@@ -156,14 +156,14 @@ test.describe(
 			await assertActionTriggerCentredInCell(page, 'staff-tenants-table');
 		});
 
-		test('profiles: the ⋯ trigger is centred within its 40px column', async ({
+		test('roles: the ⋯ trigger is centred within its 40px column', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
-			await mockStaffProfilesList(page);
-			await page.goto('/staff/profiles');
-			await expect(page.getByTestId('staff-profiles-table-rows')).toBeVisible();
-			await assertActionTriggerCentredInCell(page, 'staff-profiles-table');
+			await mockStaffRolesList(page);
+			await page.goto('/staff/roles');
+			await expect(page.getByTestId('staff-roles-table-rows')).toBeVisible();
+			await assertActionTriggerCentredInCell(page, 'staff-roles-table');
 		});
 
 		test('invitations: the ⋯ trigger is centred within its 40px column', async ({

@@ -28,10 +28,8 @@ const staffUserEditValuesMatch = (
 	left.avatarUrl === right.avatarUrl &&
 	left.email === right.email &&
 	left.status === right.status &&
-	left.profileIds.length === right.profileIds.length &&
-	left.profileIds.every(
-		(profileId, index) => profileId === right.profileIds[index],
-	);
+	left.roleIds.length === right.roleIds.length &&
+	left.roleIds.every((roleId, index) => roleId === right.roleIds[index]);
 
 /** Called by the hydration effect, outside render, right after a fresh reset. */
 export const rememberPristineStaffUserEditValues = (

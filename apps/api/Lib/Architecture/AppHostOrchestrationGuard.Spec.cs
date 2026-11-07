@@ -154,13 +154,13 @@ public sealed partial class AppHostOrchestrationGuardSpec : IDisposable {
 
 		dump.Should().Contain(
 			"launchProfile worker excluded",
-			"the worker's constructed model must carry ExcludeLaunchProfileAnnotation — the "
+			"the worker's constructed model must carry ExcludeLaunchRoleAnnotation — the "
 				+ "dump is printed by the AppHost from the model it actually built. "
 				+ "Round-3 counter-mutation: dropping launchProfileName: null made "
-				+ "Aspire's AddProject select the 'http' launch profile for the worker, "
+				+ "Aspire's AddProject select the 'http' launch role for the worker, "
 				+ "which then tried to bind the API's port 5000 (DCP proxy fails with "
 				+ "'address already in use'), while the source-token guard stayed green. "
-				+ "The worker must have NO launch profile: it has no HTTP endpoints. "
+				+ "The worker must have NO launch role: it has no HTTP endpoints. "
 				+ $"Dump: {dump}"
 		);
 	}

@@ -124,7 +124,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 
 	// navigation properties
 	[JsonIgnore]
-	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
+	public ICollection<UserAccountRole> UserAccountRoles { get; set; } = [];
 
 	public static AccountStatus? ParseStatus(string statusString) {
 		var isSuspended = string.Equals(

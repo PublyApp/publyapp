@@ -7,10 +7,10 @@
  *
  *   1. `apps/front/src/routes/authed/tenant/settings/general.tsx`
  *      (TenantSettingsGeneralPage — two editable cards + a danger card)
- *   2. `apps/front/src/routes/authed/tenant/account/profile.tsx`
+ *   2. `apps/front/src/routes/authed/tenant/account/role.tsx`
  *      (AccountProfilePage — one editable card + a read-only preferences card)
- *   3. `apps/front/src/routes/authed/staff/tenants/$tenantId/profiles.tsx`
- *      (staff tenant profiles list — a card grid of profile cards)
+ *   3. `apps/front/src/routes/authed/staff/tenants/$tenantId/roles.tsx`
+ *      (staff tenant roles list — a card grid of role cards)
  *
  * #1542's correctness lived in a careful diff: the loading skeleton was
  * substituted class-for-class so the page did not jump on resolve. Nothing
@@ -198,8 +198,8 @@ vi.mock('~/lib/query/tenant-account-profile', async () => {
 	};
 });
 
-const PROFILE_LABELS: TestLabelMap = {
-	profile: 'Profile',
+const ROLE_LABELS: TestLabelMap = {
+	role: 'Role',
 	'personal-information': 'Personal information',
 	preferences: 'Preferences',
 	'first-name': 'First name',
@@ -212,14 +212,14 @@ const PROFILE_LABELS: TestLabelMap = {
 	'read-only': 'Read only',
 	'un-named': 'Unnamed',
 	'save-changes': 'Save changes',
-	'failed-to-load-profile': 'Failed to load profile',
-	'failed-to-load-profile-description': 'Profile could not be loaded.',
+	'failed-to-load-role': 'Failed to load role',
+	'failed-to-load-role-description': 'Role could not be loaded.',
 	'unknown-error': 'Unknown error',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => PROFILE_LABELS[key.replace(/^common:/, '')] ?? key,
+		t: (key: string) => ROLE_LABELS[key.replace(/^common:/, '')] ?? key,
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -230,7 +230,7 @@ import { Route as AccountProfileRoute } from '~/routes/authed/tenant/account/pro
 const AccountProfilePage = AccountProfileRoute.options
 	.component as ComponentType;
 
-const markProfileQueryLoaded = () => {
+const markRoleQueryLoaded = () => {
 	profileMocks.profileQuery = {
 		data: {
 			id: 'user-1',
@@ -246,7 +246,7 @@ const markProfileQueryLoaded = () => {
 	};
 };
 
-const markProfileQueryPending = () => {
+const markRoleQueryPending = () => {
 	profileMocks.profileQuery = {
 		data: undefined,
 		isPending: true,
@@ -332,7 +332,7 @@ const captureLoadedFingerprint = (
 	const formControlCount =
 		inputs.length + textareas.length + selectTriggers.length;
 
-	// Identity-header text blocks: surface 2 (account profile) renders the
+	// Identity-header text blocks: surface 2 (account role) renders the
 	// displayName + email inside a `flex items-center gap-4` row at the top
 	// of the identity card. Surface 1 does not have such a header row, so
 	// headerLineCount stays 0 there.
@@ -378,7 +378,7 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 
 	describe('AccountProfilePage', () => {
 		test('skeleton row count + header lines match loaded fields + header blocks', () => {
-			markProfileQueryPending();
+			markRoleQueryPending();
 			const loading = renderWithQueryClient(<AccountProfilePage />);
 			const loadingFp = captureLoadingFingerprint(loading.container);
 
@@ -393,7 +393,7 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 				orientation: 'inline',
 			});
 
-			markProfileQueryLoaded();
+			markRoleQueryLoaded();
 			const loaded = renderWithQueryClient(<AccountProfilePage />);
 			const loadedFp = captureLoadedFingerprint(loaded.container);
 
@@ -411,7 +411,7 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 		});
 	});
 
-	describe('ProfileCardGridSkeleton ↔ ProfileCard', () => {
+	describe('RoleCardGridSkeleton ↔ RoleCard', () => {
 		test('stacked header lines per card match the card content structure', async () => {
 			// Surface 3 is structured as a grid of cards, not a single form.
 			// The skeleton paints 6 cards; the loaded state paints one card
@@ -420,14 +420,14 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 			// card has 3 text blocks (name + description + member/permission
 			// meta) plus a chip and an actions button.
 			//
-			// We render the REAL ProfileCardGridSkeleton (not a local
+			// We render the REAL RoleCardGridSkeleton (not a local
 			// EntityHeaderSkeleton with copied props) so a mutation to the
 			// real component's `lines` array is caught by this test.
-			const { ProfileCardGridSkeleton } =
-				await import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card');
+			const { RoleCardGridSkeleton } =
+				await import('~/routes/authed/staff/tenants/$tenantId/roles/_role-card');
 
 			const { container } = render(
-				<ProfileCardGridSkeleton testId="profiles-grid" />,
+				<RoleCardGridSkeleton testId="roles-grid" />,
 			);
 			const fp = captureLoadingFingerprint(container);
 
@@ -441,13 +441,13 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 				expect(fp.headers[i]).toEqual(fp.headers[0]);
 			}
 
-			// Loaded side: the real ProfileCard component (the consumer
+			// Loaded side: the real RoleCard component (the consumer
 			// referenced by the third surface) renders exactly the
 			// corresponding content blocks per card.
-			const { ProfileCard } =
-				await import('~/routes/authed/staff/tenants/$tenantId/profiles/_profile-card');
-			const sampleProfile = {
-				id: 'profile-1',
+			const { RoleCard } =
+				await import('~/routes/authed/staff/tenants/$tenantId/roles/_role-card');
+			const sampleRole = {
+				id: 'role-1',
 				name: 'Approvers',
 				description: 'Can review approvals',
 				icon: undefined,
@@ -457,9 +457,9 @@ describe('detail skeleton ↔ content correspondence (#1558)', () => {
 				permissionsCount: 12,
 			};
 			const { container: loadedContainer } = render(
-				<ProfileCard
+				<RoleCard
 					tenantId="tenant-1"
-					profile={sampleProfile}
+					role={sampleRole}
 					onEditRequest={vi.fn()}
 					onDeleteRequest={vi.fn()}
 					isSelected={false}

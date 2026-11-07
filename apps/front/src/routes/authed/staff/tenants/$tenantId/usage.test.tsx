@@ -50,7 +50,7 @@ const TRANSLATIONS: TestLabelMap = {
 	'tenant-owner-count': '{{count}} owners',
 	'since-date': 'Since {{date}}',
 	basics: 'Basics',
-	profiles: 'Profiles',
+	roles: 'Roles',
 	invitations: 'Invitations',
 	users: 'Users',
 	usage: 'Usage',

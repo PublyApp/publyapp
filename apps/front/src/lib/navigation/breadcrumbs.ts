@@ -6,10 +6,10 @@ import type { AppRoutePath } from '~/lib/navigation/route-metadata';
 
 import type {
 	AuditLogDetail,
-	GetStaffProfileByIdResult,
+	GetStaffRoleByIdResult,
 	GetStaffUserByIdResult,
 	GetTenantAsStaffResult,
-	GetTenantProfileByIdResponse,
+	GetTenantRoleByIdResponse,
 	StaffInvitationDetails,
 	TenantUserDetailsResult,
 } from '@org/client-ts/models/index';
@@ -21,10 +21,10 @@ import type {
  */
 type EntityCrumbPayload =
 	| AuditLogDetail
-	| GetStaffProfileByIdResult
+	| GetStaffRoleByIdResult
 	| GetStaffUserByIdResult
 	| GetTenantAsStaffResult
-	| GetTenantProfileByIdResponse
+	| GetTenantRoleByIdResponse
 	| StaffInvitationDetails
 	| TenantUserDetailsResult;
 
@@ -46,9 +46,9 @@ export type EntityCrumbQuery = {
 /**
  * `to` is a plain `string`, not `AppRoutePath` (the literal route-template
  * union), on BOTH variants — an intermediate crumb under a dynamic route
- * (e.g. "Profiles" under a specific tenant, or the tenant entity itself)
+ * (e.g. "Roles" under a specific tenant, or the tenant entity itself)
  * needs an already-interpolated concrete href like
- * `` `/staff/tenants/${tenantId}/profiles` ``, which is never a member of
+ * `` `/staff/tenants/${tenantId}/roles` ``, which is never a member of
  * that literal union. This matches how the router's own `Link` falls back to
  * loose `string` acceptance once a value's static type can't be narrowed to a
  * specific literal.

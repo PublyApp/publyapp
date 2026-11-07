@@ -12,7 +12,7 @@ import {
 	buildFindStaffUsersQueryParameters,
 	invalidateStaffUsers,
 	STAFF_USERS_QUERY_KEY,
-	toAssignedStaffProfiles,
+	toAssignedStaffRoles,
 	toStaffUserDetails,
 	toStaffUserRows,
 } from '~/lib/query/staff-users';
@@ -21,7 +21,7 @@ import {
 import { UserStatusObject } from '@org/client-ts/models/index';
 import type {
 	GetStaffUserByIdResult,
-	GetStaffUserProfilesResult,
+	GetStaffUserRolesResult,
 	StaffUserItem,
 } from '@org/client-ts/models/index';
 
@@ -200,17 +200,17 @@ describe('toStaffUserDetails', () => {
 	});
 });
 
-describe('toAssignedStaffProfiles', () => {
-	test('normalizes assigned profiles and skips items without usable ids', () => {
-		const result = toAssignedStaffProfiles({
-			assignedProfiles: [
+describe('toAssignedStaffRoles', () => {
+	test('normalizes assigned roles and skips items without usable ids', () => {
+		const result = toAssignedStaffRoles({
+			assignedRoles: [
 				{
-					id: 'profile-1',
+					id: 'role-1',
 					name: ' Platform admins ',
 					description: ' Full staff access ',
 				},
 				{
-					id: 'profile-2',
+					id: 'role-2',
 					name: '   ',
 					description: ' ',
 				},
@@ -220,17 +220,17 @@ describe('toAssignedStaffProfiles', () => {
 					description: 'Missing id',
 				},
 			],
-			maxProfilesPerUser: 3,
-		} as GetStaffUserProfilesResult);
+			maxRolesPerUser: 3,
+		} as GetStaffUserRolesResult);
 
 		expect(result).toEqual([
 			{
-				id: 'profile-1',
+				id: 'role-1',
 				name: 'Platform admins',
 				description: 'Full staff access',
 			},
 			{
-				id: 'profile-2',
+				id: 'role-2',
 				name: undefined,
 				description: null,
 			},
@@ -238,11 +238,11 @@ describe('toAssignedStaffProfiles', () => {
 	});
 
 	test('returns an empty list when the payload is empty', () => {
-		expect(toAssignedStaffProfiles(undefined)).toEqual([]);
+		expect(toAssignedStaffRoles(undefined)).toEqual([]);
 		expect(
-			toAssignedStaffProfiles({
-				assignedProfiles: null,
-			} as GetStaffUserProfilesResult),
+			toAssignedStaffRoles({
+				assignedRoles: null,
+			} as GetStaffUserRolesResult),
 		).toEqual([]);
 	});
 });

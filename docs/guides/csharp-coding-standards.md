@@ -63,6 +63,7 @@ var users = db.Users
 ```
 
 **Exception:** Method syntax is acceptable for:
+
 - Simple single operations: `.First()`, `.Count()`, `.Any()`, `.ToList()`
 - Operations without query syntax equivalents
 - In-memory collections
@@ -82,12 +83,14 @@ if (users.Count == 0)
 ```
 
 **Why prefer `Count > 0`:**
+
 - More explicit and clearer intent
 - Better performance for collections that already have a Count property (List<T>, array, etc.)
 - Avoids unnecessary enumeration overhead
 - More consistent with common C# idioms
 
 **Exception:** Use `.Any()` when:
+
 - Working with IEnumerable<T> that doesn't have an efficient Count implementation
 - Using `.Any(predicate)` with a condition: `users.Any(u => u.IsActive)`
 - The collection is a LINQ query that hasn't been materialized yet
@@ -139,6 +142,7 @@ var results = await Task.WhenAll(tasks);
 **Important:** Do NOT use `ConfigureAwait(false)` in this ASP.NET Core application. ASP.NET Core has no SynchronizationContext, so it provides zero benefit.
 
 **Always:**
+
 - Add `CancellationToken cancellationToken = default` to all public async methods
 - Use EF Core async methods: `FindAsync`, `FirstOrDefaultAsync`, `ToListAsync`, `SaveChangesAsync`, `ExecuteUpdateAsync`
 - Run independent queries in parallel with `Task.WhenAll()`
@@ -206,7 +210,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 // Request DTO (Body suffix for request body, Query suffix for query params)
 public record CreateStaffInvitationBody {
     public required JsonElement Email { get; init; }      // JsonElement for body params!
-    public required JsonElement ProfileId { get; init; }
+    public required JsonElement RoleId { get; init; }
 }
 
 // Response DTO (no Dto suffix!)
@@ -219,7 +223,7 @@ public record InvitationCreated {
 public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffInvitationBody> {
     public CreateStaffInvitationBodyValidator() {
         this.RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        this.RuleFor(x => x.ProfileId).NotEmpty();
+        this.RuleFor(x => x.RoleId).NotEmpty();
     }
 }
 
@@ -240,6 +244,7 @@ public sealed class CreateStaffInvitation {
 ```
 
 **Rules:**
+
 1. **NO separate DTO files** - Define request/response types in the handler file
 2. **NO separate Validator files** - Define validators in the handler file
 3. **NO "Dto" suffix** - Use descriptive names like `InvitationCreated`, NOT `InvitationDto`
@@ -287,7 +292,7 @@ Example from `CreateStaffInvitation.cs`, lightly abbreviated:
 ```csharp
 public record CreateStaffInvitationBody {
     public required JsonElement Email { get; init; }
-    public required JsonElement ProfileId { get; init; }
+    public required JsonElement RoleId { get; init; }
 }
 
 public record InvitationCreated {
@@ -324,10 +329,10 @@ public sealed class CreateStaffInvitation {
         }
 
         var email = body.Email.GetValueAsString();
-        var profileId = Guid.Parse(body.ProfileId.GetValueAsString());
+        var roleId = Guid.Parse(body.RoleId.GetValueAsString());
         var createArgs = new CreateStaffInvitationArgs(
             Email: email,
-            ProfileIds: [profileId],
+            RoleIds: [roleId],
             InvitedByUserId: account.UserId
         );
         var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
@@ -398,18 +403,18 @@ Handlers MUST NOT:
 
 ### Type placement
 
-| Belongs in the handler file | Belongs outside the handler file |
-|---|---|
-| `<Operation>Body` | Service `Args` records in service file |
-| `<Operation>Query` | EF entities in entity file |
-| `<Operation>BodyValidator` | Permission definitions in `Permissions` folder |
-| `<Operation>QueryValidator` | Infrastructure contracts in `Infrastructure` folder |
-| `<Operation>Result` | Domain/shared validation helpers when genuinely reused across handlers |
-| `<Operation>Response` |  |
-| `<Operation>Item` |  |
+| Belongs in the handler file | Belongs outside the handler file                                       |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `<Operation>Body`           | Service `Args` records in service file                                 |
+| `<Operation>Query`          | EF entities in entity file                                             |
+| `<Operation>BodyValidator`  | Permission definitions in `Permissions` folder                         |
+| `<Operation>QueryValidator` | Infrastructure contracts in `Infrastructure` folder                    |
+| `<Operation>Result`         | Domain/shared validation helpers when genuinely reused across handlers |
+| `<Operation>Response`       |                                                                        |
+| `<Operation>Item`           |                                                                        |
 
-*Prefer duplicating tiny HTTP wire types over sharing prematurely across
-unrelated handlers.*
+_Prefer duplicating tiny HTTP wire types over sharing prematurely across
+unrelated handlers._
 
 ### Suggested parameter order
 
@@ -509,18 +514,21 @@ public static async Task<Ok> Handle(
 ```
 
 **Handler responsibilities:**
+
 - Validate authorization
 - Parse/validate input
 - Orchestrate service calls
 - Map responses to HTTP results
 
 **Service responsibilities:**
+
 - All database access (DbContext)
 - Business logic
 - Transaction management
 - Domain event coordination
 
 **Service parameter conventions for update methods:**
+
 - Non-nullable required fields: use the typed value directly (`string title`)
 - Optional fields (update if present, skip if null): use `T?` (`string? title`, `DateTime? startsAt`)
 - Clearable nullable fields (need to distinguish "not sent" from "set to null"): use `PatchField<T?>` — see **PatchField\<T\> for Nullable PATCH Fields** section and [`docs/guides/patchfield-pattern.md`](patchfield-pattern.md)
@@ -530,6 +538,7 @@ public static async Task<Ok> Handle(
 **CRITICAL:** When a service method has **3 or more domain parameters** (excluding `id`, `CancellationToken`, and infrastructure concerns), bundle them into a single args record. This keeps service signatures stable when fields are added/removed and makes handler code cleaner.
 
 **Rules:**
+
 1. **Naming:** `{Action}{Domain}Args` — e.g., `CreateSystemNoticeArgs`, `UpdateSystemNoticeArgs`
 2. **Placement:** Define the args record in the **service file** (it's the service's input contract, not an HTTP DTO)
 3. **Construction:** Handlers construct the args record inline — no separate mapper class needed
@@ -574,6 +583,7 @@ var notice = await service.CreateAsync(
 ```
 
 **When NOT to use args records:**
+
 - Methods with 1–2 domain parameters (e.g., `DeleteAsync(Guid id)`, `GetByIdAsync(Guid id)`)
 - Query/find methods where parameters are optional filters — use explicit parameters or a dedicated query record
 
@@ -694,11 +704,13 @@ so the configured logging pipeline is guaranteed to be active.
 All application configuration is loaded from environment variables via `AppEnvironment`. This class is initialized once at startup and provides static access throughout the application.
 
 **Initialization (in Program.cs):**
+
 ```csharp
 AppEnvironment.Initialize(); // Must be called before anything else
 ```
 
 **Usage anywhere in the codebase:**
+
 ```csharp
 // Direct static access - no DI required
 var env = AppEnvironment.Instance;
@@ -711,21 +723,23 @@ var headerKey = AppEnvironment.Instance.SESSION_TOKEN_HEADER_KEY;
 
 **Available properties:**
 
-| Category | Properties |
-|----------|------------|
-| **Secrets/URLs** | `POSTGRES_CONNECTION_STRING`, `FRONT_URL`, `RESEND_API_KEY`, `STAFF_OWNER_EMAIL`, `STAFF_OWNER_BOOTSTRAP_CODE` |
-| **App Settings** | `APP_NAME`, `SESSION_TOKEN_HEADER_KEY`, `TENANT_ID_HEADER_KEY`, `DEFAULT_EMAIL_SENDER_EMAIL`, `DEFAULT_EMAIL_SENDER_NAME` |
-| **Token Config** | `SESSION_EXPIRY_DAYS`, `EMAIL_VERIFY_TOKEN_VALIDITY_DURATION`, `PASSWORD_RESET_TOKEN_VALIDITY_DURATION`, `PASSWORD_MIN_LENGTH`, `EMAIL_VERIFY_TOKEN_LENGTH`, `PASSWORD_RESET_TOKEN_LENGTH`, `INVITATION_TOKEN_LENGTH` |
-| **Feature Flags** | `DI_MANIFEST_ENABLED` |
-| **Constants** | `MAX_PROFILES_PER_USER`, `PAGINATION_DEFAULT_LIMIT`, `MAX_BULK_INVITATIONS_SIZE`, `DEFAULT_MAX_USERS_PER_TENANT` |
-| **Computed** | `IsDevelopment`, `IsProduction`, `EnvironmentName` |
+| Category          | Properties                                                                                                                                                                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Secrets/URLs**  | `POSTGRES_CONNECTION_STRING`, `FRONT_URL`, `RESEND_API_KEY`, `STAFF_OWNER_EMAIL`, `STAFF_OWNER_BOOTSTRAP_CODE`                                                                                                        |
+| **App Settings**  | `APP_NAME`, `SESSION_TOKEN_HEADER_KEY`, `TENANT_ID_HEADER_KEY`, `DEFAULT_EMAIL_SENDER_EMAIL`, `DEFAULT_EMAIL_SENDER_NAME`                                                                                             |
+| **Token Config**  | `SESSION_EXPIRY_DAYS`, `EMAIL_VERIFY_TOKEN_VALIDITY_DURATION`, `PASSWORD_RESET_TOKEN_VALIDITY_DURATION`, `PASSWORD_MIN_LENGTH`, `EMAIL_VERIFY_TOKEN_LENGTH`, `PASSWORD_RESET_TOKEN_LENGTH`, `INVITATION_TOKEN_LENGTH` |
+| **Feature Flags** | `DI_MANIFEST_ENABLED`                                                                                                                                                                                                 |
+| **Constants**     | `MAX_ROLES_PER_USER`, `PAGINATION_DEFAULT_LIMIT`, `MAX_BULK_INVITATIONS_SIZE`, `DEFAULT_MAX_USERS_PER_TENANT`                                                                                                         |
+| **Computed**      | `IsDevelopment`, `IsProduction`, `EnvironmentName`                                                                                                                                                                    |
 
 **Environment files:**
+
 - Template: `.env.example` — the **only** env file tracked in git (`.gitignore` ignores `.env.*` with a `!.env.example` exception)
 - Development: `.env.development` — gitignored; copy it from `.env.example` locally
 - Deployed environments: configuration is injected by the active PaaS configuration/secrets service (Dokploy today), never loaded by the application from `.env.production`; a local ignored file may exist only as a manually imported personal reference
 
 **Why static access instead of DI?**
+
 - Configuration is immutable after startup
 - Needed in static methods, extension methods, and places without DI
 - Avoids `IOptions<T>` boilerplate throughout the codebase
@@ -824,6 +838,7 @@ public sealed class FindStaffInvitations {
 
 **Naming patterns** — the handler class name carries the operation; the Minimal
 API entrypoint method is always `Handle`:
+
 - Get single item: class `GetUserById`
 - Get list/collection: class `FindUsers`
 - Create: class `CreateUser`
@@ -836,6 +851,7 @@ API entrypoint method is always `Handle`:
 **CRITICAL:** All error responses MUST use RFC 7807 ProblemDetails via `TypedProblems`.
 
 **Rules:**
+
 1. **Success WITH data**: Return data directly using `TypedResults.Ok(data)`
 2. **Success WITHOUT data**: Return a message using `TypedResults.Ok(new { Message = "..." })`
 3. **All error responses**: MUST use `TypedProblems.*` methods for RFC 7807 compliance and automatic OpenAPI documentation
@@ -882,6 +898,7 @@ public static async Task<Results<
 ```
 
 **HTTP Status Code Distinction (400 vs 422):**
+
 - **400 Bad Request** — Generic bad requests (invalid credentials, user already exists, invalid token, etc.)
   - Uses `AppProblemDetails` schema
   - Created via `TypedProblems.BadRequest(...)`
@@ -890,6 +907,7 @@ public static async Task<Results<
   - Created via `TypedProblems.ValidationProblem(...)` or automatically by validation filters
 
 **Note on framework/binding errors:**
+
 - Missing required query/body parameters can still produce a **400** (e.g., request body missing / required query parameter missing).
 - These are normalized by `UseCustomExceptionHandler()` to `AppProblemDetails` (`application/problem+json`), so endpoints may legitimately document both `400` (generic/binding) and `422` (validation).
 - `builder.Services.AddProblemDetails()` is registered (see `apps/api/Lib/ServiceRegistration.cs`) for framework integration, but endpoints still return ProblemDetails explicitly via `TypedProblems.*`.
@@ -903,12 +921,14 @@ return TypedProblems.BadRequest("Invalid email or password", ResponseKeys.Invali
 ```
 
 **Why TypedProblems?**
+
 - Returns RFC 7807 `application/problem+json` responses
 - Includes `translationKey` for frontend i18n
 - Typed result classes implement `IEndpointMetadataProvider` for automatic OpenAPI documentation
 - No manual `.ProducesApiResponses()` needed - status codes are inferred from return type
 
 **NEVER use:**
+
 - `TypedResults.Forbid()` (empty body, no translation key)
 - `TypedResults.Unauthorized()` (empty body, no translation key)
 - `TypedResults.Json(..., statusCode: 4xx)` for errors (breaks OpenAPI inference)
@@ -917,12 +937,12 @@ return TypedProblems.BadRequest("Invalid email or password", ResponseKeys.Invali
 
 **CRITICAL:** All write operation handlers must follow a consistent response pattern based on the operation type.
 
-| Operation | Response | Why |
-|---|---|---|
-| **Create** | Return created entity DTO via `Created<TResult>` (201) | Industry standard; client needs server-generated ID, timestamps, computed fields |
-| **Update** | Return updated entity DTO via `Ok<TResult>` (200) | Client needs to sync local state without a separate GET |
-| **Delete / Destructive** | Return `Ok<ApiResponse>` with message + translationKey | Entity is gone; `ApiResponse` provides i18n support for frontend toast |
-| **Action-only** (resend email, trigger) | Return `Ok<ApiResponse>` with message + translationKey | No entity state change to report |
+| Operation                               | Response                                               | Why                                                                              |
+| --------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| **Create**                              | Return created entity DTO via `Created<TResult>` (201) | Industry standard; client needs server-generated ID, timestamps, computed fields |
+| **Update**                              | Return updated entity DTO via `Ok<TResult>` (200)      | Client needs to sync local state without a separate GET                          |
+| **Delete / Destructive**                | Return `Ok<ApiResponse>` with message + translationKey | Entity is gone; `ApiResponse` provides i18n support for frontend toast           |
+| **Action-only** (resend email, trigger) | Return `Ok<ApiResponse>` with message + translationKey | No entity state change to report                                                 |
 
 ```csharp
 // ✅ CORRECT - Create returns 201 with entity DTO
@@ -971,11 +991,13 @@ return TypedResults.NoContent();
 ```
 
 **Why return entity data on Create/Update?**
+
 - Eliminates the need for a follow-up GET request
 - Server-generated values (ID, timestamps, computed fields) are immediately available
 - Frontend cache invalidation can be replaced with optimistic update using returned data
 
 **Why `ApiResponse` instead of `NoContent()` for Delete?**
+
 - Provides `translationKey` for frontend i18n toast messages
 - Consistent structured JSON response body
 - `NoContent` (204) returns an empty body with no i18n support
@@ -1070,6 +1092,7 @@ group.MapPost("/", CreateThing.Handle)
 ```
 
 **How automatic documentation works:**
+
 - Typed result classes (`AppForbiddenHttpResult`, `AppUnauthorizedHttpResult`, etc.) implement `IEndpointMetadataProvider`
 - Filter extension methods (`.WithSessionAuthentication()`, `.WithStaffAuthorization()`, etc.) add their possible error responses automatically
 - No manual `.ProducesApiResponses()` calls needed
@@ -1082,6 +1105,7 @@ group.MapPost("/", CreateThing.Handle)
 
 **Authenticated endpoints (auto-documented):**
 Auth filter extension methods automatically add 500 to OpenAPI documentation:
+
 - `.WithSessionAuthentication()` → adds 401, 500
 - `.WithStaffAuthorization()` → adds 403, 500
 - `.WithTenantAuthorization()` → adds 401, 403, 404, 500
@@ -1108,11 +1132,13 @@ group.MapPost("/login", Login.Handle)
 ```
 
 **Rule:** When creating anonymous endpoints (no auth filter), always add:
+
 ```csharp
 .ProducesAppProblem(StatusCodes.Status500InternalServerError)
 ```
 
 **Anonymous endpoints requiring manual 500 documentation:**
+
 - Login/Register endpoints (`/auth/login`, `/auth/register`)
 - Password reset flow (`/auth/reset-password`, `/auth/check-reset-password-token`)
 - Email verification (`/auth/verify-email-request`, `/auth/verification-link`, `/auth/check-email-verification-token`)
@@ -1499,6 +1525,7 @@ if (result.Error is not null) {
 ```
 
 **Why:** Guard clauses are:
+
 - Easier to read — each error case is self-contained with its own `if` block
 - Easier to debug — breakpoints can target individual error paths
 - More consistent with the project's existing early-return pattern for null checks and validation
@@ -1521,6 +1548,7 @@ var tenant = await tenantAsStaffService.GetTenantByIdForStaffAsync(
 ```
 
 **Why this matters:**
+
 - `GetTenantByIdAsync` calls `Tenant.IsTenantActive()` which returns `false` for suspended tenants, causing the method to return `null` → handler returns 404
 - `GetTenantByIdForStaffAsync` only filters `IsDeleted`, allowing staff to view and manage suspended tenants
 - Staff users need to see suspended tenants to reactivate them or inspect their state

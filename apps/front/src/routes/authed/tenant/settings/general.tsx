@@ -120,7 +120,7 @@ const TenantSettingsGeneralPage = () => {
 	// `useForm` captures defaultValues at first render, when the query is still
 	// unresolved (skeletons are showing), so the fields would otherwise stay
 	// empty forever. Hydrate the form from the loaded query exactly once per
-	// resolved tenant, mirroring the account profile page idiom — never on
+	// resolved tenant, mirroring the account role page idiom — never on
 	// background refetches, and never over an in-flight edit.
 	const hydratedTenantIdRef = useRef<string | null>(null);
 

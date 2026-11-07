@@ -9,7 +9,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Seeders;
@@ -218,30 +218,30 @@ public class OwnerBootstrapSeeder : IEntitySeeder {
 		Guid accountId,
 		CancellationToken cancellationToken
 	) {
-		var profile = await (
-			from p in dbContext.Profile
-			where p.Scope == ProfileScope.Staff
-				&& p.Name == SystemProfileNames.StaffFullAccess
+		var role = await (
+			from p in dbContext.Role
+			where p.Scope == RoleScope.Staff
+				&& p.Name == SystemRoleNames.StaffFullAccess
 				&& !p.IsDeleted
 			select p
 		).FirstOrDefaultAsync(cancellationToken);
 
-		if (profile is null) {
-			profile = Profile.CreateStaffProfile(
-				SystemProfileNames.StaffFullAccess,
+		if (role is null) {
+			role = Role.CreateStaffRole(
+				SystemRoleNames.StaffFullAccess,
 				"Platform owner with full system access",
 				isFullAccess: true
 			);
-			await dbContext.Profile.AddAsync(profile, cancellationToken);
+			await dbContext.Role.AddAsync(role, cancellationToken);
 			await dbContext.SaveChangesAsync(cancellationToken);
 		}
 
-		var linkExists = await dbContext.UserAccountProfile
-			.AnyAsync(uap => uap.UserAccountId == accountId && uap.ProfileId == profile.Id, cancellationToken);
-		if (!linkExists && profile.Id is Guid profileId) {
-			await dbContext.UserAccountProfile.AddAsync(new UserAccountProfile {
+		var linkExists = await dbContext.UserAccountRole
+			.AnyAsync(uap => uap.UserAccountId == accountId && uap.RoleId == role.Id, cancellationToken);
+		if (!linkExists && role.Id is Guid roleId) {
+			await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
 				UserAccountId = accountId,
-				ProfileId = profileId
+				RoleId = roleId
 			}, cancellationToken);
 			await dbContext.SaveChangesAsync(cancellationToken);
 		}

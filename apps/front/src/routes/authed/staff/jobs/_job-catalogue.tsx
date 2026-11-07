@@ -28,22 +28,22 @@ export const JOB_FAMILY_ORDER = [
 export const JOB_FAMILY_META = {
 	publishing: {
 		labelKey: 'staff-jobs:jobs-family-publishing',
-		tint: 'var(--publy-profile-tone-4-bg)',
+		tint: 'var(--publy-role-tone-4-bg)',
 		icon: IconSend,
 	},
 	email: {
 		labelKey: 'staff-jobs:jobs-family-email',
-		tint: 'var(--publy-profile-tone-5-bg)',
+		tint: 'var(--publy-role-tone-5-bg)',
 		icon: IconMail,
 	},
 	accounts: {
 		labelKey: 'staff-jobs:jobs-family-accounts',
-		tint: 'var(--publy-profile-tone-1-bg)',
+		tint: 'var(--publy-role-tone-1-bg)',
 		icon: IconBrandBluesky,
 	},
 	maintenance: {
 		labelKey: 'staff-jobs:jobs-family-maintenance',
-		tint: 'var(--publy-profile-tone-0-bg)',
+		tint: 'var(--publy-role-tone-0-bg)',
 		icon: IconTool,
 	},
 } satisfies Record<

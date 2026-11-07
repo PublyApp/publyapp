@@ -4,14 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
 /// <summary>
 /// Seeds tenant members for permission specs. A member created here holds ONLY the
-/// permission keys it is given — no seeded profile, no full-access role — so a
+/// permission keys it is given — no seeded role, no full-access role — so a
 /// 403 assertion proves the route's permission list rather than the seed data.
 /// </summary>
 internal static class TenantMemberTestHelper {
@@ -29,7 +29,7 @@ internal static class TenantMemberTestHelper {
 	/// <summary>
 	/// Creates an active, verified member of <paramref name="tenantId"/> with no
 	/// full-access role and, when permission keys are given, grants them
-	/// through a fresh tenant profile (the same profile machinery production uses).
+	/// through a fresh tenant role (the same role machinery production uses).
 	/// Returns the email to log in with.
 	/// </summary>
 	public static async Task<string> SeedMemberAsync(
@@ -63,25 +63,25 @@ internal static class TenantMemberTestHelper {
 			return email;
 		}
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			tenantId,
-			$"{emailPrefix}-profile-{Guid.NewGuid():N}",
-			"Test-only profile holding an explicit subset of permissions"
+			$"{emailPrefix}-role-{Guid.NewGuid():N}",
+			"Test-only role holding an explicit subset of permissions"
 		);
-		profile.ValidateProfileType();
-		await db.Profile.AddAsync(profile);
+		role.ValidateRoleType();
+		await db.Role.AddAsync(role);
 		await db.SaveChangesAsync();
 
 		foreach (var permissionKey in permissionKeys) {
-			await db.ProfilePermission.AddAsync(new ProfilePermission {
-				ProfileId = profile.GetRequiredId(),
+			await db.RolePermission.AddAsync(new RolePermission {
+				RoleId = role.GetRequiredId(),
 				PermissionKey = permissionKey,
 			});
 		}
 
-		await db.UserAccountProfile.AddAsync(new UserAccountProfile {
+		await db.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = account.GetRequiredId(),
-			ProfileId = profile.GetRequiredId(),
+			RoleId = role.GetRequiredId(),
 		});
 		await db.SaveChangesAsync();
 

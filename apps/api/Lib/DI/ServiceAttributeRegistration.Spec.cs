@@ -15,9 +15,9 @@ using PublyApp.Api.Modules.Jobs.Services;
 using PublyApp.Api.Modules.Messaging.Services;
 using PublyApp.Api.Modules.Permissions.Services;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Projects.Services;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.SystemNotices.Services;
 using PublyApp.Api.Modules.Tenants.Services;
@@ -58,15 +58,15 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IVerifyEmailRequestService), typeof(VerifyEmailRequestService)),
 		(typeof(IInvitationService), typeof(InvitationService)),
 		(typeof(IPermissionAsStaffService), typeof(PermissionAsStaffService)),
-		(typeof(IProfileAssignmentGuard), typeof(ProfileAssignmentGuard)),
+		(typeof(IRoleAssignmentGuard), typeof(RoleAssignmentGuard)),
 		(typeof(IPermissionService), typeof(PermissionService)),
 		(typeof(IPasswordResetService), typeof(PasswordResetService)),
-		(typeof(IStaffProfileAsStaffService), typeof(StaffProfileAsStaffService)),
-		(typeof(IStaffProfileQueryAsStaffService), typeof(StaffProfileQueryAsStaffService)),
-		(typeof(IProfileService), typeof(ProfileService)),
-		(typeof(IStaffProfileUserAssignmentAsStaffService), typeof(StaffProfileUserAssignmentAsStaffService)),
-		(typeof(ITenantProfileAsStaffService), typeof(TenantProfileAsStaffService)),
-		(typeof(ITenantProfileQueryAsStaffService), typeof(TenantProfileQueryAsStaffService)),
+		(typeof(IStaffRoleAsStaffService), typeof(StaffRoleAsStaffService)),
+		(typeof(IStaffRoleQueryAsStaffService), typeof(StaffRoleQueryAsStaffService)),
+		(typeof(IRoleService), typeof(RoleService)),
+		(typeof(IStaffRoleUserAssignmentAsStaffService), typeof(StaffRoleUserAssignmentAsStaffService)),
+		(typeof(ITenantRoleAsStaffService), typeof(TenantRoleAsStaffService)),
+		(typeof(ITenantRoleQueryAsStaffService), typeof(TenantRoleQueryAsStaffService)),
 		(typeof(IProjectService), typeof(ProjectService)),
 		(typeof(IPostMediaAssetService), typeof(PostMediaAssetService)),
 		(typeof(IPostService), typeof(PostService)),
@@ -84,7 +84,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ISessionService), typeof(SessionService)),
 		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
 		(typeof(IStaffUserLifecycleService), typeof(StaffUserLifecycleService)),
-		(typeof(IStaffUserProfileAssignmentService), typeof(StaffUserProfileAssignmentService)),
+		(typeof(IStaffUserRoleAssignmentService), typeof(StaffUserRoleAssignmentService)),
 		(typeof(IStaffUserQueryService), typeof(StaffUserQueryService)),
 		(typeof(ISystemNoticeService), typeof(SystemNoticeService)),
 		(typeof(ITenantAsStaffService), typeof(TenantAsStaffService)),

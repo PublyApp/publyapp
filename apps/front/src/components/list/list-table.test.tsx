@@ -267,7 +267,7 @@ describe('ListTable', () => {
 		expect(cell.closest('tr')?.className).not.toContain('whitespace-normal');
 	});
 
-	// Lot 4a: the profile users inset passes an empty totals map. Rendering the
+	// Lot 4a: the role users inset passes an empty totals map. Rendering the
 	// foot anyway left an empty 40px ruled bar under the last row.
 	test('an empty totals map renders no pinned foot', () => {
 		render(

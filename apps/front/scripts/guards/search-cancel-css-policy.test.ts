@@ -327,7 +327,7 @@ test('rejects a canonical stylesheet that has lost the suppression rule entirely
 
 test('rejects the reviewer route: an override bundled from packages/shared-ts', () => {
 	const { workspaceRoot } = createWorkspace({
-		'packages/shared-ts/src/lib/profile-style/search-cancel-style.ts': `
+		'packages/shared-ts/src/lib/role-style/search-cancel-style.ts': `
 export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 	.publy-search-wrapper
 		> .publy-search-input[type='search']::-webkit-search-cancel-button {
@@ -349,7 +349,7 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 				);
 				assert.match(
 					thrownError(error).message,
-					/packages\/shared-ts\/src\/lib\/profile-style\/search-cancel-style\.ts:\d+/,
+					/packages\/shared-ts\/src\/lib\/role-style\/search-cancel-style\.ts:\d+/,
 				);
 				return true;
 			},

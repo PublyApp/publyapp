@@ -19,16 +19,16 @@ const USER_B = '22222222-2222-2222-2222-222222222222';
 
 const mocks = vi.hoisted(() => ({
 	toStaffUserDetails: vi.fn(),
-	toAssignedStaffProfiles: vi.fn(),
-	toStaffProfileRows: vi.fn(),
+	toAssignedStaffRoles: vi.fn(),
+	toStaffRoleRows: vi.fn(),
 	useStaffUserDetailsQuery: vi.fn(),
-	useStaffUserProfilesQuery: vi.fn(),
-	useStaffProfilesQuery: vi.fn(),
+	useStaffUserRolesQuery: vi.fn(),
+	useStaffRolesQuery: vi.fn(),
 	useUpdateStaffUserMutation: vi.fn(),
-	useUpdateStaffUserProfilesMutation: vi.fn(),
+	useUpdateStaffUserRolesMutation: vi.fn(),
 	useUpdateStaffUserEmailMutation: vi.fn(),
 	updateStaffUser: vi.fn(),
-	updateStaffUserProfiles: vi.fn(),
+	updateStaffUserRoles: vi.fn(),
 	updateStaffUserEmail: vi.fn(),
 	invalidateQueries: vi.fn(),
 	navigate: vi.fn(),
@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
-	deferredProfileSearch: undefined as string | undefined,
+	deferredRoleSearch: undefined as string | undefined,
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
@@ -50,7 +50,7 @@ vi.mock('react', async (importOriginal) => {
 
 	return {
 		...actual,
-		useDeferredValue: (value: string) => mocks.deferredProfileSearch ?? value,
+		useDeferredValue: (value: string) => mocks.deferredRoleSearch ?? value,
 	};
 });
 
@@ -103,7 +103,7 @@ const buildQueryResult = (overrides: Partial<QueryState> = {}) => ({
 const queryState = {
 	activeUserId: USER_A,
 	details: new Map<string, QueryState>(),
-	profiles: new Map<string, QueryState>(),
+	roles: new Map<string, QueryState>(),
 };
 
 const setActiveUser = (userId: string) => {
@@ -114,16 +114,16 @@ const setDetailState = (userId: string, overrides: Partial<QueryState>) => {
 	queryState.details.set(userId, { ...buildQueryResult(), ...overrides });
 };
 
-const setProfileState = (userId: string, overrides: Partial<QueryState>) => {
-	queryState.profiles.set(userId, { ...buildQueryResult(), ...overrides });
+const setRoleState = (userId: string, overrides: Partial<QueryState>) => {
+	queryState.roles.set(userId, { ...buildQueryResult(), ...overrides });
 };
 
 const getDetailState = (userId: string): QueryState =>
 	queryState.details.get(userId) ??
 	buildQueryResult({ isSuccess: false, isPending: true });
 
-const getProfileState = (userId: string): QueryState =>
-	queryState.profiles.get(userId) ??
+const getRoleState = (userId: string): QueryState =>
+	queryState.roles.get(userId) ??
 	buildQueryResult({ isSuccess: false, isPending: true });
 
 vi.mock('@tanstack/react-router', () => ({
@@ -175,11 +175,11 @@ vi.mock('react-i18next', () => ({
 				'first-name': 'First name',
 				'last-name': 'Last name',
 				'avatar-url': 'Avatar URL',
-				profiles: 'Profiles',
+				roles: 'Roles',
 				search: 'Search',
-				'search-profiles': 'Search profiles…',
+				'search-roles': 'Search roles…',
 				'list-no-match-default-description': 'No results match your search.',
-				'no-profiles-available': 'No profiles are available.',
+				'no-roles-available': 'No roles are available.',
 				role: 'Role',
 				status: 'Status',
 				admin: 'Admin',
@@ -207,8 +207,8 @@ vi.mock('react-i18next', () => ({
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
 				close: 'Close',
-				'staff-user-identity-saved-profiles-failed':
-					'Identity saved, but profile assignments failed to save.',
+				'staff-user-identity-saved-roles-failed':
+					'Identity saved, but role assignments failed to save.',
 			};
 
 			return labels[resolvedKey] ?? resolvedKey;
@@ -368,24 +368,24 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-users', () => ({
 	STAFF_USERS_QUERY_KEY: ['staff-users'],
 	STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
-	STAFF_USER_PROFILES_QUERY_KEY: ['staff-users', 'detail', 'profiles'],
+	STAFF_USER_ROLES_QUERY_KEY: ['staff-users', 'detail', 'roles'],
 	invalidateStaffUsers: (queryClient: {
 		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<void>;
 	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-users'] }),
 	toStaffUserDetails: mocks.toStaffUserDetails,
-	toAssignedStaffProfiles: mocks.toAssignedStaffProfiles,
+	toAssignedStaffRoles: mocks.toAssignedStaffRoles,
 	useStaffUserDetailsQuery: ({ userId }: { userId: string }) =>
 		getDetailState(userId),
-	useStaffUserProfilesQuery: ({ userId }: { userId: string }) =>
-		getProfileState(userId),
+	useStaffUserRolesQuery: ({ userId }: { userId: string }) =>
+		getRoleState(userId),
 	useUpdateStaffUserMutation: mocks.useUpdateStaffUserMutation,
-	useUpdateStaffUserProfilesMutation: mocks.useUpdateStaffUserProfilesMutation,
+	useUpdateStaffUserRolesMutation: mocks.useUpdateStaffUserRolesMutation,
 	useUpdateStaffUserEmailMutation: mocks.useUpdateStaffUserEmailMutation,
 }));
 
-vi.mock('~/lib/query/staff-profiles', () => ({
-	toStaffProfileRows: mocks.toStaffProfileRows,
-	useStaffProfilesQuery: mocks.useStaffProfilesQuery,
+vi.mock('~/lib/query/staff-roles', () => ({
+	toStaffRoleRows: mocks.toStaffRoleRows,
+	useStaffRolesQuery: mocks.useStaffRolesQuery,
 }));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
@@ -407,12 +407,12 @@ describe('staff user edit route', () => {
 		vi.clearAllMocks();
 		queryState.activeUserId = USER_A;
 		queryState.details.clear();
-		queryState.profiles.clear();
+		queryState.roles.clear();
 		mocks.blockerResolver.status = 'idle';
 		mocks.blockerResolver.proceed = undefined;
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
-		mocks.deferredProfileSearch = undefined;
+		mocks.deferredRoleSearch = undefined;
 		mocks.navigate.mockResolvedValue(undefined);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
@@ -420,8 +420,8 @@ describe('staff user edit route', () => {
 			mutateAsync: mocks.updateStaffUser,
 			isPending: false,
 		});
-		mocks.useUpdateStaffUserProfilesMutation.mockReturnValue({
-			mutateAsync: mocks.updateStaffUserProfiles,
+		mocks.useUpdateStaffUserRolesMutation.mockReturnValue({
+			mutateAsync: mocks.updateStaffUserRoles,
 			isPending: false,
 		});
 		mocks.useUpdateStaffUserEmailMutation.mockReturnValue({
@@ -432,27 +432,24 @@ describe('staff user edit route', () => {
 		mocks.toStaffUserDetails.mockImplementation(({ id }: { id: string }) =>
 			getUserDetails(id),
 		);
-		mocks.toAssignedStaffProfiles.mockImplementation(
+		mocks.toAssignedStaffRoles.mockImplementation(
 			(
-				payload:
-					| { assignedProfiles?: Array<{ id: string }> }
-					| undefined
-					| null,
+				payload: { assignedRoles?: Array<{ id: string }> } | undefined | null,
 			) => {
-				const profiles = payload?.assignedProfiles;
-				if (!profiles) {
+				const roles = payload?.assignedRoles;
+				if (!roles) {
 					return [];
 				}
-				return profiles.map((profile) => ({
-					id: profile.id,
-					name: profile.id === 'profile-1' ? 'Publishing' : 'Billing',
+				return roles.map((role) => ({
+					id: role.id,
+					name: role.id === 'role-1' ? 'Publishing' : 'Billing',
 					description: null,
 				}));
 			},
 		);
-		mocks.toStaffProfileRows.mockReturnValue([
-			{ id: 'profile-1', name: 'Publishing', description: null },
-			{ id: 'profile-2', name: 'Billing', description: null },
+		mocks.toStaffRoleRows.mockReturnValue([
+			{ id: 'role-1', name: 'Publishing', description: null },
+			{ id: 'role-2', name: 'Billing', description: null },
 		]);
 
 		setDetailState(USER_A, {
@@ -463,21 +460,21 @@ describe('staff user edit route', () => {
 			isPending: false,
 			isSuccess: true,
 		});
-		setProfileState(USER_A, {
+		setRoleState(USER_A, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-1', name: 'Publishing', description: null },
+				assignedRoles: [
+					{ id: 'role-1', name: 'Publishing', description: null },
 				],
 			},
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.useStaffProfilesQuery.mockReturnValue(
+		mocks.useStaffRolesQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
 					data: [
-						{ id: 'profile-1', name: 'Publishing', description: null },
-						{ id: 'profile-2', name: 'Billing', description: null },
+						{ id: 'role-1', name: 'Publishing', description: null },
+						{ id: 'role-2', name: 'Billing', description: null },
 					],
 					nextCursor: null,
 				},
@@ -489,14 +486,14 @@ describe('staff user edit route', () => {
 		cleanup();
 	});
 
-	test('delays hydration until profile data resolves, then fully hydrates identity and access fields even with zero assigned profiles', async () => {
+	test('delays hydration until role data resolves, then fully hydrates identity and access fields even with zero assigned roles', async () => {
 		setDetailState(USER_A, {
 			data: { id: USER_A },
 			isPending: true,
 			isSuccess: false,
 		});
-		setProfileState(USER_A, {
-			data: { assignedProfiles: [] },
+		setRoleState(USER_A, {
+			data: { assignedRoles: [] },
 			isPending: false,
 			isSuccess: true,
 		});
@@ -511,7 +508,7 @@ describe('staff user edit route', () => {
 		});
 		rendered.rerender(<Component />);
 
-		// The zero-profile case must still hydrate identity/access fields — it
+		// The zero-role case must still hydrate identity/access fields — it
 		// must never fall back to the form's blank defaults (r5-F1).
 		await waitFor(() => expect(screen.getByDisplayValue('Alex')).toBeTruthy());
 		expect(screen.getByDisplayValue('User')).toBeTruthy();
@@ -541,12 +538,12 @@ describe('staff user edit route', () => {
 		).toBe(false);
 	});
 
-	test('hydrates non-empty assignments once profile data resolves', async () => {
-		setProfileState(USER_A, {
+	test('hydrates non-empty assignments once role data resolves', async () => {
+		setRoleState(USER_A, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-1', name: 'Publishing', description: null },
-					{ id: 'profile-2', name: 'Billing', description: null },
+				assignedRoles: [
+					{ id: 'role-1', name: 'Publishing', description: null },
+					{ id: 'role-2', name: 'Billing', description: null },
 				],
 			},
 			isPending: false,
@@ -583,11 +580,9 @@ describe('staff user edit route', () => {
 			isPending: false,
 			isSuccess: true,
 		});
-		setProfileState(USER_B, {
+		setRoleState(USER_B, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-2', name: 'Billing', description: null },
-				],
+				assignedRoles: [{ id: 'role-2', name: 'Billing', description: null }],
 			},
 			isPending: false,
 			isSuccess: true,
@@ -619,11 +614,9 @@ describe('staff user edit route', () => {
 			isPending: false,
 			isSuccess: true,
 		});
-		setProfileState(USER_B, {
+		setRoleState(USER_B, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-2', name: 'Billing', description: null },
-				],
+				assignedRoles: [{ id: 'role-2', name: 'Billing', description: null }],
 			},
 			isPending: false,
 			isSuccess: true,
@@ -664,27 +657,25 @@ describe('staff user edit route', () => {
 		expect(screen.getByText('Billing')).toBeTruthy();
 	});
 
-	test('names the profile search control with its visible label', () => {
+	test('names the role search control with its visible label', () => {
 		renderPage();
 
-		const search = screen.getByRole('textbox', { name: 'Search profiles…' });
-		const label = document.querySelector(
-			'label[for="staff-user-profile-search"]',
-		);
+		const search = screen.getByRole('textbox', { name: 'Search roles…' });
+		const label = document.querySelector('label[for="staff-user-role-search"]');
 
-		expect(label?.textContent).toBe('Search profiles…');
+		expect(label?.textContent).toBe('Search roles…');
 		expect(label?.textContent).toBe(search.getAttribute('aria-label'));
 	});
 
 	test('shows the no-match message instead of the empty-catalogue message for an empty search result', async () => {
-		setProfileState(USER_A, {
-			data: { assignedProfiles: [] },
+		setRoleState(USER_A, {
+			data: { assignedRoles: [] },
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([]);
-		mocks.toStaffProfileRows.mockReturnValue([]);
-		mocks.useStaffProfilesQuery.mockImplementation(() =>
+		mocks.toAssignedStaffRoles.mockReturnValue([]);
+		mocks.toStaffRoleRows.mockReturnValue([]);
+		mocks.useStaffRolesQuery.mockImplementation(() =>
 			buildQueryResult({
 				data: {
 					data: [],
@@ -695,21 +686,21 @@ describe('staff user edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+		fireEvent.change(screen.getByTestId('staff-user-role-search'), {
 			target: { value: 'Missing' },
 		});
 
 		await waitFor(() =>
-			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+			expect(mocks.useStaffRolesQuery).toHaveBeenCalledWith(
 				expect.objectContaining({ q: 'Missing' }),
 			),
 		);
 		expect(screen.getByText('No results match your search.')).toBeTruthy();
-		expect(screen.queryByText('No profiles are available.')).toBeNull();
+		expect(screen.queryByText('No roles are available.')).toBeNull();
 	});
 
-	test('shows the no-match message alongside a preserved selected profile when the server search returns no rows', async () => {
-		mocks.useStaffProfilesQuery.mockImplementation(({ q }: { q?: string }) =>
+	test('shows the no-match message alongside a preserved selected role when the server search returns no rows', async () => {
+		mocks.useStaffRolesQuery.mockImplementation(({ q }: { q?: string }) =>
 			buildQueryResult({
 				data: {
 					data:
@@ -717,7 +708,7 @@ describe('staff user edit route', () => {
 							? []
 							: [
 									{
-										id: 'profile-1',
+										id: 'role-1',
 										name: 'Publishing',
 										description: null,
 									},
@@ -729,12 +720,12 @@ describe('staff user edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+		fireEvent.change(screen.getByTestId('staff-user-role-search'), {
 			target: { value: 'Missing' },
 		});
 
 		await waitFor(() =>
-			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+			expect(mocks.useStaffRolesQuery).toHaveBeenCalledWith(
 				expect.objectContaining({ q: 'Missing' }),
 			),
 		);
@@ -743,17 +734,17 @@ describe('staff user edit route', () => {
 			'checked',
 			true,
 		);
-		expect(screen.queryByText('No profiles are available.')).toBeNull();
+		expect(screen.queryByText('No roles are available.')).toBeNull();
 	});
 
-	test('treats a whitespace-only profile search as an empty query', () => {
-		setProfileState(USER_A, {
-			data: { assignedProfiles: [] },
+	test('treats a whitespace-only role search as an empty query', () => {
+		setRoleState(USER_A, {
+			data: { assignedRoles: [] },
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([]);
-		mocks.useStaffProfilesQuery.mockReturnValue(
+		mocks.toAssignedStaffRoles.mockReturnValue([]);
+		mocks.useStaffRolesQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
 					data: [],
@@ -764,26 +755,26 @@ describe('staff user edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+		fireEvent.change(screen.getByTestId('staff-user-role-search'), {
 			target: { value: '   ' },
 		});
 
-		expect(mocks.useStaffProfilesQuery).toHaveBeenLastCalledWith(
+		expect(mocks.useStaffRolesQuery).toHaveBeenLastCalledWith(
 			expect.objectContaining({ q: undefined }),
 		);
-		expect(screen.getByText('No profiles are available.')).toBeTruthy();
+		expect(screen.getByText('No roles are available.')).toBeTruthy();
 		expect(screen.queryByText('No results match your search.')).toBeNull();
 	});
 
-	test('hides empty-state copy while a newer profile search keystroke is still deferred', () => {
-		setProfileState(USER_A, {
-			data: { assignedProfiles: [] },
+	test('hides empty-state copy while a newer role search keystroke is still deferred', () => {
+		setRoleState(USER_A, {
+			data: { assignedRoles: [] },
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([]);
-		mocks.deferredProfileSearch = '';
-		mocks.useStaffProfilesQuery.mockReturnValue(
+		mocks.toAssignedStaffRoles.mockReturnValue([]);
+		mocks.deferredRoleSearch = '';
+		mocks.useStaffRolesQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
 					data: [],
@@ -793,28 +784,28 @@ describe('staff user edit route', () => {
 		);
 
 		renderPage();
-		expect(screen.getByText('No profiles are available.')).toBeTruthy();
+		expect(screen.getByText('No roles are available.')).toBeTruthy();
 
-		fireEvent.change(screen.getByTestId('staff-user-profile-search'), {
+		fireEvent.change(screen.getByTestId('staff-user-role-search'), {
 			target: { value: 'Missing' },
 		});
 
-		expect(mocks.useStaffProfilesQuery).toHaveBeenLastCalledWith(
+		expect(mocks.useStaffRolesQuery).toHaveBeenLastCalledWith(
 			expect.objectContaining({ q: undefined }),
 		);
-		expect(screen.queryByText('No profiles are available.')).toBeNull();
+		expect(screen.queryByText('No roles are available.')).toBeNull();
 		expect(screen.queryByText('No results match your search.')).toBeNull();
 	});
 
-	test('shows the empty-catalogue message when no profiles exist and the search is empty', () => {
-		setProfileState(USER_A, {
-			data: { assignedProfiles: [] },
+	test('shows the empty-catalogue message when no roles exist and the search is empty', () => {
+		setRoleState(USER_A, {
+			data: { assignedRoles: [] },
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([]);
-		mocks.toStaffProfileRows.mockReturnValue([]);
-		mocks.useStaffProfilesQuery.mockReturnValue(
+		mocks.toAssignedStaffRoles.mockReturnValue([]);
+		mocks.toStaffRoleRows.mockReturnValue([]);
+		mocks.useStaffRolesQuery.mockReturnValue(
 			buildQueryResult({
 				data: {
 					data: [],
@@ -825,7 +816,7 @@ describe('staff user edit route', () => {
 
 		renderPage();
 
-		expect(screen.getByText('No profiles are available.')).toBeTruthy();
+		expect(screen.getByText('No roles are available.')).toBeTruthy();
 		expect(screen.queryByText('No results match your search.')).toBeNull();
 	});
 
@@ -857,18 +848,18 @@ describe('staff user edit route', () => {
 		expect(mocks.invalidateQueries).toHaveBeenCalled();
 	});
 
-	test('reaches and assigns a profile beyond the first page', async () => {
-		mocks.updateStaffUserProfiles.mockResolvedValue({
-			assignedProfiles: [],
+	test('reaches and assigns a role beyond the first page', async () => {
+		mocks.updateStaffUserRoles.mockResolvedValue({
+			assignedRoles: [],
 		});
-		mocks.useStaffProfilesQuery.mockImplementation(
+		mocks.useStaffRolesQuery.mockImplementation(
 			({ cursor }: { cursor?: string }) =>
 				cursor === 'cursor-2'
 					? buildQueryResult({
 							data: {
 								data: [
 									{
-										id: 'profile-101',
+										id: 'role-101',
 										name: 'Archive',
 										description: null,
 									},
@@ -880,7 +871,7 @@ describe('staff user edit route', () => {
 							data: {
 								data: [
 									{
-										id: 'profile-1',
+										id: 'role-1',
 										name: 'Publishing',
 										description: null,
 									},
@@ -900,26 +891,26 @@ describe('staff user edit route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledWith({
 				userId: USER_A,
-				profileIds: ['profile-1', 'profile-101'],
+				roleIds: ['role-1', 'role-101'],
 			}),
 		);
-		expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+		expect(mocks.useStaffRolesQuery).toHaveBeenCalledWith(
 			expect.objectContaining({
 				cursor: 'cursor-2',
 			}),
 		);
 	});
 
-	test('searches the server-side profile catalogue beyond the current page', async () => {
-		mocks.useStaffProfilesQuery.mockImplementation(({ q }: { q?: string }) =>
+	test('searches the server-side role catalogue beyond the current page', async () => {
+		mocks.useStaffRolesQuery.mockImplementation(({ q }: { q?: string }) =>
 			q === 'Archive'
 				? buildQueryResult({
 						data: {
 							data: [
 								{
-									id: 'profile-101',
+									id: 'role-101',
 									name: 'Archive',
 									description: null,
 								},
@@ -931,7 +922,7 @@ describe('staff user edit route', () => {
 						data: {
 							data: [
 								{
-									id: 'profile-1',
+									id: 'role-1',
 									name: 'Publishing',
 									description: null,
 								},
@@ -943,15 +934,12 @@ describe('staff user edit route', () => {
 
 		renderPage();
 
-		fireEvent.change(
-			screen.getByRole('textbox', { name: 'Search profiles…' }),
-			{
-				target: { value: 'Archive' },
-			},
-		);
+		fireEvent.change(screen.getByRole('textbox', { name: 'Search roles…' }), {
+			target: { value: 'Archive' },
+		});
 
 		await waitFor(() =>
-			expect(mocks.useStaffProfilesQuery).toHaveBeenCalledWith(
+			expect(mocks.useStaffRolesQuery).toHaveBeenCalledWith(
 				expect.objectContaining({
 					q: 'Archive',
 				}),
@@ -960,18 +948,16 @@ describe('staff user edit route', () => {
 		expect(screen.getByRole('checkbox', { name: 'Archive' })).toBeTruthy();
 	});
 
-	test('remembers the label of a deselected off-page profile after it leaves the fetched page', async () => {
-		setProfileState(USER_A, {
+	test('remembers the label of a deselected off-page role after it leaves the fetched page', async () => {
+		setRoleState(USER_A, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-101', name: 'Archive', description: null },
-				],
+				assignedRoles: [{ id: 'role-101', name: 'Archive', description: null }],
 			},
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([
-			{ id: 'profile-101', name: 'Archive', description: null },
+		mocks.toAssignedStaffRoles.mockReturnValue([
+			{ id: 'role-101', name: 'Archive', description: null },
 		]);
 
 		renderPage();
@@ -979,7 +965,7 @@ describe('staff user edit route', () => {
 		const archive = await screen.findByRole('checkbox', { name: 'Archive' });
 		fireEvent.click(archive);
 
-		// Once deselected, the off-page profile leaves the rendered option list
+		// Once deselected, the off-page role leaves the rendered option list
 		// (it is no longer selected and the fetched page never contained it).
 		// Its remembered label must not resurface it as a ghost option.
 		await waitFor(() =>
@@ -989,19 +975,19 @@ describe('staff user edit route', () => {
 		expect(screen.getByRole('checkbox', { name: 'Billing' })).toBeTruthy();
 	});
 
-	test('does not return to the loading view once profiles have loaded, even if the query goes transient', async () => {
+	test('does not return to the loading view once roles have loaded, even if the query goes transient', async () => {
 		const rendered = renderPage();
 		await screen.findByDisplayValue('Alex');
 
 		let catalogueCallCount = 0;
 		const loadedCatalogue = {
 			data: [
-				{ id: 'profile-1', name: 'Publishing', description: null },
-				{ id: 'profile-2', name: 'Billing', description: null },
+				{ id: 'role-1', name: 'Publishing', description: null },
+				{ id: 'role-2', name: 'Billing', description: null },
 			],
 			nextCursor: null,
 		};
-		mocks.useStaffProfilesQuery.mockImplementation(() => {
+		mocks.useStaffRolesQuery.mockImplementation(() => {
 			catalogueCallCount += 1;
 			if (catalogueCallCount === 1) {
 				return buildQueryResult({
@@ -1026,21 +1012,19 @@ describe('staff user edit route', () => {
 		expect(screen.queryByTestId('staff-user-edit-loading')).toBeNull();
 	});
 
-	test('preserves an assigned off-page profile when another profile is assigned', async () => {
-		setProfileState(USER_A, {
+	test('preserves an assigned off-page role when another role is assigned', async () => {
+		setRoleState(USER_A, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-101', name: 'Archive', description: null },
-				],
+				assignedRoles: [{ id: 'role-101', name: 'Archive', description: null }],
 			},
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([
-			{ id: 'profile-101', name: 'Archive', description: null },
+		mocks.toAssignedStaffRoles.mockReturnValue([
+			{ id: 'role-101', name: 'Archive', description: null },
 		]);
-		mocks.updateStaffUserProfiles.mockResolvedValue({
-			assignedProfiles: [],
+		mocks.updateStaffUserRoles.mockResolvedValue({
+			assignedRoles: [],
 		});
 
 		renderPage();
@@ -1058,28 +1042,26 @@ describe('staff user edit route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledWith({
 				userId: USER_A,
-				profileIds: ['profile-101', 'profile-2'],
+				roleIds: ['role-101', 'role-2'],
 			}),
 		);
 	});
 
-	test('explicitly unassigns an off-page profile', async () => {
-		setProfileState(USER_A, {
+	test('explicitly unassigns an off-page role', async () => {
+		setRoleState(USER_A, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-101', name: 'Archive', description: null },
-				],
+				assignedRoles: [{ id: 'role-101', name: 'Archive', description: null }],
 			},
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([
-			{ id: 'profile-101', name: 'Archive', description: null },
+		mocks.toAssignedStaffRoles.mockReturnValue([
+			{ id: 'role-101', name: 'Archive', description: null },
 		]);
-		mocks.updateStaffUserProfiles.mockResolvedValue({
-			assignedProfiles: [],
+		mocks.updateStaffUserRoles.mockResolvedValue({
+			assignedRoles: [],
 		});
 
 		renderPage();
@@ -1089,30 +1071,30 @@ describe('staff user edit route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledWith({
 				userId: USER_A,
-				profileIds: [],
+				roleIds: [],
 			}),
 		);
 	});
 
-	test('saves an intentional removal of all assigned profiles', async () => {
-		setProfileState(USER_A, {
+	test('saves an intentional removal of all assigned roles', async () => {
+		setRoleState(USER_A, {
 			data: {
-				assignedProfiles: [
-					{ id: 'profile-1', name: 'Publishing', description: null },
-					{ id: 'profile-2', name: 'Billing', description: null },
+				assignedRoles: [
+					{ id: 'role-1', name: 'Publishing', description: null },
+					{ id: 'role-2', name: 'Billing', description: null },
 				],
 			},
 			isPending: false,
 			isSuccess: true,
 		});
-		mocks.toAssignedStaffProfiles.mockReturnValue([
-			{ id: 'profile-1', name: 'Publishing', description: null },
-			{ id: 'profile-2', name: 'Billing', description: null },
+		mocks.toAssignedStaffRoles.mockReturnValue([
+			{ id: 'role-1', name: 'Publishing', description: null },
+			{ id: 'role-2', name: 'Billing', description: null },
 		]);
-		mocks.updateStaffUserProfiles.mockResolvedValue({
-			assignedProfiles: [],
+		mocks.updateStaffUserRoles.mockResolvedValue({
+			assignedRoles: [],
 		});
 
 		renderPage();
@@ -1131,9 +1113,9 @@ describe('staff user edit route', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledWith({
 				userId: USER_A,
-				profileIds: [],
+				roleIds: [],
 			}),
 		);
 	});
@@ -1151,12 +1133,12 @@ describe('staff user edit route', () => {
 		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
-	test('submits the main and profile mutations with their separate bodies', async () => {
+	test('submits the main and role mutations with their separate bodies', async () => {
 		mocks.updateStaffUser.mockResolvedValue({
 			id: '11111111-1111-1111-1111-111111111111',
 		});
-		mocks.updateStaffUserProfiles.mockResolvedValue({
-			assignedProfiles: [],
+		mocks.updateStaffUserRoles.mockResolvedValue({
+			assignedRoles: [],
 		});
 		renderPage();
 
@@ -1173,9 +1155,9 @@ describe('staff user edit route', () => {
 			}),
 		);
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledWith({
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledWith({
 				userId: '11111111-1111-1111-1111-111111111111',
-				profileIds: ['profile-1', 'profile-2'],
+				roleIds: ['role-1', 'role-2'],
 			}),
 		);
 		await waitFor(() =>
@@ -1199,15 +1181,15 @@ describe('staff user edit route', () => {
 	// identity write commits durably while the UI reports total failure and
 	// keeps showing stale cache). This version asserts the opposite: the
 	// committed identity IS reflected, the failure is attributed to the
-	// profile step specifically, and a retry never resends the already-saved
+	// role step specifically, and a retry never resends the already-saved
 	// identity write.
-	test('reflects a committed identity write and preserves the pending profile selection when the profile update 422s after the identity PATCH succeeds', async () => {
+	test('reflects a committed identity write and preserves the pending role selection when the role update 422s after the identity PATCH succeeds', async () => {
 		mocks.updateStaffUser.mockResolvedValue({
 			id: '11111111-1111-1111-1111-111111111111',
 		});
-		mocks.updateStaffUserProfiles.mockRejectedValue({
+		mocks.updateStaffUserRoles.mockRejectedValue({
 			status: 422,
-			errors: { ProfileIds: ['maxProfilesPerUser exceeded'] },
+			errors: { RoleIds: ['maxRolesPerUser exceeded'] },
 		});
 		renderPage();
 
@@ -1217,9 +1199,7 @@ describe('staff user edit route', () => {
 		fireEvent.click(screen.getByRole('checkbox', { name: 'Billing' }));
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
-		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalled(),
-		);
+		await waitFor(() => expect(mocks.updateStaffUserRoles).toHaveBeenCalled());
 		expect(mocks.navigate).not.toHaveBeenCalled();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 		expect(mocks.toastError).toHaveBeenCalledOnce();
@@ -1232,12 +1212,10 @@ describe('staff user edit route', () => {
 		// The failure message must say part of the save succeeded, not just
 		// a generic failure that implies nothing happened.
 		expect(
-			screen.getByText(
-				'Identity saved, but profile assignments failed to save.',
-			),
+			screen.getByText('Identity saved, but role assignments failed to save.'),
 		).toBeTruthy();
 
-		// The unsaved profile selection must survive the partial failure.
+		// The unsaved role selection must survive the partial failure.
 		expect(
 			(screen.getByRole('checkbox', { name: 'Billing' }) as HTMLInputElement)
 				.checked,
@@ -1252,11 +1230,11 @@ describe('staff user edit route', () => {
 
 		// A retry must not resend the already-committed identity write.
 		mocks.updateStaffUser.mockClear();
-		mocks.updateStaffUserProfiles.mockResolvedValue({ assignedProfiles: [] });
+		mocks.updateStaffUserRoles.mockResolvedValue({ assignedRoles: [] });
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
-			expect(mocks.updateStaffUserProfiles).toHaveBeenCalledTimes(2),
+			expect(mocks.updateStaffUserRoles).toHaveBeenCalledTimes(2),
 		);
 		expect(mocks.updateStaffUser).not.toHaveBeenCalled();
 	});

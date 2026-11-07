@@ -6,7 +6,7 @@ import { LoadingSpinner } from '~/components/ui/loading-spinner';
 
 import { STATUS_OPTIONS } from './_edit-schema';
 
-type ProfileOption = {
+type RoleOption = {
 	value: string;
 	label: string;
 	description?: string;
@@ -14,29 +14,29 @@ type ProfileOption = {
 
 export const EditAccessSection = ({
 	isSubmittingForm,
-	profiles,
-	profileOptions,
-	deferredProfileSearch,
-	profileSearch,
-	onProfileSearchChange,
+	roles,
+	roleOptions,
+	deferredRoleSearch,
+	roleSearch,
+	onRoleSearchChange,
 	pagination,
 }: {
 	isSubmittingForm: boolean;
-	/** State of the assigned-profiles query driving this section's busy,
+	/** State of the assigned-roles query driving this section's busy,
 	 * empty and settled rendering. */
-	profiles: {
+	roles: {
 		isFetching: boolean;
 		isPending: boolean;
 		hasNoServerRows: boolean;
 		isSearchSettled: boolean;
 	};
-	profileOptions: ProfileOption[];
-	deferredProfileSearch: string;
-	profileSearch: string;
-	onProfileSearchChange: (value: string) => void;
+	roleOptions: RoleOption[];
+	deferredRoleSearch: string;
+	roleSearch: string;
+	onRoleSearchChange: (value: string) => void;
 	pagination: {
 		/** Renders the page line + prev/next pair; on while another page of
-		 * profile rows exists in either direction. */
+		 * role rows exists in either direction. */
 		hasPagination: boolean;
 		pageIndex: number;
 		hasPreviousPage: boolean;
@@ -73,47 +73,45 @@ export const EditAccessSection = ({
 				<div className="space-y-1">
 					<label
 						className="text-sm font-medium text-foreground"
-						htmlFor="staff-user-profile-search"
+						htmlFor="staff-user-role-search"
 					>
-						{t('common:search-profiles')}
+						{t('common:search-roles')}
 					</label>
 					<Input
-						id="staff-user-profile-search"
-						aria-label={t('common:search-profiles')}
-						value={profileSearch}
+						id="staff-user-role-search"
+						aria-label={t('common:search-roles')}
+						value={roleSearch}
 						onChange={(event) => {
-							onProfileSearchChange(event.target.value);
+							onRoleSearchChange(event.target.value);
 						}}
-						placeholder={t('common:search-profiles')}
+						placeholder={t('common:search-roles')}
 						autoComplete="off"
 						disabled={isSubmittingForm}
-						data-testid="staff-user-profile-search"
+						data-testid="staff-user-role-search"
 					/>
 				</div>
-				{profiles.isFetching ? (
+				{roles.isFetching ? (
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<LoadingSpinner />
-						<span>{t('common:profiles')}</span>
+						<span>{t('common:roles')}</span>
 					</div>
 				) : null}
-				{profileOptions.length > 0 ? (
+				{roleOptions.length > 0 ? (
 					<Field.CheckboxGroup
-						name="profileIds"
-						label={t('common:select-profiles')}
-						options={profileOptions}
-						isDisabled={
-							isSubmittingForm || profiles.isPending || profiles.isFetching
-						}
+						name="roleIds"
+						label={t('common:select-roles')}
+						options={roleOptions}
+						isDisabled={isSubmittingForm || roles.isPending || roles.isFetching}
 					/>
 				) : null}
-				{profiles.hasNoServerRows &&
-				profiles.isSearchSettled &&
-				!profiles.isPending &&
-				!profiles.isFetching ? (
+				{roles.hasNoServerRows &&
+				roles.isSearchSettled &&
+				!roles.isPending &&
+				!roles.isFetching ? (
 					<p role="status" className="text-sm text-muted-foreground">
-						{deferredProfileSearch
+						{deferredRoleSearch
 							? t('common:list-no-match-default-description')
-							: t('common:no-profiles-available')}
+							: t('common:no-roles-available')}
 					</p>
 				) : null}
 				{pagination.hasPagination ? (
@@ -131,7 +129,7 @@ export const EditAccessSection = ({
 								aria-label={t('common:previous-page')}
 								disabled={
 									isSubmittingForm ||
-									profiles.isFetching ||
+									roles.isFetching ||
 									!pagination.hasPreviousPage
 								}
 								onClick={pagination.onPreviousPage}
@@ -145,7 +143,7 @@ export const EditAccessSection = ({
 								aria-label={t('common:next-page')}
 								disabled={
 									isSubmittingForm ||
-									profiles.isFetching ||
+									roles.isFetching ||
 									!pagination.hasNextCursor
 								}
 								onClick={pagination.onNextPage}

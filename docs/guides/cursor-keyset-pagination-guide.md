@@ -7,6 +7,7 @@
 > table components — see [`front/conventions.md`](front/conventions.md).
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Why Keyset Pagination?](#why-keyset-pagination)
 - [Core Concepts](#core-concepts)
@@ -29,10 +30,10 @@ Keyset pagination (also called cursor-based pagination) is a pagination techniqu
 
 ```sql
 -- Page 1: OFFSET 0 LIMIT 10
-SELECT * FROM profiles ORDER BY name LIMIT 10 OFFSET 0;
+SELECT * FROM roles ORDER BY name LIMIT 10 OFFSET 0;
 
 -- Page 2: OFFSET 10 LIMIT 10
-SELECT * FROM profiles ORDER BY name LIMIT 10 OFFSET 10;
+SELECT * FROM roles ORDER BY name LIMIT 10 OFFSET 10;
 -- ❌ Problem: Database must scan and skip 10 rows for every request
 -- ❌ Problem: If a record is inserted/deleted, results shift causing duplicates/gaps
 -- ❌ Problem: Performance degrades linearly with page number
@@ -42,11 +43,11 @@ SELECT * FROM profiles ORDER BY name LIMIT 10 OFFSET 10;
 
 ```sql
 -- Page 1: No cursor
-SELECT * FROM profiles ORDER BY name, id LIMIT 10;
+SELECT * FROM roles ORDER BY name, id LIMIT 10;
 -- Returns: Last record has name='Charlie', id=200
 
 -- Page 2: cursor=200
-SELECT * FROM profiles
+SELECT * FROM roles
 WHERE (name > 'Charlie') OR (name = 'Charlie' AND id > 200)
 ORDER BY name, id LIMIT 10;
 -- ✅ Benefit: Database uses index efficiently (no skipping)
@@ -62,11 +63,11 @@ The cursor is always an **entity ID** (Guid in our case), even when sorting by o
 
 ```csharp
 // First page request
-GET /api/staff/profiles?limit=10
+GET /api/staff/roles?limit=10
 // Response includes: NextCursor = "018c-UUID-here"
 
 // Second page request
-GET /api/staff/profiles?limit=10&cursor=018c-UUID-here
+GET /api/staff/roles?limit=10&cursor=018c-UUID-here
 // Continue from where we left off
 ```
 
@@ -127,6 +128,7 @@ if (results.Count > effectiveLimit) {
 **Note**: The `TotalCount` feature has been removed from cursor pagination.
 
 **Reason**: Total count defeats the purpose of cursor pagination:
+
 - ❌ `COUNT(*)` queries are expensive on large datasets
 - ❌ Total count becomes stale as data changes
 - ❌ Not needed for Previous/Next navigation
@@ -151,10 +153,12 @@ return new FindEntitiesResult.Success(
 **Note**: The `CurrentOffset` feature has been removed. Cursor pagination should use **Previous/Next navigation only** - not page numbers.
 
 **Reason**: Cursor pagination is fundamentally incompatible with numbered page navigation:
+
 - ✅ Supports: Previous (reset to first page), Next (sequential forward)
 - ❌ Does not support: Jump to arbitrary page numbers
 
 **UI Pattern**: Display only Previous/Next buttons, hide page numbers:
+
 ```typescript
 muiPaginationProps: {
   showFirstButton: false,
@@ -173,8 +177,8 @@ The simplified approach removes ~50-200ms overhead per request and aligns with c
 Create a DTO for the projected data and use the built-in `CursorPaginatedResult<T>`:
 
 ```csharp
-// In your service file (e.g., ProfileAsStaffService.cs)
-public class StaffProfileItem {
+// In your service file (e.g., RoleAsStaffService.cs)
+public class StaffRoleItem {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -506,8 +510,9 @@ public class FindEntities {
 ## Complete Example
 
 For a complete, working example, see:
-- Service: `apps/api/Modules/Profiles/Services/ProfileAsStaffService.cs`
-- Handler: `apps/api/Modules/Profiles/Handlers/Staff/FindStaffProfiles.cs`
+
+- Service: `apps/api/Modules/Roles/Services/RoleAsStaffService.cs`
+- Handler: `apps/api/Modules/Roles/Handlers/Staff/FindStaffRoles.cs`
 
 ## Common Pitfalls
 
@@ -683,10 +688,10 @@ For optimal performance, create indexes that match your sort patterns:
 
 ```sql
 -- For sorting by name with Id tie-breaker
-CREATE INDEX idx_profiles_name_id ON profiles(name, id);
+CREATE INDEX idx_roles_name_id ON roles(name, id);
 
 -- For sorting by created_at with Id tie-breaker
-CREATE INDEX idx_profiles_created_at_id ON profiles(created_at, id);
+CREATE INDEX idx_roles_created_at_id ON roles(created_at, id);
 ```
 
 ### 7. Validate `sort_id` Early

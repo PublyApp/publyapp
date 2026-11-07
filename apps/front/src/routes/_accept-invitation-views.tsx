@@ -62,10 +62,10 @@ const getNewUserFormSchema = (t: Translate) =>
 
 const InvitationDetailsCard = ({
 	email,
-	profileName,
+	roleName,
 }: {
 	email: string;
-	profileName: string;
+	roleName: string;
 }) => {
 	const { t } = useTranslation(['auth', 'common']);
 
@@ -77,9 +77,9 @@ const InvitationDetailsCard = ({
 					<p className="text-sm font-medium text-foreground">{email}</p>
 				</div>
 				<div className="border-t border-border pt-3">
-					<p className="text-xs text-muted-foreground">{t('common:profile')}</p>
+					<p className="text-xs text-muted-foreground">{t('common:role')}</p>
 					<span className="mt-0.5 inline-flex items-center rounded-[var(--publy-radius-chip)] bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
-						{profileName}
+						{roleName}
 					</span>
 				</div>
 			</CardContent>
@@ -141,13 +141,13 @@ export const AuthLookupErrorView = ({
 
 export const NewUserForm = ({
 	email,
-	profileName,
+	roleName,
 	submit,
 	isSubmitting: isAcceptSubmitting,
 	errorMessage,
 }: {
 	email: string;
-	profileName: string;
+	roleName: string;
 	submit: (payload: AcceptPayload) => Promise<void>;
 	isSubmitting: boolean;
 	errorMessage: string;
@@ -182,12 +182,12 @@ export const NewUserForm = ({
 
 	return (
 		<div className="space-y-6" data-testid="accept-invitation-new-user">
-			<InvitationDetailsCard email={email} profileName={profileName} />
+			<InvitationDetailsCard email={email} roleName={roleName} />
 
 			<div>
 				<AuthFormHeader title={t('create-your-account')} />
 				<p className="mt-1 text-sm text-muted-foreground">
-					{t('accept-invitation-new-user-description', { role: profileName })}
+					{t('accept-invitation-new-user-description', { role: roleName })}
 				</p>
 			</div>
 
@@ -306,7 +306,7 @@ export const NewUserForm = ({
 
 export const ExistingMatchView = ({
 	email,
-	profileName,
+	roleName,
 	currentEmail,
 	stayOnPageHref,
 	submit,
@@ -314,7 +314,7 @@ export const ExistingMatchView = ({
 	errorMessage,
 }: {
 	email: string;
-	profileName: string;
+	roleName: string;
 	currentEmail: string;
 	stayOnPageHref: string;
 	submit: (payload: AcceptPayload) => Promise<void>;
@@ -326,7 +326,7 @@ export const ExistingMatchView = ({
 
 	return (
 		<div className="space-y-6" data-testid="accept-invitation-existing-match">
-			<InvitationDetailsCard email={email} profileName={profileName} />
+			<InvitationDetailsCard email={email} roleName={roleName} />
 
 			<div>
 				<AuthFormHeader title={t('accept-invitation-title')} />
@@ -385,11 +385,11 @@ export const ExistingMatchView = ({
 
 export const ExistingSignedOutView = ({
 	email,
-	profileName,
+	roleName,
 	loginSearch,
 }: {
 	email: string;
-	profileName: string;
+	roleName: string;
 	loginSearch: Record<string, string>;
 }) => {
 	const { t } = useTranslation(['auth', 'common']);
@@ -399,7 +399,7 @@ export const ExistingSignedOutView = ({
 			className="space-y-6"
 			data-testid="accept-invitation-existing-signed-out"
 		>
-			<InvitationDetailsCard email={email} profileName={profileName} />
+			<InvitationDetailsCard email={email} roleName={roleName} />
 
 			<div>
 				<AuthFormHeader title={t('accept-invitation-title')} />
@@ -428,14 +428,14 @@ export const ExistingSignedOutView = ({
 
 export const MismatchView = ({
 	email,
-	profileName,
+	roleName,
 	currentEmail,
 	userExists,
 	loginHref,
 	stayOnPageHref,
 }: {
 	email: string;
-	profileName: string;
+	roleName: string;
 	currentEmail: string;
 	userExists: boolean;
 	loginHref: string;
@@ -450,7 +450,7 @@ export const MismatchView = ({
 
 	return (
 		<div className="space-y-6" data-testid="accept-invitation-mismatch">
-			<InvitationDetailsCard email={email} profileName={profileName} />
+			<InvitationDetailsCard email={email} roleName={roleName} />
 
 			<div>
 				<AuthFormHeader title={t('auth-invitation-wrong-account-title')} />

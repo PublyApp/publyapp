@@ -107,7 +107,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 		var token = $"tok-{Guid.NewGuid():N}";
 		await using var db = this._CreateDbContext();
 		var invitedBy = await EmailJobHandlersDispatchSpec._SeedUserInAsync(db);
-		var invitation = Invitation.CreateStaffInvitationWithProfiles(
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
 			invitedBy,

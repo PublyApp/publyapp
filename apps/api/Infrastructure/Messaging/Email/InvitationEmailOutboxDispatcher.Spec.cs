@@ -162,7 +162,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			.GetRequiredService<IInvitationRevokeService>();
 
 		var invitation = Invitation
-			.CreateStaffInvitationWithProfiles(
+			.CreateStaffInvitationWithRoles(
 				$"revoke-cancel-{Guid.NewGuid():N}@example.com",
 				[],
 				(await InvitationEmailOutboxDispatcherSpec._GetAnyStaffUserIdAsync(dbContext)),
@@ -203,7 +203,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		await using var dbContext = await this._CreateDbContextAsync();
 
 		var invitation = Invitation
-			.CreateStaffInvitationWithProfiles(
+			.CreateStaffInvitationWithRoles(
 				$"stale-{Guid.NewGuid():N}@example.com",
 				[],
 				(await InvitationEmailOutboxDispatcherSpec._GetAnyStaffUserIdAsync(dbContext)),

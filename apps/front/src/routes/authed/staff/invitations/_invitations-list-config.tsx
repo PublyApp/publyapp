@@ -50,7 +50,7 @@ const invitationStatusIcon = (status: string): ReactNode => {
 export const DEFAULT_INVITATION_COLUMNS = [
 	'email',
 	'status',
-	'profile',
+	'role',
 	'invitedBy',
 	'createdAt',
 	'expiresAt',
@@ -59,21 +59,21 @@ export const DEFAULT_INVITATION_COLUMNS = [
 export const buildInvitationFilters = (
 	t: Translate,
 	rows: StaffInvitationRow[],
-	selectedProfiles: readonly string[] = [],
-	profileCounts: Record<string, number> | null = null,
+	selectedRoles: readonly string[] = [],
+	roleCounts: Record<string, number> | null = null,
 ): ListFilter<StaffInvitationRow>[] => {
-	const profileNames: string[] = [];
+	const roleNames: string[] = [];
 	const seen = new Set<string>();
-	for (const name of selectedProfiles) {
+	for (const name of selectedRoles) {
 		if (name.length > 0 && !seen.has(name)) {
 			seen.add(name);
-			profileNames.push(name);
+			roleNames.push(name);
 		}
 	}
 	for (const row of rows) {
-		if (row.profileName.length > 0 && !seen.has(row.profileName)) {
-			seen.add(row.profileName);
-			profileNames.push(row.profileName);
+		if (row.roleName.length > 0 && !seen.has(row.roleName)) {
+			seen.add(row.roleName);
+			roleNames.push(row.roleName);
 		}
 	}
 
@@ -90,19 +90,19 @@ export const buildInvitationFilters = (
 			})),
 			valueOf: (row) => row.status,
 		},
-		...(profileNames.length > 0
+		...(roleNames.length > 0
 			? [
 					{
-						key: 'profile',
-						label: t('profiles'),
+						key: 'role',
+						label: t('roles'),
 						icon: IconShieldLock,
 						panel: true,
-						choices: profileNames.map((name) => ({
+						choices: roleNames.map((name) => ({
 							value: name,
 							label: name,
-							count: profileCounts?.[name] ?? null,
+							count: roleCounts?.[name] ?? null,
 						})),
-						valueOf: (row: StaffInvitationRow) => row.profileName,
+						valueOf: (row: StaffInvitationRow) => row.roleName,
 					} satisfies ListFilter<StaffInvitationRow>,
 				]
 			: []),
@@ -127,7 +127,7 @@ export const buildInvitationTotals =
 			}),
 		);
 		for (const id of [
-			'profile',
+			'role',
 			'invitedBy',
 			'createdAt',
 			'expiresAt',
@@ -147,7 +147,7 @@ export const buildInvitationMobileCard =
 		),
 		end: row.createdAt ? formatShortDate(row.createdAt, locale) : DASH,
 		title: row.email,
-		sub: row.profileName || t('unknown-profile'),
+		sub: row.roleName || t('unknown-role'),
 		foot: [t('invited-by'), row.invitedByName || t('unknown-inviter')] as [
 			string,
 			string,

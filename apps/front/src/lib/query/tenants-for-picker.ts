@@ -66,7 +66,7 @@ export const resolveWorkspaceTenant = (
 };
 
 /**
- * The tenant-scoped callers (e.g. the account profile page) need the resolved
+ * The tenant-scoped callers (e.g. the account role page) need the resolved
  * workspace tenant id to build a tenant-scoped API client. The shell already
  * resolved it before navigating here, so this re-derives the same tenant from
  * the (cached) picker query + the persisted selection.

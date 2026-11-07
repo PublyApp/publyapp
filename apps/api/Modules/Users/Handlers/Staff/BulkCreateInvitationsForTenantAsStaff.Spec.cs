@@ -15,7 +15,7 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 
 using Xunit;
 
@@ -44,43 +44,43 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			SeedConstants.Tenants.TechStartName
 		);
 
-		Guid successProfileA;
-		Guid successProfileB;
-		Guid foreignProfileId;
+		Guid successRoleA;
+		Guid successRoleB;
+		Guid foreignRoleId;
 		using (var setupScope = this._Fixture.Factory.Services.CreateScope()) {
 			var dbContext = setupScope.ServiceProvider
 				.GetRequiredService<AppDbContext>();
 
-			var tenantProfileA = Profile.CreateTenantProfile(
+			var tenantRoleA = Role.CreateTenantRole(
 				tenantId,
 				name: $"tenant-bulk-success-{Guid.NewGuid():N}",
-				description: "Bulk invite profile A"
+				description: "Bulk invite role A"
 			);
-			var tenantProfileB = Profile.CreateTenantProfile(
+			var tenantRoleB = Role.CreateTenantRole(
 				tenantId,
 				name: $"tenant-bulk-success-{Guid.NewGuid():N}",
-				description: "Bulk invite profile B"
+				description: "Bulk invite role B"
 			);
-			var foreignProfile = Profile.CreateTenantProfile(
+			var foreignRole = Role.CreateTenantRole(
 				techStartTenantId,
 				name: $"tenant-bulk-foreign-{Guid.NewGuid():N}",
-				description: "Bulk invite foreign profile"
+				description: "Bulk invite foreign role"
 			);
 
-			await dbContext.Profile.AddRangeAsync(tenantProfileA, tenantProfileB);
-			await dbContext.Profile.AddAsync(foreignProfile);
+			await dbContext.Role.AddRangeAsync(tenantRoleA, tenantRoleB);
+			await dbContext.Role.AddAsync(foreignRole);
 			await dbContext.SaveChangesAsync();
 
-			successProfileA = tenantProfileA.GetRequiredId();
-			successProfileB = tenantProfileB.GetRequiredId();
-			foreignProfileId = foreignProfile.GetRequiredId();
+			successRoleA = tenantRoleA.GetRequiredId();
+			successRoleB = tenantRoleB.GetRequiredId();
+			foreignRoleId = foreignRole.GetRequiredId();
 		}
 
 		string validInviteeEmail =
 			$"tenant-bulk-valid-{Guid.NewGuid():N}@example.com";
 		string conflictingInviteeEmail = SeedConstants.Tenants.AcmeUserEmail;
-		string invalidProfileInviteeEmail =
-			$"tenant-bulk-invalid-profile-{Guid.NewGuid():N}@example.com";
+		string invalidRoleInviteeEmail =
+			$"tenant-bulk-invalid-role-{Guid.NewGuid():N}@example.com";
 
 		using HttpResponseMessage response = await this._SendBulkCreateAsync(
 			staffToken,
@@ -89,18 +89,18 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 					invitations = new[] {
 						new {
 							email = conflictingInviteeEmail,
-							profileIds = Array.Empty<string>(),
+							roleIds = Array.Empty<string>(),
 						},
 						new {
 							email = validInviteeEmail,
-							profileIds = new[] {
-								successProfileA.ToString(),
-								successProfileB.ToString(),
+							roleIds = new[] {
+								successRoleA.ToString(),
+								successRoleB.ToString(),
 							},
 						},
 						new {
-							email = invalidProfileInviteeEmail,
-							profileIds = new[] { foreignProfileId.ToString() },
+							email = invalidRoleInviteeEmail,
+							roleIds = new[] { foreignRoleId.ToString() },
 					},
 				},
 				}
@@ -121,7 +121,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		);
 		payload.FailedItems.Should().ContainSingle(item =>
 			item.Index == 2
-			&& item.Email == invalidProfileInviteeEmail
+			&& item.Email == invalidRoleInviteeEmail
 			&& item.TranslationKey == ResponseKeys.NotFound.Value
 		);
 
@@ -140,21 +140,21 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			createdInvitation.Should().NotBeNull();
 			Assert.NotNull(createdInvitation);
 
-			var persistedProfileIds = await dbContext.InvitationProfile
+			var persistedRoleIds = await dbContext.InvitationRole
 				.Where(ip => ip.InvitationId == createdInvitation.GetRequiredId())
-				.Select(ip => ip.ProfileId)
+				.Select(ip => ip.RoleId)
 				.ToListAsync();
-			persistedProfileIds.Should()
-				.BeEquivalentTo([successProfileA, successProfileB]);
+			persistedRoleIds.Should()
+				.BeEquivalentTo([successRoleA, successRoleB]);
 
-			var foreignProfileInvite = await dbContext.Invitation
+			var foreignRoleInvite = await dbContext.Invitation
 				.Where(inv =>
 					inv.TenantId == tenantId
 					&& inv.Scope == InvitationScope.Tenant
-					&& inv.Email == invalidProfileInviteeEmail
+					&& inv.Email == invalidRoleInviteeEmail
 				)
 				.AnyAsync();
-			_ = foreignProfileInvite.Should().BeFalse();
+			_ = foreignRoleInvite.Should().BeFalse();
 		}
 	}
 
@@ -190,7 +190,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email = SeedConstants.Tenants.TechStartUserEmail,
-						profileIds = Array.Empty<string>(),
+						roleIds = Array.Empty<string>(),
 					},
 				},
 			}
@@ -220,12 +220,12 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	}
 
 	[Fact]
-	public async Task ItShouldRejectMemberInviteeWhenProfileCountExceedsConfiguredCap() {
+	public async Task ItShouldRejectMemberInviteeWhenRoleCountExceedsConfiguredCap() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetAcmeTenantIdAsync();
-		var profileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
-		var profileIds = await this._CreateTenantProfilesAsync(tenantId, profileCount);
-		var email = $"tenant-bulk-user-profile-cap-{Guid.NewGuid():N}@example.com";
+		var roleCount = AppEnvironment.Instance.MAX_ROLES_PER_USER + 1;
+		var roleIds = await this._CreateTenantRolesAsync(tenantId, roleCount);
+		var email = $"tenant-bulk-user-role-cap-{Guid.NewGuid():N}@example.com";
 
 		using var response = await this._SendBulkCreateAsync(
 			staffToken,
@@ -234,7 +234,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email,
-						profileIds = profileIds.Select(id => id.ToString()).ToArray(),
+						roleIds = roleIds.Select(id => id.ToString()).ToArray(),
 					},
 				},
 			}
@@ -249,18 +249,18 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		payload.FailedCount.Should().Be(1);
 		payload.FailedItems.Should().ContainSingle(item =>
 			item.Email == email
-			&& item.TranslationKey == "too-many-profiles-for-invitee"
+			&& item.TranslationKey == "too-many-roles-for-invitee"
 		);
 		(await this._TenantInvitationExistsAsync(tenantId, email)).Should().BeFalse();
 	}
 
 	[Fact]
-	public async Task ItShouldCreateMemberInviteeWithProfilesAtConfiguredCap() {
+	public async Task ItShouldCreateMemberInviteeWithRolesAtConfiguredCap() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetAcmeTenantIdAsync();
-		var profileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER;
-		var profileIds = await this._CreateTenantProfilesAsync(tenantId, profileCount);
-		var email = $"tenant-bulk-user-at-profile-cap-{Guid.NewGuid():N}@example.com";
+		var roleCount = AppEnvironment.Instance.MAX_ROLES_PER_USER;
+		var roleIds = await this._CreateTenantRolesAsync(tenantId, roleCount);
+		var email = $"tenant-bulk-user-at-role-cap-{Guid.NewGuid():N}@example.com";
 
 		using var response = await this._SendBulkCreateAsync(
 			staffToken,
@@ -269,7 +269,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 				invitations = new[] {
 					new {
 						email,
-						profileIds = profileIds.Select(id => id.ToString()).ToArray(),
+						roleIds = roleIds.Select(id => id.ToString()).ToArray(),
 					},
 				},
 			}
@@ -286,15 +286,15 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var persistedProfileIds = await (
+		var persistedRoleIds = await (
 			from invitation in dbContext.Invitation
-			join invitationProfile in dbContext.InvitationProfile
-				on invitation.Id equals invitationProfile.InvitationId
+			join invitationRole in dbContext.InvitationRole
+				on invitation.Id equals invitationRole.InvitationId
 			where invitation.TenantId == tenantId
 				&& invitation.Email == email
-			select invitationProfile.ProfileId
+			select invitationRole.RoleId
 		).ToListAsync();
-		persistedProfileIds.Should().BeEquivalentTo(profileIds);
+		persistedRoleIds.Should().BeEquivalentTo(roleIds);
 	}
 
 	private static string _GetBulkInviteUrl(string tenantId) {
@@ -313,24 +313,24 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		);
 	}
 
-	private async Task<List<Guid>> _CreateTenantProfilesAsync(Guid tenantId, int count) {
+	private async Task<List<Guid>> _CreateTenantRolesAsync(Guid tenantId, int count) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var profiles = new List<Profile>();
+		var roles = new List<Role>();
 
 		for (var i = 0; i < count; i++) {
-			var profile = Profile.CreateTenantProfile(
+			var role = Role.CreateTenantRole(
 				tenantId,
 				name: $"tenant-bulk-cap-{Guid.NewGuid():N}",
-				description: "Bulk invite profile-cap test"
+				description: "Bulk invite role-cap test"
 			);
-			profile.ValidateProfileType();
-			profiles.Add(profile);
+			role.ValidateRoleType();
+			roles.Add(role);
 		}
 
-		await dbContext.Profile.AddRangeAsync(profiles);
+		await dbContext.Role.AddRangeAsync(roles);
 		_ = await dbContext.SaveChangesAsync();
-		return profiles.Select(profile => profile.GetRequiredId()).ToList();
+		return roles.Select(role => role.GetRequiredId()).ToList();
 	}
 
 	private async Task<bool> _TenantInvitationExistsAsync(Guid tenantId, string email) {

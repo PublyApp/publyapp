@@ -114,7 +114,7 @@ const waitForPublishedExternalUrl = async (
 // (session-open → delivery → status transition) runs end-to-end through the
 // deterministic fakes — no PDS is ever contacted. The test logs in as the
 // seeded non-admin member (user-acme), who carries the publish verbs through
-// the demo-publishing profile (PublishingProfileSeeder, gated behind
+// the demo-publishing role (PublishingRoleSeeder, gated behind
 // PUBLISHING_FAKE_PROVIDER) so the real permission gate is exercised.
 test.describe(
 	'tenant posts publish now',
@@ -151,8 +151,8 @@ test.describe(
 
 			// Choose the visible target(s) and publish immediately. The seeded
 			// non-admin member holds both tenant.posts.publish and
-			// tenant.socialaccounts.publish through the demo-publishing profile
-			// (PublishingProfileSeeder), so the block renders; the demo
+			// tenant.socialaccounts.publish through the demo-publishing role
+			// (PublishingRoleSeeder), so the block renders; the demo
 			// SocialAccountSeeder (gated behind PUBLISHING_FAKE_PROVIDER=true)
 			// seeds one Active Bluesky account for Acme.
 			const targets = page.locator(
@@ -217,7 +217,7 @@ test.describe(
 			// Cross-check, not a duplicate: the href the UI paints must be the URL
 			// the API reported for the same publication.
 			expect(await link.getAttribute('href')).toBe(publishedHref);
-			expect(publishedHref).toMatch(/^https:\/\/bsky\.app\/profile\//);
+			expect(publishedHref).toMatch(/^https:\/\/bsky\.app\/role\//);
 
 			// Final invariant (#1628 ronde 10 paired proof): the link we
 			// observed belongs to the row that carries the freshly-composed

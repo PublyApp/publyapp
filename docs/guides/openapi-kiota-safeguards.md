@@ -17,6 +17,7 @@
 > vertical-slice refactors.
 
 **Key rules (always apply):**
+
 - Never use `List<T>?` or a custom static `BindAsync(HttpContext)` on an `[AsParameters]` query DTO — it silently drops all query-parameter metadata from the OpenAPI doc and breaks the Kiota TypeScript client. For multi-value filters, use a CSV-encoded `string?` with a parser method (see [`validator-conventions.md` Rule 8](validator-conventions.md#rule-8-csv-enum-list-filters-multi-select-query-params); canonical examples: `FindTenantUsersAsStaffQuery.Status` at `apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:36` and `FindAuditLogsQuery.Actions` at `apps/api/Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs:20`).
 
 ## JsonElement Nullability and Kiota Types
@@ -31,8 +32,8 @@ public class PasswordLoginBody {
 }
 
 // NULLABLE JsonElement? → generates complex union type requiring type casts
-public record CreateStaffProfileBody {
-    public JsonElement? Name { get; init; }    // → name?: CreateStaffProfileBody_nameMember1 | JsonElement | null
+public record CreateStaffRoleBody {
+    public JsonElement? Name { get; init; }    // → name?: CreateStaffRoleBody_nameMember1 | JsonElement | null
 }
 ```
 
@@ -175,29 +176,36 @@ pnpm --filter front typecheck
 
 **Common issues after regeneration:**
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| `UntypedNode` in response types | Integer schema is `["integer", "string"]` | Verify schema transformer is present |
-| Complex union types in request bodies | Using `JsonElement?` (nullable) | Use `JsonElement` (non-nullable) for required fields |
-| Build fails with "duplicate key" | XML comments on generic type | Remove XML comments from generic types |
-| Type casts needed (`as typeof body.name`) | Nullable `JsonElement?` property | Use non-nullable `JsonElement` or accept the cast |
+| Symptom                                   | Cause                                     | Fix                                                  |
+| ----------------------------------------- | ----------------------------------------- | ---------------------------------------------------- |
+| `UntypedNode` in response types           | Integer schema is `["integer", "string"]` | Verify schema transformer is present                 |
+| Complex union types in request bodies     | Using `JsonElement?` (nullable)           | Use `JsonElement` (non-nullable) for required fields |
+| Build fails with "duplicate key"          | XML comments on generic type              | Remove XML comments from generic types               |
+| Type casts needed (`as typeof body.name`) | Nullable `JsonElement?` property          | Use non-nullable `JsonElement` or accept the cast    |
 
 ## TypeScript Patterns for Kiota Client
 
 **For request bodies with UntypedNode fields:**
 
 ```typescript
-import { createUntypedString, createUntypedArray } from '@microsoft/kiota-abstractions';
+import {
+	createUntypedString,
+	createUntypedArray,
+} from '@microsoft/kiota-abstractions';
 
 // ✅ CORRECT - Use Kiota factory functions
 const body: CreateUserBody = {
-    email: createUntypedString(data.email),
-    password: createUntypedString(data.password),
+	email: createUntypedString(data.email),
+	password: createUntypedString(data.password),
 };
 
 // ❌ WRONG - Old pattern that no longer works
 const body: CreateUserBody = {
-    email: { getValue() { return data.email; } },  // May not match expected type
+	email: {
+		getValue() {
+			return data.email;
+		},
+	}, // May not match expected type
 };
 ```
 

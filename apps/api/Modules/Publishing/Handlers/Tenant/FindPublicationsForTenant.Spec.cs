@@ -277,7 +277,7 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 				ids[0],
 				tenantId,
 				"at://did.example/app.bsky.feed.post/hist1",
-				"https://bsky.app/profile/did.example/post/hist1"
+				"https://bsky.app/role/did.example/post/hist1"
 			),
 			CancellationToken.None
 		);

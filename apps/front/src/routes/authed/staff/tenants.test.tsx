@@ -121,7 +121,7 @@ const TRANSLATIONS = {
 	'list-column-posts-month': 'Publications (mois)',
 	'list-column-invitations': 'Invitations',
 	'list-column-owners': 'Propriétaires',
-	'list-column-profiles': 'Profils',
+	'list-column-roles': 'Profils',
 	'list-column-language': 'Langue',
 	'list-column-timezone': 'Fuseau horaire',
 	'list-column-website': 'Site web',

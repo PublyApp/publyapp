@@ -7,6 +7,7 @@
 **CRITICAL:** The API is domain-first. Route scope is expressed via endpoint groups and handler folders — not via alternate module naming schemes like `UsersAsStaff`.
 
 Each `apps/api/Modules/<Domain>/` module is a complete vertical slice containing:
+
 - **Entities** (`Entities/*.cs`) — database models for the domain
 - **Junction entities** — live with their primary entity's domain
 - **Services** (`Services/*.cs`) — domain business logic and orchestration
@@ -18,7 +19,7 @@ Each `apps/api/Modules/<Domain>/` module is a complete vertical slice containing
 
 - `Modules/Auth/` — session + auth flows
 - `Modules/Users/` — users + accounts (including staff-user management)
-- `Modules/Invitations/` — invitations and their profiles
+- `Modules/Invitations/` — invitations and their roles
 - `Infrastructure/Messaging/Email/` — technical capability used by multiple domains
 
 ## Junction Entity Placement Rule
@@ -26,9 +27,10 @@ Each `apps/api/Modules/<Domain>/` module is a complete vertical slice containing
 **IMPORTANT:** Junction entities (many-to-many relationship tables) should live with their **primary entity**.
 
 Examples:
-- `UserAccountProfile` → lives in `Users/` (primary: UserAccount)
-- `ProfilePermission` → lives in `Profiles/` (primary: Profile)
-- `InvitationProfile` → lives in `Invitations/` (primary: Invitation)
+
+- `UserAccountRole` → lives in `Users/` (primary: UserAccount)
+- `RolePermission` → lives in `Roles/` (primary: Role)
+- `InvitationRole` → lives in `Invitations/` (primary: Invitation)
 
 ## Junction Entity Key Rule
 
@@ -37,6 +39,7 @@ identity is the foreign-key pair itself, so they must use a composite primary ke
 from those foreign-key columns.
 
 Required pattern:
+
 - Do **not** inherit `BaseAttributes` or `BaseAttributesNoKey`.
 - Do **not** add a surrogate `id` column.
 - Do **not** add `is_deleted` or `deleted_at` columns.
@@ -48,22 +51,25 @@ Required pattern:
   hard-delete the junction row; historical assignment data belongs in `AuditLog`.
 
 Examples:
-- `InvitationProfile`: `PRIMARY KEY (invitation_id, profile_id)`
-- `UserAccountProfile`: `PRIMARY KEY (user_account_id, profile_id)`
-- `ProfilePermission`: `PRIMARY KEY (profile_id, permission_key)`
 
-The `InvitationId`, `ProfileId`, `UserAccountId`, and `PermissionKey` properties are
+- `InvitationRole`: `PRIMARY KEY (invitation_id, role_id)`
+- `UserAccountRole`: `PRIMARY KEY (user_account_id, role_id)`
+- `RolePermission`: `PRIMARY KEY (role_id, permission_key)`
+
+The `InvitationId`, `RoleId`, `UserAccountId`, and `PermissionKey` properties are
 foreign-key values and composite-key parts. They are required; they are not surrogate
 row identifiers like a standalone `id` column.
 
 ## Infrastructure Services Placement Rules
 
 **Infrastructure folder** (`Infrastructure/`): Technical/architectural services that provide capabilities TO domain modules
+
 - Example: `EmailService` → `Infrastructure/Messaging/Email/` (sends emails FOR auth, invitations, etc.)
 - Example: `SmsService` → `Infrastructure/Messaging/Sms/` (sends SMS FOR 2FA, notifications, etc.)
 - Example: `FileStorageService` → `Infrastructure/Storage/` (stores files FOR users, products, etc.)
 
 **Domain modules**: Business logic services specific to that domain
+
 - Example: `PasswordService` → `Auth/` (password hashing/validation)
 - Example: `UserService` → `Users/` (user business logic)
 - Example: `InvitationService` → `Invitations/` (invitation business logic)
@@ -77,7 +83,7 @@ row identifiers like a standalone `id` column.
 - Services must not depend on other domain/application services. Inject `AppDbContext` and
   infrastructure dependencies directly instead.
 - Split services by cohesive business capability, not one service per handler.
-- Good names: `StaffUserLifecycleService`, `StaffUserProfileAssignmentService`,
+- Good names: `StaffUserLifecycleService`, `StaffUserRoleAssignmentService`,
   `TenantUserCompanyService`, `InvitationQueryService`.
 - Bad names: `UserHelper`, `UserManager`, `UserService2`, `CommonService`,
   `SuspendStaffUserService`.
@@ -86,7 +92,7 @@ row identifiers like a standalone `id` column.
 
 - Scope is determined by the route group in `apps/api/Program.cs` (e.g. `/staff/*`, `/tenant/*`, `/auth/*`).
 - Keep scope-specific code in `Handlers/<Scope>/` and `Endpoints/*For<Scope>.cs`.
-- Prefer scope-specific handler names when it prevents confusion (e.g. `FindStaffProfiles` vs `FindTenantProfiles`). If a handler is truly shared across scopes, put it in a neutral location and keep the name generic.
+- Prefer scope-specific handler names when it prevents confusion (e.g. `FindStaffRoles` vs `FindTenantRoles`). If a handler is truly shared across scopes, put it in a neutral location and keep the name generic.
 
 ## Where to Put New Code
 
@@ -116,6 +122,7 @@ row identifiers like a standalone `id` column.
   - `...EndpointsAnonymous` / `...EndpointsForStaff` / `...EndpointsForTenant`
 
 **Naming rules:**
+
 - Prefer **plural** domain folder names (`Users`, `Invitations`, `Permissions`, `Tenants`).
 - File namespaces must match folders (analyzers enforce `IDE0130`).
 - Remove unused `using`s (`IDE0005` is treated as error).
@@ -126,13 +133,15 @@ row identifiers like a standalone `id` column.
 Split by **domain** first, then by **route scope** inside the domain (staff/tenant/anonymous).
 
 Create **separate scope handlers/endpoints** when any of these change:
+
 - Route scope / actor (Staff vs Tenant vs Project user)
 - Authorization middleware / security boundary
 - Route prefix (`/staff/*` vs `/tenant/*`)
 - Business rules/workflows diverge meaningfully
 
 Keep one implementation (and parameterize) when differences are only:
-- Data attributes or filter parameters (e.g., `ProfileScope`, status/type/category enums)
+
+- Data attributes or filter parameters (e.g., `RoleScope`, status/type/category enums)
 - Same auth middleware, same route group, same business context
 
 ## Permission Enforcement Patterns
@@ -140,7 +149,7 @@ Keep one implementation (and parameterize) when differences are only:
 Prefer enforcing permissions at the **route level** (before database access).
 
 - **Pattern 1 (Recommended): Scope in route + `.WithPermission()`**
-  - Use when the scope can be derived from the route (e.g., `/staff/profiles/staff/{id}` vs `/staff/profiles/tenants/{tenantId}`).
+  - Use when the scope can be derived from the route (e.g., `/staff/roles/staff/{id}` vs `/staff/roles/tenants/{tenantId}`).
   - Benefits: permission checked before DB query, clearer API design, avoids wasted queries.
 - **Pattern 2 (Fallback): Dynamic permission check after loading entity**
   - Avoid if possible. Use only when scope cannot be determined from the route and you cannot change the route shape.
@@ -155,21 +164,22 @@ This is the canonical reference (replaces the old `docs/vertical-slice-design-pr
 When Staff and Tenant both touch the same domain, keep **one domain module** and split by actor inside it:
 
 ```
-apps/api/Modules/Profiles/
+apps/api/Modules/Roles/
 ├── Entities/
 ├── Services/
 ├── Endpoints/
-│   ├── ProfileEndpointsForStaff.cs
-│   └── ProfileEndpointsForTenant.cs
+│   ├── RoleEndpointsForStaff.cs
+│   └── RoleEndpointsForTenant.cs
 └── Handlers/
     ├── Staff/
     └── Tenant/
 ```
 
 Split by actor when:
+
 - Different auth middleware / pipeline (staff vs tenant)
 - Different security boundary (cross-tenant admin vs single-tenant access)
-- Different permission namespaces (e.g., `staff.profile.*` vs `tenant.profile.*`)
+- Different permission namespaces (e.g., `staff.role.*` vs `tenant.role.*`)
 
 ### Share handlers when business rules match
 
@@ -178,21 +188,22 @@ Prefer a **single handler** when the operation is the same and only the permissi
 Example: one handler, mapped twice:
 
 ```
-apps/api/Modules/Profiles/
+apps/api/Modules/Roles/
 ├── Handlers/
 │   └── Common/
-│       └── UpdateProfile.cs
+│       └── UpdateRole.cs
 └── Endpoints/
-    ├── ProfileEndpointsForStaff.cs   # PUT /staff/profiles/{id} + WithPermission(A)
-    └── ProfileEndpointsForTenant.cs  # PUT /tenant/profiles/{id} + WithPermission(B)
+    ├── RoleEndpointsForStaff.cs   # PUT /staff/roles/{id} + WithPermission(A)
+    └── RoleEndpointsForTenant.cs  # PUT /tenant/roles/{id} + WithPermission(B)
 ```
 
-If *scope/target* differs (staff profile vs tenant profile vs project profile), prefer explicit handler names (e.g., `UpdateTenantProfile`) to avoid hidden branching and to make intent obvious in search results.
+If _scope/target_ differs (staff role vs tenant role vs project role), prefer explicit handler names (e.g., `UpdateTenantRole`) to avoid hidden branching and to make intent obvious in search results.
 
 Indicators you should keep one handler:
+
 - Same actor (all operations performed by Staff, or all by Tenant)
 - Same middleware + same route group
-- Operations are identical except for filtering (e.g., `ProfileScope`, `Status`)
+- Operations are identical except for filtering (e.g., `RoleScope`, `Status`)
 - Service logic can be parameterized by an enum/discriminator
 
 ### Permission Enforcement (More Detail)
@@ -200,34 +211,36 @@ Indicators you should keep one handler:
 **Default rule:** enforce permissions **before** doing database work.
 
 **Pattern 1 (Preferred): scope in route + `.WithPermission()`**
+
 - Use when scope can be derived from the route shape.
 - Benefits: permission checked before DB query; API intent is explicit; avoids wasted queries.
 
 Example route shapes (entity-centric, symmetric):
 
 ```
-GET    /staff/profiles/staff                     # list staff profiles
-GET    /staff/profiles/staff/{profileId}         # get staff profile
-POST   /staff/profiles/staff                     # create staff profile
-PUT    /staff/profiles/staff/{profileId}         # update staff profile
-DELETE /staff/profiles/staff/{profileId}         # delete staff profile
+GET    /staff/roles/staff                     # list staff roles
+GET    /staff/roles/staff/{roleId}         # get staff role
+POST   /staff/roles/staff                     # create staff role
+PUT    /staff/roles/staff/{roleId}         # update staff role
+DELETE /staff/roles/staff/{roleId}         # delete staff role
 
-GET    /staff/profiles/tenants                   # list tenant profiles
-GET    /staff/profiles/tenants/{tenantId}        # get tenant profiles for tenant
-POST   /staff/profiles/tenants/{tenantId}        # create tenant profile for tenant
-PUT    /staff/profiles/tenants/{tenantId}        # update tenant profile for tenant
-DELETE /staff/profiles/tenants/{tenantId}        # delete tenant profile for tenant
+GET    /staff/roles/tenants                   # list tenant roles
+GET    /staff/roles/tenants/{tenantId}        # get tenant roles for tenant
+POST   /staff/roles/tenants/{tenantId}        # create tenant role for tenant
+PUT    /staff/roles/tenants/{tenantId}        # update tenant role for tenant
+DELETE /staff/roles/tenants/{tenantId}        # delete tenant role for tenant
 ```
 
 Permission naming guidance (stable + predictable):
 
 ```
-staff.profile.list_for_staff
-staff.profile.get_for_tenant
-staff.profile.update_for_project
+staff.role.list_for_staff
+staff.role.get_for_tenant
+staff.role.update_for_project
 ```
 
 **Pattern 2 (Fallback): dynamic permission check after loading entity**
+
 - Avoid if possible. Use only when scope cannot be determined from the route and you cannot change the route shape.
 - Cost: requires loading the entity first; wastes a DB query if unauthorized; permission is no longer encoded by the route.
 

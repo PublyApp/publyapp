@@ -264,7 +264,7 @@ public sealed class TenantAsStaffServiceSpec
 				InitialUsers: [(Email: $"invitee-{Guid.NewGuid():N}@example.com", IsOwner: true)],
 				InvitedByUserId: (await this._SeedStaffUserAsync()),
 				Code: null,
-				SeedDefaultProfile: false,
+				SeedDefaultRole: false,
 				LogoUrl: null,
 				LegalName: null,
 				Description: null,

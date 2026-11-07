@@ -15,7 +15,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -91,7 +91,7 @@ public sealed class GetScopeAuthDataSpec
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var profilePermissions = new[] {
+		var rolePermissions = new[] {
 			new[] {
 				AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key,
 				AppPermissions.Tenant.Modules.ACCESS_BILLING.Key
@@ -101,26 +101,26 @@ public sealed class GetScopeAuthDataSpec
 				AppPermissions.Tenant.Modules.ACCESS_SETTINGS.Key
 			]
 		};
-		var createdProfileIds = new List<Guid>();
+		var createdRoleIds = new List<Guid>();
 
 		try {
-			foreach (var permissions in profilePermissions) {
-				createdProfileIds.Add(
-					await this._CreateTenantProfileWithPermissionsAsync(
+			foreach (var permissions in rolePermissions) {
+				createdRoleIds.Add(
+					await this._CreateTenantRoleWithPermissionsAsync(
 						acmeId,
 						permissions
 					)
 				);
 			}
 
-			// The seeded Acme admin holds the full-access Owner profile (wildcard), so the
-			// exact profile-derived set is proven on a member with no seeded profiles.
+			// The seeded Acme admin holds the full-access Owner role (wildcard), so the
+			// exact role-derived set is proven on a member with no seeded roles.
 			var memberEmail = await this._CreateBareTenantMemberAsync(acmeId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				memberEmail,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			var acmeMemberToken = await this._AuthClient.LoginAsync(
@@ -144,7 +144,7 @@ public sealed class GetScopeAuthDataSpec
 				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
 			result.Should().NotBeNull();
 
-			var expectedPermissions = profilePermissions
+			var expectedPermissions = rolePermissions
 				.SelectMany(permissions => permissions)
 				.Distinct(StringComparer.OrdinalIgnoreCase)
 				.ToList();
@@ -168,7 +168,7 @@ public sealed class GetScopeAuthDataSpec
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
 			);
 		} finally {
-			await this._CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
+			await this._CleanupScopeAuthDataTestArtifactsAsync(createdRoleIds);
 		}
 	}
 
@@ -184,52 +184,52 @@ public sealed class GetScopeAuthDataSpec
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var createdProfileIds = new List<Guid>();
+		var createdRoleIds = new List<Guid>();
 
 		try {
-			var activeProfileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var activeRoleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 			);
-			var revokedPermissionProfileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var revokedPermissionRoleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Modules.ACCESS_USERS.Key]
 			);
-			var softDeletedLinkProfileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var softDeletedLinkRoleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[AppPermissions.Tenant.Modules.ACCESS_BILLING.Key]
 			);
-			var wrongScopeProfileId = await this._CreateTenantProfileWithPermissionsAsync(
+			var wrongScopeRoleId = await this._CreateTenantRoleWithPermissionsAsync(
 				acmeId,
 				[]
 			);
 
-			createdProfileIds.AddRange(
+			createdRoleIds.AddRange(
 				[
-					activeProfileId,
-					revokedPermissionProfileId,
-					softDeletedLinkProfileId,
-					wrongScopeProfileId,
+					activeRoleId,
+					revokedPermissionRoleId,
+					softDeletedLinkRoleId,
+					wrongScopeRoleId,
 				]
 			);
 
-			// The seeded Acme admin holds the full-access Owner profile (wildcard), so the
-			// leak-proof set is proven on a member with no seeded profiles.
+			// The seeded Acme admin holds the full-access Owner role (wildcard), so the
+			// leak-proof set is proven on a member with no seeded roles.
 			var memberEmail = await this._CreateBareTenantMemberAsync(acmeId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				memberEmail,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			await this._ConfigureTenantAuthPermissionLeakScenarioAsync(
 				tenantId: acmeId,
 				email: memberEmail,
-				revokedPermissionProfileId: revokedPermissionProfileId,
+				revokedPermissionRoleId: revokedPermissionRoleId,
 				revokedPermissionKey: AppPermissions.Tenant.Modules.ACCESS_USERS.Key,
-				softDeletedLinkProfileId: softDeletedLinkProfileId,
-				wrongScopeProfileId: wrongScopeProfileId,
+				softDeletedLinkRoleId: softDeletedLinkRoleId,
+				wrongScopeRoleId: wrongScopeRoleId,
 				wrongScopePermissionKey: AppPermissions.Staff.Users.LIST_FOR_STAFF.Key
 			);
 
@@ -258,13 +258,13 @@ public sealed class GetScopeAuthDataSpec
 							[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 						);
 		} finally {
-			await this._CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
+			await this._CleanupScopeAuthDataTestArtifactsAsync(createdRoleIds);
 		}
 	}
 
 	[Fact]
 	public async Task
-	ItShouldReturnAllAssignedTenantProfilesEvenWhenTheyExceedConfiguredCap() {
+	ItShouldReturnAllAssignedTenantRolesEvenWhenTheyExceedConfiguredCap() {
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeId =
@@ -274,28 +274,28 @@ public sealed class GetScopeAuthDataSpec
 				SeedConstants.Tenants.AcmeName
 			);
 
-		var createdProfileIds = new List<Guid>();
-		var requestedProfileCount = AppEnvironment.Instance.MAX_PROFILES_PER_USER + 1;
+		var createdRoleIds = new List<Guid>();
+		var requestedRoleCount = AppEnvironment.Instance.MAX_ROLES_PER_USER + 1;
 
 		try {
-			for (var index = 0; index < requestedProfileCount; index++) {
-				createdProfileIds.Add(
-					await this._CreateTenantProfileWithPermissionsAsync(
+			for (var index = 0; index < requestedRoleCount; index++) {
+				createdRoleIds.Add(
+					await this._CreateTenantRoleWithPermissionsAsync(
 						acmeId,
 						[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 					)
 				);
 			}
 
-			// Auth data must expose the full effective profile set even if historical data grows
-			// past the configurable write-time cap. A member with no seeded profiles keeps the
-			// expected set exactly the created profiles.
+			// Auth data must expose the full effective role set even if historical data grows
+			// past the configurable write-time cap. A member with no seeded roles keeps the
+			// expected set exactly the created roles.
 			var memberEmail = await this._CreateBareTenantMemberAsync(acmeId);
 
-			await this._AssignProfileToTenantUserAsync(
+			await this._AssignRoleToTenantUserAsync(
 				memberEmail,
 				acmeId,
-				createdProfileIds
+				createdRoleIds
 			);
 
 			var acmeMemberToken = await this._AuthClient.LoginAsync(
@@ -319,12 +319,12 @@ public sealed class GetScopeAuthDataSpec
 				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
 			result.Should().NotBeNull();
 			Assert.NotNull(result);
-			result.Profiles.Should().HaveCount(requestedProfileCount);
-			result.Profiles.Select(profile => profile.Id)
+			result.Roles.Should().HaveCount(requestedRoleCount);
+			result.Roles.Select(role => role.Id)
 				.Should()
-				.BeEquivalentTo(createdProfileIds);
+				.BeEquivalentTo(createdRoleIds);
 		} finally {
-			await this._CleanupScopeAuthDataTestArtifactsAsync(createdProfileIds);
+			await this._CleanupScopeAuthDataTestArtifactsAsync(createdRoleIds);
 		}
 	}
 
@@ -645,7 +645,7 @@ public sealed class GetScopeAuthDataSpec
 		updatedCount.Should().Be(1);
 	}
 
-	private async Task<Guid> _CreateTenantProfileWithPermissionsAsync(
+	private async Task<Guid> _CreateTenantRoleWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
@@ -654,22 +654,22 @@ public sealed class GetScopeAuthDataSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profile = Profile.CreateTenantProfile(
+		var role = Role.CreateTenantRole(
 			tenantId,
 			"Tenant Auth Data Spec " + Guid.NewGuid().ToString("N")[..8],
 			"Created for tenant auth data permission assertions"
 		);
-		profile.ValidateProfileType();
+		role.ValidateRoleType();
 
-		_ = await dbContext.Profile.AddAsync(profile);
+		_ = await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
-		var profileId = profile.GetRequiredId();
+		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.ProfilePermission.AddAsync(
-				new ProfilePermission {
-					ProfileId = profileId,
+			_ = await dbContext.RolePermission.AddAsync(
+				new RolePermission {
+					RoleId = roleId,
 					PermissionKey = permissionKey
 				}
 			);
@@ -677,11 +677,11 @@ public sealed class GetScopeAuthDataSpec
 
 		await dbContext.SaveChangesAsync();
 
-		return profileId;
+		return roleId;
 	}
 
-	// Seeds a tenant member with no profile assignments, so a profile-derived permission
-	// assertion is not polluted by the seeded admin's full-access Owner profile.
+	// Seeds a tenant member with no role assignments, so a role-derived permission
+	// assertion is not polluted by the seeded admin's full-access Owner role.
 	private async Task<string> _CreateBareTenantMemberAsync(Guid tenantId) {
 		await using var scope =
 			this._Fixture.Factory.Services.CreateAsyncScope();
@@ -708,10 +708,10 @@ public sealed class GetScopeAuthDataSpec
 		return email;
 	}
 
-	private async Task _AssignProfileToTenantUserAsync(
+	private async Task _AssignRoleToTenantUserAsync(
 		string email,
 		Guid tenantId,
-		IReadOnlyCollection<Guid> profileIds
+		IReadOnlyCollection<Guid> roleIds
 	) {
 		var trimmedEmail = email.Trim();
 
@@ -752,11 +752,11 @@ public sealed class GetScopeAuthDataSpec
 			);
 		}
 
-		foreach (var profileId in profileIds) {
-			_ = await dbContext.UserAccountProfile.AddAsync(
-				new UserAccountProfile {
+		foreach (var roleId in roleIds) {
+			_ = await dbContext.UserAccountRole.AddAsync(
+				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
-					ProfileId = profileId
+					RoleId = roleId
 				}
 			);
 		}
@@ -767,10 +767,10 @@ public sealed class GetScopeAuthDataSpec
 	private async Task _ConfigureTenantAuthPermissionLeakScenarioAsync(
 		Guid tenantId,
 		string email,
-		Guid revokedPermissionProfileId,
+		Guid revokedPermissionRoleId,
 		string revokedPermissionKey,
-		Guid softDeletedLinkProfileId,
-		Guid wrongScopeProfileId,
+		Guid softDeletedLinkRoleId,
+		Guid wrongScopeRoleId,
 		string wrongScopePermissionKey
 	) {
 		var trimmedEmail = email.Trim();
@@ -807,40 +807,40 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		var revokedPermission = await (
-			from pp in dbContext.ProfilePermission
-			where pp.ProfileId == revokedPermissionProfileId
+			from pp in dbContext.RolePermission
+			where pp.RoleId == revokedPermissionRoleId
 				&& pp.PermissionKey == revokedPermissionKey
 			select pp
 		).FirstOrDefaultAsync();
 
 		if (revokedPermission is null) {
 			throw new InvalidOperationException(
-				"Expected profile permission to exist for auth-data test"
+				"Expected role permission to exist for auth-data test"
 			);
 		}
 
-		// Revoked permission membership is represented by no ProfilePermission row.
-		dbContext.ProfilePermission.Remove(revokedPermission);
+		// Revoked permission membership is represented by no RolePermission row.
+		dbContext.RolePermission.Remove(revokedPermission);
 
 		var softDeletedLink = await (
-			from uap in dbContext.UserAccountProfile
-			where uap.ProfileId == softDeletedLinkProfileId
+			from uap in dbContext.UserAccountRole
+			where uap.RoleId == softDeletedLinkRoleId
 				&& uap.UserAccountId == tenantUserAccount.Id
 			select uap
 		).FirstOrDefaultAsync();
 
 		if (softDeletedLink is null) {
 			throw new InvalidOperationException(
-				"Expected user-account profile link to exist for auth-data test"
+				"Expected user-account role link to exist for auth-data test"
 			);
 		}
 
-		// Revoked profile membership is represented by no UserAccountProfile row.
-		dbContext.UserAccountProfile.Remove(softDeletedLink);
+		// Revoked role membership is represented by no UserAccountRole row.
+		dbContext.UserAccountRole.Remove(softDeletedLink);
 
-		_ = await dbContext.ProfilePermission.AddAsync(
-			new ProfilePermission {
-				ProfileId = wrongScopeProfileId,
+		_ = await dbContext.RolePermission.AddAsync(
+			new RolePermission {
+				RoleId = wrongScopeRoleId,
 				PermissionKey = wrongScopePermissionKey
 			}
 		);
@@ -849,9 +849,9 @@ public sealed class GetScopeAuthDataSpec
 	}
 
 	private async Task _CleanupScopeAuthDataTestArtifactsAsync(
-		IReadOnlyCollection<Guid> profileIds
+		IReadOnlyCollection<Guid> roleIds
 	) {
-		if (profileIds.Count == 0) {
+		if (roleIds.Count == 0) {
 			return;
 		}
 
@@ -860,11 +860,11 @@ public sealed class GetScopeAuthDataSpec
 		var dbContext = scope.ServiceProvider
 			.GetRequiredService<AppDbContext>();
 
-		var profileIdList = profileIds.ToList();
+		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountProfile
-			where profileIdList.Contains(uap.ProfileId)
+			from uap in dbContext.UserAccountRole
+			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
@@ -873,8 +873,8 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.ProfilePermission
-			where profileIdList.Contains(pp.ProfileId)
+			from pp in dbContext.RolePermission
+			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
@@ -882,15 +882,15 @@ public sealed class GetScopeAuthDataSpec
 			dbContext.ForceHardDeleteRange(permissionsToRemove);
 		}
 
-		var profilesToRemove = (await (
-			from p in dbContext.Profile
+		var rolesToRemove = (await (
+			from p in dbContext.Role
 			select p
 		).ToListAsync())
-			.Where(profile => profileIdList.Contains(profile.GetRequiredId()))
+			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
-		if (profilesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(profilesToRemove);
+		if (rolesToRemove.Count > 0) {
+			dbContext.ForceHardDeleteRange(rolesToRemove);
 			await dbContext.SaveChangesAsync();
 		}
 	}
@@ -909,19 +909,19 @@ public sealed class GetScopeAuthDataSpec
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public string Code { get; init; } = string.Empty;
-		public List<AuthProfileResponse> Profiles { get; init; } = [];
+		public List<AuthRoleResponse> Roles { get; init; } = [];
 		public bool IsAdmin { get; init; }
 		public List<string> Permissions { get; init; } = [];
 	}
 
 	private record StaffScopeAuthDataResponse {
 		public string Code { get; init; } = string.Empty;
-		public List<AuthProfileResponse> Profiles { get; init; } = [];
+		public List<AuthRoleResponse> Roles { get; init; } = [];
 		public bool IsAdmin { get; init; }
 		public List<string> Permissions { get; init; } = [];
 	}
 
-	private record AuthProfileResponse {
+	private record AuthRoleResponse {
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public List<string> Permissions { get; init; } = [];

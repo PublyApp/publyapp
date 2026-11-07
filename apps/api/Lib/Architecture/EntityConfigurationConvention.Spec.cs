@@ -15,8 +15,8 @@ using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
-using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -204,7 +204,7 @@ public sealed class EntityConfigurationConventionSpec {
 		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(User), "CK_User_Status", failures);
 		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(UserAccount), "CK_UserAccount_Status", failures);
 		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(Project), "CK_Project_Status", failures);
-		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(Profile), "CK_Profile_Tenant_Constraints", failures);
+		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(Role), "CK_Role_Tenant_Constraints", failures);
 		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(Permission), "CK_Permission_Staff_Key_Prefix", failures);
 		EntityConfigurationConventionSpec._AssertCheckConstraint(model, typeof(Invitation), "CK_Invitation_Status", failures);
 
@@ -215,13 +215,13 @@ public sealed class EntityConfigurationConventionSpec {
 		EntityConfigurationConventionSpec._AssertPrimaryKeyName(model, typeof(EmailPreparedSend), "pk_email_prepared_sends", failures);
 
 		EntityConfigurationConventionSpec._AssertCompositePrimaryKey(
-			model, typeof(UserAccountProfile), ["UserAccountId", "ProfileId"], failures
+			model, typeof(UserAccountRole), ["UserAccountId", "RoleId"], failures
 		);
 		EntityConfigurationConventionSpec._AssertCompositePrimaryKey(
-			model, typeof(ProfilePermission), ["ProfileId", "PermissionKey"], failures
+			model, typeof(RolePermission), ["RoleId", "PermissionKey"], failures
 		);
 		EntityConfigurationConventionSpec._AssertCompositePrimaryKey(
-			model, typeof(InvitationProfile), ["InvitationId", "ProfileId"], failures
+			model, typeof(InvitationRole), ["InvitationId", "RoleId"], failures
 		);
 		EntityConfigurationConventionSpec._AssertCompositePrimaryKey(
 			model, typeof(SystemJobOccurrence), ["JobKey", "ScheduledFireAt"], failures

@@ -83,10 +83,10 @@ vi.mock('../_staff-list-team', async (importOriginal) => {
 	return {
 		...actual,
 		useStaffTeamOverview: () => ({
-			counts: { staff: 10, invitations: 10, profiles: 7 },
+			counts: { staff: 10, invitations: 10, roles: 7 },
 			staff: [],
 			invitations: [],
-			profiles: [],
+			roles: [],
 		}),
 	};
 });
@@ -115,7 +115,7 @@ const staffUserRow = {
 	roles: ['Staff Owner'],
 	status: UserStatusObject.Active,
 	displayName: 'Alex User',
-	profileNames: [],
+	roleNames: [],
 };
 
 const staffSelection = {

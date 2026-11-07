@@ -37,8 +37,8 @@
  *    that must match the actual target element) — i.e. a selector list entry
  *    is treated as competing for the target the moment its final compound
  *    run's tokens are a superset of the target selector's own tokens. This
- *    correctly ranks `.foo.publy-profile-detail-tile-pin` above
- *    `.publy-profile-detail-tile-pin` alone (the exact reviewer attack), and
+ *    correctly ranks `.foo.publy-role-detail-tile-pin` above
+ *    `.publy-role-detail-tile-pin` alone (the exact reviewer attack), and
  *    correctly leaves an unrelated selector that merely mentions the target
  *    class inside a longer, non-superset compound unmatched. It does NOT
  *    add the specificity contributed by earlier compounds in a
@@ -69,7 +69,7 @@
  *
  * Wherever any of the remaining limits could matter for a specific check,
  * prefer a real-browser (Playwright + `getComputedStyle`) assertion instead
- * — see `e2e/profile-icon-picker-pin-contrast.spec.ts`, which asserts the
+ * — see `e2e/role-icon-picker-pin-contrast.spec.ts`, which asserts the
  * real computed cascade against the LIVE component for the pin (closing its
  * specificity blind spot completely, since the live element's real class
  * list is what a real stylesheet author would actually have to out-specify).

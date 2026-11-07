@@ -222,7 +222,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 				publication.GetRequiredId(),
 				tenantId,
 				"at://spec/record",
-				"https://bsky.app/profile/spec/post/abc"
+				"https://bsky.app/role/spec/post/abc"
 			),
 			CancellationToken.None
 		)).Should().BeTrue();
@@ -445,7 +445,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 				created.PublicationIds[0],
 				tenantId,
 				"at://did.example/app.bsky.feed.post/abc123",
-				"https://bsky.app/profile/did.example/post/abc123"
+				"https://bsky.app/role/did.example/post/abc123"
 			),
 			CancellationToken.None
 		);

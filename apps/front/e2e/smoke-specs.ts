@@ -20,7 +20,7 @@
  * - `cold-boot-stability` reads the raw SSR body, so it reds if the server
  *   stops shipping the neutral chrome even when every DOM test stays green.
  * - `staff-user-details` proves a nested tab route survives a hard load.
- * - `staff-profile-edit-flow` is the only real write→reload seam in the staff
+ * - `staff-role-edit-flow` is the only real write→reload seam in the staff
  *   area (a PATCH through the real API, read back by a fresh document).
  * - `tenant-post-image` is the real upload seam, deliberately in smoke: the
  *   only CI failures in the audit's 40-run sample were upload paths broken by
@@ -45,6 +45,6 @@ export const SMOKE_SPEC_PATTERNS = [
 	'**/logout.spec.ts',
 	'**/cold-boot-stability.spec.ts',
 	'**/staff-user-details.spec.ts',
-	'**/staff-profile-edit-flow.spec.ts',
+	'**/staff-role-edit-flow.spec.ts',
 	'**/tenant-post-image.spec.ts',
 ] as const;

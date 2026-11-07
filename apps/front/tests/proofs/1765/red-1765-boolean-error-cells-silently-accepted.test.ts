@@ -40,7 +40,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 	describe('RED: vulnerable behavior — boolean/error cells treated as text', () => {
 		test('boolean cell (t="b") in email column is silently accepted as text and flagged only as invalid email', () => {
 			const bytes = buildWorkbook({
-				sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+				sharedStrings: ['email', 'level', 'roles', 'admin', 'Alpha'],
 				sheetXml:
 					'<worksheet><sheetData>' +
 					'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -60,7 +60,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 				rows: [
 					{
 						email: '1',
-						profileNames: ['Alpha'],
+						roleNames: ['Alpha'],
 						invalidEmail: '1',
 					},
 				],
@@ -69,7 +69,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 
 		test('formula error cell (t="e") in email column is silently accepted as text and flagged only as invalid email', () => {
 			const bytes = buildWorkbook({
-				sharedStrings: ['email', 'level', 'profiles', 'admin', 'Alpha'],
+				sharedStrings: ['email', 'level', 'roles', 'admin', 'Alpha'],
 				sheetXml:
 					'<worksheet><sheetData>' +
 					'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>' +
@@ -89,7 +89,7 @@ describe('Paired red proof #1765 — boolean/error cells silently accepted as em
 				rows: [
 					{
 						email: '#REF!',
-						profileNames: ['Alpha'],
+						roleNames: ['Alpha'],
 						invalidEmail: '#REF!',
 					},
 				],
