@@ -8,9 +8,9 @@ import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 
 const ACCOUNT_TAB_ROUTE_SUFFIXES = ['security', 'notifications'] as const;
-type AccountSection = 'role' | (typeof ACCOUNT_TAB_ROUTE_SUFFIXES)[number];
+type AccountSection = 'profile' | (typeof ACCOUNT_TAB_ROUTE_SUFFIXES)[number];
 
-// #818 F8: only the built Role tab renders. Security and Notifications
+// #818 F8: only the built Profile tab renders. Security and Notifications
 // keep their routes registered (deep links work and the active-section
 // derivation below still recognizes them) but ship no trigger until their
 // APIs exist.
@@ -20,7 +20,7 @@ const getActiveSection = (pathname: string): AccountSection => {
 		pathname.endsWith(`/${suffix}`),
 	);
 
-	return match ?? 'role';
+	return match ?? 'profile';
 };
 
 const TenantAccountLayout = () => {
@@ -34,8 +34,8 @@ const TenantAccountLayout = () => {
 		<div className="space-y-5" data-testid="tenant-account-page">
 			<Tabs value={activeSection}>
 				<TabsList variant="line">
-					<TabsTrigger value="role" render={<Link to="/tenant/account" />}>
-						{t('role')}
+					<TabsTrigger value="profile" render={<Link to="/tenant/account" />}>
+						{t('profile')}
 					</TabsTrigger>
 				</TabsList>
 
@@ -48,7 +48,7 @@ const TenantAccountLayout = () => {
 };
 
 export const Route = createFileRoute('/_authed-layout/tenant/account')({
-	// Always matched alongside a role/security/notifications child (never
+	// Always matched alongside a profile/security/notifications child (never
 	// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
 	// contract requires every route to declare its own trail.
 	staticData: {

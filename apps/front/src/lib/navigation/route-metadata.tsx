@@ -284,7 +284,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 const ACCOUNT_MODULE_ITEMS: SecondaryPanelItem[] = [
 	{
 		id: 'account-profile',
-		labelKey: 'role',
+		labelKey: 'profile',
 		path: '/tenant/account',
 		Icon: IconUserCircle,
 	},
@@ -311,7 +311,7 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		matchPrefixes: ['/tenant/account'],
 		secondaryItems: ACCOUNT_MODULE_ITEMS,
 		// The personal settings rail — every signed-in tenant member owns their
-		// own role, so no permission key applies. 'public' is the ONLY way to
+		// own profile, so no permission key applies. 'public' is the ONLY way to
 		// express "no gate" (#1629): a forgotten declaration must not fall back
 		// to visible-by-default.
 		visibility: 'public',
@@ -470,7 +470,7 @@ const normalizeActivePathname = (pathname: string): string => {
  * routes), and only when its declared search (e.g. a status filter) matches
  * the current search — so "Overview" never stays lit on Activity/Reports,
  * "All organisations" never lights up alongside a status row, and a nested
- * row (e.g. the account Role row) never stays lit on its children's routes.
+ * row (e.g. the account Profile row) never stays lit on its children's routes.
  */
 export const isSecondaryPanelItemActive = (
 	item: SecondaryPanelItem,

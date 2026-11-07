@@ -117,10 +117,10 @@ describe('front route metadata', () => {
 
 	test('tenant account panel items are exact', () => {
 		// #818 F8: Security and Notifications are hidden until their APIs
-		// exist; only Role ships today.
+		// exist; only Profile ships today.
 		expect(
 			getSecondaryPanelItems('/tenant/account').map((item) => item.labelKey),
-		).toEqual(['role']);
+		).toEqual(['profile']);
 	});
 
 	test('panel rows are active on their EXACT pathname only', () => {
@@ -196,21 +196,23 @@ describe('front route metadata', () => {
 	});
 
 	test('tenant account panel: only the deepest matching row is active', () => {
-		const [role] = getSecondaryPanelItems('/tenant/account');
-		if (!role) {
-			throw new Error('expected the role account panel item to exist');
+		const [profile] = getSecondaryPanelItems('/tenant/account');
+		if (!profile) {
+			throw new Error('expected the profile account panel item to exist');
 		}
 
-		expect(isSecondaryPanelItemActive(role, '/tenant/account', {})).toBe(true);
+		expect(isSecondaryPanelItemActive(profile, '/tenant/account', {})).toBe(
+			true,
+		);
 
-		// Panel rows match their EXACT pathname — the Role row must stay
+		// Panel rows match their EXACT pathname — the Profile row must stay
 		// off children's routes, including deep-linked hidden sections whose
 		// routes stay registered.
 		expect(
-			isSecondaryPanelItemActive(role, '/tenant/account/security', {}),
+			isSecondaryPanelItemActive(profile, '/tenant/account/security', {}),
 		).toBe(false);
 		expect(
-			isSecondaryPanelItemActive(role, '/tenant/account/notifications', {}),
+			isSecondaryPanelItemActive(profile, '/tenant/account/notifications', {}),
 		).toBe(false);
 	});
 
