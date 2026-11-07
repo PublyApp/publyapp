@@ -1,6 +1,6 @@
 import { IconArrowLeft, IconSearchOff } from '@tabler/icons-react';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -28,12 +28,12 @@ import {
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { StaffRoleAboutCard } from './$roleId/_about-card';
 import { RoleDetailsError, RoleDetailsLoading } from './$roleId/_detail-views';
 import { StaffRoleIdentityHeader } from './$roleId/_identity-header';
 import { renderStaffRoleMembersCard } from './$roleId/_members-card-content';
 import { StaffRolePermissionsCardBody } from './$roleId/_permissions-card-body';
 import { StaffRoleEditDetailsDrawer } from './$roleId/_role-edit-details-drawer';
-import { useSystemRoleEditGuard } from './$roleId/_use-system-role-edit-guard';
 
 /** Search state for the staff-role detail page (#819): the edit drawer's
  * open flag, mirroring the tenant role detail layout's `?edit=1`. */
@@ -98,12 +98,28 @@ const StaffRoleDetailsPage = () => {
 	};
 
 	// A deep link to the system role's edit drawer is an impossible state:
-	// canonicalize the flag away at the router boundary.
-	useSystemRoleEditGuard({
-		edit: search.edit,
-		isFullAccess: isSystemRole,
-		navigate,
-	});
+	// canonicalize the flag away at the router boundary, the way the tenant
+	// role page does. The drawer's open state is already derived above, so
+	// nothing opens while the flag is being cleared. `replace` keeps Back
+	// from bouncing through the canonicalized entry.
+	const clearEditFlag = useCallback((): void => {
+		void navigate({
+			search: (
+				previous: StaffRoleDetailsSearchParams,
+			): StaffRoleDetailsSearchParams => ({
+				...previous,
+				edit: undefined,
+			}),
+			replace: true,
+		});
+	}, [navigate]);
+
+	useEffect(() => {
+		if (!isSystemRole || search.edit !== 1) {
+			return;
+		}
+		clearEditFlag();
+	}, [clearEditFlag, isSystemRole, search.edit]);
 
 	// Only an OPEN drawer holding a DIRTY draft is work the user can lose; the
 	// bypass ref keeps the app's own close/save transition unblocked.
@@ -273,29 +289,10 @@ const StaffRoleDetailsPage = () => {
 
 				<DetailAside className="flex flex-col gap-5">
 					{/* About Card */}
-					<Card className="publy-detail-card">
-						<div className="publy-detail-card-header">
-							<span className="text-[14px] font-semibold">{t('about')}</span>
-						</div>
-						<div className="publy-detail-card-body">
-							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">
-									{t('role-id')}
-								</span>
-								<span className="font-mono text-[12px] text-[var(--publy-foreground-secondary)]">
-									{details.id}
-								</span>
-							</div>
-							<div className="publy-detail-row">
-								<span className="publy-type-metadata-label">
-									{t('permissions')}
-								</span>
-								<span className="text-[12px] font-medium">
-									{permissionsCountLabel}
-								</span>
-							</div>
-						</div>
-					</Card>
+					<StaffRoleAboutCard
+						details={details}
+						permissionsCountLabel={permissionsCountLabel}
+					/>
 
 					{/* Members Card */}
 					<Card className="publy-detail-card">
