@@ -46,4 +46,70 @@ describe('StatCard', () => {
 		expect(card.textContent).toContain('/ 50');
 		expect(card.textContent).toContain('12 restantes');
 	});
+
+	test('a real figure — including a real zero — shows as given when the trend series is unavailable', () => {
+		render(
+			<StatCard
+				testId="stat-zero"
+				label="Membres"
+				icon={<IconUsers />}
+				value="0"
+				unavailable
+			/>,
+		);
+
+		expect(screen.getByText('0')).toBeTruthy();
+		expect(screen.queryByText('—')).toBeNull();
+	});
+
+	test('without a figure it shows a muted « — »', () => {
+		render(
+			<StatCard
+				testId="stat-empty"
+				label="Membres"
+				icon={<IconUsers />}
+				unavailable
+			/>,
+		);
+
+		expect(screen.getByText('—').className).toContain('text-muted-foreground');
+	});
+
+	test('the unavailable footer keeps the delta’s two-line height for the ghost spark', () => {
+		const { container } = render(
+			<StatCard
+				testId="stat-ghost"
+				label="Membres"
+				icon={<IconUsers />}
+				value="31"
+				unavailable
+				footer={
+					<>
+						<span>Pas encore de données</span>
+						<svg aria-hidden="true" />
+					</>
+				}
+			/>,
+		);
+
+		expect(screen.getByText('31')).toBeTruthy();
+		expect(screen.getByText('Pas encore de données')).toBeTruthy();
+		// `min-h-9` is the 36 px the coloured delta and its period occupied.
+		expect(container.querySelector('.min-h-9')).toBeTruthy();
+	});
+
+	test('a card with its trend series keeps the plain footer', () => {
+		const { container } = render(
+			<StatCard
+				testId="stat-plain"
+				label="Membres"
+				icon={<IconUsers />}
+				value="31"
+				footer="vs 30 jours précédents"
+			/>,
+		);
+
+		expect(container.querySelector('.min-h-9')).toBeNull();
+		expect(screen.getByText('vs 30 jours précédents')).toBeTruthy();
+	});
 });

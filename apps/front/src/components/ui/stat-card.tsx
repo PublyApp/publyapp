@@ -20,6 +20,7 @@ export const StatCard = ({
 	footer,
 	secondary,
 	action,
+	unavailable,
 	children,
 	className,
 }: {
@@ -34,10 +35,20 @@ export const StatCard = ({
 	/** Historical name for the footer slot. */
 	secondary?: ReactNode;
 	action?: ReactNode;
+	/**
+	 * The card's trend series (the delta and its sparkline) is not served yet:
+	 * the footer keeps the delta's two-line height (36 px) for the caller's
+	 * ghost sparkline and quiet line, and the figure falls back to « — » when
+	 * none was given. A real figure (including a real 0) still shows as given.
+	 */
+	unavailable?: boolean;
 	children?: ReactNode;
 	className?: string;
 }) => {
-	const figure = value ?? children;
+	const figure =
+		value ??
+		children ??
+		(unavailable ? <span className="text-muted-foreground">—</span> : null);
 
 	return (
 		<div
@@ -66,7 +77,14 @@ export const StatCard = ({
 						</span>
 					) : null}
 				</p>
-				<div className="text-xs text-muted-foreground [&_svg]:inline [&_svg]:size-3.5 [&_svg]:align-[-2px]">
+				<div
+					className={cn(
+						'text-xs text-muted-foreground',
+						unavailable
+							? 'flex min-h-9 items-end justify-between gap-3'
+							: '[&_svg]:inline [&_svg]:size-3.5 [&_svg]:align-[-2px]',
+					)}
+				>
 					{footer ?? secondary}
 				</div>
 			</div>
