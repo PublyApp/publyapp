@@ -37,6 +37,20 @@ git hooks. There, shell is allowed only as glue: **one line that calls a tool or
 Any logic — a condition, a loop, a function, a fallback chain — moves into a `.ts` script that the
 line calls.
 
+## Shell scripts — allowed where Node is not there yet
+
+Owner, 2026-11-07: a few programs stay shell scripts, logic included, because they run before
+Node is available, or where it never is. Rewriting them in TypeScript would make them fail exactly
+where they are needed.
+
+- `.husky/pre-commit`, `.husky/pre-push`: git runs them from IDEs and GUIs where Node and pnpm may
+  be missing from `PATH` (fnm, Homebrew), so the hook looks for pnpm itself.
+- `.claude/hooks/session-start.sh`: prepares a fresh Claude Code cloud session, before the
+  toolchain is installed.
+- Dockerfile `RUN` steps in images without Node (the .NET API images: the `apt-get` retry loop).
+
+The list is closed: a new shell script needs the owner's OK and a line here.
+
 ## When you meet an exception
 
 The `.mts` suffix is useless here: every TypeScript package that has them declares

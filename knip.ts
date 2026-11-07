@@ -48,8 +48,6 @@ const config: KnipConfig = {
 			// locally), not an npm package: ci.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
 			ignoreBinaries: ['just', 'dockerd'],
-			// Run by Claude Code cloud sessions via .claude/settings.json (SessionStart).
-			entry: ['.claude/hooks/session-start.ts'],
 			// `winston-transport-browserconsole` is declared in
 			// packages/shared-ts/package.json but never imported directly:
 			// winston resolves it at runtime as an optional browser transport,
