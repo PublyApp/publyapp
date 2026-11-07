@@ -158,13 +158,13 @@ const mockTenantDetails = async (page: Page) => {
 			request.method() === 'GET' &&
 			isApiPath(url, `/staff/tenants/${TENANT_ID}/roles`)
 		) {
-			const isDefaultParam = new URL(url).searchParams.get('is_default');
+			const isFullAccessParam = new URL(url).searchParams.get('is_full_access');
 			const roles = [
 				{
 					id: '0197b8f0-5555-7ccc-8ccc-eeeeeeeeeeee',
 					name: 'Approvers',
 					description: 'Can review approvals',
-					isDefault: true,
+					isFullAccess: true,
 					userAccountCount: 7,
 					permissionsCount: 3,
 				},
@@ -172,15 +172,17 @@ const mockTenantDetails = async (page: Page) => {
 					id: '0197b8f0-5555-7ccc-8ccc-fffffffffff1',
 					name: 'Support',
 					description: 'Respond to member tickets',
-					isDefault: false,
+					isFullAccess: false,
 					userAccountCount: 5,
 					permissionsCount: 4,
 				},
 			];
 			const filtered =
-				isDefaultParam === null
+				isFullAccessParam === null
 					? roles
-					: roles.filter((role) => String(role.isDefault) === isDefaultParam);
+					: roles.filter(
+							(role) => String(role.isFullAccess) === isFullAccessParam,
+						);
 
 			await route.fulfill({
 				status: 200,
@@ -396,7 +398,7 @@ test.describe(
 			await expect(page.getByText('7 members · 3 permissions')).toBeVisible();
 		});
 
-		test('Roles tab type filter narrows to System-only and Custom-only roles via the is_default URL param', async ({
+		test('Roles tab type filter narrows to System-only and Custom-only roles via the is_full_access URL param', async ({
 			page,
 		}) => {
 			await loginAsStaffAdmin(page);
@@ -414,7 +416,7 @@ test.describe(
 				.getByTestId('staff-tenant-roles-grid-type-filter-system')
 				.click();
 
-			await expect(page).toHaveURL(/is_default=true/);
+			await expect(page).toHaveURL(/is_full_access=true/);
 			await expect(page.getByText('Approvers')).toBeVisible();
 			await expect(page.getByText('Support')).not.toBeVisible();
 
@@ -425,7 +427,7 @@ test.describe(
 				.getByTestId('staff-tenant-roles-grid-type-filter-custom')
 				.click();
 
-			await expect(page).toHaveURL(/is_default=false/);
+			await expect(page).toHaveURL(/is_full_access=false/);
 			await expect(page.getByText('Support')).toBeVisible();
 			await expect(page.getByText('Approvers')).not.toBeVisible();
 		});
