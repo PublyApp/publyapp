@@ -1936,7 +1936,6 @@
 	"dashboard-col-type": "Type",
 	"dashboard-note-signins": "Successful sign-ins",
 	"dashboard-ghost-tag": "No data yet",
-	"dashboard-sample-data": "Sample data",
 	"dashboard-ghost-card-growth": "The active-organisations curve will be drawn here, day by day.",
 	"dashboard-ghost-card-heatmap": "Each square will become one day of platform activity.",
 	"dashboard-ghost-card-events-per-day": "One bar per day: the volume of audit events.",

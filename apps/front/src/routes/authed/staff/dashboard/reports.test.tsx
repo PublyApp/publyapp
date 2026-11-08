@@ -263,6 +263,13 @@ afterEach(() => {
 });
 
 describe('staff dashboard reports', () => {
+	test('no sample-data chip: the screen reads the real API (#2339 fix6)', () => {
+		withData();
+		render(<Reports />);
+
+		expect(screen.queryByTestId('staff-dashboard-sample-chip')).toBeNull();
+	});
+
 	test('renders the two served KPIs from period-scoped audit totals', () => {
 		withData();
 		render(<Reports />);

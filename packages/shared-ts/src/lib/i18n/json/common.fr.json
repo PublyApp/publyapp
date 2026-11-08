@@ -1936,7 +1936,6 @@
 	"dashboard-col-type": "Type",
 	"dashboard-note-signins": "Connexions réussies",
 	"dashboard-ghost-tag": "Pas encore de données",
-	"dashboard-sample-data": "Données d'exemple",
 	"dashboard-ghost-card-growth": "La courbe des organisations actives se dessinera ici, jour après jour.",
 	"dashboard-ghost-card-heatmap": "Chaque case deviendra une journée d'activité de la plateforme.",
 	"dashboard-ghost-card-events-per-day": "Une barre par jour : le volume des événements d'audit.",

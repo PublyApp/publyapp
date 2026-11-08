@@ -219,14 +219,6 @@ describe('ChartCard series', () => {
 });
 
 describe('KpiCard error', () => {
-	/** The height-relevant slots of a StatCard, which jsdom cannot measure:
-	 * the shell, the figure line and the reserved footer height. */
-	const heightSlotsOf = (card: HTMLElement) => ({
-		shell: card.className,
-		figure: card.querySelector('p')?.className,
-		reservedFooter: card.querySelector('.min-h-10') !== null,
-	});
-
 	test('a failed KPI is a compact error, not the page-scale error surface', () => {
 		const refetch = vi.fn();
 		render(
@@ -256,22 +248,10 @@ describe('KpiCard error', () => {
 		expect(refetch).toHaveBeenCalledTimes(1);
 	});
 
-	test('the compact error keeps a normal card’s height-relevant slots', () => {
-		const normal = render(
-			<KpiCard
-				testId="kpi-normal"
-				label="Audit events"
-				icon={null}
-				figure={31}
-				locale="en"
-			/>,
-		);
-		const normalSlots = heightSlotsOf(screen.getByTestId('kpi-normal'));
-		normal.unmount();
-
+	test('the compact error shows the whole message, never truncated (#2339 fix6)', () => {
 		render(
 			<KpiCard
-				testId="kpi-error"
+				testId="staff-dashboard-kpi-audit-events"
 				label="Audit events"
 				icon={null}
 				figure={undefined}
@@ -279,9 +259,26 @@ describe('KpiCard error', () => {
 				query={queryOf({ isError: true, error: new Error('500') })}
 			/>,
 		);
-		const errorSlots = heightSlotsOf(screen.getByTestId('kpi-error'));
 
-		expect(errorSlots).toEqual(normalSlots);
+		const card = screen.getByTestId('staff-dashboard-kpi-audit-events');
+		const alert = within(card).getByTestId(
+			'staff-dashboard-kpi-audit-events-error',
+		);
+		// The full cause reads in the DOM…
+		expect(within(alert).getByText('Could not load the data')).toBeTruthy();
+		// …with no truncation class (`truncate`, `line-clamp-1`,
+		// `text-ellipsis`) anywhere between the alert and the message.
+		const message = within(alert).getByText('Could not load the data');
+		for (
+			let node: HTMLElement | null = message;
+			node && node !== alert;
+			node = node.parentElement
+		) {
+			expect(node.className).not.toMatch(/truncate|line-clamp|text-ellipsis/);
+		}
+		expect(alert.className).not.toMatch(/truncate|line-clamp|text-ellipsis/);
+		// The retry stays.
+		expect(within(card).getByRole('button', { name: 'Retry' })).toBeTruthy();
 	});
 });
 

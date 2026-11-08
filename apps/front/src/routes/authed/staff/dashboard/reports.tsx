@@ -44,12 +44,7 @@ import {
 	type DashboardPeriod,
 } from './_dashboard-filters';
 import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
-import {
-	ChartCard,
-	KpiCard,
-	PeriodSelect,
-	SampleDataChip,
-} from './_dashboard-ui';
+import { ChartCard, KpiCard, PeriodSelect } from './_dashboard-ui';
 
 /** The prototype's five « Répartition par type » buckets, in its order. */
 const TYPE_BUCKETS = [
@@ -225,7 +220,6 @@ const Reports = () => {
 						range
 					/>
 				</div>
-				<SampleDataChip />
 				<div className="ml-auto">
 					<DashboardExportMenu
 						startDate={startDate}

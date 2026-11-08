@@ -26,7 +26,6 @@ import {
 	ChartCard,
 	OrganisationScopeSelect,
 	PeriodSelect,
-	SampleDataChip,
 } from './_dashboard-ui';
 import { OverviewCharts } from './_overview-charts';
 import { OverviewKpis } from './_overview-kpis';
@@ -167,7 +166,6 @@ const Overview = () => {
 						onChange={(next) => onSearchChange({ scope: next })}
 					/>
 				</div>
-				<SampleDataChip className="ml-auto" />
 			</div>
 
 			<OverviewKpis

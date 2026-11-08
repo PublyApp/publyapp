@@ -12,7 +12,6 @@ import { Segmented } from '~/components/ui/segmented';
 import { Skeleton } from '~/components/ui/skeleton';
 import { StatCard } from '~/components/ui/stat-card';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
-import { cn } from '~/lib/utils';
 
 import { GhostSpark, GhostTag } from './_chart-ghost';
 import { ChartBody, ChartNote, Sparkline } from './_dashboard-charts';
@@ -54,7 +53,7 @@ export const PeriodSelect = ({
 	const { t, i18n } = useTranslation('common');
 	// The prototype's select trigger: 12px radius, its own hairline and muted
 	// fill, 14px/21px text (#2339 fidelity). The shared SelectTrigger keeps its
-	// site-wide 13px/10px scale; `cn` gives these classes the lead.
+	// site-wide 13px/10px scale; the plain classes win over its defaults.
 	const triggerClass =
 		'min-w-48 rounded-[12px] border-(--publy-input-border) bg-(--publy-muted) text-[14px] leading-[21px]';
 	return (
@@ -95,37 +94,6 @@ export const OrganisationScopeSelect = ({
 			ariaLabel={t('dashboard-filter-organisations')}
 			className="min-w-48 rounded-[12px] border-(--publy-input-border) bg-(--publy-muted) text-[14px] leading-[21px]"
 		/>
-	);
-};
-
-/** The dotted « Données d'exemple » chip (§5.2): the page's quiet statement
- * that some of its figures are sample data, not API series yet. */
-export const SampleDataChip = ({ className }: { className?: string }) => {
-	const { t } = useTranslation('common');
-	return (
-		<span
-			data-testid="staff-dashboard-sample-chip"
-			className={cn(
-				'inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-[8px] border border-dashed border-(--publy-border-strong) px-2.5 text-[11px] leading-[1.45] font-medium text-muted-foreground',
-				className,
-			)}
-		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 12 12"
-				className="size-[13px] shrink-0"
-			>
-				<circle
-					cx="6"
-					cy="6"
-					r="4"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1"
-				/>
-			</svg>
-			{t('dashboard-sample-data')}
-		</span>
 	);
 };
 
@@ -481,7 +449,7 @@ export const KpiCard = ({
 		return card;
 	}
 
-	// The one-line compact error names the real cause (server, offline, 403…)
+	// The compact error names the real cause (server, offline, 403…)
 	// through the shared resolver, and paints nothing for a cancelled request.
 	const resolvedError = resolveQueryError(query.error, t);
 
@@ -500,8 +468,9 @@ export const KpiCard = ({
 			ErrorSlot={
 				// A KPI is one cell of a four-card row: the page-scale error state
 				// (pictogram, title, sentence, 44 px button) made that row ~400 px
-				// tall. The compact error keeps the card's own frame, its « — »
-				// figure and the ghost footer's 36 px, so the row stays put.
+				// tall. The compact error keeps the card's own frame and its « — »
+				// figure; the message stacks above the retry so the whole cause
+				// reads at 1440 px and at 390 px — never an ellipsis (#2339 fix6).
 				resolvedError.silent ? null : (
 					<StatCard
 						testId={testId}
@@ -514,9 +483,9 @@ export const KpiCard = ({
 							<div
 								role="alert"
 								data-testid={`${testId}-error`}
-								className="flex min-h-9 min-w-0 items-center justify-between gap-2"
+								className="flex min-w-0 flex-col items-start gap-1.5"
 							>
-								<span className="min-w-0 truncate">{resolvedError.title}</span>
+								<span>{resolvedError.title}</span>
 								<Button
 									size="sm"
 									variant="outline"
