@@ -120,6 +120,20 @@ so read paths from `git worktree list --porcelain`.
 
 **When a PR is merged, remove its worktree and delete its branches** without being asked.
 
+**Every UI PR carries annotated screenshots** (red frames, arrows and numbered circles on what changed,
+French UI, every scenario, light and dark when relevant), posted as a PR comment from the
+`pr-screenshots` branch. Launch the capture packet the moment the PR opens, and say « captures en
+cours » in the PR body. Never ask for a merge on a UI PR without them. Rule detail:
+[`docs/guides/front/ui-pr-evidence.md`](../docs/guides/front/ui-pr-evidence.md).
+
+**A redesign screen is measured against its prototype before the code review** (owner rule,
+2026-11-08: « fidélisée à … 97 % … j'exige de la rigourosité »). Side-by-side captures (app left,
+prototype right) plus a measured fidelity score per screen ≥ 97 %, with zero gap on the key blocks.
+No code review is dispatched, and no merge is requested, on a redesign screen without that score.
+Method: [`docs/guides/front/ui-pr-evidence.md`](../docs/guides/front/ui-pr-evidence.md). Four code
+reviews once approved a dashboard (#2339) that the owner found « complètement à côté de la plaque »:
+code reviews do not look at the screen.
+
 **Report status in plain language.** Keep SHAs, branch names and internal jargon out of owner-facing
 summaries unless they are the point. Say what is ready, what is blocked, and on what.
 
