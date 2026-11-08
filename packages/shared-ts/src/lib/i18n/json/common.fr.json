@@ -1944,5 +1944,22 @@
 	"dashboard-ghost-card-top-orgs": "Les organisations les plus actives seront classées ici.",
 	"dashboard-ghost-card-status": "La répartition des organisations par statut apparaîtra ici.",
 	"dashboard-ghost-card-invitation-outcomes": "Ici, ce que deviennent les invitations : acceptées, expirées ou révoquées.",
-	"dashboard-ghost-card-type-share": "La part de chaque type d'événement apparaîtra ici."
+	"dashboard-ghost-card-type-share": "La part de chaque type d'événement apparaîtra ici.",
+	"dashboard-period-previous-30d": "30 jours précédents",
+	"dashboard-period-previous-7d": "7 jours précédents",
+	"dashboard-period-previous-90d": "90 jours précédents",
+	"dashboard-period-previous-12m": "12 mois précédents",
+	"dashboard-delta-vs-previous": "vs {{period}}",
+	"dashboard-heatmap-note-weeks": "Événements d'audit par jour sur les {{count}} dernières semaines",
+	"dashboard-note-type-share": "Tous les événements de la période, regroupés par domaine",
+	"dashboard-col-date": "Date",
+	"history-action-tenant-created": "a créé l'organisation",
+	"history-action-staff-invited": "a invité un membre du staff",
+	"history-action-job-retried": "a relancé une tâche en échec",
+	"history-action-tenant-suspended-target": "a suspendu {{name}}",
+	"history-action-tenant-reactivated-target": "a réactivé {{name}}",
+	"history-action-tenant-created-target": "a créé l'organisation {{name}}",
+	"history-action-tenant-updated-target": "a modifié {{name}}",
+	"history-action-staff-invited-target": "a invité {{name}} dans le staff",
+	"history-action-job-retried-target": "a relancé {{name}}"
 }

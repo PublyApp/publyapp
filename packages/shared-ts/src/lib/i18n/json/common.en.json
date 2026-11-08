@@ -1944,5 +1944,22 @@
 	"dashboard-ghost-card-top-orgs": "The most active organisations will be ranked here.",
 	"dashboard-ghost-card-status": "The split of organisations by status will appear here.",
 	"dashboard-ghost-card-invitation-outcomes": "What happens to invitations: accepted, expired or revoked.",
-	"dashboard-ghost-card-type-share": "The share of each event type will appear here."
+	"dashboard-ghost-card-type-share": "The share of each event type will appear here.",
+	"dashboard-period-previous-30d": "previous 30 days",
+	"dashboard-period-previous-7d": "previous 7 days",
+	"dashboard-period-previous-90d": "previous 90 days",
+	"dashboard-period-previous-12m": "previous 12 months",
+	"dashboard-delta-vs-previous": "vs {{period}}",
+	"dashboard-heatmap-note-weeks": "Audit events per day over the last {{count}} weeks",
+	"dashboard-note-type-share": "Every event in the period, grouped by domain",
+	"dashboard-col-date": "Date",
+	"history-action-tenant-created": "created the organisation",
+	"history-action-staff-invited": "invited a staff member",
+	"history-action-job-retried": "retried a failed job",
+	"history-action-tenant-suspended-target": "suspended {{name}}",
+	"history-action-tenant-reactivated-target": "reactivated {{name}}",
+	"history-action-tenant-created-target": "created the organisation {{name}}",
+	"history-action-tenant-updated-target": "updated {{name}}",
+	"history-action-staff-invited-target": "invited {{name}} to the staff",
+	"history-action-job-retried-target": "retried {{name}}"
 }

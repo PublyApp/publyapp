@@ -33,6 +33,10 @@ export type HistoryEvent = {
 	targetId: string | null;
 	/** An optional organisation label, when the caller already knows it. */
 	organisationName?: string | null;
+	/** The event's object, when the caller can resolve its id (the audit list
+	 * carries only `targetId`). The row then uses the phrase's `-target`
+	 * variant (« a suspendu Vanilla Coast »). */
+	targetName?: string | null;
 	/** Events this one caused, listed right under it. */
 	children?: readonly HistoryEvent[];
 };

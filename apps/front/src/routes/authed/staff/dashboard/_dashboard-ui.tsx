@@ -1,4 +1,4 @@
-import { IconArrowRight } from '@tabler/icons-react';
+import { IconArrowRight, IconTrendingUp } from '@tabler/icons-react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
@@ -15,7 +15,7 @@ import { resolveQueryError } from '~/lib/server/query-error-resolver';
 import { cn } from '~/lib/utils';
 
 import { GhostSpark, GhostTag } from './_chart-ghost';
-import { ChartBody, ChartNote } from './_dashboard-charts';
+import { ChartBody, ChartNote, Sparkline } from './_dashboard-charts';
 import {
 	DASHBOARD_PERIODS,
 	ORGANISATION_SCOPES,
@@ -392,6 +392,9 @@ export const KpiCard = ({
 	figure,
 	locale,
 	query,
+	delta,
+	deltaPeriod,
+	sparkline,
 }: {
 	testId: string;
 	label: string;
@@ -399,9 +402,63 @@ export const KpiCard = ({
 	figure: number | null | undefined;
 	locale: string;
 	query?: UseQueryResult<unknown, Error>;
+	/** The change against the previous window (« +8,4 % »), when a series the
+	 * API serves makes it computable. */
+	delta?: { label: string; direction: 'up' | 'down' };
+	/** The comparison window's name (« vs 30 jours précédents »). */
+	deltaPeriod?: string;
+	sparkline?: readonly number[];
 }) => {
 	const { t } = useTranslation('common');
 	const missing = figure === null || figure === undefined;
+
+	let footer: ReactNode;
+	if (missing) {
+		footer = (
+			<>
+				<span className="min-w-0 truncate">{t('dashboard-ghost-tag')}</span>
+				<GhostSpark />
+			</>
+		);
+	} else if (delta) {
+		footer = (
+			<div className="flex min-h-9 min-w-0 items-center justify-between gap-3">
+				<div className="min-w-0">
+					<span
+						data-testid={`${testId}-delta`}
+						data-dir={delta.direction}
+						className="inline-flex items-center gap-1 font-mono text-[13px] font-medium tabular-nums"
+						style={{
+							color:
+								delta.direction === 'up'
+									? 'var(--publy-success)'
+									: 'var(--publy-danger)',
+						}}
+					>
+						<IconTrendingUp
+							aria-hidden="true"
+							className={
+								delta.direction === 'down' ? 'size-3.5 rotate-180' : 'size-3.5'
+							}
+						/>
+						{delta.label}
+					</span>
+					{deltaPeriod ? (
+						<p className="truncate text-[12px] text-(--publy-foreground-muted)">
+							{deltaPeriod}
+						</p>
+					) : null}
+				</div>
+				{sparkline && sparkline.length > 1 ? (
+					<Sparkline values={sparkline} />
+				) : null}
+			</div>
+		);
+	} else {
+		// The ghost footer's 36 px, kept so the card does not jump once the
+		// delta series ships. No ghost text or sparkline on a figure.
+		footer = <span aria-hidden="true" className="block min-h-9" />;
+	}
 
 	const card = (
 		<StatCard
@@ -415,18 +472,7 @@ export const KpiCard = ({
 					formatCount(figure, locale)
 				)
 			}
-			footer={
-				missing ? (
-					<>
-						<span className="min-w-0 truncate">{t('dashboard-ghost-tag')}</span>
-						<GhostSpark />
-					</>
-				) : (
-					// The ghost footer's 36 px, kept so the card does not jump once
-					// the delta series ships. No ghost text or sparkline on a figure.
-					<span aria-hidden="true" className="block min-h-9" />
-				)
-			}
+			footer={footer}
 			unavailable={missing}
 		/>
 	);

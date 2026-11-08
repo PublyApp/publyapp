@@ -84,3 +84,33 @@ export const periodStart = (
 		),
 	);
 };
+
+/** `YYYY-MM-DD` for today, the inclusive end of a dashboard window. */
+export const todayIso = (now: Date = new Date()): string => isoLocalDay(now);
+
+/** Shift a `YYYY-MM-DD` day by `days`, in UTC so DST never moves it. */
+export const addIsoDays = (iso: string, days: number): string =>
+	new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000)
+		.toISOString()
+		.slice(0, 10);
+
+/** The window just before the current one, same length: the delta's
+ * comparison base. */
+export const previousPeriod = (
+	period: DashboardPeriod,
+	now: Date = new Date(),
+) => {
+	const startDate = periodStart(period, now);
+	const endDate = addIsoDays(startDate, -1);
+	const length =
+		Math.round(
+			(Date.parse(todayIso(now)) - Date.parse(startDate)) / 86_400_000,
+		) + 1;
+	return { startDate: addIsoDays(endDate, -(length - 1)), endDate };
+};
+
+/** The heatmap's window: one year, the API's maximum span. */
+export const heatmapWindow = (now: Date = new Date()) => ({
+	startDate: addIsoDays(todayIso(now), -364),
+	endDate: todayIso(now),
+});

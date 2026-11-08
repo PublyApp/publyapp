@@ -3,16 +3,22 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
+import { useStaffDashboardSeriesQuery } from '~/lib/query/staff-dashboard';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { useStaffTenantsQuery } from '~/lib/query/staff-tenants';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { GhostHeatmap } from './_chart-ghost';
+import { Heatmap } from './_dashboard-charts';
 import {
+	heatmapWindow,
 	parseDashboardPeriod,
 	parseOrganisationScope,
+	periodLabelKey,
 	periodStart,
+	previousPeriod,
+	todayIso,
 	type DashboardPeriod,
 	type OrganisationScope,
 } from './_dashboard-filters';
@@ -36,6 +42,19 @@ const HEATMAP_SCALE = [
 	'var(--publy-chart-seq-3)',
 	'var(--publy-chart-seq-4)',
 ] as const;
+
+const seriesTotal = (
+	points: ReadonlyArray<{ value?: number | null }> | null | undefined,
+): number | undefined => {
+	if (!points) {
+		return undefined;
+	}
+	let total = 0;
+	for (const point of points) {
+		total += point.value ?? 0;
+	}
+	return total;
+};
 
 const Overview = () => {
 	const { t, i18n } = useTranslation('common');
@@ -76,17 +95,59 @@ const Overview = () => {
 		startDate: periodStart(period),
 	});
 
+	// The KPI delta and its sparkline need the same window twice: the current
+	// one and the one before it. The only metric the series endpoint serves is
+	// `audit_events` (#2348); `active_tenants` answers 422 by design.
+	const currentWindow = {
+		metric: 'audit_events' as const,
+		startDate: periodStart(period),
+		endDate: todayIso(),
+	};
+	const previousWindow = {
+		metric: 'audit_events' as const,
+		...previousPeriod(period),
+	};
+	const seriesQuery = useStaffDashboardSeriesQuery(currentWindow);
+	const previousSeriesQuery = useStaffDashboardSeriesQuery(previousWindow);
+
+	// The heatmap is the platform's last year, not the page's period: the
+	// prototype fills the card with as many weeks as the API allows (366 days).
+	const heatmapQuery = useStaffDashboardSeriesQuery({
+		metric: 'audit_events',
+		...heatmapWindow(),
+	});
+
 	for (const queryError of [
 		countsQuery.error,
 		latestTenantsQuery.error,
 		pendingInvitationsQuery.error,
 		invitationOutcomesQuery.error,
 		auditQuery.error,
+		seriesQuery.error,
+		previousSeriesQuery.error,
+		heatmapQuery.error,
 	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
 			return <LogoutRedirect />;
 		}
 	}
+
+	const currentTotal = seriesTotal(seriesQuery.data?.points);
+	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
+	const auditDelta =
+		currentTotal !== undefined &&
+		previousTotal !== undefined &&
+		previousTotal > 0
+			? {
+					label: new Intl.NumberFormat(locale, {
+						style: 'percent',
+						maximumFractionDigits: 1,
+						signDisplay: 'always',
+					}).format((currentTotal - previousTotal) / previousTotal),
+					direction:
+						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
+				}
+			: undefined;
 
 	return (
 		<div className="space-y-5" data-testid="staff-dashboard-overview-panel">
@@ -117,6 +178,11 @@ const Overview = () => {
 				countsQuery={countsQuery}
 				auditQuery={auditQuery}
 				pendingInvitationsQuery={pendingInvitationsQuery}
+				auditDelta={auditDelta}
+				auditDeltaPeriod={t(periodLabelKey(period))}
+				auditSparkline={(seriesQuery.data?.points ?? []).map(
+					(point) => point.value ?? 0,
+				)}
 				locale={locale}
 			/>
 
@@ -126,10 +192,19 @@ const Overview = () => {
 				testId="staff-dashboard-heatmap"
 				label={t('dashboard-card-heatmap')}
 				icon={<IconActivity />}
-				note={t('dashboard-heatmap-note-empty')}
+				note={
+					heatmapQuery.data
+						? t('dashboard-heatmap-note-weeks', {
+								count: Math.ceil((heatmapQuery.data.points?.length ?? 0) / 7),
+							})
+						: t('dashboard-heatmap-note-empty')
+				}
 				toggle={false}
 				action={
-					<div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+					<div
+						data-testid="staff-dashboard-heatmap-legend"
+						className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex"
+					>
 						<span>{t('dashboard-heat-less')}</span>
 						{HEATMAP_SCALE.map((color) => (
 							<span
@@ -141,11 +216,28 @@ const Overview = () => {
 						<span>{t('dashboard-heat-more')}</span>
 					</div>
 				}
-				series={{
-					status: 'unavailable',
-					sentence: t('dashboard-ghost-card-heatmap'),
-					ghost: <GhostHeatmap />,
-				}}
+				series={
+					heatmapQuery.data
+						? {
+								status: 'ready',
+								chart: (
+									<Heatmap
+										days={(heatmapQuery.data.points ?? []).map((point) => ({
+											date: point.date ?? '',
+											value: point.value ?? 0,
+										}))}
+										locale={locale}
+									/>
+								),
+								table: null,
+							}
+						: {
+								status: 'unavailable',
+								sentence: t('dashboard-ghost-card-heatmap'),
+								ghost: <GhostHeatmap />,
+							}
+				}
+				query={heatmapQuery}
 			/>
 
 			<OverviewLists

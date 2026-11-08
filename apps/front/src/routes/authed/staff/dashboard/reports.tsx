@@ -11,7 +11,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { historyCategory } from '~/components/history/history-actions';
 import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
+import {
+	useStaffDashboardSeriesQuery,
+	useStaffDashboardTopOrganisationsQuery,
+} from '~/lib/query/staff-dashboard';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
@@ -22,20 +27,89 @@ import {
 	GhostLine,
 	GhostStacked,
 } from './_chart-ghost';
+import {
+	ChartTable,
+	ColumnChart,
+	HorizontalBars,
+	StackedShareBar,
+	type DonutSegment,
+} from './_dashboard-charts';
 import { DashboardExportMenu } from './_dashboard-export-menu';
 import {
 	parseDashboardPeriod,
 	periodLabelKey,
 	periodStart,
+	previousPeriod,
+	todayIso,
 	type DashboardPeriod,
 } from './_dashboard-filters';
-import { UNKNOWN_VALUE } from './_dashboard-format';
+import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
 import {
 	ChartCard,
 	KpiCard,
 	PeriodSelect,
 	SampleDataChip,
 } from './_dashboard-ui';
+
+/** The prototype's five « Répartition par type » buckets, in its order. */
+const TYPE_BUCKETS = [
+	{
+		key: 'organisation',
+		labelKey: 'dashboard-type-organisation',
+		color: 'var(--publy-chart-seq-4)',
+	},
+	{
+		key: 'auth',
+		labelKey: 'dashboard-type-auth',
+		color: 'var(--publy-chart-seq-3)',
+	},
+	{
+		key: 'user',
+		labelKey: 'dashboard-type-user',
+		color: 'var(--publy-chart-seq-2)',
+	},
+	{
+		key: 'invitation',
+		labelKey: 'dashboard-type-invitation',
+		color: 'var(--publy-chart-1)',
+	},
+	{
+		key: 'other',
+		labelKey: 'dashboard-type-other',
+		color: 'var(--publy-chart-seq-1)',
+	},
+] as const;
+
+/** The history's category → the report's five buckets. */
+const typeBucket = (action: string): string => {
+	const category = historyCategory(action);
+	if (category === 'tenant') {
+		return 'organisation';
+	}
+	if (category === 'auth') {
+		return 'auth';
+	}
+	if (category === 'member') {
+		return 'user';
+	}
+	if (category === 'invitation') {
+		return 'invitation';
+	}
+	return 'other';
+};
+
+const seriesTotal = (
+	points: ReadonlyArray<{ value?: number | null }> | null | undefined,
+): number | undefined => {
+	if (!points) {
+		return undefined;
+	}
+	let total = 0;
+	for (const point of points) {
+		total += point.value ?? 0;
+	}
+	return total;
+};
 
 const Reports = () => {
 	const { t, i18n } = useTranslation('common');
@@ -44,27 +118,98 @@ const Reports = () => {
 	const navigate = Route.useNavigate();
 	const period: DashboardPeriod = search.period ?? '30d';
 	const startDate = periodStart(period);
+	const endDate = todayIso();
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate });
+	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
 	// `impersonation.started` is emitted by the impersonation service, so this
 	// figure is real. The two sign-in actions exist only as constants in the
 	// backend and are never written, so they have no query at all (B1).
 	const impersonationsQuery = useStaffAuditLogsQuery({
 		size: 1,
 		startDate,
+		endDate,
 		actions: ['impersonation.started'],
+	});
+
+	const seriesQuery = useStaffDashboardSeriesQuery({
+		metric: 'audit_events',
+		startDate,
+		endDate,
+	});
+	const previousSeriesQuery = useStaffDashboardSeriesQuery({
+		metric: 'audit_events',
+		...previousPeriod(period),
+	});
+	const topOrganisationsQuery = useStaffDashboardTopOrganisationsQuery({
+		startDate,
+		endDate,
+		size: 5,
 	});
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
-	for (const queryError of [auditQuery.error, impersonationsQuery.error]) {
+	for (const queryError of [
+		auditQuery.error,
+		impersonationsQuery.error,
+		seriesQuery.error,
+		previousSeriesQuery.error,
+		topOrganisationsQuery.error,
+	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
 			return <LogoutRedirect />;
 		}
 	}
+
+	const currentTotal = seriesTotal(seriesQuery.data?.points);
+	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
+	const auditDelta =
+		currentTotal !== undefined &&
+		previousTotal !== undefined &&
+		previousTotal > 0
+			? {
+					label: new Intl.NumberFormat(locale, {
+						style: 'percent',
+						maximumFractionDigits: 1,
+						signDisplay: 'always',
+					}).format((currentTotal - previousTotal) / previousTotal),
+					direction:
+						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
+				}
+			: undefined;
+	const deltaPeriod = t(periodLabelKey(period));
+
+	const seriesPoints = (seriesQuery.data?.points ?? []).map((point) => ({
+		label: new Intl.DateTimeFormat(locale, {
+			day: 'numeric',
+			month: 'short',
+			timeZone: 'UTC',
+		}).format(new Date(`${point.date ?? ''}T12:00:00Z`)),
+		value: point.value ?? 0,
+	}));
+
+	const byAction = auditQuery.data?.counts?.byAction ?? [];
+	const bucketTotals = new Map<string, number>();
+	for (const row of byAction) {
+		if (!row.action) {
+			continue;
+		}
+		const key = typeBucket(row.action);
+		bucketTotals.set(key, (bucketTotals.get(key) ?? 0) + (row.count ?? 0));
+	}
+	let typeTotal = 0;
+	for (const value of bucketTotals.values()) {
+		typeTotal += value;
+	}
+	const typeSegments: DonutSegment[] = TYPE_BUCKETS.map((bucket) => ({
+		label: t(bucket.labelKey),
+		value: bucketTotals.get(bucket.key) ?? 0,
+		color: bucket.color,
+	})).filter((segment) => segment.value > 0);
+
+	const topOrganisations = topOrganisationsQuery.data?.items ?? [];
 
 	return (
 		<div className="space-y-5" data-testid="staff-dashboard-reports-panel">
@@ -94,9 +239,12 @@ const Reports = () => {
 					testId="staff-dashboard-kpi-report-events"
 					label={t('dashboard-kpi-audit-events')}
 					icon={<IconFileSearch />}
-					figure={auditQuery.data?.totalCount}
+					figure={currentTotal ?? auditQuery.data?.totalCount}
 					locale={locale}
-					query={auditQuery}
+					query={seriesQuery}
+					delta={auditDelta}
+					deltaPeriod={deltaPeriod}
+					sparkline={seriesPoints.map((point) => point.value)}
 				/>
 				<KpiCard
 					testId="staff-dashboard-kpi-signins"
@@ -128,29 +276,101 @@ const Reports = () => {
 					label={t('dashboard-card-audit-events-per-day')}
 					icon={<IconChartBar />}
 					note={t('dashboard-note-events-per-day')}
-					hero={UNKNOWN_VALUE}
-					series={{
-						status: 'unavailable',
-						sentence: t('dashboard-ghost-card-events-per-day'),
-						ghost: (
-							<>
-								<GhostBars />
-								<GhostAxis />
-							</>
-						),
-					}}
+					hero={
+						<span className="flex flex-wrap items-baseline gap-x-2">
+							<span>{formatCount(currentTotal ?? 0, locale)}</span>
+							{auditDelta ? (
+								<span
+									className="text-[12px] font-medium"
+									style={{
+										color:
+											auditDelta.direction === 'up'
+												? 'var(--publy-success)'
+												: 'var(--publy-danger)',
+									}}
+								>
+									{auditDelta.label}
+								</span>
+							) : null}
+						</span>
+					}
+					series={
+						seriesQuery.data
+							? {
+									status: 'ready',
+									chart: <ColumnChart points={seriesPoints} locale={locale} />,
+									table: (
+										<ChartTable
+											head={[
+												t('dashboard-col-date'),
+												t('dashboard-col-events'),
+											]}
+											rows={seriesPoints.map((point) => [
+												point.label,
+												formatCount(point.value, locale),
+											])}
+										/>
+									),
+								}
+							: {
+									status: 'unavailable',
+									sentence: t('dashboard-ghost-card-events-per-day'),
+									ghost: (
+										<>
+											<GhostBars />
+											<GhostAxis />
+										</>
+									),
+								}
+					}
+					query={seriesQuery}
 				/>
 
 				<ChartCard
 					testId="staff-dashboard-type-share"
 					label={t('dashboard-card-type-share')}
 					icon={<IconChartPie />}
+					note={t('dashboard-note-type-share')}
 					toggle={false}
-					series={{
-						status: 'unavailable',
-						sentence: t('dashboard-ghost-card-type-share'),
-						ghost: <GhostStacked />,
-					}}
+					series={
+						auditQuery.data
+							? {
+									status: 'ready',
+									chart: (
+										<div className="flex flex-col gap-6">
+											<StackedShareBar
+												segments={typeSegments}
+												locale={locale}
+											/>
+											<ChartTable
+												head={[
+													t('dashboard-col-type'),
+													t('dashboard-col-share'),
+													t('dashboard-col-events'),
+												]}
+												rows={typeSegments.map((segment) => [
+													segment.label,
+													new Intl.NumberFormat(locale, {
+														style: 'percent',
+														minimumFractionDigits: 1,
+														maximumFractionDigits: 1,
+													}).format(
+														typeTotal > 0 ? segment.value / typeTotal : 0,
+													),
+													formatCount(segment.value, locale),
+												])}
+											/>
+										</div>
+									),
+									table: null,
+								}
+							: {
+									status: 'unavailable',
+									sentence: t('dashboard-ghost-card-type-share'),
+									ghost: <GhostStacked />,
+								}
+					}
+					query={auditQuery}
 				/>
 			</div>
 
@@ -179,11 +399,29 @@ const Reports = () => {
 					icon={<IconChartBar />}
 					note={t('dashboard-note-top-orgs')}
 					toggle={false}
-					series={{
-						status: 'unavailable',
-						sentence: t('dashboard-ghost-card-top-orgs'),
-						ghost: <GhostHBars rows={5} />,
-					}}
+					series={
+						topOrganisations.length > 0
+							? {
+									status: 'ready',
+									chart: (
+										<HorizontalBars
+											rows={topOrganisations.map((item) => ({
+												label: item.name ?? UNKNOWN_VALUE,
+												value: item.count ?? 0,
+												color: 'var(--publy-chart-1)',
+											}))}
+											locale={locale}
+										/>
+									),
+									table: null,
+								}
+							: {
+									status: 'unavailable',
+									sentence: t('dashboard-ghost-card-top-orgs'),
+									ghost: <GhostHBars rows={5} />,
+								}
+					}
+					query={topOrganisationsQuery}
 				/>
 			</div>
 		</div>

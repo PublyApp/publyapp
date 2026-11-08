@@ -120,7 +120,7 @@ export const PendingInvitationsTable = ({
 								<td className="border-t border-(--publy-border) px-3 py-2.5 text-(--publy-foreground-secondary)">
 									{invitation.invitedByName ?? UNKNOWN_VALUE}
 								</td>
-								<td className="border-t border-(--publy-border) px-3 py-2.5 font-mono text-xs text-muted-foreground">
+								<td className="border-t border-(--publy-border) px-3 py-2.5 text-right font-mono text-xs text-muted-foreground">
 									<ExpiryCell
 										expiresAt={invitation.expiresAt}
 										locale={locale}

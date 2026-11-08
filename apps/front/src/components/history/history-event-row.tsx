@@ -43,8 +43,14 @@ export const HistoryEventRow = ({
 	const { t, i18n } = useTranslation('common');
 	const category = historyCategory(event.action);
 	const phraseKey = historyActionPhraseKey(event.action);
-	const phrase =
-		phraseKey !== null && i18n.exists(phraseKey) ? t(phraseKey) : null;
+	const targetKey = phraseKey !== null ? `${phraseKey}-target` : null;
+	let phrase: string | null = null;
+	if (phraseKey !== null && i18n.exists(phraseKey)) {
+		phrase =
+			event.targetName && targetKey !== null && i18n.exists(targetKey)
+				? t(targetKey, { name: event.targetName })
+				: t(phraseKey);
+	}
 	const actor = event.actorName ?? t('history-system');
 	const isSystem = event.actorName === null;
 

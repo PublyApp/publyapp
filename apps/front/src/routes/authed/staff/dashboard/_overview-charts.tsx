@@ -8,8 +8,9 @@ import { GhostAxis, GhostDonut, GhostLine } from './_chart-ghost';
 import { DonutChart, type DonutSegment } from './_dashboard-charts';
 import { ChartCard } from './_dashboard-ui';
 
-/** « Croissance des organisations » (no daily series endpoint yet → its own
- * ghost) and « Organisations par statut » (the UNFILTERED tenants facets: the
+/** « Croissance des organisations » (no honest daily series: the API's
+ * `active_tenants` metric answers 422, see `DashboardMetrics`) and
+ * « Organisations par statut » (the UNFILTERED tenants facets: the
  * « Organisations » filter never reaches this card, B3). The status donut owns
  * the counts query, so its loading/error state renders through `QueryDisplay`.
  */

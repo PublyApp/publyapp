@@ -11,7 +11,6 @@ import {
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
-import { formatNumericDay } from '~/utils/format-time';
 
 type DashboardSearch = { period?: string; scope?: string };
 
@@ -59,6 +58,27 @@ const mocks = vi.hoisted(() => ({
 		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
+	seriesQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	previousSeriesQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	heatmapQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
 	search: {} as DashboardSearch,
 	navigate: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
@@ -67,6 +87,7 @@ const mocks = vi.hoisted(() => ({
 const useStaffTenantsQuery = vi.hoisted(() => vi.fn());
 const useStaffInvitationsQuery = vi.hoisted(() => vi.fn());
 const useStaffAuditLogsQuery = vi.hoisted(() => vi.fn());
+const useStaffDashboardSeriesQuery = vi.hoisted(() => vi.fn());
 
 vi.mock('~/lib/query/staff-tenants', async (importOriginal) => {
 	const actual =
@@ -88,6 +109,10 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 
 	return { ...actual, useStaffAuditLogsQuery };
 });
+
+vi.mock('~/lib/query/staff-dashboard', () => ({
+	useStaffDashboardSeriesQuery,
+}));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
@@ -131,6 +156,10 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-note-status': 'Lifecycle status of every organisation',
 	'dashboard-card-heatmap': 'Platform activity',
 	'dashboard-heatmap-note-empty': 'Audit events per day',
+	'dashboard-heatmap-note-weeks':
+		'Audit events per day over the last {{count}} weeks',
+	'dashboard-delta-vs-previous': 'vs {{period}}',
+	'dashboard-period-previous-30d': 'previous 30 days',
 	'dashboard-card-invitation-outcomes': 'Invitation outcomes',
 	'dashboard-note-invitation-outcomes': 'Staff invitations, by final status',
 	'dashboard-card-latest-tenants': 'Latest organisations',
@@ -177,8 +206,10 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			let label = EN_LABELS[key] ?? key;
-			if (options && typeof options.count === 'number') {
-				label = label.replace('{{count}}', String(options.count));
+			if (options) {
+				for (const [name, value] of Object.entries(options)) {
+					label = label.replace(`{{${name}}}`, String(value));
+				}
 			}
 			return label;
 		},
@@ -187,7 +218,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
-import { periodStart } from './_dashboard-filters';
+import { addIsoDays, periodStart, todayIso } from './_dashboard-filters';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './index';
 
@@ -263,6 +294,15 @@ const withData = () => {
 		totalCount: 4812,
 		counts: { today: 0, last30Days: 0, byAction: [], byActor: [] },
 	};
+	const today = todayIso();
+	const points = (days: number, value: number) =>
+		Array.from({ length: days }, (_, index) => ({
+			date: addIsoDays(today, -(days - 1 - index)),
+			value,
+		}));
+	mocks.seriesQuery.data = { points: points(30, 160) };
+	mocks.previousSeriesQuery.data = { points: points(30, 148) };
+	mocks.heatmapQuery.data = { points: points(365, 12) };
 };
 
 const resetMocks = () => {
@@ -272,6 +312,9 @@ const resetMocks = () => {
 		mocks.pendingInvitationsQuery,
 		mocks.invitationOutcomesQuery,
 		mocks.auditQuery,
+		mocks.seriesQuery,
+		mocks.previousSeriesQuery,
+		mocks.heatmapQuery,
 	] as QueryMock[]) {
 		query.isPending = false;
 		query.isError = false;
@@ -290,6 +333,17 @@ const resetMocks = () => {
 				: mocks.invitationOutcomesQuery,
 	);
 	useStaffAuditLogsQuery.mockImplementation(() => mocks.auditQuery);
+	useStaffDashboardSeriesQuery.mockImplementation(
+		(variables: { startDate: string; endDate: string }) => {
+			if (variables.startDate <= addIsoDays(todayIso(), -300)) {
+				return mocks.heatmapQuery;
+			}
+			if (variables.endDate !== todayIso()) {
+				return mocks.previousSeriesQuery;
+			}
+			return mocks.seriesQuery;
+		},
+	);
 };
 
 resetMocks();
@@ -386,7 +440,7 @@ describe('staff dashboard overview', () => {
 		expect(screen.queryByText('Status')).toBeNull();
 	});
 
-	test('draws a ghost (not « — ») for the series the API does not provide', () => {
+	test('draws a ghost (not « — ») for the one series the API does not provide', () => {
 		withData();
 		render(<Overview />);
 
@@ -401,14 +455,26 @@ describe('staff dashboard overview', () => {
 			growth.querySelectorAll('svg[aria-hidden="true"]').length,
 		).toBeGreaterThan(0);
 		expect(within(growth).queryByRole('button', { name: 'Table' })).toBeNull();
+	});
+
+	test('draws the real heatmap and the audit-events delta from the series endpoint', () => {
+		withData();
+		render(<Overview />);
 
 		const heatmap = screen.getByTestId('staff-dashboard-heatmap');
-		expect(within(heatmap).getByText('No data yet')).toBeTruthy();
+		expect(within(heatmap).queryByText('No data yet')).toBeNull();
 		expect(
-			within(heatmap).getByText(
-				'Each square will become one day of platform activity.',
-			),
+			heatmap.querySelector('[data-testid="staff-dashboard-heatmap-grid"]'),
+		).not.toBeNull();
+		expect(
+			within(heatmap).getByText('Audit events per day over the last 53 weeks'),
 		).toBeTruthy();
+
+		const kpi = screen.getByTestId('staff-dashboard-kpi-audit-events');
+		expect(
+			within(kpi).getByTestId('staff-dashboard-kpi-audit-events-delta'),
+		).toBeTruthy();
+		expect(within(kpi).getByText('Last 30 days')).toBeTruthy();
 	});
 
 	test('a real zero KPI shows « 0 », never « — » nor the ghost footer', () => {
@@ -570,7 +636,8 @@ describe('staff dashboard overview', () => {
 
 		// The react-i18next mock above resolves the locale to « en ».
 		const card = screen.getByTestId('staff-dashboard-pending-invitations');
-		expect(card.textContent).toContain(formatNumericDay(expiry, 'en'));
+		// The prototype prints the ISO day next to the relative one (#2339).
+		expect(card.textContent).toContain(expiry.toISOString().slice(0, 10));
 	});
 
 	test('an auth failure on any query logs out through the shared path', () => {

@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 const useStaffAuditLogsQuery = vi.hoisted(() => vi.fn());
+const useStaffTenantsQuery = vi.hoisted(() => vi.fn());
 
 vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 	const actual =
@@ -44,6 +45,16 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 		...actual,
 		useStaffAuditLogsQuery,
 		useAuditLogActionsQuery: vi.fn(() => mocks.actionsQuery),
+	};
+});
+
+vi.mock('~/lib/query/staff-tenants', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/lib/query/staff-tenants')>();
+
+	return {
+		...actual,
+		useStaffTenantsQuery,
 	};
 });
 
@@ -162,11 +173,41 @@ const resetMocks = () => {
 	useStaffAuditLogsQuery.mockImplementation(() => mocks.query);
 };
 
+useStaffTenantsQuery.mockImplementation(() => ({
+	isPending: false,
+	isError: false,
+	error: null,
+	data: {
+		data: [
+			{ id: 'tenant-vanilla', name: 'Vanilla Coast' },
+			{ id: 'tenant-acme', name: 'Acme Corporation' },
+		],
+		nextCursor: null,
+		counts: { total: 2, active: 2, pending: 0, suspended: 0, members: 0 },
+	},
+	refetch: vi.fn(),
+}));
+
 resetMocks();
 
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	useStaffTenantsQuery.mockImplementation(() => ({
+		isPending: false,
+		isError: false,
+		error: null,
+		data: {
+			data: [
+				{ id: 'tenant-vanilla', name: 'Vanilla Coast' },
+				{ id: 'tenant-acme', name: 'Acme Corporation' },
+			],
+			nextCursor: null,
+			counts: { total: 2, active: 2, pending: 0, suspended: 0, members: 0 },
+		},
+		refetch: vi.fn(),
+	}));
+
 	resetMocks();
 });
 

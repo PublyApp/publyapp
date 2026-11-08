@@ -15,6 +15,7 @@ import {
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
 } from '~/lib/query/staff-audit-logs';
+import { useStaffTenantsQuery } from '~/lib/query/staff-tenants';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
@@ -40,17 +41,29 @@ const ACTIVITY_FEED_SIZE = 50;
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const TEST_ID = 'staff-dashboard-activity';
 
+/** The audit list carries only `targetId`; the dashboard resolves it against
+ * the tenants it knows so the row can name its object (« a suspendu Vanilla
+ * Coast »). Best effort: an id outside the loaded page keeps the phrase
+ * without a name rather than inventing one. */
 const toHistoryEvents = (
 	rows: ReturnType<typeof toStaffAuditLogRows>,
+	tenantNames: ReadonlyMap<string, string>,
 ): HistoryEvent[] =>
-	rows.map((row) => ({
-		id: row.id,
-		at: row.createdAt,
-		actorName: row.userName,
-		action: row.action,
-		ipAddress: row.ipAddress,
-		targetId: row.targetId,
-	}));
+	rows.map((row) => {
+		const targetName = row.targetId
+			? (tenantNames.get(row.targetId) ?? null)
+			: null;
+		return {
+			id: row.id,
+			at: row.createdAt,
+			actorName: row.userName,
+			action: row.action,
+			ipAddress: row.ipAddress,
+			targetId: row.targetId,
+			targetName,
+			organisationName: targetName,
+		};
+	});
 
 /**
  * The staff Dashboard › Activité tab: the shared activity history (§5.1), fed
@@ -109,6 +122,17 @@ const Activity = () => {
 		{ enabled: !selection.impossible },
 	);
 
+	const tenantNamesQuery = useStaffTenantsQuery({ size: 100 });
+	const tenantNames = useMemo(() => {
+		const map = new Map<string, string>();
+		for (const tenant of tenantNamesQuery.data?.data ?? []) {
+			if (tenant.id && tenant.name) {
+				map.set(tenant.id, tenant.name);
+			}
+		}
+		return map;
+	}, [tenantNamesQuery.data]);
+
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
 		return <LogoutRedirect />;
@@ -117,7 +141,7 @@ const Activity = () => {
 	const rows = selection.impossible
 		? []
 		: toStaffAuditLogRows(query.data?.data);
-	const events = toHistoryEvents(rows);
+	const events = toHistoryEvents(rows, tenantNames);
 	// The footnote may only print a whole-collection total: with a next cursor
 	// (or a page behind us) the collection is not complete, so it stays « — »
 	// instead of turning the loaded page into a total (B5).
@@ -191,6 +215,7 @@ const Activity = () => {
 			searchTestId="staff-dashboard-activity-search"
 			events={events}
 			locale={locale}
+			showOrganisation
 			onOpen={(event) => {
 				void navigate({
 					to: '/staff/audit-logs/$logId',

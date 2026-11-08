@@ -13,7 +13,9 @@ import { KpiCard } from './_dashboard-ui';
  * (the unfiltered tenants facets), the period's audit events and the pending
  * invitations. Each card owns its query, so its loading/error state renders
  * through `QueryDisplay`: a figure the API cannot source yet is never a
- * measured-looking 0. */
+ * measured-looking 0. Only the audit-events card has a series to compare, so
+ * only it carries a delta and a sparkline; the other three have no historical
+ * endpoint (the tenants read exposes current counts, not a daily series). */
 export const OverviewKpis = ({
 	activeTenants,
 	members,
@@ -22,6 +24,9 @@ export const OverviewKpis = ({
 	countsQuery,
 	auditQuery,
 	pendingInvitationsQuery,
+	auditDelta,
+	auditDeltaPeriod,
+	auditSparkline,
 	locale,
 }: {
 	activeTenants: number | null | undefined;
@@ -31,6 +36,9 @@ export const OverviewKpis = ({
 	countsQuery: UseQueryResult<unknown, Error>;
 	auditQuery: UseQueryResult<unknown, Error>;
 	pendingInvitationsQuery: UseQueryResult<unknown, Error>;
+	auditDelta?: { label: string; direction: 'up' | 'down' };
+	auditDeltaPeriod?: string;
+	auditSparkline?: readonly number[];
 	locale: string;
 }) => {
 	const { t } = useTranslation('common');
@@ -60,6 +68,9 @@ export const OverviewKpis = ({
 				figure={auditEvents}
 				locale={locale}
 				query={auditQuery}
+				delta={auditDelta}
+				deltaPeriod={auditDeltaPeriod}
+				sparkline={auditSparkline}
 			/>
 			<KpiCard
 				testId="staff-dashboard-kpi-pending-invitations"

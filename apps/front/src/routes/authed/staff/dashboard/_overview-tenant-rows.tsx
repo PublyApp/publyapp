@@ -2,7 +2,6 @@ import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantRow } from '~/lib/query/staff-tenants';
-import { formatNumericDay } from '~/utils/format-time';
 
 import { UNKNOWN_VALUE } from './_dashboard-format';
 
@@ -14,13 +13,16 @@ export type Translate = (
 /** The API's lifecycle status → the prototype's pill label (feminine plural,
  * because it labels organisations). */
 const statusLabelKey = (status: string | null): string | undefined => {
-	if (status === 'active') {
+	// The API returns the enum member (« Active »); the i18n keys are the
+	// lowercase lifecycle ids. Comparing raw would leak English into the pill.
+	const normalized = status?.toLowerCase() ?? '';
+	if (normalized === 'active') {
 		return 'dashboard-status-active';
 	}
-	if (status === 'pending') {
+	if (normalized === 'pending') {
 		return 'dashboard-status-pending';
 	}
-	if (status === 'suspended') {
+	if (normalized === 'suspended') {
 		return 'dashboard-status-suspended';
 	}
 	return undefined;
@@ -30,7 +32,6 @@ const statusLabelKey = (status: string | null): string | undefined => {
  * carries no readable date. */
 export const ExpiryCell = ({
 	expiresAt,
-	locale,
 	t,
 }: {
 	expiresAt: Date | null | undefined;
@@ -56,10 +57,12 @@ export const ExpiryCell = ({
 			? t('dashboard-expires-in-hours', { count: Math.ceil(hours) })
 			: t('dashboard-expires-in-days', { count: Math.ceil(hours / 24) });
 
+	// The prototype prints the ISO day (« 2026-10-26 »), not the locale's
+	// numeric day: the column is a machine date next to a human relative one.
 	return (
 		<>
 			{relative}{' '}
-			<span className="font-mono">· {formatNumericDay(expiry, locale)}</span>
+			<span className="font-mono">· {expiry.toISOString().slice(0, 10)}</span>
 		</>
 	);
 };
