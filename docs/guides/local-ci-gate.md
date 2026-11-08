@@ -60,7 +60,7 @@ checks — `quality-js` owns format/lint/knip/typechecks/shared tests, `quality-
 owns restore/build/NuGet audit/analyzers, `guards` owns the batched scripts-ts guard
 suite plus the CI-contract, drift, action-version, project-closure, tracked-file and
 API path-coverage checks, `docs-react` owns doc links/prune and React Doctor,
-`front-build` owns the build and the 32-command non-Vitest report, and
+`front-build` owns the build and the 33-command non-Vitest report, and
 `front-checks` owns typecheck/lint/design/import guards, proofs, and the Vitest
 shard-coverage equality guard; the `api` lane
 executes API/OpenAPI/client generation and drift checks, the shard-partition proof and
@@ -69,7 +69,7 @@ owns it); the four `front-ci` shards execute install/postinstall/hooks and
 Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
 health, Playwright, last-shard hermetic/drawer guards, failure-report, teardown, and
 cleanup steps; the smoke lane runs the twelve smoke specs on a single stack under the same
-lifecycle. The nested front report records the complete ordered 32-command
+lifecycle. The nested front report records the complete ordered 33-command
 non-Vitest chain. The central workflow is the sole PR validation owner.
 
 This matters more than it normally would: the repo is on a Free plan with a private

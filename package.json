@@ -28,7 +28,7 @@
 		"oxlint": "catalog:",
 		"oxlint-tsgolint": "7.0.2005",
 		"typescript": "catalog:",
-		"yaml": "catalog:"
+		"yaml": "2.9.1"
 	},
 	"packageManager": "pnpm@10.13.1",
 	"engines": {

@@ -57,7 +57,8 @@
 		"test": "pnpm test:ci-non-vitest && vitest run",
 		"test:typecheck-coverage-guard": "node scripts/run-guarded.ts --test scripts/guards/check-typecheck-coverage.test.ts",
 		"check:guard-coverage": "node scripts/run-guarded.ts scripts/guards/check-guard-coverage.ts",
-		"test:guard-coverage-guard": "node scripts/run-guarded.ts --test scripts/guards/check-guard-coverage.test.ts"
+		"test:guard-coverage-guard": "node scripts/run-guarded.ts --test scripts/guards/check-guard-coverage.test.ts",
+		"test:assert-pinned": "node scripts/run-guarded.ts --test scripts/guards/assert-pinned.test.ts"
 	},
 	"ciNonVitestCommandInventory": [
 		[
@@ -189,6 +190,10 @@
 		[
 			"pnpm",
 			"test:front-runtime-image-guard"
+		],
+		[
+			"pnpm",
+			"test:assert-pinned"
 		]
 	],
 	"dependencies": {

@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 
+import { parseCatalog } from './assert-pinned-catalog.ts';
+
 // Local exact-version regex is the validator used here today.
 // `semver` is optional and used only when available as an installed dependency
 // (it is not a declared dependency of this repo; the dynamic import simply
@@ -32,33 +34,15 @@ type DependencyGroup = Record<string, string>;
 // Shared versions live once in the default `catalog:` block of
 // pnpm-workspace.yaml (#2326), referenced as `"catalog:"`. A catalog reference
 // is exact iff its entry is exact, so resolve it before the exactness check.
-// ponytail: flat default catalog only (no named `catalogs:`) — the shape this
-// repo uses; anything else falls through and fails the check below.
-const workspaceYaml = readFileSync(
-	new URL('../../../../pnpm-workspace.yaml', import.meta.url),
-	'utf8',
+// The hand reader lives next door (`assert-pinned-catalog.ts`): pure, unit
+// tested, no dependency — this runs before node_modules exists — and it
+// throws loudly on any catalog shape it does not understand.
+const catalog = parseCatalog(
+	readFileSync(
+		new URL('../../../../pnpm-workspace.yaml', import.meta.url),
+		'utf8',
+	),
 );
-const catalog = new Map<string, string>();
-let inCatalog = false;
-for (const line of workspaceYaml.split('\n')) {
-	if (/^catalog:\s*$/.test(line)) {
-		inCatalog = true;
-		continue;
-	}
-	if (!inCatalog) {
-		continue;
-	}
-	const entry = /^ {2}"?([^":]+)"?:\s*(\S+)\s*$/.exec(line);
-	if (entry) {
-		catalog.set(entry[1], entry[2]);
-		continue;
-	}
-	// Blank lines and comments do not close the block; the first line that is
-	// neither (a new top-level key) does.
-	if (line.trim() !== '' && !line.trimStart().startsWith('#')) {
-		inCatalog = false;
-	}
-}
 
 const pkg: {
 	dependencies?: DependencyGroup;

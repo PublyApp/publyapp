@@ -8,7 +8,7 @@ import {
 	runNonVitestReportAll,
 } from './run-non-vitest-report-all.ts';
 
-test('keeps the exact ordered 32-command manifest', () => {
+test('keeps the exact ordered 33-command manifest', () => {
 	const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 	const expected = [
 		['pnpm', 'check:guard-coverage'],
@@ -48,6 +48,7 @@ test('keeps the exact ordered 32-command manifest', () => {
 		['pnpm', 'check:server-static-imports'],
 		['pnpm', 'test:runtime-env-startup'],
 		['pnpm', 'test:front-runtime-image-guard'],
+		['pnpm', 'test:assert-pinned'],
 	].map(([file, ...args]) => [file === 'pnpm' ? pnpm : file, ...args]);
 	assert.deepEqual(
 		NON_VITEST_COMMANDS.map((command) => command.argv),
@@ -58,7 +59,7 @@ test('keeps the exact ordered 32-command manifest', () => {
 test('rejects a removed command from the report-all manifest', () => {
 	assert.throws(
 		() => validateNonVitestManifest(NON_VITEST_COMMANDS.slice(0, -1)),
-		/exactly 32/,
+		/exactly 33/,
 	);
 });
 
@@ -77,8 +78,8 @@ test('reports every command after the first command fails', async () => {
 	});
 
 	assert.equal(result.exit_code, 1);
-	assert.equal(result.records.length, 32);
-	assert.equal(calls.length, 32);
+	assert.equal(result.records.length, 33);
+	assert.equal(calls.length, 33);
 	assert.equal(result.records[0].exit_code, 7);
 	assert.equal(result.records[1].outcome, 'success');
 });
