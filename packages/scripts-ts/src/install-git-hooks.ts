@@ -12,7 +12,7 @@
  * ## What this script does
  *
  * 1. Points `core.hooksPath` at the VERSIONED `.husky` directory (which
- *    contains the tracked `pre-commit` and `pre-push` hooks). The path stays
+ *    contains the tracked `pre-commit`, `pre-push` and `commit-msg` hooks). The path stays
  *    relative on purpose: git resolves it against each worktree's own root,
  *    and the tracked hook files exist in every checkout — so a brand new
  *    worktree, with zero manual steps, runs the exact same pre-commit
@@ -36,7 +36,7 @@ import { accessSync, constants, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const HOOKS_DIR = '.husky';
-const HOOKS = ['pre-commit', 'pre-push'] as const;
+const HOOKS = ['pre-commit', 'pre-push', 'commit-msg'] as const;
 
 const fail = (message: string): never => {
 	console.error(`\n[install-git-hooks] ${message}`);
@@ -63,7 +63,8 @@ try {
 
 // Point core.hooksPath at the versioned hooks directory. The value is
 // intentionally RELATIVE: git resolves it inside each worktree's root, and
-// the tracked .husky/pre-commit + .husky/pre-push exist in every checkout.
+// the tracked .husky/pre-commit, .husky/pre-push and .husky/commit-msg exist
+// in every checkout.
 // The setting is stored in the clone's shared config, so one install wires
 // every existing and future worktree of the clone.
 try {

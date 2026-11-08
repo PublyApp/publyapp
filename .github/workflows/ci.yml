@@ -1637,6 +1637,16 @@ jobs:
           GH_REPO: ${{ github.repository }}
           CI_LIVE_PR_RECORD_PATH: ci-live-pr-record.json
         run: node packages/scripts-ts/src/require-linked-issue.ts
+      - name: Reject Co-Authored-By trailers
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.txt"
+          node packages/scripts-ts/src/check-no-coauthor-trailer.ts --range "$PR_BASE_SHA..$PR_HEAD_SHA" --title "$PR_TITLE" --body-file "$RUNNER_TEMP/pr-body.txt"
       - name: Run central structural self-check
         run: node packages/scripts-ts/src/check-ci-gate-structure.ts
       - name: Aggregate upstream artifacts
