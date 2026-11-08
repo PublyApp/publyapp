@@ -6,11 +6,14 @@ import { describe, expect, test } from 'vitest';
 import {
 	formatCalendarDay,
 	formatDateTime,
+	formatDayMonth,
 	formatInZone,
 	formatLongWeekdayDate,
+	formatMonthShort,
 	formatMonthYear,
 	formatShortDate,
 	formatTimeOfDay,
+	formatWeekdayShort,
 	getBrowserTimeZone,
 	getRelativeTimeParts,
 } from './format-time';
@@ -72,6 +75,20 @@ describe('format-time', () => {
 
 	test('formats a calendar day with a weekday in the requested locale', () => {
 		expect(formatCalendarDay('2026-08-01', 'fr')).toBe('sam. 1 août 2026');
+	});
+
+	test('formats a short month, a short weekday, and a day+month in UTC', () => {
+		const date = new Date('2026-10-09T00:00:00Z');
+
+		expect(formatMonthShort(date, 'fr')).toBe('oct.');
+		expect(formatMonthShort(date, 'en')).toBe('Oct');
+		expect(formatWeekdayShort(date, 'fr')).toBe('ven.');
+		expect(formatWeekdayShort(date, 'en')).toBe('Fri');
+		expect(formatDayMonth(date, 'fr')).toBe('9 oct.');
+		expect(formatDayMonth(date, 'en')).toBe('Oct 9');
+		expect(formatMonthShort(null, 'fr')).toBe('—');
+		expect(formatWeekdayShort(new Date('invalid'), 'en')).toBe('—');
+		expect(formatDayMonth(null, 'en')).toBe('—');
 	});
 
 	test('formats the spelled-out history day and a 24-hour clock time', () => {

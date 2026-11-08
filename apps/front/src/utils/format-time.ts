@@ -198,6 +198,31 @@ export const formatInZone = (
 export const getBrowserTimeZone = (): string =>
 	Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
+const MONTH_SHORT_OPTIONS: Intl.DateTimeFormatOptions = {
+	month: 'short',
+};
+
+const WEEKDAY_SHORT_OPTIONS: Intl.DateTimeFormatOptions = {
+	weekday: 'short',
+};
+
+const DAY_MONTH_OPTIONS: Intl.DateTimeFormatOptions = {
+	day: 'numeric',
+	month: 'short',
+};
+
 /** Formats a calendar day in UTC using the UI locale. */
 export const formatCalendarDay = (value: DateInput, language: string): string =>
 	formatDate(toDate(value), language, CALENDAR_DAY_OPTIONS, 'UTC');
+
+/** « oct. » — the short month label for chart column headers. */
+export const formatMonthShort = (value: DateValue, locale: string): string =>
+	formatDate(value, locale, MONTH_SHORT_OPTIONS, 'UTC');
+
+/** « lun. » — the short weekday label for chart row headers. */
+export const formatWeekdayShort = (value: DateValue, locale: string): string =>
+	formatDate(value, locale, WEEKDAY_SHORT_OPTIONS, 'UTC');
+
+/** « 9 oct. » — the day+month label for series points and period starts. */
+export const formatDayMonth = (value: DateValue, locale: string): string =>
+	formatDate(value, locale, DAY_MONTH_OPTIONS, 'UTC');

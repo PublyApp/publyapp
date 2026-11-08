@@ -18,6 +18,7 @@ import {
 	useStaffDashboardSeriesQuery,
 	useStaffDashboardTopOrganisationsQuery,
 } from '~/lib/query/staff-dashboard';
+import { formatDayMonth } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
@@ -170,11 +171,7 @@ const Reports = () => {
 	});
 
 	const seriesPoints = (seriesQuery.data?.points ?? []).map((point) => ({
-		label: new Intl.DateTimeFormat(locale, {
-			day: 'numeric',
-			month: 'short',
-			timeZone: 'UTC',
-		}).format(new Date(`${point.date ?? ''}T12:00:00Z`)),
+		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
 		value: point.value ?? 0,
 	}));
 

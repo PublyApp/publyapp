@@ -5,6 +5,8 @@
  * belongs to `QueryDisplay`, never to a dashboard-local ladder.
  */
 
+import { formatDayMonth, formatShortDate } from '~/utils/format-time';
+
 /** The unknown-value convention: a figure the API cannot source is « — ». */
 export const UNKNOWN_VALUE = '—';
 
@@ -29,25 +31,12 @@ export const formatShare = (
  * year at the end). Both days are calendar days (`YYYY-MM-DD`) and are
  * formatted in UTC, like the charts: formatting a date-only string in the
  * viewer's zone would print the day before west of UTC (A-1). */
-const dayMonth = (locale: string): Intl.DateTimeFormat =>
-	new Intl.DateTimeFormat(locale, {
-		day: 'numeric',
-		month: 'short',
-		timeZone: 'UTC',
-	});
-const dayMonthYear = (locale: string): Intl.DateTimeFormat =>
-	new Intl.DateTimeFormat(locale, {
-		day: 'numeric',
-		month: 'short',
-		year: 'numeric',
-		timeZone: 'UTC',
-	});
 export const formatPeriodRange = (
 	start: string,
 	end: string,
 	locale: string,
 ): string =>
-	`${dayMonth(locale).format(new Date(`${start}T00:00:00Z`))} – ${dayMonthYear(locale).format(new Date(`${end}T00:00:00Z`))}`;
+	`${formatDayMonth(new Date(`${start}T00:00:00Z`), locale)} – ${formatShortDate(new Date(`${end}T00:00:00Z`), locale, { timeZone: 'UTC' })}`;
 
 /** The sum of a dashboard series. `undefined` when the API served no point
  * at all — an empty window is unknown, not a real 0. */

@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react';
 import { cn } from '~/lib/utils';
+import {
+	formatMonthShort,
+	formatShortDate,
+	formatWeekdayShort,
+} from '~/utils/format-time';
 
 import { UNKNOWN_VALUE, formatCount, formatShare } from './_dashboard-format';
 
@@ -585,10 +590,7 @@ export const Heatmap = ({
 		if (!cell) {
 			continue;
 		}
-		const label = new Intl.DateTimeFormat(locale, {
-			month: 'short',
-			timeZone: 'UTC',
-		}).format(cell.date);
+		const label = formatMonthShort(cell.date, locale);
 		const last = months.at(-1);
 		if (last && last.label === label) {
 			last.weeks += 1;
@@ -605,12 +607,8 @@ export const Heatmap = ({
 	] as const;
 	// Monday-first, like the grid; every other row (Tue/Thu/Sat) is labelled.
 	// The locale's own short weekday, never a hardcoded French list (B ME-2).
-	const weekdayFormat = new Intl.DateTimeFormat(locale, {
-		weekday: 'short',
-		timeZone: 'UTC',
-	});
 	const weekdayLabels = Array.from({ length: 7 }, (_, index) =>
-		weekdayFormat.format(new Date(Date.UTC(2024, 0, 1 + index))),
+		formatWeekdayShort(new Date(Date.UTC(2024, 0, 1 + index)), locale),
 	);
 	const width = 30 + weeks * (HEAT_CELL + HEAT_GAP);
 	let monthOffset = 0;
@@ -673,7 +671,7 @@ export const Heatmap = ({
 							rx="2"
 							fill={`var(${levelTokens[level(cell.value)]})`}
 						>
-							<title>{`${new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(cell.date)} · ${formatCount(cell.value, locale)}`}</title>
+							<title>{`${formatShortDate(cell.date, locale, { timeZone: 'UTC' })} · ${formatCount(cell.value, locale)}`}</title>
 						</rect>
 					);
 				})}
