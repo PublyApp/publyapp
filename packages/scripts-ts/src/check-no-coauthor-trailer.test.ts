@@ -155,6 +155,22 @@ test('--message-file accepts a clean message', () => {
 	assert.equal(runScript(['--message-file', messageFile]).code, 0);
 });
 
+test('--message-file exits 2 when the file is unreadable', () => {
+	const result = runScript([
+		'--message-file',
+		'/nonexistent/path/COMMIT_EDITMSG',
+	]);
+
+	assert.equal(result.code, 2);
+	assert.match(result.stderr, /cannot read commit message file/);
+});
+
+test('unknown arguments exit 2', () => {
+	const result = runScript(['--bogus']);
+
+	assert.equal(result.code, 2);
+});
+
 // ---------------------------------------------------------------------------
 // --range: what the PR check calls.
 // ---------------------------------------------------------------------------

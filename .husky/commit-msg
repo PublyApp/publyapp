@@ -31,11 +31,21 @@ find_pnpm() {
 pnpm_bin=$(find_pnpm)
 
 if [ -n "$pnpm_bin" ] && command -v node >/dev/null 2>&1; then
-    if "$pnpm_bin" exec node "$script_path" --message-file "$message_file"; then
-        exit 0
+    if [ ! -f "$script_path" ]; then
+        echo "⚠ the trailer check could not run; falling back to a simple grep" >&2
+    else
+        "$pnpm_bin" exec node "$script_path" --message-file "$message_file"
+        script_exit=$?
+        if [ $script_exit -eq 0 ]; then
+            exit 0
+        fi
+        if [ $script_exit -ne 1 ]; then
+            echo "⚠ the trailer check could not run; falling back to a simple grep" >&2
+        else
+            echo "❌ commit rejected: remove the Co-Authored-By line above, then commit again." >&2
+            exit 1
+        fi
     fi
-    echo "❌ commit rejected: remove the Co-Authored-By line above, then commit again." >&2
-    exit 1
 fi
 
 # No pnpm/node on PATH: grep the non-comment lines, as git ignores them too.

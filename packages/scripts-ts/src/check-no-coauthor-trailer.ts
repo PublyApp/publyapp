@@ -141,7 +141,7 @@ const readText = (path: string, label: string): string => {
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
-		process.exit(1);
+		process.exit(2);
 	}
 };
 
@@ -191,7 +191,7 @@ const runRange = (options: Options): void => {
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
-		process.exit(1);
+		process.exit(2);
 	}
 
 	// `--format=%H%x00%B%x00` yields `hash\0body\0` per commit, with a newline
@@ -213,7 +213,7 @@ const runRange = (options: Options): void => {
 		console.error(
 			`check-no-coauthor-trailer: could not parse "git log ${range}" output.`,
 		);
-		process.exit(1);
+		process.exit(2);
 	}
 
 	const problems: string[] = [];
@@ -265,5 +265,12 @@ const run = (): void => {
 };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	run();
+	try {
+		run();
+	} catch (error) {
+		console.error(
+			`check-no-coauthor-trailer: internal error: ${error instanceof Error ? error.message : String(error)}`,
+		);
+		process.exit(2);
+	}
 }
