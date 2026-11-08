@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorKindState } from '~/components/error-views/error-kind-state';
+import { Button } from '~/components/ui/button';
 import {
 	resolveQueryError,
 	type ResolvedQueryError,
@@ -40,9 +41,11 @@ export type QueryDisplayQuery<TData = unknown, TError = Error> = {
 type Props<TData = unknown, TError = Error> = {
 	query: QueryDisplayQuery<TData, TError>;
 	loadingStrategy?: LoadingMode; // defaults to 'pending'
-	/** `page` (default): spinner + full inline error state. `inline`: spinner plus a visible
-	 * « Chargement… » label, for menus and selects. `discreet`: nothing while loading and nothing on
-	 * error, for banners and badges that only matter when data exists. Explicit slots win. */
+	/** `page` (default): spinner + full error state. `inline`: spinner plus a visible
+	 * « Chargement… » label, and a one-line error with « Réessayer », for menus and
+	 * selects. `discreet`: nothing while loading and nothing on error unless data is
+	 * already held (a failed refetch keeps it), for banners and badges that only
+	 * matter when data exists. Explicit slots win. */
 	variant?: 'page' | 'inline' | 'discreet';
 	LoadingSlot?: RenderSlot;
 	ErrorSlot?: RenderSlot<{
@@ -123,6 +126,30 @@ const renderDefaultError = (
 	);
 };
 
+/** The `inline` preset's error: one line of cause + « Réessayer », no surface,
+ * no pictogram and no « Retour à l'accueil » inside a menu or a form row. */
+const renderInlineError = (
+	resolved: ResolvedQueryError,
+	onRetry: () => void,
+	retryLabel: string,
+) => {
+	if (resolved.silent) {
+		return null;
+	}
+
+	return (
+		<span
+			data-testid="query-display-inline-error"
+			className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+		>
+			<span role="alert">{resolved.title}</span>
+			<Button size="xs" variant="outline" type="button" onClick={onRetry}>
+				{retryLabel}
+			</Button>
+		</span>
+	);
+};
+
 const renderError = <TData, TError>(
 	error: unknown,
 	query: QueryDisplayQuery<TData, TError>,
@@ -145,11 +172,14 @@ const renderError = <TData, TError>(
 	// 404, a malformed payload, the browser offline). Resolve whatever the
 	// caller threw through the shared status→copy matcher; the fallback
 	// branch inside the resolver covers the bare-Error case explicitly.
-	return renderDefaultError(
-		resolveQueryError(error, t),
-		() => void query.refetch(),
-		error,
-	);
+	const resolved = resolveQueryError(error, t);
+	const retry = () => void query.refetch();
+
+	if (variant === 'inline') {
+		return renderInlineError(resolved, retry, t('retry'));
+	}
+
+	return renderDefaultError(resolved, retry, error);
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -228,6 +258,12 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	}
 
 	if (query.isError) {
+		// A failed *refetch* keeps the last good data (TanStack v5 sets
+		// `status: 'error'` without clearing `data`); `discreet` banners must
+		// keep showing it instead of blanking what they already hold.
+		if (variant === 'discreet' && query.data !== undefined) {
+			return renderData(query, children);
+		}
 		return renderError(query.error, query, ErrorSlot, t, variant);
 	}
 

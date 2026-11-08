@@ -12,6 +12,7 @@ import QueryDisplay from './query-display';
 
 const TRANSLATION_LABELS: TestLabelMap = {
 	loading: 'Loading…',
+	retry: 'Retry',
 	'query-display-error-default': 'An error occurred while loading data.',
 	'query-display-error-cause-unknown':
 		"We couldn't determine what went wrong. Try again in a moment.",
@@ -77,6 +78,22 @@ errorStubQuery.setState({
 	error: new Error('boom'),
 });
 const errorQuery = observerOf(['stub-error']).getCurrentResult();
+
+// A failed refetch: TanStack v5 flips `status` to 'error' but keeps the last
+// good `data`, which is exactly the case `discreet` used to blank.
+stubQueryClient.setQueryData(['stub-stale-error'], 'payload');
+const staleErrorStubQuery = stubQueryClient
+	.getQueryCache()
+	.build(stubQueryClient, {
+		queryKey: ['stub-stale-error'],
+		queryFn: () => 'payload',
+	});
+staleErrorStubQuery.setState({
+	status: 'error',
+	fetchStatus: 'idle',
+	error: new Error('boom'),
+});
+const staleErrorQuery = observerOf(['stub-stale-error']).getCurrentResult();
 
 describe('QueryDisplay', () => {
 	// shell F4: the default loading spinner and error fallback used to be
@@ -419,6 +436,44 @@ describe('QueryDisplay variants', () => {
 		expect(
 			screen.getByTestId('query-display-inline-loading').textContent,
 		).toMatch(/.+/);
+	});
+
+	test('inline renders a compact error with retry, not the page-scale card', () => {
+		render(
+			<QueryDisplay query={errorQuery} variant="inline">
+				{() => 'data'}
+			</QueryDisplay>,
+		);
+
+		expect(screen.getByRole('alert').textContent).toBe(
+			'An error occurred while loading data.',
+		);
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		// No « Retour à l'accueil » link and no 240 px state surface inside the widget.
+		expect(screen.queryByRole('link')).toBeNull();
+		expect(document.querySelector('.publy-state-surface')).toBeNull();
+	});
+
+	test('inline error retry calls refetch', () => {
+		const refetch = vi.fn().mockResolvedValue(errorQuery);
+		render(
+			<QueryDisplay query={{ ...errorQuery, refetch }} variant="inline">
+				{() => 'data'}
+			</QueryDisplay>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+		expect(refetch).toHaveBeenCalledTimes(1);
+	});
+
+	test('discreet keeps showing data it already holds when a refetch fails', () => {
+		render(
+			<QueryDisplay query={staleErrorQuery} variant="discreet">
+				{({ data }) => <span>{data}</span>}
+			</QueryDisplay>,
+		);
+
+		expect(screen.getByText('payload')).toBeTruthy();
 	});
 
 	test('an explicit LoadingSlot wins over the preset', () => {
