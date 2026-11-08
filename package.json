@@ -21,14 +21,14 @@
 		"test:nuget-audit": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts"
 	},
 	"devDependencies": {
-		"@types/node": "^24.19.2",
+		"@types/node": "catalog:",
 		"knip": "6.44.1",
 		"lint-staged": "^17.6.0",
 		"oxfmt": "0.75.0",
-		"oxlint": "1.90.0",
+		"oxlint": "catalog:",
 		"oxlint-tsgolint": "7.0.2005",
-		"typescript": "^7.0.2",
-		"yaml": "^2.9.1"
+		"typescript": "catalog:",
+		"yaml": "catalog:"
 	},
 	"packageManager": "pnpm@10.13.1",
 	"engines": {

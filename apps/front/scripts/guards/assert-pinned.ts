@@ -28,6 +28,38 @@ try {
 }
 
 type DependencyGroup = Record<string, string>;
+
+// Shared versions live once in the default `catalog:` block of
+// pnpm-workspace.yaml (#2326), referenced as `"catalog:"`. A catalog reference
+// is exact iff its entry is exact, so resolve it before the exactness check.
+// ponytail: flat default catalog only (no named `catalogs:`) — the shape this
+// repo uses; anything else falls through and fails the check below.
+const workspaceYaml = readFileSync(
+	new URL('../../../../pnpm-workspace.yaml', import.meta.url),
+	'utf8',
+);
+const catalog = new Map<string, string>();
+let inCatalog = false;
+for (const line of workspaceYaml.split('\n')) {
+	if (/^catalog:\s*$/.test(line)) {
+		inCatalog = true;
+		continue;
+	}
+	if (!inCatalog) {
+		continue;
+	}
+	const entry = /^ {2}"?([^":]+)"?:\s*(\S+)\s*$/.exec(line);
+	if (entry) {
+		catalog.set(entry[1], entry[2]);
+		continue;
+	}
+	// Blank lines and comments do not close the block; the first line that is
+	// neither (a new top-level key) does.
+	if (line.trim() !== '' && !line.trimStart().startsWith('#')) {
+		inCatalog = false;
+	}
+}
+
 const pkg: {
 	dependencies?: DependencyGroup;
 	devDependencies?: DependencyGroup;
@@ -38,6 +70,14 @@ const pkg: {
 	readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 );
 const bad = [];
+
+const resolveRange = (name: string, rawRange: unknown): string | null => {
+	if (rawRange == null) {
+		return null;
+	}
+	const range = String(rawRange);
+	return range === 'catalog:' ? (catalog.get(name) ?? null) : range;
+};
 
 for (const group of [
 	'dependencies',
@@ -50,10 +90,14 @@ for (const group of [
 		if (range.startsWith('workspace:')) {
 			continue;
 		}
+		const resolved = resolveRange(name, rawRange);
 		// Reject anything that is not a single exact version:
-		// latest/tags/ranges/git/file:/link:/catalog: all fail the exact check.
-		if (!isExact(range)) {
-			bad.push(`${group}:${name}@${range}`);
+		// latest/tags/ranges/git/file:/link:, an unknown catalog entry, or a
+		// non-exact catalog entry all fail.
+		if (resolved == null) {
+			bad.push(`${group}:${name}@${range} (no catalog entry)`);
+		} else if (!isExact(resolved)) {
+			bad.push(`${group}:${name}@${resolved}`);
 		}
 	}
 }
@@ -77,7 +121,7 @@ const TAILWIND_LOCKSTEP = [
 ];
 const lockstepEntries = TAILWIND_LOCKSTEP.map((name) => [
 	name,
-	pkg.devDependencies?.[name],
+	resolveRange(name, pkg.devDependencies?.[name]),
 ]);
 // Absence must fail on its own: `new Set([undefined, undefined, …])` has
 // size 1, so an all-absent lockstep would otherwise pass the size check.

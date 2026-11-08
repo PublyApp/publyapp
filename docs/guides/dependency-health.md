@@ -12,6 +12,8 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 
 `npm` version updates are grouped `minor`+`patch` (`groups.minor-and-patch`) so minor/patch bumps arrive as one PR per week; major bumps stay separate. All ecosystems use `commit-message.prefix: chore` + `include: scope`.
 
+A dependency used by two or more workspaces is declared once, at its exact version, in the `catalog:` block of `pnpm-workspace.yaml` and referenced as `"<name>": "catalog:"` (AGENTS.md); Dependabot updates the catalog entry, so a bump is one line instead of one per workspace.
+
 ## When a Dependabot PR needs a human, and when it does not
 
 Owner decision (2026-08-22, policy #1240):

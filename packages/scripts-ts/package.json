@@ -8,8 +8,8 @@
 		"test": "vitest run"
 	},
 	"devDependencies": {
-		"yaml": "2.9.1",
-		"@types/node": "^24.19.2",
-		"vitest": "4.1.12"
+		"yaml": "catalog:",
+		"@types/node": "catalog:",
+		"vitest": "catalog:"
 	}
 }
