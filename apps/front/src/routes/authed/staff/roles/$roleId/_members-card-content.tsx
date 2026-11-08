@@ -40,7 +40,15 @@ export const renderStaffRoleMembersCard = ({
 
 	// `QueryDisplay` reads emptiness from `data`; the API returns a page object,
 	// so hand it the row list — the same predicate the hand-written ladder used.
-	const stateQuery: QueryDisplayQuery = { ...usersQuery, data: userRows };
+	// #2341 M2: `discreet` keeps the rows already on screen when a refetch
+	// fails (QueryDisplay renders children when `isError && data !== undefined`).
+	// `data` is the row list whenever the cache holds a page, and undefined on a
+	// first load so that a failure there still shows the error + retry slot.
+	const hasCachedUsers = usersQuery.data !== undefined;
+	const stateQuery: QueryDisplayQuery = {
+		...usersQuery,
+		data: hasCachedUsers ? userRows : undefined,
+	};
 
 	const errorSlot =
 		failureStatus === 403 ? (
@@ -59,6 +67,7 @@ export const renderStaffRoleMembersCard = ({
 	return (
 		<QueryDisplay
 			query={stateQuery}
+			variant="discreet"
 			LoadingSlot={
 				<div className="px-[18px] py-8 text-center text-[13px] text-muted-foreground">
 					{t('loading-staff-role')}

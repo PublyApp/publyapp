@@ -171,8 +171,13 @@ const StaffRoleDetailsPage = () => {
 	// The catalog is optional: an absent payload is a loaded page with no
 	// catalogue to show, not a missing one. The sentinel keeps `QueryDisplay`
 	// out of its empty branch, which the hand-written ladder never entered.
+	// #2341 M1: the catalog only feeds the optional "N of M" count, so while
+	// it is pending it must gate nothing — keep the derived view out of the
+	// pending branch so the whole page renders as soon as detail + keys are
+	// loaded. Only an error still swaps in RoleDetailsError.
 	const catalogStateQuery: QueryDisplayQuery = {
 		...permissionCatalogQuery,
+		isPending: false,
 		data: permissionCatalogQuery.data ?? {},
 	};
 	const userRows = toStaffRoleUserRows(usersQuery.data?.users);
