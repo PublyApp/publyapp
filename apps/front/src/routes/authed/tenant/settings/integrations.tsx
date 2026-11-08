@@ -8,6 +8,7 @@ import {
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import QueryDisplay from '~/components/query-display';
 import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
@@ -341,16 +342,22 @@ const TenantSettingsIntegrationsPage = () => {
 				</p>
 			) : null}
 
-			<ReconnectBanner
-				accounts={needsReconnectAccounts}
-				hasManagePermission={canManage}
-				onReconnect={(accountId) => {
-					const account = rows.find((row) => row.id === accountId);
-					if (account) {
-						setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account });
-					}
-				}}
-			/>
+			{/* `discreet`: the banner only matters when there is something to
+			reconnect — today it renders nothing while the query loads or fails. */}
+			<QueryDisplay query={needsReconnectQuery} variant="discreet">
+				{() => (
+					<ReconnectBanner
+						accounts={needsReconnectAccounts}
+						hasManagePermission={canManage}
+						onReconnect={(accountId) => {
+							const account = rows.find((row) => row.id === accountId);
+							if (account) {
+								setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account });
+							}
+						}}
+					/>
+				)}
+			</QueryDisplay>
 
 			<Card>
 				<CardHeader>

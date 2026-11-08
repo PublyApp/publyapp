@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -26,56 +29,9 @@ export const UsersPreviewCard = ({
 		sortOrder: 'desc',
 	});
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
-
-	const renderBody = () => {
-		if (usersQuery.isPending) {
-			return <p className="px-4 py-4 text-xs text-muted-foreground">…</p>;
-		}
-
-		if (usersQuery.isError) {
-			return (
-				<p className="px-4 py-4 text-xs text-muted-foreground">
-					{t('tenant-users-preview-error')}
-				</p>
-			);
-		}
-
-		if (rows.length === 0) {
-			return (
-				<p className="px-4 py-4 text-xs text-muted-foreground">
-					{t('no-tenant-members')}
-				</p>
-			);
-		}
-
-		return (
-			<div className="divide-y divide-[color:var(--publy-row-border)]">
-				{rows.map((row) => (
-					<div key={row.id} className="flex items-center gap-3 px-4 py-2.5">
-						<PersonAvatar
-							name={row.displayName}
-							avatarUrl={row.avatarUrl}
-							size="sm"
-						/>
-						<div className="min-w-0 flex-1">
-							<p className="truncate text-[13px] font-medium text-foreground">
-								{row.displayName}
-							</p>
-							<p className="truncate text-xs text-muted-foreground">
-								{row.email}
-							</p>
-						</div>
-						<StatusPill tone="neutral">
-							{formatTenantUserAccessLabel(row.isFullAccess, t)}
-						</StatusPill>
-						<StatusPill tone={statusPillTone(row.status)}>
-							{formatTenantUserStatusLabel(row.status, t)}
-						</StatusPill>
-					</div>
-				))}
-			</div>
-		);
-	};
+	// `QueryDisplay` reads emptiness from `data`; the API returns a page object,
+	// so hand it the row list — the same predicate the hand-written ladder used.
+	const stateQuery: QueryDisplayQuery = { ...usersQuery, data: rows };
 
 	return (
 		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
@@ -91,7 +47,55 @@ export const UsersPreviewCard = ({
 					{t('view-all')}
 				</Link>
 			</div>
-			<div data-testid="tenant-users-preview-rows">{renderBody()}</div>
+			<div data-testid="tenant-users-preview-rows">
+				<QueryDisplay
+					query={stateQuery}
+					LoadingSlot={
+						<p className="px-4 py-4 text-xs text-muted-foreground">…</p>
+					}
+					ErrorSlot={
+						<p className="px-4 py-4 text-xs text-muted-foreground">
+							{t('tenant-users-preview-error')}
+						</p>
+					}
+					EmptySlot={
+						<p className="px-4 py-4 text-xs text-muted-foreground">
+							{t('no-tenant-members')}
+						</p>
+					}
+				>
+					{() => (
+						<div className="divide-y divide-[color:var(--publy-row-border)]">
+							{rows.map((row) => (
+								<div
+									key={row.id}
+									className="flex items-center gap-3 px-4 py-2.5"
+								>
+									<PersonAvatar
+										name={row.displayName}
+										avatarUrl={row.avatarUrl}
+										size="sm"
+									/>
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-[13px] font-medium text-foreground">
+											{row.displayName}
+										</p>
+										<p className="truncate text-xs text-muted-foreground">
+											{row.email}
+										</p>
+									</div>
+									<StatusPill tone="neutral">
+										{formatTenantUserAccessLabel(row.isFullAccess, t)}
+									</StatusPill>
+									<StatusPill tone={statusPillTone(row.status)}>
+										{formatTenantUserStatusLabel(row.status, t)}
+									</StatusPill>
+								</div>
+							))}
+						</div>
+					)}
+				</QueryDisplay>
+			</div>
 		</section>
 	);
 };
