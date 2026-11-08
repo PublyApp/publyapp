@@ -1,5 +1,6 @@
 import { createElement, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { QueryDisplayQuery } from '~/components/query-display';
 import { Collapse } from '~/components/ui/collapse';
 import { cn } from '~/lib/utils';
 
@@ -60,8 +61,7 @@ type HistoryPageProps = {
 	panelGroups?: ListPanelGroup[];
 	/** Page-owned groups that belong after the filter shortcuts (Acteurs). */
 	panelGroupsAfter?: ListPanelGroup[];
-	queryState: { isPending: boolean; isError: boolean; onRetry: () => void };
-	errorText?: string;
+	query: QueryDisplayQuery<unknown>;
 	/** The cursor pager, under the history. */
 	pager?: ReactNode;
 	/** Extra pinned-toolbar controls (e.g. a locale-formatted date range). */
@@ -122,8 +122,7 @@ export const HistoryPage = ({
 	onFiltersChange,
 	panelGroups = [],
 	panelGroupsAfter = [],
-	queryState,
-	errorText,
+	query,
 	pager,
 	toolbarExtra,
 	showOrganisation = false,
@@ -265,9 +264,8 @@ export const HistoryPage = ({
 				noMatchText={noMatchText}
 				hasActiveFilters={hasActiveFilters}
 				footnote={footnote}
-				errorText={errorText}
 				pager={pager}
-				queryState={queryState}
+				query={query}
 			/>
 			<ListFilterPanel
 				groups={[...panelGroups, ...filterGroups, ...panelGroupsAfter]}

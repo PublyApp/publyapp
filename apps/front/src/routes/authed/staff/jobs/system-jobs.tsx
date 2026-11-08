@@ -214,12 +214,7 @@ const StaffJobsSystemJobsPage = () => {
 				/>
 			)}
 			onExport={() => exportJobRows(rows, columns, t, 'jobs-export-system')}
-			queryState={{
-				isPending: query.isPending,
-				isError: query.isError,
-				error: query.error,
-				onRetry: () => void query.refetch(),
-			}}
+			query={query}
 			footer={
 				rows.length > 0 ? (
 					<DataTableCursorFooter

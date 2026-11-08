@@ -3,6 +3,9 @@ import type { SortingState } from '@tanstack/react-table';
 import type { CSSProperties, ReactNode } from 'react';
 import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { DataTableStates } from '~/components/table/data-table-states';
 import { Collapse } from '~/components/ui/collapse';
 import type { PageAction } from '~/components/ui/product-page';
@@ -107,15 +110,10 @@ export type ListPageProps<T extends { id: string }> = {
 	 * speed-dial action. */
 	newAction?: PageAction;
 	inset?: { description?: string };
-	queryState: {
-		isPending: boolean;
-		isError: boolean;
-		/** The query's error, when the consumer has it. Resolves the ONE error
-		 * state (#2291): 5xx paints « Impossible de charger » + Réessayer, 403
-		 * paints « Accès refusé » with no retry action. */
-		error?: unknown;
-		onRetry: () => void;
-	};
+	/** The list query. Its loading/error state is rendered through
+	 * `QueryDisplay`; the rows themselves stay the `rows` prop (a caller may
+	 * narrow or merge them before rendering). */
+	query: QueryDisplayQuery<unknown>;
 	/** Extra content in the error state (e.g. a 403 explanation); falls back to
 	 * the resolved description when omitted. */
 	errorContent?: ReactNode;
@@ -152,10 +150,9 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 	const countsKnown = props.countsKnown ?? true;
 	// #2291: one error state. The shared resolver owns the 5xx/4xx copy and
 	// whether a Retry action belongs on the surface (403 and 404 do not).
+	const queryError = props.query.error ?? undefined;
 	const resolvedError =
-		props.queryState.error === undefined
-			? undefined
-			: resolveQueryError(props.queryState.error, t);
+		queryError === undefined ? undefined : resolveQueryError(queryError, t);
 	// A forbidden body has no create/export chrome: acting on a page the user
 	// cannot read is a lie (the 403 screenshot showed both on /staff/roles).
 	// The shared list header owns that rule for every ListPage.
@@ -218,6 +215,76 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 		props.testId
 			? `${props.testId}-${isSearchMiss ? 'no-match' : 'empty'}`
 			: undefined,
+	);
+
+	// The body's loading and error states, and the table itself: `QueryDisplay`
+	// picks one. The empty state lives inside the table shell (desktop and
+	// mobile), so the empty slot and the data slot are the same node.
+	const table = (
+		<ListTable
+			ariaLabel={props.ariaLabel}
+			testId={props.testId}
+			specs={page.specs}
+			ids={page.ids}
+			rows={page.tableRows}
+			head={page.head}
+			totals={page.totalCells}
+			onOpen={props.onOpen}
+			openLabel={props.openLabel}
+			rowLabel={
+				props.rowLabel ??
+				((row: T) => (row as { name?: string }).name ?? row.id)
+			}
+			selection={props.selection}
+			empty={tableEmptyNode}
+			onMove={page.moveShown}
+			cards={
+				<ListCards
+					count={page.displayed.length}
+					empty={emptyNode}
+					summary={undefined}
+				>
+					{page.displayed.map((row) => {
+						const card = props.mobileCard(row);
+						return (
+							<ListCard
+								key={row.id}
+								onOpen={() => props.onOpen(row)}
+								openLabel={props.openLabel(row)}
+								code={card.code}
+								badges={card.badges}
+								end={card.end}
+								title={card.title}
+								sub={card.sub}
+							>
+								{card.foot ? (
+									<CardFoot label={card.foot[0]} value={card.foot[1]} />
+								) : null}
+							</ListCard>
+						);
+					})}
+				</ListCards>
+			}
+		/>
+	);
+	const tableState = (bodyState: 'loading' | 'error') => (
+		<DataTableStates
+			testId={props.testId ?? 'list'}
+			bodyState={bodyState}
+			resolvedRowHeight={48}
+			onRetry={() => void props.query.refetch()}
+			errorKind={resolvedError?.kind}
+			error={queryError}
+			errorTitle={resolvedError?.title}
+			errorRetryable={resolvedError?.supportsRetry}
+			errorContent={
+				props.errorContent ??
+				resolvedError?.description ??
+				t('list-error-default-description')
+			}
+			emptyContent={page.emptyContent}
+			noMatchContent={t('list-no-match-default-description')}
+		/>
 	);
 
 	return (
@@ -330,71 +397,14 @@ export const ListPage = <T extends { id: string }>(props: ListPageProps<T>) => {
 				onClearAll={page.clearAllFilters}
 			/>
 			{props.bulkBar}
-			{page.bodyState === 'loading' || page.bodyState === 'error' ? (
-				<DataTableStates
-					testId={props.testId ?? 'list'}
-					bodyState={page.bodyState}
-					resolvedRowHeight={48}
-					onRetry={props.queryState.onRetry}
-					errorKind={resolvedError?.kind}
-					error={props.queryState.error}
-					errorTitle={resolvedError?.title}
-					errorRetryable={resolvedError?.supportsRetry}
-					errorContent={
-						props.errorContent ??
-						resolvedError?.description ??
-						t('list-error-default-description')
-					}
-					emptyContent={page.emptyContent}
-					noMatchContent={t('list-no-match-default-description')}
-				/>
-			) : (
-				<ListTable
-					ariaLabel={props.ariaLabel}
-					testId={props.testId}
-					specs={page.specs}
-					ids={page.ids}
-					rows={page.tableRows}
-					head={page.head}
-					totals={page.totalCells}
-					onOpen={props.onOpen}
-					openLabel={props.openLabel}
-					rowLabel={
-						props.rowLabel ??
-						((row: T) => (row as { name?: string }).name ?? row.id)
-					}
-					selection={props.selection}
-					empty={tableEmptyNode}
-					onMove={page.moveShown}
-					cards={
-						<ListCards
-							count={page.displayed.length}
-							empty={emptyNode}
-							summary={undefined}
-						>
-							{page.displayed.map((row) => {
-								const card = props.mobileCard(row);
-								return (
-									<ListCard
-										key={row.id}
-										onOpen={() => props.onOpen(row)}
-										openLabel={props.openLabel(row)}
-										code={card.code}
-										badges={card.badges}
-										end={card.end}
-										title={card.title}
-										sub={card.sub}
-									>
-										{card.foot ? (
-											<CardFoot label={card.foot[0]} value={card.foot[1]} />
-										) : null}
-									</ListCard>
-								);
-							})}
-						</ListCards>
-					}
-				/>
-			)}
+			<QueryDisplay
+				query={props.query}
+				LoadingSlot={tableState('loading')}
+				ErrorSlot={tableState('error')}
+				EmptySlot={table}
+			>
+				{table}
+			</QueryDisplay>
 			{props.footer}
 			<ListFilterPanel groups={panelGroups} targetId={PANEL_TARGET_ID} />
 			{props.after}

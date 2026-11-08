@@ -24,8 +24,21 @@ type RenderSlot<TProps = object> =
 	| ReactNode
 	| React.JSXElementConstructor<TProps>;
 
+/** The subset of a TanStack Query result `QueryDisplay` reads. Both
+ * `UseQueryResult` and `UseInfiniteQueryResult` satisfy it, and so does a
+ * page's derived view of one (an empty list, a forced state). */
+export type QueryDisplayQuery<TData = unknown, TError = Error> = {
+	isPending: boolean;
+	isLoading: boolean;
+	isFetching: boolean;
+	isError: boolean;
+	error: TError | null;
+	data: TData | undefined;
+	refetch: UseQueryResult<TData, TError>['refetch'];
+};
+
 type Props<TData = unknown, TError = Error> = {
-	query: UseQueryResult<TData, TError>;
+	query: QueryDisplayQuery<TData, TError>;
 	loadingStrategy?: LoadingMode; // defaults to 'pending'
 	/** `page` (default): spinner + full inline error state. `inline`: spinner plus a visible
 	 * « Chargement… » label, for menus and selects. `discreet`: nothing while loading and nothing on
@@ -34,7 +47,7 @@ type Props<TData = unknown, TError = Error> = {
 	LoadingSlot?: RenderSlot;
 	ErrorSlot?: RenderSlot<{
 		error: unknown;
-		query: UseQueryResult<TData, TError>;
+		query: QueryDisplayQuery<TData, TError>;
 	}>;
 	EmptySlot?: RenderSlot;
 	// Render prop only (not ComponentType): an inline closure passed here must
@@ -112,7 +125,7 @@ const renderDefaultError = (
 
 const renderError = <TData, TError>(
 	error: unknown,
-	query: UseQueryResult<TData, TError>,
+	query: QueryDisplayQuery<TData, TError>,
 	ErrorSlot: Props<TData, TError>['ErrorSlot'],
 	t: (key: string) => string,
 	variant: NonNullable<Props['variant']>,
@@ -151,7 +164,7 @@ const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
 };
 
 const renderData = <TData, TError>(
-	query: UseQueryResult<TData, TError>,
+	query: QueryDisplayQuery<TData, TError>,
 	children?: Props<TData, TError>['children'],
 ) => {
 	if (typeof children === 'function') {

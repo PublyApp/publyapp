@@ -230,12 +230,7 @@ const StaffRoleUsersPage = () => {
 						size={controller.size}
 						hasPreviousPage={hasPreviousPage}
 						hasNextPage={hasNextPage}
-						queryState={{
-							isPending: usersQuery.isPending,
-							isError: usersQuery.isError,
-							isFetching: usersQuery.isFetching,
-							error: usersQuery.error,
-						}}
+						query={usersQuery}
 						errorContent={usersErrorContent}
 						q={search.q ?? ''}
 						sorting={[
@@ -270,7 +265,6 @@ const StaffRoleUsersPage = () => {
 							selection.onSelectionChange(new Set(rows.map((row) => row.id)))
 						}
 						onSessionExpired={onSessionExpired}
-						onRetry={() => void usersQuery.refetch()}
 						onPageSizeChange={(nextSize) => {
 							setPageIndex(0);
 							controller.onSizeChange(nextSize);
