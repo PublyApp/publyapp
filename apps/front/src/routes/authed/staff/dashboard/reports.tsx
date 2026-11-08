@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { historyCategory } from '~/components/history/history-actions';
+import { StateSurface } from '~/components/ui/state-surface';
 import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
 import {
 	useStaffDashboardSeriesQuery,
@@ -266,7 +267,13 @@ const Reports = () => {
 					note={t('dashboard-note-events-per-day')}
 					hero={
 						<span className="flex flex-wrap items-baseline gap-x-2">
-							<span>{formatCount(auditEvents ?? 0, locale)}</span>
+							{/* #2339 fix9 MI-5: an unknown figure is the same muted
+							    « — » the KPI above shows, never a hard 0. */}
+							{auditEvents === null || auditEvents === undefined ? (
+								<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
+							) : (
+								formatCount(auditEvents, locale)
+							)}
 							{auditDelta ? (
 								<span
 									className="text-[12px] font-medium"
@@ -416,6 +423,16 @@ const Reports = () => {
 								}
 					}
 					query={topOrganisationsQuery}
+					// A served `items: []` is an empty period, not a missing
+					// series: the shared empty state, never the ghost's
+					// « Pas encore de données » (#2339 fix9 ME-2).
+					isEmpty={(data) => (data.items ?? []).length === 0}
+					emptySlot={
+						<StateSurface
+							title={t('dashboard-empty-top-orgs')}
+							testId="staff-dashboard-top-orgs-empty"
+						/>
+					}
 				/>
 			</div>
 		</div>

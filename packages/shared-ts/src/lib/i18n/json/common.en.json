@@ -1926,6 +1926,7 @@
 	"dashboard-card-signins-per-day": "Sign-ins per day",
 	"dashboard-card-top-orgs": "Most active organisations",
 	"dashboard-note-top-orgs": "Audit events attributed to each organisation in the period",
+	"dashboard-empty-top-orgs": "No activity in this period.",
 	"dashboard-export": "Export",
 	"dashboard-exporting": "Export…",
 	"dashboard-export-format": "Export format",

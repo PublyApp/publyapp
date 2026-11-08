@@ -1926,6 +1926,7 @@
 	"dashboard-card-signins-per-day": "Connexions par jour",
 	"dashboard-card-top-orgs": "Organisations les plus actives",
 	"dashboard-note-top-orgs": "Événements d'audit attribués à chaque organisation sur la période",
+	"dashboard-empty-top-orgs": "Aucune activité sur cette période.",
 	"dashboard-export": "Exporter",
 	"dashboard-exporting": "Export…",
 	"dashboard-export-format": "Format d'export",

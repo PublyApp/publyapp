@@ -166,7 +166,7 @@ const Overview = () => {
 				auditEvents={auditEvents}
 				pendingInvitations={pendingInvitationsQuery.data?.counts?.pending}
 				countsQuery={countsQuery}
-				auditQuery={auditQuery}
+				seriesQuery={seriesQuery}
 				pendingInvitationsQuery={pendingInvitationsQuery}
 				auditDelta={auditDelta}
 				auditDeltaPeriod={t('dashboard-delta-vs-previous', {

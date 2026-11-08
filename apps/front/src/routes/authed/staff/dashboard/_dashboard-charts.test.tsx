@@ -13,6 +13,7 @@ import {
 	LineChart,
 	Sparkline,
 } from './_dashboard-charts';
+import { addIsoDays } from './_dashboard-filters';
 
 afterEach(cleanup);
 
@@ -104,6 +105,33 @@ describe('Heatmap', () => {
 		render(<Heatmap days={week} locale="fr" label="Carte d'activité" />);
 
 		expect(screen.getByRole('img', { name: "Carte d'activité" })).toBeTruthy();
+	});
+
+	test('the month label sits on the week column holding the 1st, off-Monday starts included (#2339 fix9 ME-3)', () => {
+		// The shipped heatmap window ends on Saturday 2026-11-08: 365 days
+		// start on Sunday 2025-11-09, so column 0 has no Monday cell — the
+		// padded week must still count, or every later label shifts left.
+		const days = Array.from({ length: 365 }, (_, index) => ({
+			date: addIsoDays('2025-11-09', index),
+			value: 1,
+		}));
+		const { container } = render(
+			<Heatmap days={days} locale="fr" label="Carte d'activité" />,
+		);
+
+		// Day 23 is 2025-12-01 (a Monday): « déc. » belongs to that column.
+		const decemberRect = container.querySelectorAll('rect')[22];
+		const decemberLabel = new Intl.DateTimeFormat('fr', {
+			month: 'short',
+			timeZone: 'UTC',
+		}).format(new Date('2025-12-01T12:00:00Z'));
+		const label = Array.from(container.querySelectorAll('text')).find(
+			(node) => node.textContent === decemberLabel,
+		);
+
+		expect(decemberRect).toBeDefined();
+		expect(label).toBeDefined();
+		expect(label?.getAttribute('x')).toBe(decemberRect?.getAttribute('x'));
 	});
 });
 

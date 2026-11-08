@@ -512,6 +512,24 @@ describe('staff dashboard overview', () => {
 		expect(within(kpi).queryByText('0')).toBeNull();
 	});
 
+	test('the audit KPI is gated on the series that sources its figure, not the audit list (#2339 fix9 ME-1)', () => {
+		// The two endpoints are independent: the series answers 200 with its
+		// 4,800 while /staff/audit-logs answers 500.
+		withData();
+		mocks.auditQuery.isError = true;
+		mocks.auditQuery.error = new Error('500');
+		mocks.auditQuery.data = undefined;
+		render(<Overview />);
+
+		const kpi = screen.getByTestId('staff-dashboard-kpi-audit-events');
+		// The same figure the Rapports KPI shows …
+		expect(within(kpi).getByText('4,800')).toBeTruthy();
+		// … and never the unrelated audit-list error.
+		expect(
+			within(kpi).queryByTestId('staff-dashboard-kpi-audit-events-error'),
+		).toBeNull();
+	});
+
 	test('a globally suspended organisation shows its translated label, never the raw code (A-2)', () => {
 		withData();
 		const latest = mocks.latestTenantsQuery.data;

@@ -134,6 +134,7 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-note-events-per-day': 'Audit events per day',
 	'dashboard-note-signins': 'Successful sign-ins',
 	'dashboard-note-top-orgs': 'Audit events attributed to each organisation',
+	'dashboard-empty-top-orgs': 'No activity in this period.',
 	'dashboard-col-events': 'Events',
 	'dashboard-col-date': 'Date',
 	'dashboard-type-organisation': 'Organisation',
@@ -307,6 +308,24 @@ describe('staff dashboard reports', () => {
 		expect(within(kpi).queryByText('0')).toBeNull();
 	});
 
+	test('the hero is the unknown « — », never a false 0, when no query can source it (#2339 fix9 MI-5)', () => {
+		// Empty series AND a failed audit list: the figure is unknown on both
+		// halves of the card, so the hero shows the KPI's own unknown value.
+		withData();
+		mocks.series.data = { points: [] };
+		mocks.audit.isError = true;
+		mocks.audit.error = new Error('500');
+		mocks.audit.data = undefined;
+		render(<Reports />);
+
+		const card = screen.getByTestId('staff-dashboard-events-per-day');
+		const hero = card.querySelector('.pt-3\\.5 p');
+		expect(hero?.textContent).toBe('—');
+		expect(hero?.querySelector('.text-muted-foreground')).toBeTruthy();
+		const kpi = screen.getByTestId('staff-dashboard-kpi-report-events');
+		expect(within(kpi).getByText('—')).toBeTruthy();
+	});
+
 	test('the sign-in KPIs are ghosts: their audit actions are never emitted (B1)', () => {
 		withData();
 		render(<Reports />);
@@ -362,6 +381,28 @@ describe('staff dashboard reports', () => {
 				'The successful sign-ins curve will be drawn here, day by day.',
 			),
 		).toBeTruthy();
+	});
+
+	test('a served but empty period is an empty state, never the ghost (#2339 fix9 ME-2)', () => {
+		// The endpoint answers 200 with `items: []` (a quiet week): the data
+		// IS served, so the card must not claim the API has none yet.
+		withData();
+		mocks.topOrganisations.data = {
+			startDate: '',
+			endDate: '',
+			items: [],
+		};
+		render(<Reports />);
+
+		const card = screen.getByTestId('staff-dashboard-top-orgs');
+		expect(screen.getByTestId('staff-dashboard-top-orgs-empty')).toBeTruthy();
+		expect(screen.getByText('No activity in this period.')).toBeTruthy();
+		expect(within(card).queryByText('No data yet')).toBeNull();
+		expect(
+			within(card).queryByText(
+				'The most active organisations will be ranked here.',
+			),
+		).toBeNull();
 	});
 
 	test('the sign-ins ghost keeps the hero slot as a muted « — » (N3)', () => {

@@ -263,7 +263,7 @@ const chartBodyOf = (series: ChartCardSeries, view: ChartView): ReactNode => {
  * table; a disabled button would read as a fault) while the header keeps its
  * height.
  */
-export const ChartCard = ({
+export const ChartCard = <TData,>({
 	testId,
 	label,
 	icon,
@@ -272,6 +272,8 @@ export const ChartCard = ({
 	series,
 	toggle = true,
 	query,
+	isEmpty,
+	emptySlot,
 	action,
 }: {
 	testId: string;
@@ -284,7 +286,12 @@ export const ChartCard = ({
 	series: ChartCardSeries;
 	toggle?: boolean;
 	/** The card's own query, when it has one. A ghost series has none. */
-	query?: UseQueryResult<unknown, Error>;
+	query?: UseQueryResult<TData, Error>;
+	/** The emptiness rule and the empty state `DashboardCardQuery` shows for a
+	 * payload the API served but whose list is empty: an empty period is an
+	 * empty state, never the ghost (#2339 fix9 ME-2). */
+	isEmpty?: (data: TData) => boolean;
+	emptySlot?: ReactNode;
 	action?: ReactNode;
 }) => {
 	const [view, setView] = useState<ChartView>('chart');
@@ -339,7 +346,12 @@ export const ChartCard = ({
 			}
 		>
 			{query ? (
-				<DashboardCardQuery testId={testId} query={query}>
+				<DashboardCardQuery
+					testId={testId}
+					query={query}
+					isEmpty={isEmpty}
+					emptySlot={emptySlot}
+				>
 					{body}
 				</DashboardCardQuery>
 			) : (

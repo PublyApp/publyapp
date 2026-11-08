@@ -575,7 +575,13 @@ export const Heatmap = ({
 	const weeks = Math.ceil(padded.length / 7);
 	const months: Array<{ label: string; weeks: number }> = [];
 	for (let week = 0; week < weeks; week += 1) {
-		const cell = padded[week * 7];
+		// The first column's Monday is a padding null when the window does not
+		// start on a Monday: label the column by its first real day, so that
+		// week still counts and every label stays above its own week column
+		// (#2339 fix9 ME-3).
+		const cell = padded
+			.slice(week * 7, week * 7 + 7)
+			.find((day) => day !== null);
 		if (!cell) {
 			continue;
 		}

@@ -15,14 +15,18 @@ import { KpiCard } from './_dashboard-ui';
  * through `QueryDisplay`: a figure the API cannot source yet is never a
  * measured-looking 0. Only the audit-events card has a series to compare, so
  * only it carries a delta and a sparkline; the other three have no historical
- * endpoint (the tenants read exposes current counts, not a daily series). */
+ * endpoint (the tenants read exposes current counts, not a daily series).
+ * The audit-events figure comes from that series, so the card is gated on the
+ * series query — the same query the Rapports KPI gates on: the two screens
+ * show the same figure or the same error, never one behind the other one's
+ * unrelated endpoint (#2339 fix9 ME-1). */
 export const OverviewKpis = ({
 	activeTenants,
 	members,
 	auditEvents,
 	pendingInvitations,
 	countsQuery,
-	auditQuery,
+	seriesQuery,
 	pendingInvitationsQuery,
 	auditDelta,
 	auditDeltaPeriod,
@@ -34,7 +38,7 @@ export const OverviewKpis = ({
 	auditEvents: number | null | undefined;
 	pendingInvitations: number | null | undefined;
 	countsQuery: UseQueryResult<unknown, Error>;
-	auditQuery: UseQueryResult<unknown, Error>;
+	seriesQuery: UseQueryResult<unknown, Error>;
 	pendingInvitationsQuery: UseQueryResult<unknown, Error>;
 	auditDelta?: { label: string; direction: 'up' | 'down' };
 	auditDeltaPeriod?: string;
@@ -67,7 +71,7 @@ export const OverviewKpis = ({
 				icon={<IconFileSearch />}
 				figure={auditEvents}
 				locale={locale}
-				query={auditQuery}
+				query={seriesQuery}
 				delta={auditDelta}
 				deltaPeriod={auditDeltaPeriod}
 				sparkline={auditSparkline}
