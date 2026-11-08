@@ -704,6 +704,9 @@ export const Sparkline = ({ values }: { values: readonly number[] }) => {
 	return (
 		<svg
 			className="kpi-spark shrink-0"
+			// Inline: StatCard's footer sizes every svg to 14 px
+			// (`[&_svg]:size-3.5`, a utility that outranks any class rule).
+			style={{ width: 86, height: 28 }}
 			viewBox="0 0 86 28"
 			fill="none"
 			aria-hidden="true"

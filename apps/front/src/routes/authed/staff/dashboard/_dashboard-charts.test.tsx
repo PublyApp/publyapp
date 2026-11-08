@@ -1,9 +1,6 @@
 /**
  * @vitest-environment jsdom
  */
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 
@@ -136,33 +133,12 @@ describe('Heatmap', () => {
 });
 
 describe('Sparkline', () => {
-	test('takes its 86×28 size from the bare `.kpi-spark` rule, not ghost-only CSS', () => {
+	test('keeps its 86×28 size inside a footer that shrinks every svg', () => {
 		const { container } = render(<Sparkline values={[1, 3, 2]} />);
 		const svg = container.querySelector('svg');
 
-		// No size attributes: app.css's `.kpi-spark` is the size source — the
-		// same contract the ghost test reads (fix8: the rule only covered
-		// `.ghost-svg.kpi-spark`, so the real svg had no size at all).
-		expect(svg?.getAttribute('viewBox')).toBe('0 0 86 28');
-		expect(svg?.getAttribute('class')).toContain('kpi-spark');
-		expect(svg?.hasAttribute('width')).toBe(false);
-		expect(svg?.hasAttribute('height')).toBe(false);
-
-		// Comments are stripped first so they don't ride along in the
-		// captured selector.
-		const appCss = readFileSync(
-			path.resolve(import.meta.dirname, '../../../../styles/app.css'),
-			'utf8',
-		).replace(/\/\*[\s\S]*?\*\//g, '');
-		const sizedRules = [...appCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(
-			([, , body]) =>
-				/\bwidth:\s*86px\b/.test(body) && /\bheight:\s*28px\b/.test(body),
-		);
-		const selectors = sizedRules.flatMap(([, selector]) =>
-			selector.split(',').map((entry) => entry.trim()),
-		);
-
-		// A selector the real svg (classes `kpi-spark shrink-0`) matches.
-		expect(selectors).toContain('.kpi-spark');
+		// Inline style, so the footer's `[&_svg]:size-3.5` utility cannot win.
+		expect(svg?.style.width).toBe('86px');
+		expect(svg?.style.height).toBe('28px');
 	});
 });

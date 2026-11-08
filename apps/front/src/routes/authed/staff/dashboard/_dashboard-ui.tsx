@@ -430,7 +430,7 @@ export const KpiCard = ({
 						{delta.label}
 					</span>
 					{deltaPeriod ? (
-						<p className="truncate text-[12px] text-(--publy-foreground-muted)">
+						<p className="text-[12px] leading-tight text-(--publy-foreground-muted)">
 							{deltaPeriod}
 						</p>
 					) : null}

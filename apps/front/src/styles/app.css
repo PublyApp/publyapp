@@ -3596,13 +3596,6 @@ html[data-theme-changing] * {
 		color: var(--publy-foreground);
 	}
 
-	/* The real sparkline's own size (its viewBox). The ghost narrows itself
-	   below, which outranks this by specificity. */
-	.kpi-spark {
-		width: 86px;
-		height: 28px;
-	}
-
 	/* Narrower than the real 86 px sparkline: room for the words. */
 	.ghost-svg.kpi-spark {
 		width: 62px;
