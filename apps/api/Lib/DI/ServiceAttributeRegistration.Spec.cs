@@ -9,6 +9,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Account.Services;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Auth.Services;
+using PublyApp.Api.Modules.Dashboard.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
 using PublyApp.Api.Modules.Jobs.Services;
@@ -45,6 +46,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IAuditLogService), typeof(AuditLogService)),
 		(typeof(ITenantActivityQueryService), typeof(TenantActivityQueryService)),
 		(typeof(IAuthService), typeof(AuthService)),
+		(typeof(IDashboardQueryService), typeof(DashboardQueryService)),
 		(typeof(IEmailLogWriter), typeof(EmailLogWriter)),
 		(typeof(IJobDeadLetterService), typeof(JobDeadLetterService)),
 		(typeof(IDeadLetterQueryService), typeof(DeadLetterQueryService)),

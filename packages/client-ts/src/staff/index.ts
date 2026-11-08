@@ -4,6 +4,8 @@
 // @ts-ignore
 import { AuditLogsRequestBuilderNavigationMetadata, AuditLogsRequestBuilderRequestsMetadata, type AuditLogsRequestBuilder } from './auditLogs/index.js';
 // @ts-ignore
+import { DashboardRequestBuilderNavigationMetadata, type DashboardRequestBuilder } from './dashboard/index.js';
+// @ts-ignore
 import { DeadLetterRequestBuilderNavigationMetadata, type DeadLetterRequestBuilder } from './deadLetter/index.js';
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
@@ -34,6 +36,10 @@ export interface StaffRequestBuilder extends BaseRequestBuilder<StaffRequestBuil
      * The auditLogs property
      */
     get auditLogs(): AuditLogsRequestBuilder;
+    /**
+     * The dashboard property
+     */
+    get dashboard(): DashboardRequestBuilder;
     /**
      * The deadLetter property
      */
@@ -86,6 +92,9 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     auditLogs: {
         requestsMetadata: AuditLogsRequestBuilderRequestsMetadata,
         navigationMetadata: AuditLogsRequestBuilderNavigationMetadata,
+    },
+    dashboard: {
+        navigationMetadata: DashboardRequestBuilderNavigationMetadata,
     },
     deadLetter: {
         navigationMetadata: DeadLetterRequestBuilderNavigationMetadata,

@@ -1136,6 +1136,15 @@ export function createCreateTenantRoleAsStaffBodyFromDiscriminatorValue(parseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DashboardSeriesPoint}
+ */
+// @ts-ignore
+export function createDashboardSeriesPointFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDashboardSeriesPoint;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {DeadLetterDetail}
  */
 // @ts-ignore
@@ -1424,11 +1433,29 @@ export function createFindTenantUsersAsStaffResultFromDiscriminatorValue(parseNo
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindTopOrganisationsForStaffResponse}
+ */
+// @ts-ignore
+export function createFindTopOrganisationsForStaffResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindTopOrganisationsForStaffResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetAuditLogActionsResponse}
  */
 // @ts-ignore
 export function createGetAuditLogActionsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetAuditLogActionsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetDashboardSeriesForStaffResponse}
+ */
+// @ts-ignore
+export function createGetDashboardSeriesForStaffResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetDashboardSeriesForStaffResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2739,6 +2766,15 @@ export function createTenantUserItemFromDiscriminatorValue(parseNode: ParseNode 
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TopOrganisationItem}
+ */
+// @ts-ignore
+export function createTopOrganisationItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTopOrganisationItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UnassignStaffRoleUsersBody}
  */
 // @ts-ignore
@@ -2933,6 +2969,19 @@ export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: Pa
 // @ts-ignore
 export function createVerifyEmailRequestResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoVerifyEmailRequestResult;
+}
+/**
+ * One UTC calendar day of a dashboard series. The date is the wire`YYYY-MM-DD` day, so the client never has to re-derive a timezone.
+ */
+export interface DashboardSeriesPoint extends AdditionalDataHolder, Parsable {
+    /**
+     * The date property
+     */
+    date?: string | null;
+    /**
+     * The value property
+     */
+    value?: number | null;
 }
 export interface DeadLetterDetail extends AdditionalDataHolder, Parsable {
     /**
@@ -3921,6 +3970,18 @@ export function deserializeIntoCreateTenantRoleAsStaffBody(createTenantRoleAsSta
 }
 /**
  * The deserialization information for the current model
+ * @param DashboardSeriesPoint The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDashboardSeriesPoint(dashboardSeriesPoint: Partial<DashboardSeriesPoint> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "date": n => { dashboardSeriesPoint.date = n.getStringValue(); },
+        "value": n => { dashboardSeriesPoint.value = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param DeadLetterDetail The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4365,6 +4426,19 @@ export function deserializeIntoFindTenantUsersAsStaffResult(findTenantUsersAsSta
 }
 /**
  * The deserialization information for the current model
+ * @param FindTopOrganisationsForStaffResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindTopOrganisationsForStaffResponse(findTopOrganisationsForStaffResponse: Partial<FindTopOrganisationsForStaffResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "endDate": n => { findTopOrganisationsForStaffResponse.endDate = n.getStringValue(); },
+        "items": n => { findTopOrganisationsForStaffResponse.items = n.getCollectionOfObjectValues<TopOrganisationItem>(createTopOrganisationItemFromDiscriminatorValue); },
+        "startDate": n => { findTopOrganisationsForStaffResponse.startDate = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetAuditLogActionsResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4372,6 +4446,20 @@ export function deserializeIntoFindTenantUsersAsStaffResult(findTenantUsersAsSta
 export function deserializeIntoGetAuditLogActionsResponse(getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetDashboardSeriesForStaffResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetDashboardSeriesForStaffResponse(getDashboardSeriesForStaffResponse: Partial<GetDashboardSeriesForStaffResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "endDate": n => { getDashboardSeriesForStaffResponse.endDate = n.getStringValue(); },
+        "metric": n => { getDashboardSeriesForStaffResponse.metric = n.getStringValue(); },
+        "points": n => { getDashboardSeriesForStaffResponse.points = n.getCollectionOfObjectValues<DashboardSeriesPoint>(createDashboardSeriesPointFromDiscriminatorValue); },
+        "startDate": n => { getDashboardSeriesForStaffResponse.startDate = n.getStringValue(); },
     }
 }
 /**
@@ -6239,6 +6327,19 @@ export function deserializeIntoTenantUserItem(tenantUserItem: Partial<TenantUser
 }
 /**
  * The deserialization information for the current model
+ * @param TopOrganisationItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTopOrganisationItem(topOrganisationItem: Partial<TopOrganisationItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "count": n => { topOrganisationItem.count = n.getNumberValue(); },
+        "id": n => { topOrganisationItem.id = n.getGuidValue(); },
+        "name": n => { topOrganisationItem.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param UnassignStaffRoleUsersBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -6835,11 +6936,43 @@ export interface FindTenantUsersAsStaffResult extends AdditionalDataHolder, Pars
      */
     nextCursor?: string | null;
 }
+export interface FindTopOrganisationsForStaffResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The endDate property
+     */
+    endDate?: string | null;
+    /**
+     * The items property
+     */
+    items?: TopOrganisationItem[] | null;
+    /**
+     * The startDate property
+     */
+    startDate?: string | null;
+}
 export interface GetAuditLogActionsResponse extends AdditionalDataHolder, Parsable {
     /**
      * The actions property
      */
     actions?: string[] | null;
+}
+export interface GetDashboardSeriesForStaffResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The endDate property
+     */
+    endDate?: string | null;
+    /**
+     * The metric property
+     */
+    metric?: string | null;
+    /**
+     * The points property
+     */
+    points?: DashboardSeriesPoint[] | null;
+    /**
+     * The startDate property
+     */
+    startDate?: string | null;
 }
 /**
  * Wire wrapper so the detail stays a single camelCase object under "detail"while keeping the service record free of wire concerns.
@@ -9078,6 +9211,19 @@ export function serializeCreateTenantRoleAsStaffBody(writer: SerializationWriter
 }
 /**
  * Serializes information the current object
+ * @param DashboardSeriesPoint The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDashboardSeriesPoint(writer: SerializationWriter, dashboardSeriesPoint: Partial<DashboardSeriesPoint> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!dashboardSeriesPoint || isSerializingDerivedType) { return; }
+    writer.writeStringValue("date", dashboardSeriesPoint.date);
+    writer.writeNumberValue("value", dashboardSeriesPoint.value);
+    writer.writeAdditionalData(dashboardSeriesPoint.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param DeadLetterDetail The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -9554,6 +9700,20 @@ export function serializeFindTenantUsersAsStaffResult(writer: SerializationWrite
 }
 /**
  * Serializes information the current object
+ * @param FindTopOrganisationsForStaffResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindTopOrganisationsForStaffResponse(writer: SerializationWriter, findTopOrganisationsForStaffResponse: Partial<FindTopOrganisationsForStaffResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findTopOrganisationsForStaffResponse || isSerializingDerivedType) { return; }
+    writer.writeStringValue("endDate", findTopOrganisationsForStaffResponse.endDate);
+    writer.writeCollectionOfObjectValues<TopOrganisationItem>("items", findTopOrganisationsForStaffResponse.items, serializeTopOrganisationItem);
+    writer.writeStringValue("startDate", findTopOrganisationsForStaffResponse.startDate);
+    writer.writeAdditionalData(findTopOrganisationsForStaffResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param GetAuditLogActionsResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -9563,6 +9723,21 @@ export function serializeGetAuditLogActionsResponse(writer: SerializationWriter,
     if (!getAuditLogActionsResponse || isSerializingDerivedType) { return; }
     writer.writeCollectionOfPrimitiveValues<string>("actions", getAuditLogActionsResponse.actions);
     writer.writeAdditionalData(getAuditLogActionsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetDashboardSeriesForStaffResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetDashboardSeriesForStaffResponse(writer: SerializationWriter, getDashboardSeriesForStaffResponse: Partial<GetDashboardSeriesForStaffResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getDashboardSeriesForStaffResponse || isSerializingDerivedType) { return; }
+    writer.writeStringValue("endDate", getDashboardSeriesForStaffResponse.endDate);
+    writer.writeStringValue("metric", getDashboardSeriesForStaffResponse.metric);
+    writer.writeCollectionOfObjectValues<DashboardSeriesPoint>("points", getDashboardSeriesForStaffResponse.points, serializeDashboardSeriesPoint);
+    writer.writeStringValue("startDate", getDashboardSeriesForStaffResponse.startDate);
+    writer.writeAdditionalData(getDashboardSeriesForStaffResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11553,6 +11728,20 @@ export function serializeTenantUserItem(writer: SerializationWriter, tenantUserI
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TopOrganisationItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTopOrganisationItem(writer: SerializationWriter, topOrganisationItem: Partial<TopOrganisationItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!topOrganisationItem || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("count", topOrganisationItem.count);
+    writer.writeGuidValue("id", topOrganisationItem.id);
+    writer.writeStringValue("name", topOrganisationItem.name);
+    writer.writeAdditionalData(topOrganisationItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param UnassignStaffRoleUsersBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -13117,6 +13306,23 @@ export interface TenantUserItem extends AdditionalDataHolder, Parsable {
     userAccountId?: Guid | null;
 }
 export type TenantUserStatus = (typeof TenantUserStatusObject)[keyof typeof TenantUserStatusObject];
+/**
+ * One organisation in the ranking, with the number of audit events in thewindow attributed to it.
+ */
+export interface TopOrganisationItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The count property
+     */
+    count?: number | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+}
 export interface UnassignStaffRoleUsersBody extends AdditionalDataHolder, Parsable {
     /**
      * The userIds property

@@ -87,7 +87,19 @@ public static class QueryPredicates {
 				out var parsed
 			)
 		) {
-			return parsed;
+			// Npgsql rejects an Unspecified DateTime parameter against the
+			// timestamptz audit columns, and the wire legitimately carries a
+			// bare YYYY-MM-DD day. Pin the value to UTC so every form the
+			// validator accepts also reaches the query.
+			return parsed.Kind switch {
+				DateTimeKind.Utc => parsed,
+				DateTimeKind.Local => parsed.ToUniversalTime(),
+				DateTimeKind.Unspecified => DateTime.SpecifyKind(
+					parsed,
+					DateTimeKind.Utc
+				),
+				_ => parsed,
+			};
 		}
 		return null;
 	}

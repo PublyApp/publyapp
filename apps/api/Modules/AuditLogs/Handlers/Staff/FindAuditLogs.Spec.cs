@@ -215,6 +215,88 @@ public sealed class FindAuditLogsSpec
 
 	[Fact]
 	public async Task
+	ItShouldScopeByActionFacetToTheRequestedWindow() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var actorId =
+			await AuditLogTestHelper.GetUserIdByEmailAsync(
+				this._Fixture.Factory,
+				TestConstants.StaffAdminEmail
+			);
+
+		// One row inside the window, one outside it. Both are the same
+		// action, so the only thing separating them is the period.
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			actorId,
+			AuditActions.PostCreated,
+			createdAt: new DateTime(
+				2019, 5, 2, 12, 0, 0, DateTimeKind.Utc
+			)
+		);
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			actorId,
+			AuditActions.PostCreated,
+			createdAt: new DateTime(
+				2019, 5, 10, 12, 0, 0, DateTimeKind.Utc
+			)
+		);
+
+		var scoped = await this._GetCountsAsync(
+			AuditLogTestHelper.GetFindUrl(
+				startDate: "2019-05-01",
+				endDate: "2019-05-03"
+			),
+			token
+		);
+		var scopedRow = scoped.ByAction
+			.Should()
+			.ContainSingle(count =>
+				count.Action == AuditActions.PostCreated
+			)
+			.Subject;
+		scopedRow.Count.Should().Be(1);
+
+		var unscoped = await this._GetCountsAsync(
+			AuditLogTestHelper.GetFindUrl(),
+			token
+		);
+		var unscopedRow = unscoped.ByAction
+			.Should()
+			.ContainSingle(count =>
+				count.Action == AuditActions.PostCreated
+			)
+			.Subject;
+		unscopedRow.Count.Should().BeGreaterOrEqualTo(2);
+	}
+
+	private async Task<AuditLogCounts> _GetCountsAsync(
+		string url,
+		string token
+	) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			url
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(
+				HttpStatusCode.OK,
+				await response.Content.ReadAsStringAsync()
+			);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		return result.Counts;
+	}
+
+	[Fact]
+	public async Task
 	ItShouldFilterByAction() {
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
