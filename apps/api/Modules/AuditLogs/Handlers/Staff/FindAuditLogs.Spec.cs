@@ -1,4 +1,5 @@
 
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
@@ -615,6 +616,83 @@ public sealed class FindAuditLogsSpec
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
 		result.Data.Should().NotBeEmpty();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAcceptDateOnlyStartDateAndFilterAsUtc() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var userId =
+			await AuditLogTestHelper
+				.GetUserIdByEmailAsync(
+					this._Fixture.Factory,
+					TestConstants.StaffAdminEmail
+				);
+
+		var logId =
+			await AuditLogTestHelper
+				.SeedAuditLogAsync(
+					this._Fixture.Factory,
+					userId,
+					AuditActions.ImpersonationStarted
+				);
+
+		// The dashboard sends a date-only start_date (its wire form). It must
+		// be read as UTC midnight: an Unspecified DateTime is rejected by
+		// Npgsql for a timestamptz column, which surfaced as a 500.
+		var yesterday = DateTime.UtcNow
+			.AddDays(-1).ToString(
+				"yyyy-MM-dd",
+				CultureInfo.InvariantCulture
+			);
+		var tomorrow = DateTime.UtcNow
+			.AddDays(1).ToString(
+				"yyyy-MM-dd",
+				CultureInfo.InvariantCulture
+			);
+
+		var startRequest = new HttpRequestMessage(
+			HttpMethod.Get,
+			AuditLogTestHelper.GetFindUrl(
+				startDate: yesterday,
+				limit: 1
+			)
+		).WithSessionToken(token);
+
+		using var startResponse =
+			await this._Http.SendAsync(startRequest);
+
+		startResponse.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var startResult = await startResponse.Content
+			.ReadFromJsonAsync<FindResponse>();
+		startResult.Should().NotBeNull();
+		Assert.NotNull(startResult);
+		startResult.Data.Should()
+			.Contain(a => a.Id == logId);
+
+		var futureRequest = new HttpRequestMessage(
+			HttpMethod.Get,
+			AuditLogTestHelper.GetFindUrl(
+				startDate: tomorrow,
+				limit: 1
+			)
+		).WithSessionToken(token);
+
+		using var futureResponse =
+			await this._Http.SendAsync(futureRequest);
+
+		futureResponse.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var futureResult = await futureResponse.Content
+			.ReadFromJsonAsync<FindResponse>();
+		futureResult.Should().NotBeNull();
+		Assert.NotNull(futureResult);
+		futureResult.Data.Should()
+			.NotContain(a => a.Id == logId);
 	}
 
 	[Fact]

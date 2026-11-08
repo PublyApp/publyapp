@@ -1,174 +1,228 @@
-import { IconChartBar, IconDownload } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { historyCategory } from '~/components/history/history-actions';
+import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '~/components/ui/select';
-import { StateSurface } from '~/components/ui/state-surface';
-import { auditLogExportDownloadDescriptor } from '~/lib/audit-logs/audit-log-export-format';
-import {
-	displayLocalMutationFailure,
-	toastLocalMutationResult,
-} from '~/lib/mutation-feedback/mutation-toast';
-import {
-	useExportStaffAuditLogsMutation,
-	type StaffAuditLogExportFormat,
-} from '~/lib/query/staff-audit-logs';
-import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
+	useStaffDashboardSeriesQuery,
+	useStaffDashboardTopOrganisationsQuery,
+} from '~/lib/query/staff-dashboard';
+import { formatDayMonth } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-const EXPORT_FORMATS: StaffAuditLogExportFormat[] = ['csv', 'json'];
+import type { DonutSegment } from './_dashboard-charts';
+import {
+	dashboardWindow,
+	parseDashboardPeriod,
+	previousPeriod,
+	type DashboardPeriod,
+} from './_dashboard-filters';
+import { formatSignedPercent, seriesTotal } from './_dashboard-format';
+import { ReportsFilters } from './_reports-filters';
+import { ReportsKpis } from './_reports-kpis';
+import { ReportsPrimaryCharts } from './_reports-primary-charts';
+import { ReportsSecondaryCharts } from './_reports-secondary-charts';
 
-/**
- * The one working report: the server-side audit-log export (the same
- * `GET /staff/audit-logs/export-escaped` call the audit-logs page's drawer
- * makes, unfiltered). Format choice + download; failures surface through the
- * shared mutation-feedback path.
- */
-const AuditLogExportCard = ({
-	t,
-	onAuthFailure,
-}: {
-	t: (key: string) => string;
-	onAuthFailure: () => void;
-}) => {
-	const [format, setFormat] = useState<StaffAuditLogExportFormat>('csv');
-	const exportMutation = useExportStaffAuditLogsMutation();
+/** The prototype's five « Répartition par type » buckets, in its order. */
+const TYPE_BUCKETS = [
+	{
+		key: 'organisation',
+		labelKey: 'dashboard-type-organisation',
+		color: 'var(--publy-chart-seq-4)',
+	},
+	{
+		key: 'auth',
+		labelKey: 'dashboard-type-auth',
+		color: 'var(--publy-chart-seq-3)',
+	},
+	{
+		key: 'user',
+		labelKey: 'dashboard-type-user',
+		color: 'var(--publy-chart-seq-2)',
+	},
+	{
+		key: 'invitation',
+		labelKey: 'dashboard-type-invitation',
+		color: 'var(--publy-chart-1)',
+	},
+	{
+		key: 'other',
+		labelKey: 'dashboard-type-other',
+		color: 'var(--publy-chart-seq-1)',
+	},
+] as const;
 
-	const handleExport = async () => {
-		let data: ArrayBuffer | undefined;
-		try {
-			data = await exportMutation.mutateAsync({ format });
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				onAuthFailure();
-				return;
-			}
-
-			await displayLocalMutationFailure(error, t('common:export-failed'));
-			return;
-		}
-
-		if (!data) {
-			toastLocalMutationResult.error(t('common:export-failed'));
-			return;
-		}
-
-		try {
-			const descriptor = auditLogExportDownloadDescriptor(format);
-			downloadFile({
-				data,
-				fileName: `audit-logs-${formatExportDateStamp(new Date())}.${descriptor.extension}`,
-				mimeType: descriptor.mimeType,
-			});
-		} catch {
-			toastLocalMutationResult.error(t('common:export-failed'));
-			return;
-		}
-
-		toastLocalMutationResult.success(t('common:export-complete'));
-	};
-
-	return (
-		<Card data-testid="staff-dashboard-reports-export-card">
-			<CardHeader>
-				<CardTitle>{t('common:export')}</CardTitle>
-			</CardHeader>
-			<CardContent>
-				<p className="text-sm text-muted-foreground">
-					{t('reports-export-description')}
-				</p>
-				<div className="mt-4 flex flex-wrap items-center gap-3">
-					<Select
-						value={format}
-						onValueChange={(value) =>
-							setFormat(value as StaffAuditLogExportFormat)
-						}
-					>
-						<SelectTrigger
-							id="staff-dashboard-reports-format"
-							className="w-40"
-							aria-label={t('format')}
-							data-testid="staff-dashboard-reports-format"
-						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{EXPORT_FORMATS.map((candidate) => (
-								<SelectItem key={candidate} value={candidate}>
-									{candidate.toUpperCase()}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Button
-						type="button"
-						onClick={() => void handleExport()}
-						disabled={exportMutation.isPending}
-						data-testid="staff-dashboard-reports-download"
-					>
-						<IconDownload aria-hidden="true" className="size-4" />
-						{exportMutation.isPending ? t('exporting') : t('reports-download')}
-					</Button>
-				</div>
-			</CardContent>
-		</Card>
-	);
+/** The history's category → the report's five buckets. */
+const typeBucket = (action: string): string => {
+	const category = historyCategory(action);
+	if (category === 'tenant') {
+		return 'organisation';
+	}
+	if (category === 'auth') {
+		return 'auth';
+	}
+	if (category === 'member') {
+		return 'user';
+	}
+	if (category === 'invitation') {
+		return 'invitation';
+	}
+	return 'other';
 };
 
-/**
- * The staff Dashboard › Reports tab. The only report-shaped API that exists
- * today is the audit-log export, so that is the one working card here;
- * everything else is an explicit coming-later state — never fabricated
- * charts or metrics.
- */
-const StaffDashboardReportsTab = () => {
-	const { t } = useTranslation(['staff-audit-logs', 'common']);
+const Reports = () => {
+	const { t, i18n } = useTranslation('common');
+	const locale = i18n.language;
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const period: DashboardPeriod = search.period ?? '30d';
+	// The same window the overview's cards read (B MA-1).
+	const { startDate, endDate } = dashboardWindow(period);
 	const [shouldLogout, setShouldLogout] = useState(false);
+
+	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
+	// `impersonation.started` is emitted by the impersonation service, so this
+	// figure is real. The two sign-in actions exist only as constants in the
+	// backend and are never written, so they have no query at all (B1).
+	const impersonationsQuery = useStaffAuditLogsQuery({
+		size: 1,
+		startDate,
+		endDate,
+		actions: ['impersonation.started'],
+	});
+
+	const seriesQuery = useStaffDashboardSeriesQuery({
+		metric: 'audit_events',
+		startDate,
+		endDate,
+	});
+	const previousSeriesQuery = useStaffDashboardSeriesQuery({
+		metric: 'audit_events',
+		...previousPeriod(period),
+	});
+	const topOrganisationsQuery = useStaffDashboardTopOrganisationsQuery({
+		startDate,
+		endDate,
+		size: 5,
+	});
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
+	for (const queryError of [
+		auditQuery.error,
+		impersonationsQuery.error,
+		seriesQuery.error,
+		previousSeriesQuery.error,
+		topOrganisationsQuery.error,
+	]) {
+		if (queryError !== null && shouldLogoutForFailure(queryError)) {
+			return <LogoutRedirect />;
+		}
+	}
+
+	const currentTotal = seriesTotal(seriesQuery.data?.points);
+	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
+	// One « Événements d'audit » source for both screens: the series total,
+	// falling back to the audit list's exact total when the series is empty.
+	const auditEvents = currentTotal ?? auditQuery.data?.totalCount;
+	const auditDelta =
+		currentTotal !== undefined &&
+		previousTotal !== undefined &&
+		previousTotal > 0
+			? {
+					label: formatSignedPercent(
+						(currentTotal - previousTotal) / previousTotal,
+						locale,
+					),
+					direction:
+						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
+				}
+			: undefined;
+
+	const seriesPoints = (seriesQuery.data?.points ?? []).map((point) => ({
+		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
+		value: point.value ?? 0,
+	}));
+
+	const byAction = auditQuery.data?.counts?.byAction ?? [];
+	const bucketTotals = new Map<string, number>();
+	for (const row of byAction) {
+		if (!row.action) {
+			continue;
+		}
+		const key = typeBucket(row.action);
+		bucketTotals.set(key, (bucketTotals.get(key) ?? 0) + (row.count ?? 0));
+	}
+	let typeTotal = 0;
+	for (const value of bucketTotals.values()) {
+		typeTotal += value;
+	}
+	const typeSegments: DonutSegment[] = TYPE_BUCKETS.map((bucket) => ({
+		label: t(bucket.labelKey),
+		value: bucketTotals.get(bucket.key) ?? 0,
+		color: bucket.color,
+	})).filter((segment) => segment.value > 0);
+
 	return (
 		<div className="space-y-5" data-testid="staff-dashboard-reports-panel">
-			<AuditLogExportCard t={t} onAuthFailure={() => setShouldLogout(true)} />
+			<ReportsFilters
+				period={period}
+				startDate={startDate}
+				onPeriodChange={(next) =>
+					void navigate({ search: { period: next }, replace: true })
+				}
+				onAuthFailure={() => setShouldLogout(true)}
+			/>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>{t('analytics-reports')}</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<StateSurface
-						icon={IconChartBar}
-						title={t('reports-coming-later-title')}
-						description={t('reports-coming-later-description')}
-						testId="staff-dashboard-reports-empty"
-					/>
-				</CardContent>
-			</Card>
+			<ReportsKpis
+				auditEvents={auditEvents}
+				seriesQuery={seriesQuery}
+				seriesPoints={seriesPoints}
+				impersonationsQuery={impersonationsQuery}
+				auditDelta={auditDelta}
+				period={period}
+				locale={locale}
+			/>
+
+			<ReportsPrimaryCharts
+				seriesQuery={seriesQuery}
+				seriesPoints={seriesPoints}
+				auditEvents={auditEvents}
+				auditDelta={auditDelta}
+				auditQuery={auditQuery}
+				typeSegments={typeSegments}
+				typeTotal={typeTotal}
+				locale={locale}
+			/>
+
+			<ReportsSecondaryCharts
+				period={period}
+				topOrganisationsQuery={topOrganisationsQuery}
+				locale={locale}
+			/>
 		</div>
 	);
 };
 
+/** The report's URL state: the period is optional, so a bare link stays
+ * valid. */
+type ReportsSearch = { period?: DashboardPeriod };
+
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/reports')(
 	{
+		validateSearch: (search: Record<string, unknown>): ReportsSearch => ({
+			period: parseDashboardPeriod(search.period),
+		}),
 		staticData: {
 			crumbs: () => [
 				{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },
 				{ kind: 'label', labelKey: 'nav-dashboard-reports' },
 			],
-			i18nNamespaces: ['staff-audit-logs'],
 		},
-		component: StaffDashboardReportsTab,
+		component: Reports,
 	},
 );

@@ -26,33 +26,50 @@ const StaffDashboardPage = () => {
 	const activeSection = getActiveSection(pathname);
 
 	return (
-		<div className="space-y-5" data-testid="staff-dashboard-page">
+		<div
+			className="space-y-5"
+			data-testid="staff-dashboard-page"
+			data-dashboard-page
+		>
 			<div className="space-y-1" data-testid="staff-dashboard-heading">
 				<h1 className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground">
-					{t(activeSection === 'overview' ? 'dashboard' : activeSection)}
+					{t('dashboard')}
 				</h1>
 			</div>
 
 			<Tabs value={activeSection}>
 				<TabsList variant="line">
-					<TabsTrigger value="overview" render={<Link to="/staff/dashboard" />}>
+					<TabsTrigger
+						value="overview"
+						// The prototype's 4px line-tab padding (#2339 fidelity);
+						// the shared default stays at the other pages' 12px.
+						className="group-data-[variant=line]/tabs-list:px-1"
+						render={<Link to="/staff/dashboard" />}
+					>
 						{t('overview')}
 					</TabsTrigger>
 					<TabsTrigger
 						value="activity"
+						className="group-data-[variant=line]/tabs-list:px-1"
 						render={<Link to="/staff/dashboard/activity" />}
 					>
 						{t('activity')}
 					</TabsTrigger>
 					<TabsTrigger
 						value="reports"
+						className="group-data-[variant=line]/tabs-list:px-1"
 						render={<Link to="/staff/dashboard/reports" />}
 					>
 						{t('reports')}
 					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value={activeSection} className="mt-5">
+				{/* `TabsContent`'s own `text-sm` (14px/20px) overrode the page's
+				   13px/1.45 base for every card inside the tab (#2339 fidelity). */}
+				<TabsContent
+					value={activeSection}
+					className="mt-3 text-[13px] leading-[1.45]"
+				>
 					<Outlet />
 				</TabsContent>
 			</Tabs>

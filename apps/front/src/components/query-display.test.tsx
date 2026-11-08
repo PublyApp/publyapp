@@ -50,6 +50,20 @@ const observerOf = (queryKey: readonly string[]) =>
 
 const pendingQuery = observerOf(['stub-pending']).getCurrentResult();
 
+// A list payload shaped like the API's `{ data: [...] }` envelope: the
+// observer's own generic carries the type, so the tests need no assertion.
+const listObserverOf = (
+	queryKey: readonly string[],
+	data: { data: string[] },
+) => {
+	stubQueryClient.setQueryData([...queryKey], data);
+	return new QueryObserver(stubQueryClient, {
+		queryKey: [...queryKey],
+		queryFn: () => Promise.resolve(data),
+		enabled: false,
+	}).getCurrentResult();
+};
+
 stubQueryClient.setQueryData(['stub-success'], 'payload');
 const successQueryStub = observerOf(['stub-success']).getCurrentResult();
 
@@ -165,6 +179,44 @@ describe('QueryDisplay', () => {
 		expect(
 			screen.queryByText('An error occurred while loading data.'),
 		).toBeNull();
+	});
+
+	// A list endpoint wraps its rows in `{ data: [...] }`, so the default
+	// top-level-array check never sees the emptiness. `isEmpty` is the shared
+	// escape hatch: the empty state still renders through QueryDisplay instead
+	// of the caller hand-rolling a second state ladder.
+	test('a custom isEmpty marks a nested empty payload as empty', () => {
+		const emptyListQuery = listObserverOf(['stub-list-empty'], { data: [] });
+
+		render(
+			<QueryDisplay
+				query={emptyListQuery}
+				isEmpty={(data) => data.data.length === 0}
+				EmptySlot={<span>Nothing here yet</span>}
+			>
+				{() => <span>rows</span>}
+			</QueryDisplay>,
+		);
+
+		expect(screen.getByText('Nothing here yet')).toBeTruthy();
+		expect(screen.queryByText('rows')).toBeNull();
+	});
+
+	test('a custom isEmpty that returns false renders the data branch', () => {
+		const fullListQuery = listObserverOf(['stub-list-full'], { data: ['row'] });
+
+		render(
+			<QueryDisplay
+				query={fullListQuery}
+				isEmpty={(data) => data.data.length === 0}
+				EmptySlot={<span>Nothing here yet</span>}
+			>
+				{() => <span>rows</span>}
+			</QueryDisplay>,
+		);
+
+		expect(screen.getByText('rows')).toBeTruthy();
+		expect(screen.queryByText('Nothing here yet')).toBeNull();
 	});
 
 	// Issue #2043: the default error branch used to discard the real error and

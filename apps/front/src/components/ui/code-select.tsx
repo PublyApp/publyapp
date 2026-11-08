@@ -58,7 +58,10 @@ export const CodeSelect = <T extends string>({
 					aria-label={ariaLabel}
 					className={className}
 				>
-					<SelectValue placeholder={label(value)} />
+					{/* Base UI resolves a SelectValue with no children/`items` to the
+					   raw value code (« 30d »), not the item label — render the
+					   translated label explicitly, as the bottom-sheet branch does. */}
+					<SelectValue>{label(value)}</SelectValue>
 				</SelectTrigger>
 				<SelectContent>
 					{options.map((option) => (

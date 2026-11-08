@@ -2,15 +2,26 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	test,
+	vi,
+} from 'vitest';
 
 import { CodeSelect } from './code-select';
 
-beforeAll(() => {
+const setWidth = (width: number) =>
 	Object.defineProperty(window, 'innerWidth', {
 		configurable: true,
-		value: 400,
+		value: width,
 	});
+
+beforeAll(() => {
+	setWidth(400);
 });
 
 afterEach(cleanup);
@@ -47,5 +58,37 @@ describe('CodeSelect (below md)', () => {
 		);
 		const trigger = screen.getByRole('button', { name: 'Langue' });
 		expect((trigger as HTMLButtonElement).disabled).toBe(true);
+	});
+});
+
+const PERIOD_LABELS = {
+	'7d': '7 derniers jours',
+	'30d': '30 derniers jours',
+	all: 'Toutes les organisations',
+} as const;
+
+describe('CodeSelect (md and up)', () => {
+	beforeAll(() => {
+		setWidth(1024);
+	});
+
+	afterAll(() => {
+		setWidth(400);
+	});
+
+	test('the trigger shows the translated label, never the raw code', () => {
+		render(
+			<CodeSelect
+				value="30d"
+				options={['7d', '30d', 'all'] as const}
+				label={(code) => PERIOD_LABELS[code]}
+				ariaLabel="Période"
+				onChange={vi.fn()}
+			/>,
+		);
+
+		const trigger = screen.getByRole('combobox', { name: 'Période' });
+		expect(trigger.textContent).toContain('30 derniers jours');
+		expect(trigger.textContent).not.toContain('30d');
 	});
 });

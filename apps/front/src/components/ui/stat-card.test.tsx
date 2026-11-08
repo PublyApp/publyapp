@@ -46,4 +46,39 @@ describe('StatCard', () => {
 		expect(card.textContent).toContain('/ 50');
 		expect(card.textContent).toContain('12 restantes');
 	});
+
+	test('the shared footer stays an inline block, so list footers keep their « · » (A-3)', () => {
+		render(
+			<StatCard
+				testId="stat-list"
+				label="Membres"
+				icon={<IconUsers />}
+				value={12}
+				footer={
+					<>
+						<span>12 actifs</span> · 3 suspendus
+					</>
+				}
+			/>,
+		);
+
+		const footer = screen.getByText('12 actifs').parentElement;
+		expect(footer?.className).not.toContain('flex');
+		expect(footer?.textContent).toContain('12 actifs · 3 suspendus');
+	});
+
+	test('a card with its trend series keeps the plain footer', () => {
+		const { container } = render(
+			<StatCard
+				testId="stat-plain"
+				label="Membres"
+				icon={<IconUsers />}
+				value="31"
+				footer="vs 30 jours précédents"
+			/>,
+		);
+
+		expect(screen.getByText('vs 30 jours précédents')).toBeTruthy();
+		expect(container.querySelector('.min-h-10')).toBeNull();
+	});
 });
