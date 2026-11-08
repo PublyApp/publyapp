@@ -11,7 +11,7 @@ import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 /** The only series the staff dashboard endpoint serves (#2348). The
  * `active_tenants` metric answers 422: organisations store their current
  * status only, so no honest past daily count exists. */
-export type StaffDashboardMetric = 'audit_events';
+type StaffDashboardMetric = 'audit_events';
 
 export type StaffDashboardSeriesVariables = {
 	metric: StaffDashboardMetric;
@@ -26,9 +26,9 @@ export type StaffDashboardTopOrganisationsVariables = {
 };
 
 /** @internal Unscoped — `scopedKey('staff', …)` builds the invalidation key. */
-export const STAFF_DASHBOARD_QUERY_KEY = ['staff-dashboard'] as const;
+const STAFF_DASHBOARD_QUERY_KEY = ['staff-dashboard'] as const;
 
-export const staffDashboardSeriesQueryOptions = buildStaffQueryOptions<
+const staffDashboardSeriesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetDashboardSeriesForStaffResponse,
 	StaffDashboardSeriesVariables
@@ -54,33 +54,32 @@ export const staffDashboardSeriesQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const staffDashboardTopOrganisationsQueryOptions =
-	buildStaffQueryOptions<
-		ApiClient,
-		FindTopOrganisationsForStaffResponse,
-		StaffDashboardTopOrganisationsVariables
-	>(
-		{
-			queryKeyFn: () => [...STAFF_DASHBOARD_QUERY_KEY, 'top-organisations'],
-			fetcher: async (client, variables) => {
-				const result = await client.staff.dashboard.topOrganisations.get({
-					queryParameters: {
-						startDate: variables.startDate,
-						endDate: variables.endDate,
-						size:
-							variables.size === undefined ? undefined : String(variables.size),
-					},
-				});
+const staffDashboardTopOrganisationsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	FindTopOrganisationsForStaffResponse,
+	StaffDashboardTopOrganisationsVariables
+>(
+	{
+		queryKeyFn: () => [...STAFF_DASHBOARD_QUERY_KEY, 'top-organisations'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.dashboard.topOrganisations.get({
+				queryParameters: {
+					startDate: variables.startDate,
+					endDate: variables.endDate,
+					size:
+						variables.size === undefined ? undefined : String(variables.size),
+				},
+			});
 
-				if (!result) {
-					throw new Error('staff dashboard top organisations result was empty');
-				}
+			if (!result) {
+				throw new Error('staff dashboard top organisations result was empty');
+			}
 
-				return result;
-			},
+			return result;
 		},
-		{ clientAccessor: getClientManager() },
-	);
+	},
+	{ clientAccessor: getClientManager() },
+);
 
 export const useStaffDashboardSeriesQuery = (
 	variables: StaffDashboardSeriesVariables,

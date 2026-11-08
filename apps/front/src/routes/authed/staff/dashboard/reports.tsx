@@ -1,18 +1,8 @@
-import {
-	IconChartBar,
-	IconChartPie,
-	IconFileSearch,
-	IconKey,
-	IconLogin2,
-	IconMask,
-	IconTrendingUp,
-} from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { historyCategory } from '~/components/history/history-actions';
-import { StateSurface } from '~/components/ui/state-surface';
 import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
 import {
 	useStaffDashboardSeriesQuery,
@@ -22,31 +12,18 @@ import { formatDayMonth } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import {
-	GhostAxis,
-	GhostBars,
-	GhostHBars,
-	GhostLine,
-	GhostStacked,
-} from './_chart-ghost';
-import {
-	ChartTable,
-	ColumnChart,
-	HorizontalBars,
-	StackedShareBar,
-	type DonutSegment,
-} from './_dashboard-charts';
-import { DashboardExportMenu } from './_dashboard-export-menu';
+import type { DonutSegment } from './_dashboard-charts';
 import {
 	dashboardWindow,
 	parseDashboardPeriod,
-	periodLabelKey,
 	previousPeriod,
-	previousPeriodLabelKey,
 	type DashboardPeriod,
 } from './_dashboard-filters';
-import { UNKNOWN_VALUE, formatCount, seriesTotal } from './_dashboard-format';
-import { ChartCard, KpiCard, PeriodSelect } from './_dashboard-ui';
+import { formatSignedPercent, seriesTotal } from './_dashboard-format';
+import { ReportsFilters } from './_reports-filters';
+import { ReportsKpis } from './_reports-kpis';
+import { ReportsPrimaryCharts } from './_reports-primary-charts';
+import { ReportsSecondaryCharts } from './_reports-secondary-charts';
 
 /** The prototype's five « Répartition par type » buckets, in its order. */
 const TYPE_BUCKETS = [
@@ -157,18 +134,14 @@ const Reports = () => {
 		previousTotal !== undefined &&
 		previousTotal > 0
 			? {
-					label: new Intl.NumberFormat(locale, {
-						style: 'percent',
-						maximumFractionDigits: 1,
-						signDisplay: 'always',
-					}).format((currentTotal - previousTotal) / previousTotal),
+					label: formatSignedPercent(
+						(currentTotal - previousTotal) / previousTotal,
+						locale,
+					),
 					direction:
 						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
 				}
 			: undefined;
-	const deltaPeriod = t('dashboard-delta-vs-previous', {
-		period: t(previousPeriodLabelKey(period)),
-	});
 
 	const seriesPoints = (seriesQuery.data?.points ?? []).map((point) => ({
 		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
@@ -194,244 +167,43 @@ const Reports = () => {
 		color: bucket.color,
 	})).filter((segment) => segment.value > 0);
 
-	const topOrganisations = topOrganisationsQuery.data?.items ?? [];
-
 	return (
 		<div className="space-y-5" data-testid="staff-dashboard-reports-panel">
-			<div className="mb-4 flex flex-wrap items-center gap-2">
-				<div className="w-full sm:w-52">
-					<PeriodSelect
-						id="staff-dashboard-report-period"
-						value={period}
-						onChange={(next) =>
-							void navigate({ search: { period: next }, replace: true })
-						}
-						ariaLabel={t('dashboard-filter-report-period')}
-						range
-					/>
-				</div>
-				<div className="ml-auto">
-					<DashboardExportMenu
-						startDate={startDate}
-						onAuthFailure={() => setShouldLogout(true)}
-					/>
-				</div>
-			</div>
+			<ReportsFilters
+				period={period}
+				startDate={startDate}
+				onPeriodChange={(next) =>
+					void navigate({ search: { period: next }, replace: true })
+				}
+				onAuthFailure={() => setShouldLogout(true)}
+			/>
 
-			<div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-				<KpiCard
-					testId="staff-dashboard-kpi-report-events"
-					label={t('dashboard-kpi-audit-events')}
-					icon={<IconFileSearch />}
-					figure={auditEvents}
-					locale={locale}
-					query={seriesQuery}
-					delta={auditDelta}
-					deltaPeriod={deltaPeriod}
-					sparkline={seriesPoints.map((point) => point.value)}
-				/>
-				<KpiCard
-					testId="staff-dashboard-kpi-signins"
-					label={t('dashboard-kpi-signins')}
-					icon={<IconLogin2 />}
-					figure={undefined}
-					locale={locale}
-				/>
-				<KpiCard
-					testId="staff-dashboard-kpi-failed-signins"
-					label={t('dashboard-kpi-failed-signins')}
-					icon={<IconKey />}
-					figure={undefined}
-					locale={locale}
-				/>
-				<KpiCard
-					testId="staff-dashboard-kpi-impersonations"
-					label={t('dashboard-kpi-impersonations')}
-					icon={<IconMask />}
-					figure={impersonationsQuery.data?.totalCount}
-					locale={locale}
-					query={impersonationsQuery}
-				/>
-			</div>
+			<ReportsKpis
+				auditEvents={auditEvents}
+				seriesQuery={seriesQuery}
+				seriesPoints={seriesPoints}
+				impersonationsQuery={impersonationsQuery}
+				auditDelta={auditDelta}
+				period={period}
+				locale={locale}
+			/>
 
-			{/* items-start: a 31-row table must not stretch the row and
-			    recenter the neighbour card (fix8). */}
-			<div className="grid gap-4 md:grid-cols-2 items-start">
-				<ChartCard
-					testId="staff-dashboard-events-per-day"
-					label={t('dashboard-card-audit-events-per-day')}
-					icon={<IconChartBar />}
-					note={t('dashboard-note-events-per-day')}
-					hero={
-						<span className="flex flex-wrap items-baseline gap-x-2">
-							{/* #2339 fix9 MI-5: an unknown figure is the same muted
-							    « — » the KPI above shows, never a hard 0. */}
-							{auditEvents === null || auditEvents === undefined ? (
-								<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
-							) : (
-								formatCount(auditEvents, locale)
-							)}
-							{auditDelta ? (
-								<span
-									className="text-[12px] font-medium"
-									style={{
-										color:
-											auditDelta.direction === 'up'
-												? 'var(--publy-success)'
-												: 'var(--publy-danger)',
-									}}
-								>
-									{auditDelta.label}
-								</span>
-							) : null}
-						</span>
-					}
-					series={
-						seriesQuery.data
-							? {
-									status: 'ready',
-									chart: (
-										<ColumnChart
-											points={seriesPoints}
-											locale={locale}
-											label={t('dashboard-chart-column')}
-										/>
-									),
-									table: (
-										<ChartTable
-											head={[
-												t('dashboard-col-date'),
-												t('dashboard-col-events'),
-											]}
-											rows={seriesPoints.map((point) => [
-												point.label,
-												formatCount(point.value, locale),
-											])}
-										/>
-									),
-								}
-							: {
-									status: 'unavailable',
-									sentence: t('dashboard-ghost-card-events-per-day'),
-									ghost: (
-										<>
-											<GhostBars />
-											<GhostAxis />
-										</>
-									),
-								}
-					}
-					query={seriesQuery}
-				/>
+			<ReportsPrimaryCharts
+				seriesQuery={seriesQuery}
+				seriesPoints={seriesPoints}
+				auditEvents={auditEvents}
+				auditDelta={auditDelta}
+				auditQuery={auditQuery}
+				typeSegments={typeSegments}
+				typeTotal={typeTotal}
+				locale={locale}
+			/>
 
-				<ChartCard
-					testId="staff-dashboard-type-share"
-					label={t('dashboard-card-type-share')}
-					icon={<IconChartPie />}
-					note={t('dashboard-note-type-share')}
-					toggle={false}
-					series={
-						auditQuery.data
-							? {
-									status: 'ready',
-									chart: (
-										<div className="flex flex-col gap-6">
-											<StackedShareBar
-												segments={typeSegments}
-												locale={locale}
-											/>
-											<ChartTable
-												head={[
-													t('dashboard-col-type'),
-													t('dashboard-col-share'),
-													t('dashboard-col-events'),
-												]}
-												rows={typeSegments.map((segment) => [
-													segment.label,
-													new Intl.NumberFormat(locale, {
-														style: 'percent',
-														minimumFractionDigits: 1,
-														maximumFractionDigits: 1,
-													}).format(
-														typeTotal > 0 ? segment.value / typeTotal : 0,
-													),
-													formatCount(segment.value, locale),
-												])}
-											/>
-										</div>
-									),
-									table: null,
-								}
-							: {
-									status: 'unavailable',
-									sentence: t('dashboard-ghost-card-type-share'),
-									ghost: <GhostStacked />,
-								}
-					}
-					query={auditQuery}
-				/>
-			</div>
-
-			<div className="grid gap-4 md:grid-cols-2">
-				<ChartCard
-					testId="staff-dashboard-signins-per-day"
-					label={t('dashboard-card-signins-per-day')}
-					icon={<IconTrendingUp />}
-					note={`${t('dashboard-note-signins')} · ${t(periodLabelKey(period))}`}
-					hero={UNKNOWN_VALUE}
-					series={{
-						status: 'unavailable',
-						sentence: t('dashboard-ghost-card-signins-per-day'),
-						ghost: (
-							<>
-								<GhostLine />
-								<GhostAxis />
-							</>
-						),
-					}}
-				/>
-
-				<ChartCard
-					testId="staff-dashboard-top-orgs"
-					label={t('dashboard-card-top-orgs')}
-					icon={<IconChartBar />}
-					note={t('dashboard-note-top-orgs')}
-					toggle={false}
-					series={
-						topOrganisations.length > 0
-							? {
-									status: 'ready',
-									chart: (
-										<HorizontalBars
-											rows={topOrganisations.map((item) => ({
-												label: item.name ?? UNKNOWN_VALUE,
-												value: item.count ?? 0,
-												color: 'var(--publy-chart-1)',
-											}))}
-											locale={locale}
-										/>
-									),
-									table: null,
-								}
-							: {
-									status: 'unavailable',
-									sentence: t('dashboard-ghost-card-top-orgs'),
-									ghost: <GhostHBars rows={5} />,
-								}
-					}
-					query={topOrganisationsQuery}
-					// A served `items: []` is an empty period, not a missing
-					// series: the shared empty state, never the ghost's
-					// « Pas encore de données » (#2339 fix9 ME-2).
-					isEmpty={(data) => (data.items ?? []).length === 0}
-					emptySlot={
-						<StateSurface
-							title={t('dashboard-empty-top-orgs')}
-							testId="staff-dashboard-top-orgs-empty"
-						/>
-					}
-				/>
-			</div>
+			<ReportsSecondaryCharts
+				period={period}
+				topOrganisationsQuery={topOrganisationsQuery}
+				locale={locale}
+			/>
 		</div>
 	);
 };

@@ -21,7 +21,7 @@ import {
 	type DashboardPeriod,
 	type OrganisationScope,
 } from './_dashboard-filters';
-import { seriesTotal } from './_dashboard-format';
+import { formatSignedPercent, seriesTotal } from './_dashboard-format';
 import {
 	ChartCard,
 	OrganisationScopeSelect,
@@ -130,11 +130,10 @@ const Overview = () => {
 		previousTotal !== undefined &&
 		previousTotal > 0
 			? {
-					label: new Intl.NumberFormat(locale, {
-						style: 'percent',
-						maximumFractionDigits: 1,
-						signDisplay: 'always',
-					}).format((currentTotal - previousTotal) / previousTotal),
+					label: formatSignedPercent(
+						(currentTotal - previousTotal) / previousTotal,
+						locale,
+					),
 					direction:
 						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
 				}

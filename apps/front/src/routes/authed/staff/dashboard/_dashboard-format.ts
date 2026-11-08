@@ -10,8 +10,26 @@ import { formatDayMonth, formatShortDate } from '~/utils/format-time';
 /** The unknown-value convention: a figure the API cannot source is « — ». */
 export const UNKNOWN_VALUE = '—';
 
+/** Building an `Intl.NumberFormat` is slow and the locale changes at runtime,
+ * so keep one per (locale, options) pair instead of one per render. */
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+
+const numberFormat = (
+	locale: string,
+	options: Intl.NumberFormatOptions,
+): Intl.NumberFormat => {
+	const key = `${locale}:${JSON.stringify(options)}`;
+	const cached = numberFormatters.get(key);
+	if (cached) {
+		return cached;
+	}
+	const formatter = new Intl.NumberFormat(locale, options);
+	numberFormatters.set(key, formatter);
+	return formatter;
+};
+
 export const formatCount = (value: number, locale: string): string =>
-	new Intl.NumberFormat(locale).format(value);
+	numberFormat(locale, {}).format(value);
 
 /** A share of a total; « — » when the total is 0 (a 0-of-0 share is not 0 %). */
 export const formatShare = (
@@ -21,10 +39,29 @@ export const formatShare = (
 ): string =>
 	total <= 0
 		? UNKNOWN_VALUE
-		: new Intl.NumberFormat(locale, {
+		: numberFormat(locale, {
 				style: 'percent',
 				maximumFractionDigits: 1,
 			}).format(value / total);
+
+/** « +12,5 % » — the KPI delta, always signed. */
+export const formatSignedPercent = (value: number, locale: string): string =>
+	numberFormat(locale, {
+		style: 'percent',
+		maximumFractionDigits: 1,
+		signDisplay: 'always',
+	}).format(value);
+
+/** « 33,3 % » — a segment's share in the report table, exactly one decimal. */
+export const formatPercentOneDecimal = (
+	value: number,
+	locale: string,
+): string =>
+	numberFormat(locale, {
+		style: 'percent',
+		minimumFractionDigits: 1,
+		maximumFractionDigits: 1,
+	}).format(value);
 
 /** « 22 sept. – 21 oct. 2026 » — the report period's resolved range, the way
  * the prototype's select shows it (day-month for the start, with the shared

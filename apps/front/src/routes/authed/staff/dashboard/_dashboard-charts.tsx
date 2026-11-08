@@ -30,6 +30,15 @@ type BarRow = {
 	color: string;
 };
 
+/** The heatmap's five levels, quiet to busy. */
+const HEAT_LEVEL_TOKENS = [
+	'--publy-chart-empty',
+	'--publy-chart-seq-1',
+	'--publy-chart-seq-2',
+	'--publy-chart-seq-3',
+	'--publy-chart-seq-4',
+] as const;
+
 const UnknownValue = ({ testId }: { testId?: string }) => (
 	<span
 		className="text-sm text-muted-foreground"
@@ -598,13 +607,6 @@ export const Heatmap = ({
 			months.push({ label, weeks: 1 });
 		}
 	}
-	const levelTokens = [
-		'--publy-chart-empty',
-		'--publy-chart-seq-1',
-		'--publy-chart-seq-2',
-		'--publy-chart-seq-3',
-		'--publy-chart-seq-4',
-	] as const;
 	// Monday-first, like the grid; every other row (Tue/Thu/Sat) is labelled.
 	// The locale's own short weekday, never a hardcoded French list (B ME-2).
 	const weekdayLabels = Array.from({ length: 7 }, (_, index) =>
@@ -669,7 +671,7 @@ export const Heatmap = ({
 							width={HEAT_CELL}
 							height={HEAT_CELL}
 							rx="2"
-							fill={`var(${levelTokens[level(cell.value)]})`}
+							fill={`var(${HEAT_LEVEL_TOKENS[level(cell.value)]})`}
 						>
 							<title>{`${formatShortDate(cell.date, locale, { timeZone: 'UTC' })} · ${formatCount(cell.value, locale)}`}</title>
 						</rect>
