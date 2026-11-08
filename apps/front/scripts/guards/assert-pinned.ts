@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 
+import { parseCatalog } from './assert-pinned-catalog.ts';
+
 // Local exact-version regex is the validator used here today.
 // `semver` is optional and used only when available as an installed dependency
 // (it is not a declared dependency of this repo; the dynamic import simply
@@ -28,6 +30,20 @@ try {
 }
 
 type DependencyGroup = Record<string, string>;
+
+// Shared versions live once in the default `catalog:` block of
+// pnpm-workspace.yaml (#2326), referenced as `"catalog:"`. A catalog reference
+// is exact iff its entry is exact, so resolve it before the exactness check.
+// The hand reader lives next door (`assert-pinned-catalog.ts`): pure, unit
+// tested, no dependency — this runs before node_modules exists — and it
+// throws loudly on any catalog shape it does not understand.
+const catalog = parseCatalog(
+	readFileSync(
+		new URL('../../../../pnpm-workspace.yaml', import.meta.url),
+		'utf8',
+	),
+);
+
 const pkg: {
 	dependencies?: DependencyGroup;
 	devDependencies?: DependencyGroup;
@@ -38,6 +54,14 @@ const pkg: {
 	readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 );
 const bad = [];
+
+const resolveRange = (name: string, rawRange: unknown): string | null => {
+	if (rawRange == null) {
+		return null;
+	}
+	const range = String(rawRange);
+	return range === 'catalog:' ? (catalog.get(name) ?? null) : range;
+};
 
 for (const group of [
 	'dependencies',
@@ -50,10 +74,14 @@ for (const group of [
 		if (range.startsWith('workspace:')) {
 			continue;
 		}
+		const resolved = resolveRange(name, rawRange);
 		// Reject anything that is not a single exact version:
-		// latest/tags/ranges/git/file:/link:/catalog: all fail the exact check.
-		if (!isExact(range)) {
-			bad.push(`${group}:${name}@${range}`);
+		// latest/tags/ranges/git/file:/link:, an unknown catalog entry, or a
+		// non-exact catalog entry all fail.
+		if (resolved == null) {
+			bad.push(`${group}:${name}@${range} (no catalog entry)`);
+		} else if (!isExact(resolved)) {
+			bad.push(`${group}:${name}@${resolved}`);
 		}
 	}
 }
@@ -77,7 +105,7 @@ const TAILWIND_LOCKSTEP = [
 ];
 const lockstepEntries = TAILWIND_LOCKSTEP.map((name) => [
 	name,
-	pkg.devDependencies?.[name],
+	resolveRange(name, pkg.devDependencies?.[name]),
 ]);
 // Absence must fail on its own: `new Set([undefined, undefined, …])` has
 // size 1, so an all-absent lockstep would otherwise pass the size check.

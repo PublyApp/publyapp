@@ -47,7 +47,7 @@ const packageCommand = (value: JsonValue, index: number): NonVitestCommand => {
 	return command(index + 1, [file === 'pnpm' ? pnpm : file, ...args]);
 };
 
-export const NON_VITEST_COMMAND_COUNT = 32;
+export const NON_VITEST_COMMAND_COUNT = 33;
 export const NON_VITEST_COMMANDS = packageInventory.map(packageCommand);
 
 export const validateNonVitestManifest = (
@@ -55,7 +55,7 @@ export const validateNonVitestManifest = (
 ): void => {
 	if (commands.length !== NON_VITEST_COMMAND_COUNT) {
 		throw new Error(
-			'non-Vitest command manifest must contain exactly 32 commands',
+			'non-Vitest command manifest must contain exactly 33 commands',
 		);
 	}
 	for (const [index, expected] of NON_VITEST_COMMANDS.entries()) {
